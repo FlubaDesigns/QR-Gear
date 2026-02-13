@@ -69,6 +69,8 @@ import AdventQRShirts from "@/pages/advent-qr-shirts";
 import BandDynamicMerch from "@/pages/band-dynamic-merch";
 import RealtorQRShirts from "@/pages/realtor-qr-shirts";
 import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
+import PrivacyPolicy from "@/pages/privacy";
+import TermsOfService from "@/pages/terms";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
@@ -175,6 +177,8 @@ function Router() {
       <Route path="/realtor-qr-shirts" component={RealtorQRShirts} />
       <Route path="/business-analytics-qr" component={BusinessAnalyticsQR} />
       <Route path="/logo-preview" component={LogoPreview} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
       <Route component={NotFound} />
     </Switch>
   );

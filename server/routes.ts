@@ -6402,6 +6402,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { loc: '/build', priority: '0.9', changefreq: 'weekly' },
         { loc: '/gallery', priority: '0.8', changefreq: 'daily' },
         { loc: '/cart', priority: '0.5', changefreq: 'weekly' },
+        { loc: '/privacy', priority: '0.4', changefreq: 'monthly' },
+        { loc: '/terms', priority: '0.4', changefreq: 'monthly' },
+        { loc: '/qr-basics', priority: '0.7', changefreq: 'monthly' },
+        { loc: '/qr-plus', priority: '0.7', changefreq: 'monthly' },
+        { loc: '/qr-canvas', priority: '0.7', changefreq: 'monthly' },
+        { loc: '/qr-play', priority: '0.7', changefreq: 'monthly' },
+        { loc: '/earn', priority: '0.6', changefreq: 'monthly' },
       ];
       
       const productPages: SitemapPage[] = enabledProducts.map(p => ({

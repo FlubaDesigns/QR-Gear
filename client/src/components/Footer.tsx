@@ -1,6 +1,6 @@
 import { Link } from "wouter";
-import { QrCode, Mail, MapPin, Phone } from "lucide-react";
-import { SiFacebook, SiInstagram, SiX } from "react-icons/si";
+import { QrCode, Mail, MapPin } from "lucide-react";
+import { SiFacebook, SiInstagram, SiX, SiTiktok, SiYoutube } from "react-icons/si";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -18,13 +18,19 @@ export default function Footer() {
               Custom QR code merchandise with USA options. Bridge the physical and digital world.
             </p>
             <div className="footer__social">
-              <a href="#" aria-label="Facebook" className="footer__social-link" data-testid="link-facebook">
+              <a href="https://www.facebook.com/ShopQRGear" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="footer__social-link" data-testid="link-facebook">
                 <SiFacebook className="w-5 h-5" />
               </a>
-              <a href="#" aria-label="Instagram" className="footer__social-link" data-testid="link-instagram">
+              <a href="https://www.instagram.com/ShopQRGear" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="footer__social-link" data-testid="link-instagram">
                 <SiInstagram className="w-5 h-5" />
               </a>
-              <a href="#" aria-label="X" className="footer__social-link" data-testid="link-x">
+              <a href="https://www.tiktok.com/@qrgear" target="_blank" rel="noopener noreferrer" aria-label="TikTok" className="footer__social-link" data-testid="link-tiktok">
+                <SiTiktok className="w-5 h-5" />
+              </a>
+              <a href="https://www.youtube.com/@GetTheGear" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="footer__social-link" data-testid="link-youtube">
+                <SiYoutube className="w-5 h-5" />
+              </a>
+              <a href="https://x.com/ShopQRGear" target="_blank" rel="noopener noreferrer" aria-label="X" className="footer__social-link" data-testid="link-x">
                 <SiX className="w-5 h-5" />
               </a>
             </div>
@@ -40,12 +46,12 @@ export default function Footer() {
           </div>
 
           <div className="footer__col">
-            <h4 className="footer__heading">Support</h4>
+            <h4 className="footer__heading">Learn More</h4>
             <nav className="footer__nav">
-              <a href="#" className="footer__link" data-testid="footer-link-faq">FAQ</a>
-              <a href="#" className="footer__link" data-testid="footer-link-shipping">Shipping Info</a>
-              <a href="#" className="footer__link" data-testid="footer-link-returns">Returns</a>
-              <a href="#" className="footer__link" data-testid="footer-link-contact">Contact Us</a>
+              <Link href="/qr-basics" className="footer__link" data-testid="footer-link-qr-basics">QR Basics</Link>
+              <Link href="/qr-plus" className="footer__link" data-testid="footer-link-qr-plus">QR Plus</Link>
+              <Link href="/qr-canvas" className="footer__link" data-testid="footer-link-qr-canvas">QR Canvas</Link>
+              <Link href="/qr-play" className="footer__link" data-testid="footer-link-qr-play">QR Play</Link>
             </nav>
           </div>
 
@@ -54,7 +60,7 @@ export default function Footer() {
             <div className="footer__contact">
               <div className="footer__contact-item">
                 <Mail className="w-4 h-4" />
-                <span>support@qrgear.com</span>
+                <a href="mailto:info@qrgear.com" className="footer__link" data-testid="footer-link-email">info@qrgear.com</a>
               </div>
               <div className="footer__contact-item">
                 <MapPin className="w-4 h-4" />
@@ -73,8 +79,8 @@ export default function Footer() {
         <div className="footer__bottom">
           <div className="footer__legal">
             <span>{currentYear} QRGear.com. All rights reserved.</span>
-            <a href="#" className="footer__link">Privacy Policy</a>
-            <a href="#" className="footer__link">Terms of Service</a>
+            <Link href="/privacy" className="footer__link" data-testid="footer-link-privacy">Privacy Policy</Link>
+            <Link href="/terms" className="footer__link" data-testid="footer-link-terms">Terms of Service</Link>
           </div>
           <div className="footer__powered">
             <span>Powered by Printify</span>
