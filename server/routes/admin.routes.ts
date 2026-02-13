@@ -1630,6 +1630,96 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  app.post("/api/admin/products/sync", isAdmin, async (req: any, res) => {
+    try {
+      console.log('[AdminProducts] Sync requested');
+      const { printify } = await import("../lib/printify");
+      const { detectCategory } = await import("../lib/printify");
+
+      if (!printify) {
+        return res.status(503).json({ error: "Printify API not configured" });
+      }
+
+      const latestSync = await storage.getLatestCatalogSync();
+      if (latestSync?.status === 'running') {
+        return res.status(409).json({ error: "Sync already in progress" });
+      }
+
+      const syncRecord = await storage.createCatalogSync({
+        syncType: 'full',
+        status: 'running',
+        blueprintsCount: 0,
+        providersCount: 0,
+      });
+
+      res.json({ syncId: syncRecord.id, synced: 0, status: 'started', message: "Catalog sync started in background" });
+
+      (async () => {
+        try {
+          console.log('[AdminProducts] Starting full catalog sync...');
+          const blueprints = await printify.getCatalogBlueprints();
+          console.log(`[AdminProducts] Found ${blueprints.length} blueprints`);
+
+          let blueprintsCount = 0;
+          let providersCount = 0;
+
+          for (const bp of blueprints) {
+            try {
+              await storage.upsertPrintifyBlueprint({
+                id: bp.id,
+                title: bp.title,
+                description: bp.description || null,
+                brand: bp.brand || null,
+                model: bp.model || null,
+                images: bp.images || null,
+                primaryImageUrl: bp.images?.[0] || null,
+                category: detectCategory(bp.title, bp.brand || ''),
+              });
+              blueprintsCount++;
+
+              const providers = await printify.getPrintProviders(bp.id);
+              for (const provider of providers) {
+                const isUSA = provider.location?.country === 'US' ||
+                              provider.location?.country === 'USA';
+                await storage.upsertPrintifyPrintProvider({
+                  blueprintId: bp.id,
+                  providerId: provider.id,
+                  title: provider.title,
+                  country: provider.location?.country || null,
+                  isUSA,
+                });
+                providersCount++;
+              }
+
+              await new Promise(r => setTimeout(r, 100));
+            } catch (bpError: any) {
+              console.error(`[AdminProducts] Error syncing blueprint ${bp.id}:`, bpError.message);
+            }
+          }
+
+          await storage.updateCatalogSync(syncRecord.id, {
+            status: 'completed',
+            blueprintsCount,
+            providersCount,
+            completedAt: new Date(),
+          });
+
+          console.log(`[AdminProducts] Sync completed. ${blueprintsCount} blueprints, ${providersCount} providers`);
+        } catch (bgError: any) {
+          console.error('[AdminProducts] Background sync error:', bgError.message);
+          await storage.updateCatalogSync(syncRecord.id, {
+            status: 'failed',
+            errorMessage: bgError.message,
+            completedAt: new Date(),
+          });
+        }
+      })();
+    } catch (error: any) {
+      console.error('[AdminProducts] Sync error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============ PRODUCT CATEGORIES ENDPOINTS ============
 
   // Admin: Get ALL product categories (including inactive)
