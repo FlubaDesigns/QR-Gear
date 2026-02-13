@@ -60,14 +60,6 @@ function AdminQuickAccess() {
         <Palette className="w-4 h-4" />
         Canvas Packet
       </Link>
-      <Link href="/admin/dynamics" className="admin-quick-link" data-testid="link-dynamics">
-        <Layers className="w-4 h-4" />
-        QR Dynamics
-      </Link>
-      <Link href="/admin/ar-demo" className="admin-quick-link" data-testid="link-ar-demo">
-        <Box className="w-4 h-4" />
-        AR Demo
-      </Link>
     </div>
   );
 }
