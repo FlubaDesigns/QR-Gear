@@ -7999,9 +7999,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  // Test endpoint: Generate mockups at all 3 sizes for comparison
-  // Temporarily public for testing - TODO: add isAdmin back
-  app.post("/api/admin/test-mockup-sizes", async (req: any, res) => {
+  app.post("/api/admin/test-mockup-sizes", isAdmin, async (req: any, res) => {
     try {
       const { productId, color } = req.body;
       
@@ -10345,7 +10343,8 @@ ${allPages.map(page => `  <url>
       }
       // Allow if user is accessing their own data OR is admin
       const isOwnData = decodedToken.uid === memberId;
-      const isAdmin = decodedToken.email === "perceys@gmail.com"; // TODO: check proper admin list
+      const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
+      const isAdmin = adminIds.includes(decodedToken.uid);
       
       if (!isOwnData && !isAdmin) {
         return { authorized: false, error: "Access denied" };
