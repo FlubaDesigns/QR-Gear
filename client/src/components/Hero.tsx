@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import { QRButton } from "@/components/QRButton";
-import blackFrontMockup from "@assets/generated_images/printful_black_front_mockup.jpg";
+import tshirtHeroMockup from "@assets/generated_images/tshirt_qr_hero_mockup.png";
 import navyLifestyleMockup from "@assets/generated_images/printful_navy_lifestyle_mockup.jpg";
 import hoodieImage from "@assets/generated_images/navy_hoodie_with_qr_code.png";
 import capImage from "@assets/generated_images/Phone_scanning_QR_cap_37352447.png";
@@ -92,8 +92,8 @@ export default function Hero() {
           <div className="flex gap-4 items-center">
             <div className="product__media flex-1">
               <img 
-                src={blackFrontMockup} 
-                alt="QR Gear crew tee with QR code mockup" 
+                src={tshirtHeroMockup} 
+                alt="QR Gear t-shirt with SCAN ME header, QR code, and qrgear.com footer" 
                 data-testid="img-hero-product"
               />
             </div>
