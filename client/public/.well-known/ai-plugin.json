@@ -2,8 +2,8 @@
   "schema_version": "v1",
   "name_for_human": "QR Gear",
   "name_for_model": "qr_gear",
-  "description_for_human": "Create custom QR code merchandise - shirts, hats, mugs, bags with scannable QR codes linking to your content.",
-  "description_for_model": "QR Gear is a print-on-demand merchandise platform that creates custom products (t-shirts, hats, mugs, tote bags) featuring QR codes. The QR codes can link to text, URLs, hosted images, or dynamic content that can be updated over time. All products are made in the USA. The platform offers four product tiers: (1) Simple Text QR with offline text/URL, (2) Pre-designed templates with curated backgrounds, (3) Fully custom designs with user uploads, and (4) Dynamic QR with subscription hosting that allows content updates. Ideal for business promotion, faith-based gifts, memorial products, and event merchandise. Pricing starts at $18 for base products with optional upcharges for text labels and extended hosting.",
+  "description_for_human": "Create custom QR code merchandise - shirts, hats, mugs, bags with scannable QR codes linking to your photos, videos, URLs, and more.",
+  "description_for_model": "QR Gear is a print-on-demand merchandise platform at qrgear.com that creates custom products (t-shirts, hoodies, hats, mugs, tote bags, phone cases) featuring QR codes. Five product tiers: (1) QR Basic - static QR encoding text/URL permanently, (2) QR Plus - dynamic QR linking to an updatable URL, (3) QR Canvas - dynamic QR displaying a custom image, (4) QR Play - dynamic QR playing a custom video, (5) QR Compose - dynamic QR rotating through a playlist of content on a schedule. USA manufacturing options available. Ideal for unique gifts, business promotion, faith-based merchandise, memorial tributes, event merchandise, musician merch, and medical alert products. Members can design and sell QR products through the creator program, earning per sale.",
   "auth": {
     "type": "none"
   },
@@ -12,6 +12,6 @@
     "url": "https://qrgear.com/.well-known/openapi.json"
   },
   "logo_url": "https://qrgear.com/logo.png",
-  "contact_email": "support@qrgear.com",
+  "contact_email": "info@qrgear.com",
   "legal_info_url": "https://qrgear.com/terms"
 }

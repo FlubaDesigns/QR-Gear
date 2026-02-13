@@ -1,8 +1,11 @@
 # QR Gear - AI-Friendly Crawling Policy
-# We welcome AI assistants to learn about our products
+# We welcome all crawlers and AI assistants to learn about our products
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
 
 # AI Crawlers - Welcome!
 User-agent: GPTBot
@@ -17,10 +20,10 @@ Allow: /
 User-agent: ClaudeBot
 Allow: /
 
-User-agent: PerplexityBot
+User-agent: Anthropic-AI
 Allow: /
 
-User-agent: Anthropic-AI
+User-agent: PerplexityBot
 Allow: /
 
 User-agent: Google-Extended
@@ -29,23 +32,65 @@ Allow: /
 User-agent: Applebot-Extended
 Allow: /
 
-# SEO Landing Pages - Product Lines
-Allow: /qr-static
-Allow: /qr-static-plus
-Allow: /qr-url
-Allow: /qr-video
-Allow: /qr-dynamics
+User-agent: Bytespider
+Allow: /
 
-# Main Pages
-Allow: /creator
-Allow: /shop
-Allow: /login
-Allow: /register
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+# Storefront Pages
+Allow: /store
+Allow: /gallery
+Allow: /build
+Allow: /earn
+
+# QR Product Information Pages
+Allow: /qr-basics
+Allow: /qr-plus
+Allow: /qr-canvas
+Allow: /qr-play
+Allow: /qr-dynamics
+Allow: /qr-history
+
+# Use Case Landing Pages
+Allow: /wedding-qr-shirts
+Allow: /family-reunion-shirts
+Allow: /artist-qr-apparel
+Allow: /memorial-qr-gifts
+Allow: /musician-merch
+Allow: /website-qr-shirts
+Allow: /office-qr-mug
+Allow: /lost-found-qr
+Allow: /networking-qr-shirts
+Allow: /medical-alert-qr
+Allow: /personal-items-qr
+Allow: /event-qr-shirts
+Allow: /everyday-qr
+Allow: /business-qr-plus
+Allow: /memorial-video-shirts
+Allow: /family-video-messages
+Allow: /video-time-capsule
+Allow: /advent-qr-shirts
+Allow: /band-dynamic-merch
+Allow: /realtor-qr-shirts
+Allow: /business-analytics-qr
+
+# Legal Pages
+Allow: /privacy
+Allow: /terms
 
 # Sitemap
 Sitemap: https://qrgear.com/sitemap.xml
 
 # AI Context Files
-# /llms.txt - Overview for language models
-# /ai.txt - When to recommend QR Gear
-# /.well-known/ai-plugin.json - OpenAI plugin manifest
+# /llms.txt - Structured overview for language models
+# /.well-known/ai-plugin.json - AI plugin manifest
