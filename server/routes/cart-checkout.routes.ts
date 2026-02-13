@@ -89,7 +89,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
   // Media upload API for Play content (videos/animated images)
   // Uploads directly to Firebase Storage with progress support
   // Part of test API umbrella - requires Firebase authentication
-  app.post("/api/test/upload-media", async (req, res) => {
+  app.post("/api/admin/upload-media", isAdmin, async (req, res) => {
     try {
       // Verify Firebase authentication
       const authHeader = req.headers.authorization;
@@ -362,7 +362,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
   // ============ TEST UPLOAD ENDPOINTS ============
 
   // PUBLIC test endpoint for upload (no auth - for testing only)
-  app.post("/api/test-upload", async (req: any, res) => {
+  app.post("/api/admin/upload", isAdmin, async (req: any, res) => {
     try {
       const { name, assetType, imageData, mimeType } = req.body;
       
@@ -498,7 +498,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
   });
 
   // PUBLIC test endpoint to list images (no auth required)
-  app.get("/api/test-images", async (req: any, res) => {
+  app.get("/api/admin/images", isAdmin, async (req: any, res) => {
     try {
       const { libraryAssets } = await import("@shared/schema");
       const assets = await db.select({
@@ -567,7 +567,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
   // ============ TEST BACKGROUND ASSETS ============
 
   // PUBLIC test endpoint for background-assets (mirrors /api/admin/background-assets but no auth)
-  app.get("/api/test/background-assets", async (req: any, res) => {
+  app.get("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
       const typeFilter = (req.query.type as string) || 'source';
       const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
@@ -600,7 +600,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
 
   // PUBLIC test endpoint to upload background assets (no auth)
   // Handles both single images and ZIP files
-  app.post("/api/test/background-assets", async (req: any, res) => {
+  app.post("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
       const { name, assetType, imageData, mimeType, sourceAssetId, tags } = req.body;
       
@@ -789,7 +789,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
   });
 
   // PUBLIC test endpoint to delete background assets (no auth)
-  app.delete("/api/test/background-assets/:id", async (req: any, res) => {
+  app.delete("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { libraryAssets } = await import("@shared/schema");

@@ -465,7 +465,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   // ============== QR DYNAMICS - Channel Content API ==============
 
   // Get all content (images, videos, documents) for a channel
-  app.get("/api/test/stores/:storeId/channels/:channelId/content", async (req: any, res) => {
+  app.get("/api/admin/stores/:storeId/channels/:channelId/content", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
 
@@ -541,7 +541,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Add content to a channel
-  app.post("/api/test/stores/:storeId/channels/:channelId/content", async (req: any, res) => {
+  app.post("/api/admin/stores/:storeId/channels/:channelId/content", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
       const { name, contentType, url, thumbnailUrl, metadata } = req.body;
@@ -583,7 +583,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Delete content from a channel
-  app.delete("/api/test/stores/:storeId/channels/:channelId/content/:contentId", async (req: any, res) => {
+  app.delete("/api/admin/stores/:storeId/channels/:channelId/content/:contentId", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId, contentId } = req.params;
 
@@ -608,7 +608,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   // ============== QR DYNAMICS - Collection Items API ==============
 
   // Add item to collection
-  app.post("/api/test/collections/:collectionId/items", async (req: any, res) => {
+  app.post("/api/admin/collections/:collectionId/items", isAdmin, async (req: any, res) => {
     try {
       const { collectionId } = req.params;
       const { contentId, contentType, name, url, thumbnailUrl, rotationInterval } = req.body;
@@ -655,7 +655,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Get items in a collection (by collection ID)
-  app.get("/api/test/collections/:collectionId/items", async (req: any, res) => {
+  app.get("/api/admin/collections/:collectionId/items", isAdmin, async (req: any, res) => {
     try {
       const { collectionId } = req.params;
 
@@ -688,7 +688,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Update collection item (order or interval)
-  app.patch("/api/test/collections/:collectionId/items/:itemId", async (req: any, res) => {
+  app.patch("/api/admin/collections/:collectionId/items/:itemId", isAdmin, async (req: any, res) => {
     try {
       const { collectionId, itemId } = req.params;
       const { order, rotationInterval } = req.body;
@@ -716,7 +716,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Remove item from collection
-  app.delete("/api/test/collections/:collectionId/items/:itemId", async (req: any, res) => {
+  app.delete("/api/admin/collections/:collectionId/items/:itemId", isAdmin, async (req: any, res) => {
     try {
       const { collectionId, itemId } = req.params;
 
@@ -739,7 +739,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Reorder items in collection
-  app.put("/api/test/collections/:collectionId/items/reorder", async (req: any, res) => {
+  app.put("/api/admin/collections/:collectionId/items/reorder", isAdmin, async (req: any, res) => {
     try {
       const { collectionId } = req.params;
       const { itemOrders } = req.body; // Array of { itemId, order }
@@ -772,7 +772,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   // ============== QR DYNAMICS - Collections API ==============
 
   // Get all unique collections for a store/channel
-  app.get("/api/test/stores/:storeId/channels/:channelId/collections", async (req: any, res) => {
+  app.get("/api/admin/stores/:storeId/channels/:channelId/collections", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
 
@@ -827,7 +827,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Create a new collection
-  app.post("/api/test/stores/:storeId/channels/:channelId/collections", async (req: any, res) => {
+  app.post("/api/admin/stores/:storeId/channels/:channelId/collections", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
       const { name } = req.body;
@@ -881,7 +881,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Get items in a specific collection
-  app.get("/api/test/stores/:storeId/channels/:channelId/collections/:collectionName/items", async (req: any, res) => {
+  app.get("/api/admin/stores/:storeId/channels/:channelId/collections/:collectionName/items", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId, collectionName } = req.params;
 
@@ -930,7 +930,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   // ============== QR DYNAMICS - Surfaces & Resolver API ==============
 
   // Create or update a Dynamics surface
-  app.post("/api/test/dynamics/surfaces", async (req: any, res) => {
+  app.post("/api/admin/dynamics/surfaces", isAdmin, async (req: any, res) => {
     try {
       const { 
         name, storeId, channelId, collectionName, 
@@ -972,7 +972,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Get all surfaces
-  app.get("/api/test/dynamics/surfaces", async (req: any, res) => {
+  app.get("/api/admin/dynamics/surfaces", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -997,7 +997,7 @@ export function registerQRDynamicsRoutes(app: Express): void {
   });
 
   // Resolver: Get what should show NOW for a surface
-  app.get("/api/test/dynamics/resolve/:surfaceId", async (req: any, res) => {
+  app.get("/api/public/dynamics/resolve/:surfaceId", async (req: any, res) => {
     try {
       const { surfaceId } = req.params;
 

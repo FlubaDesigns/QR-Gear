@@ -1041,7 +1041,7 @@ ${allPages.map(page => `  <url>
 
   // ============ TEST ROUTES ============
 
-  app.post("/api/test/graphics/save", async (req: any, res) => {
+  app.post("/api/admin/graphics/save", isAdmin, async (req: any, res) => {
     try {
       const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId, qrContent, pricing } = req.body;
 
@@ -1107,7 +1107,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/queue/status", async (_req: any, res) => {
+  app.get("/api/admin/queue/status", isAdmin, async (_req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -1133,7 +1133,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/templates/:templateId/mockups", async (req: any, res) => {
+  app.get("/api/admin/templates/:templateId/mockups", isAdmin, async (req: any, res) => {
     try {
       const { templateId } = req.params;
       const { getFirestoreDb } = await import("../lib/firebase-admin");
@@ -1181,7 +1181,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/templates", async (req: any, res) => {
+  app.get("/api/admin/templates", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -1231,7 +1231,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/templates", async (req: any, res) => {
+  app.post("/api/admin/templates", isAdmin, async (req: any, res) => {
     try {
       const { 
         packetId, name, productId, blueprintId, printProviderId,
@@ -1283,7 +1283,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/queue/process", async (req: any, res) => {
+  app.post("/api/admin/queue/process", isAdmin, async (req: any, res) => {
     try {
       const { limit = 5 } = req.body;
       const processLimit = Math.min(limit, 20);
@@ -1433,7 +1433,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/store-product-links", async (req: any, res) => {
+  app.get("/api/admin/store-product-links", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -1458,7 +1458,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/store-product-links", async (req: any, res) => {
+  app.post("/api/admin/store-product-links", isAdmin, async (req: any, res) => {
     try {
       const { 
         storeId, storeName, channel, collection, packetId, templateId, graphicsId, 
@@ -1522,7 +1522,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/stores/:storeId/channels/:channelId/products", async (req: any, res) => {
+  app.get("/api/admin/stores/:storeId/channels/:channelId/products", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
 
@@ -1570,7 +1570,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.patch("/api/test/store-product-links/:linkId", async (req: any, res) => {
+  app.patch("/api/admin/store-product-links/:linkId", isAdmin, async (req: any, res) => {
     try {
       const { linkId } = req.params;
       const updates = req.body;
@@ -1607,7 +1607,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.delete("/api/test/store-product-links/:linkId", async (req: any, res) => {
+  app.delete("/api/admin/store-product-links/:linkId", isAdmin, async (req: any, res) => {
     try {
       const { linkId } = req.params;
 
@@ -3074,7 +3074,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: FULFILLMENT PROVIDERS ============
-  app.get("/api/test/fulfillment-providers", async (req: any, res) => {
+  app.get("/api/admin/fulfillment-providers", isAdmin, async (req: any, res) => {
     try {
       const printifyKey = process.env.PRINTIFY_API_KEY;
       const printfulKey = process.env.PRINTFUL_API_KEY;
@@ -3113,7 +3113,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PRODUCTS ============
-  app.get("/api/test/products", async (req: any, res) => {
+  app.get("/api/admin/products", isAdmin, async (req: any, res) => {
     try {
       const provider = req.query.provider as string | undefined;
       const { products, printfulProducts } = await import("@shared/schema");
@@ -3148,7 +3148,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/products/sync", async (req: any, res) => {
+  app.post("/api/admin/products/sync", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestProducts] Sync requested');
       const { printify } = await import("../lib/printify");
@@ -3254,7 +3254,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.put("/api/test/products/:id", async (req: any, res) => {
+  app.put("/api/admin/products/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const updateData = req.body;
@@ -3288,7 +3288,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: STORES (Firestore) ============
-  app.get("/api/test/stores", async (req: any, res) => {
+  app.get("/api/admin/stores", isAdmin, async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
       console.log(`[TestStores] GET stores for roleType: ${roleType}`);
@@ -3317,7 +3317,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/stores/by-id/:storeId", async (req: any, res) => {
+  app.get("/api/admin/stores/by-id/:storeId", isAdmin, async (req: any, res) => {
     try {
       const { storeId } = req.params;
       console.log(`[TestStores] GET store by ID: ${storeId}`);
@@ -3363,7 +3363,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/stores", async (req: any, res) => {
+  app.post("/api/admin/stores", isAdmin, async (req: any, res) => {
     try {
       const { name, roleType } = req.body;
       
@@ -3395,7 +3395,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.delete("/api/test/stores/:storeId", async (req: any, res) => {
+  app.delete("/api/admin/stores/:storeId", isAdmin, async (req: any, res) => {
     try {
       const { storeId } = req.params;
       
@@ -3423,7 +3423,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: STORE CHANNELS ============
-  app.get("/api/test/stores/:storeId/channels", async (req: any, res) => {
+  app.get("/api/admin/stores/:storeId/channels", isAdmin, async (req: any, res) => {
     try {
       const { storeId } = req.params;
       console.log(`[TestChannels] GET channels for store: ${storeId}`);
@@ -3453,7 +3453,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/stores/:storeId/channels", async (req: any, res) => {
+  app.post("/api/admin/stores/:storeId/channels", isAdmin, async (req: any, res) => {
     try {
       const { storeId } = req.params;
       const { name } = req.body;
@@ -3483,7 +3483,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.delete("/api/test/stores/:storeId/channels/:channelId", async (req: any, res) => {
+  app.delete("/api/admin/stores/:storeId/channels/:channelId", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
       
@@ -3500,7 +3500,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: ALLOWED PRODUCTS ============
-  app.get("/api/test/stores/:storeId/allowed-products", async (req: any, res) => {
+  app.get("/api/admin/stores/:storeId/allowed-products", isAdmin, async (req: any, res) => {
     try {
       const { storeId } = req.params;
       console.log(`[AllowedProducts] GET allowed products for store: ${storeId}`);
@@ -3526,7 +3526,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/stores/:storeId/allowed-products", async (req: any, res) => {
+  app.post("/api/admin/stores/:storeId/allowed-products", isAdmin, async (req: any, res) => {
     try {
       const { storeId } = req.params;
       const { products } = req.body;
@@ -3656,7 +3656,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PARTNER STORES (Firestore) ============
-  app.get("/api/test/partner-stores", async (req: any, res) => {
+  app.get("/api/admin/partner-stores", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestPartnerStores] GET partner-stores from Firestore');
       const { getFirestoreDb } = await import("../lib/firebase-admin");
@@ -3686,7 +3686,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/partner-stores/:id/products", async (req: any, res) => {
+  app.get("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       console.log(`[TestPartnerStores] GET products for store ${id}`);
@@ -3711,7 +3711,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/partner-stores/:id/products", async (req: any, res) => {
+  app.post("/api/admin/partner-stores/:id/products", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { productIds } = req.body;
@@ -3760,7 +3760,7 @@ ${allPages.map(page => `  <url>
     'shaka wear', 'backpacks usa', 'american giant', 'next level',
   ];
 
-  app.get("/api/test/printify/catalog", async (req: any, res) => {
+  app.get("/api/admin/printify/catalog", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printify catalog');
       const localBlueprints = await storage.getPrintifyBlueprints();
@@ -3848,7 +3848,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/printify/catalog/:blueprintId", async (req: any, res) => {
+  app.get("/api/admin/printify/catalog/:blueprintId", isAdmin, async (req: any, res) => {
     try {
       const { blueprintId } = req.params;
       console.log(`[TestCatalog] GET blueprint details for ${blueprintId}`);
@@ -3891,7 +3891,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/stores/:storeId/channels/:channelId/products", async (req: any, res) => {
+  app.post("/api/admin/stores/:storeId/channels/:channelId/products", isAdmin, async (req: any, res) => {
     try {
       const { storeId, channelId } = req.params;
       const { products } = req.body;
@@ -3929,7 +3929,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PROVIDER COUNTS ============
-  app.get("/api/test/provider-counts", async (req: any, res) => {
+  app.get("/api/admin/provider-counts", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET provider counts');
       const { printfulProducts, printifyPrintProviders } = await import("@shared/schema");
@@ -3952,7 +3952,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: SYNC TO FIRESTORE ============
-  app.post("/api/test/sync-blueprints-to-firestore", async (req: any, res) => {
+  app.post("/api/admin/sync-blueprints-to-firestore", isAdmin, async (req: any, res) => {
     try {
       console.log('[Sync] Starting blueprint sync to Firestore...');
       const { printifyBlueprints } = await import("@shared/schema");
@@ -3992,7 +3992,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/sync-providers-to-firestore", async (req: any, res) => {
+  app.post("/api/admin/sync-providers-to-firestore", isAdmin, async (req: any, res) => {
     try {
       console.log('[Sync] Starting provider sync to Firestore...');
       const { printifyPrintProviders } = await import("@shared/schema");
@@ -4027,7 +4027,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PRINTFUL CATALOG SYNC ============
-  app.post("/api/test/catalog/sync-printful", async (req: any, res) => {
+  app.post("/api/admin/catalog/sync-printful", isAdmin, async (req: any, res) => {
     try {
       console.log('[TEST SYNC] ========================================');
       console.log('[TEST SYNC] STARTING PRINTFUL CATALOG SYNC');
@@ -4061,7 +4061,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/catalog/printful-products", async (req: any, res) => {
+  app.get("/api/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET Printful products');
       const { printfulProducts } = await import("@shared/schema");
@@ -4122,7 +4122,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PRODUCT CONFIGS ============
-  app.get("/api/test/product-configs", async (req: any, res) => {
+  app.get("/api/admin/product-configs", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestProductConfigs] GET real product configs');
       
@@ -4190,7 +4190,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.patch("/api/test/products/:id/options", async (req: any, res) => {
+  app.patch("/api/admin/products/:id/options", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { enabledSizes, enabledColors, defaultColor } = req.body;
@@ -4218,7 +4218,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/products/:id/sync-printify", async (req: any, res) => {
+  app.post("/api/admin/products/:id/sync-printify", isAdmin, async (req: any, res) => {
     try {
       const product = await storage.getProduct(req.params.id);
       if (!product) {
@@ -4281,7 +4281,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: TEMPLATES FULL SAVE ============
-  app.post("/api/test/templates/full-save", async (req: any, res) => {
+  app.post("/api/admin/templates/full-save", isAdmin, async (req: any, res) => {
     try {
       let template: any;
       let colors: any[] = [];
@@ -4368,7 +4368,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PRIORITY MOCKUP ============
-  app.post("/api/test/mockup/priority", async (req: any, res) => {
+  app.post("/api/admin/mockup/priority", isAdmin, async (req: any, res) => {
     try {
       const { 
         blueprintId, printProviderId, colorName, colorHex, 
@@ -4576,7 +4576,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PRICING SETTINGS (test endpoints) ============
-  app.get("/api/test/pricing-settings", async (req: any, res) => {
+  app.get("/api/admin/pricing-settings", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -4624,7 +4624,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/pricing-settings", async (req: any, res) => {
+  app.post("/api/admin/pricing-settings", isAdmin, async (req: any, res) => {
     try {
       const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing } = req.body;
       
@@ -4674,7 +4674,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.post("/api/test/pricing-settings/sync", async (req: any, res) => {
+  app.post("/api/admin/pricing-settings/sync", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -4754,7 +4754,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: PACKETS ============
-  app.post("/api/test/packets", async (req: any, res) => {
+  app.post("/api/admin/packets", isAdmin, async (req: any, res) => {
     try {
       const { 
         qrOnlyUrl, 
@@ -4902,7 +4902,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/packets", async (req: any, res) => {
+  app.get("/api/admin/packets", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -4935,7 +4935,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.get("/api/test/packets/:packetId", async (req: any, res) => {
+  app.get("/api/public/packets/:packetId", async (req: any, res) => {
     try {
       const { packetId } = req.params;
 
@@ -4980,7 +4980,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.patch("/api/test/packets/:packetId", async (req: any, res) => {
+  app.patch("/api/admin/packets/:packetId", isAdmin, async (req: any, res) => {
     try {
       const { packetId } = req.params;
       const updates = req.body;
@@ -5017,7 +5017,7 @@ ${allPages.map(page => `  <url>
     }
   });
 
-  app.delete("/api/test/packets/:packetId", async (req: any, res) => {
+  app.delete("/api/admin/packets/:packetId", isAdmin, async (req: any, res) => {
     try {
       const { packetId } = req.params;
 
@@ -5082,7 +5082,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: LANDING PAGE ============
-  app.get("/api/test/landing/:slug", async (req: any, res) => {
+  app.get("/api/public/landing/:slug", async (req: any, res) => {
     try {
       const { slug } = req.params;
       
@@ -5141,7 +5141,7 @@ ${allPages.map(page => `  <url>
   });
 
   // ============ TEST: CONTENT UPLOAD ============
-  app.post("/api/test/content/upload", async (req: any, res) => {
+  app.post("/api/admin/content/upload", isAdmin, async (req: any, res) => {
     try {
       const { mode, userId, packetId, base64Data, mimeType, fileName } = req.body;
 
