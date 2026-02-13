@@ -2,13 +2,15 @@ import { Link } from "wouter";
 import { useState, useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import { QRButton } from "@/components/QRButton";
-import blueShirtImage from "@assets/generated_images/blue_shirt_qr_lifestyle_flat_lay.png";
+import blackFrontMockup from "@assets/generated_images/printful_black_front_mockup.jpg";
+import navyLifestyleMockup from "@assets/generated_images/printful_navy_lifestyle_mockup.jpg";
 import hoodieImage from "@assets/generated_images/navy_hoodie_with_qr_code.png";
 import capImage from "@assets/generated_images/Phone_scanning_QR_cap_37352447.png";
 import bagImage from "@assets/generated_images/Gym_bag_QR_mockup_9450e53d.png";
 import mugImage from "@assets/generated_images/white_mug_with_qr_code.png";
 
 const productImages = [
+  { src: navyLifestyleMockup, label: "Crew Tee" },
   { src: hoodieImage, label: "Hoodie" },
   { src: capImage, label: "Cap" },
   { src: bagImage, label: "Bag" },
@@ -90,8 +92,8 @@ export default function Hero() {
           <div className="flex gap-4 items-center">
             <div className="product__media flex-1">
               <img 
-                src={blueShirtImage} 
-                alt="QR Gear blue shirt mockup" 
+                src={blackFrontMockup} 
+                alt="QR Gear crew tee with QR code mockup" 
                 data-testid="img-hero-product"
               />
             </div>
