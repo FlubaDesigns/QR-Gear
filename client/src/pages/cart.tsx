@@ -169,7 +169,7 @@ export default function Cart() {
               <p className="text-muted-foreground mb-6">
                 Start creating custom QR products to add them here
               </p>
-              <Link href="/creator">
+              <Link href="/build">
                 <Button data-testid="button-start-creating">
                   <Plus className="w-4 h-4 mr-2" />
                   Start Creating
@@ -312,7 +312,7 @@ export default function Cart() {
                     {isAuthenticated ? "Proceed to Checkout" : "Sign in to Checkout"}
                   </Button>
 
-                  <Link href="/creator" className="block">
+                  <Link href="/build" className="block">
                     <Button variant="outline" className="w-full" data-testid="button-continue-shopping">
                       Continue Shopping
                     </Button>

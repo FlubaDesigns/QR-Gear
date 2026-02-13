@@ -126,7 +126,7 @@ export default function Gallery() {
               Be the first to share your design! Create a custom QR code product and 
               choose to share it with the community.
             </p>
-            <Link href="/creator">
+            <Link href="/build">
               <Button data-testid="button-create-design">
                 Create Your Design
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -141,7 +141,7 @@ export default function Gallery() {
             Design your custom QR code merchandise in minutes. Choose from shirts, hats, 
             mugs, bags and more - all made in the USA.
           </p>
-          <Link href="/creator">
+          <Link href="/build">
             <Button size="lg" data-testid="button-start-creating">
               Start Creating
               <ArrowRight className="w-4 h-4 ml-2" />

@@ -112,7 +112,7 @@ export default function QRHistory() {
           <div className="glass-card cta-card premium">
             <h2>Ready to Make History?</h2>
             <p>Join the next chapter of QR technology. Create custom gear that tells your story.</p>
-            <Link href="/creator">
+            <Link href="/build">
               <QRButton variant="accent" size="default" data-testid="button-start-creating">
                 Start Creating
               </QRButton>

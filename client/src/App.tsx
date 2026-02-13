@@ -90,7 +90,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/creator" component={BuildPage} />
+      <Route path="/build" component={BuildPage} />
       <Route path="/store" component={Store} />
       <Route path="/gallery" component={Gallery} />
       <Route path="/cart" component={Cart} />

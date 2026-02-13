@@ -510,7 +510,7 @@ function ProductQuickView({
               </Button>
               
               {product.isCustomizable !== false && (
-                <Link href={`/creator?product=${product.id}`}>
+                <Link href={`/build?product=${product.id}`}>
                   <Button variant="outline" className="w-full h-12" data-testid="button-customize-design">
                     Customize Design
                   </Button>

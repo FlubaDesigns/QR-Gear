@@ -212,7 +212,7 @@ export default function CheckoutSuccess() {
               View My Orders
             </Button>
           </Link>
-          <Link href="/creator">
+          <Link href="/build">
             <Button className="w-full sm:w-auto" data-testid="button-create-more">
               Create More Products
               <ArrowRight className="w-4 h-4 ml-2" />

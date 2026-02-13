@@ -82,7 +82,7 @@ export default function Checkout() {
               <p className="text-muted-foreground mb-6">
                 Add items to your cart before checking out
               </p>
-              <Link href="/creator">
+              <Link href="/build">
                 <Button data-testid="button-start-shopping">Start Shopping</Button>
               </Link>
             </CardContent>

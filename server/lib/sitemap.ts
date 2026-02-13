@@ -11,7 +11,7 @@ const BASE_URL = process.env.SITE_URL || "https://qrgear.com";
 
 const staticPages: SitemapUrl[] = [
   { loc: "/", changefreq: "daily", priority: 1.0 },
-  { loc: "/creator", changefreq: "weekly", priority: 0.9 },
+  { loc: "/build", changefreq: "weekly", priority: 0.9 },
   { loc: "/shop", changefreq: "daily", priority: 0.9 },
   { loc: "/qr-static", changefreq: "monthly", priority: 0.8 },
   { loc: "/qr-static-plus", changefreq: "monthly", priority: 0.8 },

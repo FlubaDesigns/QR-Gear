@@ -77,7 +77,7 @@ export default function Navbar() {
 
   const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/creator", label: "Create" },
+    { href: "/build", label: "Create" },
     { href: "/gallery", label: "Shop" },
   ];
 
@@ -157,7 +157,7 @@ export default function Navbar() {
               </Button>
             </Link>
 
-            <Link href="/creator" className="hidden sm:block">
+            <Link href="/build" className="hidden sm:block">
               <QRButton variant="accent" size="small" data-testid="button-get-started">
                 Get Started
               </QRButton>
@@ -246,7 +246,7 @@ export default function Navbar() {
                 )}
               </div>
 
-              <Link href="/creator" className="mt-4 md:hidden" onClick={() => setMenuOpen(false)}>
+              <Link href="/build" className="mt-4 md:hidden" onClick={() => setMenuOpen(false)}>
                 <QRButton variant="accent" className="w-full" data-testid="mobile-get-started">
                   Get Started
                 </QRButton>

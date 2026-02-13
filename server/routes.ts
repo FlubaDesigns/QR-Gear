@@ -6399,7 +6399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const staticPages: SitemapPage[] = [
         { loc: '/', priority: '1.0', changefreq: 'daily' },
         { loc: '/store', priority: '0.9', changefreq: 'daily' },
-        { loc: '/creator', priority: '0.9', changefreq: 'weekly' },
+        { loc: '/build', priority: '0.9', changefreq: 'weekly' },
         { loc: '/gallery', priority: '0.8', changefreq: 'daily' },
         { loc: '/cart', priority: '0.5', changefreq: 'weekly' },
       ];

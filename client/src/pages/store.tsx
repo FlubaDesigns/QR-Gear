@@ -290,7 +290,7 @@ export default function Store() {
                       
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-muted-foreground">Build to see price</span>
-                        <Link href="/creator">
+                        <Link href="/build">
                           <Button 
                             size="sm"
                             data-testid={`button-customize-${product.id}`}

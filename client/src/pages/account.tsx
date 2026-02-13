@@ -233,7 +233,7 @@ export default function Account() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/creator">
+              <Link href="/build">
                 <Button className="btn btn-gold gap-2" data-testid="button-create-new">
                   <Plus className="w-4 h-4" />
                   Create New Design
@@ -336,7 +336,7 @@ export default function Account() {
                   <p className="text-muted-foreground mb-6">
                     Start creating custom QR code merchandise!
                   </p>
-                  <Link href="/creator">
+                  <Link href="/build">
                     <Button className="btn btn-gold" data-testid="button-start-creating">
                       Start Creating
                     </Button>
@@ -416,7 +416,7 @@ export default function Account() {
                       )}
 
                       <div className="flex items-center gap-2 pt-2">
-                        <Link href="/creator">
+                        <Link href="/build">
                           <Button variant="outline" size="sm" className="gap-1" data-testid={`button-reorder-${order.id}`}>
                             <RefreshCw className="w-3 h-3" />
                             Reorder Similar
@@ -445,7 +445,7 @@ export default function Account() {
                   <p className="text-muted-foreground mb-6">
                     Save your QR designs to reorder them later
                   </p>
-                  <Link href="/creator">
+                  <Link href="/build">
                     <Button className="btn btn-gold" data-testid="button-create-design">
                       Create a Design
                     </Button>
@@ -493,7 +493,7 @@ export default function Account() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2 mt-4">
-                          <Link href="/creator" className="flex-1">
+                          <Link href="/build" className="flex-1">
                             <Button variant="outline" className="w-full gap-1" size="sm" data-testid={`button-reorder-${design.id}`}>
                               <Edit className="w-3 h-3" />
                               Reorder
@@ -652,7 +652,7 @@ export default function Account() {
                   <p className="text-muted-foreground mb-6">
                     Create a Dynamic QR product to get a page you can update anytime!
                   </p>
-                  <Link href="/creator">
+                  <Link href="/build">
                     <Button className="btn btn-gold" data-testid="button-create-dynamic">
                       Create Dynamic QR
                     </Button>
@@ -753,7 +753,7 @@ export default function Account() {
                     <p className="font-medium text-foreground truncate">{product.name}</p>
                     <p className="text-sm text-muted-foreground">${product.basePrice}</p>
                     <Badge variant="outline" className="mt-2">{product.category}</Badge>
-                    <Link href="/creator">
+                    <Link href="/build">
                       <Button className="w-full mt-3" variant="outline" size="sm" data-testid={`button-customize-${product.id}`}>
                         Customize
                       </Button>

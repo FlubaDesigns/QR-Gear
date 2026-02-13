@@ -15,7 +15,7 @@ interface RouteConfig {
 const routeMap: Record<string, RouteConfig> = {
   "/": { label: "Home", icon: Home },
   
-  "/creator": { label: "Creator", parent: "/", icon: PenTool },
+  "/build": { label: "Create", parent: "/", icon: PenTool },
   "/store": { label: "Store", parent: "/", icon: Store },
   "/gallery": { label: "Gallery", parent: "/", icon: Image },
   "/cart": { label: "Cart", parent: "/", icon: ShoppingBag },
@@ -104,7 +104,7 @@ export function getBreadcrumbs(path: string, dynamicLabel?: string): BreadcrumbI
   
   if (normalizedPath.startsWith("/customs/")) {
     crumbs.push({ label: "Home", href: "/", icon: Home });
-    crumbs.push({ label: "Creator", href: "/creator", icon: PenTool });
+    crumbs.push({ label: "Create", href: "/build", icon: PenTool });
     crumbs.push({ label: dynamicLabel || "Customize", href: normalizedPath, icon: Palette });
     return crumbs;
   }

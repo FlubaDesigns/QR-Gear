@@ -62,7 +62,7 @@ export default function MarketingMessage() {
         </div>
 
         <div className="section-cta">
-          <Link href="/creator">
+          <Link href="/build">
             <QRButton variant="accent" size="default" data-testid="button-create-your-gear">
               Create Your Gear
             </QRButton>
