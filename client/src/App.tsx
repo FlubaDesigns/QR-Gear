@@ -77,7 +77,6 @@ import AdminARDemo from "@/pages/admin-ar-demo";
 import AdminDynamics from "@/pages/admin-dynamics";
 import FontManagement from "@/pages/admin-fonts";
 import Members from "@/features/members/MembersPage";
-import TestCanvasPacket from "@/pages/test-canvas-packet";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
@@ -144,7 +143,6 @@ function Router() {
       <Route path="/admin/store-library" component={AdminStoreLibrary} />
       <Route path="/admin/ar-demo" component={AdminARDemo} />
       <Route path="/admin/fonts" component={FontManagement} />
-      <Route path="/admin/test-canvas-packet" component={TestCanvasPacket} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />

@@ -380,13 +380,6 @@ export default function AdminDashboard() {
               </Link>
             </div>
 
-            <h3 className="text-sm font-medium text-muted-foreground mt-6 mb-2">Test Pages (Under Review)</h3>
-            <div className="qr-admin-quicklinks">
-              <Link href="/admin/test-canvas-packet" className="qr-admin-quicklink" data-testid="link-test-canvas-packet">
-                <Palette className="qr-admin-quicklink__icon" />
-                <span>Canvas Packet</span>
-              </Link>
-            </div>
           </>
         )}
       </main>

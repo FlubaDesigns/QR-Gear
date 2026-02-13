@@ -56,10 +56,6 @@ function AdminQuickAccess() {
         <Store className="w-4 h-4" />
         Store Builder
       </Link>
-      <Link href="/admin/test-canvas-packet" className="admin-quick-link" data-testid="link-test-canvas-packet">
-        <Palette className="w-4 h-4" />
-        Canvas Packet
-      </Link>
     </div>
   );
 }
