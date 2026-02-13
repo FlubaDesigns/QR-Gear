@@ -470,16 +470,15 @@ export type { PrintfulProduct, PrintfulVariant, PrintfulMockupResult, PrintfulMo
  * Sync Printful catalog to local database
  * This populates the printful_products and printful_variants tables
  */
-export async function syncPrintfulCatalog(db: any, options?: { productIds?: number[] }): Promise<{
+export async function syncPrintfulCatalog(options?: { productIds?: number[] }): Promise<{
   productsAdded: number;
   productsUpdated: number;
   variantsAdded: number;
   variantsUpdated: number;
   errors: string[];
 }> {
-  const { printfulProducts, printfulVariants } = await import('@shared/schema');
-  const { eq } = await import('drizzle-orm');
-  
+  const { fsGet, fsUpsert } = await import('./firestore-crud');
+
   const result = {
     productsAdded: 0,
     productsUpdated: 0,
@@ -496,7 +495,6 @@ export async function syncPrintfulCatalog(db: any, options?: { productIds?: numb
   try {
     console.log('[Printful Sync] Starting catalog sync...');
     
-    // Get all products from Printful
     const allProducts = await printfulClient.getProducts();
     const productsToSync = options?.productIds 
       ? allProducts.filter(p => options.productIds!.includes(p.id))
@@ -506,18 +504,14 @@ export async function syncPrintfulCatalog(db: any, options?: { productIds?: numb
 
     for (const product of productsToSync) {
       try {
-        // Check if product exists
-        const existing = await db.select().from(printfulProducts).where(eq(printfulProducts.id, product.id)).limit(1);
+        const existing = await fsGet('printful_products', String(product.id));
         
-        // Get detailed product info with variants
         const details = await printfulClient.getProduct(product.id);
         
-        // Get printfile info for dimensions
         let printfileInfo: any = null;
         try {
           printfileInfo = await printfulClient.getPrintfiles(product.id);
         } catch (e) {
-          // Some products don't support printfiles
         }
 
         const productData = {
@@ -542,17 +536,15 @@ export async function syncPrintfulCatalog(db: any, options?: { productIds?: numb
           lastSyncedAt: new Date(),
         };
 
-        if (existing.length > 0) {
-          await db.update(printfulProducts).set(productData).where(eq(printfulProducts.id, product.id));
+        await fsUpsert('printful_products', String(product.id), productData);
+        if (existing) {
           result.productsUpdated++;
         } else {
-          await db.insert(printfulProducts).values(productData);
           result.productsAdded++;
         }
 
-        // Sync variants
         for (const variant of details.variants) {
-          const existingVariant = await db.select().from(printfulVariants).where(eq(printfulVariants.id, variant.id)).limit(1);
+          const existingVariant = await fsGet('printful_variants', String(variant.id));
           
           const variantData = {
             id: variant.id,
@@ -569,17 +561,14 @@ export async function syncPrintfulCatalog(db: any, options?: { productIds?: numb
             lastSyncedAt: new Date(),
           };
 
-          if (existingVariant.length > 0) {
-            await db.update(printfulVariants).set(variantData).where(eq(printfulVariants.id, variant.id));
+          await fsUpsert('printful_variants', String(variant.id), variantData);
+          if (existingVariant) {
             result.variantsUpdated++;
           } else {
-            await db.insert(printfulVariants).values(variantData);
             result.variantsAdded++;
           }
         }
 
-        // Rate limiting - Printful has 120 requests/min limit
-        // Each product makes ~3 API calls, so wait 2 seconds between products
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (productError: any) {

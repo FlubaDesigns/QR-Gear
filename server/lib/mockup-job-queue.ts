@@ -1,6 +1,5 @@
-import { db } from "../db";
-import { mockupJobs, products, type MockupJob, type InsertMockupJob } from "@shared/schema";
-import { eq, and, lte, or, asc, desc } from "drizzle-orm";
+import { fsGet, fsGetAll, fsQuery, fsQueryOne, fsInsert, fsUpdate, fsDelete, fsDeleteWhere } from "./firestore-crud";
+import { type MockupJob, type InsertMockupJob } from "@shared/schema";
 import { generatePrintfulMockup } from "./mockup-service";
 
 interface JobResult {
@@ -50,7 +49,7 @@ export class MockupJobQueue {
       artworkVariant: params.artworkVariant,
     };
 
-    const [job] = await db.insert(mockupJobs).values({
+    const job = await fsInsert('mockup_jobs', {
       productId: params.productId,
       colorName: params.colorName,
       qrSize: params.qrSize,
@@ -60,7 +59,7 @@ export class MockupJobQueue {
       priority: params.priority ?? 10,
       attempts: 0,
       maxAttempts: 5,
-    }).returning();
+    });
 
     return job;
   }
@@ -103,18 +102,16 @@ export class MockupJobQueue {
   }
 
   async getJob(jobId: string): Promise<MockupJob | null> {
-    const [job] = await db.select().from(mockupJobs).where(eq(mockupJobs.id, jobId));
+    const job = await fsGet('mockup_jobs', jobId);
     return job || null;
   }
 
   async getJobsByProduct(productId: string): Promise<MockupJob[]> {
-    return db.select().from(mockupJobs)
-      .where(eq(mockupJobs.productId, productId))
-      .orderBy(asc(mockupJobs.priority), asc(mockupJobs.createdAt));
+    return fsQuery('mockup_jobs', [['productId', '==', productId]], 'priority', 'asc');
   }
 
   async getStats(): Promise<QueueStats> {
-    const allJobs = await db.select().from(mockupJobs);
+    const allJobs = await fsGetAll('mockup_jobs');
     return {
       pending: allJobs.filter(j => j.status === "pending").length,
       processing: allJobs.filter(j => j.status === "processing").length,
@@ -134,37 +131,27 @@ export class MockupJobQueue {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minute TTL
     
-    // Find the job for this color + qrSize + placement combo
-    const [existingJob] = await db.select().from(mockupJobs)
-      .where(
-        and(
-          eq(mockupJobs.productId, params.productId),
-          eq(mockupJobs.colorName, params.colorName),
-          eq(mockupJobs.qrSize, params.qrSize),
-          eq(mockupJobs.placement, params.placement)
-        )
-      )
-      .limit(1);
+    const existingJob = await fsQueryOne('mockup_jobs', [
+      ['productId', '==', params.productId],
+      ['colorName', '==', params.colorName],
+      ['qrSize', '==', params.qrSize],
+      ['placement', '==', params.placement],
+    ]);
     
     if (!existingJob) {
       return null;
     }
     
-    // Only bump if job is still pending or delayed
     if (existingJob.status !== "pending" && existingJob.status !== "delayed") {
-      return existingJob; // Already processing/completed/failed
+      return existingJob;
     }
     
-    // Set priority to -1 (highest) and update tracking fields
-    const [updatedJob] = await db.update(mockupJobs)
-      .set({
-        priority: -1,
-        priorityUpdatedAt: now,
-        priorityOwner: params.viewerId,
-        priorityExpiresAt: expiresAt,
-      })
-      .where(eq(mockupJobs.id, existingJob.id))
-      .returning();
+    const updatedJob = await fsUpdate('mockup_jobs', existingJob.id, {
+      priority: -1,
+      priorityUpdatedAt: now,
+      priorityOwner: params.viewerId,
+      priorityExpiresAt: expiresAt,
+    });
     
     console.log(`[MockupQueue] Bumped priority for ${params.colorName}/${params.qrSize}/${params.placement} (job ${existingJob.id})`);
     return updatedJob;
@@ -173,73 +160,69 @@ export class MockupJobQueue {
   async getNextJob(): Promise<MockupJob | null> {
     const now = new Date();
     
-    // Order by priority first, then by priorityUpdatedAt (most recently boosted), then createdAt
-    const [job] = await db.select().from(mockupJobs)
-      .where(
-        or(
-          eq(mockupJobs.status, "pending"),
-          and(
-            eq(mockupJobs.status, "delayed"),
-            lte(mockupJobs.nextRetryAt, now)
-          )
-        )
-      )
-      .orderBy(asc(mockupJobs.priority), desc(mockupJobs.priorityUpdatedAt), asc(mockupJobs.createdAt))
-      .limit(1);
+    const pendingJobs = await fsQuery('mockup_jobs', [['status', '==', 'pending']], 'priority', 'asc');
+    const delayedJobs = await fsQuery('mockup_jobs', [['status', '==', 'delayed']], 'priority', 'asc');
+    
+    const eligibleDelayed = delayedJobs.filter(j => {
+      const nextRetry = j.nextRetryAt instanceof Date ? j.nextRetryAt : new Date(j.nextRetryAt);
+      return nextRetry <= now;
+    });
+    
+    const allEligible = [...pendingJobs, ...eligibleDelayed].sort((a, b) => {
+      if ((a.priority ?? 10) !== (b.priority ?? 10)) return (a.priority ?? 10) - (b.priority ?? 10);
+      const aUpdated = a.priorityUpdatedAt ? new Date(a.priorityUpdatedAt).getTime() : 0;
+      const bUpdated = b.priorityUpdatedAt ? new Date(b.priorityUpdatedAt).getTime() : 0;
+      if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+      const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return aCreated - bCreated;
+    });
 
-    return job || null;
+    return allEligible.length > 0 ? allEligible[0] : null;
   }
 
   async markProcessing(jobId: string): Promise<void> {
-    const [job] = await db.select().from(mockupJobs).where(eq(mockupJobs.id, jobId));
+    const job = await fsGet('mockup_jobs', jobId);
     if (!job) return;
     
-    await db.update(mockupJobs)
-      .set({ 
-        status: "processing", 
-        startedAt: new Date(),
-        attempts: (job.attempts || 0) + 1,
-      })
-      .where(eq(mockupJobs.id, jobId));
+    await fsUpdate('mockup_jobs', jobId, { 
+      status: "processing", 
+      startedAt: new Date(),
+      attempts: (job.attempts || 0) + 1,
+    });
   }
 
   async markCompleted(jobId: string, result: JobResult): Promise<void> {
-    await db.update(mockupJobs)
-      .set({
-        status: "completed",
-        completedAt: new Date(),
-        resultData: result,
-        errorMessage: null,
-      })
-      .where(eq(mockupJobs.id, jobId));
+    await fsUpdate('mockup_jobs', jobId, {
+      status: "completed",
+      completedAt: new Date(),
+      resultData: result,
+      errorMessage: null,
+    });
   }
 
   async markFailed(jobId: string, error: string): Promise<void> {
-    const [job] = await db.select().from(mockupJobs).where(eq(mockupJobs.id, jobId));
+    const job = await fsGet('mockup_jobs', jobId);
     if (!job) return;
 
     const attempts = (job.attempts || 0);
     const maxAttempts = job.maxAttempts || 5;
 
     if (attempts >= maxAttempts) {
-      await db.update(mockupJobs)
-        .set({
-          status: "failed",
-          completedAt: new Date(),
-          errorMessage: error,
-        })
-        .where(eq(mockupJobs.id, jobId));
+      await fsUpdate('mockup_jobs', jobId, {
+        status: "failed",
+        completedAt: new Date(),
+        errorMessage: error,
+      });
     } else {
       const backoffMs = calculateBackoff(attempts);
       const nextRetry = new Date(Date.now() + backoffMs);
       
-      await db.update(mockupJobs)
-        .set({
-          status: "delayed",
-          nextRetryAt: nextRetry,
-          errorMessage: error,
-        })
-        .where(eq(mockupJobs.id, jobId));
+      await fsUpdate('mockup_jobs', jobId, {
+        status: "delayed",
+        nextRetryAt: nextRetry,
+        errorMessage: error,
+      });
       
       console.log(`[JobQueue] Job ${jobId} delayed, retry at ${nextRetry.toISOString()} (attempt ${attempts}/${maxAttempts})`);
     }
@@ -307,12 +290,11 @@ export class MockupJobQueue {
 
   private async updateProductMockups(job: MockupJob, result: JobResult): Promise<void> {
     try {
-      const [product] = await db.select().from(products).where(eq(products.id, job.productId));
+      const product = await fsGet('products', job.productId);
       if (!product) return;
 
       const mockupsByColor = (product.mockupsByColor || {}) as Record<string, any>;
       
-      // Save with full key: color_size_placement (e.g., "Black_small_front-chest")
       const placement = job.placement || 'front';
       const fullKey = `${job.colorName}_${job.qrSize}_${placement}`;
       mockupsByColor[fullKey] = {
@@ -323,7 +305,6 @@ export class MockupJobQueue {
         generatedAt: new Date().toISOString(),
       };
       
-      // Also keep legacy keys for backward compatibility
       const colorSizeKey = `${job.colorName}_${job.qrSize}`;
       mockupsByColor[colorSizeKey] = {
         front: result.mockupUrl,
@@ -341,9 +322,7 @@ export class MockupJobQueue {
         generatedAt: new Date().toISOString(),
       };
 
-      await db.update(products)
-        .set({ mockupsByColor })
-        .where(eq(products.id, job.productId));
+      await fsUpdate('products', job.productId, { mockupsByColor });
 
       console.log(`[JobQueue] Updated product ${job.productId} mockups for ${colorSizeKey}`);
     } catch (err) {
@@ -375,30 +354,26 @@ export class MockupJobQueue {
 
   async clearCompletedJobs(olderThanHours: number = 24): Promise<number> {
     const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
-    const result = await db.delete(mockupJobs)
-      .where(
-        and(
-          eq(mockupJobs.status, "completed"),
-          lte(mockupJobs.completedAt, cutoff)
-        )
-      )
-      .returning();
-    return result.length;
+    const completedJobs = await fsQuery('mockup_jobs', [['status', '==', 'completed']]);
+    const oldJobs = completedJobs.filter(j => {
+      const completedAt = j.completedAt instanceof Date ? j.completedAt : new Date(j.completedAt);
+      return completedAt <= cutoff;
+    });
+    for (const job of oldJobs) {
+      await fsDelete('mockup_jobs', job.id);
+    }
+    return oldJobs.length;
   }
 
   async cancelJobsByProduct(productId: string): Promise<number> {
-    const result = await db.delete(mockupJobs)
-      .where(
-        and(
-          eq(mockupJobs.productId, productId),
-          or(
-            eq(mockupJobs.status, "pending"),
-            eq(mockupJobs.status, "delayed")
-          )
-        )
-      )
-      .returning();
-    return result.length;
+    const jobs = await fsQuery('mockup_jobs', [
+      ['productId', '==', productId],
+      ['status', 'in', ['pending', 'delayed']],
+    ]);
+    for (const job of jobs) {
+      await fsDelete('mockup_jobs', job.id);
+    }
+    return jobs.length;
   }
 }
 

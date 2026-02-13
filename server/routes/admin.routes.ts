@@ -1442,7 +1442,7 @@ export function registerAdminRoutes(app: Express): void {
       });
 
       try {
-        const result = await syncPrintfulCatalog(db, productIds ? { productIds } : undefined);
+        const result = await syncPrintfulCatalog(productIds ? { productIds } : undefined);
         console.log('[Printful Sync] Background sync complete:', result);
       } catch (syncError: any) {
         console.error('[Printful Sync] Background sync error:', syncError.message);

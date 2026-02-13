@@ -1,9 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
-import { db } from "../db";
-import { eq, and, or, isNull, lte, gte } from "drizzle-orm";
-import { productBundles, bundleItems, masterProducts, products } from "@shared/schema";
+import { fsGet, fsGetAll, fsQuery, fsQueryOne, fsInsert, fsUpdate, fsDelete, fsDeleteWhere, fsBatchInsert } from "../lib/firestore-crud";
 
 export async function registerOrchestrationRoutes(app: Express): Promise<void> {
 
@@ -727,7 +725,7 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
   // Get all bundles
   app.get("/api/admin/orchestration/bundles", isAdmin, async (req: any, res) => {
     try {
-      const allBundles = await db.select().from(productBundles).orderBy(productBundles.displayOrder);
+      const allBundles = await fsGetAll('product_bundles', 'displayOrder');
       res.json(allBundles);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -738,12 +736,12 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
   app.get("/api/admin/orchestration/bundles/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const bundle = await db.select().from(productBundles).where(eq(productBundles.id, id)).limit(1);
-      if (!bundle.length) {
+      const bundle = await fsGet('product_bundles', id);
+      if (!bundle) {
         return res.status(404).json({ error: "Bundle not found" });
       }
-      const items = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, id)).orderBy(bundleItems.displayOrder);
-      res.json({ ...bundle[0], items });
+      const items = await fsQuery('bundle_items', [['bundleId', '==', id]], 'displayOrder');
+      res.json({ ...bundle, items });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -753,17 +751,17 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
   app.post("/api/admin/orchestration/bundles", isAdmin, async (req: any, res) => {
     try {
       const { items, ...bundleData } = req.body;
-      const [bundle] = await db.insert(productBundles).values(bundleData).returning();
+      const bundle = await fsInsert('product_bundles', bundleData);
       
       if (items && items.length > 0) {
         const itemsWithBundleId = items.map((item: any) => ({
           ...item,
           bundleId: bundle.id,
         }));
-        await db.insert(bundleItems).values(itemsWithBundleId);
+        await fsBatchInsert('bundle_items', itemsWithBundleId);
       }
       
-      const finalItems = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, bundle.id));
+      const finalItems = await fsQuery('bundle_items', [['bundleId', '==', bundle.id]]);
       res.json({ ...bundle, items: finalItems });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -776,27 +774,24 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
       const { id } = req.params;
       const { items, ...bundleData } = req.body;
       
-      const [bundle] = await db.update(productBundles)
-        .set({ ...bundleData, updatedAt: new Date() })
-        .where(eq(productBundles.id, id))
-        .returning();
+      const bundle = await fsUpdate('product_bundles', id, bundleData);
       
       if (!bundle) {
         return res.status(404).json({ error: "Bundle not found" });
       }
       
       if (items !== undefined) {
-        await db.delete(bundleItems).where(eq(bundleItems.bundleId, id));
+        await fsDeleteWhere('bundle_items', [['bundleId', '==', id]]);
         if (items.length > 0) {
           const itemsWithBundleId = items.map((item: any) => ({
             ...item,
             bundleId: id,
           }));
-          await db.insert(bundleItems).values(itemsWithBundleId);
+          await fsBatchInsert('bundle_items', itemsWithBundleId);
         }
       }
       
-      const finalItems = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, id));
+      const finalItems = await fsQuery('bundle_items', [['bundleId', '==', id]]);
       res.json({ ...bundle, items: finalItems });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -807,7 +802,8 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
   app.delete("/api/admin/orchestration/bundles/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      await db.delete(productBundles).where(eq(productBundles.id, id));
+      await fsDeleteWhere('bundle_items', [['bundleId', '==', id]]);
+      await fsDelete('product_bundles', id);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -818,14 +814,11 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
   app.post("/api/admin/orchestration/bundles/:id/toggle", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const [bundle] = await db.select().from(productBundles).where(eq(productBundles.id, id)).limit(1);
+      const bundle = await fsGet('product_bundles', id);
       if (!bundle) {
         return res.status(404).json({ error: "Bundle not found" });
       }
-      const [updated] = await db.update(productBundles)
-        .set({ isActive: !bundle.isActive, updatedAt: new Date() })
-        .where(eq(productBundles.id, id))
-        .returning();
+      const updated = await fsUpdate('product_bundles', id, { isActive: !bundle.isActive });
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -838,23 +831,15 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
       const { productId } = req.params;
       const now = new Date();
       
-      const activeBundles = await db.select()
-        .from(productBundles)
-        .where(
-          and(
-            eq(productBundles.isActive, true),
-            or(
-              isNull(productBundles.startDate),
-              lte(productBundles.startDate, now)
-            ),
-            or(
-              isNull(productBundles.endDate),
-              gte(productBundles.endDate, now)
-            )
-          )
-        );
+      const activeBundles = await fsQuery('product_bundles', [['isActive', '==', true]]);
       
-      const relevantBundles = activeBundles.filter(bundle => {
+      const dateFilttered = activeBundles.filter(bundle => {
+        if (bundle.startDate && new Date(bundle.startDate) > now) return false;
+        if (bundle.endDate && new Date(bundle.endDate) < now) return false;
+        return true;
+      });
+      
+      const relevantBundles = dateFilttered.filter(bundle => {
         if (!bundle.triggerProductIds || bundle.triggerProductIds.length === 0) {
           return true;
         }
@@ -863,7 +848,7 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
       
       const bundlesWithItems = await Promise.all(
         relevantBundles.map(async bundle => {
-          const items = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, bundle.id));
+          const items = await fsQuery('bundle_items', [['bundleId', '==', bundle.id]]);
           return { ...bundle, items };
         })
       );
@@ -880,12 +865,12 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
       const { id } = req.params;
       const { selectedItems } = req.body;
       
-      const [bundle] = await db.select().from(productBundles).where(eq(productBundles.id, id)).limit(1);
+      const bundle = await fsGet('product_bundles', id);
       if (!bundle) {
         return res.status(404).json({ error: "Bundle not found" });
       }
       
-      const items = await db.select().from(bundleItems).where(eq(bundleItems.bundleId, id));
+      const items = await fsQuery('bundle_items', [['bundleId', '==', id]]);
       
       let totalRetailPrice = 0;
       const itemDetails: any[] = [];
@@ -897,13 +882,13 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
         let itemName = "";
         
         if (item.masterProductId) {
-          const [mp] = await db.select().from(masterProducts).where(eq(masterProducts.id, item.masterProductId)).limit(1);
+          const mp = await fsGet('master_products', item.masterProductId);
           if (mp && mp.retailPrice) {
             itemPrice = parseFloat(mp.retailPrice);
             itemName = mp.title;
           }
         } else if (item.productId) {
-          const [product] = await db.select().from(products).where(eq(products.id, String(item.productId))).limit(1);
+          const product = await fsGet('products', String(item.productId));
           if (product) {
             itemPrice = parseFloat(product.basePrice);
             itemName = product.name;

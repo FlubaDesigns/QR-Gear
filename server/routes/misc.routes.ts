@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { db } from "../db";
-import { eq, and } from "drizzle-orm";
+import { fsGet, fsGetAll, fsQuery, fsInsert, fsUpdate, fsCount } from "../lib/firestore-crud";
 import { isAuthenticated, isAdmin } from "../firebaseAuth";
 import { escapeHtml } from "./route-helpers";
 import { generateSitemap } from "../lib/sitemap";
@@ -1351,8 +1350,6 @@ ${allPages.map(page => `  <url>
   
   app.get("/api/admin/background-assets", isAdmin, async (req: any, res) => {
     try {
-      const { libraryAssets } = await import("@shared/schema");
-      
       const typeFilter = (req.query.type as string) || 'source';
       const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
       
@@ -1360,9 +1357,7 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
       }
       
-      const assets = await db.select().from(libraryAssets)
-        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, typeFilter)))
-        .orderBy(libraryAssets.createdAt);
+      const assets = await fsQuery('library_assets', [['isActive', '==', true], ['assetType', '==', typeFilter]], 'createdAt');
       
       const assetsWithProxy = assets.map(asset => {
         const filename = (asset.storageUrl || '').split('/').pop() || '';
@@ -1393,7 +1388,6 @@ ${allPages.map(page => `  <url>
       
       const buffer = Buffer.from(imageData, 'base64');
       const isZip = mimeType === 'application/zip' || mimeType === 'application/x-zip-compressed';
-      const { libraryAssets } = await import("@shared/schema");
       
       if (isZip) {
         console.log(`[BackgroundAssets] Processing ZIP file: ${name}`);
@@ -1443,7 +1437,7 @@ ${allPages.map(page => `  <url>
             const displayName = imageName.replace(/\.[^/.]+$/, '');
             const proxyUrl = `/api/library-files/${encodeURIComponent(uniqueName)}`;
             
-            const [asset] = await db.insert(libraryAssets).values({
+            const asset = await fsInsert('library_assets', {
               ownerType: 'admin',
               assetType: assetType,
               mediaType: 'image',
@@ -1455,7 +1449,7 @@ ${allPages.map(page => `  <url>
               storageUrl: uploadResult.storageUrl,
               publicUrl: proxyUrl,
               isActive: true,
-            }).returning();
+            });
             
             extractedAssets.push({ ...asset, proxyUrl });
             
@@ -1486,7 +1480,7 @@ ${allPages.map(page => `  <url>
       
       const proxyUrl = `/api/library-files/${encodeURIComponent(fileName)}`;
       
-      const [asset] = await db.insert(libraryAssets).values({
+      const asset = await fsInsert('library_assets', {
         ownerType: 'admin',
         assetType: assetType,
         mediaType: 'image',
@@ -1498,7 +1492,7 @@ ${allPages.map(page => `  <url>
         storageUrl: uploadResult.storageUrl,
         publicUrl: proxyUrl,
         isActive: true,
-      }).returning();
+      });
       
       res.json({ ...asset, proxyUrl: asset.publicUrl });
     } catch (error: any) {
@@ -1509,17 +1503,13 @@ ${allPages.map(page => `  <url>
 
   app.put("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
     try {
-      const { libraryAssets } = await import("@shared/schema");
       const { name, isActive } = req.body;
       
       const updateData: any = {};
       if (name !== undefined) updateData.name = name;
       if (isActive !== undefined) updateData.isActive = isActive;
       
-      const [updated] = await db.update(libraryAssets)
-        .set(updateData)
-        .where(eq(libraryAssets.id, req.params.id))
-        .returning();
+      const updated = await fsUpdate('library_assets', req.params.id, updateData);
       
       res.json({ ...updated, proxyUrl: updated.publicUrl });
     } catch (error: any) {
@@ -1529,11 +1519,7 @@ ${allPages.map(page => `  <url>
 
   app.delete("/api/admin/background-assets/:id", isAdmin, async (req: any, res) => {
     try {
-      const { libraryAssets } = await import("@shared/schema");
-      
-      await db.update(libraryAssets)
-        .set({ isActive: false })
-        .where(eq(libraryAssets.id, req.params.id));
+      await fsUpdate('library_assets', req.params.id, { isActive: false });
       
       res.json({ success: true });
     } catch (error: any) {
@@ -1553,7 +1539,6 @@ ${allPages.map(page => `  <url>
 
   app.post("/api/admin/background-assets/sync", isAdmin, async (req: any, res) => {
     try {
-      const { libraryAssets } = await import("@shared/schema");
       const folder = 'library/backgrounds/raw';
       
       console.log(`[LibraryAssets] Syncing assets from: ${folder}`);
@@ -1561,9 +1546,8 @@ ${allPages.map(page => `  <url>
       const storageFiles = await listFilesInFolder(folder);
       console.log(`[LibraryAssets] Found ${storageFiles.length} files`);
       
-      const existingAssets = await db.select().from(libraryAssets)
-        .where(and(eq(libraryAssets.isActive, true), eq(libraryAssets.assetType, 'background')));
-      const existingPaths = new Set(existingAssets.map(a => a.storageUrl));
+      const existingAssets = await fsQuery('library_assets', [['isActive', '==', true], ['assetType', '==', 'background']]);
+      const existingPaths = new Set(existingAssets.map((a: any) => a.storageUrl));
       
       const newFiles = storageFiles.filter(f => !existingPaths.has(f.fullPath));
       console.log(`[LibraryAssets] ${newFiles.length} files need database records`);
@@ -1576,7 +1560,7 @@ ${allPages.map(page => `  <url>
           const displayName = file.name.replace(/\.[^/.]+$/, '');
           const proxyUrl = `/api/library-files/${encodeURIComponent(file.name)}`;
           
-          const [asset] = await db.insert(libraryAssets).values({
+          const asset = await fsInsert('library_assets', {
             ownerType: 'admin',
             assetType: 'background',
             mediaType: 'image',
@@ -1588,7 +1572,7 @@ ${allPages.map(page => `  <url>
             storageUrl: file.fullPath,
             publicUrl: proxyUrl,
             isActive: true,
-          }).returning();
+          });
           
           createdAssets.push({ ...asset, proxyUrl: asset.publicUrl });
           console.log(`[LibraryAssets] Created record for: ${file.name}`);
@@ -1653,15 +1637,13 @@ ${allPages.map(page => `  <url>
   app.get("/api/admin/provider-counts", isAdmin, async (req: any, res) => {
     try {
       console.log('[TestCatalog] GET provider counts');
-      const { printfulProducts, printifyPrintProviders } = await import("@shared/schema");
-      const { count } = await import("drizzle-orm");
       
-      const [printifyResult] = await db.select({ count: count() }).from(printifyPrintProviders);
-      const [printfulResult] = await db.select({ count: count() }).from(printfulProducts);
+      const printifyCount = await fsCount('printify_print_providers');
+      const printfulCount = await fsCount('printful_products');
       
       const counts = {
-        printify: printifyResult?.count || 0,
-        printful: printfulResult?.count || 0,
+        printify: printifyCount,
+        printful: printfulCount,
       };
       
       console.log(`[TestCatalog] Provider counts:`, counts);
@@ -1676,10 +1658,9 @@ ${allPages.map(page => `  <url>
   app.post("/api/admin/sync-blueprints-to-firestore", isAdmin, async (req: any, res) => {
     try {
       console.log('[Sync] Starting blueprint sync to Firestore...');
-      const { printifyBlueprints } = await import("@shared/schema");
       const FirestoreAdapter = (await import("../lib/firestore-adapter")).FirestoreAdapter;
       
-      const allBlueprints = await db.select().from(printifyBlueprints);
+      const allBlueprints = await fsGetAll('printify_blueprints');
       console.log(`[Sync] Found ${allBlueprints.length} blueprints to sync`);
       
       const firestoreAdapter = new FirestoreAdapter();
@@ -1716,10 +1697,9 @@ ${allPages.map(page => `  <url>
   app.post("/api/admin/sync-providers-to-firestore", isAdmin, async (req: any, res) => {
     try {
       console.log('[Sync] Starting provider sync to Firestore...');
-      const { printifyPrintProviders } = await import("@shared/schema");
       const FirestoreAdapter = (await import("../lib/firestore-adapter")).FirestoreAdapter;
       
-      const allProviders = await db.select().from(printifyPrintProviders);
+      const allProviders = await fsGetAll('printify_print_providers');
       console.log(`[Sync] Found ${allProviders.length} providers to sync`);
       
       const firestoreAdapter = new FirestoreAdapter();
