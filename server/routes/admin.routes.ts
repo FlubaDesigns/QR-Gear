@@ -377,12 +377,19 @@ export function registerAdminRoutes(app: Express): void {
       
       await storage.updateProduct(id, { mockupsByColor });
       
-      await db.delete(mockupCache).where(
-        and(
-          eq(mockupCache.blueprintId, product.blueprintId),
-          eq(mockupCache.printProviderId, product.printProviderId)
-        )
-      );
+      try {
+        const { getFirestoreDb } = await import("../lib/firebase-admin");
+        const firestoreDb = getFirestoreDb();
+        const cacheSnap = await firestoreDb.collection('mockup_cache')
+          .where('blueprintId', '==', product.blueprintId)
+          .where('printProviderId', '==', product.printProviderId)
+          .get();
+        const batch = firestoreDb.batch();
+        cacheSnap.docs.forEach(doc => batch.delete(doc.ref));
+        if (cacheSnap.size > 0) await batch.commit();
+      } catch (e) {
+        console.log('[Admin] Mockup cache clear (non-critical):', e);
+      }
       
       res.json({
         success: true,
