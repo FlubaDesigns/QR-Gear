@@ -1,6 +1,5 @@
 /**
- * Field Mapper - Standalone translation layer for field names
- * Maps between PostgreSQL (dev) and Firestore (production) naming conventions
+ * Field Mapper - Field name translation layer for Firestore
  */
 
 type FieldMap = Record<string, string>;

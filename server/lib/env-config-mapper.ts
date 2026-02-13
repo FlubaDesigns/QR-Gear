@@ -1,13 +1,11 @@
 /**
  * Environment Config Mapper - Standalone config translation
- * Maps between dev (Replit/PostgreSQL) and production (Firebase) environments
  */
 
 export interface DevConfig {
-  databaseUrl: string;
   storageBucket: string;
   apiBase: string;
-  storageMode: 'postgres-only' | 'dual-write' | 'firestore-only';
+  storageMode: 'firestore-only';
 }
 
 export interface ProdConfig {
@@ -20,11 +18,10 @@ export interface ProdConfig {
 export interface UnifiedConfig {
   isDev: boolean;
   isProd: boolean;
-  databaseUrl: string | null;
   firestoreProjectId: string | null;
   storageBucket: string;
   apiBase: string;
-  storageMode: 'postgres-only' | 'dual-write' | 'firestore-only';
+  storageMode: 'firestore-only';
 }
 
 export function getEnvironment(): 'development' | 'production' {
@@ -45,11 +42,10 @@ export function getUnifiedConfig(): UnifiedConfig {
   return {
     isDev: env === 'development',
     isProd: env === 'production',
-    databaseUrl: process.env.DATABASE_URL || null,
     firestoreProjectId: process.env.FIREBASE_PROJECT_ID || 'qrgear-c1ffd',
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'qrgear-c1ffd.firebasestorage.app',
-    apiBase: env === 'production' ? '/api' : '/api',
-    storageMode: (process.env.STORAGE_MODE as UnifiedConfig['storageMode']) || 'dual-write',
+    apiBase: '/api',
+    storageMode: 'firestore-only' as const,
   };
 }
 

@@ -1,7 +1,7 @@
 /**
- * Storage Path Normalizer - Translation layer between PostgreSQL and Firebase/Firestore
+ * Storage Path Normalizer - Firebase Storage path format handler
  * 
- * This "socket" handles all path format conversions:
+ * Handles all path format conversions:
  * - gs://bucket/path → bucket-relative path
  * - https://storage.googleapis.com/bucket/path → bucket-relative path
  * - https://firebasestorage.googleapis.com/.../o/path?... → bucket-relative path

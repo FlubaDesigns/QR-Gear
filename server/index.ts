@@ -176,12 +176,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize storage (dual-write, firestore-only, or postgres-only)
   const storageMode = getStorageMode();
-  if (storageMode !== 'postgres-only') {
-    log(`Initializing storage in ${storageMode} mode...`);
-    await initializeWrappedStorage();
-  }
+  log(`Initializing storage in ${storageMode} mode...`);
+  await initializeWrappedStorage();
   
   // Initialize Stripe
   await initStripe();
