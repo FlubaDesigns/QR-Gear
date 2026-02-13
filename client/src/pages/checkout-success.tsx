@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Package, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { Link } from "wouter";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 import type { Order, OrderItem } from "@shared/schema";
@@ -31,13 +30,7 @@ export default function CheckoutSuccess() {
   if (!sessionId) {
     return (
       <div className="min-h-screen bg-background">
-        <BreadcrumbTrail />
-        <PageBreadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Order Confirmation" },
-          ]}
-        />
+        <BreadcrumbTrail currentPage="Order Confirmation" />
         <div className="container mx-auto px-4 py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">

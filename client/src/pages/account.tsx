@@ -9,7 +9,6 @@ import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCa
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -214,7 +213,6 @@ export default function Account() {
         keywords="QR Gear account, order history, manage designs"
       />
       <BreadcrumbTrail />
-      <PageBreadcrumb currentPage="My Account" />
       <div className="max-w-6xl mx-auto space-y-6 p-6">
         <div className="glass-card rounded-xl p-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">

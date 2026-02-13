@@ -1,56 +1,86 @@
 import { Link, useLocation } from "wouter";
-import { ChevronRight } from "lucide-react";
-import { getBreadcrumbs, BreadcrumbItem } from "@/lib/breadcrumbs";
+
+const routeLabels: Record<string, string> = {
+  "": "Home",
+  "store": "Shop",
+  "gallery": "Shop",
+  "build": "Create",
+  "account": "My Account",
+  "admin": "Admin",
+  "cart": "Cart",
+  "checkout": "Checkout",
+  "member": "Members",
+  "login": "Sign In",
+  "register": "Register",
+  "gifts": "Gifts",
+  "widget": "Widget",
+  "qr-history": "QR History",
+  "qr-basics": "QR Basics",
+  "qr-plus": "QR Plus",
+  "qr-canvas": "QR Canvas",
+  "qr-play": "QR Play",
+  "qr-dynamics": "QR Dynamics",
+  "products": "Products",
+  "pricing": "Pricing",
+  "library": "Library",
+  "store-builder": "Store Builder",
+  "fonts": "Fonts",
+  "dynamics": "Dynamics",
+  "ar-demo": "AR Demo",
+  "health": "Health",
+  "customers": "Customers",
+  "categories": "Categories",
+  "tags": "Tags",
+  "videos": "Videos",
+  "orders": "Orders",
+  "manual": "Manual",
+  "orchestration": "Orchestration",
+};
 
 interface BreadcrumbTrailProps {
   dynamicLabel?: string;
+  currentPage?: string;
 }
 
-export default function BreadcrumbTrail({ dynamicLabel }: BreadcrumbTrailProps) {
+export default function BreadcrumbTrail({ dynamicLabel, currentPage }: BreadcrumbTrailProps) {
   const [location] = useLocation();
-  const crumbs = getBreadcrumbs(location, dynamicLabel);
+  const segments = location.split("/").filter(Boolean);
 
-  if (crumbs.length <= 1) {
-    return null;
-  }
+  if (segments.length === 0) return null;
+
+  const crumbs: { label: string; href: string }[] = [
+    { label: "Home", href: "/" },
+  ];
+
+  let path = "";
+  segments.forEach((seg, i) => {
+    path += "/" + seg;
+    const isLast = i === segments.length - 1;
+    const label = isLast && currentPage
+      ? currentPage
+      : isLast && dynamicLabel
+        ? dynamicLabel
+        : routeLabels[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    crumbs.push({ label, href: path });
+  });
 
   return (
-    <nav className="breadcrumb-bar" aria-label="Breadcrumb" data-testid="nav-breadcrumb">
-      <ol className="breadcrumb-list">
-        {crumbs.map((crumb, index) => {
-          const isLast = index === crumbs.length - 1;
-          const Icon = crumb.icon;
-
-          return (
-            <li key={crumb.href} className="breadcrumb-item">
-              {index > 0 && (
-                <span className="breadcrumb-separator" aria-hidden="true">
-                  <ChevronRight />
-                </span>
-              )}
-              {isLast ? (
-                <span 
-                  className="breadcrumb-current" 
-                  aria-current="page"
-                  data-testid={`breadcrumb-current-${crumb.label.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  {Icon && <Icon />}
-                  <span>{crumb.label}</span>
-                </span>
-              ) : (
-                <Link 
-                  href={crumb.href} 
-                  className="breadcrumb-link"
-                  data-testid={`breadcrumb-link-${crumb.label.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  {Icon && <Icon />}
-                  <span>{crumb.label}</span>
-                </Link>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+    <nav className="container py-2 text-sm text-muted-foreground" aria-label="Breadcrumb" data-testid="nav-breadcrumb">
+      {crumbs.map((crumb, i) => {
+        const isLast = i === crumbs.length - 1;
+        return (
+          <span key={crumb.href}>
+            {i > 0 && <span className="mx-1.5" aria-hidden="true">/</span>}
+            {isLast ? (
+              <span className="text-foreground font-medium" data-testid="breadcrumb-current">{crumb.label}</span>
+            ) : (
+              <Link href={crumb.href} className="hover:text-foreground transition-colors" data-testid={`breadcrumb-link-${crumb.label.toLowerCase().replace(/\s+/g, '-')}`}>
+                {crumb.label}
+              </Link>
+            )}
+          </span>
+        );
+      })}
     </nav>
   );
 }
