@@ -19,7 +19,7 @@ export default function PacketPage() {
   const packetId = params?.id;
 
   const { data, isLoading, error } = useQuery<{ success: boolean; packet: PacketData }>({
-    queryKey: ["/api/test/packets", packetId],
+    queryKey: ["/api/public/packets", packetId],
     enabled: !!packetId,
   });
 

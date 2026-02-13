@@ -204,10 +204,21 @@ export default function TestDynamicsPage() {
     );
   }
 
+  const getAuthHeaders = async (): Promise<HeadersInit> => {
+    const { auth } = await import("@/lib/firebase");
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  };
+
   const fetchStores = async () => {
     try {
       setLoading("stores");
-      const res = await fetch("/api/test/stores");
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/admin/stores", { headers });
       const data = await res.json();
       setStores(Array.isArray(data) ? data : (data.stores || []));
     } catch (err: any) {
@@ -221,7 +232,8 @@ export default function TestDynamicsPage() {
     if (!selectedStore) return;
     try {
       setLoading("channels");
-      const res = await fetch(`/api/test/stores/${selectedStore.id}/channels`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/admin/stores/${selectedStore.id}/channels`, { headers });
       const data = await res.json();
       const channelNames = Array.isArray(data) 
         ? data.map((c: any) => c.name || c.id) 

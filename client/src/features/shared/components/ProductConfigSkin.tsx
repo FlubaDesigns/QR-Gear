@@ -54,7 +54,7 @@ export function ProductConfigSkin({
   mockupsByColor,
   blueprintId,
   printProviderId,
-  apiBase = "/api/test",
+  apiBase = "/api/admin",
   onUpdate,
   readOnly = false,
 }: ProductConfigSkinProps) {

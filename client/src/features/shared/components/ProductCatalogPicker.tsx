@@ -59,7 +59,7 @@ export function ProductCatalogPicker({
   onOriginFilterChange,
   selectedProductId,
   onProductSelect,
-  apiBase = "/api/test",
+  apiBase = "/api/admin",
   showProviderIndicator = true,
   showFilters = true,
   gridHeight = "min(60vh, 500px)",

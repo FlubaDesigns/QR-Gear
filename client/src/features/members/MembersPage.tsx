@@ -455,7 +455,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'collections'],
     queryFn: async () => {
       if (!memberId) return [];
-      const res = await fetch(`/api/test/stores/qr-gear/collections?ownerId=${memberId}`);
+      const res = await fetch(`/api/stores/qr-gear/collections?ownerId=${memberId}`);
       if (!res.ok) return [];
       return res.json();
     },

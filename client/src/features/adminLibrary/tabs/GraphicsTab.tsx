@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/components/skins/GraphicsSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
+import { auth } from "@/lib/firebase";
 
 interface ProductPacket {
   id: string;
@@ -57,10 +58,20 @@ export default function GraphicsTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const getAuthHeaders = async (): Promise<HeadersInit> => {
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  };
+
   const { data, isLoading } = useQuery<{ success: boolean; packets: ProductPacket[] }>({
-    queryKey: ["/api/test/packets", "graphics"],
+    queryKey: ["/api/admin/packets", "graphics"],
     queryFn: async () => {
-      const res = await fetch("/api/test/packets");
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/admin/packets", { headers });
       if (!res.ok) throw new Error("Failed to fetch packets");
       return res.json();
     },
@@ -68,16 +79,17 @@ export default function GraphicsTab() {
 
   const archiveMutation = useMutation({
     mutationFn: async (packetId: string) => {
-      const res = await fetch(`/api/test/packets/${packetId}`, {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/admin/packets/${packetId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ archived: true }),
       });
       if (!res.ok) throw new Error("Failed to archive");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/test/packets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/packets"] });
       toast({ title: "Archived", description: "Graphic has been archived" });
     },
     onError: () => {

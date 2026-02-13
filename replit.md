@@ -74,7 +74,8 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Frontend**: React, TypeScript, Vite.
 - **Database**: PostgreSQL with Drizzle ORM and Firestore.
 - **Nexus Vision Philosophy**: Self-learning, self-healing system using composable modules.
-- **Modular Route Architecture**: `server/routes.ts` refactored into 12 feature-based modules within `server/routes/` (e.g., `auth.routes.ts`, `products.routes.ts`, `admin.routes.ts`), with `routes.ts` acting as an orchestrator.
+- **Modular Route Architecture**: `server/routes.ts` refactored into 16 feature-based modules within `server/routes/` (e.g., `auth.routes.ts`, `products.routes.ts`, `admin.routes.ts`, `packets.routes.ts`, `designs.routes.ts`, `gifts.routes.ts`, `pricing.routes.ts`), with `routes.ts` acting as an orchestrator.
+- **Unified Admin Authorization**: All admin endpoints use `/api/admin/` prefix with `isAdmin` middleware (Firebase Auth token validation). Public buyer-facing endpoints use `/api/public/` prefix (no auth). No `/api/test/` endpoints remain — all have been consolidated.
 
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.

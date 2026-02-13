@@ -39,7 +39,7 @@ export default function ProductLanding() {
   const [, setLocation] = useLocation();
 
   const { data, isLoading, error } = useQuery<{ success: boolean; landingPage: LandingPageData }>({
-    queryKey: ['/api/test/landing', slug],
+    queryKey: ['/api/public/landing', slug],
     enabled: !!slug,
   });
 

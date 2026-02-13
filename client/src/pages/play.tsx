@@ -16,9 +16,9 @@ export default function PlayPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const { data, isLoading, error } = useQuery<{ packet: PacketData }>({
-    queryKey: ["/api/test/packets", packetId],
+    queryKey: ["/api/public/packets", packetId],
     queryFn: async () => {
-      const res = await fetch(`/api/test/packets/${packetId}`);
+      const res = await fetch(`/api/public/packets/${packetId}`);
       if (!res.ok) throw new Error("Content not found");
       return res.json();
     },

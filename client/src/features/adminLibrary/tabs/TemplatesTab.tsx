@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { TemplateCardSkin, TemplateDetailSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
+import { auth } from "@/lib/firebase";
 
 interface ProductTemplate {
   id: string;
@@ -78,10 +79,20 @@ export default function TemplatesTab() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const getAuthHeaders = async (): Promise<HeadersInit> => {
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  };
+
   const { data, isLoading } = useQuery<{ success: boolean; templates: ProductTemplate[] }>({
-    queryKey: ["/api/test/templates", "templates-tab"],
+    queryKey: ["/api/admin/templates", "templates-tab"],
     queryFn: async () => {
-      const res = await fetch("/api/test/templates");
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/admin/templates", { headers });
       if (!res.ok) throw new Error("Failed to fetch templates");
       return res.json();
     },
@@ -92,12 +103,13 @@ export default function TemplatesTab() {
   const deleteMutation = useMutation({
     mutationFn: async (templateId: string) => {
       const template = templates.find(t => t.id === templateId);
+      const headers = await getAuthHeaders();
       
-      const templateRes = await fetch(`/api/test/templates/${templateId}`, { method: "DELETE" });
+      const templateRes = await fetch(`/api/admin/templates/${templateId}`, { method: "DELETE", headers });
       if (!templateRes.ok) throw new Error("Failed to delete template");
       
       if (template?.packetId) {
-        const packetRes = await fetch(`/api/test/packets/${template.packetId}`, { method: "DELETE" });
+        const packetRes = await fetch(`/api/admin/packets/${template.packetId}`, { method: "DELETE", headers });
         if (!packetRes.ok) {
           console.warn("Failed to delete associated packet");
         }
@@ -106,8 +118,8 @@ export default function TemplatesTab() {
       return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/test/templates"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/test/packets"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/packets"] });
       toast({ title: "Deleted", description: "Template and packet have been deleted" });
     },
     onError: () => {

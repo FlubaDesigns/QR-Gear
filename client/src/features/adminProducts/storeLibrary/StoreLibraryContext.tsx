@@ -60,7 +60,7 @@ interface StoreLibraryProviderProps {
   apiBase?: string;
 }
 
-export function StoreLibraryProvider({ children, apiBase = "/api/test" }: StoreLibraryProviderProps) {
+export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: StoreLibraryProviderProps) {
   const [selectedType, setSelectedType] = useState<StoreType>("internal");
   const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<ChannelInfo | null>(null);

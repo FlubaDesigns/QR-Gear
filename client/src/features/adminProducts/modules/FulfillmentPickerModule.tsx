@@ -21,7 +21,7 @@ export function FulfillmentPickerModule({
   selectedProviders,
   onSelectionChange,
   productCount,
-  apiBase = "/api/test",
+  apiBase = "/api/admin",
 }: FulfillmentPickerModuleProps) {
   const { toast } = useToast();
   const [syncing, setSyncing] = useState<string | null>(null);
