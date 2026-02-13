@@ -36,19 +36,19 @@ function AdminQuickAccess() {
         <FlaskConical className="w-4 h-4" />
         Products
       </Link>
-      <Link href="/member" className="admin-quick-link" data-testid="link-member">
+      <Link href="/members" className="admin-quick-link" data-testid="link-member">
         <Users className="w-4 h-4" />
         Member Area
       </Link>
-      <Link href="/member?wizard=super-simple" className="admin-quick-link" data-testid="link-super-simple-wizard">
+      <Link href="/members?wizard=super-simple" className="admin-quick-link" data-testid="link-super-simple-wizard">
         <Sparkles className="w-4 h-4" />
         Super Simple
       </Link>
-      <Link href="/member?wizard=simple" className="admin-quick-link" data-testid="link-simple-wizard">
+      <Link href="/members?wizard=simple" className="admin-quick-link" data-testid="link-simple-wizard">
         <Wand2 className="w-4 h-4" />
         Simple Wizard
       </Link>
-      <Link href="/member?wizard=advanced" className="admin-quick-link" data-testid="link-advanced-wizard">
+      <Link href="/members?wizard=advanced" className="admin-quick-link" data-testid="link-advanced-wizard">
         <Layers className="w-4 h-4" />
         Advanced
       </Link>

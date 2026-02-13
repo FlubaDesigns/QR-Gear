@@ -870,7 +870,7 @@ export function OwnerWizard() {
           />
           <MemberConversionPitch
             earnings={memberEarnings}
-            onSignUp={() => navigate(`/member?tempPacketId=${tempPacketId || ''}&wizard=super-simple`)}
+            onSignUp={() => navigate(`/members?tempPacketId=${tempPacketId || ''}&wizard=super-simple`)}
             onSkip={handlePublicCheckout}
           />
           <div className="flex gap-3 flex-wrap justify-between pt-2 border-t border-slate-700">
@@ -1141,7 +1141,7 @@ export function OwnerWizard() {
                   Build Your First Moment
                 </Button>
                 <Button
-                  onClick={() => navigate(`/member?tempPacketId=${tempPacketId || ''}&wizard=super-simple`)}
+                  onClick={() => navigate(`/members?tempPacketId=${tempPacketId || ''}&wizard=super-simple`)}
                   variant="outline"
                   className="w-full border-amber-500/40 text-amber-400"
                   data-testid="button-compose-become-member"

@@ -7,7 +7,7 @@ export default function RegisterPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get('redirect');
-    setLocation(redirect || '/member');
+    setLocation(redirect || '/members');
   }, [setLocation]);
 
   return null;

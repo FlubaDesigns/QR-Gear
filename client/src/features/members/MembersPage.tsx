@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,6 @@ import { SuperSimpleWizard } from "./SuperSimpleWizard";
 import { SimpleWizard } from "./SimpleWizard";
 import { AdvancedWizard } from "./AdvancedWizard";
 import { StudioMode } from "./StudioMode";
-import { MemberOnboarding } from "./MemberOnboarding";
 
 interface MemberProduct {
   id: string;
@@ -639,12 +639,17 @@ function MembersSandboxInner() {
     setSelectedColor, setQrType, setSelectedPlacements, setGraphicSize,
   } = useWizardContext();
 
-  const userId = user?.id || user?.uid || '';
+  const userId = user?.id || '';
+  const [, setLocation] = useLocation();
   const onboardingKey = `member_onboarding_complete_${userId}`;
-  const [onboardingComplete, setOnboardingComplete] = useState(() => {
-    if (!userId) return false;
-    return localStorage.getItem(onboardingKey) === 'true';
-  });
+  const onboardingComplete = userId ? localStorage.getItem(onboardingKey) === 'true' : false;
+
+  useEffect(() => {
+    if (userId && !onboardingComplete) {
+      const params = window.location.search;
+      setLocation(`/member${params}`);
+    }
+  }, [userId, onboardingComplete, setLocation]);
 
   const params = new URLSearchParams(window.location.search);
   const tempPacketIdFromUrl = params.get('tempPacketId');
@@ -672,22 +677,6 @@ function MembersSandboxInner() {
     }
   };
 
-  const handleOnboardingComplete = (data: any) => {
-    localStorage.setItem(onboardingKey, 'true');
-    localStorage.setItem(`member_onboarding_data_${userId}`, JSON.stringify({
-      ...data,
-      onboarding_completed_at: new Date().toISOString(),
-      onboarding_version: 'v1',
-    }));
-    setOnboardingComplete(true);
-    setWizardTier('super-simple');
-    setViewMode('wizard');
-
-    if (tempPacketIdFromUrl && userId) {
-      claimTempPacket(userId, tempPacketIdFromUrl);
-    }
-  };
-
   const claimedRef = useRef(false);
   useEffect(() => {
     if (onboardingComplete && tempPacketIdFromUrl && userId && !claimedRef.current) {
@@ -698,10 +687,10 @@ function MembersSandboxInner() {
     }
   }, [onboardingComplete, tempPacketIdFromUrl, userId]);
 
-  if (!onboardingComplete && userId) {
+  if (!onboardingComplete) {
     return (
-      <div className="min-h-screen py-8" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-        <MemberOnboarding onComplete={handleOnboardingComplete} userId={userId} />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
       </div>
     );
   }

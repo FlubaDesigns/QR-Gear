@@ -31,7 +31,7 @@ export function CreateProductView() {
       entityId: session.entityId,
       storeId: session.storeId,
     });
-    window.open(`/member?${params.toString()}`, '_blank');
+    window.open(`/members?${params.toString()}`, '_blank');
   };
 
   return (

@@ -100,7 +100,7 @@ export function ChannelProductsView() {
 
   const handleCreate = () => {
     notifyParent('create_start', { channelId: session.channelId });
-    window.open(`/member?channelId=${session.channelId}&entityType=${session.entityType}&entityId=${session.entityId}`, '_blank');
+    window.open(`/members?channelId=${session.channelId}&entityType=${session.entityType}&entityId=${session.entityId}`, '_blank');
   };
 
   return (
