@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Layers, Plus, Loader2, Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface StoreChannel {
   id: string;
@@ -19,12 +21,44 @@ interface StoreChannel {
 export function ChannelPickerModule() {
   const { step, currentStore, currentChannel, setCurrentChannel, setStep } = useStoreBuilderContext();
   const { apiBase } = useAdminAuth();
+  const { toast } = useToast();
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
 
   const { data: channels = [], isLoading } = useQuery<StoreChannel[]>({
     queryKey: [`${apiBase}/stores`, currentStore?.id, "channels"],
     enabled: !!currentStore?.id,
+  });
+
+  const createChannelMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch(`/api/stores/${currentStore!.id}/channels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create channel");
+      }
+      return res.json();
+    },
+    onSuccess: (newChannel) => {
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`, currentStore?.id, "channels"] });
+      setCurrentChannel({
+        id: newChannel.id,
+        storeId: newChannel.storeId,
+        name: newChannel.name,
+        products: [],
+      });
+      setNewChannelName("");
+      setShowAddChannel(false);
+      if (step === "channel") setStep("catalog");
+      toast({ title: "Channel created", description: `"${newChannel.name}" is ready to use.` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create channel", description: error.message, variant: "destructive" });
+    },
   });
 
   const handleChannelSelect = (channel: StoreChannel) => {
@@ -42,10 +76,8 @@ export function ChannelPickerModule() {
   };
 
   const handleAddChannel = () => {
-    if (!newChannelName.trim()) return;
-    console.log("TODO: Create channel", newChannelName, currentStore?.id);
-    setNewChannelName("");
-    setShowAddChannel(false);
+    if (!newChannelName.trim() || !currentStore) return;
+    createChannelMutation.mutate(newChannelName.trim());
   };
 
   if (!currentStore) {
@@ -115,15 +147,16 @@ export function ChannelPickerModule() {
                 value={newChannelName}
                 onChange={(e) => setNewChannelName(e.target.value)}
                 className="max-w-xs"
+                onKeyDown={(e) => e.key === "Enter" && handleAddChannel()}
                 data-testid="input-channel-name"
               />
               <Button
                 size="sm"
                 onClick={handleAddChannel}
-                disabled={!newChannelName.trim()}
+                disabled={!newChannelName.trim() || createChannelMutation.isPending}
                 data-testid="button-save-channel"
               >
-                Save
+                {createChannelMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
               </Button>
               <Button
                 size="sm"

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Store, Plus, Loader2, Shield } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface PartnerStore {
   id: string;
@@ -19,11 +21,45 @@ interface PartnerStore {
 export function StorePickerModule() {
   const { step, currentStore, setCurrentStore, setCurrentChannel, setStep } = useStoreBuilderContext();
   const { apiBase } = useAdminAuth();
+  const { toast } = useToast();
   const [showAddStore, setShowAddStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
     queryKey: [`${apiBase}/partner-stores`],
+  });
+
+  const createStoreMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch("/api/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, roleType: "internal" }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create store");
+      }
+      return res.json();
+    },
+    onSuccess: (newStore) => {
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
+      setCurrentStore({
+        id: newStore.id,
+        name: newStore.name,
+        permissions: [],
+        productLimit: 50,
+        products: [],
+      });
+      setCurrentChannel(null);
+      setNewStoreName("");
+      setShowAddStore(false);
+      if (step === "store") setStep("channel");
+      toast({ title: "Store created", description: `"${newStore.name}" is ready to use.` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to create store", description: error.message, variant: "destructive" });
+    },
   });
 
   const handleStoreSelect = (store: PartnerStore) => {
@@ -45,9 +81,7 @@ export function StorePickerModule() {
 
   const handleAddStore = () => {
     if (!newStoreName.trim()) return;
-    console.log("TODO: Create store", newStoreName);
-    setNewStoreName("");
-    setShowAddStore(false);
+    createStoreMutation.mutate(newStoreName.trim());
   };
 
   return (
@@ -126,15 +160,16 @@ export function StorePickerModule() {
                 value={newStoreName}
                 onChange={(e) => setNewStoreName(e.target.value)}
                 className="max-w-xs"
+                onKeyDown={(e) => e.key === "Enter" && handleAddStore()}
                 data-testid="input-store-name"
               />
               <Button
                 size="sm"
                 onClick={handleAddStore}
-                disabled={!newStoreName.trim()}
+                disabled={!newStoreName.trim() || createStoreMutation.isPending}
                 data-testid="button-save-store"
               >
-                Save
+                {createStoreMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
               </Button>
               <Button
                 size="sm"
