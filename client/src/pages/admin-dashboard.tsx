@@ -366,7 +366,7 @@ export default function AdminDashboard() {
                 <Library className="qr-admin-quicklink__icon" />
                 <span>Store Library</span>
               </Link>
-              <Link href="/admin/test-settings" className="qr-admin-quicklink" data-testid="link-font-management">
+              <Link href="/admin/fonts" className="qr-admin-quicklink" data-testid="link-font-management">
                 <Type className="qr-admin-quicklink__icon" />
                 <span>Font Management</span>
               </Link>

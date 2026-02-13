@@ -76,10 +76,6 @@ function AdminQuickAccess() {
         <Library className="w-4 h-4" />
         Test Library
       </Link>
-      <Link href="/admin/test-settings" className="admin-quick-link" data-testid="link-test-settings">
-        <Type className="w-4 h-4" />
-        Fonts
-      </Link>
       <Link href="/admin/test-ar-demo" className="admin-quick-link" data-testid="link-test-ar-demo">
         <Box className="w-4 h-4" />
         AR Demo

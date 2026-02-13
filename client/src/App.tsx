@@ -80,7 +80,7 @@ import AdminStoreLibrary from "@/pages/admin-store-library";
 import TestARDemo from "@/pages/test-ar-demo";
 import TestDynamics from "@/pages/test-dynamics";
 import TestPricing from "@/pages/test-pricing";
-import TestSettings from "@/pages/test-settings";
+import FontManagement from "@/pages/test-settings";
 import Members from "@/features/members/MembersPage";
 import TestCanvasPacket from "@/pages/test-canvas-packet";
 import TestQRPlay from "@/pages/test-qr-play";
@@ -154,7 +154,7 @@ function Router() {
       <Route path="/admin/store-builder" component={AdminStoreBuilder} />
       <Route path="/admin/store-library" component={AdminStoreLibrary} />
       <Route path="/admin/test-ar-demo" component={TestARDemo} />
-      <Route path="/admin/test-settings" component={TestSettings} />
+      <Route path="/admin/fonts" component={FontManagement} />
       <Route path="/admin/test-canvas-packet" component={TestCanvasPacket} />
       <Route path="/admin/test-qr-play" component={TestQRPlay} />
       <Route path="/login" component={Login} />
