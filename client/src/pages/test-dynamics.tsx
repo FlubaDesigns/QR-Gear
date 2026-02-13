@@ -379,7 +379,7 @@ export default function TestDynamicsPage() {
           <p className="text-sm text-blue-200 mb-4">
             Build time-based rotating QR content with precise duration control
           </p>
-          <Link href="/test-products">
+          <Link href="/admin/test-products">
             <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="button-back">
               <ArrowLeft className="h-4 w-4" />
               Back to Products

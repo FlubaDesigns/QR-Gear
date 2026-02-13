@@ -32,7 +32,7 @@ function AdminQuickAccess() {
         <Shield className="w-4 h-4" />
         Admin Panel
       </Link>
-      <Link href="/test-products" className="admin-quick-link" data-testid="link-test-products">
+      <Link href="/admin/test-products" className="admin-quick-link" data-testid="link-test-products">
         <FlaskConical className="w-4 h-4" />
         Test Products
       </Link>
@@ -52,7 +52,7 @@ function AdminQuickAccess() {
         <Layers className="w-4 h-4" />
         Advanced
       </Link>
-      <Link href="/test-store-builder" className="admin-quick-link" data-testid="link-store-builder">
+      <Link href="/admin/test-store-builder" className="admin-quick-link" data-testid="link-store-builder">
         <Store className="w-4 h-4" />
         Store Builder
       </Link>

@@ -17,13 +17,13 @@ export default function TestProductsPage() {
               Product Builder
             </h1>
             <div className="flex flex-col gap-3">
-              <Link href="/test-store-builder" className="block">
+              <Link href="/admin/test-store-builder" className="block">
                 <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-store-builder">
                   <Store className="h-5 w-5" />
                   Store Builder
                 </button>
               </Link>
-              <Link href="/test-pricing" className="block">
+              <Link href="/admin/test-pricing" className="block">
                 <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-test-pricing">
                   <DollarSign className="h-5 w-5" />
                   Pricing Settings

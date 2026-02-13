@@ -136,7 +136,7 @@ export default function TestPricingPage() {
       <div className="container mobile-compact mobile-compact-stack">
         <div className="glass-card">
           <div className="flex flex-col gap-4">
-            <Link href="/test-products" className="block">
+            <Link href="/admin/test-products" className="block">
               <button 
                 className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
                 data-testid="button-back"

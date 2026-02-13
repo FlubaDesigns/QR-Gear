@@ -822,7 +822,7 @@ export function StoreBuilderHarness() {
   }
 
   const handleTemplateSelect = (packetId: string) => {
-    navigate(`/test-store-builder?packetId=${packetId}`);
+    navigate(`/admin/test-store-builder?packetId=${packetId}`);
   };
 
   if (!productPackage) {
@@ -845,7 +845,7 @@ export function StoreBuilderHarness() {
                 Load Template
               </button>
               <button
-                onClick={() => navigate("/test-products")}
+                onClick={() => navigate("/admin/test-products")}
                 className="qr-btn qr-btn--outline qr-btn--xl qr-btn--full"
                 data-testid="button-go-products"
               >
@@ -881,7 +881,7 @@ export function StoreBuilderHarness() {
               if (currentPacketId) {
                 setProductPackage(null);
                 setTimeout(() => {
-                  navigate(`/test-store-builder?packetId=${currentPacketId}`);
+                  navigate(`/admin/test-store-builder?packetId=${currentPacketId}`);
                 }, 50);
               }
             }}
@@ -1425,7 +1425,7 @@ export function StoreBuilderHarness() {
                     selectedGraphicSize: "medium",
                     defaultColor: "",
                   });
-                  navigate("/test-store-builder");
+                  navigate("/admin/test-store-builder");
                 }}
                 className="qr-btn qr-btn--outline qr-btn--xl qr-btn--full"
                 data-testid="button-clear-after-assign"
@@ -1435,7 +1435,7 @@ export function StoreBuilderHarness() {
               <button
                 onClick={() => {
                   if (selectedStoreId && selectedChannel) {
-                    navigate(`/test-stores?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);
+                    navigate(`/admin/test-stores?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);
                   }
                 }}
                 className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full"

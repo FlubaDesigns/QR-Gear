@@ -123,7 +123,6 @@ function Router() {
       <Route path="/admin/email-templates">{() => <ProtectedRoute><AdminEmailTemplates /></ProtectedRoute>}</Route>
       <Route path="/admin/email-health">{() => <ProtectedRoute><AdminEmailHealth /></ProtectedRoute>}</Route>
       <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
-      <Route path="/admin/test-images">{() => <ProtectedRoute><AdminTestImages /></ProtectedRoute>}</Route>
       <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
       <Route path="/build/success" component={BuildSuccess} />
       <Route path="/build" component={BuildPage} />
@@ -147,18 +146,18 @@ function Router() {
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
-      <Route path="/test-images" component={TestImages} />
-      <Route path="/test-upload" component={AdminTestUpload} />
-      <Route path="/test-library" component={TestLibrary} />
-      <Route path="/test-products" component={TestProducts} />
-      <Route path="/test-stores" component={TestStores} />
-      <Route path="/test-dynamics" component={TestDynamics} />
-      <Route path="/test-pricing" component={TestPricing} />
-      <Route path="/test-store-builder" component={TestStoreBuilder} />
-      <Route path="/test-ar-demo" component={TestARDemo} />
-      <Route path="/test-settings" component={TestSettings} />
-      <Route path="/test-canvas-packet" component={TestCanvasPacket} />
-      <Route path="/test-qr-play" component={TestQRPlay} />
+      <Route path="/admin/test-images" component={TestImages} />
+      <Route path="/admin/test-upload" component={AdminTestUpload} />
+      <Route path="/admin/test-library" component={TestLibrary} />
+      <Route path="/admin/test-products" component={TestProducts} />
+      <Route path="/admin/test-stores" component={TestStores} />
+      <Route path="/admin/test-dynamics" component={TestDynamics} />
+      <Route path="/admin/test-pricing" component={TestPricing} />
+      <Route path="/admin/test-store-builder" component={TestStoreBuilder} />
+      <Route path="/admin/test-ar-demo" component={TestARDemo} />
+      <Route path="/admin/test-settings" component={TestSettings} />
+      <Route path="/admin/test-canvas-packet" component={TestCanvasPacket} />
+      <Route path="/admin/test-qr-play" component={TestQRPlay} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
