@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { FontPicker } from "@/components/ui/font-picker";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { TextStyleViewer } from "./TextStyleViewer";
+import { useFonts, loadGoogleFonts } from "@/hooks/use-fonts";
 
 export interface TextStyleConfig {
   text: string;
@@ -67,6 +68,7 @@ interface TextStyleEditorProps {
   previewBackgroundColor?: string;
   previewBackgroundImage?: string;
   defaultCollapsed?: boolean;
+  fonts?: string[];
 }
 
 export function TextStyleEditor({ 
@@ -81,9 +83,16 @@ export function TextStyleEditor({
   previewBackgroundColor,
   previewBackgroundImage,
   defaultCollapsed = true,
+  fonts: fontsProp,
 }: TextStyleEditorProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const { fonts: dynamicFonts } = useFonts();
+  const activeFonts = fontsProp || dynamicFonts;
+
+  useEffect(() => {
+    loadGoogleFonts(activeFonts);
+  }, [activeFonts]);
 
   const hasContent = style.enabled && style.text;
 
@@ -181,7 +190,7 @@ export function TextStyleEditor({
                   <FontPicker
                     value={style.fontFamily}
                     onChange={(font) => onChange({ fontFamily: font })}
-                    fonts={FONT_FAMILIES}
+                    fonts={activeFonts}
                     previewText={style.text || "QR Gear"}
                     data-testid={`select-${testIdPrefix}-font`}
                   />
