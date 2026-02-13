@@ -1,0 +1,63 @@
+PRINTIFY PRODUCTS (264 items)
+
+Available fields:
+- id: Internal database ID (integer)
+- title: Product name (e.g., "11oz Accent Mug")
+- brand: Manufacturer name (e.g., "ORCA Coatings")
+- model: Model number (often empty)
+- description: Full HTML product description with specs
+- category: Printify's own category label (e.g., "drinkware", "other")
+- images: Array of multiple image URLs
+- primary_image_url: Single main image URL
+- last_synced_at: When the product was last synced from Printify
+- created_at: When the record was created locally
+
+
+PRINTFUL PRODUCTS (187 items)
+
+Available fields:
+- id: Internal database ID (integer)
+- title: Product name (e.g., "AirPods Case")
+- type: Production method category, one of 13 types: T-SHIRT, CUT-SEW, EMBROIDERY, PHONE-CASE, DECOR, SUBLIMATION, CANVAS, SHOES, KNITWEAR, DRINKWARE, DTFILM, DIRECT-TO-FABRIC, MUG
+- type_name: More specific product name (e.g., "Hat", "Sweatshirt", "All-Over Print Duffle Bag")
+- brand: Manufacturer name (e.g., "AS Colour", "Bella + Canvas")
+- model: Model number (e.g., "4161")
+- image: Single product image URL
+- variant_count: Number of color/size combinations available (e.g., 30)
+- currency: Price currency (e.g., "USD")
+- min_price: Lowest wholesale cost (e.g., 7.65)
+- max_price: Highest wholesale cost (e.g., 36.50)
+- printfile_width: Print area width in pixels (e.g., 1800)
+- printfile_height: Print area height in pixels (e.g., 2400)
+- printfile_dpi: Required DPI for print files (150 or 300)
+- description: Product description (when available)
+- avg_fulfillment_time: Average days to fulfill (when available)
+- origin_country: Country of manufacture (e.g., "USA", "Vietnam")
+- is_discontinued: Whether the product is still available (true/false)
+- available_placements: Array of printable areas (e.g., "front", "back", "sleeve_left", "sleeve_right", "label_outside")
+- last_synced_at: When the product was last synced from Printful
+- created_at: When the record was created locally
+
+
+PRINTFUL PRODUCT TYPES BREAKDOWN (13 types, 187 products total)
+
+CUT-SEW: 108 products
+T-SHIRT: 35 products
+EMBROIDERY: 10 products
+DIRECT-TO-FABRIC: 6 products
+SUBLIMATION: 6 products
+KNITWEAR: 6 products
+DECOR: 5 products
+PHONE-CASE: 4 products
+DTFILM: 3 products
+MUG: 2 products
+CANVAS: 1 product
+DRINKWARE: 1 product
+SHOES: 1 product
+
+
+KEY DIFFERENCES
+
+Printful has significantly more data per product: wholesale pricing, print dimensions/DPI, fulfillment time, origin country, available print placements, variant counts, and discontinuation status.
+
+Printify's local data is sparser: mainly title, brand, images, and description. More detailed info (pricing, variants, print providers) is available through API calls but not stored locally.
