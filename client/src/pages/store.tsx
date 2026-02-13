@@ -5,7 +5,6 @@ import { nexusFetch } from "@/lib/nexusFetch";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
 import SEO from "@/components/SEO";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -117,7 +116,6 @@ export default function Store() {
       <Navbar />
       <BreadcrumbTrail />
       <main className="flex-1 bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <PageBreadcrumb currentPage="Shop" />
         <div className="container py-8">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">Shop QR Products</h1>

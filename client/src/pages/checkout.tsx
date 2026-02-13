@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ShoppingCart, AlertCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import PageBreadcrumb from "@/components/PageBreadcrumb";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -73,7 +73,7 @@ export default function Checkout() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <PageBreadcrumb currentPage="Checkout" />
+        <BreadcrumbTrail />
         <div className="container mx-auto px-4 py-16 max-w-2xl">
           <Card className="text-center py-12">
             <CardContent>
@@ -103,7 +103,7 @@ export default function Checkout() {
         description="Complete your purchase of custom QR code merchandise."
       />
       <Navbar />
-      <PageBreadcrumb currentPage="Checkout" />
+      <BreadcrumbTrail />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center gap-4 mb-6">

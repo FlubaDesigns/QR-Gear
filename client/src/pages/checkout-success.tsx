@@ -50,13 +50,7 @@ export default function CheckoutSuccess() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <BreadcrumbTrail />
-        <PageBreadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Order Confirmation" },
-          ]}
-        />
+        <BreadcrumbTrail currentPage="Order Confirmation" />
         <div className="container mx-auto px-4 py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6 flex flex-col items-center gap-4">
@@ -72,13 +66,7 @@ export default function CheckoutSuccess() {
   if (error || !orderData?.order) {
     return (
       <div className="min-h-screen bg-background">
-        <BreadcrumbTrail />
-        <PageBreadcrumb
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Order Confirmation" },
-          ]}
-        />
+        <BreadcrumbTrail currentPage="Order Confirmation" />
         <div className="container mx-auto px-4 py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">
@@ -105,13 +93,7 @@ export default function CheckoutSuccess() {
         title="Order Confirmed | QR Gear"
         description="Your QR Gear order has been confirmed and is being processed."
       />
-      <BreadcrumbTrail />
-      <PageBreadcrumb
-        items={[
-          { label: "Home", href: "/" },
-          { label: "Order Confirmation" },
-        ]}
-      />
+      <BreadcrumbTrail currentPage="Order Confirmation" />
 
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="text-center mb-8">
