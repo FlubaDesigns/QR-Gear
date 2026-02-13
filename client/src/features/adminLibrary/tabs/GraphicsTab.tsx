@@ -90,7 +90,7 @@ export default function GraphicsTab() {
   const skinItems = packetsWithGraphics.map(packetToSkinItem);
 
   const handleEdit = (packetId: string) => {
-    navigate(`/test-store-builder?packetId=${packetId}`);
+    navigate(`/admin/store-builder?packetId=${packetId}`);
   };
 
   const handleArchive = (packetId: string) => {

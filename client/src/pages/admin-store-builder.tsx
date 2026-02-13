@@ -665,7 +665,7 @@ export default function AdminStoreBuilderPage() {
             </h1>
             <div className="flex flex-col gap-3">
               <Link href="/admin/products" className="block">
-                <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-test-products">
+                <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-products">
                   <Package className="h-5 w-5" />
                   Products
                 </button>

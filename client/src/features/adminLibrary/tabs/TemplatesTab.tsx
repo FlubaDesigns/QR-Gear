@@ -118,7 +118,7 @@ export default function TemplatesTab() {
   const skinItems = templates.map(templateToSkinItem);
 
   const handleEdit = (packetId: string) => {
-    navigate(`/test-store-builder?packetId=${packetId}`);
+    navigate(`/admin/store-builder?packetId=${packetId}`);
   };
 
   const handleDelete = (templateId: string) => {

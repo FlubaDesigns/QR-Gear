@@ -71,14 +71,11 @@ import BusinessAnalyticsQR from "@/pages/business-analytics-qr";
 import NotFound from "@/pages/not-found";
 import ScrollToTop from "@/components/ScrollToTop";
 import LogoPreview from "@/pages/logo-preview";
-import TestProducts from "@/pages/test-products";
-import TestStores from "@/pages/test-stores";
-import TestStoreBuilder from "@/pages/test-store-builder";
 import AdminStoreBuilder from "@/pages/admin-store-builder";
 import AdminStoreLibrary from "@/pages/admin-store-library";
-import TestARDemo from "@/pages/test-ar-demo";
-import TestDynamics from "@/pages/test-dynamics";
-import FontManagement from "@/pages/test-settings";
+import AdminARDemo from "@/pages/admin-ar-demo";
+import AdminDynamics from "@/pages/admin-dynamics";
+import FontManagement from "@/pages/admin-fonts";
 import Members from "@/features/members/MembersPage";
 import TestCanvasPacket from "@/pages/test-canvas-packet";
 import TestQRPlay from "@/pages/test-qr-play";
@@ -143,13 +140,10 @@ function Router() {
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
-      <Route path="/admin/test-products" component={TestProducts} />
-      <Route path="/admin/test-stores" component={TestStores} />
-      <Route path="/admin/test-dynamics" component={TestDynamics} />
-      <Route path="/admin/test-store-builder" component={TestStoreBuilder} />
+      <Route path="/admin/dynamics" component={AdminDynamics} />
       <Route path="/admin/store-builder" component={AdminStoreBuilder} />
       <Route path="/admin/store-library" component={AdminStoreLibrary} />
-      <Route path="/admin/test-ar-demo" component={TestARDemo} />
+      <Route path="/admin/ar-demo" component={AdminARDemo} />
       <Route path="/admin/fonts" component={FontManagement} />
       <Route path="/admin/test-canvas-packet" component={TestCanvasPacket} />
       <Route path="/admin/test-qr-play" component={TestQRPlay} />

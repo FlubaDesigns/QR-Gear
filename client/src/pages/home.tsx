@@ -32,9 +32,9 @@ function AdminQuickAccess() {
         <Shield className="w-4 h-4" />
         Admin Panel
       </Link>
-      <Link href="/admin/test-products" className="admin-quick-link" data-testid="link-test-products">
+      <Link href="/admin/products" className="admin-quick-link" data-testid="link-products">
         <FlaskConical className="w-4 h-4" />
-        Test Products
+        Products
       </Link>
       <Link href="/member" className="admin-quick-link" data-testid="link-member">
         <Users className="w-4 h-4" />
@@ -52,7 +52,7 @@ function AdminQuickAccess() {
         <Layers className="w-4 h-4" />
         Advanced
       </Link>
-      <Link href="/admin/test-store-builder" className="admin-quick-link" data-testid="link-store-builder">
+      <Link href="/admin/store-builder" className="admin-quick-link" data-testid="link-store-builder">
         <Store className="w-4 h-4" />
         Store Builder
       </Link>
@@ -64,11 +64,11 @@ function AdminQuickAccess() {
         <Film className="w-4 h-4" />
         QR Play
       </Link>
-      <Link href="/admin/test-dynamics" className="admin-quick-link" data-testid="link-test-dynamics">
+      <Link href="/admin/dynamics" className="admin-quick-link" data-testid="link-dynamics">
         <Layers className="w-4 h-4" />
         QR Dynamics
       </Link>
-      <Link href="/admin/test-ar-demo" className="admin-quick-link" data-testid="link-test-ar-demo">
+      <Link href="/admin/ar-demo" className="admin-quick-link" data-testid="link-ar-demo">
         <Box className="w-4 h-4" />
         AR Demo
       </Link>

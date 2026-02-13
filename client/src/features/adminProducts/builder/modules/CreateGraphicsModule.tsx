@@ -1000,7 +1000,7 @@ export function CreateGraphicsModule() {
 
   const handleNext = () => {
     if (packetResult) {
-      navigate(`/admin/test-store-builder?packetId=${packetResult.packetId}`);
+      navigate(`/admin/store-builder?packetId=${packetResult.packetId}`);
     }
   };
 

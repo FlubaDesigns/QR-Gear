@@ -370,6 +370,14 @@ export default function AdminDashboard() {
                 <Type className="qr-admin-quicklink__icon" />
                 <span>Font Management</span>
               </Link>
+              <Link href="/admin/dynamics" className="qr-admin-quicklink" data-testid="link-dynamics">
+                <Layers className="qr-admin-quicklink__icon" />
+                <span>QR Dynamics</span>
+              </Link>
+              <Link href="/admin/ar-demo" className="qr-admin-quicklink" data-testid="link-ar-demo">
+                <Box className="qr-admin-quicklink__icon" />
+                <span>AR Demo</span>
+              </Link>
             </div>
 
             <h3 className="text-sm font-medium text-muted-foreground mt-6 mb-2">Test Pages (Under Review)</h3>
@@ -381,26 +389,6 @@ export default function AdminDashboard() {
               <Link href="/admin/test-qr-play" className="qr-admin-quicklink" data-testid="link-test-qr-play">
                 <Film className="qr-admin-quicklink__icon" />
                 <span>QR Play</span>
-              </Link>
-              <Link href="/admin/test-dynamics" className="qr-admin-quicklink" data-testid="link-test-dynamics">
-                <Layers className="qr-admin-quicklink__icon" />
-                <span>QR Dynamics</span>
-              </Link>
-              <Link href="/admin/test-products" className="qr-admin-quicklink" data-testid="link-test-products">
-                <Package className="qr-admin-quicklink__icon" />
-                <span>Test Products</span>
-              </Link>
-              <Link href="/admin/test-stores" className="qr-admin-quicklink" data-testid="link-test-stores">
-                <Package className="qr-admin-quicklink__icon" />
-                <span>Test Stores</span>
-              </Link>
-              <Link href="/admin/test-store-builder" className="qr-admin-quicklink" data-testid="link-test-store-builder">
-                <Package className="qr-admin-quicklink__icon" />
-                <span>Test Store Builder</span>
-              </Link>
-              <Link href="/admin/test-ar-demo" className="qr-admin-quicklink" data-testid="link-test-ar-demo">
-                <Box className="qr-admin-quicklink__icon" />
-                <span>AR Demo</span>
               </Link>
             </div>
           </>

@@ -160,19 +160,19 @@ export default function MemberPage() {
             </p>
 
             <div className="flex flex-wrap gap-2 mb-4">
-              <Link href="/admin/test-products">
+              <Link href="/admin/products">
                 <Button size="sm" data-testid="link-create-product">
                   <Plus className="h-4 w-4 mr-1" />
                   Create Product
                 </Button>
               </Link>
-              <Link href="/admin/test-store-builder">
+              <Link href="/admin/store-builder">
                 <Button variant="outline" size="sm" data-testid="link-store-builder-quick">
                   <Eye className="h-4 w-4 mr-1" />
                   Store Builder
                 </Button>
               </Link>
-              <Link href="/admin/test-dynamics">
+              <Link href="/admin/dynamics">
                 <Button variant="outline" size="sm" data-testid="link-dynamics">
                   <Layers className="h-4 w-4 mr-1" />
                   QR Dynamics
@@ -298,7 +298,7 @@ export default function MemberPage() {
                         onEdit: (id) => {
                           const product = products.find(p => p.id === id);
                           if (product?.packetId) {
-                            setLocation(`/admin/test-store-builder?packetId=${product.packetId}`);
+                            setLocation(`/admin/store-builder?packetId=${product.packetId}`);
                           }
                         },
                       }}
@@ -318,19 +318,19 @@ export default function MemberPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Link href="/admin/test-products" className="block">
+                  <Link href="/admin/products" className="block">
                     <Button className="w-full justify-start" variant="outline" data-testid="link-products-builder">
                       <Plus className="h-4 w-4 mr-2" />
                       Create New Product
                     </Button>
                   </Link>
-                  <Link href="/admin/test-store-builder" className="block">
+                  <Link href="/admin/store-builder" className="block">
                     <Button className="w-full justify-start" variant="outline" data-testid="link-store-builder">
                       <Eye className="h-4 w-4 mr-2" />
                       Store Builder
                     </Button>
                   </Link>
-                  <Link href="/admin/test-dynamics" className="block">
+                  <Link href="/admin/dynamics" className="block">
                     <Button className="w-full justify-start" variant="outline" data-testid="link-dynamics-page">
                       <Layers className="h-4 w-4 mr-2" />
                       QR Dynamics Setup

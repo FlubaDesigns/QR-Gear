@@ -14,7 +14,7 @@ export default function AdminProducts() {
               Product Management
             </h1>
             <div className="flex flex-col gap-3">
-              <Link href="/admin/test-store-builder" className="block">
+              <Link href="/admin/store-builder" className="block">
                 <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-store-builder">
                   <Store className="h-5 w-5" />
                   Store Builder

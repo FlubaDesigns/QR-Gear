@@ -133,7 +133,7 @@ export default function TestARDemo() {
           </h1>
           <button
             className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xl"
-            onClick={() => navigate("/test-store-builder")}
+            onClick={() => navigate("/admin/store-builder")}
             data-testid="button-back"
           >
             <ArrowLeft className="h-5 w-5" />
