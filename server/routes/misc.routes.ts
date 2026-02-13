@@ -3160,7 +3160,17 @@ ${allPages.map(page => `  <url>
       
       const latestSync = await storage.getLatestCatalogSync();
       if (latestSync?.status === 'running') {
-        return res.status(409).json({ error: "Sync already in progress" });
+        const startedAt = latestSync.startedAt ? new Date(latestSync.startedAt).getTime() : 0;
+        const staleThreshold = 30 * 60 * 1000;
+        if (Date.now() - startedAt < staleThreshold) {
+          return res.status(409).json({ error: "Sync already in progress" });
+        }
+        console.log('[TestProducts] Clearing stale sync record:', latestSync.id);
+        await storage.updateCatalogSync(latestSync.id, {
+          status: 'failed',
+          errorMessage: 'Timed out - cleared as stale',
+          completedAt: new Date(),
+        });
       }
       
       const syncRecord = await storage.createCatalogSync({
