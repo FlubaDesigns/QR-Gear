@@ -5370,87 +5370,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     'next level',  // Some Next Level products made in USA
   ];
 
-  // Get full catalog grouped by category with images and provider info
-  // Loads from local DB for speed, prices come from Printify on-demand
+  function categorizeProduct(title: string): string {
+    const t = title.toLowerCase();
+    if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie') || t.includes('baby tee')) {
+      return "T-Shirts & Tops";
+    } else if (t.includes('hoodie') || t.includes('sweatshirt') || t.includes('crew neck') || t.includes('pullover') || t.includes('crewneck')) {
+      return "Sweatshirts & Hoodies";
+    } else if (t.includes('hat') || t.includes('cap') || t.includes('beanie') || t.includes('visor') || t.includes('bucket')) {
+      return "Hats & Caps";
+    } else if (t.includes('mug') || t.includes('tumbler') || t.includes('bottle') || t.includes('cup') || t.includes('glass') || t.includes('can cooler')) {
+      return "Drinkware";
+    } else if (t.includes('bag') || t.includes('tote') || t.includes('backpack') || t.includes('pouch') || t.includes('clutch') || t.includes('duffel') || t.includes('weekender') || t.includes('fanny') || t.includes('cosmetic')) {
+      return "Bags & Accessories";
+    } else if (t.includes('phone') || t.includes('case') || t.includes('airpod') || t.includes('laptop sleeve')) {
+      return "Phone Cases & Tech";
+    } else if (t.includes('sticker') || t.includes('magnet') || t.includes('pin button') || t.includes('bumper') || t.includes('decal')) {
+      return "Stickers & Magnets";
+    } else if (t.includes('poster') || t.includes('canvas') || t.includes('art print') || t.includes('framed') || t.includes('wall') || t.includes('tapestry')) {
+      return "Wall Art & Posters";
+    } else if (t.includes('pillow') || t.includes('blanket') || t.includes('comforter') || t.includes('shower') || t.includes('bath') || t.includes('rug') || t.includes('coaster') || t.includes('placemat') || t.includes('towel')) {
+      return "Home & Living";
+    } else if (t.includes('journal') || t.includes('notebook') || t.includes('card') || t.includes('postcard') || t.includes('calendar') || t.includes('puzzle')) {
+      return "Stationery & Paper";
+    } else if (t.includes('legging') || t.includes('jogger') || t.includes('shorts') || t.includes('skirt') || t.includes('dress') || t.includes('swimsuit') || t.includes('bikini') || t.includes('swim trunk') || t.includes('boxer') || t.includes('brief') || t.includes('bra') || t.includes('jacket') || t.includes('windbreaker') || t.includes('pants') || t.includes('pajama') || t.includes('rash guard') || t.includes('flip flop') || t.includes('sneaker') || t.includes('shoe')) {
+      return "Activewear & Specialty";
+    } else if (t.includes('pet') || t.includes('dog')) {
+      return "Pet Products";
+    } else if (t.includes('ornament') || t.includes('stocking') || t.includes('tree skirt') || t.includes('snowflake')) {
+      return "Holiday & Seasonal";
+    } else if (t.includes('sock') || t.includes('scarf') || t.includes('necktie') || t.includes('watch band') || t.includes('apron') || t.includes('bandana') || t.includes('headband') || t.includes('gaiter') || t.includes('mask') || t.includes('scrunchie')) {
+      return "Accessories";
+    } else {
+      return "Other";
+    }
+  }
+
   app.get("/api/admin/printify/catalog", isAdmin, async (req: any, res) => {
     try {
-      // First try to load from local database (fast!)
-      const localBlueprints = await storage.getPrintifyBlueprints();
+      const providerFilter = (req.query.provider as string) || 'all';
       
-      let blueprints: any[];
-      
-      if (localBlueprints.length > 0) {
-        // Use local cache - much faster!
-        blueprints = localBlueprints.map(bp => ({
-          id: bp.id,
-          title: bp.title,
-          brand: bp.brand,
-          model: bp.model,
-          images: bp.images || [],
-        }));
-      } else {
-        // Fall back to Printify API if no local data
-        if (!printify) {
-          return res.status(503).json({ error: "Printify API not configured. Please sync catalog first." });
-        }
-        blueprints = await printify.getCatalogBlueprints();
-      }
-      
-      // Categorize blueprints by product type
-      const categories: Record<string, any[]> = {
-        "T-Shirts": [],
-        "Sweatshirts & Hoodies": [],
-        "Hats & Caps": [],
-        "Drinkware": [],
-        "Bags": [],
-        "Other": [],
-      };
-      
-      for (const bp of blueprints) {
-        const title = bp.title.toLowerCase();
-        const brandLower = (bp.brand || '').toLowerCase();
+      const categories: Record<string, any[]> = {};
+
+      if (providerFilter === 'all' || providerFilter === 'printify') {
+        const localBlueprints = await storage.getPrintifyBlueprints();
         
-        // Check if brand is a known USA manufacturer
-        const isUSABrand = USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
-        
-        const item = {
-          id: bp.id,
-          title: bp.title,
-          brand: bp.brand,
-          model: bp.model,
-          imageUrl: bp.images?.[0] || null,
-          madeInUSA: isUSABrand,
-          usaProviderCount: isUSABrand ? 1 : 0,
-          otherCountries: isUSABrand ? [] : ['Imported'],
-        };
-        
-        if (title.includes('t-shirt') || title.includes('tee') || title.includes('tank')) {
-          categories["T-Shirts"].push(item);
-        } else if (title.includes('hoodie') || title.includes('sweatshirt') || title.includes('crew') || title.includes('pullover')) {
-          categories["Sweatshirts & Hoodies"].push(item);
-        } else if (title.includes('hat') || title.includes('cap') || title.includes('beanie') || title.includes('visor')) {
-          categories["Hats & Caps"].push(item);
-        } else if (title.includes('mug') || title.includes('tumbler') || title.includes('bottle') || title.includes('cup') || title.includes('glass')) {
-          categories["Drinkware"].push(item);
-        } else if (title.includes('bag') || title.includes('tote') || title.includes('backpack') || title.includes('pouch')) {
-          categories["Bags"].push(item);
+        let blueprints: any[];
+        if (localBlueprints.length > 0) {
+          blueprints = localBlueprints.map(bp => ({
+            id: bp.id,
+            title: bp.title,
+            brand: bp.brand,
+            model: bp.model,
+            images: bp.images || [],
+          }));
+        } else if (printify) {
+          blueprints = await printify.getCatalogBlueprints();
         } else {
-          categories["Other"].push(item);
+          blueprints = [];
+        }
+        
+        for (const bp of blueprints) {
+          const brandLower = (bp.brand || '').toLowerCase();
+          const isUSABrand = USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
+          const category = categorizeProduct(bp.title);
+          if (!categories[category]) categories[category] = [];
+          
+          categories[category].push({
+            id: `printify-${bp.id}`,
+            rawId: bp.id,
+            title: bp.title,
+            brand: bp.brand,
+            model: bp.model,
+            imageUrl: bp.images?.[0] || null,
+            madeInUSA: isUSABrand,
+            provider: 'printify',
+          });
+        }
+      }
+
+      if (providerFilter === 'all' || providerFilter === 'printful') {
+        const { printfulProducts: printfulTable } = await import('@shared/schema');
+        const printfulRows = await db.select().from(printfulTable);
+        
+        for (const pf of printfulRows) {
+          const isUSA = (pf.originCountry || '').toUpperCase() === 'USA' || (pf.originCountry || '').toUpperCase() === 'US';
+          const brandLower = (pf.brand || '').toLowerCase();
+          const isUSABrand = isUSA || USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
+          const category = categorizeProduct(pf.title);
+          if (!categories[category]) categories[category] = [];
+          
+          categories[category].push({
+            id: `printful-${pf.id}`,
+            rawId: pf.id,
+            title: pf.title,
+            brand: pf.brand || '',
+            model: pf.model || '',
+            imageUrl: pf.image || null,
+            madeInUSA: isUSABrand,
+            provider: 'printful',
+          });
         }
       }
       
-      // Convert to array format, filter empty categories
-      const result = Object.entries(categories)
+      const sortedCategories = [
+        "T-Shirts & Tops", "Sweatshirts & Hoodies", "Hats & Caps", "Drinkware",
+        "Bags & Accessories", "Phone Cases & Tech", "Stickers & Magnets", 
+        "Wall Art & Posters", "Home & Living", "Stationery & Paper",
+        "Activewear & Specialty", "Accessories", "Pet Products", 
+        "Holiday & Seasonal", "Other"
+      ];
+
+      const result = sortedCategories
+        .filter(name => categories[name] && categories[name].length > 0)
+        .map(name => ({
+          name,
+          items: categories[name].sort((a: any, b: any) => a.title.localeCompare(b.title)),
+          count: categories[name].length,
+          usaCount: categories[name].filter((i: any) => i.madeInUSA).length,
+          printifyCount: categories[name].filter((i: any) => i.provider === 'printify').length,
+          printfulCount: categories[name].filter((i: any) => i.provider === 'printful').length,
+        }));
+
+      const extraCategories = Object.entries(categories)
+        .filter(([name]) => !sortedCategories.includes(name))
         .filter(([_, items]) => items.length > 0)
-        .map(([name, items]) => ({ 
-          name, 
-          items, 
+        .map(([name, items]) => ({
+          name,
+          items: items.sort((a: any, b: any) => a.title.localeCompare(b.title)),
           count: items.length,
-          usaCount: items.filter(i => i.madeInUSA).length,
-          otherCount: items.filter(i => !i.madeInUSA).length,
+          usaCount: items.filter((i: any) => i.madeInUSA).length,
+          printifyCount: items.filter((i: any) => i.provider === 'printify').length,
+          printfulCount: items.filter((i: any) => i.provider === 'printful').length,
         }));
       
-      res.json(result);
+      res.json([...result, ...extraCategories]);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

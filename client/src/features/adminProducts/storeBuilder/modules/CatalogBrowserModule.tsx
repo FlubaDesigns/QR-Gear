@@ -10,6 +10,7 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface CatalogItem {
   id: string;
+  rawId: number;
   title: string;
   brand?: string;
   model?: string;
@@ -18,6 +19,7 @@ interface CatalogItem {
   maxPrice?: string;
   colorCount?: number;
   madeInUSA?: boolean;
+  provider?: 'printify' | 'printful';
 }
 
 interface CatalogCategory {
@@ -25,17 +27,27 @@ interface CatalogCategory {
   items: CatalogItem[];
   count: number;
   usaCount?: number;
+  printifyCount?: number;
+  printfulCount?: number;
 }
+
+type ProviderFilter = 'all' | 'printify' | 'printful';
 
 export function CatalogBrowserModule() {
   const { step, currentChannel, selectedBaseProduct, setSelectedBaseProduct, setStep } = useStoreBuilderContext();
   const { apiBase } = useAdminAuth();
   const [search, setSearch] = useState("");
   const [usaOnly, setUsaOnly] = useState(false);
+  const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
-    queryKey: [`${apiBase}/printify/catalog`],
+    queryKey: [`${apiBase}/printify/catalog`, { provider: providerFilter }],
+    queryFn: async () => {
+      const res = await fetch(`${apiBase}/printify/catalog?provider=${providerFilter}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to load catalog');
+      return res.json();
+    },
     enabled: !!currentChannel,
   });
 
@@ -54,6 +66,7 @@ export function CatalogBrowserModule() {
     }),
   })).filter(cat => cat.items.length > 0);
 
+  const totalItems = categories.reduce((sum, cat) => sum + cat.items.length, 0);
   const totalUSA = categories.reduce((sum, cat) => sum + (cat.items?.filter(i => i.madeInUSA)?.length || 0), 0);
   const totalFiltered = filteredCategories.reduce((sum, cat) => sum + cat.items.length, 0);
 
@@ -76,6 +89,48 @@ export function CatalogBrowserModule() {
       badge={selectedBaseProduct ? <Badge variant="secondary">{selectedBaseProduct.name}</Badge> : undefined}
     >
       <div className="space-y-3">
+        <div className="flex items-center gap-1">
+          <Button
+            variant={providerFilter === 'all' ? "default" : "outline"}
+            size="sm"
+            onClick={() => setProviderFilter('all')}
+            className="text-xs"
+            data-testid="button-provider-all"
+          >
+            All
+          </Button>
+          <Button
+            variant={providerFilter === 'printify' ? "default" : "outline"}
+            size="sm"
+            onClick={() => setProviderFilter('printify')}
+            className="text-xs"
+            data-testid="button-provider-printify"
+          >
+            Printify
+          </Button>
+          <Button
+            variant={providerFilter === 'printful' ? "default" : "outline"}
+            size="sm"
+            onClick={() => setProviderFilter('printful')}
+            className="text-xs"
+            data-testid="button-provider-printful"
+          >
+            Printful
+          </Button>
+          <div className="ml-auto">
+            <Button
+              variant={usaOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => setUsaOnly(!usaOnly)}
+              className={`gap-1 ${usaOnly ? "toggle-elevate toggle-elevated" : "toggle-elevate"}`}
+              data-testid="button-usa-filter"
+            >
+              <Flag className="h-3.5 w-3.5" />
+              USA
+            </Button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -89,22 +144,12 @@ export function CatalogBrowserModule() {
               data-testid="input-catalog-search"
             />
           </div>
-          <Button
-            variant={usaOnly ? "default" : "outline"}
-            size="sm"
-            onClick={() => setUsaOnly(!usaOnly)}
-            className={`flex-shrink-0 gap-1 ${usaOnly ? "toggle-elevate toggle-elevated" : "toggle-elevate"}`}
-            data-testid="button-usa-filter"
-          >
-            <Flag className="h-3.5 w-3.5" />
-            USA
-          </Button>
         </div>
-        {usaOnly && (
-          <p className="text-xs text-muted-foreground">
-            Showing {totalFiltered} of {totalUSA} USA-made products
-          </p>
-        )}
+
+        <p className="text-xs text-muted-foreground" data-testid="text-catalog-count">
+          {totalFiltered} products{usaOnly ? ` (${totalUSA} USA-made)` : ` of ${totalItems} total`}
+          {providerFilter !== 'all' && ` from ${providerFilter === 'printify' ? 'Printify' : 'Printful'}`}
+        </p>
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-4">
@@ -114,7 +159,7 @@ export function CatalogBrowserModule() {
         ) : filteredCategories.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4">No products found</p>
         ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto">
+          <div className="space-y-2 max-h-96 overflow-y-auto">
             {filteredCategories.map(category => (
               <div key={category.name} className="border rounded-md">
                 <button
@@ -156,8 +201,13 @@ export function CatalogBrowserModule() {
                                 <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0 align-middle border-blue-500 text-blue-600 dark:text-blue-400">USA</Badge>
                               )}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              {product.brand}{product.colorCount ? ` · ${product.colorCount} colors` : ''}
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+                              {product.brand && <span>{product.brand}</span>}
+                              {product.provider && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 no-default-hover-elevate no-default-active-elevate">
+                                  {product.provider === 'printify' ? 'Printify' : 'Printful'}
+                                </Badge>
+                              )}
                             </span>
                           </div>
                         </div>
