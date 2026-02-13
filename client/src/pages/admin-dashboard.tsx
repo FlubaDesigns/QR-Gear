@@ -386,10 +386,6 @@ export default function AdminDashboard() {
                 <Palette className="qr-admin-quicklink__icon" />
                 <span>Canvas Packet</span>
               </Link>
-              <Link href="/admin/test-qr-play" className="qr-admin-quicklink" data-testid="link-test-qr-play">
-                <Film className="qr-admin-quicklink__icon" />
-                <span>QR Play</span>
-              </Link>
             </div>
           </>
         )}

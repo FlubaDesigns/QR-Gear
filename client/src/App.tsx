@@ -78,7 +78,6 @@ import AdminDynamics from "@/pages/admin-dynamics";
 import FontManagement from "@/pages/admin-fonts";
 import Members from "@/features/members/MembersPage";
 import TestCanvasPacket from "@/pages/test-canvas-packet";
-import TestQRPlay from "@/pages/test-qr-play";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
@@ -146,7 +145,6 @@ function Router() {
       <Route path="/admin/ar-demo" component={AdminARDemo} />
       <Route path="/admin/fonts" component={FontManagement} />
       <Route path="/admin/test-canvas-packet" component={TestCanvasPacket} />
-      <Route path="/admin/test-qr-play" component={TestQRPlay} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />

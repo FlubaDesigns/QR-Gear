@@ -60,10 +60,6 @@ function AdminQuickAccess() {
         <Palette className="w-4 h-4" />
         Canvas Packet
       </Link>
-      <Link href="/admin/test-qr-play" className="admin-quick-link" data-testid="link-test-qr-play">
-        <Film className="w-4 h-4" />
-        QR Play
-      </Link>
       <Link href="/admin/dynamics" className="admin-quick-link" data-testid="link-dynamics">
         <Layers className="w-4 h-4" />
         QR Dynamics
