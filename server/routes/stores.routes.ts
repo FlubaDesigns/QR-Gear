@@ -1,7 +1,104 @@
 import type { Express } from "express";
 import { storage } from "../storage";
+import { isAdmin } from "../firebaseAuth";
 
 export function registerStoreRoutes(app: Express): void {
+  app.get("/api/admin/stores", isAdmin, async (req: any, res) => {
+    try {
+      const roleType = req.query.roleType as string;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      let query = fsDb.collection('stores');
+      if (roleType) query = query.where('roleType', '==', roleType) as any;
+      const snapshot = await query.get();
+      const stores = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      stores.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+      res.json(stores);
+    } catch (error: any) {
+      console.error('[Stores] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/stores", isAdmin, async (req: any, res) => {
+    try {
+      const { name, roleType } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: 'Store name is required' });
+      if (!roleType || !['internal', 'external', 'member'].includes(roleType)) return res.status(400).json({ error: 'Valid roleType is required' });
+      const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const storeData = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('stores').doc(storeId).set(storeData);
+      res.json({ id: storeId, ...storeData });
+    } catch (error: any) {
+      console.error('[Stores] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/stores/:storeId", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const channelsSnapshot = await fsDb.collection('storeChannels').where('storeId', '==', storeId).get();
+      const batch = fsDb.batch();
+      channelsSnapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
+      batch.delete(fsDb.collection('stores').doc(storeId));
+      await batch.commit();
+      res.json({ success: true, deletedChannels: channelsSnapshot.size });
+    } catch (error: any) {
+      console.error('[Stores] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/stores/:storeId/channels", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannels').where('storeId', '==', storeId).get();
+      const channels = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      channels.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      res.json(channels);
+    } catch (error: any) {
+      console.error('[Channels] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/stores/:storeId/channels", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { name } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: 'Channel name is required' });
+      const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      const channelData = { name: name.trim(), storeId, isActive: true, productCount: 0, createdAt: new Date().toISOString() };
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('storeChannels').doc(channelId).set(channelData);
+      res.json({ id: channelId, ...channelData });
+    } catch (error: any) {
+      console.error('[Channels] POST error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/stores/:storeId/channels/:channelId", isAdmin, async (req: any, res) => {
+    try {
+      const { channelId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('storeChannels').doc(channelId).delete();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Channels] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/stores", async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
