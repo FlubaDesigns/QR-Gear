@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import {
   ArrowLeft,
   Book,
@@ -335,9 +334,7 @@ export default function AdminManual() {
 
   return (
     <div className="min-h-screen bg-background">
-      <BreadcrumbTrail />
-      
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
+<div className="bg-slate-900 dark:bg-slate-950 text-white">
         <div className="container max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <Button

@@ -1,7 +1,6 @@
 import { QrCode, CheckCircle, Link2, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -59,8 +58,7 @@ export default function QRStaticLanding() {
         keywords="QR Basics, simple QR code, basic QR products, text QR code, URL QR code, QR merchandise"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

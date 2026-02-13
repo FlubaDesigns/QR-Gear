@@ -2,7 +2,6 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, Layers, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
 import HowItWorks from "@/components/HowItWorks";
@@ -184,8 +183,7 @@ export default function Home() {
         keywords="QR code merchandise, custom promotional products, QR code shirts, QR code hats, business marketing"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <AdminQuickAccess />
+<AdminQuickAccess />
 
       <main className="flex-1">
         <Hero />

@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -168,8 +167,7 @@ export default function AdminHealth() {
 
   return (
     <div className="qr-admin-page">
-      <BreadcrumbTrail />
-      <div className="qr-admin-bar">
+<div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">
             <Button

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Link } from "wouter";
 import { Sparkles, ArrowRight, Flag } from "lucide-react";
 import type { QrDesign, Product } from "@shared/schema";
@@ -37,9 +36,7 @@ export default function Gallery() {
         ogType="website"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+<main className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="text-center mb-12">
           <Badge variant="secondary" className="mb-4">
             <Sparkles className="w-3 h-3 mr-1" />

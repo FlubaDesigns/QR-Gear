@@ -1,7 +1,6 @@
 import { Users, CheckCircle, Handshake, Smartphone, Zap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -41,8 +40,7 @@ export default function NetworkingQRShirts() {
         keywords="networking QR shirt, digital business card, vCard QR code, conference shirt, contact info QR, professional networking"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

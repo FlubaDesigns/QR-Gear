@@ -1,7 +1,6 @@
 import { Lightbulb, CheckCircle, HelpCircle, BookOpen, Info, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -53,8 +52,7 @@ export default function EverydayQR() {
         keywords="everyday QR, scan to learn, simple QR code, curiosity QR, story QR, instructions QR"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

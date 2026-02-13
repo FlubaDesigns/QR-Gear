@@ -1,7 +1,6 @@
 import { Type, CheckCircle, ArrowRight, User, Calendar, Heart, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -58,8 +57,7 @@ export default function QRStaticPlusLanding() {
         keywords="QR Plus, QR code with text, custom text QR, header footer QR, QR merchandise with text"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

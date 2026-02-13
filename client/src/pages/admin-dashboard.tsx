@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -162,8 +161,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="qr-admin-page">
-      <BreadcrumbTrail />
-      <div className="qr-admin-bar">
+<div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">
             <Button

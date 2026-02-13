@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Package, ArrowRight, Mail, Loader2 } from "lucide-react";
 import { Link } from "wouter";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 import type { Order, OrderItem } from "@shared/schema";
 
@@ -30,8 +29,7 @@ export default function CheckoutSuccess() {
   if (!sessionId) {
     return (
       <div className="min-h-screen bg-background">
-        <BreadcrumbTrail currentPage="Order Confirmation" />
-        <div className="container mx-auto px-4 py-16 text-center">
+<div className="container mx-auto px-4 py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">
               <p className="text-muted-foreground">Invalid checkout session. Please try again.</p>
@@ -50,8 +48,7 @@ export default function CheckoutSuccess() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <BreadcrumbTrail currentPage="Order Confirmation" />
-        <div className="container mx-auto px-4 py-16 text-center">
+<div className="container mx-auto px-4 py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6 flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -66,8 +63,7 @@ export default function CheckoutSuccess() {
   if (error || !orderData?.order) {
     return (
       <div className="min-h-screen bg-background">
-        <BreadcrumbTrail currentPage="Order Confirmation" />
-        <div className="container mx-auto px-4 py-16 text-center">
+<div className="container mx-auto px-4 py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">
               <p className="text-muted-foreground">
@@ -93,9 +89,7 @@ export default function CheckoutSuccess() {
         title="Order Confirmed | QR Gear"
         description="Your QR Gear order has been confirmed and is being processed."
       />
-      <BreadcrumbTrail currentPage="Order Confirmation" />
-
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
+<div className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 mb-4">
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />

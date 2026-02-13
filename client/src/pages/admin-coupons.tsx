@@ -4,7 +4,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -369,8 +368,7 @@ export default function AdminCoupons() {
 
   return (
     <div className="qr-admin-page">
-      <BreadcrumbTrail />
-      <div className="qr-admin-bar">
+<div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">
             <Button

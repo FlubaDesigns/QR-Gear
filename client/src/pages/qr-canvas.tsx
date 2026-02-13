@@ -1,7 +1,6 @@
 import { Palette, CheckCircle, Heart, Camera, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -53,8 +52,7 @@ export default function QRUrlLanding() {
         keywords="QR Canvas, custom QR background, wedding QR shirts, family photo gifts, artist QR apparel, memorial QR gifts"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

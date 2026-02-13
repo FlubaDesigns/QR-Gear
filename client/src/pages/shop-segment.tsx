@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, Check } from "lucide-react";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { nexusFetchProfiled, NexusProfiles } from "@/lib/nexusFetchProfiled";
@@ -365,8 +364,7 @@ export default function ShopSegmentPage() {
 
   return (
     <div className="container max-w-6xl py-8 px-4">
-      <BreadcrumbTrail />
-      <Link href="/">
+<Link href="/">
         <Button 
           variant="ghost" 
           className="mb-6 h-12 px-4"

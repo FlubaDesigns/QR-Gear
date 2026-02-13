@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 
 const routeLabels: Record<string, string> = {
-  "": "Home",
   "store": "Shop",
   "gallery": "Shop",
   "build": "Create",
@@ -43,14 +42,14 @@ const routeLabels: Record<string, string> = {
   "email-templates": "Email Templates",
   "email-health": "Email Health",
   "sales": "Sales",
+  "earn": "Earn",
+  "success": "Success",
+  "redeem": "Redeem",
 };
 
-interface BreadcrumbTrailProps {
-  dynamicLabel?: string;
-  currentPage?: string;
-}
+const hiddenRoutes = new Set(["/"]);
 
-export default function BreadcrumbTrail({ dynamicLabel, currentPage }: BreadcrumbTrailProps) {
+export default function BreadcrumbTrail() {
   const [location] = useLocation();
   const segments = location.split("/").filter(Boolean);
 
@@ -58,21 +57,15 @@ export default function BreadcrumbTrail({ dynamicLabel, currentPage }: Breadcrum
 
   const crumbs: { label: string; href: string }[] = [];
 
-  if (segments.length === 1) {
-    crumbs.push({ label: "Home", href: "/" });
-  }
-
   let path = "";
   segments.forEach((seg, i) => {
     path += "/" + seg;
     const isLast = i === segments.length - 1;
-    const label = isLast && currentPage
-      ? currentPage
-      : isLast && dynamicLabel
-        ? dynamicLabel
-        : routeLabels[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    const label = routeLabels[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     crumbs.push({ label, href: path });
   });
+
+  if (crumbs.length === 0) return null;
 
   return (
     <nav className="container py-2 text-sm text-muted-foreground" aria-label="Breadcrumb" data-testid="nav-breadcrumb">

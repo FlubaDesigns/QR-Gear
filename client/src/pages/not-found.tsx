@@ -2,13 +2,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Home, AlertCircle, QrCode } from "lucide-react";
 import { Link } from "wouter";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 export default function NotFound() {
   return (
     <div className="min-h-screen w-full flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-4">
-      <BreadcrumbTrail />
-      <div className="flex-1 flex items-center justify-center">
+<div className="flex-1 flex items-center justify-center">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl" />

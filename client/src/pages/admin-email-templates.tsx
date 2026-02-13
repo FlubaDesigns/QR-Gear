@@ -3,7 +3,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -129,8 +128,7 @@ export default function AdminEmailTemplates() {
 
   return (
     <div className="qr-admin-page">
-      <BreadcrumbTrail />
-      <div className="qr-admin-bar">
+<div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">
             <Button

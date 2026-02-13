@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -259,8 +258,7 @@ export default function AdminCustomers() {
 
   return (
     <div className="min-h-screen">
-      <BreadcrumbTrail />
-      <div className="bg-slate-900 dark:bg-slate-950 text-white">
+<div className="bg-slate-900 dark:bg-slate-950 text-white">
         <div className="container max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">

@@ -1,7 +1,6 @@
 import { Music, CheckCircle, Play, Disc, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -48,8 +47,7 @@ export default function MusicianMerch() {
         keywords="band merch, musician shirts, album art shirts, tour merchandise, music video shirts, artist merch, band merchandise, QR music"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

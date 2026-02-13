@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Gift, Sparkles, Package, Clock, Heart, Check, Copy, ArrowLeft } from "lucide-react";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import type { GiftPackage } from "@shared/schema";
 
 export default function GiftShopPage() {
@@ -89,8 +88,7 @@ export default function GiftShopPage() {
 
   return (
     <div className="container max-w-6xl py-8 px-4">
-      <BreadcrumbTrail />
-      <Button
+<Button
         variant="ghost"
         onClick={() => navigate("/")}
         className="mb-6 h-12 px-4"

@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Gift, ArrowLeft, Search, Check, Package, Sparkles, Palette, Ruler, QrCode, Heart } from "lucide-react";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 interface GiftDetails {
   giftCodeId: string;
@@ -146,8 +145,7 @@ export default function GiftRedeemPage() {
 
   return (
     <div className="container max-w-2xl py-8 px-4">
-      <BreadcrumbTrail />
-      <Button
+<Button
         variant="ghost"
         onClick={() => navigate("/gifts")}
         className="mb-6 h-12 px-4"

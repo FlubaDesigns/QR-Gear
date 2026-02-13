@@ -1,7 +1,6 @@
 import { Play, CheckCircle, ArrowRight, Heart, Home, Clock, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import Navbar from "@/components/Navbar";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
@@ -57,8 +56,7 @@ export default function QRVideoLanding() {
         keywords="QR Play, video QR code, video message shirt, memorial video gift, personal video QR, scannable video merchandise"
       />
       <Navbar />
-      <BreadcrumbTrail />
-      <main className="vanity-content">
+<main className="vanity-content">
         <div className="vanity-container">
           <div className="vanity-header">
             <div className="vanity-header-icon">

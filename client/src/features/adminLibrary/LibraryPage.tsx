@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
 import { QrCode, Layers, Image, Crop } from "lucide-react";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
 import { LibraryProvider } from "./LibraryContext";
@@ -40,9 +39,7 @@ export default function LibraryPage() {
     <LibraryProvider>
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
-          <BreadcrumbTrail />
-
-          <div className="glass-card">
+<div className="glass-card">
             <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
               <Layers className="h-5 w-5 text-blue-400" />
               Asset Library
