@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Package, Search, Loader2, ChevronRight } from "lucide-react";
+import { Package, Search, Loader2, ChevronRight, Flag } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -17,18 +17,21 @@ interface CatalogItem {
   minPrice?: string;
   maxPrice?: string;
   colorCount?: number;
+  madeInUSA?: boolean;
 }
 
 interface CatalogCategory {
   name: string;
   items: CatalogItem[];
   count: number;
+  usaCount?: number;
 }
 
 export function CatalogBrowserModule() {
   const { step, currentChannel, selectedBaseProduct, setSelectedBaseProduct, setStep } = useStoreBuilderContext();
   const { apiBase } = useAdminAuth();
   const [search, setSearch] = useState("");
+  const [usaOnly, setUsaOnly] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
@@ -43,11 +46,16 @@ export function CatalogBrowserModule() {
   const searchLower = search.toLowerCase();
   const filteredCategories = categories.map(cat => ({
     ...cat,
-    items: cat.items.filter(item =>
-      (item.title?.toLowerCase()?.includes(searchLower) ?? false) ||
-      (item.brand?.toLowerCase()?.includes(searchLower) ?? false)
-    ),
+    items: cat.items.filter(item => {
+      const matchesSearch = (item.title?.toLowerCase()?.includes(searchLower) ?? false) ||
+        (item.brand?.toLowerCase()?.includes(searchLower) ?? false);
+      const matchesUSA = !usaOnly || item.madeInUSA;
+      return matchesSearch && matchesUSA;
+    }),
   })).filter(cat => cat.items.length > 0);
+
+  const totalUSA = categories.reduce((sum, cat) => sum + (cat.items?.filter(i => i.madeInUSA)?.length || 0), 0);
+  const totalFiltered = filteredCategories.reduce((sum, cat) => sum + cat.items.length, 0);
 
   const handleSelectProduct = (product: CatalogItem) => {
     setSelectedBaseProduct({
@@ -68,18 +76,35 @@ export function CatalogBrowserModule() {
       badge={selectedBaseProduct ? <Badge variant="secondary">{selectedBaseProduct.name}</Badge> : undefined}
     >
       <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            inputMode="text"
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-            data-testid="input-catalog-search"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              inputMode="text"
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+              data-testid="input-catalog-search"
+            />
+          </div>
+          <Button
+            variant={usaOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUsaOnly(!usaOnly)}
+            className={`flex-shrink-0 gap-1 ${usaOnly ? "toggle-elevate toggle-elevated" : "toggle-elevate"}`}
+            data-testid="button-usa-filter"
+          >
+            <Flag className="h-3.5 w-3.5" />
+            USA
+          </Button>
         </div>
+        {usaOnly && (
+          <p className="text-xs text-muted-foreground">
+            Showing {totalFiltered} of {totalUSA} USA-made products
+          </p>
+        )}
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-muted-foreground py-4">
@@ -125,10 +150,15 @@ export function CatalogBrowserModule() {
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <span className="truncate block">{product.title}</span>
-                            {product.colorCount && (
-                              <span className="text-xs text-muted-foreground">{product.colorCount} colors</span>
-                            )}
+                            <span className="truncate block">
+                              {product.title}
+                              {product.madeInUSA && (
+                                <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0 align-middle border-blue-500 text-blue-600 dark:text-blue-400">USA</Badge>
+                              )}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {product.brand}{product.colorCount ? ` · ${product.colorCount} colors` : ''}
+                            </span>
                           </div>
                         </div>
                       </Button>
