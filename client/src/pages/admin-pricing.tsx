@@ -5,6 +5,7 @@ import {
   ArrowLeft, DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check, Tag,
   Plus, Trash2,
 } from "lucide-react";
+import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -395,7 +396,7 @@ export default function AdminPricing() {
   const { toast } = useToast();
   
   const { data: settings, isLoading } = useQuery<PricingSettings>({
-    queryKey: ["/api/test/pricing-settings"],
+    queryKey: ["/api/pricing-settings"],
   });
 
   const [markupPercent, setMarkupPercent] = useState<string>("");
@@ -427,7 +428,7 @@ export default function AdminPricing() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: PricingSettings) => {
-      const res = await fetch("/api/test/pricing-settings", {
+      const res = await fetch("/api/pricing-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -437,7 +438,7 @@ export default function AdminPricing() {
     },
     onSuccess: () => {
       toast({ title: "Settings Saved", description: "Pricing configuration updated successfully." });
-      queryClient.invalidateQueries({ queryKey: ["/api/test/pricing-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pricing-settings"] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -458,7 +459,7 @@ export default function AdminPricing() {
   
   const syncPricingMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/test/pricing-settings/sync", {
+      const res = await fetch("/api/pricing-settings/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -484,13 +485,16 @@ export default function AdminPricing() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <AdminAuthProvider apiBase="/api">
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </AdminAuthProvider>
     );
   }
 
   return (
+    <AdminAuthProvider apiBase="/api">
     <div className="page-wrap">
       <div className="container mobile-compact mobile-compact-stack">
         <div className="glass-card">
@@ -909,5 +913,6 @@ export default function AdminPricing() {
         </div>
       </div>
     </div>
+    </AdminAuthProvider>
   );
 }

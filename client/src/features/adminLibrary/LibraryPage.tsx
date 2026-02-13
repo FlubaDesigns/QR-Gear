@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
 import { QrCode, Layers, Image, Crop } from "lucide-react";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
+import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
 import { LibraryProvider } from "./LibraryContext";
 
@@ -35,6 +36,7 @@ export default function LibraryPage() {
   }, [searchString]);
 
   return (
+    <AdminAuthProvider apiBase="/api">
     <LibraryProvider>
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
@@ -76,5 +78,6 @@ export default function LibraryPage() {
         </div>
       </div>
     </LibraryProvider>
+    </AdminAuthProvider>
   );
 }
