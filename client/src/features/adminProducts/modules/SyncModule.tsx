@@ -46,7 +46,7 @@ export function SyncModule({ selectedProviders }: SyncModuleProps) {
 
     debounceTimerRef.current = setTimeout(() => {
       if (!syncMutation.isPending && selectedProviders.length > 0) {
-        syncMutation.mutate();
+        syncMutation.mutate(selectedProviders[0]);
       }
     }, 500);
 
@@ -80,7 +80,7 @@ export function SyncModule({ selectedProviders }: SyncModuleProps) {
     >
       <div className="flex flex-wrap items-center gap-4">
         <Button
-          onClick={() => syncMutation.mutate()}
+          onClick={() => syncMutation.mutate(selectedProviders[0])}
           disabled={syncMutation.isPending}
           size="sm"
           data-testid="button-sync-catalog"
