@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Package, Search, Loader2, ChevronRight, Flag } from "lucide-react";
+import { Package, Search, Loader2, ChevronRight, Flag, Link2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -20,6 +20,8 @@ interface CatalogItem {
   colorCount?: number;
   madeInUSA?: boolean;
   provider?: 'printify' | 'printful';
+  dualProvider?: boolean;
+  matchedProviderId?: string | null;
 }
 
 interface CatalogCategory {
@@ -31,7 +33,7 @@ interface CatalogCategory {
   printfulCount?: number;
 }
 
-type ProviderFilter = 'all' | 'printify' | 'printful';
+type ProviderFilter = 'all' | 'printify' | 'printful' | 'matched';
 
 export function CatalogBrowserModule() {
   const { step, currentChannel, selectedBaseProduct, setSelectedBaseProduct, setStep } = useStoreBuilderContext();
@@ -81,6 +83,11 @@ export function CatalogBrowserModule() {
     if (step === "catalog") setStep("configure");
   };
 
+  const providerLabel = providerFilter === 'all' ? '' : 
+    providerFilter === 'printify' ? ' from Printify' : 
+    providerFilter === 'printful' ? ' from Printful' : 
+    ' matched across both providers';
+
   return (
     <CollapsibleModule
       title="Browse Blank Products"
@@ -89,7 +96,7 @@ export function CatalogBrowserModule() {
       badge={selectedBaseProduct ? <Badge variant="secondary">{selectedBaseProduct.name}</Badge> : undefined}
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           <Button
             variant={providerFilter === 'all' ? "default" : "outline"}
             size="sm"
@@ -116,6 +123,16 @@ export function CatalogBrowserModule() {
             data-testid="button-provider-printful"
           >
             Printful
+          </Button>
+          <Button
+            variant={providerFilter === 'matched' ? "default" : "outline"}
+            size="sm"
+            onClick={() => setProviderFilter('matched')}
+            className="text-xs gap-1"
+            data-testid="button-provider-matched"
+          >
+            <Link2 className="h-3 w-3" />
+            Dual
           </Button>
           <div className="ml-auto">
             <Button
@@ -148,7 +165,7 @@ export function CatalogBrowserModule() {
 
         <p className="text-xs text-muted-foreground" data-testid="text-catalog-count">
           {totalFiltered} products{usaOnly ? ` (${totalUSA} USA-made)` : ` of ${totalItems} total`}
-          {providerFilter !== 'all' && ` from ${providerFilter === 'printify' ? 'Printify' : 'Printful'}`}
+          {providerLabel}
         </p>
 
         {isLoading ? (
@@ -200,9 +217,13 @@ export function CatalogBrowserModule() {
                               {product.madeInUSA && (
                                 <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0 align-middle border-blue-500 text-blue-600 dark:text-blue-400">USA</Badge>
                               )}
+                              {product.dualProvider && (
+                                <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 align-middle border-purple-500 text-purple-600 dark:text-purple-400">Dual</Badge>
+                              )}
                             </span>
                             <span className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                               {product.brand && <span>{product.brand}</span>}
+                              {product.model && <span className="opacity-60">{product.model}</span>}
                               {product.provider && (
                                 <Badge variant="outline" className="text-[10px] px-1 py-0 no-default-hover-elevate no-default-active-elevate">
                                   {product.provider === 'printify' ? 'Printify' : 'Printful'}

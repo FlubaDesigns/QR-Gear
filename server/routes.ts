@@ -5411,22 +5411,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const categories: Record<string, any[]> = {};
 
-      if (providerFilter === 'all' || providerFilter === 'printify') {
-        const localBlueprints = await storage.getPrintifyBlueprints();
-        
-        let blueprints: any[];
-        if (localBlueprints.length > 0) {
-          blueprints = localBlueprints.map(bp => ({
-            id: bp.id,
-            title: bp.title,
-            brand: bp.brand,
-            model: bp.model,
-            images: bp.images || [],
-          }));
-        } else if (printify) {
-          blueprints = await printify.getCatalogBlueprints();
-        } else {
-          blueprints = [];
+      const localBlueprints = await storage.getPrintifyBlueprints();
+      let allPrintifyBlueprints: any[] = [];
+      if (localBlueprints.length > 0) {
+        allPrintifyBlueprints = localBlueprints.map(bp => ({
+          id: bp.id,
+          title: bp.title,
+          brand: bp.brand,
+          model: bp.model,
+          images: bp.images || [],
+        }));
+      } else if (printify) {
+        allPrintifyBlueprints = await printify.getCatalogBlueprints();
+      }
+
+      const { printfulProducts: printfulTable } = await import('@shared/schema');
+      const allPrintfulRows = await db.select().from(printfulTable);
+
+      let matchedModels: Set<string> | null = null;
+      if (providerFilter === 'matched') {
+        const printifyModels = new Set(
+          allPrintifyBlueprints
+            .filter(bp => bp.model && bp.model.trim() !== '')
+            .map(bp => bp.model.trim().toLowerCase())
+        );
+        const printfulModels = new Set(
+          allPrintfulRows
+            .filter(pf => pf.model && pf.model.trim() !== '')
+            .map(pf => pf.model!.trim().toLowerCase())
+        );
+        matchedModels = new Set([...printifyModels].filter(m => printfulModels.has(m)));
+      }
+
+      if (providerFilter === 'all' || providerFilter === 'printify' || providerFilter === 'matched') {
+        let blueprints = allPrintifyBlueprints;
+        if (providerFilter === 'matched') {
+          blueprints = blueprints.filter(bp => bp.model && matchedModels!.has(bp.model.trim().toLowerCase()));
         }
         
         for (const bp of blueprints) {
@@ -5434,6 +5454,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isUSABrand = USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
           const category = categorizeProduct(bp.title);
           if (!categories[category]) categories[category] = [];
+          
+          const modelLower = (bp.model || '').trim().toLowerCase();
+          const matchedPrintful = modelLower ? allPrintfulRows.find(pf => (pf.model || '').trim().toLowerCase() === modelLower) : null;
           
           categories[category].push({
             id: `printify-${bp.id}`,
@@ -5444,13 +5467,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             imageUrl: bp.images?.[0] || null,
             madeInUSA: isUSABrand,
             provider: 'printify',
+            dualProvider: !!matchedPrintful,
+            matchedProviderId: matchedPrintful ? `printful-${matchedPrintful.id}` : null,
           });
         }
       }
 
-      if (providerFilter === 'all' || providerFilter === 'printful') {
-        const { printfulProducts: printfulTable } = await import('@shared/schema');
-        const printfulRows = await db.select().from(printfulTable);
+      if (providerFilter === 'all' || providerFilter === 'printful' || providerFilter === 'matched') {
+        let printfulRows = allPrintfulRows;
+        if (providerFilter === 'matched') {
+          printfulRows = printfulRows.filter(pf => pf.model && matchedModels!.has(pf.model.trim().toLowerCase()));
+        }
         
         for (const pf of printfulRows) {
           const isUSA = (pf.originCountry || '').toUpperCase() === 'USA' || (pf.originCountry || '').toUpperCase() === 'US';
@@ -5458,6 +5485,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isUSABrand = isUSA || USA_MADE_BRANDS.some(usaBrand => brandLower.includes(usaBrand));
           const category = categorizeProduct(pf.title);
           if (!categories[category]) categories[category] = [];
+          
+          const modelLower = (pf.model || '').trim().toLowerCase();
+          const matchedPrintify = modelLower ? allPrintifyBlueprints.find(bp => (bp.model || '').trim().toLowerCase() === modelLower) : null;
           
           categories[category].push({
             id: `printful-${pf.id}`,
@@ -5468,6 +5498,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             imageUrl: pf.image || null,
             madeInUSA: isUSABrand,
             provider: 'printful',
+            dualProvider: !!matchedPrintify,
+            matchedProviderId: matchedPrintify ? `printify-${matchedPrintify.id}` : null,
           });
         }
       }
