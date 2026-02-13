@@ -18171,6 +18171,46 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  // ===== FONT MANAGEMENT =====
+
+  const DEFAULT_FONTS = [
+    "Arial", "Helvetica", "Times New Roman", "Georgia", "Verdana",
+    "Courier New", "Impact", "Comic Sans MS", "Trebuchet MS", "Palatino Linotype",
+  ];
+
+  app.get("/api/fonts", async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const doc = await fsDb.collection('settings').doc('fonts').get();
+      if (doc.exists) {
+        const data = doc.data();
+        res.json({ fonts: data?.fonts || DEFAULT_FONTS });
+      } else {
+        res.json({ fonts: DEFAULT_FONTS });
+      }
+    } catch (error: any) {
+      console.error('[Fonts] GET error:', error);
+      res.json({ fonts: DEFAULT_FONTS });
+    }
+  });
+
+  app.put("/api/admin/fonts", isAdmin, async (req: any, res) => {
+    try {
+      const { fonts } = req.body;
+      if (!Array.isArray(fonts)) return res.status(400).json({ error: 'fonts must be an array' });
+      const cleanFonts = fonts.filter((f: any) => typeof f === 'string' && f.trim()).map((f: string) => f.trim());
+      if (cleanFonts.length === 0) return res.status(400).json({ error: 'At least one font is required' });
+      const { getFirestoreDb } = await import("./lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('settings').doc('fonts').set({ fonts: cleanFonts, updatedAt: new Date().toISOString() });
+      res.json({ success: true, fonts: cleanFonts });
+    } catch (error: any) {
+      console.error('[Fonts] PUT error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Start cron jobs for hosting expiration checks and order status sync
   startCronJobs();
 
