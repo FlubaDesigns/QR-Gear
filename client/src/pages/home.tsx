@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, Layers, ArrowRight, Flag } from "lucide-react";
+import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, Layers, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Hero from "@/components/Hero";
@@ -55,6 +55,38 @@ function AdminQuickAccess() {
       <Link href="/admin/test-store-builder" className="admin-quick-link" data-testid="link-store-builder">
         <Store className="w-4 h-4" />
         Store Builder
+      </Link>
+      <Link href="/admin/test-canvas-packet" className="admin-quick-link" data-testid="link-test-canvas-packet">
+        <Palette className="w-4 h-4" />
+        Canvas Packet
+      </Link>
+      <Link href="/admin/test-qr-play" className="admin-quick-link" data-testid="link-test-qr-play">
+        <Film className="w-4 h-4" />
+        QR Play
+      </Link>
+      <Link href="/admin/test-dynamics" className="admin-quick-link" data-testid="link-test-dynamics">
+        <Layers className="w-4 h-4" />
+        QR Dynamics
+      </Link>
+      <Link href="/admin/test-pricing" className="admin-quick-link" data-testid="link-test-pricing">
+        <DollarSign className="w-4 h-4" />
+        Pricing
+      </Link>
+      <Link href="/admin/test-images" className="admin-quick-link" data-testid="link-test-images">
+        <Image className="w-4 h-4" />
+        Test Images
+      </Link>
+      <Link href="/admin/test-library" className="admin-quick-link" data-testid="link-test-library">
+        <Library className="w-4 h-4" />
+        Test Library
+      </Link>
+      <Link href="/admin/test-settings" className="admin-quick-link" data-testid="link-test-settings">
+        <Type className="w-4 h-4" />
+        Fonts
+      </Link>
+      <Link href="/admin/test-ar-demo" className="admin-quick-link" data-testid="link-test-ar-demo">
+        <Box className="w-4 h-4" />
+        AR Demo
       </Link>
     </div>
   );
