@@ -2486,4 +2486,183 @@ export function registerAdminRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  app.get("/api/admin/published-compose-items", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('packets')
+        .where('status', '==', 'published')
+        .get();
+      const items = snapshot.docs
+        .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+        .filter((p: any) => ['qr-canvas', 'qr-play'].includes(p.packetType || p.type));
+      res.json({ items });
+    } catch (error: any) {
+      console.error("[ComposeItems] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/compose/publish", isAdmin, async (req: any, res) => {
+    try {
+      const { composeItems, composeMode, composeHostingTerm, productId, blueprintId, color, colorHex } = req.body;
+      if (!composeItems || !Array.isArray(composeItems) || composeItems.length === 0) {
+        return res.status(400).json({ error: 'At least one compose item is required' });
+      }
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      const instanceData = {
+        createdAt: nowEpoch,
+        startTimestamp: nowEpoch,
+        mode: composeMode || 'auto-rotate',
+        hostingTerm: composeHostingTerm || '1-year',
+        productId: productId || null,
+        blueprintId: blueprintId || null,
+        color: color || null,
+        colorHex: colorHex || null,
+        slots: composeItems.map((item: any, index: number) => ({
+          slotId: item.slotId || `slot-${Date.now()}-${index}`,
+          packetId: item.packetId || item.id,
+          durationSeconds: item.durationSeconds || 86400,
+          order: item.order ?? index + 1,
+        })),
+      };
+      const docRef = await fsDb.collection("qr_dynamics_instances").add(instanceData);
+      console.log(`[ComposePublish] Created instance ${docRef.id} with ${composeItems.length} slots`);
+      res.json({ success: true, instanceId: docRef.id, composeInstanceId: docRef.id });
+    } catch (error: any) {
+      console.error("[ComposePublish] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/nexusmail/status", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const outboxSnapshot = await fsDb.collection('email_outbox').get();
+      const records = outboxSnapshot.docs.map((doc: any) => doc.data());
+      const queued = records.filter((r: any) => r.status === 'queued').length;
+      const sending = records.filter((r: any) => r.status === 'sending').length;
+      const sent = records.filter((r: any) => r.status === 'sent').length;
+      const failed = records.filter((r: any) => r.status === 'failed').length;
+      const dead = records.filter((r: any) => r.status === 'dead').length;
+      const consecutiveFailures = records.filter((r: any) => r.status === 'failed').length;
+      res.json({
+        ready: true,
+        provider: process.env.RESEND_API_KEY ? 'resend' : 'none',
+        health: {
+          score: failed > 5 ? 50 : 100,
+          status: failed > 5 ? 'degraded' : 'healthy',
+          consecutiveFailures,
+          isPaused: false,
+        },
+        outboxStats: { queued, sending, sent, failed, dead },
+      });
+    } catch (error: any) {
+      console.error("[NexusMail] Status error:", error);
+      res.json({
+        ready: false,
+        provider: 'none',
+        health: { score: 0, status: 'unhealthy', consecutiveFailures: 0, isPaused: false },
+        outboxStats: { queued: 0, sending: 0, sent: 0, failed: 0, dead: 0 },
+      });
+    }
+  });
+
+  app.get("/api/admin/nexusmail/outbox", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('email_outbox').orderBy('createdAt', 'desc').limit(50).get();
+      const records = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      res.json({ records });
+    } catch (error: any) {
+      console.error("[NexusMail] Outbox error:", error);
+      res.json({ records: [] });
+    }
+  });
+
+  app.post("/api/admin/nexusmail/process-outbox", isAdmin, async (req: any, res) => {
+    try {
+      const limit = req.body?.limit || 10;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('email_outbox')
+        .where('status', '==', 'queued')
+        .limit(limit)
+        .get();
+      let processed = 0;
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        try {
+          if (process.env.RESEND_API_KEY) {
+            const { Resend } = await import("resend");
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            await resend.emails.send({
+              from: data.from || 'QR Gear <noreply@qrgear.com>',
+              to: data.to,
+              subject: data.subject,
+              html: data.html || data.body || '',
+            });
+          }
+          await doc.ref.update({ status: 'sent', sentAt: new Date().toISOString() });
+          processed++;
+        } catch (sendErr: any) {
+          await doc.ref.update({ status: 'failed', lastError: sendErr.message, retryCount: (data.retryCount || 0) + 1 });
+        }
+      }
+      res.json({ success: true, processed, total: snapshot.size });
+    } catch (error: any) {
+      console.error("[NexusMail] Process error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/nexusmail/retry-failed", isAdmin, async (req: any, res) => {
+    try {
+      const limit = req.body?.limit || 10;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('email_outbox')
+        .where('status', '==', 'failed')
+        .limit(limit)
+        .get();
+      let retried = 0;
+      for (const doc of snapshot.docs) {
+        await doc.ref.update({ status: 'queued', lastError: null });
+        retried++;
+      }
+      res.json({ success: true, retried });
+    } catch (error: any) {
+      console.error("[NexusMail] Retry error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/nexusmail/seed-templates", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const defaults = [
+        { slug: 'order-confirmation', name: 'Order Confirmation', subject: 'Your QR Gear Order Confirmation', body: '<h1>Thank you for your order!</h1><p>Your order {{orderId}} has been received.</p>' },
+        { slug: 'shipping-notification', name: 'Shipping Notification', subject: 'Your QR Gear Order Has Shipped', body: '<h1>Your order is on its way!</h1><p>Tracking: {{trackingNumber}}</p>' },
+        { slug: 'welcome', name: 'Welcome Email', subject: 'Welcome to QR Gear!', body: '<h1>Welcome to QR Gear!</h1><p>We are excited to have you.</p>' },
+      ];
+      let created = 0;
+      for (const tpl of defaults) {
+        const existing = await fsDb.collection('email_templates').where('slug', '==', tpl.slug).get();
+        if (existing.empty) {
+          await fsDb.collection('email_templates').add({ ...tpl, createdAt: new Date().toISOString() });
+          created++;
+        }
+      }
+      res.json({ success: true, created, total: defaults.length });
+    } catch (error: any) {
+      console.error("[NexusMail] Seed templates error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 }
