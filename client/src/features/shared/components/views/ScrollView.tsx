@@ -173,7 +173,7 @@ export function ScrollView({
             WebkitOverflowScrolling: "touch",
           }}
         >
-          <div className="grid grid-cols-1 gap-4 p-1">
+          <div className="grid grid-cols-1 gap-4 pt-3 pb-1 px-1">
             {items.map((item) => {
               const isSelected = selectedId === item.id;
               
