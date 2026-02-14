@@ -180,7 +180,20 @@ export function registerAdminRoutes(app: Express): void {
   // Admin Products - Get all products with admin fields and cached costs
   app.get("/api/admin/products", isAdmin, async (req: any, res) => {
     try {
-      const products = await storage.getAllProducts();
+      const providerFilter = req.query.provider as string | undefined;
+      const allProducts = await storage.getAllProducts();
+      const products = allProducts.filter((product) => {
+        const meta = product.metadata as Record<string, unknown> | null;
+        const isCustomDesign = product.id.startsWith("custom_") || !!meta?.customDesignId;
+        if (isCustomDesign) return false;
+        if (providerFilter) {
+          const productProvider = product.printifyId
+            ? "printify"
+            : (meta?.fulfillmentProvider as string) || "printify";
+          return productProvider === providerFilter;
+        }
+        return true;
+      });
       const enrichedProducts = await Promise.all(
         products.map(async (product) => {
           const assignments = await storage.getProductCategoryAssignments(product.id);
