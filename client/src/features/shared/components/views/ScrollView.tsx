@@ -165,50 +165,42 @@ export function ScrollView({
 
   if (layout === "vertical") {
     return (
-      <div className="relative">
-        <div 
-          className="overflow-y-auto overscroll-contain touch-pan-y pr-2"
-          style={{ 
-            height: "100%",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
-          <div className="grid grid-cols-1 gap-4 pt-3 pb-1 px-1">
-            {items.map((item) => {
-              const isSelected = selectedId === item.id;
-              
-              if (customRenderItem) {
-                return (
-                  <div key={item.id}>
-                    {customRenderItem(item, isSelected, () => onSelect?.(item))}
-                  </div>
-                );
-              }
-              
-              const priceRange = item.minPrice && item.maxPrice 
-                ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
-                : item.minPrice 
-                  ? { min: parseFloat(item.minPrice), max: parseFloat(item.minPrice) }
-                  : undefined;
-              
+      <div>
+        <div className="grid grid-cols-1 gap-4 py-2 px-1">
+          {items.map((item) => {
+            const isSelected = selectedId === item.id;
+            
+            if (customRenderItem) {
               return (
-                <ProductSkin
-                  key={item.id}
-                  id={item.id}
-                  title={item.title}
-                  brand={item.subtitle}
-                  image={item.imageUrl}
-                  priceRange={priceRange}
-                  madeInUSA={item.madeInUSA}
-                  colors={item.colorCount}
-                  sizes={item.sizes}
-                  description={item.description}
-                  onClick={() => onSelect?.(item)}
-                  className={isSelected ? "ring-2 ring-primary ring-offset-2" : ""}
-                />
+                <div key={item.id}>
+                  {customRenderItem(item, isSelected, () => onSelect?.(item))}
+                </div>
               );
-            })}
-          </div>
+            }
+            
+            const priceRange = item.minPrice && item.maxPrice 
+              ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
+              : item.minPrice 
+                ? { min: parseFloat(item.minPrice), max: parseFloat(item.minPrice) }
+                : undefined;
+            
+            return (
+              <ProductSkin
+                key={item.id}
+                id={item.id}
+                title={item.title}
+                brand={item.subtitle}
+                image={item.imageUrl}
+                priceRange={priceRange}
+                madeInUSA={item.madeInUSA}
+                colors={item.colorCount}
+                sizes={item.sizes}
+                description={item.description}
+                onClick={() => onSelect?.(item)}
+                className={isSelected ? "ring-2 ring-primary ring-offset-2" : ""}
+              />
+            );
+          })}
         </div>
         <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
           {items.length} products available
