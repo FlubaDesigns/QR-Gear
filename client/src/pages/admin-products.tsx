@@ -42,7 +42,7 @@ export default function AdminProducts() {
         </Link>
       </div>
 
-      <ProductsHarness showCatalog showBuilder showSync />
+      <ProductsHarness showChooser showBuilder showSync />
     </AdminShell>
   );
 }
