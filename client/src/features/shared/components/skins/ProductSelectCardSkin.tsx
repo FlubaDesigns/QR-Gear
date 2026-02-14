@@ -69,11 +69,13 @@ function PreviewModal({
               <X className="h-5 w-5" />
             </Button>
 
-            <div className="aspect-square bg-muted flex items-center justify-center">
+            <div className="aspect-square bg-muted flex items-center justify-center p-2">
               {item.primaryImageUrl ? (
                 <img
                   src={item.primaryImageUrl}
                   alt={item.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-contain"
                   data-testid={`img-preview-large-${item.id}`}
                 />
@@ -189,7 +191,7 @@ export function ProductSelectCardSkin({
         data-testid={`select-card-${item.id}`}
       >
         <div
-          className="relative aspect-[4/3] bg-muted rounded-t-md overflow-hidden cursor-pointer"
+          className="relative w-full aspect-[4/5] flex items-center justify-center rounded-t-md bg-muted cursor-pointer p-2"
           onClick={() => setPreviewOpen(true)}
           data-testid={`img-tap-${item.id}`}
         >
@@ -197,6 +199,8 @@ export function ProductSelectCardSkin({
             <img
               src={item.primaryImageUrl}
               alt={item.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-contain"
               data-testid={`img-product-${item.id}`}
             />

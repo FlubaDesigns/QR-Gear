@@ -27,15 +27,17 @@ export function ProductCardSkin({ item, onClick }: CardSkinProps) {
 
   return (
     <Card
-      className={`overflow-hidden cursor-pointer hover-elevate transition-all ${!isEnabled ? "opacity-50" : ""}`}
+      className={`cursor-pointer hover-elevate transition-all ${!isEnabled ? "opacity-50" : ""}`}
       onClick={onClick}
       data-testid={`product-card-${item.id}`}
     >
-      <div className="relative aspect-square bg-muted">
+      <div className="relative w-full aspect-[4/5] flex items-center justify-center bg-muted rounded-t-xl p-2">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={item.name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-contain"
             data-testid={`img-product-${item.id}`}
           />
