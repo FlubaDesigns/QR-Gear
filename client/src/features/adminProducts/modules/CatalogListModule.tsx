@@ -380,7 +380,8 @@ function ProductRow({
 export function CatalogListModule({ products }: CatalogListModuleProps) {
   const { api } = useProductsContext();
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all");
   const [zoomImage, setZoomImage] = useState<{ src: string; alt: string } | null>(null);
