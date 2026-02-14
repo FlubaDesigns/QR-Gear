@@ -5,7 +5,6 @@ import {
   Plus, Trash2,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
-import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -485,18 +484,15 @@ export default function AdminPricing() {
 
   if (isLoading) {
     return (
-      <AdminAuthProvider apiBase="/api/admin">
-        <AdminShell title="Pricing Configuration" icon={DollarSign} backHref="/admin/products" backLabel="Back to Products">
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        </AdminShell>
-      </AdminAuthProvider>
+      <AdminShell title="Pricing Configuration" icon={DollarSign} backHref="/admin/products" backLabel="Back to Products">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </AdminShell>
     );
   }
 
   return (
-    <AdminAuthProvider apiBase="/api/admin">
     <AdminShell
       title="Pricing Configuration"
       icon={DollarSign}
@@ -900,6 +896,5 @@ export default function AdminPricing() {
           </Card>
         </div>
     </AdminShell>
-    </AdminAuthProvider>
   );
 }

@@ -7,6 +7,17 @@
    ========================================== */
 
 import { Nexus } from "./nexus";
+import { authFetch } from "@/features/adminAuth/authFetch";
+
+const getAuthHeaders = async (): Promise<HeadersInit> => {
+  const { auth } = await import("@/lib/firebase");
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+};
 
 export type TestResult = {
   name: string;
@@ -45,56 +56,54 @@ export const graphicSetsTests: TestSuite = {
 
     results.push(
       await runTest("API Route Secured", async () => {
-        const res = await fetch("/api/admin/graphic-sets", { credentials: "include" });
-        if (res.status === 401) {
-          return { status: "pass", details: "Requires authentication" };
-        } else if (res.ok) {
+        try {
+          const res = await authFetch("/api/admin/graphic-sets", getAuthHeaders);
           return { status: "pass", details: "Authenticated access works" };
+        } catch (err: any) {
+          if (err.message?.includes("401")) {
+            return { status: "pass", details: "Requires authentication" };
+          }
+          return { status: "warn", details: err.message };
         }
-        return { status: "warn", details: `Status: ${res.status}` };
       })
     );
 
     results.push(
       await runTest("List Graphic Sets", async () => {
-        const res = await fetch("/api/admin/graphic-sets", { credentials: "include" });
-        if (!res.ok) {
-          if (res.status === 401) return { status: "warn", details: "Login required to test" };
-          throw new Error(`HTTP ${res.status}`);
+        try {
+          const res = await authFetch("/api/admin/graphic-sets", getAuthHeaders);
+          const data = await res.json();
+          return { status: "pass", details: `Found ${data.length} sets` };
+        } catch (err: any) {
+          if (err.message?.includes("401")) return { status: "warn", details: "Login required to test" };
+          throw err;
         }
-        const data = await res.json();
-        return { status: "pass", details: `Found ${data.length} sets` };
       })
     );
 
     results.push(
       await runTest("Create & Delete Graphic Set", async () => {
-        const createRes = await fetch("/api/admin/graphic-sets", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            name: "NEXUS_TEST_" + Date.now(),
-            description: "Automated test - safe to delete",
-            destinationUrl: "https://example.com/test",
-          }),
-        });
-        
-        if (!createRes.ok) {
-          if (createRes.status === 401) return { status: "warn", details: "Login required" };
-          throw new Error(`Create failed: ${createRes.status}`);
+        try {
+          const createRes = await authFetch("/api/admin/graphic-sets", getAuthHeaders, {
+            method: "POST",
+            body: JSON.stringify({
+              name: "NEXUS_TEST_" + Date.now(),
+              description: "Automated test - safe to delete",
+              destinationUrl: "https://example.com/test",
+            }),
+          });
+          
+          const created = await createRes.json();
+          
+          await authFetch(`/api/admin/graphic-sets/${created.id}`, getAuthHeaders, {
+            method: "DELETE",
+          });
+          
+          return { status: "pass", details: `Created ID ${created.id}, then cleaned up` };
+        } catch (err: any) {
+          if (err.message?.includes("401")) return { status: "warn", details: "Login required" };
+          throw err;
         }
-        
-        const created = await createRes.json();
-        
-        const deleteRes = await fetch(`/api/admin/graphic-sets/${created.id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        
-        if (!deleteRes.ok) throw new Error(`Delete failed: ${deleteRes.status}`);
-        
-        return { status: "pass", details: `Created ID ${created.id}, then cleaned up` };
       })
     );
 

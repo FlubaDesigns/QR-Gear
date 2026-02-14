@@ -22,6 +22,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Pencil, Trash2, Video, Play, Pause } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
+import { authFetch } from "@/features/adminAuth/authFetch";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { LibraryAsset } from "@shared/schema";
 
 const SEASONS = [
@@ -50,6 +52,7 @@ const EVENTS = [
 ];
 
 function VideosContent() {
+  const { getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<LibraryAsset | null>(null);
@@ -71,8 +74,7 @@ function VideosContent() {
     queryKey: ["/api/admin/library/admin", { assetType: "video", mediaType: "video" }],
     queryFn: async () => {
       const params = new URLSearchParams({ assetType: "video", mediaType: "video" });
-      const response = await fetch(`/api/admin/library/admin?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch videos");
+      const response = await authFetch(`/api/admin/library/admin?${params}`, getAuthHeaders);
       return response.json();
     },
   });
@@ -199,15 +201,10 @@ function VideosContent() {
         if (formData.season !== "none") formDataObj.append("season", formData.season);
         if (formData.event !== "none") formDataObj.append("event", formData.event);
 
-        const response = await fetch("/api/admin/library/upload", {
+        const response = await authFetch("/api/admin/library/upload", getAuthHeaders, {
           method: "POST",
           body: formDataObj,
-          credentials: "include",
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to upload video");
-        }
 
         toast({ title: "Success", description: "Video uploaded successfully." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });

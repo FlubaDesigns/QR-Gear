@@ -88,6 +88,17 @@ import ClaimPage from "@/pages/claim";
 import BuildPage from "@/pages/build";
 import EarnPage from "@/pages/earn";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <AdminAuthProvider apiBase="/api/admin">
+        {children}
+      </AdminAuthProvider>
+    </ProtectedRoute>
+  );
+}
 
 function Router() {
   return (
@@ -101,25 +112,25 @@ function Router() {
       <Route path="/account" component={Account} />
       <Route path="/members">{() => <ProtectedRoute><Members /></ProtectedRoute>}</Route>
       <Route path="/member">{() => <ProtectedRoute><Member /></ProtectedRoute>}</Route>
-      <Route path="/admin">{() => <ProtectedRoute><Admin /></ProtectedRoute>}</Route>
-      <Route path="/admin/products">{() => <ProtectedRoute><AdminProducts /></ProtectedRoute>}</Route>
-      <Route path="/admin/pricing">{() => <ProtectedRoute><AdminPricing /></ProtectedRoute>}</Route>
-      <Route path="/admin/library">{() => <ProtectedRoute><LibraryPage /></ProtectedRoute>}</Route>
-      <Route path="/admin/videos">{() => <ProtectedRoute><AdminVideos /></ProtectedRoute>}</Route>
-      <Route path="/admin/categories">{() => <ProtectedRoute><AdminCategories /></ProtectedRoute>}</Route>
-      <Route path="/admin/tags">{() => <ProtectedRoute><AdminTags /></ProtectedRoute>}</Route>
-      <Route path="/admin/partners">{() => <ProtectedRoute><AdminPartners /></ProtectedRoute>}</Route>
-      <Route path="/admin/orchestration">{() => <ProtectedRoute><AdminOrchestration /></ProtectedRoute>}</Route>
-      <Route path="/admin/orders">{() => <ProtectedRoute><AdminOrders /></ProtectedRoute>}</Route>
-      <Route path="/admin/gifts">{() => <ProtectedRoute><AdminGifts /></ProtectedRoute>}</Route>
-      <Route path="/admin/dashboard">{() => <ProtectedRoute><AdminDashboard /></ProtectedRoute>}</Route>
-      <Route path="/admin/coupons">{() => <ProtectedRoute><AdminCoupons /></ProtectedRoute>}</Route>
-      <Route path="/admin/health">{() => <ProtectedRoute><AdminHealth /></ProtectedRoute>}</Route>
-      <Route path="/admin/customers">{() => <ProtectedRoute><AdminCustomers /></ProtectedRoute>}</Route>
-      <Route path="/admin/email-templates">{() => <ProtectedRoute><AdminEmailTemplates /></ProtectedRoute>}</Route>
-      <Route path="/admin/email-health">{() => <ProtectedRoute><AdminEmailHealth /></ProtectedRoute>}</Route>
-      <Route path="/admin/manual">{() => <ProtectedRoute><AdminManual /></ProtectedRoute>}</Route>
-      <Route path="/admin/sales/build">{() => <ProtectedRoute><StoreBuild /></ProtectedRoute>}</Route>
+      <Route path="/admin">{() => <AdminRoute><Admin /></AdminRoute>}</Route>
+      <Route path="/admin/products">{() => <AdminRoute><AdminProducts /></AdminRoute>}</Route>
+      <Route path="/admin/pricing">{() => <AdminRoute><AdminPricing /></AdminRoute>}</Route>
+      <Route path="/admin/library">{() => <AdminRoute><LibraryPage /></AdminRoute>}</Route>
+      <Route path="/admin/videos">{() => <AdminRoute><AdminVideos /></AdminRoute>}</Route>
+      <Route path="/admin/categories">{() => <AdminRoute><AdminCategories /></AdminRoute>}</Route>
+      <Route path="/admin/tags">{() => <AdminRoute><AdminTags /></AdminRoute>}</Route>
+      <Route path="/admin/partners">{() => <AdminRoute><AdminPartners /></AdminRoute>}</Route>
+      <Route path="/admin/orchestration">{() => <AdminRoute><AdminOrchestration /></AdminRoute>}</Route>
+      <Route path="/admin/orders">{() => <AdminRoute><AdminOrders /></AdminRoute>}</Route>
+      <Route path="/admin/gifts">{() => <AdminRoute><AdminGifts /></AdminRoute>}</Route>
+      <Route path="/admin/dashboard">{() => <AdminRoute><AdminDashboard /></AdminRoute>}</Route>
+      <Route path="/admin/coupons">{() => <AdminRoute><AdminCoupons /></AdminRoute>}</Route>
+      <Route path="/admin/health">{() => <AdminRoute><AdminHealth /></AdminRoute>}</Route>
+      <Route path="/admin/customers">{() => <AdminRoute><AdminCustomers /></AdminRoute>}</Route>
+      <Route path="/admin/email-templates">{() => <AdminRoute><AdminEmailTemplates /></AdminRoute>}</Route>
+      <Route path="/admin/email-health">{() => <AdminRoute><AdminEmailHealth /></AdminRoute>}</Route>
+      <Route path="/admin/manual">{() => <AdminRoute><AdminManual /></AdminRoute>}</Route>
+      <Route path="/admin/sales/build">{() => <AdminRoute><StoreBuild /></AdminRoute>}</Route>
       <Route path="/build/success" component={BuildSuccess} />
       <Route path="/build" component={BuildPage} />
       <Route path="/earn" component={EarnPage} />
@@ -142,11 +153,11 @@ function Router() {
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
-      <Route path="/admin/dynamics" component={AdminDynamics} />
-      <Route path="/admin/store-builder" component={AdminStoreBuilder} />
-      <Route path="/admin/store-library" component={AdminStoreLibrary} />
-      <Route path="/admin/ar-demo" component={AdminARDemo} />
-      <Route path="/admin/fonts" component={FontManagement} />
+      <Route path="/admin/dynamics">{() => <AdminRoute><AdminDynamics /></AdminRoute>}</Route>
+      <Route path="/admin/store-builder">{() => <AdminRoute><AdminStoreBuilder /></AdminRoute>}</Route>
+      <Route path="/admin/store-library">{() => <AdminRoute><AdminStoreLibrary /></AdminRoute>}</Route>
+      <Route path="/admin/ar-demo">{() => <AdminRoute><AdminARDemo /></AdminRoute>}</Route>
+      <Route path="/admin/fonts">{() => <AdminRoute><FontManagement /></AdminRoute>}</Route>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />

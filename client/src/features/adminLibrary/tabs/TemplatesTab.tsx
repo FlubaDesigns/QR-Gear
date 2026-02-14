@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { TemplateCardSkin, TemplateDetailSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { auth } from "@/lib/firebase";
+import { authFetch } from "@/features/adminAuth/authFetch";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface ProductTemplate {
   id: string;
@@ -78,22 +79,12 @@ export default function TemplatesTab() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const getAuthHeaders = async (): Promise<HeadersInit> => {
-    const user = auth.currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      return { Authorization: `Bearer ${token}` };
-    }
-    return {};
-  };
+  const { getAuthHeaders } = useAdminAuth();
 
   const { data, isLoading } = useQuery<{ success: boolean; templates: ProductTemplate[] }>({
     queryKey: ["/api/admin/templates", "templates-tab"],
     queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/admin/templates", { headers });
-      if (!res.ok) throw new Error("Failed to fetch templates");
+      const res = await authFetch("/api/admin/templates", getAuthHeaders);
       return res.json();
     },
   });
@@ -103,14 +94,13 @@ export default function TemplatesTab() {
   const deleteMutation = useMutation({
     mutationFn: async (templateId: string) => {
       const template = templates.find(t => t.id === templateId);
-      const headers = await getAuthHeaders();
       
-      const templateRes = await fetch(`/api/admin/templates/${templateId}`, { method: "DELETE", headers });
-      if (!templateRes.ok) throw new Error("Failed to delete template");
+      await authFetch(`/api/admin/templates/${templateId}`, getAuthHeaders, { method: "DELETE" });
       
       if (template?.packetId) {
-        const packetRes = await fetch(`/api/admin/packets/${template.packetId}`, { method: "DELETE", headers });
-        if (!packetRes.ok) {
+        try {
+          await authFetch(`/api/admin/packets/${template.packetId}`, getAuthHeaders, { method: "DELETE" });
+        } catch {
           console.warn("Failed to delete associated packet");
         }
       }

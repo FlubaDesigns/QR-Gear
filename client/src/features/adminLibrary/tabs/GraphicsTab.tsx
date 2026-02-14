@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/components/skins/GraphicsSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { auth } from "@/lib/firebase";
+import { authFetch } from "@/features/adminAuth/authFetch";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface ProductPacket {
   id: string;
@@ -57,35 +58,22 @@ export default function GraphicsTab() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
-  const getAuthHeaders = async (): Promise<HeadersInit> => {
-    const user = auth.currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      return { Authorization: `Bearer ${token}` };
-    }
-    return {};
-  };
+  const { getAuthHeaders } = useAdminAuth();
 
   const { data, isLoading } = useQuery<{ success: boolean; packets: ProductPacket[] }>({
     queryKey: ["/api/admin/packets", "graphics"],
     queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/admin/packets", { headers });
-      if (!res.ok) throw new Error("Failed to fetch packets");
+      const res = await authFetch("/api/admin/packets", getAuthHeaders);
       return res.json();
     },
   });
 
   const archiveMutation = useMutation({
     mutationFn: async (packetId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/admin/packets/${packetId}`, {
+      const res = await authFetch(`/api/admin/packets/${packetId}`, getAuthHeaders, {
         method: "PATCH",
-        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ archived: true }),
       });
-      if (!res.ok) throw new Error("Failed to archive");
       return res.json();
     },
     onSuccess: () => {

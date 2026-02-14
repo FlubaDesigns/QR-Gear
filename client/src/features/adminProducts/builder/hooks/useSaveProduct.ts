@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { authFetch } from "@/features/adminAuth/authFetch";
 import type { PartnerStore } from "@shared/schema";
 
 interface PricingData {
@@ -64,7 +65,7 @@ interface SaveResult {
 
 export function useSaveProduct() {
   const queryClient = useQueryClient();
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
 
   const invalidateLibrary = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
@@ -81,11 +82,7 @@ export function useSaveProduct() {
         throw new Error("No product selected");
       }
 
-      // Get current products in store
-      const currentProductsRes = await fetch(`/api/admin/partner-stores/${store.id}/products`);
-      if (!currentProductsRes.ok) {
-        throw new Error("Failed to fetch store products");
-      }
+      const currentProductsRes = await authFetch(`${apiBase}/partner-stores/${store.id}/products`, getAuthHeaders);
       const currentProducts = await currentProductsRes.json();
       const existingProductIds = currentProducts.map((p: any) => p.productId);
       

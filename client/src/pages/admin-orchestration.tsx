@@ -57,12 +57,15 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import type { MasterProduct, ChannelConfig } from "@shared/schema";
+import { authFetch } from "@/features/adminAuth/authFetch";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 type ProductType = "hat" | "shirt" | "mug" | "bag" | "other";
 type ProductStatus = "draft" | "active" | "paused" | "archived";
 
 export default function AdminOrchestration() {
   const { toast } = useToast();
+  const { getAuthHeaders } = useAdminAuth();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<MasterProduct | null>(null);
 
@@ -2314,7 +2317,7 @@ function BulkPublishDialog({
 
   const pollJob = async (jobId: string) => {
     try {
-      const res = await fetch(`/api/admin/orchestration/bulk-publish/${jobId}`);
+      const res = await authFetch(`/api/admin/orchestration/bulk-publish/${jobId}`, getAuthHeaders);
       const job: BulkPublishJob = await res.json();
       setActiveJob(job);
       

@@ -27,7 +27,7 @@ export async function authFetch(
     ...headersToRecord(authHeaders),
   };
 
-  if (options.body && !mergedHeaders["Content-Type"]) {
+  if (options.body && !(options.body instanceof FormData) && !mergedHeaders["Content-Type"]) {
     mergedHeaders["Content-Type"] = "application/json";
   }
 

@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
+import { authFetch } from "@/features/adminAuth/authFetch";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -117,6 +119,7 @@ function formatTimeRemaining(seconds: number): string {
 
 export default function TestDynamicsPage() {
   const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const { getAuthHeaders } = useAdminAuth();
 
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(null);
@@ -204,21 +207,10 @@ export default function TestDynamicsPage() {
     );
   }
 
-  const getAuthHeaders = async (): Promise<HeadersInit> => {
-    const { auth } = await import("@/lib/firebase");
-    const user = auth.currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      return { Authorization: `Bearer ${token}` };
-    }
-    return {};
-  };
-
   const fetchStores = async () => {
     try {
       setLoading("stores");
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/admin/stores", { headers });
+      const res = await authFetch("/api/admin/stores", getAuthHeaders);
       const data = await res.json();
       setStores(Array.isArray(data) ? data : (data.stores || []));
     } catch (err: any) {
@@ -232,8 +224,7 @@ export default function TestDynamicsPage() {
     if (!selectedStore) return;
     try {
       setLoading("channels");
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/admin/stores/${selectedStore.id}/channels`, { headers });
+      const res = await authFetch(`/api/admin/stores/${selectedStore.id}/channels`, getAuthHeaders);
       const data = await res.json();
       const channelNames = Array.isArray(data) 
         ? data.map((c: any) => c.name || c.id) 

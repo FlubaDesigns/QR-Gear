@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { AdminAuthProvider, useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { authFetch } from "@/features/adminAuth/authFetch";
 import { loadGoogleFont, loadGoogleFonts } from "@/hooks/use-fonts";
 
 const POPULAR_GOOGLE_FONTS = [
@@ -50,13 +51,10 @@ function FontManagerInner() {
 
   const saveMutation = useMutation({
     mutationFn: async (fonts: string[]) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/admin/fonts", {
+      const res = await authFetch("/api/admin/fonts", getAuthHeaders, {
         method: "PUT",
-        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ fonts }),
       });
-      if (!res.ok) throw new Error(await res.text());
       return res.json();
     },
     onSuccess: () => {
@@ -294,9 +292,5 @@ function FontManagerInner() {
 }
 
 export default function TestSettings() {
-  return (
-    <AdminAuthProvider apiBase="/api/admin">
-      <FontManagerInner />
-    </AdminAuthProvider>
-  );
+  return <FontManagerInner />;
 }

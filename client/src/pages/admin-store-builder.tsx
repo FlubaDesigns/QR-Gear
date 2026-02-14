@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
 import { ProductsProvider } from "@/features/adminProducts/ProductsContext";
 import { BuilderProvider, useBuilderContext } from "@/features/adminProducts/builder/BuilderContext";
@@ -655,48 +654,46 @@ function MemberProductLibrary() {
 
 export default function AdminStoreBuilderPage() {
   return (
-    <AdminAuthProvider apiBase="/api/admin">
-      <AdminShell
-        title="Store Builder"
-        icon={Store}
-      >
-        <div className="flex flex-col gap-3 mb-6">
-          <Link href="/admin/products" className="block">
-            <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-products">
-              <Package className="h-5 w-5" />
-              Products
-            </button>
-          </Link>
-          <Link href="/admin/pricing" className="block">
-            <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-pricing">
-              <DollarSign className="h-5 w-5" />
-              Pricing
-            </button>
-          </Link>
-          <Link href="/admin/library?tab=graphics" className="block">
-            <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-graphics-library">
-              <QrCode className="h-5 w-5" />
-              Graphics
-            </button>
-          </Link>
-          <Link href="/admin/library?tab=templates" className="block">
-            <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-templates-library">
-              <Layers className="h-5 w-5" />
-              Templates
-            </button>
-          </Link>
-          <Link href="/admin/library" className="block">
-            <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-full-library">
-              <Image className="h-5 w-5" />
-              Library
-            </button>
-          </Link>
-        </div>
+    <AdminShell
+      title="Store Builder"
+      icon={Store}
+    >
+      <div className="flex flex-col gap-3 mb-6">
+        <Link href="/admin/products" className="block">
+          <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-products">
+            <Package className="h-5 w-5" />
+            Products
+          </button>
+        </Link>
+        <Link href="/admin/pricing" className="block">
+          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-pricing">
+            <DollarSign className="h-5 w-5" />
+            Pricing
+          </button>
+        </Link>
+        <Link href="/admin/library?tab=graphics" className="block">
+          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-graphics-library">
+            <QrCode className="h-5 w-5" />
+            Graphics
+          </button>
+        </Link>
+        <Link href="/admin/library?tab=templates" className="block">
+          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-templates-library">
+            <Layers className="h-5 w-5" />
+            Templates
+          </button>
+        </Link>
+        <Link href="/admin/library" className="block">
+          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-full-library">
+            <Image className="h-5 w-5" />
+            Library
+          </button>
+        </Link>
+      </div>
 
-        <StoreManager />
-        <MemberProductLibrary />
-        <StoreBuilderHarness />
-      </AdminShell>
-    </AdminAuthProvider>
+      <StoreManager />
+      <MemberProductLibrary />
+      <StoreBuilderHarness />
+    </AdminShell>
   );
 }
