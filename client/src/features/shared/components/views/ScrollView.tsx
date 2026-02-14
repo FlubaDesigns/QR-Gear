@@ -169,7 +169,7 @@ export function ScrollView({
         <div 
           className="overflow-y-auto overscroll-contain touch-pan-y pr-2"
           style={{ 
-            height: gridHeight, 
+            height: "100%",
             WebkitOverflowScrolling: "touch",
           }}
         >
