@@ -177,95 +177,101 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
-  // Admin Products - Get all products with admin fields and cached costs
+  // Admin Products - Pull directly from fulfillment catalog collections
+  // ?provider=printify (default) or ?provider=printful
   app.get("/api/admin/products", isAdmin, async (req: any, res) => {
     try {
-      const providerFilter = req.query.provider as string | undefined;
-      const allProducts = await storage.getAllProducts();
-      const products = allProducts.filter((product) => {
-        const meta = product.metadata as Record<string, unknown> | null;
-        const isCustomDesign = product.id.startsWith("custom_") || !!meta?.customDesignId;
-        if (isCustomDesign) return false;
-        if (providerFilter) {
-          const productProvider = product.printifyId
-            ? "printify"
-            : (meta?.fulfillmentProvider as string) || "printify";
-          return productProvider === providerFilter;
-        }
-        return true;
-      });
-      const enrichedProducts = await Promise.all(
-        products.map(async (product) => {
-          const assignments = await storage.getProductCategoryAssignments(product.id);
-          
-          let cachedMinCost: number | null = null;
-          let cachedMaxCost: number | null = null;
-          let providerColors: Array<{name: string; hex: string}> | null = null;
-          let providerSizes: string[] | null = null;
-          if (product.blueprintId && product.printProviderId) {
-            const provider = await storage.getPrintifyPrintProvider(
-              product.blueprintId,
-              product.printProviderId
-            );
-            if (provider?.minCost) {
-              cachedMinCost = Number(provider.minCost) / 100;
-              cachedMaxCost = provider.maxCost ? Number(provider.maxCost) / 100 : cachedMinCost;
-            }
-            if (provider?.availableColors && Array.isArray(provider.availableColors)) {
-              providerColors = provider.availableColors as Array<{name: string; hex: string}>;
-            }
-            if (provider?.availableSizes && Array.isArray(provider.availableSizes)) {
-              providerSizes = provider.availableSizes as string[];
-            }
+      const provider = (req.query.provider as string) || "printify";
+
+      if (provider === "printful") {
+        const printfulProducts = await storage.getAllPrintfulProducts();
+        const printfulVariants = await storage.getAllPrintfulVariants();
+
+        const products = printfulProducts.map((pf: any) => {
+          const variants = printfulVariants.filter((v: any) => v.productId === pf.id);
+          const colorSet = new Map<string, string>();
+          const sizeSet = new Set<string>();
+          for (const v of variants) {
+            if (v.color && v.colorCode) colorSet.set(v.color, v.colorCode);
+            if (v.size) sizeSet.add(v.size);
           }
-          
-          let qrProductType: string | null = null;
-          const meta = product.metadata as Record<string, unknown> | null;
-          if (meta?.customDesignId) {
-            const design = await storage.getCustomDesign(meta.customDesignId as string);
-            if (design) {
-              const hasTopText = design.topText && typeof design.topText === 'object' && (design.topText as any).text;
-              const hasBottomText = design.bottomText && typeof design.bottomText === 'object' && (design.bottomText as any).text;
-              const hasBackground = !!design.backgroundImageUrl;
-              const hasVideo = !!(design as any).videoUrl;
-              const overlay = design.landingOverlay as any;
-              const hasLandingOverlay = overlay?.enabled;
-              
-              if (design.templateVariant === "plain-text") {
-                qrProductType = "qr-basics";
-              } else if (design.templateVariant === "dynamics") {
-                qrProductType = "qr-dynamics";
-              } else if (design.templateVariant === "external-url") {
-                qrProductType = "qr-basics";
-              } else if (design.templateVariant === "url") {
-                if (hasVideo) {
-                  qrProductType = "qr-play";
-                } else if (hasBackground || hasLandingOverlay) {
-                  qrProductType = "qr-canvas";
-                } else if (hasTopText || hasBottomText) {
-                  qrProductType = "qr-plus";
-                } else {
-                  qrProductType = "qr-canvas";
-                }
-              }
-            }
-          }
-          
-          const finalColors = providerColors || (product.availableColors as Array<{name: string; hex: string}>) || [];
-          const finalSizes = providerSizes || (product.availableSizes as string[]) || [];
-          
+          const colors = Array.from(colorSet.entries()).map(([name, hex]) => ({ name, hex }));
+          const sizes = Array.from(sizeSet);
+          const minPrice = pf.minPrice ? parseFloat(pf.minPrice) : null;
+          const maxPrice = pf.maxPrice ? parseFloat(pf.maxPrice) : null;
+
           return {
-            ...product,
-            availableColors: finalColors,
-            availableSizes: finalSizes,
-            categoryIds: assignments.map((a) => a.categoryId),
-            cachedMinCost,
-            cachedMaxCost,
-            qrProductType,
+            id: String(pf.id),
+            name: pf.title,
+            description: pf.description || "",
+            imageUrl: pf.image || "",
+            brand: pf.brand || "",
+            category: pf.typeName || pf.type || "",
+            isEnabled: !pf.isDiscontinued,
+            availableColors: colors,
+            availableSizes: sizes,
+            metadata: {
+              cachedMinCost: minPrice ? Math.round(minPrice * 100) : null,
+              originCountry: pf.originCountry || "",
+              madeInUSA: pf.originCountry === "US" || pf.originCountry === "USA",
+              fulfillmentProvider: "printful",
+            },
+            customerPrice: null,
+            cachedMinCost: minPrice,
+            cachedMaxCost: maxPrice,
           };
-        })
-      );
-      res.json(enrichedProducts);
+        });
+        return res.json(products);
+      }
+
+      // Default: Printify
+      const blueprints = await storage.getPrintifyBlueprints();
+      const allProviders = await storage.getAllPrintifyProviders();
+
+      const products = blueprints.map((bp) => {
+        const providers = allProviders.filter((p) => p.blueprintId === bp.id);
+        const usaProvider = providers.find((p) => p.isUSA) || providers[0];
+        let minCost: number | null = null;
+        let maxCost: number | null = null;
+        let colors: Array<{ name: string; hex: string }> = [];
+        let sizes: string[] = [];
+
+        if (usaProvider) {
+          minCost = usaProvider.minCost ? Number(usaProvider.minCost) / 100 : null;
+          maxCost = usaProvider.maxCost ? Number(usaProvider.maxCost) / 100 : minCost;
+          colors = Array.isArray(usaProvider.availableColors)
+            ? (usaProvider.availableColors as Array<{ name: string; hex: string }>)
+            : [];
+          sizes = Array.isArray(usaProvider.availableSizes)
+            ? (usaProvider.availableSizes as string[])
+            : [];
+        }
+
+        return {
+          id: String(bp.id),
+          name: bp.title,
+          description: bp.description || "",
+          imageUrl: bp.primaryImageUrl || (bp.images?.[0] ?? ""),
+          brand: bp.brand || "",
+          category: bp.category || "",
+          isEnabled: true,
+          availableColors: colors,
+          availableSizes: sizes,
+          metadata: {
+            cachedMinCost: usaProvider?.minCost || null,
+            originCountry: usaProvider?.isUSA ? "US" : usaProvider?.country || "",
+            madeInUSA: usaProvider?.isUSA || false,
+            fulfillmentProvider: "printify",
+            providerId: usaProvider?.providerId || null,
+            providerTitle: usaProvider?.title || "",
+          },
+          customerPrice: null,
+          cachedMinCost: minCost,
+          cachedMaxCost: maxCost,
+        };
+      });
+
+      res.json(products);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -1340,6 +1340,20 @@ export class FirestoreAdapter implements IStorage {
   }
   
   // ============================================
+  // PRINTFUL PRODUCTS
+  // ============================================
+
+  async getAllPrintfulProducts(): Promise<any[]> {
+    const snapshot = await this.db.collection('printful_products').get();
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: parseInt(doc.id) }));
+  }
+
+  async getAllPrintfulVariants(): Promise<any[]> {
+    const snapshot = await this.db.collection('printful_variants').get();
+    return snapshot.docs.map(doc => ({ ...doc.data(), id: parseInt(doc.id) }));
+  }
+
+  // ============================================
   // CATALOG SYNC
   // ============================================
   
