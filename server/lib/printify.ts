@@ -15,12 +15,12 @@ interface PrintifyBlueprint {
 interface PrintifyPrintProvider {
   id: number;
   title: string;
-  location: {
-    address1: string;
-    city: string;
-    country: string;
-    region: string;
-    zip: string;
+  location?: {
+    address1?: string;
+    city?: string;
+    country?: string;
+    region?: string;
+    zip?: string;
   };
 }
 
@@ -188,6 +188,10 @@ class PrintifyClient {
 
   async getPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {
     return this.request(`/catalog/blueprints/${blueprintId}/print_providers.json`);
+  }
+
+  async getAllPrintProviders(): Promise<PrintifyPrintProvider[]> {
+    return this.request('/catalog/print_providers.json');
   }
 
   async getVariants(blueprintId: number, printProviderId: number): Promise<{ variants: PrintifyVariant[] }> {

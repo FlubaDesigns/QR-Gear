@@ -277,6 +277,46 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  app.post("/api/admin/products/backfill-provider-locations", isAdmin, async (req: any, res) => {
+    try {
+      const allProvidersList = await printify.getAllPrintProviders();
+      const providerLocationMap = new Map<number, { country: string; isUSA: boolean }>();
+      for (const p of allProvidersList) {
+        const country = p.location?.country || '';
+        providerLocationMap.set(p.id, {
+          country,
+          isUSA: country === 'US' || country === 'USA',
+        });
+      }
+
+      const existingProviders = await storage.getAllPrintifyProviders();
+      let updated = 0;
+      for (const provider of existingProviders) {
+        const loc = providerLocationMap.get(provider.providerId);
+        if (loc && (provider.country !== loc.country || provider.isUSA !== loc.isUSA)) {
+          await storage.upsertPrintifyPrintProvider({
+            blueprintId: provider.blueprintId,
+            providerId: provider.providerId,
+            title: provider.title,
+            country: loc.country,
+            isUSA: loc.isUSA,
+          });
+          updated++;
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        totalProviders: existingProviders.length,
+        locationsMapped: providerLocationMap.size,
+        usaProviders: [...providerLocationMap.values()].filter(v => v.isUSA).length,
+        updated 
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Toggle product enabled/disabled
   app.patch("/api/admin/products/:id/toggle", isAdmin, async (req: any, res) => {
     try {
@@ -1172,6 +1212,17 @@ export function registerAdminRoutes(app: Express): void {
         try {
           console.log('[Catalog Sync] Starting full catalog sync...');
           
+          const allProvidersList = await printify.getAllPrintProviders();
+          const providerLocationMap = new Map<number, { country: string; isUSA: boolean }>();
+          for (const p of allProvidersList) {
+            const country = p.location?.country || '';
+            providerLocationMap.set(p.id, {
+              country,
+              isUSA: country === 'US' || country === 'USA',
+            });
+          }
+          console.log(`[Catalog Sync] Loaded ${providerLocationMap.size} provider locations (${[...providerLocationMap.values()].filter(v => v.isUSA).length} USA)`);
+          
           const blueprints = await printify.getCatalogBlueprints();
           console.log(`[Catalog Sync] Found ${blueprints.length} blueprints`);
           
@@ -1195,14 +1246,15 @@ export function registerAdminRoutes(app: Express): void {
               const providers = await printify.getPrintProviders(bp.id);
               
               for (const provider of providers) {
-                const isUSA = provider.location?.country === 'US' || 
-                              provider.location?.country === 'USA';
+                const loc = providerLocationMap.get(provider.id);
+                const country = loc?.country || null;
+                const isUSA = loc?.isUSA || false;
                 
                 await storage.upsertPrintifyPrintProvider({
                   blueprintId: bp.id,
                   providerId: provider.id,
                   title: provider.title,
-                  country: provider.location?.country || null,
+                  country,
                   isUSA,
                 });
                 providersCount++;
@@ -1727,6 +1779,18 @@ export function registerAdminRoutes(app: Express): void {
       (async () => {
         try {
           console.log('[AdminProducts] Starting full catalog sync...');
+          
+          const allProvidersList = await printify.getAllPrintProviders();
+          const providerLocationMap = new Map<number, { country: string; isUSA: boolean }>();
+          for (const p of allProvidersList) {
+            const country = p.location?.country || '';
+            providerLocationMap.set(p.id, {
+              country,
+              isUSA: country === 'US' || country === 'USA',
+            });
+          }
+          console.log(`[AdminProducts] Loaded ${providerLocationMap.size} provider locations (${[...providerLocationMap.values()].filter(v => v.isUSA).length} USA)`);
+          
           const blueprints = await printify.getCatalogBlueprints();
           console.log(`[AdminProducts] Found ${blueprints.length} blueprints`);
 
@@ -1749,13 +1813,14 @@ export function registerAdminRoutes(app: Express): void {
 
               const providers = await printify.getPrintProviders(bp.id);
               for (const provider of providers) {
-                const isUSA = provider.location?.country === 'US' ||
-                              provider.location?.country === 'USA';
+                const loc = providerLocationMap.get(provider.id);
+                const country = loc?.country || null;
+                const isUSA = loc?.isUSA || false;
                 await storage.upsertPrintifyPrintProvider({
                   blueprintId: bp.id,
                   providerId: provider.id,
                   title: provider.title,
-                  country: provider.location?.country || null,
+                  country,
                   isUSA,
                 });
                 providersCount++;
