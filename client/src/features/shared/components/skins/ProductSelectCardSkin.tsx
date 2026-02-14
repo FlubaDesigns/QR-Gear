@@ -185,7 +185,7 @@ export function ProductSelectCardSkin({
   return (
     <>
       <Card
-        className={`overflow-visible transition-all ${
+        className={`overflow-visible transition-all min-h-[45vh] ${
           isSelected ? "ring-2 ring-primary ring-offset-2" : ""
         }`}
         data-testid={`select-card-${item.id}`}

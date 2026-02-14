@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Package, Search, Filter, Flag, Globe } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
-import { ProductCardSkin, ProductDetailSkin } from "@/features/shared/components/skins/ProductCatalogSkin";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { ProductSelectCardSkin, type ProductSelectItem } from "@/features/shared/components/skins/ProductSelectCardSkin";
+import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 import type { Product } from "../shared/types";
-import type { SkinItem } from "@/features/shared/components/skins/types";
 
 type LocationFilter = "all" | "usa" | "other";
 type EnabledFilter = "all" | "enabled" | "disabled";
@@ -15,7 +15,7 @@ interface CatalogListModuleProps {
   products: Product[];
 }
 
-function productToSkinItem(product: Product): SkinItem {
+function productToScrollItem(product: Product): ScrollViewItem {
   const metadata = (product.metadata || {}) as Record<string, any>;
   const raw = product as Record<string, any>;
   const baseCost = typeof metadata.cachedMinCost === "number" ? metadata.cachedMinCost / 100 : 0;
@@ -29,26 +29,49 @@ function productToSkinItem(product: Product): SkinItem {
   const displayPrice = customerPrice ?? calculatedPrice;
 
   const imageUrl = product.imageUrl || (metadata.image as string) || "";
-
   const colors = Array.isArray(raw.availableColors) ? raw.availableColors : [];
   const sizes = Array.isArray(raw.availableSizes) ? raw.availableSizes : [];
+  const madeInUSA = metadata.originCountry === "US" || metadata.originCountry === "USA" || metadata.madeInUSA === true;
 
   return {
     id: product.id,
-    name: product.name,
-    primaryImage: imageUrl || null,
-    price: displayPrice,
+    imageUrl: imageUrl || "",
+    title: product.name,
+    minPrice: displayPrice ? displayPrice.toFixed(2) : null,
     colorCount: colors.length,
-    sizeCount: sizes.length,
+    madeInUSA,
+    sizes,
     metadata: {
       ...metadata,
       isEnabled: product.isEnabled,
-      cachedMinCost: metadata.cachedMinCost,
-      qrUpcharge: metadata.qrUpcharge,
-      markupPercent: metadata.markupPercent,
+      baseCost,
+      qrUpcharge,
+      markupPercent,
       availableColors: colors,
       availableSizes: sizes,
+      description: (raw as any).description || "",
+      manufacturer: metadata.manufacturer || null,
     },
+  };
+}
+
+function scrollItemToSelectItem(item: ScrollViewItem): ProductSelectItem {
+  const meta = (item.metadata || {}) as Record<string, any>;
+  const colors = Array.isArray(meta.availableColors) ? meta.availableColors : [];
+  const sizes = Array.isArray(meta.availableSizes) ? meta.availableSizes : [];
+
+  return {
+    id: String(item.id),
+    name: item.title,
+    price: item.minPrice ? parseFloat(item.minPrice) : null,
+    cost: typeof meta.baseCost === "number" && meta.baseCost > 0 ? meta.baseCost : null,
+    manufacturer: meta.manufacturer || null,
+    madeInUSA: item.madeInUSA || false,
+    primaryImageUrl: item.imageUrl || null,
+    description: meta.description || null,
+    colorsAvailable: colors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color })),
+    sizesAvailable: sizes,
+    defaultColor: colors[0]?.name || null,
   };
 }
 
@@ -82,8 +105,8 @@ export function CatalogListModule({ products }: CatalogListModuleProps) {
     return list;
   }, [products, search, locationFilter, enabledFilter]);
 
-  const skinItems: SkinItem[] = useMemo(() => {
-    return filtered.map(productToSkinItem);
+  const scrollItems: ScrollViewItem[] = useMemo(() => {
+    return filtered.map(productToScrollItem);
   }, [filtered]);
 
   const enabledCount = products.filter((p) => p.isEnabled !== false).length;
@@ -162,12 +185,22 @@ export function CatalogListModule({ products }: CatalogListModuleProps) {
           </Badge>
         </div>
 
-        <SkinGridViewer
-          items={skinItems}
-          CardSkin={ProductCardSkin}
-          DetailSkin={ProductDetailSkin}
-          actions={{}}
-          gridColumns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
+        <SharedViewer
+          mode="scroll"
+          scrollProps={{
+            items: scrollItems,
+            layout: "vertical",
+            renderItem: (scrollItem, _isSelected, onSelect) => {
+              const selectItem = scrollItemToSelectItem(scrollItem);
+              return (
+                <ProductSelectCardSkin
+                  item={selectItem}
+                  isSelected={false}
+                  onSelect={() => onSelect()}
+                />
+              );
+            },
+          }}
         />
       </div>
     </CollapsibleModule>

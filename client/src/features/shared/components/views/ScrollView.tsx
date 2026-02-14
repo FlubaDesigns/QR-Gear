@@ -76,7 +76,7 @@ export function ScrollView({
           <img
             src={item.imageUrl}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
           {item.hasMockupMapping === false && (
             <div className="absolute top-1 left-1 right-1">
