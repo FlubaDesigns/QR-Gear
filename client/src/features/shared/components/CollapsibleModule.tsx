@@ -25,7 +25,7 @@ export function CollapsibleModule({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const baseClasses = variant === "glass"
-    ? "glass-card rounded-lg overflow-hidden"
+    ? "glass-card rounded-lg"
     : "bg-card border rounded-lg";
 
   return (
