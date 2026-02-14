@@ -6,20 +6,26 @@ import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule
 import { SyncModule } from "./modules/SyncModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import { CatalogListModule } from "./modules/CatalogListModule";
+import { ProductChooserModule } from "./modules/ProductChooserModule";
+import type { ProductSelectItem } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import type { Product } from "./shared/types";
 
 interface ProductsHarnessProps {
   showHeader?: boolean;
   showCatalog?: boolean;
+  showChooser?: boolean;
   showBuilder?: boolean;
   showSync?: boolean;
+  onProductSelected?: (productId: string, product: ProductSelectItem) => void;
 }
 
 function ProductsHarnessInner({
   showHeader = true,
   showCatalog = true,
+  showChooser = false,
   showBuilder = true,
   showSync = true,
+  onProductSelected,
 }: ProductsHarnessProps) {
   const { 
     api, 
@@ -77,7 +83,16 @@ function ProductsHarnessInner({
 
       <StoreChannelDropdownModule />
 
-      {showCatalog && filteredProducts.length > 0 && (
+      {showChooser && filteredProducts.length > 0 && (
+        <div className="glass-card">
+          <ProductChooserModule
+            products={filteredProducts}
+            onProductSelected={onProductSelected}
+          />
+        </div>
+      )}
+
+      {showCatalog && !showChooser && filteredProducts.length > 0 && (
         <div className="glass-card">
           <CatalogListModule products={filteredProducts} />
         </div>
