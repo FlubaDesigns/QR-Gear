@@ -294,7 +294,7 @@ export function StoreBuilderHarness() {
   const queryClient = useQueryClient();
 
   const fetchTemplates = useCallback(async () => {
-    const res = await fetch(`${apiBase}/templates`);
+    const res = await authFetch(`${apiBase}/templates`, getAuthHeaders);
     const data = await res.json();
     if (data.templates) {
       return data.templates.map((t: any) => ({
@@ -327,7 +327,7 @@ export function StoreBuilderHarness() {
     queryKey: [apiBase, "templates", productPackage?.templateId, "mockups"],
     queryFn: async () => {
       if (!productPackage?.templateId) return { success: false, summary: { total: 0, completed: 0, pending: 0, processing: 0, failed: 0 }, mockups: [] };
-      const res = await fetch(`${apiBase}/templates/${productPackage.templateId}/mockups`);
+      const res = await authFetch(`${apiBase}/templates/${productPackage.templateId}/mockups`, getAuthHeaders);
       return res.json();
     },
     enabled: !!productPackage?.templateId,
@@ -448,7 +448,7 @@ export function StoreBuilderHarness() {
             
             // Auto-fetch collections when destination is pre-set
             if (packet.storeId && packet.channelName) {
-              fetch(`${apiBase}/stores/${packet.storeId}/channels/${packet.channelName}/collections`)
+              authFetch(`${apiBase}/stores/${packet.storeId}/channels/${packet.channelName}/collections`, getAuthHeaders)
                 .then(res => res.json())
                 .then(data => setExistingCollections(data.collections || []))
                 .catch(() => setExistingCollections([]));
@@ -470,7 +470,7 @@ export function StoreBuilderHarness() {
               const colorHex = packet.defaultColorHex || (packet.colors?.[0]?.hex) || "#000000";
               const qrSize = packet.placementSizes?.[placement] || "medium";
               
-              fetch(`${apiBase}/mockup/priority`, {
+              authFetch(`${apiBase}/mockup/priority`, getAuthHeaders, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -580,7 +580,7 @@ export function StoreBuilderHarness() {
     
     setIsCreatingStore(true);
     try {
-      const res = await fetch(`${apiBase}/stores`, {
+      const res = await authFetch(`${apiBase}/stores`, getAuthHeaders, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -612,7 +612,7 @@ export function StoreBuilderHarness() {
     
     setIsCreatingChannel(true);
     try {
-      const res = await fetch(`${apiBase}/stores/${selectedStoreId}/channels`, {
+      const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels`, getAuthHeaders, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newChannelName.trim() }),
@@ -730,7 +730,7 @@ export function StoreBuilderHarness() {
       
       // Create template if needed
       if (currentPacketId && !templateId) {
-        const templateResponse = await fetch(`${apiBase}/templates`, {
+        const templateResponse = await authFetch(`${apiBase}/templates`, getAuthHeaders, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -762,7 +762,7 @@ export function StoreBuilderHarness() {
         }
       }
 
-      const response = await fetch(`${apiBase}/store-product-links`, {
+      const response = await authFetch(`${apiBase}/store-product-links`, getAuthHeaders, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1331,7 +1331,7 @@ export function StoreBuilderHarness() {
                           setSelectedCollection("");
                           setWantsToChangeDestination(false);
                           try {
-                            const res = await fetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`);
+                            const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`, getAuthHeaders);
                             const data = await res.json();
                             setExistingCollections(data.collections || []);
                           } catch (e) {
