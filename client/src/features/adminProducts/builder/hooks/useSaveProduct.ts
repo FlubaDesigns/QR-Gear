@@ -50,7 +50,6 @@ interface SaveToStoreParams {
   store: PartnerStore;
   channel: string;
   builderState: BuilderState;
-  useTestEndpoints?: boolean;
 }
 
 interface SaveResult {
@@ -67,7 +66,6 @@ export function useSaveProduct() {
   const queryClient = useQueryClient();
   const { apiBase } = useAdminAuth();
 
-  // Helper to invalidate both admin + test library keys so whichever surface is open updates
   const invalidateLibrary = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
     queryClient.invalidateQueries({ queryKey: [`${apiBase}/library-assets`] });
@@ -124,7 +122,7 @@ export function useSaveProduct() {
     },
   });
 
-  const saveAsTemplate = async (builderState: BuilderState, useTestEndpoints = false): Promise<SaveResult> => {
+  const saveAsTemplate = async (builderState: BuilderState): Promise<SaveResult> => {
     const { selectedProduct, qrProductState, content, colors, placements, artworkUrl, artworkVariant } = builderState;
     
     if (!selectedProduct?.id) {
@@ -152,10 +150,7 @@ export function useSaveProduct() {
       pricing: pricing || null,
     };
 
-    const endpoint = useTestEndpoints 
-      ? `${apiBase}/templates/full-save` 
-      : "/api/admin/templates/full-save";
-    const response = await apiRequest("POST", endpoint, templateData);
+    const response = await apiRequest("POST", "/api/admin/templates/full-save", templateData);
     const result = await response.json();
     
     if (!response.ok) {
@@ -174,14 +169,14 @@ export function useSaveProduct() {
 
   const saveAsTemplateMutation = useMutation({
     mutationFn: async (builderState: BuilderState): Promise<SaveResult> => {
-      return saveAsTemplate(builderState, false);
+      return saveAsTemplate(builderState);
     },
     onSuccess: () => {
       invalidateLibrary();
     },
   });
 
-  const saveGraphics = async (builderState: BuilderState, useTestEndpoints = false): Promise<SaveResult> => {
+  const saveGraphics = async (builderState: BuilderState): Promise<SaveResult> => {
     const { content, qrProductState, artworkUrl, qrOnlyUrl: qrOnlyUrlFromState } = builderState;
     
     const qrOnlyUrl = qrOnlyUrlFromState || "";
@@ -202,10 +197,7 @@ export function useSaveProduct() {
       pricing: graphicsPricing || null,
     };
 
-    const endpoint = useTestEndpoints 
-      ? `${apiBase}/graphics/save` 
-      : "/api/admin/graphics/save";
-    const response = await apiRequest("POST", endpoint, graphicsData);
+    const response = await apiRequest("POST", "/api/admin/graphics/save", graphicsData);
     const result = await response.json();
     
     if (!response.ok) {
@@ -224,7 +216,7 @@ export function useSaveProduct() {
 
   const saveGraphicsMutation = useMutation({
     mutationFn: async (builderState: BuilderState): Promise<SaveResult> => {
-      return saveGraphics(builderState, false);
+      return saveGraphics(builderState);
     },
     onSuccess: () => {
       invalidateLibrary();
@@ -232,33 +224,28 @@ export function useSaveProduct() {
   });
 
   const saveAllMutation = useMutation({
-    mutationFn: async ({ store, channel, builderState, useTestEndpoints = false }: SaveToStoreParams): Promise<SaveResult[]> => {
+    mutationFn: async ({ store, channel, builderState }: SaveToStoreParams): Promise<SaveResult[]> => {
       const results: SaveResult[] = [];
 
-      // Save as template (includes batch mockup generation)
       try {
-        const templateResult = await saveAsTemplate(builderState, useTestEndpoints);
+        const templateResult = await saveAsTemplate(builderState);
         results.push(templateResult);
       } catch (e: any) {
         results.push({ success: false, message: `Template failed: ${e.message}` });
       }
 
-      // Save graphics (QR-only and composite)
       try {
-        const graphicsResult = await saveGraphics(builderState, useTestEndpoints);
+        const graphicsResult = await saveGraphics(builderState);
         results.push(graphicsResult);
       } catch (e: any) {
         results.push({ success: false, message: `Graphics failed: ${e.message}` });
       }
 
-      // Save to store with channel (admin only, skip in test mode)
-      if (!useTestEndpoints) {
-        try {
-          const storeResult = await saveToStoreMutation.mutateAsync({ store, channel, builderState });
-          results.push(storeResult);
-        } catch (e: any) {
-          results.push({ success: false, message: `Store failed: ${e.message}` });
-        }
+      try {
+        const storeResult = await saveToStoreMutation.mutateAsync({ store, channel, builderState });
+        results.push(storeResult);
+      } catch (e: any) {
+        results.push({ success: false, message: `Store failed: ${e.message}` });
       }
 
       // Check if all failed
@@ -276,7 +263,6 @@ export function useSaveProduct() {
     saveAsTemplate: saveAsTemplateMutation,
     saveGraphics: saveGraphicsMutation,
     saveAll: saveAllMutation,
-    // Direct functions for test mode
     saveAsTemplateWithOptions: saveAsTemplate,
     saveGraphicsWithOptions: saveGraphics,
     isSaving: saveToStoreMutation.isPending || saveAsTemplateMutation.isPending || saveGraphicsMutation.isPending || saveAllMutation.isPending,

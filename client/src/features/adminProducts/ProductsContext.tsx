@@ -77,7 +77,6 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     setSelectedChannelState(channel);
   }, []);
 
-  // Auto-load defaults for testing: Internal / QR Gear / Test
   useEffect(() => {
     const loadDefaults = async () => {
       try {
@@ -87,26 +86,12 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
         if (!storesRes.ok) return;
         const stores: Store[] = await storesRes.json();
         
-        // Find QR Gear store
         const qrGearStore = stores.find(s => s.id === "qr-gear" || s.name.toLowerCase().includes("qr gear"));
         if (!qrGearStore) return;
         
-        // Fetch channels for QR Gear
-        const channelsRes = await fetch(`${apiBase}/stores/${qrGearStore.id}/channels`, { headers });
-        if (!channelsRes.ok) return;
-        const channels: Channel[] = await channelsRes.json();
-        
-        // Find Test channel
-        const testChannel = channels.find(c => c.id === "test" || c.name.toLowerCase() === "test");
-        
-        // Set defaults
         setSelectedRoleState("internal");
         setSelectedStoreState(qrGearStore);
-        if (testChannel) {
-          setSelectedChannelState(testChannel);
-        }
       } catch (err) {
-        // Silently fail - defaults are optional
         console.log("[ProductsContext] Could not load defaults:", err);
       }
     };

@@ -70,7 +70,7 @@ const initialState: BuilderState = {
   fulfillmentProvider: "printify",
   category: "T-Shirts",
   originFilter: { showUSA: true, showOther: false },
-  genderFilter: "mens",  // Default to men's for faster testing
+  genderFilter: "mens",
   selectedProduct: null,
   selectedColor: { name: "Black", hex: "#000000" },  // Default to black
   qrProductState: "qr_canvas",  // Default to QR Canvas mode
