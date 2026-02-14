@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { authFetch } from "@/features/adminAuth/authFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PLACEMENT_BASE_DIMENSIONS } from "../types";
@@ -464,7 +465,7 @@ async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions):
 
 export function CreateGraphicsModule() {
   const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder } = useBuilderContext();
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
@@ -614,16 +615,10 @@ export function CreateGraphicsModule() {
         packetPayload.playMediaUrl = state.content.playMediaUrl;
       }
 
-      const packetRes = await fetch(`${apiBase}/packets`, {
+      const packetRes = await authFetch(`${apiBase}/packets`, getAuthHeaders, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(packetPayload),
       });
-
-      if (!packetRes.ok) {
-        const errData = await packetRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Packet API error ${packetRes.status}`);
-      }
 
       const packetData = await packetRes.json();
       const packetId = packetData.packetId;
@@ -791,9 +786,8 @@ export function CreateGraphicsModule() {
         }
       }
 
-      await fetch(`${apiBase}/packets/${packetId}`, {
+      await authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           qrOnlyUrl: qrUrl,
           productGraphicUrl,
@@ -960,9 +954,8 @@ export function CreateGraphicsModule() {
         .then(async data => {
           console.log('[CreatePacket] Mockup response:', data);
           if (data.success && data.mockupUrl) {
-            await fetch(`${apiBase}/packets/${packetId}`, {
+            await authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders, {
               method: "PATCH",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ priorityMockupUrl: data.mockupUrl }),
             }).catch(() => {});
             
@@ -1016,21 +1009,16 @@ export function CreateGraphicsModule() {
     
     setIsDeleting(true);
     try {
-      const res = await fetch(`${apiBase}/packets/${packetResult.packetId}`, {
+      await authFetch(`${apiBase}/packets/${packetResult.packetId}`, getAuthHeaders, {
         method: "DELETE",
       });
       
-      if (res.ok) {
-        toast({
-          title: "Packet Deleted",
-          description: "Starting fresh...",
-        });
-        setPacketResult(null);
-        setError(null);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Delete failed: ${res.status}`);
-      }
+      toast({
+        title: "Packet Deleted",
+        description: "Starting fresh...",
+      });
+      setPacketResult(null);
+      setError(null);
     } catch (err: any) {
       console.error("Delete packet failed:", err);
       toast({

@@ -5,6 +5,7 @@ import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox"
 import { TemplatePickerSkin } from "@/features/shared/components/skins";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { authFetch } from "@/features/adminAuth/authFetch";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -261,7 +262,7 @@ function HeroImageLightbox({
 }
 
 export function StoreBuilderHarness() {
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [location, navigate] = useLocation();
   const [productPackage, setProductPackage] = useState<ProductPackage | null>(null);
   const [originalPacketId, setOriginalPacketId] = useState<string | null>(null);
@@ -391,11 +392,8 @@ export function StoreBuilderHarness() {
       setOriginalPacketId(packetId);
       setIsEditMode(true);
       setOriginalConfiguration(null); // Reset so new packet records its own baseline
-      fetch(`${apiBase}/packets/${packetId}`)
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
+      authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders)
+        .then(res => res.json())
         .then(data => {
           if (data.success && data.packet) {
             const packet = data.packet;
@@ -681,9 +679,8 @@ export function StoreBuilderHarness() {
       if (shouldFork) {
         console.log("[StoreBuilder] Edit mode - creating new packet (fork from:", originalPacketId, ")");
         
-        const packetResponse = await fetch(`${apiBase}/packets`, {
+        const packetResponse = await authFetch(`${apiBase}/packets`, getAuthHeaders, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             qrOnlyUrl: productPackage.qrOnlyUrl,
             compositeUrl: productPackage.compositeUrl,

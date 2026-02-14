@@ -3,6 +3,8 @@ import { Sparkles, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { authFetch } from "@/features/adminAuth/authFetch";
 import {
   ComposePickItemsStep,
   ComposeModePicker,
@@ -32,6 +34,7 @@ const STEP_LABELS: Record<string, string> = {
 
 export function ComposeContentModule() {
   const { state, setContent } = useBuilderContext();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -59,19 +62,17 @@ export function ComposeContentModule() {
   const fetchAvailableItems = async () => {
     setIsLoadingItems(true);
     try {
-      const res = await fetch('/api/admin/published-compose-items');
-      if (res.ok) {
-        const data = await res.json();
-        setAvailableItems(data.items || []);
-      } else {
-        const altRes = await fetch('/api/packets?status=published&types=qr-canvas,qr-play');
-        if (altRes.ok) {
-          const data = await altRes.json();
-          setAvailableItems(data.packets || data.items || data || []);
-        }
+      const res = await authFetch(`${apiBase}/published-compose-items`, getAuthHeaders);
+      const data = await res.json();
+      setAvailableItems(data.items || []);
+    } catch {
+      try {
+        const altRes = await authFetch(`${apiBase}/packets?status=published&types=qr-canvas,qr-play`, getAuthHeaders);
+        const data = await altRes.json();
+        setAvailableItems(data.packets || data.items || data || []);
+      } catch (altErr) {
+        console.error('[ComposeModule] Error fetching items:', altErr);
       }
-    } catch (error) {
-      console.error('[ComposeModule] Error fetching items:', error);
     } finally {
       setIsLoadingItems(false);
     }
@@ -193,20 +194,15 @@ export function ComposeContentModule() {
         color: state.selectedColor?.name || '',
         colorHex: state.selectedColor?.hex || '',
       };
-      const res = await fetch('/api/admin/compose/publish', {
+      const res = await authFetch(`${apiBase}/compose/publish`, getAuthHeaders, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const result = await res.json();
-        setContent({
-          composeInstanceId: result.instanceId || result.composeInstanceId || null,
-          composeStep: 'confirm',
-        });
-      } else {
-        console.error('[ComposeModule] Publish failed:', await res.text());
-      }
+      const result = await res.json();
+      setContent({
+        composeInstanceId: result.instanceId || result.composeInstanceId || null,
+        composeStep: 'confirm',
+      });
     } catch (error) {
       console.error('[ComposeModule] Publish error:', error);
     } finally {
