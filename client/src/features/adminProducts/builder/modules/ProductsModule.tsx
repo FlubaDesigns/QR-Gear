@@ -604,7 +604,7 @@ export function ProductsModule() {
         )}
       </div>
 
-      <div className="flex gap-2" data-testid="view-mode-tabs">
+      <div className="flex flex-col sm:flex-row gap-2" data-testid="view-mode-tabs">
         <Button
           variant={viewMode === "shelf" ? "default" : "outline"}
           className="flex-1 min-h-11"
