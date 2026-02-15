@@ -330,7 +330,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
                     <Palette className="w-3 h-3" /> Colors ({item.colorsAvailable.length})
                   </span>
                   <div className="flex flex-wrap gap-1">
-                    {item.colorsAvailable.slice(0, 12).map((c, i) => (
+                    {item.colorsAvailable.map((c, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-1 py-0.5"
@@ -343,11 +343,6 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
                         <span className="truncate max-w-[70px]">{c.name}</span>
                       </div>
                     ))}
-                    {item.colorsAvailable.length > 12 && (
-                      <Badge variant="outline" className="text-[10px]">
-                        +{item.colorsAvailable.length - 12} more
-                      </Badge>
-                    )}
                   </div>
                 </div>
               )}
