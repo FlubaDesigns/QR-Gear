@@ -123,8 +123,13 @@ export function ImageUploader({
             assetType,
           });
           successCount++;
-        } catch {
-          // Continue with next file
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : "Unknown error";
+          toast({
+            title: `Failed to upload: ${file.name}`,
+            description: msg,
+            variant: "destructive",
+          });
         }
       }
 

@@ -5,6 +5,32 @@ import type { LibraryContextValue, LibraryApi, LibraryAssetWithProxy, UploadAsse
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      if (res.status >= 500 || res.status === 429) {
+        lastError = new Error(`Server error: ${res.status}`);
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err as Error;
+      if (attempt < maxRetries - 1) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError || new Error("Upload failed after retries");
+}
+
 interface LibraryProviderProps {
   children: React.ReactNode;
   storeId?: string | null;
@@ -40,13 +66,13 @@ export function LibraryProvider({
 
       uploadAsset: async (params: UploadAssetParams): Promise<{ id: string; extractedCount?: number }> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/background-assets`, {
+        const res = await fetchWithRetry(`${apiBase}/background-assets`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify(params),
         });
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ error: `Upload failed: ${res.status}` }));
           throw new Error(err.error || `Upload failed: ${res.status}`);
         }
         return res.json();
@@ -54,13 +80,13 @@ export function LibraryProvider({
 
       uploadZip: async (params: UploadAssetParams): Promise<{ extractedCount: number }> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/background-assets`, {
+        const res = await fetchWithRetry(`${apiBase}/background-assets`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify(params),
         });
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ error: `Upload failed: ${res.status}` }));
           throw new Error(err.error || `Upload failed: ${res.status}`);
         }
         return res.json();
