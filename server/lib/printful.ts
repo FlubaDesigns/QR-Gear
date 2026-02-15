@@ -467,6 +467,97 @@ export const printfulClient = new PrintfulClient();
 export type { PrintfulProduct, PrintfulVariant, PrintfulMockupResult, PrintfulMockupTask };
 
 /**
+ * Enrich existing printful_products documents with colors/sizes
+ * aggregated from their printful_variants — no API calls needed.
+ * This is a one-time backfill for products synced before enrichment was added.
+ */
+export async function enrichPrintfulProductsFromVariants(): Promise<{ enriched: number; skipped: number }> {
+  const admin = await import('firebase-admin');
+  const db = admin.default.firestore();
+
+  const [prodSnap, varSnap] = await Promise.all([
+    db.collection('printful_products').get(),
+    db.collection('printful_variants').get(),
+  ]);
+
+  const variantsByProduct = new Map<number, any[]>();
+  varSnap.forEach(d => {
+    const v = d.data();
+    const pid = v.productId;
+    if (!variantsByProduct.has(pid)) variantsByProduct.set(pid, []);
+    variantsByProduct.get(pid)!.push(v);
+  });
+
+  let enriched = 0;
+  let skipped = 0;
+  const BATCH_LIMIT = 400;
+  let batch = db.batch();
+  let batchCount = 0;
+
+  prodSnap.forEach(docSnap => {
+    const product = docSnap.data();
+    const existingColors = Array.isArray(product.availableColors) ? product.availableColors.length : 0;
+    const existingSizes = Array.isArray(product.availableSizes) ? product.availableSizes.length : 0;
+
+    if (existingColors > 0 && existingSizes > 0) { skipped++; return; }
+
+    const variants = variantsByProduct.get(product.id) || [];
+    if (variants.length === 0) { skipped++; return; }
+
+    const colorMap = new Map<string, string>();
+    const sizeSet = new Set<string>();
+    for (const v of variants) {
+      if (v.color && !colorMap.has(v.color)) colorMap.set(v.color, v.colorCode || '');
+      if (v.size) sizeSet.add(v.size);
+    }
+
+    const availableColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+    const availableSizes = Array.from(sizeSet);
+
+    if (availableColors.length === 0 && availableSizes.length === 0) { skipped++; return; }
+
+    batch.update(docSnap.ref, { availableColors, availableSizes });
+    batchCount++;
+    enriched++;
+  });
+
+  if (batchCount > 0) {
+    if (batchCount <= BATCH_LIMIT) {
+      await batch.commit();
+    } else {
+      let currentBatch = db.batch();
+      let count = 0;
+      prodSnap.forEach(docSnap => {
+        const product = docSnap.data();
+        if (Array.isArray(product.availableColors) && product.availableColors.length > 0) return;
+        const variants = variantsByProduct.get(product.id) || [];
+        if (variants.length === 0) return;
+        const colorMap = new Map<string, string>();
+        const sizeSet = new Set<string>();
+        for (const v of variants) {
+          if (v.color && !colorMap.has(v.color)) colorMap.set(v.color, v.colorCode || '');
+          if (v.size) sizeSet.add(v.size);
+        }
+        const availableColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+        const availableSizes = Array.from(sizeSet);
+        if (availableColors.length === 0 && availableSizes.length === 0) return;
+        currentBatch.update(docSnap.ref, { availableColors, availableSizes });
+        count++;
+        if (count >= BATCH_LIMIT) {
+          currentBatch.commit();
+          currentBatch = db.batch();
+          count = 0;
+        }
+      });
+      if (count > 0) await currentBatch.commit();
+    }
+  }
+
+  console.log(`[Printful Enrich] Done: ${enriched} enriched, ${skipped} skipped`);
+  return { enriched, skipped };
+}
+
+/**
  * Sync Printful catalog to local database
  * This populates the printful_products and printful_variants tables
  */
@@ -514,6 +605,17 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
         } catch (e) {
         }
 
+        const colorMap = new Map<string, string>();
+        const sizeSet = new Set<string>();
+        for (const v of details.variants) {
+          if (v.color && !colorMap.has(v.color)) {
+            colorMap.set(v.color, v.color_code || '');
+          }
+          if (v.size) sizeSet.add(v.size);
+        }
+        const availableColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+        const availableSizes = Array.from(sizeSet);
+
         const productData: Record<string, any> = {
           id: product.id,
           type: product.type,
@@ -533,8 +635,13 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
           originCountry: product.origin_country || null,
           isDiscontinued: product.is_discontinued || false,
           availablePlacements: printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : null,
+          availableColors,
+          availableSizes,
           lastSyncedAt: new Date(),
         };
+
+        const existingColorCount = Array.isArray(existing?.availableColors) ? existing.availableColors.length : 0;
+        const existingSizeCount = Array.isArray(existing?.availableSizes) ? existing.availableSizes.length : 0;
 
         const productChanged = !existing ||
           existing.title !== productData.title ||
@@ -542,7 +649,9 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
           existing.variantCount !== productData.variantCount ||
           existing.minPrice !== productData.minPrice ||
           existing.maxPrice !== productData.maxPrice ||
-          existing.isDiscontinued !== productData.isDiscontinued;
+          existing.isDiscontinued !== productData.isDiscontinued ||
+          existingColorCount !== availableColors.length ||
+          existingSizeCount !== availableSizes.length;
 
         if (productChanged) {
           await fsUpsert('printful_products', String(product.id), productData);

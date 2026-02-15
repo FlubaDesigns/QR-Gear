@@ -794,6 +794,9 @@ export function registerAdminRoutes(app: Express): void {
           const modelLower = (pf.model || '').trim().toLowerCase();
           const matchedPrintify = modelLower ? allPrintifyBlueprints.find(bp => (bp.model || '').trim().toLowerCase() === modelLower) : null;
           
+          const pfColors = Array.isArray(pf.availableColors) ? pf.availableColors as Array<{name: string; hex?: string}> : [];
+          const pfSizes = Array.isArray(pf.availableSizes) ? pf.availableSizes as string[] : [];
+
           categories[category].push({
             id: pf.id,
             title: pf.title,
@@ -806,9 +809,9 @@ export function registerAdminRoutes(app: Express): void {
             printProviderId: null,
             minPrice: pf.minPrice || null,
             maxPrice: pf.maxPrice || null,
-            colorCount: 0,
-            availableColors: [],
-            availableSizes: [],
+            colorCount: pfColors.length,
+            availableColors: pfColors,
+            availableSizes: pfSizes,
             fulfillmentProvider: 'printful',
             provider: 'printful',
             dualProvider: !!matchedPrintify,
