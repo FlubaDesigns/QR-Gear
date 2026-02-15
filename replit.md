@@ -88,9 +88,9 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Unified Admin Authorization**: All admin endpoints use `/api/admin/` prefix with `isAdmin` middleware (Firebase Auth token validation). Public buyer-facing endpoints use `/api/public/` prefix (no auth). No `/api/test/` endpoints remain — all have been consolidated.
 
 ### Downloadable Assets
-- **Location**: All downloadable ZIP packages go in BOTH `client/public/downloads/` (Vite dev server static files) AND `dist/public/downloads/` (Firebase hosting build). NOTE: `public/downloads/` at project root does NOT work in dev mode - Vite's root is `client/` so static files must be in `client/public/`.
-- **Current files**: `library-upload-package.zip` - contains all library upload code, endpoints, API docs, and file dependency map
-- **Access**: Local dev at `/downloads/filename.zip`, production at `https://qrgear-c1ffd.web.app/downloads/filename.zip`
+- **CRITICAL: Location**: All downloadable ZIP packages go in the ROOT `downloads/` folder (`/home/runner/workspace/downloads/`). This is where the user looks in the Replit file manager. NEVER put ZIPs only in `client/public/downloads/` — ALWAYS put them in the root `downloads/` folder. The user browses downloads via the Replit file manager, not via URL.
+- **Current files**: `library-upload-package.zip`, `qrgear-updated-files.zip`, and many others
+- **Access**: User downloads directly from the Replit file manager by right-clicking the file in the `downloads/` folder
 
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
