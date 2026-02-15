@@ -89,33 +89,23 @@ export function ImageUploader({
     }
   };
 
-  const readFileAsBase64 = (file: File): Promise<{ name: string; base64: string; mimeType: string }> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const arrayBuffer = reader.result as ArrayBuffer;
-          const bytes = new Uint8Array(arrayBuffer);
-          let binary = "";
-          const chunkSize = 8192;
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const chunk = bytes.subarray(i, i + chunkSize);
-            binary += String.fromCharCode.apply(null, chunk as any);
-          }
-          const base64 = btoa(binary);
-          console.log("[ImageUploader] FileReader complete for", file.name, "base64 length:", base64?.length);
-          resolve({ name: file.name, base64, mimeType: file.type || "image/png" });
-        } catch (convertErr) {
-          console.error("[ImageUploader] Base64 conversion error for", file.name, convertErr);
-          reject(new Error(`Could not process ${file.name}. Please try again.`));
-        }
-      };
-      reader.onerror = () => {
-        console.error("[ImageUploader] FileReader error for", file.name, reader.error);
-        reject(new Error(`Could not read ${file.name}. Please try again.`));
-      };
-      reader.readAsArrayBuffer(file);
-    });
+  const readFileAsBase64 = async (file: File): Promise<{ name: string; base64: string; mimeType: string }> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode(...Array.from(chunk));
+      }
+      const base64 = btoa(binary);
+      console.log("[ImageUploader] Read complete for", file.name, "base64 length:", base64.length);
+      return { name: file.name, base64, mimeType: file.type || "image/png" };
+    } catch (err) {
+      console.error("[ImageUploader] Read error for", file.name, ":", err instanceof Error ? err.message : err);
+      throw new Error(`Could not read ${file.name}. Please try again.`);
+    }
   };
 
   const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

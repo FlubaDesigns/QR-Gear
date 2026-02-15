@@ -2895,13 +2895,24 @@ app.get('/admin/background-assets', requireAdmin, async (req, res) => {
             .map(doc => docToObject(doc))
             .filter(doc => doc.isActive === true)
             .sort((a, b) => {
-            const aTime = (a.createdAt || '').toString();
-            const bTime = (b.createdAt || '').toString();
-            return aTime.localeCompare(bTime);
+            const getTime = (val) => {
+                if (!val)
+                    return 0;
+                if (typeof val === 'string')
+                    return new Date(val).getTime() || 0;
+                if (val.toDate)
+                    return val.toDate().getTime();
+                if (val._seconds)
+                    return val._seconds * 1000;
+                if (val instanceof Date)
+                    return val.getTime();
+                return 0;
+            };
+            return getTime(a.createdAt) - getTime(b.createdAt);
         })
             .map(data => {
             const storageUrl = data.storageUrl || '';
-            const filename = storageUrl.split('/').pop() || '';
+            const filename = storageUrl.split('/').pop() || data.fileName || '';
             return {
                 ...data,
                 proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
