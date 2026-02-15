@@ -63,7 +63,7 @@ export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const { selectedProviders } = useProductsContext();
 
-  // Provider comes from ProductsContext's selectedProviders (set by FulfillmentPickerModule)
+  // Provider comes from ProductsContext's selectedProviders (set by ProductsControlBar)
   // Use the first selected provider, or default to printify if none selected
   const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
   
