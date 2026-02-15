@@ -5,6 +5,7 @@
  */
 
 import { createCanvas, loadImage } from 'canvas';
+// @ts-ignore - object storage may not have type declarations
 import { Client as ObjectStorageClient } from "@replit/object-storage";
 
 interface MockupConfig {
@@ -60,7 +61,7 @@ export async function generateLocalMockup(
     ctx.fillStyle = config.shirtHex || '#FFFFFF';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     
-    const shirtShape = createShirtShape(ctx, canvasWidth, canvasHeight, config.shirtHex);
+    const shirtShape = createShirtShape(ctx as any, canvasWidth, canvasHeight, config.shirtHex);
     
     const placement = PLACEMENT_CONFIG['front-chest'];
     const artworkSize = Math.min(canvasWidth, canvasHeight) * placement.scale;

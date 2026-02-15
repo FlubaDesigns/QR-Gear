@@ -185,7 +185,7 @@ class HealthMonitorService {
   }
 
   async getProviderHistory(providerType: string, limit: number = 100): Promise<ProviderHealthLog[]> {
-    return storage.getProviderHealthLogs(providerType, limit);
+    return storage.getProviderHealthLogsByType(providerType, limit);
   }
 
   startPeriodicChecks(intervalMinutes: number = 5): void {

@@ -62,18 +62,22 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
 
 function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
   const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
+  const raw = p as any;
+  const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
   return {
     id: String(p.id),
-    name: p.title,
+    name: p.title || raw.name || "",
     price: minPrice,
     cost: null,
-    manufacturer: p.brand || null,
-    madeInUSA: p.madeInUSA,
-    primaryImageUrl: p.imageUrl || null,
+    manufacturer: p.brand || raw.manufacturer || null,
+    madeInUSA: p.madeInUSA ?? false,
+    primaryImageUrl: imageUrl,
     description: p.description || p.model || null,
-    colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
-    sizesAvailable: p.availableSizes || [],
-    defaultColor: p.availableColors?.length > 0 ? p.availableColors[0].name : null,
+    colorsAvailable: (p.availableColors || raw.colors || []).map((c: any) => ({ name: c.name, hex: c.hex })),
+    sizesAvailable: p.availableSizes || raw.sizes || [],
+    defaultColor: (p.availableColors || raw.colors || []).length > 0
+      ? (p.availableColors || raw.colors)[0].name
+      : null,
   };
 }
 
@@ -248,23 +252,7 @@ export function ProductsModule() {
     shelf.removeItem.mutate(shelfItem.id);
   }, [shelf.removeItem]);
 
-  const filteredShelfItems = useMemo(() => {
-    let items = shelf.items;
-    if (search) {
-      const q = search.toLowerCase();
-      items = items.filter(item => item.catalog.title.toLowerCase().includes(q));
-    }
-    items = items.filter(item => {
-      const p = item.catalog;
-      return (state.originFilter.showUSA && p.madeInUSA) ||
-             (state.originFilter.showOther && !p.madeInUSA);
-    });
-    items = items.filter(item => {
-      const g = detectGender(item.catalog.title);
-      return state.genderFilter === "all" || g === state.genderFilter;
-    });
-    return items;
-  }, [shelf.items, search, state.originFilter, state.genderFilter]);
+  const filteredShelfItems = shelf.items;
 
   const shelfSelectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; shelfItem: ShelfItem; catalogWithProvider: CatalogProduct }>();
@@ -297,23 +285,6 @@ export function ProductsModule() {
     [filteredShelfItems]
   );
 
-  const shelfUsaCount = shelf.items.filter(it => it.catalog.madeInUSA).length;
-  const shelfOtherCount = shelf.items.filter(it => !it.catalog.madeInUSA).length;
-
-  const shelfOriginFiltered = useMemo(() =>
-    shelf.items.filter(it =>
-      (state.originFilter.showUSA && it.catalog.madeInUSA) ||
-      (state.originFilter.showOther && !it.catalog.madeInUSA)
-    ),
-    [shelf.items, state.originFilter]
-  );
-
-  const shelfGenderCounts = useMemo(() => ({
-    all: shelfOriginFiltered.length,
-    mens: shelfOriginFiltered.filter(it => detectGender(it.catalog.title) === "mens").length,
-    womens: shelfOriginFiltered.filter(it => detectGender(it.catalog.title) === "womens").length,
-    unisex: shelfOriginFiltered.filter(it => detectGender(it.catalog.title) === "unisex").length,
-  }), [shelfOriginFiltered]);
 
   const handleShelfPick = useCallback((shelfKey: string) => {
     const entry = shelfSelectItemMap.get(shelfKey);
@@ -390,15 +361,6 @@ export function ProductsModule() {
     [shelfSelectItemMap, handleShelfPick, handleRemoveFromShelf, shelf.removeItem.isPending]
   );
 
-  const activeItems = dataMode === "favorites" ? shelfScrollItems : scrollItems;
-  const activeRenderItem = dataMode === "favorites" ? renderFavoriteCard : renderCatalogCard;
-  const activeCounts = dataMode === "favorites"
-    ? { usa: shelfUsaCount, other: shelfOtherCount, total: shelf.items.length, gender: shelfGenderCounts }
-    : { usa: usaCount, other: otherCount, total: products.length, gender: genderCounts };
-
-  const showViewer = dataMode === "favorites" || (dataMode === "all" && !!state.category);
-  const isViewerLoading = dataMode === "all" && isLoading;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md" data-testid="active-provider-indicator">
@@ -425,124 +387,142 @@ export function ProductsModule() {
         </Badge>
       </div>
 
-      {dataMode === "all" && (
-        <div data-testid="module-category">
-          <div className="flex items-center gap-2 mb-2">
-            <Layers className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Product Category</p>
-          </div>
-          <CustomDropdown
-            value={state.category || ""}
-            onChange={(value) => setCategory(value)}
-            options={categoryOptions}
-            placeholder="Select a category..."
-            loading={loadingCategories}
-            data-testid="select-category"
-          />
-        </div>
-      )}
-
-      {showViewer && (
+      {dataMode === "favorites" && (
         <>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder={dataMode === "favorites" ? "Search favorites..." : "Search products..."}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
-              data-testid="input-search"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Filter className="h-3 w-3 text-muted-foreground" />
-              <Badge
-                variant={locationFilter === "all" ? "default" : "outline"}
-                className="cursor-pointer text-xs"
-                onClick={() => applyLocationFilter("all")}
-                data-testid="filter-location-all"
-              >
-                <Globe className="w-3 h-3 mr-1" /> All ({activeCounts.total})
-              </Badge>
-              <Badge
-                variant={locationFilter === "usa" ? "default" : "outline"}
-                className="cursor-pointer text-xs"
-                onClick={() => applyLocationFilter("usa")}
-                data-testid="filter-location-usa"
-              >
-                <Flag className="w-3 h-3 mr-1" /> USA ({activeCounts.usa})
-              </Badge>
-              <Badge
-                variant={locationFilter === "other" ? "default" : "outline"}
-                className="cursor-pointer text-xs"
-                onClick={() => applyLocationFilter("other")}
-                data-testid="filter-location-other"
-              >
-                Other ({activeCounts.other})
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {(["all", "mens", "womens", "unisex"] as const).map((g) => (
-                <Badge
-                  key={g}
-                  variant={state.genderFilter === g ? "default" : "outline"}
-                  className="cursor-pointer text-xs capitalize"
-                  onClick={() => setGenderFilter(g)}
-                  data-testid={`filter-gender-${g}`}
-                >
-                  {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({activeCounts.gender[g]})
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {error && dataMode === "all" ? (
-            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
-              <p className="text-sm text-destructive">
-                {error instanceof Error ? error.message : "Failed to load products"}
-              </p>
-            </div>
-          ) : isViewerLoading || (dataMode === "favorites" && shelf.itemsLoading) ? (
+          {shelf.itemsLoading ? (
             <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
               ))}
             </div>
-          ) : activeItems.length === 0 ? (
+          ) : shelfScrollItems.length === 0 ? (
             <div className="p-6 text-center space-y-2 border rounded-md bg-muted/20">
               <p className="text-sm text-muted-foreground">
-                {dataMode === "favorites"
-                  ? shelf.items.length === 0
-                    ? "No favorites yet. Browse the catalog and add products you like."
-                    : "No favorites match your current filters."
-                  : "No products match the current filters."}
+                No favorites yet. Browse the catalog and add products you like.
               </p>
-              {dataMode === "favorites" && shelf.items.length === 0 && (
-                <Button
-                  variant="outline"
-                  onClick={() => setDataMode("all")}
-                  data-testid="button-go-to-catalog"
-                >
-                  Browse Catalog
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                onClick={() => setDataMode("all")}
+                data-testid="button-go-to-catalog"
+              >
+                Browse Catalog
+              </Button>
             </div>
           ) : (
             <SharedViewer
               mode="scroll"
               scrollProps={{
-                items: activeItems,
+                items: shelfScrollItems,
                 selectedId: selectedProductId,
-                emptyMessage: dataMode === "favorites"
-                  ? "No favorites match the current filters."
-                  : "No products match the current filters.",
+                emptyMessage: "No favorites yet.",
                 layout: "vertical",
                 gridHeight: "calc(100vh - 160px)",
-                renderItem: activeRenderItem,
+                renderItem: renderFavoriteCard,
               }}
             />
+          )}
+        </>
+      )}
+
+      {dataMode === "all" && (
+        <>
+          <div data-testid="module-category">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Product Category</p>
+            </div>
+            <CustomDropdown
+              value={state.category || ""}
+              onChange={(value) => setCategory(value)}
+              options={categoryOptions}
+              placeholder="Select a category..."
+              loading={loadingCategories}
+              data-testid="select-category"
+            />
+          </div>
+
+          {state.category && (
+            <>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8"
+                  data-testid="input-search"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Filter className="h-3 w-3 text-muted-foreground" />
+                  <Badge
+                    variant={locationFilter === "all" ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => applyLocationFilter("all")}
+                    data-testid="filter-location-all"
+                  >
+                    <Globe className="w-3 h-3 mr-1" /> All ({products.length})
+                  </Badge>
+                  <Badge
+                    variant={locationFilter === "usa" ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => applyLocationFilter("usa")}
+                    data-testid="filter-location-usa"
+                  >
+                    <Flag className="w-3 h-3 mr-1" /> USA ({usaCount})
+                  </Badge>
+                  <Badge
+                    variant={locationFilter === "other" ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => applyLocationFilter("other")}
+                    data-testid="filter-location-other"
+                  >
+                    Other ({otherCount})
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(["all", "mens", "womens", "unisex"] as const).map((g) => (
+                    <Badge
+                      key={g}
+                      variant={state.genderFilter === g ? "default" : "outline"}
+                      className="cursor-pointer text-xs capitalize"
+                      onClick={() => setGenderFilter(g)}
+                      data-testid={`filter-gender-${g}`}
+                    >
+                      {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({genderCounts[g]})
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {error ? (
+                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md space-y-2">
+                  <p className="text-sm text-destructive">
+                    {error instanceof Error ? error.message : "Failed to load products"}
+                  </p>
+                </div>
+              ) : isLoading ? (
+                <div className="flex gap-3 overflow-hidden">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
+                  ))}
+                </div>
+              ) : (
+                <SharedViewer
+                  mode="scroll"
+                  scrollProps={{
+                    items: scrollItems,
+                    selectedId: selectedProductId,
+                    emptyMessage: "No products match the current filters.",
+                    layout: "vertical",
+                    gridHeight: "calc(100vh - 160px)",
+                    renderItem: renderCatalogCard,
+                  }}
+                />
+              )}
+            </>
           )}
         </>
       )}

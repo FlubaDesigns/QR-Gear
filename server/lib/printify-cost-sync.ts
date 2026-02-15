@@ -134,7 +134,7 @@ async function runCostSyncBackground(
     const hasSizes = provider.availableSizes && Array.isArray(provider.availableSizes) && provider.availableSizes.length > 0;
     
     if (!forceRefresh && hasCost && hasColors && hasSizes) {
-      console.log(`[Cost Sync] Skipping ${provider.blueprintId}/${provider.providerId} - already has cost $${(provider.minCost / 100).toFixed(2)} and ${(provider.availableColors as any[]).length} colors`);
+      console.log(`[Cost Sync] Skipping ${provider.blueprintId}/${provider.providerId} - already has cost $${(provider.minCost! / 100).toFixed(2)} and ${(provider.availableColors as any[]).length} colors`);
       skippedCount++;
       processedCount++;
       lastCompletedProviderId = provider.id;

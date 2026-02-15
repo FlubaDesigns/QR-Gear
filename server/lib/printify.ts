@@ -203,7 +203,7 @@ class PrintifyClient {
    * Returns position names like 'front', 'back', 'left', 'right', etc.
    */
   async getPrintAreas(blueprintId: number, printProviderId: number): Promise<{ placeholders: Array<{ position: string; width: number; height: number }> }> {
-    return this.request(`/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/shipping.json`)
+    return this.request<any>(`/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/shipping.json`)
       .catch(() => {
         // Fallback: try the print_areas endpoint format
         return this.request(`/catalog/print_providers/${printProviderId}/shipping.json`);
@@ -242,26 +242,23 @@ class PrintifyClient {
     const totalVariants = allVariantIds.length;
     const MAX_VARIANTS = 100; // Printify limit: maximum 100 variants per product
     
-    for (const [placement, variantSet] of placementToVariants) {
+    for (const [placement, variantSet] of Array.from(placementToVariants.entries())) {
       if (variantSet.size === totalVariants) {
-        // Cap at MAX_VARIANTS to avoid Printify's "Too many variants" error
         const limitedIds = allVariantIds.slice(0, MAX_VARIANTS);
         console.log(`[Printify] Found common placement '${placement}' for ${limitedIds.length}/${totalVariants} variants (capped at ${MAX_VARIANTS})`);
         return { placement, variantIds: limitedIds };
       }
     }
     
-    // No placement covers all variants - find the best one (most coverage)
     let bestPlacement = '';
     let bestCoverage = 0;
     let bestVariantIds: number[] = [];
     
-    for (const [placement, variantSet] of placementToVariants) {
+    for (const [placement, variantSet] of Array.from(placementToVariants.entries())) {
       if (variantSet.size > bestCoverage) {
         bestCoverage = variantSet.size;
         bestPlacement = placement;
-        // Cap at MAX_VARIANTS
-        bestVariantIds = Array.from(variantSet).slice(0, MAX_VARIANTS);
+        bestVariantIds = Array.from(variantSet).slice(0, MAX_VARIANTS) as number[];
       }
     }
     
@@ -649,7 +646,7 @@ export const printify = new PrintifyClient();
 
 export async function getUSAPrintProviders(blueprintId: number): Promise<PrintifyPrintProvider[]> {
   const providers = await printify.getPrintProviders(blueprintId);
-  return providers.filter(p => p.location.country === 'US' || p.location.country === 'USA');
+  return providers.filter(p => p.location?.country === 'US' || p.location?.country === 'USA');
 }
 
 interface PrintArea {

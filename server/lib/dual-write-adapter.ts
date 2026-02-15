@@ -132,6 +132,12 @@ export class DualWriteAdapter implements IStorage {
   async getProducts(): Promise<Product[]> {
     return this.reader.getProducts();
   }
+  async getAllPrintfulProducts(): Promise<any[]> {
+    return this.reader.getAllPrintfulProducts();
+  }
+  async getAllPrintfulVariants(): Promise<any[]> {
+    return this.reader.getAllPrintfulVariants();
+  }
   
   async getEnabledProducts(): Promise<Product[]> {
     return this.reader.getEnabledProducts();

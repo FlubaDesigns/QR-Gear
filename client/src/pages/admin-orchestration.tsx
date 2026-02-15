@@ -337,7 +337,8 @@ export default function AdminOrchestration() {
 
   const runRepricingMutation = useMutation({
     mutationFn: async ({ dryRun }: { dryRun: boolean }) => {
-      return apiRequest("POST", "/api/admin/orchestration/repricing/run", { dryRun });
+      const res = await apiRequest("POST", "/api/admin/orchestration/repricing/run", { dryRun });
+      return res.json() as Promise<{ dryRun: boolean; productsAffected: number }>;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/orchestration/repricing/history"] });
@@ -366,7 +367,8 @@ export default function AdminOrchestration() {
 
   const routeOrderMutation = useMutation({
     mutationFn: async (params: { blueprintId: number; prioritize: string }) => {
-      return apiRequest("POST", "/api/admin/orchestration/routing/route", params);
+      const res = await apiRequest("POST", "/api/admin/orchestration/routing/route", params);
+      return res.json() as Promise<RoutingResult>;
     },
     onSuccess: (data) => {
       setRoutingResult(data);
@@ -2298,12 +2300,15 @@ function BulkPublishDialog({
   const [activeJob, setActiveJob] = useState<BulkPublishJob | null>(null);
   const [polling, setPolling] = useState(false);
 
+  const { getAuthHeaders } = useAdminAuth();
+
   const startBulkPublishMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/admin/orchestration/bulk-publish", {
+      const res = await apiRequest("POST", "/api/admin/orchestration/bulk-publish", {
         productIds: selectedProducts,
         channelTypes: selectedChannels,
       });
+      return res.json() as Promise<{ jobId: string }>;
     },
     onSuccess: async (data: { jobId: string }) => {
       toast({ title: "Bulk publish started" });

@@ -309,7 +309,7 @@ export function registerAdminRoutes(app: Express): void {
         success: true, 
         totalProviders: existingProviders.length,
         locationsMapped: providerLocationMap.size,
-        usaProviders: [...providerLocationMap.values()].filter(v => v.isUSA).length,
+        usaProviders: Array.from(providerLocationMap.values()).filter(v => v.isUSA).length,
         updated 
       });
     } catch (error: any) {
@@ -732,7 +732,7 @@ export function registerAdminRoutes(app: Express): void {
             .filter(pf => pf.model && pf.model.trim() !== '')
             .map(pf => pf.model!.trim().toLowerCase())
         );
-        matchedModels = new Set([...printifyModels].filter(m => printfulModels.has(m)));
+        matchedModels = new Set(Array.from(printifyModels).filter(m => printfulModels.has(m)));
       }
 
       if (providerFilter === 'all' || providerFilter === 'printify' || providerFilter === 'matched') {
@@ -1776,9 +1776,9 @@ export function registerAdminRoutes(app: Express): void {
       if (v.size) entry.sizesSet.add(v.size);
     }
     const result = new Map<number, { colors: Array<{ name: string; hex: string }>; sizes: string[] }>();
-    for (const [pid, entry] of lookup) {
+    for (const [pid, entry] of Array.from(lookup.entries())) {
       result.set(pid, {
-        colors: Array.from(entry.colorsMap.entries()).map(([name, hex]) => ({ name, hex })),
+        colors: Array.from(entry.colorsMap.entries()).map(([name, hex]: [string, string]) => ({ name, hex })),
         sizes: Array.from(entry.sizesSet),
       });
     }
@@ -2300,7 +2300,7 @@ export function registerAdminRoutes(app: Express): void {
       let skipped = 0;
       const errors: string[] = [];
 
-      for (const [blueprintId, provider] of bestProviders.entries()) {
+      for (const [blueprintId, provider] of Array.from(bestProviders.entries())) {
         const key = `${blueprintId}_${provider.providerId}`;
         if (existingBlueprintProviders.has(key)) {
           skipped++;

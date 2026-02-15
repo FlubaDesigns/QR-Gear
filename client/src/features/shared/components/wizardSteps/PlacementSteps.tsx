@@ -139,7 +139,7 @@ export function GraphicSizeStep({
           width={currentSize.w}
           height={currentSize.h}
         >
-          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: '100%', height: '100%' }}>
+          <div style={{ width: '100%', height: '100%' }}>
             <UnifiedGraphic
               qrColor="black"
               backgroundColor="transparent"

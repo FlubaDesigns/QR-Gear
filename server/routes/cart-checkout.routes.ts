@@ -922,7 +922,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
                 if (snap?.printifyCostVariants?.[selectedSize]) {
                   actualPrintifyCost = snap.printifyCostVariants[selectedSize];
                   const retailPrice = parseFloat(item.price);
-                  const actualProfit = retailPrice - actualPrintifyCost;
+                  const actualProfit = retailPrice - actualPrintifyCost!;
                   const memberShare = snap.memberProfitShare ?? 0.25;
                   memberEarningsActual = Math.round(Math.max(0, actualProfit * memberShare) * 100) / 100;
                   adminMarginActual = Math.round(Math.max(0, actualProfit - memberEarningsActual) * 100) / 100;

@@ -747,7 +747,7 @@ export function registerMemberRoutes(app: Express): void {
         purchasedAt: now.toISOString(),
         createdAt: packet.createdAt || now.toISOString(),
         updatedAt: now.toISOString(),
-      };
+      } as any;
       delete realPacketData.expiresAt;
       delete realPacketData.checkoutCreatedAt;
       delete realPacketData.serverCalculatedTotal;

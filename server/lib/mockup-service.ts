@@ -35,12 +35,12 @@ async function uploadDataUriToStorage(dataUri: string): Promise<string | null> {
     
     const result = await uploadImageFromBuffer(buffer, filename, mimeType, 'member-graphics/temp');
     
-    if (result.success && result.publicUrl) {
+    if (result.publicUrl) {
       console.log(`[MockupService] Uploaded data URI to storage: ${result.publicUrl}`);
       return result.publicUrl;
     }
     
-    console.error("[MockupService] Failed to upload data URI:", result.error);
+    console.error("[MockupService] Failed to upload data URI: no publicUrl returned");
     return null;
   } catch (error) {
     console.error("[MockupService] Error uploading data URI:", error);

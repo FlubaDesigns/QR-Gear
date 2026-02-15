@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Zap, Store, Layers, Film, 
   Check, Loader2, Plus, X, Calendar, Clock, 
-  Play, Eye, RefreshCw, ExternalLink
+  Play, Eye, RefreshCw, ExternalLink, ArrowLeft
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -199,9 +199,7 @@ export default function TestDynamicsPage() {
         <div className="glass-card max-w-md text-center">
           <h1 className="text-xl font-bold text-white mb-4">Authentication Required</h1>
           <p className="text-blue-200 mb-4">Please sign in to access QR Dynamics.</p>
-          <Link href="/">
-            <a className="qr-btn qr-btn--primary qr-btn--touch">Go to Home</a>
-          </Link>
+          <a href="/" className="qr-btn qr-btn--primary qr-btn--touch">Go to Home</a>
         </div>
       </div>
     );

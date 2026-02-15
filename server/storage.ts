@@ -337,6 +337,10 @@ export interface IStorage {
   updateOrderUnified(id: string, order: Partial<InsertOrderUnified>): Promise<OrderUnified | undefined>;
   getProducts(): Promise<Product[]>;
 
+  // Printful catalog operations (Firestore-only, returns [] in MemStorage)
+  getAllPrintfulProducts(): Promise<any[]>;
+  getAllPrintfulVariants(): Promise<any[]>;
+
   // Provider Health operations
   logProviderHealth(log: InsertProviderHealthLog): Promise<ProviderHealthLog>;
   getProviderHealthLogs(limit?: number): Promise<ProviderHealthLog[]>;
@@ -530,30 +534,21 @@ class MemStorage implements IStorage {
 
   async createProduct(product: InsertProduct): Promise<Product> {
     const id = product.id || `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newProduct: Product = { 
-      ...product,
+    const base: Record<string, any> = { ...product };
+    for (const key of Object.keys(base)) {
+      if (base[key] === undefined) base[key] = null;
+    }
+    const newProduct: Product = {
+      ...base,
       id,
-      printifyId: product.printifyId ?? null,
-      blueprintId: product.blueprintId ?? null,
-      printProviderId: product.printProviderId ?? null,
-      description: product.description ?? null,
-      imageUrl: product.imageUrl ?? null,
-      manufacturer: product.manufacturer ?? null,
-      madeInUSA: product.madeInUSA ?? null,
-      availablePlacements: product.availablePlacements ?? null,
-      availableColors: product.availableColors ?? null,
-      availableSizes: product.availableSizes ?? null,
-      metadata: product.metadata ?? null,
       isEnabled: product.isEnabled ?? false,
       markupPercent: product.markupPercent ?? "0",
       markupFixed: product.markupFixed ?? "0",
       qrProductionCost: product.qrProductionCost ?? "0",
       sortOrder: product.sortOrder ?? 0,
-      productLine: product.productLine ?? null,
-      defaultPlacement: product.defaultPlacement ?? null,
-      createdAt: new Date(), 
-      updatedAt: new Date() 
-    };
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Product;
     this.products.set(id, newProduct);
     return newProduct;
   }
@@ -638,6 +633,7 @@ class MemStorage implements IStorage {
       printifyOrderId: order.printifyOrderId ?? null,
       trackingNumber: order.trackingNumber ?? null,
       shippingAddress: order.shippingAddress ?? null,
+      carrier: order.carrier ?? null,
       createdAt: new Date(), 
       updatedAt: new Date() 
     };
@@ -760,6 +756,9 @@ class MemStorage implements IStorage {
       imageHostingUpcharge: settings.imageHostingUpcharge ?? "5",
       dynamicQrUpcharge: settings.dynamicQrUpcharge ?? "25",
       showPricesBeforeCustomization: settings.showPricesBeforeCustomization ?? false,
+      additionalPlacementCost: (settings as any).additionalPlacementCost ?? null,
+      defaultFulfillmentProvider: (settings as any).defaultFulfillmentProvider ?? null,
+      defaultMockupProvider: (settings as any).defaultMockupProvider ?? null,
       updatedAt: new Date(),
     };
     this.adminSettings = newSettings;
@@ -841,6 +840,7 @@ class MemStorage implements IStorage {
       priceUpcharge: tier.priceUpcharge ?? "0",
       isActive: tier.isActive ?? true,
       sortOrder: tier.sortOrder ?? 0,
+      videoPriceUpcharge: tier.videoPriceUpcharge ?? null,
     };
     this.hostingTiers.set(id, newTier);
     return newTier;
@@ -1247,12 +1247,12 @@ class MemStorage implements IStorage {
     
     // Get product IDs linked to this store
     const storeProductLinks = Array.from(this.partnerStoreProducts.values())
-      .filter(sp => sp.partnerStoreId === store.id && sp.isEnabled);
+      .filter(sp => sp.partnerStoreId === store.id && (sp.isEnabled ?? true));
     
     // Get actual products
     let products = storeProductLinks
       .map(sp => this.products.get(sp.productId))
-      .filter((p): p is Product => p !== undefined && p.isEnabled);
+      .filter((p): p is Product => p !== undefined && (p.isEnabled === true));
     
     // Filter by segment if provided
     if (segment) {
@@ -1276,6 +1276,8 @@ class MemStorage implements IStorage {
       kcBusinessSlug: product.kcBusinessSlug ?? null,
       enabledSizes: product.enabledSizes ?? null,
       enabledColors: product.enabledColors ?? null,
+      defaultColor: product.defaultColor ?? null,
+      mockupsByColor: product.mockupsByColor ?? null,
       sortOrder: product.sortOrder ?? 0,
       isEnabled: product.isEnabled ?? true,
     };
@@ -1622,33 +1624,22 @@ class MemStorage implements IStorage {
   async createCustomDesign(design: InsertCustomDesign): Promise<CustomDesign> {
     // Use provided id (slug) or fallback to timestamp-based id
     const id = design.id || `custom_${Date.now()}`;
+    const designBase: Record<string, any> = { ...design };
+    for (const key of Object.keys(designBase)) {
+      if (designBase[key] === undefined) designBase[key] = null;
+    }
     const newDesign: CustomDesign = {
-      ...design,
+      ...designBase,
       id,
-      productImage: design.productImage ?? null,
-      backgroundImageUrl: design.backgroundImageUrl ?? null,
-      backgroundAssetId: design.backgroundAssetId ?? null,
-      topText: design.topText ?? null,
-      bottomText: design.bottomText ?? null,
       textUpcharge: design.textUpcharge ?? "2.00",
-      landingOverlay: design.landingOverlay ?? null,
-      storeType: design.storeType ?? null,
-      storeName: design.storeName ?? null,
-      segment: design.segment ?? null,
       isFeatured: design.isFeatured ?? false,
       isSeasonalPromo: design.isSeasonalPromo ?? false,
-      qrCodeUrl: design.qrCodeUrl ?? null,
-      printifyCompositeUrl: design.printifyCompositeUrl ?? null,
       savedToLibrary: design.savedToLibrary ?? false,
       savedToStore: design.savedToStore ?? false,
       placementConfigs: design.placementConfigs ?? {},
-      placementImages: design.placementImages ?? null,
-      templateVariant: design.templateVariant ?? null,
-      externalUrl: design.externalUrl ?? null,
-      dynamicContentSetId: design.dynamicContentSetId ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as CustomDesign;
     this.customDesigns.set(newDesign.id, newDesign);
     return newDesign;
   }
@@ -1810,26 +1801,20 @@ class MemStorage implements IStorage {
 
   async createLibraryAsset(asset: InsertLibraryAsset): Promise<LibraryAsset> {
     const id = crypto.randomUUID();
+    const assetBase: Record<string, any> = { ...asset };
+    for (const key of Object.keys(assetBase)) {
+      if (assetBase[key] === undefined) assetBase[key] = null;
+    }
     const newAsset: LibraryAsset = {
-      ...asset,
+      ...assetBase,
       id,
-      userId: asset.userId ?? null,
-      description: asset.description ?? null,
-      thumbnailUrl: asset.thumbnailUrl ?? null,
-      duration: asset.duration ?? null,
-      category: asset.category ?? null,
-      season: asset.season ?? null,
-      event: asset.event ?? null,
-      tags: asset.tags ?? null,
-      visibleStoreSlugs: asset.visibleStoreSlugs ?? null,
-      visibleSegments: asset.visibleSegments ?? null,
       isActive: asset.isActive ?? true,
       isFeatured: asset.isFeatured ?? false,
       sortOrder: asset.sortOrder ?? 0,
       usageCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as LibraryAsset;
     this.libraryAssets.set(id, newAsset);
     return newAsset;
   }
@@ -2069,6 +2054,14 @@ class MemStorage implements IStorage {
 
   async getProducts(): Promise<Product[]> {
     return Array.from(this.products.values());
+  }
+
+  async getAllPrintfulProducts(): Promise<any[]> {
+    return [];
+  }
+
+  async getAllPrintfulVariants(): Promise<any[]> {
+    return [];
   }
 
   // Provider Health operations

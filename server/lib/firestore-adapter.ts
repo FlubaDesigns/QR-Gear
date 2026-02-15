@@ -1509,7 +1509,7 @@ export class FirestoreAdapter implements IStorage {
   }
 
   async createGraphicSet(graphicSet: InsertGraphicSet): Promise<GraphicSet> {
-    const id = graphicSet.id || this.db.collection('graphicSets').doc().id;
+    const id = (graphicSet as any).id || this.db.collection('graphicSets').doc().id;
     const now = new Date();
     const data = this.prepareForFirestore({
       ...graphicSet,
