@@ -2693,6 +2693,114 @@ app.delete('/admin/pricing-rules/:id', requireAdmin, async (req: Request, res: R
   }
 });
 
+// ============ ADMIN STORES (stores + storeChannels collections) ============
+
+app.get('/admin/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const roleType = req.query.roleType as string;
+    let query: any = db.collection('stores');
+    if (roleType) query = query.where('roleType', '==', roleType);
+    const snapshot = await query.get();
+    const stores = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    stores.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+    res.json(stores);
+  } catch (error: any) {
+    console.error('[Stores] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, roleType } = req.body;
+    if (!name || !name.trim()) { res.status(400).json({ error: 'Store name is required' }); return; }
+    if (!roleType || !['internal', 'external', 'member'].includes(roleType)) { res.status(400).json({ error: 'Valid roleType is required' }); return; }
+    const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const storeData = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
+    await db.collection('stores').doc(storeId).set(storeData);
+    res.json({ id: storeId, ...storeData });
+  } catch (error: any) {
+    console.error('[Stores] POST error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/admin/stores/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const channelsSnapshot = await db.collection('storeChannels').where('storeId', '==', storeId).get();
+    const batch = db.batch();
+    channelsSnapshot.docs.forEach((doc: any) => batch.delete(doc.ref));
+    batch.delete(db.collection('stores').doc(storeId));
+    await batch.commit();
+    res.json({ success: true, deletedChannels: channelsSnapshot.size });
+  } catch (error: any) {
+    console.error('[Stores] DELETE error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/admin/stores/by-id/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    let doc = await db.collection('stores').doc(storeId).get();
+    if (doc.exists) {
+      const data = doc.data();
+      res.json({ id: doc.id, name: data?.name || storeId, type: data?.roleType || 'internal', roleType: data?.roleType || 'internal', isActive: data?.isActive ?? true });
+      return;
+    }
+    doc = await db.collection('partnerStores').doc(storeId).get();
+    if (doc.exists) {
+      const data = doc.data();
+      res.json({ id: doc.id, name: data?.name || storeId, type: data?.isInternal ? 'internal' : 'external', roleType: data?.isInternal ? 'internal' : 'external', isActive: data?.isActive ?? true, isPartnerStore: true });
+      return;
+    }
+    res.status(404).json({ error: 'Store not found' });
+  } catch (error: any) {
+    console.error('[Stores] GET by-id error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const snapshot = await db.collection('storeChannels').where('storeId', '==', storeId).get();
+    const channels = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    channels.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    res.json(channels);
+  } catch (error: any) {
+    console.error('[Channels] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const { name } = req.body;
+    if (!name || !name.trim()) { res.status(400).json({ error: 'Channel name is required' }); return; }
+    const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const channelData = { name: name.trim(), storeId, isActive: true, productCount: 0, createdAt: new Date().toISOString() };
+    await db.collection('storeChannels').doc(channelId).set(channelData);
+    res.json({ id: channelId, ...channelData });
+  } catch (error: any) {
+    console.error('[Channels] POST error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/admin/stores/:storeId/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { channelId } = req.params;
+    await db.collection('storeChannels').doc(channelId).delete();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Channels] DELETE error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============ ADMIN PARTNER STORES ============
 
 app.get('/admin/partner-stores', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
