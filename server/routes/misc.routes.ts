@@ -1430,20 +1430,21 @@ ${allPages.map(page => `  <url>
             
             const uploadResult = await uploadToFirebaseStorage(
               imageBuffer,
-              uniqueName,
+              imageName,
               imageMimeType,
               'library/backgrounds/raw'
             );
             
             const displayName = imageName.replace(/\.[^/.]+$/, '');
-            const proxyUrl = `/api/library-files/${encodeURIComponent(uniqueName)}`;
+            const zipActualFilename = (uploadResult.storageUrl || '').split('/').pop() || '';
+            const proxyUrl = `/api/library-files/${encodeURIComponent(zipActualFilename)}`;
             
             const asset = await fsInsert('library_assets', {
               ownerType: 'admin',
               assetType: assetType,
               mediaType: 'image',
               name: displayName,
-              fileName: uniqueName,
+              fileName: zipActualFilename,
               originalName: imageName,
               mimeType: imageMimeType,
               sizeBytes: imageBuffer.length,
@@ -1469,31 +1470,40 @@ ${allPages.map(page => `  <url>
       }
       
       const folderPath = assetType === 'source' ? 'library/backgrounds/raw' : 'library/backgrounds/cropped';
-      const ext = mimeType?.split('/')[1] || 'png';
-      const fileName = `${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}.${ext}`;
       
       const uploadResult = await uploadToFirebaseStorage(
         buffer,
-        fileName,
+        name,
         mimeType || 'image/png',
         folderPath
       );
       
-      const proxyUrl = `/api/library-files/${encodeURIComponent(fileName)}`;
+      const actualFilename = (uploadResult.storageUrl || '').split('/').pop() || '';
+      const proxyUrl = `/api/library-files/${encodeURIComponent(actualFilename)}`;
       
       const asset = await fsInsert('library_assets', {
         ownerType: 'admin',
         assetType: assetType,
         mediaType: 'image',
         name,
-        fileName,
+        fileName: actualFilename,
         originalName: name,
         mimeType: mimeType || 'image/png',
         sizeBytes: buffer.length,
         storageUrl: uploadResult.storageUrl,
         publicUrl: proxyUrl,
         isActive: true,
+        ...(sourceAssetId ? { sourceAssetId } : {}),
       });
+      
+      if (assetType === 'cropped' && sourceAssetId) {
+        try {
+          await fsUpdate('library_assets', sourceAssetId, { assetType: 'background' });
+          console.log(`[BackgroundAssets] Source ${sourceAssetId} moved to background after crop`);
+        } catch (moveErr: any) {
+          console.error(`[BackgroundAssets] Failed to move source to background:`, moveErr.message);
+        }
+      }
       
       res.json({ ...asset, proxyUrl: asset.publicUrl });
     } catch (error: any) {
