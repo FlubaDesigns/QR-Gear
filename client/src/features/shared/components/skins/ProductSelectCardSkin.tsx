@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,12 @@ import {
   ChevronDown,
   ChevronUp,
   Factory,
-  Info,
   Package,
   Palette,
   Ruler,
   X,
+  Info,
+  Eye,
 } from "lucide-react";
 
 export interface ProductSelectItem {
@@ -43,11 +44,13 @@ function PreviewModal({
   open,
   onOpenChange,
   onSelect,
+  defaultColorEntry,
 }: {
   item: ProductSelectItem;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: () => void;
+  defaultColorEntry: { name: string; hex?: string } | null;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,6 +61,7 @@ function PreviewModal({
         <VisuallyHidden>
           <DialogTitle>{item.name}</DialogTitle>
         </VisuallyHidden>
+
         <ScrollArea className="max-h-[90vh]">
           <div className="relative">
             <Button
@@ -70,7 +74,7 @@ function PreviewModal({
               <X className="h-5 w-5" />
             </Button>
 
-            <div className="aspect-square bg-muted flex items-center justify-center p-2">
+            <div className="relative aspect-square bg-muted flex items-center justify-center p-3">
               {item.primaryImageUrl ? (
                 <img
                   src={item.primaryImageUrl}
@@ -83,71 +87,98 @@ function PreviewModal({
               ) : (
                 <Package className="h-24 w-24 text-muted-foreground" />
               )}
-            </div>
 
-            <div className="p-4 space-y-3">
-              <h3 className="font-semibold text-lg" data-testid={`text-preview-name-${item.id}`}>
-                {item.name}
-              </h3>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {item.price != null && (
-                  <span className="text-lg font-bold">${item.price.toFixed(2)}</span>
-                )}
-                {item.madeInUSA && (
-                  <Badge variant="secondary" className="gap-1 text-xs">
+              {item.madeInUSA && (
+                <div className="absolute top-3 left-3">
+                  <Badge
+                    variant="secondary"
+                    className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm"
+                  >
                     <UsaFlag className="w-3 h-2" /> USA
                   </Badge>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
 
-              {item.manufacturer && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Factory className="w-3.5 h-3.5" />
-                  <span>{item.manufacturer}</span>
-                  {item.cost != null && (
-                    <span className="ml-2">Cost: ${item.cost.toFixed(2)}</span>
+            <div className="p-4 space-y-4">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg leading-tight" data-testid={`text-preview-name-${item.id}`}>
+                  {item.name}
+                </h3>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {item.price != null && <span className="text-xl font-bold">${item.price.toFixed(2)}</span>}
+                  {defaultColorEntry && (
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <span className="text-muted-foreground">&middot;</span>
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="inline-block w-3 h-3 rounded-full border border-border"
+                          style={{ backgroundColor: defaultColorEntry.hex || "#888" }}
+                        />
+                        <span>{defaultColorEntry.name}</span>
+                      </span>
+                    </span>
                   )}
                 </div>
-              )}
 
-              {item.description && (
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              )}
+                {(item.manufacturer || item.cost != null) && (
+                  <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
+                    {item.manufacturer && (
+                      <span className="flex items-center gap-1.5">
+                        <Factory className="w-4 h-4" />
+                        <span>{item.manufacturer}</span>
+                      </span>
+                    )}
+                    {item.cost != null && (
+                      <span className="text-muted-foreground">
+                        {item.manufacturer && <span className="mx-1">&middot;</span>}
+                        Cost: ${item.cost.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-              {item.colorsAvailable.length > 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Palette className="w-3 h-3" />
-                    <span>{item.colorsAvailable.length} colors</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {item.colorsAvailable.map((c, i) => (
-                      <div
-                        key={i}
-                        className="w-5 h-5 rounded-full border border-border"
-                        style={{ backgroundColor: c.hex || "#888" }}
-                        title={c.name}
-                        data-testid={`preview-swatch-${item.id}-${i}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+                {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+              </div>
 
-              {item.sizesAvailable.length > 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Ruler className="w-3 h-3" />
-                    <span>{item.sizesAvailable.length} sizes</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {item.sizesAvailable.map((s, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
-                        {s}
-                      </Badge>
-                    ))}
-                  </div>
+              {(item.colorsAvailable.length > 0 || item.sizesAvailable.length > 0) && (
+                <div className="space-y-3">
+                  {item.colorsAvailable.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Palette className="w-3.5 h-3.5" />
+                        <span>{item.colorsAvailable.length} colors</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.colorsAvailable.map((c, i) => (
+                          <div
+                            key={i}
+                            className="w-5 h-5 rounded-full border border-border"
+                            style={{ backgroundColor: c.hex || "#888" }}
+                            title={c.name}
+                            data-testid={`preview-swatch-${item.id}-${i}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {item.sizesAvailable.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Ruler className="w-3.5 h-3.5" />
+                        <span>{item.sizesAvailable.length} sizes</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {item.sizesAvailable.map((s, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -169,44 +200,51 @@ function PreviewModal({
   );
 }
 
-export function ProductSelectCardSkin({
-  item,
-  isSelected,
-  onSelect,
-}: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSelectCardSkinProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const defaultColorEntry = useMemo(
-    () =>
-      item.defaultColor
-        ? item.colorsAvailable.find(
-            (c) => c.name.toLowerCase() === item.defaultColor!.toLowerCase()
-          )
-        : item.colorsAvailable[0] || null,
-    [item.defaultColor, item.colorsAvailable]
-  );
+  const defaultColorEntry = useMemo(() => {
+    if (item.defaultColor) {
+      return (
+        item.colorsAvailable.find(
+          (c) => c.name.toLowerCase() === item.defaultColor!.toLowerCase()
+        ) || null
+      );
+    }
+    return item.colorsAvailable[0] || null;
+  }, [item.colorsAvailable, item.defaultColor]);
+
+  const hasExtraDetails =
+    !!item.description || item.colorsAvailable.length > 0 || item.sizesAvailable.length > 0 || item.cost != null;
 
   return (
     <>
       <Card
-        className={`overflow-hidden transition-all ${
-          isSelected ? "ring-2 ring-primary ring-offset-2" : ""
-        }`}
+        className={`overflow-hidden transition-all ${isSelected ? "ring-2 ring-primary ring-offset-2" : ""}`}
         data-testid={`select-card-${item.id}`}
       >
         <div
-          className="relative w-full max-h-[180px] aspect-square flex items-center justify-center bg-muted cursor-pointer p-2"
+          className="relative w-full aspect-square max-h-[180px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
           onClick={() => setPreviewOpen(true)}
           data-testid={`img-tap-${item.id}`}
         >
+          {isSelected && (
+            <div
+              className="absolute top-0 left-0 right-0 z-10 bg-primary text-primary-foreground text-[11px] font-semibold text-center py-1"
+              data-testid={`banner-selected-${item.id}`}
+            >
+              SELECTED
+            </div>
+          )}
+
           {item.primaryImageUrl ? (
             <img
               src={item.primaryImageUrl}
               alt={item.name}
               loading="lazy"
               decoding="async"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain p-3"
               data-testid={`img-product-${item.id}`}
             />
           ) : (
@@ -215,90 +253,75 @@ export function ProductSelectCardSkin({
             </div>
           )}
 
-          {isSelected && (
-            <div
-              className="absolute top-0 left-0 right-0 bg-primary/90 text-primary-foreground text-xs font-bold text-center py-1 tracking-wide"
-              data-testid={`banner-selected-${item.id}`}
-            >
-              SELECTED
-            </div>
-          )}
-
           {item.madeInUSA && (
             <div className="absolute top-2 right-2">
-              <Badge variant="secondary" className="gap-1 bg-background/90 backdrop-blur-sm text-xs">
+              <Badge variant="secondary" className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm">
                 <UsaFlag className="w-3 h-2" />
                 USA
               </Badge>
             </div>
           )}
+
+          <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-[11px] text-muted-foreground">
+            <Eye className="w-3.5 h-3.5" />
+            Tap to preview
+          </div>
         </div>
 
-        <CardContent className="p-3 space-y-2">
-          <h3
-            className="font-medium text-base line-clamp-2"
-            data-testid={`text-name-${item.id}`}
-          >
+        <CardContent className="p-4 space-y-3">
+          <h3 className="font-semibold text-base leading-snug line-clamp-2" data-testid={`text-name-${item.id}`}>
             {item.name}
           </h3>
 
-          <div className="flex items-center gap-1.5 text-base flex-wrap">
+          <div className="flex items-baseline gap-2 flex-wrap">
             {item.price != null && (
-              <span className="font-bold" data-testid={`text-price-${item.id}`}>
+              <span className="text-base font-bold" data-testid={`text-price-${item.id}`}>
                 ${item.price.toFixed(2)}
               </span>
             )}
-            {defaultColorEntry && (
-              <>
-                <span className="text-muted-foreground">·</span>
-                <span className="flex items-center gap-1 text-muted-foreground text-sm">
-                  <span
-                    className="inline-block w-3 h-3 rounded-full border border-border flex-shrink-0"
-                    style={{ backgroundColor: defaultColorEntry.hex || "#888" }}
-                  />
-                  {defaultColorEntry.name}
-                </span>
-              </>
-            )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
-            {item.manufacturer && (
-              <span className="flex items-center gap-1">
-                <Factory className="w-3.5 h-3.5" />
-                {item.manufacturer}
+          <div className="text-xs text-muted-foreground flex flex-wrap gap-2 items-center">
+            {defaultColorEntry && (
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
+                  style={{ backgroundColor: defaultColorEntry.hex || "#888" }}
+                />
+                <span className="truncate max-w-[140px]">{defaultColorEntry.name}</span>
               </span>
             )}
-            {item.cost != null && (
-              <>
-                {item.manufacturer && <span>·</span>}
-                <span data-testid={`text-cost-${item.id}`}>
-                  Cost: ${item.cost.toFixed(2)}
-                </span>
-              </>
+            {item.manufacturer && (
+              <span className="flex items-center gap-1.5">
+                {defaultColorEntry && <span className="opacity-60">&middot;</span>}
+                <Factory className="w-3.5 h-3.5" />
+                <span className="truncate max-w-[160px]">{item.manufacturer}</span>
+              </span>
             )}
           </div>
 
-          <button
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-            onClick={() => setDetailsOpen(!detailsOpen)}
-            data-testid={`toggle-details-${item.id}`}
-          >
-            <Info className="w-3 h-3" />
-            More info
-            {detailsOpen ? (
-              <ChevronUp className="w-3 h-3" />
-            ) : (
-              <ChevronDown className="w-3 h-3" />
-            )}
-          </button>
+          {hasExtraDetails && (
+            <button
+              className="flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors w-full pt-1"
+              onClick={() => setDetailsOpen(!detailsOpen)}
+              data-testid={`toggle-details-${item.id}`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" />
+                More info
+              </span>
+              {detailsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
 
-          {detailsOpen && (
-            <div className="space-y-2 pt-1 border-t" data-testid={`details-panel-${item.id}`}>
-              {item.description && (
-                <p className="text-xs text-muted-foreground line-clamp-3">
-                  {item.description}
-                </p>
+          {detailsOpen && hasExtraDetails && (
+            <div className="space-y-2 pt-3 border-t" data-testid={`details-panel-${item.id}`}>
+              {item.description && <p className="text-xs text-muted-foreground line-clamp-3">{item.description}</p>}
+
+              {item.cost != null && (
+                <div className="text-xs text-muted-foreground" data-testid={`text-cost-${item.id}`}>
+                  <span className="font-medium">Cost:</span> ${item.cost.toFixed(2)}
+                </div>
               )}
 
               {item.colorsAvailable.length > 0 && (
@@ -307,7 +330,7 @@ export function ProductSelectCardSkin({
                     <Palette className="w-3 h-3" /> Colors ({item.colorsAvailable.length})
                   </span>
                   <div className="flex flex-wrap gap-1">
-                    {item.colorsAvailable.map((c, i) => (
+                    {item.colorsAvailable.slice(0, 12).map((c, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-1 py-0.5"
@@ -317,9 +340,14 @@ export function ProductSelectCardSkin({
                           className="w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
                           style={{ backgroundColor: c.hex || "#888" }}
                         />
-                        <span className="truncate max-w-[60px]">{c.name}</span>
+                        <span className="truncate max-w-[70px]">{c.name}</span>
                       </div>
                     ))}
+                    {item.colorsAvailable.length > 12 && (
+                      <Badge variant="outline" className="text-[10px]">
+                        +{item.colorsAvailable.length - 12} more
+                      </Badge>
+                    )}
                   </div>
                 </div>
               )}
@@ -369,6 +397,7 @@ export function ProductSelectCardSkin({
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         onSelect={() => onSelect(item.id, item)}
+        defaultColorEntry={defaultColorEntry}
       />
     </>
   );
