@@ -1,19 +1,57 @@
-import { ProductsProvider } from "./ProductsContext";
-import { ProductsControlBar } from "./modules/ProductsControlBar";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ProductsProvider, useProductsContext } from "./ProductsContext";
+import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
 import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
+import { CatalogListModule } from "./modules/CatalogListModule";
+import { ProductChooserModule } from "./modules/ProductChooserModule";
+import type { ProductSelectItem } from "@/features/shared/components/skins/ProductSelectCardSkin";
+import type { Product } from "./shared/types";
 
 interface ProductsHarnessProps {
   showHeader?: boolean;
+  showCatalog?: boolean;
+  showChooser?: boolean;
   showBuilder?: boolean;
-  showSync?: boolean;
+  onProductSelected?: (productId: string, product: ProductSelectItem) => void;
 }
 
 function ProductsHarnessInner({
   showHeader = true,
+  showCatalog = true,
+  showChooser = false,
   showBuilder = true,
-  showSync = true,
+  onProductSelected,
 }: ProductsHarnessProps) {
+  const { 
+    api, 
+    providers, 
+    selectedProviders, 
+    setSelectedProviders,
+  } = useProductsContext();
+
+  const primaryProvider = selectedProviders.length === 1 ? selectedProviders[0] : undefined;
+
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: [...api.getQueryKey("all"), primaryProvider],
+    queryFn: () => api.fetchProducts(primaryProvider),
+  });
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product: Product) => {
+      const productProvider = product.printifyId
+        ? "printify"
+        : (product.metadata as Record<string, unknown>)?.fulfillmentProvider || "printify";
+      return selectedProviders.length === 0 || selectedProviders.includes(productProvider as string);
+    });
+  }, [products, selectedProviders]);
+
+  const productCount = {
+    filtered: filteredProducts.length,
+    total: products.length,
+  };
+
   return (
     <div className="mobile-compact-stack">
       {showHeader && (
@@ -25,13 +63,31 @@ function ProductsHarnessInner({
         </div>
       )}
 
-      {showSync && (
+      <div className="glass-card">
+        <FulfillmentPickerModule
+          providers={providers}
+          selectedProviders={selectedProviders}
+          onSelectionChange={setSelectedProviders}
+          productCount={productCount}
+        />
+      </div>
+
+      <StoreChannelDropdownModule />
+
+      {showChooser && filteredProducts.length > 0 && (
         <div className="glass-card">
-          <ProductsControlBar />
+          <ProductChooserModule
+            products={filteredProducts}
+            onProductSelected={onProductSelected}
+          />
         </div>
       )}
 
-      <StoreChannelDropdownModule />
+      {showCatalog && !showChooser && filteredProducts.length > 0 && (
+        <div className="glass-card">
+          <CatalogListModule products={filteredProducts} />
+        </div>
+      )}
 
       {showBuilder && (
         <div className="glass-card">
