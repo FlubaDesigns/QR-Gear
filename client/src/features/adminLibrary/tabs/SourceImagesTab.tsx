@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLibraryContext } from "../LibraryContext";
@@ -10,16 +11,56 @@ import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSki
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
 
+class SourceImagesBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[SourceImagesTab] CRASH:", error.message, error.stack);
+    console.error("[SourceImagesTab] Component stack:", info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-destructive/10 border border-destructive rounded-lg">
+          <h3 className="font-bold text-lg mb-2">Source Images Error</h3>
+          <p className="text-sm mb-2">{this.state.error?.message}</p>
+          <pre className="text-xs overflow-auto max-h-40 bg-black/20 p-2 rounded">
+            {this.state.error?.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded"
+            data-testid="button-retry-source-images"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
+  const url = getImageUrl(asset);
+  console.log("[SourceImages] assetToGridItem:", asset.id, asset.name, "url:", url);
   return {
     id: asset.id,
     name: asset.name,
-    imageUrl: getImageUrl(asset),
+    imageUrl: url,
     dimensions: asset.width && asset.height ? `${asset.width}x${asset.height}` : undefined,
   };
 }
 
-export default function SourceImagesTab() {
+function SourceImagesTabInner() {
   const { api } = useLibraryContext();
   const { toast } = useToast();
   
@@ -28,13 +69,30 @@ export default function SourceImagesTab() {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
-  const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
+  const { data: assets = [], isLoading, error: queryError } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("source"),
-    queryFn: () => api.fetchAssets("source"),
+    queryFn: async () => {
+      console.log("[SourceImages] Fetching source assets...");
+      try {
+        const result = await api.fetchAssets("source");
+        console.log("[SourceImages] Fetched", result.length, "assets");
+        return result;
+      } catch (err) {
+        console.error("[SourceImages] Fetch error:", err);
+        throw err;
+      }
+    },
   });
 
+  if (queryError) {
+    console.error("[SourceImages] Query error state:", queryError);
+  }
+
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteAsset(id),
+    mutationFn: (id: string) => {
+      console.log("[SourceImages] Deleting asset:", id);
+      return api.deleteAsset(id);
+    },
     onSuccess: () => {
       toast({ title: "Image deleted" });
       api.invalidateAssets("source");
@@ -42,33 +100,52 @@ export default function SourceImagesTab() {
       setSelectedItem(null);
     },
     onError: (error: Error) => {
+      console.error("[SourceImages] Delete error:", error);
       toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
 
-  const gridItems = useMemo(() => assets.map(assetToGridItem), [assets]);
+  const gridItems = useMemo(() => {
+    console.log("[SourceImages] Building grid items from", assets.length, "assets");
+    try {
+      return assets.map(assetToGridItem);
+    } catch (err) {
+      console.error("[SourceImages] Error building grid items:", err);
+      return [];
+    }
+  }, [assets]);
 
   const handleSelect = (item: GridViewItem) => {
+    console.log("[SourceImages] Selected:", item.id, item.name);
     setSelectedItem(item);
     setSingleViewOpen(true);
   };
 
   const handleCrop = (id: string) => {
+    console.log("[SourceImages] Opening crop for:", id);
     const asset = assets.find(a => a.id === id);
     if (asset) {
+      const url = getImageUrl(asset);
+      console.log("[SourceImages] Crop asset URL:", url);
       setAssetToCrop({
         id: asset.id,
         name: asset.name,
-        imageUrl: getImageUrl(asset),
+        imageUrl: url,
       });
       setSingleViewOpen(false);
       setCropDialogOpen(true);
+    } else {
+      console.error("[SourceImages] Asset not found for crop:", id);
     }
   };
 
   const handleCropComplete = useCallback((croppedDataUrl: string) => {
-    if (!assetToCrop) return;
+    if (!assetToCrop) {
+      console.error("[SourceImages] handleCropComplete called but no assetToCrop");
+      return;
+    }
     const sourceAsset = assetToCrop;
+    console.log("[SourceImages] Crop complete for:", sourceAsset.name, "dataUrl length:", croppedDataUrl.length);
     setCropDialogOpen(false);
     setAssetToCrop(null);
 
@@ -76,6 +153,7 @@ export default function SourceImagesTab() {
       ? croppedDataUrl.split(',')[1]
       : croppedDataUrl;
 
+    console.log("[SourceImages] Uploading cropped image, base64 length:", imageData.length);
     toast({ title: "Saving cropped image..." });
     api.uploadAsset({
       name: `cropped_${sourceAsset.name}`,
@@ -84,11 +162,13 @@ export default function SourceImagesTab() {
       mimeType: "image/jpeg",
       sourceAssetId: sourceAsset.id,
     }).then(() => {
+      console.log("[SourceImages] Cropped image saved successfully");
       toast({ title: "Cropped image saved" });
       api.invalidateAssets("source");
       api.invalidateAssets("cropped");
       api.invalidateAssets("background");
     }).catch((err: Error) => {
+      console.error("[SourceImages] Crop save error:", err.message, err.stack);
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     });
   }, [assetToCrop, api, toast]);
@@ -98,24 +178,38 @@ export default function SourceImagesTab() {
   };
 
   const handleUploadSingle = async (params: { name: string; imageData: string; mimeType: string }) => {
-    await api.uploadAsset({
-      name: params.name,
-      assetType: "source",
-      imageData: params.imageData,
-      mimeType: params.mimeType,
-    });
-    api.invalidateAssets("source");
+    console.log("[SourceImages] Uploading single:", params.name, "mimeType:", params.mimeType, "data length:", params.imageData.length);
+    try {
+      await api.uploadAsset({
+        name: params.name,
+        assetType: "source",
+        imageData: params.imageData,
+        mimeType: params.mimeType,
+      });
+      console.log("[SourceImages] Upload success:", params.name);
+      api.invalidateAssets("source");
+    } catch (err) {
+      console.error("[SourceImages] Upload error:", err);
+      throw err;
+    }
   };
 
   const handleUploadZip = async (params: { name: string; imageData: string; mimeType: string }) => {
-    const result = await api.uploadZip({
-      name: params.name,
-      assetType: "source",
-      imageData: params.imageData,
-      mimeType: params.mimeType,
-    });
-    api.invalidateAssets("source");
-    return result;
+    console.log("[SourceImages] Uploading ZIP:", params.name, "data length:", params.imageData.length);
+    try {
+      const result = await api.uploadZip({
+        name: params.name,
+        assetType: "source",
+        imageData: params.imageData,
+        mimeType: params.mimeType,
+      });
+      console.log("[SourceImages] ZIP upload success, extracted:", result.extractedCount);
+      api.invalidateAssets("source");
+      return result;
+    } catch (err) {
+      console.error("[SourceImages] ZIP upload error:", err);
+      throw err;
+    }
   };
 
   return (
@@ -130,6 +224,13 @@ export default function SourceImagesTab() {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">{assets.length} Source Images</h3>
       </div>
+
+      {queryError && (
+        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4">
+          <p className="text-sm font-medium">Failed to load images</p>
+          <p className="text-xs text-muted-foreground">{(queryError as Error).message}</p>
+        </div>
+      )}
 
       <GridView
         items={gridItems}
@@ -171,5 +272,13 @@ export default function SourceImagesTab() {
         allowCropToggle={false}
       />
     </>
+  );
+}
+
+export default function SourceImagesTab() {
+  return (
+    <SourceImagesBoundary>
+      <SourceImagesTabInner />
+    </SourceImagesBoundary>
   );
 }
