@@ -754,7 +754,7 @@ export function registerAdminRoutes(app: Express): void {
           const rawDesc = bp.description || '';
           const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           
-          categories[category].push({
+          const catalogItem = {
             id: bp.id,
             title: bp.title,
             description: cleanDesc,
@@ -773,7 +773,8 @@ export function registerAdminRoutes(app: Express): void {
             provider: 'printify',
             dualProvider: !!matchedPrintful,
             matchedProviderId: matchedPrintful ? `printful-${matchedPrintful.id}` : null,
-          });
+          };
+          categories[category].push(catalogItem);
         }
       }
 
