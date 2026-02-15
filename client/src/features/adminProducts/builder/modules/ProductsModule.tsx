@@ -61,11 +61,11 @@ function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
     id: String(p.id),
     name: p.title,
     price: minPrice,
-    cost: null,
+    cost: minPrice,
     manufacturer: p.brand || null,
     madeInUSA: p.madeInUSA,
     primaryImageUrl: p.imageUrl || null,
-    description: p.model || null,
+    description: p.description || p.model || null,
     colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || [],
     defaultColor: p.availableColors?.length > 0 ? p.availableColors[0].name : null,
@@ -131,19 +131,10 @@ export function ProductsModule() {
       
       const data = await res.json();
       
-      if (provider === "printify") {
-        return (data as CatalogCategoryListResponse[]).map((cat) => ({
-          name: cat.name,
-          itemCount: cat.items?.length || 0,
-        }));
-      } else if (provider === "printful") {
-        return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
-          name: cat.name,
-          itemCount: cat.count || cat.items?.length || 0,
-        }));
-      }
-      
-      return [];
+      return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
+        name: cat.name,
+        itemCount: cat.count || cat.items?.length || 0,
+      }));
     },
   });
 
@@ -151,8 +142,8 @@ export function ProductsModule() {
     return [...categories]
       .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
       .sort((a, b) => {
-        if (a.name === "T-Shirts") return -1;
-        if (b.name === "T-Shirts") return 1;
+        if (a.name === "T-Shirts & Tops") return -1;
+        if (b.name === "T-Shirts & Tops") return 1;
         return a.name.localeCompare(b.name);
       });
   }, [categories]);

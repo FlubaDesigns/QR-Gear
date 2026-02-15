@@ -252,8 +252,113 @@ export function registerProductRoutes(app: Express): void {
       if (!printify.isConfigured) {
         return res.status(503).json({ error: "Printify not configured" });
       }
-      const blueprints = await printify.getCatalogBlueprints();
-      res.json(blueprints);
+
+      const [localBlueprints, allProviders] = await Promise.all([
+        storage.getPrintifyBlueprints(),
+        storage.getAllPrintifyProviders(),
+      ]);
+
+      let blueprints: any[];
+      if (localBlueprints.length > 0) {
+        blueprints = localBlueprints.map(bp => ({
+          id: bp.id,
+          title: bp.title,
+          description: (bp as any).description || '',
+          brand: bp.brand,
+          model: bp.model,
+          images: bp.images || [],
+        }));
+      } else {
+        blueprints = await printify.getCatalogBlueprints();
+      }
+
+      const providersByBlueprint = new Map<number, { colors: Array<{name: string; hex?: string}>; sizes: string[]; minCost: number; maxCost: number; providerId: number }>();
+      for (const prov of allProviders) {
+        const existing = providersByBlueprint.get(prov.blueprintId);
+        const colors = Array.isArray(prov.availableColors) ? prov.availableColors as Array<{name: string; hex?: string}> : [];
+        const sizes = Array.isArray(prov.availableSizes) ? prov.availableSizes : [];
+        const minCost = prov.minCost || 0;
+        const maxCost = prov.maxCost || 0;
+        if (!existing || colors.length > existing.colors.length) {
+          providersByBlueprint.set(prov.blueprintId, { colors, sizes, minCost, maxCost, providerId: prov.providerId });
+        }
+      }
+
+      const USA_BRANDS = ['american apparel','royal apparel','bayside','los angeles apparel','bella+canvas','bella canvas','lane seven','cotton heritage','shaka wear','backpacks usa','american giant','next level'];
+
+      const categories: Record<string, any[]> = {};
+      for (const bp of blueprints) {
+        const t = (bp.title || '').toLowerCase();
+        let category: string;
+        if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie') || t.includes('baby tee')) {
+          category = "T-Shirts & Tops";
+        } else if (t.includes('hoodie') || t.includes('sweatshirt') || t.includes('crew neck') || t.includes('pullover') || t.includes('crewneck')) {
+          category = "Sweatshirts & Hoodies";
+        } else if (t.includes('hat') || t.includes('cap') || t.includes('beanie') || t.includes('visor') || t.includes('bucket')) {
+          category = "Hats & Caps";
+        } else if (t.includes('mug') || t.includes('tumbler') || t.includes('bottle') || t.includes('cup') || t.includes('glass') || t.includes('can cooler')) {
+          category = "Drinkware";
+        } else if (t.includes('bag') || t.includes('tote') || t.includes('backpack') || t.includes('pouch') || t.includes('clutch') || t.includes('duffel') || t.includes('weekender') || t.includes('fanny') || t.includes('cosmetic')) {
+          category = "Bags & Accessories";
+        } else if (t.includes('phone') || t.includes('case') || t.includes('airpod') || t.includes('laptop sleeve')) {
+          category = "Phone Cases & Tech";
+        } else if (t.includes('sticker') || t.includes('magnet') || t.includes('pin button') || t.includes('bumper') || t.includes('decal')) {
+          category = "Stickers & Magnets";
+        } else if (t.includes('poster') || t.includes('canvas') || t.includes('art print') || t.includes('framed') || t.includes('wall') || t.includes('tapestry')) {
+          category = "Wall Art & Posters";
+        } else if (t.includes('pillow') || t.includes('blanket') || t.includes('comforter') || t.includes('shower') || t.includes('bath') || t.includes('rug') || t.includes('coaster') || t.includes('placemat') || t.includes('towel')) {
+          category = "Home & Living";
+        } else if (t.includes('journal') || t.includes('notebook') || t.includes('card') || t.includes('postcard') || t.includes('calendar') || t.includes('puzzle')) {
+          category = "Stationery & Paper";
+        } else if (t.includes('legging') || t.includes('jogger') || t.includes('shorts') || t.includes('skirt') || t.includes('dress') || t.includes('swimsuit') || t.includes('bikini') || t.includes('swim trunk') || t.includes('boxer') || t.includes('brief') || t.includes('bra') || t.includes('jacket') || t.includes('windbreaker') || t.includes('pants') || t.includes('pajama') || t.includes('rash guard') || t.includes('flip flop') || t.includes('sneaker') || t.includes('shoe')) {
+          category = "Activewear & Specialty";
+        } else if (t.includes('pet') || t.includes('dog')) {
+          category = "Pet Products";
+        } else if (t.includes('ornament') || t.includes('stocking') || t.includes('tree skirt') || t.includes('snowflake')) {
+          category = "Holiday & Seasonal";
+        } else if (t.includes('sock') || t.includes('scarf') || t.includes('necktie') || t.includes('watch band') || t.includes('apron') || t.includes('bandana') || t.includes('headband') || t.includes('gaiter') || t.includes('mask') || t.includes('scrunchie')) {
+          category = "Accessories";
+        } else {
+          category = "Other";
+        }
+
+        if (!categories[category]) categories[category] = [];
+
+        const brandLower = (bp.brand || '').toLowerCase();
+        const madeInUSA = USA_BRANDS.some(b => brandLower.includes(b));
+        const provData = providersByBlueprint.get(bp.id);
+
+        const rawDesc = bp.description || '';
+        const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+        categories[category].push({
+          id: bp.id,
+          title: bp.title,
+          description: cleanDesc,
+          brand: bp.brand,
+          model: bp.model,
+          imageUrl: bp.images?.[0] || null,
+          madeInUSA,
+          blueprintId: bp.id,
+          printProviderId: provData?.providerId || null,
+          minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : null,
+          maxPrice: provData?.maxCost ? (provData.maxCost / 100).toFixed(2) : null,
+          colorCount: provData?.colors.length || 0,
+          availableColors: provData?.colors || [],
+          availableSizes: provData?.sizes || [],
+          fulfillmentProvider: 'printify',
+        });
+      }
+
+      const result = Object.entries(categories)
+        .map(([name, items]) => ({ name, items, count: items.length }))
+        .sort((a, b) => {
+          if (a.name === "T-Shirts & Tops") return -1;
+          if (b.name === "T-Shirts & Tops") return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+      res.json(result);
     } catch (error: any) {
       console.error("Printify catalog error:", error);
       res.status(500).json({ error: error.message });

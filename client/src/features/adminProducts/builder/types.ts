@@ -43,6 +43,7 @@ export interface ProductPlacement {
 export interface CatalogProduct {
   id: number;
   title: string;
+  description?: string;
   brand: string;
   model: string;
   imageUrl: string | null;
