@@ -255,7 +255,7 @@ export function ProductChooserModule({
             items: scrollViewItems,
             selectedId: selectedId,
             layout: "vertical",
-            gridHeight: "calc(100vh - 240px)",
+            gridHeight: "calc(100vh - 160px)",
             emptyMessage: "No products match your filters",
             renderItem: renderCard,
           }}

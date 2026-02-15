@@ -400,7 +400,7 @@ export function ProductsModule() {
                 selectedId: selectedProductId,
                 emptyMessage: "No products match the current filters.",
                 layout: "vertical",
-                gridHeight: "calc(100vh - 240px)",
+                gridHeight: "calc(100vh - 160px)",
                 renderItem: renderCard,
               }}
             />
