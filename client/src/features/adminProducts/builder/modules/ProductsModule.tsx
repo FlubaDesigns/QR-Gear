@@ -12,7 +12,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  FolderPlus,
   X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -205,83 +204,6 @@ function GroupManager({
   );
 }
 
-function ShelfGroupPicker({
-  currentGroupIds,
-  onToggleGroup,
-  onCreateAndAdd,
-}: {
-  currentGroupIds: string[];
-  onToggleGroup: (groupId: string) => void;
-  onCreateAndAdd: (name: string) => void;
-}) {
-  const shelf = useBuildShelf();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState("");
-
-  return (
-    <div className="space-y-2 p-2 border rounded-md bg-muted/20" data-testid="shelf-group-picker">
-      <p className="text-xs font-medium text-muted-foreground">Assign to groups:</p>
-      <div className="flex flex-wrap gap-1.5">
-        {shelf.groups.map((group) => {
-          const isIn = currentGroupIds.includes(group.id);
-          return (
-            <Badge
-              key={group.id}
-              variant={isIn ? "default" : "outline"}
-              className="cursor-pointer text-xs"
-              onClick={() => onToggleGroup(group.id)}
-              data-testid={`badge-group-toggle-${group.id}`}
-            >
-              {group.name}
-            </Badge>
-          );
-        })}
-        {!showCreate ? (
-          <Badge
-            variant="outline"
-            className="cursor-pointer text-xs"
-            onClick={() => setShowCreate(true)}
-            data-testid="badge-new-group-inline"
-          >
-            <Plus className="h-3 w-3 mr-0.5" /> New
-          </Badge>
-        ) : (
-          <div className="flex gap-1 items-center">
-            <Input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Group name"
-              className="h-7 text-xs w-28"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newName.trim()) {
-                  onCreateAndAdd(newName.trim());
-                  setNewName("");
-                  setShowCreate(false);
-                }
-              }}
-              autoFocus
-              data-testid="input-inline-new-group"
-            />
-            <Button
-              size="sm"
-              className="h-7 text-xs px-2"
-              onClick={() => {
-                if (newName.trim()) {
-                  onCreateAndAdd(newName.trim());
-                  setNewName("");
-                  setShowCreate(false);
-                }
-              }}
-              data-testid="button-inline-create-group"
-            >
-              Add
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
@@ -293,7 +215,6 @@ export function ProductsModule() {
   const [activeGroupFilter, setActiveGroupFilter] = useState<string | null>(null);
   const [shelfProviderFilter, setShelfProviderFilter] = useState<"all" | "printify" | "printful">("all");
   const [showGroupManager, setShowGroupManager] = useState(false);
-  const [shelfActionId, setShelfActionId] = useState<string | null>(null);
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
     setLocationFilter(loc);
@@ -452,33 +373,17 @@ export function ProductsModule() {
   }, [shelf.removeItem]);
 
   const handleShelfSelect = useCallback((shelfItem: ShelfItem) => {
+    const catalogWithProvider = {
+      ...shelfItem.catalog,
+      fulfillmentProvider: shelfItem.providerId as "printify" | "printful",
+    };
     if (shelfItem.providerId !== provider) {
       setSelectedProviders([shelfItem.providerId]);
-      setTimeout(() => selectProduct(shelfItem.catalog), 0);
+      setTimeout(() => selectProduct(catalogWithProvider), 0);
     } else {
-      selectProduct(shelfItem.catalog);
+      selectProduct(catalogWithProvider);
     }
   }, [provider, setSelectedProviders, selectProduct]);
-
-  const handleToggleGroupOnItem = useCallback((shelfItem: ShelfItem, groupId: string) => {
-    const current = shelfItem.groupIds || [];
-    const next = current.includes(groupId)
-      ? current.filter(g => g !== groupId)
-      : [...current, groupId];
-    shelf.updateItemGroups.mutate({ itemId: shelfItem.id, groupIds: next });
-  }, [shelf.updateItemGroups]);
-
-  const handleCreateGroupAndAdd = useCallback((name: string, shelfItem: ShelfItem) => {
-    shelf.createGroup.mutate(
-      { name, sortOrder: shelf.groups.length },
-      {
-        onSuccess: (newGroup: any) => {
-          const current = shelfItem.groupIds || [];
-          shelf.updateItemGroups.mutate({ itemId: shelfItem.id, groupIds: [...current, newGroup.id] });
-        },
-      }
-    );
-  }, [shelf.createGroup, shelf.updateItemGroups, shelf.groups.length]);
 
   const filteredShelfItems = useMemo(() => {
     let items = shelf.items;
@@ -495,6 +400,26 @@ export function ProductsModule() {
     }
     return items;
   }, [shelf.items, shelfProviderFilter, activeGroupFilter, search]);
+
+  const shelfItemMap = useMemo(() => {
+    const map = new Map<string, ShelfItem>();
+    filteredShelfItems.forEach(item => map.set(String(item.catalogId), item));
+    return map;
+  }, [filteredShelfItems]);
+
+  const shelfScrollItems: ScrollViewItem[] = useMemo(() =>
+    filteredShelfItems.map(item => ({
+      id: String(item.catalogId),
+      imageUrl: item.catalog.imageUrl || "",
+      title: item.catalog.title,
+      subtitle: item.catalog.brand,
+      minPrice: item.catalog.minPrice,
+      maxPrice: item.catalog.maxPrice,
+      colorCount: item.catalog.colorCount,
+      madeInUSA: item.catalog.madeInUSA,
+    })),
+    [filteredShelfItems]
+  );
 
   const renderCatalogCard = useCallback(
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
@@ -534,20 +459,26 @@ export function ProductsModule() {
     [selectItemMap, selectedProductId, handleCardSelect, shelf, provider, handleAddToShelf, handleRemoveFromShelf]
   );
 
+  const handleShelfCardSelect = useCallback((id: string, _item: ProductSelectItem) => {
+    const shelfItem = shelfItemMap.get(id);
+    if (shelfItem) handleShelfSelect(shelfItem);
+  }, [shelfItemMap, handleShelfSelect]);
+
   const renderShelfCard = useCallback(
-    (shelfItem: ShelfItem) => {
+    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
+      const shelfItem = shelfItemMap.get(String(scrollItem.id));
+      if (!shelfItem) return null;
       const selectItem = catalogToSelectItem(shelfItem.catalog);
       const isSelected = selectedProductId === String(shelfItem.catalogId);
-      const showingActions = shelfActionId === shelfItem.id;
 
       return (
-        <div key={shelfItem.id} className="space-y-1" data-testid={`shelf-item-${shelfItem.catalogId}`}>
+        <div className="space-y-1" data-testid={`shelf-item-${shelfItem.catalogId}`}>
           <ProductSelectCardSkin
             item={selectItem}
             isSelected={isSelected}
-            onSelect={() => handleShelfSelect(shelfItem)}
+            onSelect={handleShelfCardSelect}
           />
-          <div className="flex items-center gap-1 text-xs text-muted-foreground px-1">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground px-1 flex-wrap">
             <Badge variant="outline" className="text-[10px] capitalize">
               {shelfItem.providerId}
             </Badge>
@@ -564,36 +495,22 @@ export function ProductsModule() {
               </>
             )}
           </div>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              className="flex-1 text-xs"
-              onClick={() => setShelfActionId(showingActions ? null : shelfItem.id)}
-              data-testid={`button-shelf-groups-${shelfItem.catalogId}`}
-            >
-              <FolderPlus className="h-3 w-3 mr-1" /> Groups
-            </Button>
-            <Button
-              variant="outline"
-              className="text-xs"
-              onClick={() => handleRemoveFromShelf(shelfItem)}
-              disabled={shelf.removeItem.isPending}
-              data-testid={`button-shelf-remove-${shelfItem.catalogId}`}
-            >
-              <BookmarkMinus className="h-3 w-3 mr-1" /> Remove
-            </Button>
-          </div>
-          {showingActions && (
-            <ShelfGroupPicker
-              currentGroupIds={shelfItem.groupIds || []}
-              onToggleGroup={(groupId) => handleToggleGroupOnItem(shelfItem, groupId)}
-              onCreateAndAdd={(name) => handleCreateGroupAndAdd(name, shelfItem)}
-            />
-          )}
+          <Button
+            variant="outline"
+            className="w-full text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemoveFromShelf(shelfItem);
+            }}
+            disabled={shelf.removeItem.isPending}
+            data-testid={`button-shelf-remove-${shelfItem.catalogId}`}
+          >
+            <BookmarkMinus className="h-3 w-3 mr-1" /> Remove from Shelf
+          </Button>
         </div>
       );
     },
-    [selectedProductId, handleShelfSelect, handleRemoveFromShelf, shelf, shelfActionId, handleToggleGroupOnItem, handleCreateGroupAndAdd]
+    [shelfItemMap, selectedProductId, handleShelfCardSelect, handleRemoveFromShelf, shelf]
   );
 
   return (
@@ -722,9 +639,17 @@ export function ProductsModule() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredShelfItems.map(item => renderShelfCard(item))}
-            </div>
+            <SharedViewer
+              mode="scroll"
+              scrollProps={{
+                items: shelfScrollItems,
+                selectedId: selectedProductId,
+                emptyMessage: "No shelf items match the current filters.",
+                layout: "vertical",
+                gridHeight: "calc(100vh - 160px)",
+                renderItem: renderShelfCard,
+              }}
+            />
           )}
         </div>
       )}
