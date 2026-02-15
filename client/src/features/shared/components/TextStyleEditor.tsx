@@ -184,7 +184,7 @@ export function TextStyleEditor({
 
           {controlsOpen && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
                   <FontPicker
@@ -210,7 +210,7 @@ export function TextStyleEditor({
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Color</Label>
                   <div className="flex gap-2">
@@ -262,7 +262,7 @@ export function TextStyleEditor({
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Color</Label>
                   <div className="flex gap-2">

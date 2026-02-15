@@ -47,7 +47,7 @@ export function GraphicPreviewView({
 
   return (
     <div 
-      className={`relative w-[160px] ${aspectClass} rounded-lg overflow-hidden border-2 border-border shadow-lg ${className}`}
+      className={`relative w-[120px] sm:w-[160px] ${aspectClass} rounded-lg overflow-hidden border-2 border-border shadow-lg ${className}`}
       style={backgroundImage ? { background: `url(${backgroundImage}) center/cover` } : undefined}
       data-testid="graphic-preview-view"
     >
