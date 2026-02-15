@@ -23,14 +23,23 @@ export function registerLibraryFileRoutes(app: Express): void {
       const file = String(req.params.file || "").trim();
       if (!file) return res.status(400).json({ error: "Missing filename" });
 
-      const ok = await downloadAndStreamFile(
-        file,
-        res,
+      const rootsToTry = [
         "library/backgrounds/raw",
-        3600
-      );
+        "library/backgrounds/cropped",
+        "library/backgrounds/raw/zip",
+        "library/backgrounds/zip",
+        "library/templates",
+        "library/designs",
+        "custom-designs",
+      ];
 
-      if (!ok && !res.headersSent) {
+      for (const root of rootsToTry) {
+        const ok = await downloadAndStreamFile(file, res, root, 3600);
+        if (ok) return;
+        if (res.headersSent) return;
+      }
+
+      if (!res.headersSent) {
         res.status(404).json({ error: "File not found" });
       }
     } catch (err: any) {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useMemo } from "react";
 import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export interface AdminAuthContextValue {
   requiresAuth: boolean;
@@ -14,14 +15,28 @@ interface AdminAuthProviderProps {
   apiBase?: string;
 }
 
+const waitForUser = (): Promise<unknown> =>
+  new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      unsub();
+      resolve(u);
+    });
+  });
+
 export function AdminAuthProvider({
   children,
   apiBase = "/api/admin",
 }: AdminAuthProviderProps) {
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
-    const user = auth.currentUser;
+    let user = auth.currentUser;
+
+    if (!user) {
+      await waitForUser();
+      user = auth.currentUser;
+    }
+
     if (user) {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
       return { Authorization: `Bearer ${token}` };
     }
     return {};

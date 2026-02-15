@@ -1430,13 +1430,13 @@ ${allPages.map(page => `  <url>
             
             const uploadResult = await uploadToFirebaseStorage(
               imageBuffer,
-              imageName,
+              uniqueName,
               imageMimeType,
               'library/backgrounds/raw'
             );
             
-            const displayName = imageName.replace(/\.[^/.]+$/, '');
-            const zipActualFilename = (uploadResult.storageUrl || '').split('/').pop() || '';
+            const displayName = sanitizedName.replace(/\.[^/.]+$/, '');
+            const zipActualFilename = (uploadResult.storageUrl || '').split('/').pop() || uniqueName;
             const proxyUrl = `/api/library-files/${encodeURIComponent(zipActualFilename)}`;
             
             const asset = await fsInsert('library_assets', {
