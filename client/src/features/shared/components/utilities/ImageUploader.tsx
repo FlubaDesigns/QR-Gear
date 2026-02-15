@@ -35,7 +35,7 @@ export function ImageUploader({
   showZipUpload = true,
   showImageUpload = true,
   acceptTypes = "image/*",
-  maxSizeMB = 25,
+  maxSizeMB = 50,
 }: ImageUploaderProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
@@ -51,17 +51,23 @@ export function ImageUploader({
     }
 
     const fileName = file.name;
+    const blobUrl = URL.createObjectURL(file);
+    e.target.value = "";
 
     let base64: string;
     try {
-      const data = await readFileAsBase64(file);
-      base64 = data.base64;
-    } catch {
+      console.log("[ImageUploader] Reading ZIP from blob URL:", fileName);
+      const resp = await fetch(blobUrl);
+      const arrayBuffer = await resp.arrayBuffer();
+      base64 = arrayBufferToBase64(arrayBuffer);
+      console.log("[ImageUploader] ZIP read complete, base64 length:", base64.length);
+    } catch (readErr) {
+      console.error("[ImageUploader] ZIP read failed:", readErr);
       toast({ title: "Could not read file", description: "Try selecting the file again", variant: "destructive" });
       return;
+    } finally {
+      URL.revokeObjectURL(blobUrl);
     }
-
-    e.target.value = "";
 
     setUploading(true);
     setUploadStatus("Uploading ZIP...");
@@ -155,31 +161,43 @@ export function ImageUploader({
 
     console.log("[ImageUploader] Starting upload of", files.length, "files");
 
-    const readResults: { name: string; base64: string; mimeType: string }[] = [];
+    const captures: { name: string; mimeType: string; blobUrl: string; size: number }[] = [];
     const tooLarge: string[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      console.log("[ImageUploader] Reading file:", file.name, "size:", file.size, "type:", file.type);
+      console.log("[ImageUploader] Capturing file:", file.name, "size:", file.size, "type:", file.type);
       if (file.size > maxSizeMB * 1024 * 1024) {
         console.warn("[ImageUploader] File too large:", file.name, file.size);
         tooLarge.push(file.name);
         continue;
       }
-      try {
-        const data = await readFileAsBase64(file);
-        readResults.push(data);
-      } catch (readErr) {
-        console.error("[ImageUploader] Read failed for", file.name, readErr);
-        toast({
-          title: `Could not read: ${file.name}`,
-          description: "Try selecting the file again",
-          variant: "destructive",
-        });
-      }
+      const blobUrl = URL.createObjectURL(file);
+      captures.push({ name: file.name, mimeType: file.type || "image/png", blobUrl, size: file.size });
     }
 
     e.target.value = "";
+
+    const readResults: { name: string; base64: string; mimeType: string }[] = [];
+    for (const cap of captures) {
+      try {
+        console.log("[ImageUploader] Reading from blob URL:", cap.name);
+        const resp = await fetch(cap.blobUrl);
+        const arrayBuffer = await resp.arrayBuffer();
+        const base64 = arrayBufferToBase64(arrayBuffer);
+        console.log("[ImageUploader] Read complete for", cap.name, "base64 length:", base64.length);
+        readResults.push({ name: cap.name, base64, mimeType: cap.mimeType });
+      } catch (readErr) {
+        console.error("[ImageUploader] Read failed for", cap.name, readErr);
+        toast({
+          title: `Could not read: ${cap.name}`,
+          description: "Try selecting the file again",
+          variant: "destructive",
+        });
+      } finally {
+        URL.revokeObjectURL(cap.blobUrl);
+      }
+    }
 
     if (tooLarge.length > 0) {
       toast({
