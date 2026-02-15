@@ -1,9 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
-import { Layers } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Layers, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
+import {
+  ProductSelectCardSkin,
+  type ProductSelectItem,
+} from "@/features/shared/components/skins/ProductSelectCardSkin";
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import { ProductViewerControls } from "../components/ProductViewerControls";
@@ -48,6 +53,23 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
   return "unisex";
 }
 
+function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
+  const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
+  return {
+    id: String(p.id),
+    name: p.title,
+    price: minPrice,
+    cost: null,
+    manufacturer: p.brand || null,
+    madeInUSA: p.madeInUSA,
+    primaryImageUrl: p.imageUrl || null,
+    description: p.model || null,
+    colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
+    sizesAvailable: p.availableSizes || [],
+    defaultColor: p.availableColors?.length > 0 ? p.availableColors[0].name : null,
+  };
+}
+
 interface CatalogCategoryResponse {
   name: string;
   items: CatalogProduct[];
@@ -62,6 +84,7 @@ interface CatalogCategoryListResponse {
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const { selectedProviders } = useProductsContext();
+  const [search, setSearch] = useState("");
 
   // Provider comes from ProductsContext's selectedProviders (set by ProductsControlBar)
   // Use the first selected provider, or default to printify if none selected
@@ -193,9 +216,10 @@ export function ProductsModule() {
       const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) || 
                            (state.originFilter.showOther && !p.madeInUSA);
       const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
-      return passesOrigin && passesGender;
+      const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
+      return passesOrigin && passesGender && passesSearch;
     });
-  }, [productsWithGender, state.originFilter, state.genderFilter]);
+  }, [productsWithGender, state.originFilter, state.genderFilter, search]);
 
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
@@ -215,7 +239,13 @@ export function ProductsModule() {
     unisex: originFilteredProducts.filter(p => p.gender === "unisex").length,
   }), [originFilteredProducts]);
 
-  // Always show the module
+  const selectItemMap = useMemo(() => {
+    const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string } }>();
+    filteredProducts.forEach(p => {
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p), catalog: p });
+    });
+    return map;
+  }, [filteredProducts]);
 
   const scrollItems: ScrollViewItem[] = filteredProducts.map(p => ({
     id: String(p.id),
@@ -229,17 +259,32 @@ export function ProductsModule() {
     hasMockupMapping: p.hasMockupMapping,
   }));
 
-  const handleItemTap = (item: ScrollViewItem) => {
-    // Direct select - no popup/lightbox
-    const product = filteredProducts.find(p => String(p.id) === item.id);
-    if (product) {
-      selectProduct(product);
+  const selectedProductId = state.selectedProduct ? String(state.selectedProduct.id) : null;
+
+  const handleCardSelect = useCallback((id: string, _item: ProductSelectItem) => {
+    const entry = selectItemMap.get(id);
+    if (entry) {
+      selectProduct(entry.catalog);
     }
-  };
+  }, [selectItemMap, selectProduct]);
+
+  const renderCard = useCallback(
+    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
+      const entry = selectItemMap.get(String(scrollItem.id));
+      if (!entry) return null;
+      return (
+        <ProductSelectCardSkin
+          item={entry.selectItem}
+          isSelected={selectedProductId === String(scrollItem.id)}
+          onSelect={handleCardSelect}
+        />
+      );
+    },
+    [selectItemMap, selectedProductId, handleCardSelect]
+  );
 
   return (
     <div className="space-y-4">
-      {/* Active provider indicator */}
       <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md" data-testid="active-provider-indicator">
         <span className="text-xs text-muted-foreground">Browsing:</span>
         <span className="text-sm font-medium capitalize">{provider}</span>
@@ -250,7 +295,6 @@ export function ProductsModule() {
         )}
       </div>
 
-      {/* Category selector */}
       <div data-testid="module-category">
         <div className="flex items-center gap-2 mb-2">
           <Layers className="h-4 w-4 text-muted-foreground" />
@@ -266,19 +310,31 @@ export function ProductsModule() {
         />
       </div>
 
-      {/* Only show filters and products if category is selected */}
       {state.category && (
-        <ProductViewerControls
-          showUSA={state.originFilter.showUSA}
-          showOther={state.originFilter.showOther}
-          usaCount={usaCount}
-          otherCount={otherCount}
-          genderFilter={state.genderFilter}
-          genderCounts={genderCounts}
-          onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
-          onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
-          onGenderFilterChange={setGenderFilter}
-        />
+        <>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+              data-testid="input-search-builder-products"
+            />
+          </div>
+
+          <ProductViewerControls
+            showUSA={state.originFilter.showUSA}
+            showOther={state.originFilter.showOther}
+            usaCount={usaCount}
+            otherCount={otherCount}
+            genderFilter={state.genderFilter}
+            genderCounts={genderCounts}
+            onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
+            onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
+            onGenderFilterChange={setGenderFilter}
+          />
+        </>
       )}
 
       {state.category && (
@@ -309,12 +365,11 @@ export function ProductsModule() {
               mode="scroll"
               scrollProps={{
                 items: scrollItems,
-                selectedId: state.selectedProduct ? String(state.selectedProduct.id) : undefined,
-                onSelect: handleItemTap,
-                aspectRatio: "square",
+                selectedId: selectedProductId,
                 emptyMessage: "No products match the current filters.",
                 layout: "vertical",
-                gridHeight: "min(70vh, 600px)",
+                gridHeight: "calc(100vh - 240px)",
+                renderItem: renderCard,
               }}
             />
           )}
