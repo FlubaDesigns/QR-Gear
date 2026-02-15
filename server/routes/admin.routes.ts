@@ -688,12 +688,18 @@ export function registerAdminRoutes(app: Express): void {
       
       const categories: Record<string, any[]> = {};
 
-      const localBlueprints = await storage.getPrintifyBlueprints();
+      const [localBlueprints, allProviders, allPrintfulRows] = await Promise.all([
+        storage.getPrintifyBlueprints(),
+        storage.getAllPrintifyProviders(),
+        fsGetAll('printful_products'),
+      ]);
+
       let allPrintifyBlueprints: any[] = [];
       if (localBlueprints.length > 0) {
         allPrintifyBlueprints = localBlueprints.map(bp => ({
           id: bp.id,
           title: bp.title,
+          description: (bp as any).description || '',
           brand: bp.brand,
           model: bp.model,
           images: bp.images || [],
@@ -702,7 +708,17 @@ export function registerAdminRoutes(app: Express): void {
         allPrintifyBlueprints = await printify.getCatalogBlueprints();
       }
 
-      const allPrintfulRows = await fsGetAll('printful_products');
+      const providersByBlueprint = new Map<number, { colors: Array<{name: string; hex?: string}>; sizes: string[]; minCost: number; maxCost: number; providerId: number }>();
+      for (const prov of allProviders) {
+        const existing = providersByBlueprint.get(prov.blueprintId);
+        const colors = Array.isArray(prov.availableColors) ? prov.availableColors as Array<{name: string; hex?: string}> : [];
+        const sizes = Array.isArray(prov.availableSizes) ? prov.availableSizes : [];
+        const minCost = prov.minCost || 0;
+        const maxCost = prov.maxCost || 0;
+        if (!existing || colors.length > existing.colors.length) {
+          providersByBlueprint.set(prov.blueprintId, { colors, sizes, minCost, maxCost, providerId: prov.providerId });
+        }
+      }
 
       let matchedModels: Set<string> | null = null;
       if (providerFilter === 'matched') {
@@ -733,15 +749,27 @@ export function registerAdminRoutes(app: Express): void {
           
           const modelLower = (bp.model || '').trim().toLowerCase();
           const matchedPrintful = modelLower ? allPrintfulRows.find(pf => (pf.model || '').trim().toLowerCase() === modelLower) : null;
+
+          const provData = providersByBlueprint.get(bp.id);
+          const rawDesc = bp.description || '';
+          const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
           
           categories[category].push({
-            id: `printify-${bp.id}`,
-            rawId: bp.id,
+            id: bp.id,
             title: bp.title,
+            description: cleanDesc,
             brand: bp.brand,
             model: bp.model,
             imageUrl: bp.images?.[0] || null,
             madeInUSA: isUSABrand,
+            blueprintId: bp.id,
+            printProviderId: provData?.providerId || null,
+            minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : null,
+            maxPrice: provData?.maxCost ? (provData.maxCost / 100).toFixed(2) : null,
+            colorCount: provData?.colors.length || 0,
+            availableColors: provData?.colors || [],
+            availableSizes: provData?.sizes || [],
+            fulfillmentProvider: 'printify',
             provider: 'printify',
             dualProvider: !!matchedPrintful,
             matchedProviderId: matchedPrintful ? `printful-${matchedPrintful.id}` : null,
@@ -766,13 +794,21 @@ export function registerAdminRoutes(app: Express): void {
           const matchedPrintify = modelLower ? allPrintifyBlueprints.find(bp => (bp.model || '').trim().toLowerCase() === modelLower) : null;
           
           categories[category].push({
-            id: `printful-${pf.id}`,
-            rawId: pf.id,
+            id: pf.id,
             title: pf.title,
+            description: pf.description || '',
             brand: pf.brand || '',
             model: pf.model || '',
             imageUrl: pf.image || null,
             madeInUSA: isUSABrand,
+            blueprintId: pf.id,
+            printProviderId: null,
+            minPrice: pf.minPrice || null,
+            maxPrice: pf.maxPrice || null,
+            colorCount: 0,
+            availableColors: [],
+            availableSizes: [],
+            fulfillmentProvider: 'printful',
             provider: 'printful',
             dualProvider: !!matchedPrintify,
             matchedProviderId: matchedPrintify ? `printify-${matchedPrintify.id}` : null,
