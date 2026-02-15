@@ -2888,11 +2888,12 @@ app.get('/admin/background-assets', requireAdmin, async (req, res) => {
         }
         console.log('[BackgroundAssets] GET request - type:', typeFilter);
         const snapshot = await db.collection('library_assets')
-            .where('isActive', '==', true)
             .where('assetType', '==', typeFilter)
             .get();
+        console.log('[BackgroundAssets] Raw docs for type', typeFilter, ':', snapshot.size);
         const assets = snapshot.docs
             .map(doc => docToObject(doc))
+            .filter(doc => doc.isActive === true)
             .sort((a, b) => {
             const aTime = (a.createdAt || '').toString();
             const bTime = (b.createdAt || '').toString();
@@ -2981,7 +2982,7 @@ app.post('/admin/background-assets', requireAdmin, async (req, res) => {
         res.json(docToObject(doc));
     }
     catch (error) {
-        console.error("[BackgroundAssets] Upload error:", error);
+        console.error("[BackgroundAssets] Upload error:", error.message, error.stack);
         res.status(500).json({ error: error.message });
     }
 });
@@ -4293,5 +4294,5 @@ exports.api = (0, https_1.onRequest)({
     memory: '1GiB',
     cors: true,
 }, app);
-// Force deploy with KC_API_KEY env var: 2026-01-31-v2
+// Force deploy: 2026-02-15-v3 - removed /test/ routes, fixed query
 //# sourceMappingURL=index.js.map

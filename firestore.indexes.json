@@ -68,6 +68,15 @@
         { "fieldPath": "collectionId", "order": "ASCENDING" },
         { "fieldPath": "order", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "library_assets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assetType", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
