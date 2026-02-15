@@ -7,6 +7,7 @@ import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerWidgetRoutes } from "./routes/widget.routes";
 import { registerProductRoutes } from "./routes/products.routes";
 import { registerStoreRoutes } from "./routes/stores.routes";
+import { registerLibraryFileRoutes } from "./routes/library-files.routes";
 import { registerCartCheckoutRoutes } from "./routes/cart-checkout.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerAdminLibraryRoutes } from "./routes/admin-library.routes";
@@ -24,6 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   registerAuthRoutes(app);
+  registerLibraryFileRoutes(app);
   registerWidgetRoutes(app);
   registerProductRoutes(app);
   registerStoreRoutes(app);
