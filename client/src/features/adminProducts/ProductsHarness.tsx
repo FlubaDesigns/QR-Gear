@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
-import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
 import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import { CatalogListModule } from "./modules/CatalogListModule";
@@ -14,6 +13,7 @@ interface ProductsHarnessProps {
   showCatalog?: boolean;
   showChooser?: boolean;
   showBuilder?: boolean;
+  showSync?: boolean;
   onProductSelected?: (productId: string, product: ProductSelectItem) => void;
 }
 
@@ -22,14 +22,10 @@ function ProductsHarnessInner({
   showCatalog = true,
   showChooser = false,
   showBuilder = true,
+  showSync = true,
   onProductSelected,
 }: ProductsHarnessProps) {
-  const { 
-    api, 
-    providers, 
-    selectedProviders, 
-    setSelectedProviders,
-  } = useProductsContext();
+  const { api, selectedProviders } = useProductsContext();
 
   const primaryProvider = selectedProviders.length === 1 ? selectedProviders[0] : undefined;
 
@@ -47,11 +43,6 @@ function ProductsHarnessInner({
     });
   }, [products, selectedProviders]);
 
-  const productCount = {
-    filtered: filteredProducts.length,
-    total: products.length,
-  };
-
   return (
     <div className="mobile-compact-stack">
       {showHeader && (
@@ -63,15 +54,6 @@ function ProductsHarnessInner({
         </div>
       )}
 
-      <div className="glass-card">
-        <FulfillmentPickerModule
-          providers={providers}
-          selectedProviders={selectedProviders}
-          onSelectionChange={setSelectedProviders}
-          productCount={productCount}
-        />
-      </div>
-
       <StoreChannelDropdownModule />
 
       {showChooser && filteredProducts.length > 0 && (
@@ -79,6 +61,7 @@ function ProductsHarnessInner({
           <ProductChooserModule
             products={filteredProducts}
             onProductSelected={onProductSelected}
+            showControlBar={showSync}
           />
         </div>
       )}

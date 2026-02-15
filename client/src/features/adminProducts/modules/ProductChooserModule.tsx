@@ -8,6 +8,7 @@ import {
   ProductSelectCardSkin,
   type ProductSelectItem,
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
+import { ProductsControlBar } from "./ProductsControlBar";
 import type { Product } from "../shared/types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
@@ -17,6 +18,7 @@ type EnabledFilter = "all" | "enabled" | "disabled";
 interface ProductChooserModuleProps {
   products: Product[];
   onProductSelected?: (productId: string, product: ProductSelectItem) => void;
+  showControlBar?: boolean;
 }
 
 function productToSelectItem(product: Product): ProductSelectItem {
@@ -93,6 +95,7 @@ function selectItemToScrollViewItem(item: ProductSelectItem): ScrollViewItem {
 export function ProductChooserModule({
   products,
   onProductSelected,
+  showControlBar = true,
 }: ProductChooserModuleProps) {
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
@@ -178,6 +181,8 @@ export function ProductChooserModule({
       defaultOpen
     >
       <div className="space-y-3">
+        {showControlBar && <ProductsControlBar />}
+
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
