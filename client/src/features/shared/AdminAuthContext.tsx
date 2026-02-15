@@ -18,25 +18,22 @@ export function AdminAuthProvider({
   children,
   apiBase = "/api/admin",
 }: AdminAuthProviderProps) {
-  const requiresAuth = !apiBase.includes("/test");
-
   const getAuthHeaders = useCallback(async (): Promise<HeadersInit> => {
-    if (!requiresAuth) return {};
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
       return { Authorization: `Bearer ${token}` };
     }
     return {};
-  }, [requiresAuth]);
+  }, []);
 
   const value = useMemo<AdminAuthContextValue>(
     () => ({
-      requiresAuth,
+      requiresAuth: true,
       getAuthHeaders,
       apiBase,
     }),
-    [requiresAuth, getAuthHeaders, apiBase]
+    [getAuthHeaders, apiBase]
   );
 
   return (

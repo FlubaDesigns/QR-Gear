@@ -35,7 +35,7 @@ export default function LibraryPage() {
   }, [searchString]);
 
   return (
-    <AdminAuthProvider apiBase="/api">
+    <AdminAuthProvider apiBase="/api/admin">
     <LibraryProvider>
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
