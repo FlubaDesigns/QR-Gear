@@ -17,6 +17,15 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
   firebase deploy --only hosting
   rm /tmp/firebase-sa.json
   ```
+- **CRITICAL: DUAL CODEBASE** — The production API runs through a Firebase Cloud Function (`functions/src/index.ts`), which is a COMPLETELY SEPARATE Express app from the dev server (`server/`). ANY route change, bug fix, or API update must be applied to BOTH codebases. After changing server routes, ALWAYS also check and update the Cloud Function. Deploy functions with:
+  ```bash
+  cd functions && npm run build && cd ..
+  echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
+  export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
+  firebase deploy --only functions
+  rm /tmp/firebase-sa.json
+  ```
+- **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → `queryClient.ts getApiUrl()` rewrites `/api/*` to Cloud Function URL → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, etc. The `LibraryContext` uses raw `fetch()` with `apiBase="/api/admin"` which Firebase Hosting rewrites to the Cloud Function via `firebase.json` rewrite rules.
 - **Session Rules**:
     - Handle voice-to-text transcription errors
     - Verify/confirm before acting
