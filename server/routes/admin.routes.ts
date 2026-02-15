@@ -1613,13 +1613,74 @@ export function registerAdminRoutes(app: Express): void {
   });
 
   // Get Printful products list
+  function classifyPrintfulProduct(typeName: string): string {
+    const n = (typeName || "").toLowerCase();
+
+    if (n.startsWith("all-over print")) return "All-Over Print";
+
+    if (n.includes("t-shirt") || n.includes("tank top") || n.includes("crop top") || n.includes("jersey") || (n.includes("tee") && !n.includes("steer")))
+      return "T-Shirts & Tops";
+    if (n.includes("cardigan") || n.includes("jacket") || n.includes("windbreaker") || n.includes("bomber") || n.includes("vest") || n.includes("sweater") || n.includes("quarter-zip") || n.includes("quarter zip"))
+      return "Outerwear & Layers";
+    if (n.includes("hoodie") || n.includes("hood") || n.includes("sweatshirt") || n.includes("pullover") || n.includes("fleece"))
+      return "Hoodies & Sweatshirts";
+    if (n.includes("hat") || n.includes("beanie") || n.includes("cap") || n.includes("visor"))
+      return "Hats & Headwear";
+    if (n.includes("canvas shoe") || n.includes("athletic shoe") || n.includes("slide") || n.includes("sneaker") || (n.includes("shoe") && !n.includes("shower")))
+      return "Footwear";
+    if (n.includes("mug") || n.includes("tumbler") || n.includes("glass") || n.includes("bottle") || n.includes("can cooler") || n.includes("wine"))
+      return "Drinkware";
+    if (n.includes("poster") || n.includes("canvas") || n.includes("framed") || n.includes("tapestry") || n.includes("flag") || n.includes("pennant") || n.includes("metal print") || n.includes("glossy metal") || n.includes("photo paper"))
+      return "Wall Art & Prints";
+    if (n.includes("iphone") || n.includes("samsung") || n.includes("airpods") || n.includes("magsafe") || n.includes("phone case") || n.includes("snap case"))
+      return "Phone & Tech Cases";
+    if (n.includes("sticker") || n.includes("decal") || n.includes("magnet") || n.includes("patch"))
+      return "Stickers & Patches";
+    if (n.includes("bag") || n.includes("tote") || n.includes("backpack") || n.includes("fanny pack") || n.includes("crossbody") || n.includes("luggage") || n.includes("duffle") || n.includes("weekender"))
+      return "Bags & Accessories";
+    if (n.includes("dress") || n.includes("skirt") || n.includes("bikini") || n.includes("swimsuit") || n.includes("swim trunk") || n.includes("bra") || n.includes("pajama") || n.includes("rash guard"))
+      return "Dresses & Swimwear";
+    if (n.includes("short") || n.includes("pant") || n.includes("jogger") || n.includes("legging") || n.includes("sweatpant"))
+      return "Bottoms";
+    if (n.includes("pillow") || n.includes("blanket") || n.includes("comforter") || n.includes("rug") || n.includes("towel") || n.includes("curtain") || n.includes("coaster") || n.includes("napkin") || n.includes("placemat") || n.includes("cutting board") || n.includes("doormat") || n.includes("apron") || n.includes("shower"))
+      return "Home & Living";
+    if (n.includes("mouse pad") || n.includes("desk mat") || n.includes("laptop"))
+      return "Desk & Office";
+    if (n.includes("yoga mat") || n.includes("yoga"))
+      return "Activewear";
+    if (n.includes("sock") || n.includes("gaiter") || n.includes("bandana") || n.includes("headband") || n.includes("scarf"))
+      return "Socks & Accessories";
+    if (n.includes("kid") || n.includes("youth") || n.includes("baby"))
+      return "Kids & Youth";
+    if (n.includes("pet") || n.includes("dog") || n.includes("collar") || n.includes("leash") || n.includes("pet bowl") || n.includes("feeding mat"))
+      return "Pet Products";
+    if (n.includes("ornament") || n.includes("christmas") || n.includes("stocking") || n.includes("gift wrap") || n.includes("wrapping"))
+      return "Seasonal & Holiday";
+    if (n.includes("candle") || n.includes("lotion") || n.includes("wash") || n.includes("soap"))
+      return "Beauty & Wellness";
+    if (n.includes("polo"))
+      return "Polo Shirts";
+    if (n.includes("playing card") || n.includes("poker") || n.includes("puzzle") || n.includes("pickleball"))
+      return "Games & Sports";
+    if (n.includes("notebook") || n.includes("journal") || n.includes("notepad") || n.includes("calendar") || n.includes("greeting card") || n.includes("business card"))
+      return "Stationery & Paper";
+    if (n.includes("pin button") || n.includes("pin ") || n.includes("set of pin"))
+      return "Pins & Buttons";
+    if (n.includes("license plate") || n.includes("vanity plate"))
+      return "Auto & Outdoors";
+    if (n.includes("mat") || n.includes("bath"))
+      return "Home & Living";
+
+    return "Other";
+  }
+
   app.get("/api/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {
       const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
       
       const grouped: Record<string, any[]> = {};
       for (const p of products) {
-        const categoryName = p.typeName || p.type || "Other";
+        const categoryName = classifyPrintfulProduct(p.typeName || p.type || "");
         if (!grouped[categoryName]) grouped[categoryName] = [];
         grouped[categoryName].push({
           id: p.id,
@@ -1662,7 +1723,7 @@ export function registerAdminRoutes(app: Express): void {
       const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
       const grouped: Record<string, any[]> = {};
       for (const p of products) {
-        const categoryName = p.typeName || p.type || "Other";
+        const categoryName = classifyPrintfulProduct(p.typeName || p.type || "");
         if (!grouped[categoryName]) grouped[categoryName] = [];
         const placements = (p.availablePlacements || []).map((pid: string) => ({
           id: pid, type: pid,
