@@ -124,14 +124,15 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
         return res.json();
       },
 
-      syncCatalog: async (provider?: string): Promise<{ synced: number }> => {
+      syncCatalog: async (provider?: string): Promise<{ synced: number; syncId?: string }> => {
         const headers = await getAuthHeaders();
-        const syncEndpoint = provider === "printful" 
+        const syncEndpoint = provider === "printful"
           ? `${apiBase}/catalog/sync-printful`
-          : `${apiBase}/products/sync`;
+          : `${apiBase}/catalog/sync`;
         const res = await fetch(syncEndpoint, {
           method: "POST",
-          headers,
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ provider }),
         });
         if (!res.ok) throw new Error(`Sync failed: ${res.status}`);
         return res.json();

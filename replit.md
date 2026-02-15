@@ -47,6 +47,7 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Authentication**: Exclusively uses Firebase Authentication.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry, error capture, and an admin debugging console.
 - **NexusMail Email System**: Portable, self-healing, queue-first, idempotent, provider-agnostic email system.
+- **Smart Diff-Based Catalog Sync**: Both Printify and Printful sync operations load existing Firestore data first, compare field-by-field, and only write changed/new records. Tracks added/updated/skipped counts. Endpoint: `/api/admin/catalog/sync` (Printify), `/api/admin/catalog/sync-printful` (Printful). Status polling: `/api/admin/catalog/sync-status`. Frontend: Merged FulfillmentPickerModule handles both provider selection and sync (no separate SyncModule). No auto-sync on provider switch.
 - **Printify Cost Lookup**: Server-side logic (`server/lib/printify-cost-lookup.ts`) to extract per-variant manufacturing costs from Printify.
 - **Pricing Snapshot Architecture**: At packet save time, the server calculates and stores a full pricing breakdown (`printifyCostVariants`, `adminMarginBase`, `memberEarningsRange`) within the packet's `pricingSnapshot`.
 - **Order-Time Cost Tracking**: Actual Printify costs and earnings (`actualPrintifyCost`, `memberEarningsActual`, `adminMarginActual`) are logged on the order item from the packet's `pricingSnapshot`.

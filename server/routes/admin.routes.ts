@@ -1189,9 +1189,8 @@ export function registerAdminRoutes(app: Express): void {
         const startedAt = latestSync.startedAt ? new Date(latestSync.startedAt).getTime() : 0;
         const staleThreshold = 30 * 60 * 1000;
         if (Date.now() - startedAt < staleThreshold) {
-          return res.status(409).json({ error: "Sync already in progress" });
+          return res.status(409).json({ error: "Sync already in progress", syncId: latestSync.id });
         }
-        console.log('[CatalogSync] Clearing stale sync record:', latestSync.id);
         await storage.updateCatalogSync(latestSync.id, {
           status: 'failed',
           errorMessage: 'Timed out - cleared as stale',
@@ -1200,17 +1199,31 @@ export function registerAdminRoutes(app: Express): void {
       }
       
       const syncRecord = await storage.createCatalogSync({
-        syncType: 'full',
+        syncType: 'smart',
         status: 'running',
         blueprintsCount: 0,
         providersCount: 0,
       });
       
-      res.json({ syncId: syncRecord.id, status: 'started' });
+      res.json({ syncId: syncRecord.id, status: 'started', message: 'Smart sync started — only changed items will be updated' });
       
       (async () => {
         try {
-          console.log('[Catalog Sync] Starting full catalog sync...');
+          console.log('[SmartSync] Starting smart catalog sync...');
+          
+          const existingBlueprints = await storage.getPrintifyBlueprints();
+          const existingBpMap = new Map<number, any>();
+          for (const bp of existingBlueprints) {
+            existingBpMap.set(bp.id, bp);
+          }
+          
+          const existingProviders = await storage.getAllPrintifyProviders();
+          const existingProvMap = new Map<string, any>();
+          for (const prov of existingProviders) {
+            existingProvMap.set(`${prov.blueprintId}_${prov.providerId}`, prov);
+          }
+          
+          console.log(`[SmartSync] Loaded ${existingBpMap.size} existing blueprints, ${existingProvMap.size} existing providers from Firestore`);
           
           const allProvidersList = await printify.getAllPrintProviders();
           const providerLocationMap = new Map<number, { country: string; isUSA: boolean }>();
@@ -1221,63 +1234,93 @@ export function registerAdminRoutes(app: Express): void {
               isUSA: country === 'US' || country === 'USA',
             });
           }
-          console.log(`[Catalog Sync] Loaded ${providerLocationMap.size} provider locations (${[...providerLocationMap.values()].filter(v => v.isUSA).length} USA)`);
           
           const blueprints = await printify.getCatalogBlueprints();
-          console.log(`[Catalog Sync] Found ${blueprints.length} blueprints`);
+          console.log(`[SmartSync] Found ${blueprints.length} blueprints from Printify API`);
           
-          let blueprintsCount = 0;
-          let providersCount = 0;
+          let bpAdded = 0, bpUpdated = 0, bpSkipped = 0;
+          let provAdded = 0, provUpdated = 0, provSkipped = 0;
           
           for (const bp of blueprints) {
             try {
-              await storage.upsertPrintifyBlueprint({
-                id: bp.id,
-                title: bp.title,
-                description: bp.description || null,
-                brand: bp.brand || null,
-                model: bp.model || null,
-                images: bp.images || null,
-                primaryImageUrl: bp.images?.[0] || null,
-                category: detectCategory(bp.title, bp.brand || ''),
-              });
-              blueprintsCount++;
+              const existing = existingBpMap.get(bp.id);
+              const newCategory = detectCategory(bp.title, bp.brand || '');
+              const newImageUrl = bp.images?.[0] || null;
+              
+              const changed = !existing ||
+                existing.title !== bp.title ||
+                existing.brand !== (bp.brand || null) ||
+                existing.model !== (bp.model || null) ||
+                existing.primaryImageUrl !== newImageUrl ||
+                existing.category !== newCategory;
+              
+              if (changed) {
+                await storage.upsertPrintifyBlueprint({
+                  id: bp.id,
+                  title: bp.title,
+                  description: bp.description || null,
+                  brand: bp.brand || null,
+                  model: bp.model || null,
+                  images: bp.images || null,
+                  primaryImageUrl: newImageUrl,
+                  category: newCategory,
+                });
+                if (existing) { bpUpdated++; } else { bpAdded++; }
+              } else {
+                bpSkipped++;
+              }
               
               const providers = await printify.getPrintProviders(bp.id);
-              
               for (const provider of providers) {
                 const loc = providerLocationMap.get(provider.id);
                 const country = loc?.country || null;
                 const isUSA = loc?.isUSA || false;
+                const key = `${bp.id}_${provider.id}`;
+                const existingProv = existingProvMap.get(key);
                 
-                await storage.upsertPrintifyPrintProvider({
-                  blueprintId: bp.id,
-                  providerId: provider.id,
-                  title: provider.title,
-                  country,
-                  isUSA,
-                });
-                providersCount++;
+                const provChanged = !existingProv ||
+                  existingProv.title !== provider.title ||
+                  existingProv.country !== country ||
+                  existingProv.isUSA !== isUSA;
+                
+                if (provChanged) {
+                  await storage.upsertPrintifyPrintProvider({
+                    blueprintId: bp.id,
+                    providerId: provider.id,
+                    title: provider.title,
+                    country,
+                    isUSA,
+                  });
+                  if (existingProv) { provUpdated++; } else { provAdded++; }
+                } else {
+                  provSkipped++;
+                }
               }
               
               await new Promise(r => setTimeout(r, 100));
               
             } catch (bpError: any) {
-              console.error(`[Catalog Sync] Error syncing blueprint ${bp.id}:`, bpError.message);
+              console.error(`[SmartSync] Error syncing blueprint ${bp.id}:`, bpError.message);
             }
           }
           
+          const summary = {
+            blueprints: { added: bpAdded, updated: bpUpdated, skipped: bpSkipped, total: blueprints.length },
+            providers: { added: provAdded, updated: provUpdated, skipped: provSkipped },
+          };
+          
           await storage.updateCatalogSync(syncRecord.id, {
             status: 'completed',
-            blueprintsCount,
-            providersCount,
+            blueprintsCount: bpAdded + bpUpdated,
+            providersCount: provAdded + provUpdated,
             completedAt: new Date(),
+            errorMessage: JSON.stringify(summary),
           });
           
-          console.log(`[Catalog Sync] Completed. ${blueprintsCount} blueprints, ${providersCount} providers`);
+          console.log(`[SmartSync] Done.`, JSON.stringify(summary));
           
         } catch (error: any) {
-          console.error('[Catalog Sync] Error:', error.message);
+          console.error('[SmartSync] Error:', error.message);
           await storage.updateCatalogSync(syncRecord.id, {
             status: 'failed',
             errorMessage: error.message,
@@ -1291,7 +1334,31 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
-  // Clear local catalog (for testing/reset)
+  app.get("/api/admin/catalog/sync-status", isAdmin, async (req: any, res) => {
+    try {
+      const syncId = req.query.syncId;
+      if (syncId) {
+        const syncs = await storage.getCatalogSyncHistory();
+        const sync = syncs.find((s: any) => s.id === syncId);
+        if (!sync) return res.status(404).json({ error: "Sync not found" });
+        let summary = null;
+        if (sync.status === 'completed' && sync.errorMessage) {
+          try { summary = JSON.parse(sync.errorMessage); } catch {}
+        }
+        return res.json({ ...sync, summary });
+      }
+      const latest = await storage.getLatestCatalogSync();
+      if (!latest) return res.json({ status: 'none', message: 'No sync has been run yet' });
+      let summary = null;
+      if (latest.status === 'completed' && latest.errorMessage) {
+        try { summary = JSON.parse(latest.errorMessage); } catch {}
+      }
+      res.json({ ...latest, summary });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/admin/catalog/clear", isAdmin, async (req: any, res) => {
     try {
       await storage.clearPrintifyPrintProviders();
@@ -1744,22 +1811,34 @@ export function registerAdminRoutes(app: Express): void {
 
   app.post("/api/admin/products/sync", isAdmin, async (req: any, res) => {
     try {
-      console.log('[AdminProducts] Sync requested');
-      const { printify } = await import("../lib/printify");
-      const { detectCategory } = await import("../lib/printify");
-
+      const provider = req.query?.provider || req.body?.provider || 'printify';
+      
+      if (provider === 'printful') {
+        const { syncPrintfulCatalog, printfulClient } = await import("../lib/printful");
+        if (!printfulClient.isConfigured) {
+          return res.status(503).json({ error: "Printful API key not configured" });
+        }
+        res.json({ status: 'started', message: 'Printful smart sync started in background' });
+        try {
+          const result = await syncPrintfulCatalog();
+          console.log('[ProductsSync] Printful sync complete:', result);
+        } catch (e: any) {
+          console.error('[ProductsSync] Printful sync error:', e.message);
+        }
+        return;
+      }
+      
       if (!printify) {
         return res.status(503).json({ error: "Printify API not configured" });
       }
-
+      
       const latestSync = await storage.getLatestCatalogSync();
       if (latestSync?.status === 'running') {
         const startedAt = latestSync.startedAt ? new Date(latestSync.startedAt).getTime() : 0;
         const staleThreshold = 30 * 60 * 1000;
         if (Date.now() - startedAt < staleThreshold) {
-          return res.status(409).json({ error: "Sync already in progress" });
+          return res.status(409).json({ error: "Sync already in progress", syncId: latestSync.id });
         }
-        console.log('[AdminProducts] Clearing stale sync record:', latestSync.id);
         await storage.updateCatalogSync(latestSync.id, {
           status: 'failed',
           errorMessage: 'Timed out - cleared as stale',
@@ -1768,17 +1847,29 @@ export function registerAdminRoutes(app: Express): void {
       }
 
       const syncRecord = await storage.createCatalogSync({
-        syncType: 'full',
+        syncType: 'smart',
         status: 'running',
         blueprintsCount: 0,
         providersCount: 0,
       });
 
-      res.json({ syncId: syncRecord.id, synced: 0, status: 'started', message: "Catalog sync started in background" });
+      res.json({ syncId: syncRecord.id, synced: 0, status: 'started', message: 'Smart sync started — only changed items will be updated' });
 
       (async () => {
         try {
-          console.log('[AdminProducts] Starting full catalog sync...');
+          console.log('[SmartSync] Starting smart catalog sync (products/sync route)...');
+          
+          const existingBlueprints = await storage.getPrintifyBlueprints();
+          const existingBpMap = new Map<number, any>();
+          for (const bp of existingBlueprints) {
+            existingBpMap.set(bp.id, bp);
+          }
+          
+          const existingProviders = await storage.getAllPrintifyProviders();
+          const existingProvMap = new Map<string, any>();
+          for (const prov of existingProviders) {
+            existingProvMap.set(`${prov.blueprintId}_${prov.providerId}`, prov);
+          }
           
           const allProvidersList = await printify.getAllPrintProviders();
           const providerLocationMap = new Map<number, { country: string; isUSA: boolean }>();
@@ -1789,59 +1880,90 @@ export function registerAdminRoutes(app: Express): void {
               isUSA: country === 'US' || country === 'USA',
             });
           }
-          console.log(`[AdminProducts] Loaded ${providerLocationMap.size} provider locations (${[...providerLocationMap.values()].filter(v => v.isUSA).length} USA)`);
           
           const blueprints = await printify.getCatalogBlueprints();
-          console.log(`[AdminProducts] Found ${blueprints.length} blueprints`);
-
-          let blueprintsCount = 0;
-          let providersCount = 0;
+          
+          let bpAdded = 0, bpUpdated = 0, bpSkipped = 0;
+          let provAdded = 0, provUpdated = 0, provSkipped = 0;
 
           for (const bp of blueprints) {
             try {
-              await storage.upsertPrintifyBlueprint({
-                id: bp.id,
-                title: bp.title,
-                description: bp.description || null,
-                brand: bp.brand || null,
-                model: bp.model || null,
-                images: bp.images || null,
-                primaryImageUrl: bp.images?.[0] || null,
-                category: detectCategory(bp.title, bp.brand || ''),
-              });
-              blueprintsCount++;
+              const existing = existingBpMap.get(bp.id);
+              const newCategory = detectCategory(bp.title, bp.brand || '');
+              const newImageUrl = bp.images?.[0] || null;
+              
+              const changed = !existing ||
+                existing.title !== bp.title ||
+                existing.brand !== (bp.brand || null) ||
+                existing.model !== (bp.model || null) ||
+                existing.primaryImageUrl !== newImageUrl ||
+                existing.category !== newCategory;
+              
+              if (changed) {
+                await storage.upsertPrintifyBlueprint({
+                  id: bp.id,
+                  title: bp.title,
+                  description: bp.description || null,
+                  brand: bp.brand || null,
+                  model: bp.model || null,
+                  images: bp.images || null,
+                  primaryImageUrl: newImageUrl,
+                  category: newCategory,
+                });
+                if (existing) { bpUpdated++; } else { bpAdded++; }
+              } else {
+                bpSkipped++;
+              }
 
               const providers = await printify.getPrintProviders(bp.id);
               for (const provider of providers) {
                 const loc = providerLocationMap.get(provider.id);
                 const country = loc?.country || null;
                 const isUSA = loc?.isUSA || false;
-                await storage.upsertPrintifyPrintProvider({
-                  blueprintId: bp.id,
-                  providerId: provider.id,
-                  title: provider.title,
-                  country,
-                  isUSA,
-                });
-                providersCount++;
+                const key = `${bp.id}_${provider.id}`;
+                const existingProv = existingProvMap.get(key);
+                
+                const provChanged = !existingProv ||
+                  existingProv.title !== provider.title ||
+                  existingProv.country !== country ||
+                  existingProv.isUSA !== isUSA;
+                
+                if (provChanged) {
+                  await storage.upsertPrintifyPrintProvider({
+                    blueprintId: bp.id,
+                    providerId: provider.id,
+                    title: provider.title,
+                    country,
+                    isUSA,
+                  });
+                  if (existingProv) { provUpdated++; } else { provAdded++; }
+                } else {
+                  provSkipped++;
+                }
               }
 
               await new Promise(r => setTimeout(r, 100));
             } catch (bpError: any) {
-              console.error(`[AdminProducts] Error syncing blueprint ${bp.id}:`, bpError.message);
+              console.error(`[SmartSync] Error syncing blueprint ${bp.id}:`, bpError.message);
             }
           }
 
+          const summary = {
+            blueprints: { added: bpAdded, updated: bpUpdated, skipped: bpSkipped, total: blueprints.length },
+            providers: { added: provAdded, updated: provUpdated, skipped: provSkipped },
+          };
+
           await storage.updateCatalogSync(syncRecord.id, {
             status: 'completed',
-            blueprintsCount,
-            providersCount,
+            blueprintsCount: bpAdded + bpUpdated,
+            providersCount: provAdded + provUpdated,
             completedAt: new Date(),
+            errorMessage: JSON.stringify(summary),
           });
 
-          console.log(`[AdminProducts] Sync completed. ${blueprintsCount} blueprints, ${providersCount} providers`);
+          console.log(`[SmartSync] Done.`, JSON.stringify(summary));
         } catch (bgError: any) {
-          console.error('[AdminProducts] Background sync error:', bgError.message);
+          console.error('[SmartSync] Background sync error:', bgError.message);
           await storage.updateCatalogSync(syncRecord.id, {
             status: 'failed',
             errorMessage: bgError.message,

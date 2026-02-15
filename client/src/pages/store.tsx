@@ -161,7 +161,7 @@ export default function StorePage() {
               </CardContent>
             </Card>
 
-            <ProductsHarness showCatalog showBuilder showSync />
+            <ProductsHarness showCatalog showBuilder />
           </div>
         </main>
         <Footer />

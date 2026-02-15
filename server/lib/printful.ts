@@ -493,14 +493,14 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
   }
 
   try {
-    console.log('[Printful Sync] Starting catalog sync...');
+    console.log('[Printful SmartSync] Starting catalog sync...');
     
     const allProducts = await printfulClient.getProducts();
     const productsToSync = options?.productIds 
       ? allProducts.filter(p => options.productIds!.includes(p.id))
       : allProducts;
     
-    console.log(`[Printful Sync] Found ${productsToSync.length} products to sync`);
+    console.log(`[Printful SmartSync] Found ${productsToSync.length} products to sync`);
 
     for (const product of productsToSync) {
       try {
@@ -514,7 +514,7 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
         } catch (e) {
         }
 
-        const productData = {
+        const productData: Record<string, any> = {
           id: product.id,
           type: product.type,
           typeName: product.type_name,
@@ -536,17 +536,23 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
           lastSyncedAt: new Date(),
         };
 
-        await fsUpsert('printful_products', String(product.id), productData);
-        if (existing) {
-          result.productsUpdated++;
-        } else {
-          result.productsAdded++;
+        const productChanged = !existing ||
+          existing.title !== productData.title ||
+          existing.image !== productData.image ||
+          existing.variantCount !== productData.variantCount ||
+          existing.minPrice !== productData.minPrice ||
+          existing.maxPrice !== productData.maxPrice ||
+          existing.isDiscontinued !== productData.isDiscontinued;
+
+        if (productChanged) {
+          await fsUpsert('printful_products', String(product.id), productData);
+          if (existing) { result.productsUpdated++; } else { result.productsAdded++; }
         }
 
         for (const variant of details.variants) {
           const existingVariant = await fsGet('printful_variants', String(variant.id));
           
-          const variantData = {
+          const variantData: Record<string, any> = {
             id: variant.id,
             productId: product.id,
             name: variant.name,
@@ -561,27 +567,32 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
             lastSyncedAt: new Date(),
           };
 
-          await fsUpsert('printful_variants', String(variant.id), variantData);
-          if (existingVariant) {
-            result.variantsUpdated++;
-          } else {
-            result.variantsAdded++;
+          const variantChanged = !existingVariant ||
+            existingVariant.name !== variantData.name ||
+            existingVariant.price !== variantData.price ||
+            existingVariant.inStock !== variantData.inStock ||
+            existingVariant.color !== variantData.color ||
+            existingVariant.size !== variantData.size;
+
+          if (variantChanged) {
+            await fsUpsert('printful_variants', String(variant.id), variantData);
+            if (existingVariant) { result.variantsUpdated++; } else { result.variantsAdded++; }
           }
         }
 
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (productError: any) {
-        console.error(`[Printful Sync] Error syncing product ${product.id}:`, productError.message);
+        console.error(`[Printful SmartSync] Error syncing product ${product.id}:`, productError.message);
         result.errors.push(`Product ${product.id}: ${productError.message}`);
       }
     }
 
-    console.log(`[Printful Sync] Complete - Products: ${result.productsAdded} added, ${result.productsUpdated} updated`);
-    console.log(`[Printful Sync] Complete - Variants: ${result.variantsAdded} added, ${result.variantsUpdated} updated`);
+    console.log(`[Printful SmartSync] Complete - Products: ${result.productsAdded} added, ${result.productsUpdated} updated`);
+    console.log(`[Printful SmartSync] Complete - Variants: ${result.variantsAdded} added, ${result.variantsUpdated} updated`);
     
   } catch (error: any) {
-    console.error('[Printful Sync] Fatal error:', error.message);
+    console.error('[Printful SmartSync] Fatal error:', error.message);
     result.errors.push(`Fatal error: ${error.message}`);
   }
 

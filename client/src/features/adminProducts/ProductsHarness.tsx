@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ProductsProvider, useProductsContext } from "./ProductsContext";
 import { FulfillmentPickerModule } from "./modules/FulfillmentPickerModule";
 import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
-import { SyncModule } from "./modules/SyncModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 import { CatalogListModule } from "./modules/CatalogListModule";
 import { ProductChooserModule } from "./modules/ProductChooserModule";
@@ -15,7 +14,6 @@ interface ProductsHarnessProps {
   showCatalog?: boolean;
   showChooser?: boolean;
   showBuilder?: boolean;
-  showSync?: boolean;
   onProductSelected?: (productId: string, product: ProductSelectItem) => void;
 }
 
@@ -24,7 +22,6 @@ function ProductsHarnessInner({
   showCatalog = true,
   showChooser = false,
   showBuilder = true,
-  showSync = true,
   onProductSelected,
 }: ProductsHarnessProps) {
   const { 
@@ -74,12 +71,6 @@ function ProductsHarnessInner({
           productCount={productCount}
         />
       </div>
-
-      {showSync && (
-        <div className="glass-card">
-          <SyncModule selectedProviders={selectedProviders} />
-        </div>
-      )}
 
       <StoreChannelDropdownModule />
 
