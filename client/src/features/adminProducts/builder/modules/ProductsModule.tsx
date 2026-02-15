@@ -401,25 +401,63 @@ export function ProductsModule() {
     return items;
   }, [shelf.items, shelfProviderFilter, activeGroupFilter, search]);
 
-  const shelfItemMap = useMemo(() => {
-    const map = new Map<string, ShelfItem>();
-    filteredShelfItems.forEach(item => map.set(String(item.catalogId), item));
-    return map;
-  }, [filteredShelfItems]);
-
-  const shelfScrollItems: ScrollViewItem[] = useMemo(() =>
+  const shelfProducts = useMemo(() =>
     filteredShelfItems.map(item => ({
-      id: String(item.catalogId),
-      imageUrl: item.catalog.imageUrl || "",
-      title: item.catalog.title,
-      subtitle: item.catalog.brand,
-      minPrice: item.catalog.minPrice,
-      maxPrice: item.catalog.maxPrice,
-      colorCount: item.catalog.colorCount,
-      madeInUSA: item.catalog.madeInUSA,
+      ...item.catalog,
+      gender: detectGender(item.catalog.title),
+      _shelfItem: item,
     })),
     [filteredShelfItems]
   );
+
+  const filteredShelfProducts = useMemo(() => {
+    return shelfProducts.filter(p => {
+      const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) ||
+                           (state.originFilter.showOther && !p.madeInUSA);
+      const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
+      return passesOrigin && passesGender;
+    });
+  }, [shelfProducts, state.originFilter, state.genderFilter]);
+
+  const shelfSelectItemMap = useMemo(() => {
+    const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; shelfItem: ShelfItem }>();
+    filteredShelfProducts.forEach(p => {
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p), catalog: p, shelfItem: p._shelfItem });
+    });
+    return map;
+  }, [filteredShelfProducts]);
+
+  const shelfScrollItems: ScrollViewItem[] = useMemo(() =>
+    filteredShelfProducts.map(p => ({
+      id: String(p.id),
+      imageUrl: p.imageUrl || "",
+      title: p.title,
+      subtitle: p.brand,
+      minPrice: p.minPrice,
+      maxPrice: p.maxPrice,
+      colorCount: p.colorCount,
+      madeInUSA: p.madeInUSA,
+      hasMockupMapping: p.hasMockupMapping,
+    })),
+    [filteredShelfProducts]
+  );
+
+  const shelfUsaCount = shelfProducts.filter(p => p.madeInUSA).length;
+  const shelfOtherCount = shelfProducts.filter(p => !p.madeInUSA).length;
+
+  const shelfOriginFiltered = useMemo(() => {
+    return shelfProducts.filter(p =>
+      (state.originFilter.showUSA && p.madeInUSA) ||
+      (state.originFilter.showOther && !p.madeInUSA)
+    );
+  }, [shelfProducts, state.originFilter]);
+
+  const shelfGenderCounts = useMemo(() => ({
+    all: shelfOriginFiltered.length,
+    mens: shelfOriginFiltered.filter(p => p.gender === "mens").length,
+    womens: shelfOriginFiltered.filter(p => p.gender === "womens").length,
+    unisex: shelfOriginFiltered.filter(p => p.gender === "unisex").length,
+  }), [shelfOriginFiltered]);
 
   const renderCatalogCard = useCallback(
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
@@ -460,57 +498,37 @@ export function ProductsModule() {
   );
 
   const handleShelfCardSelect = useCallback((id: string, _item: ProductSelectItem) => {
-    const shelfItem = shelfItemMap.get(id);
-    if (shelfItem) handleShelfSelect(shelfItem);
-  }, [shelfItemMap, handleShelfSelect]);
+    const entry = shelfSelectItemMap.get(id);
+    if (entry) handleShelfSelect(entry.shelfItem);
+  }, [shelfSelectItemMap, handleShelfSelect]);
 
   const renderShelfCard = useCallback(
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
-      const shelfItem = shelfItemMap.get(String(scrollItem.id));
-      if (!shelfItem) return null;
-      const selectItem = catalogToSelectItem(shelfItem.catalog);
-      const isSelected = selectedProductId === String(shelfItem.catalogId);
-
+      const entry = shelfSelectItemMap.get(String(scrollItem.id));
+      if (!entry) return null;
       return (
-        <div className="space-y-1" data-testid={`shelf-item-${shelfItem.catalogId}`}>
+        <div className="space-y-1" data-testid={`shelf-item-${scrollItem.id}`}>
           <ProductSelectCardSkin
-            item={selectItem}
-            isSelected={isSelected}
+            item={entry.selectItem}
+            isSelected={selectedProductId === String(scrollItem.id)}
             onSelect={handleShelfCardSelect}
           />
-          <div className="flex items-center gap-1 text-xs text-muted-foreground px-1 flex-wrap">
-            <Badge variant="outline" className="text-[10px] capitalize">
-              {shelfItem.providerId}
-            </Badge>
-            {(shelfItem.groupIds || []).length > 0 && shelf.groups.length > 0 && (
-              <>
-                {shelfItem.groupIds.map(gid => {
-                  const group = shelf.groups.find(g => g.id === gid);
-                  return group ? (
-                    <Badge key={gid} variant="secondary" className="text-[10px]">
-                      {group.name}
-                    </Badge>
-                  ) : null;
-                })}
-              </>
-            )}
-          </div>
           <Button
-            variant="outline"
+            variant="secondary"
             className="w-full text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              handleRemoveFromShelf(shelfItem);
+              handleRemoveFromShelf(entry.shelfItem);
             }}
             disabled={shelf.removeItem.isPending}
-            data-testid={`button-shelf-remove-${shelfItem.catalogId}`}
+            data-testid={`button-shelf-remove-${scrollItem.id}`}
           >
             <BookmarkMinus className="h-3 w-3 mr-1" /> Remove from Shelf
           </Button>
         </div>
       );
     },
-    [shelfItemMap, selectedProductId, handleShelfCardSelect, handleRemoveFromShelf, shelf]
+    [shelfSelectItemMap, selectedProductId, handleShelfCardSelect, handleRemoveFromShelf, shelf]
   );
 
   return (
@@ -614,13 +632,56 @@ export function ProductsModule() {
             />
           </div>
 
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter className="h-3 w-3 text-muted-foreground" />
+              <Badge
+                variant={locationFilter === "all" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("all")}
+                data-testid="filter-shelf-location-all"
+              >
+                <Globe className="w-3 h-3 mr-1" /> All ({shelfProducts.length})
+              </Badge>
+              <Badge
+                variant={locationFilter === "usa" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("usa")}
+                data-testid="filter-shelf-location-usa"
+              >
+                <Flag className="w-3 h-3 mr-1" /> USA ({shelfUsaCount})
+              </Badge>
+              <Badge
+                variant={locationFilter === "other" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("other")}
+                data-testid="filter-shelf-location-other"
+              >
+                Other ({shelfOtherCount})
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(["all", "mens", "womens", "unisex"] as const).map((g) => (
+                <Badge
+                  key={g}
+                  variant={state.genderFilter === g ? "default" : "outline"}
+                  className="cursor-pointer text-xs capitalize"
+                  onClick={() => setGenderFilter(g)}
+                  data-testid={`filter-shelf-gender-${g}`}
+                >
+                  {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({shelfGenderCounts[g]})
+                </Badge>
+              ))}
+            </div>
+          </div>
+
           {shelf.itemsLoading ? (
             <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
               ))}
             </div>
-          ) : filteredShelfItems.length === 0 ? (
+          ) : filteredShelfProducts.length === 0 ? (
             <div className="p-6 text-center space-y-2 border rounded-md bg-muted/20">
               <Library className="h-8 w-8 mx-auto text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
