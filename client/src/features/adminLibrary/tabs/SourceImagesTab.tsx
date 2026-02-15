@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLibraryContext } from "../LibraryContext";
@@ -66,19 +66,32 @@ export default function SourceImagesTab() {
     }
   };
 
-  const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
-    if (!sourceAsset) return;
-    await api.uploadAsset({
+  const handleCropComplete = useCallback((croppedDataUrl: string) => {
+    if (!assetToCrop) return;
+    const sourceAsset = assetToCrop;
+    setCropDialogOpen(false);
+    setAssetToCrop(null);
+
+    const imageData = croppedDataUrl.includes(',')
+      ? croppedDataUrl.split(',')[1]
+      : croppedDataUrl;
+
+    toast({ title: "Saving cropped image..." });
+    api.uploadAsset({
       name: `cropped_${sourceAsset.name}`,
       assetType: "cropped",
       imageData,
       mimeType: "image/jpeg",
       sourceAssetId: sourceAsset.id,
+    }).then(() => {
+      toast({ title: "Cropped image saved" });
+      api.invalidateAssets("source");
+      api.invalidateAssets("cropped");
+      api.invalidateAssets("background");
+    }).catch((err: Error) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     });
-    api.invalidateAssets("source");
-    api.invalidateAssets("cropped");
-    api.invalidateAssets("background");
-  };
+  }, [assetToCrop, api, toast]);
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
@@ -151,10 +164,11 @@ export default function SourceImagesTab() {
           setCropDialogOpen(open);
           if (!open) setAssetToCrop(null);
         }}
-        onSave={handleSaveCrop}
+        onCropComplete={handleCropComplete}
         fetchImageBlob={api.fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Image"
+        allowCropToggle={false}
       />
     </>
   );
