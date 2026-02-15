@@ -24,18 +24,14 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   }
   
   const user = auth.currentUser;
-  console.log("[Auth Debug] currentUser:", user?.email || "null");
   if (user) {
     try {
       const token = await user.getIdToken();
-      console.log("[Auth Debug] Got token, length:", token.length);
       return { Authorization: `Bearer ${token}` };
-    } catch (err) {
-      console.error("[Auth Debug] Failed to get token:", err);
+    } catch {
       return {};
     }
   }
-  console.log("[Auth Debug] No currentUser, returning empty header");
   return {};
 }
 
