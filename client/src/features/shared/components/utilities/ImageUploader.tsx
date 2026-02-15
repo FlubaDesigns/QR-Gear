@@ -89,23 +89,62 @@ export function ImageUploader({
     }
   };
 
-  const readFileAsBase64 = async (file: File): Promise<{ name: string; base64: string; mimeType: string }> => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = "";
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-        binary += String.fromCharCode(...Array.from(chunk));
-      }
-      const base64 = btoa(binary);
-      console.log("[ImageUploader] Read complete for", file.name, "base64 length:", base64.length);
-      return { name: file.name, base64, mimeType: file.type || "image/png" };
-    } catch (err) {
-      console.error("[ImageUploader] Read error for", file.name, ":", err instanceof Error ? err.message : err);
-      throw new Error(`Could not read ${file.name}. Please try again.`);
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode(...Array.from(chunk));
     }
+    return btoa(binary);
+  };
+
+  const readViaFileReader = (file: File): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const readViaBlobUrl = async (file: File): Promise<ArrayBuffer> => {
+    const url = URL.createObjectURL(file);
+    try {
+      const resp = await fetch(url);
+      return await resp.arrayBuffer();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const readFileAsBase64 = async (file: File): Promise<{ name: string; base64: string; mimeType: string }> => {
+    let arrayBuffer: ArrayBuffer | null = null;
+
+    try {
+      arrayBuffer = await file.arrayBuffer();
+      console.log("[ImageUploader] Read via arrayBuffer() for", file.name);
+    } catch (err1) {
+      console.warn("[ImageUploader] arrayBuffer() failed for", file.name, "trying FileReader...", err1 instanceof Error ? err1.message : err1);
+      try {
+        arrayBuffer = await readViaFileReader(file);
+        console.log("[ImageUploader] Read via FileReader for", file.name);
+      } catch (err2) {
+        console.warn("[ImageUploader] FileReader failed for", file.name, "trying blob URL...", err2 instanceof Error ? err2.message : err2);
+        try {
+          arrayBuffer = await readViaBlobUrl(file);
+          console.log("[ImageUploader] Read via blob URL for", file.name);
+        } catch (err3) {
+          console.error("[ImageUploader] All read methods failed for", file.name, err3 instanceof Error ? err3.message : err3);
+          throw new Error(`Could not read ${file.name}. Please try selecting the file again.`);
+        }
+      }
+    }
+
+    const base64 = arrayBufferToBase64(arrayBuffer);
+    console.log("[ImageUploader] Read complete for", file.name, "base64 length:", base64.length);
+    return { name: file.name, base64, mimeType: file.type || "image/png" };
   };
 
   const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
