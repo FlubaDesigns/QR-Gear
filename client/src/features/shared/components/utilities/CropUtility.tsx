@@ -351,7 +351,6 @@ export function CropUtility({
                       ref={imgRef}
                       src={imageSrc}
                       alt="Crop preview"
-                      crossOrigin="anonymous"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
                       className="max-w-full max-h-[70vh] mx-auto block"
@@ -363,7 +362,6 @@ export function CropUtility({
                     ref={imgRef}
                     src={imageSrc}
                     alt="Full preview"
-                    crossOrigin="anonymous"
                     onLoad={onImageLoad}
                     className="max-w-full max-h-[70vh] mx-auto"
                     data-testid="img-full-preview"
