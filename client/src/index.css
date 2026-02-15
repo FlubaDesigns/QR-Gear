@@ -111,6 +111,32 @@
 /* ========== Glass Cards (QR Gear specific) ========== */
 /* NOTE: .glass and .glass-card are now defined in theme.css with Ghost's premium glassmorphism */
 
+.glass-card {
+  --glass-fore: hsl(var(--foreground));
+  --glass-border: hsl(var(--border));
+}
+
+.glass-card button {
+  color: var(--glass-fore);
+}
+
+.glass-card button[data-variant="ghost"],
+.glass-card button[data-variant="outline"],
+.glass-card button[data-variant="secondary"] {
+  color: var(--glass-fore);
+  border-color: var(--glass-border);
+}
+
+.glass-card button[data-variant="ghost"]:hover,
+.glass-card button[data-variant="outline"]:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.glass-card button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .card {
   padding: 18px;
 }
