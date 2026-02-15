@@ -1,0 +1,595 @@
+/* =========================================================
+   FULL PATCH SET (copy/paste to your AI / apply manually)
+   GOAL:
+   1) Fix vertical viewer so it scrolls INSIDE a viewport (2-up feel)
+   2) Improve Product chooser card readability
+   3) Fix rounded top border clipping on the card
+   4) Tap image -> larger modal preview with more info (build out)
+
+   INCLUDED FILES:
+   A) client/src/features/shared/components/views/ScrollView.tsx
+   B) client/src/features/adminProducts/modules/ProductChooserModule.tsx  (small tweak: gridHeight tuned + optional)
+   C) client/src/features/shared/components/skins/ProductSelectCardSkin.tsx
+
+   NOTE:
+   - This does NOT implement a “disable product” toggle (needs product write API/storage).
+   ========================================================= */
+
+
+/* =========================================================
+   A) FILE: client/src/features/shared/components/views/ScrollView.tsx
+   PATCH: Make layout="vertical" honor gridHeight and scroll in a viewport.
+   ACTION: Edit ONLY the vertical layout branch inside the component.
+   ========================================================= */
+
+// Locate the existing block:
+//   if (layout === "vertical") { ... }
+// Replace that entire block with the code below:
+
+if (layout === "vertical") {
+  return (
+    <div className="relative">
+      {/* KEY FIX: vertical mode must scroll inside a constrained viewport */}
+      <ScrollArea style={{ height: gridHeight }} type="scroll" className="w-full">
+        <div className="grid grid-cols-1 gap-4 py-2 px-1">
+          {items.map((item) => {
+            const isSelected = selectedId === item.id;
+
+            // This wrapper prevents cards getting too wide/tall on desktop,
+            // which helps keep 2 cards visible vertically on most screens.
+            const wrap = (node: React.ReactNode) => (
+              <div className="max-w-[420px] mx-auto w-full">{node}</div>
+            );
+
+            if (customRenderItem) {
+              return (
+                <div key={item.id}>
+                  {wrap(customRenderItem(item, isSelected, () => onSelect?.(item)))}
+                </div>
+              );
+            }
+
+            const priceRange =
+              item.minPrice && item.maxPrice
+                ? { min: parseFloat(item.minPrice), max: parseFloat(item.maxPrice) }
+                : item.minPrice
+                ? { min: parseFloat(item.minPrice), max: parseFloat(item.minPrice) }
+                : undefined;
+
+            return (
+              <div key={item.id}>
+                {wrap(
+                  <ProductSkin
+                    id={item.id}
+                    title={item.title}
+                    brand={item.subtitle}
+                    image={item.imageUrl}
+                    priceRange={priceRange}
+                    madeInUSA={item.madeInUSA}
+                    colors={item.colorCount}
+                    sizes={item.sizes}
+                    description={item.description}
+                    onClick={() => onSelect?.(item)}
+                    className={isSelected ? "ring-2 ring-primary ring-offset-2" : ""}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
+
+      {/* Keep or remove footer – leaving it keeps parity with prior behavior */}
+      <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+        {items.length} products available
+      </p>
+    </div>
+  );
+}
+
+
+/* =========================================================
+   B) FILE: client/src/features/adminProducts/modules/ProductChooserModule.tsx
+   PATCH: Tighten viewport height to better support “2 cards visible”
+   ACTION: Change ONLY the gridHeight passed into SharedViewer scrollProps.
+
+   WHY:
+   - With the viewport fix above, this now actually matters.
+   - Tune as needed. This value is a starting point that tends to
+     show ~2 cards on mobile once card image height is capped.
+   ========================================================= */
+
+// Find the SharedViewer call that looks like:
+<SharedViewer
+  mode="scroll"
+  scrollProps={{
+    items: scrollViewItems,
+    selectedId: selectedId,
+    layout: "vertical",
+    gridHeight: "calc(100vh - 160px)",
+    emptyMessage: "No products match your filters",
+    renderItem: renderCard,
+  }}
+/>
+
+// Replace ONLY the gridHeight line with:
+gridHeight: "calc(100vh - 220px)",
+
+// (If your header/filter stack is taller, push it more: -240px / -260px.
+//  If it’s too short and clips, reduce subtraction.)
+
+
+/* =========================================================
+   C) FILE: client/src/features/shared/components/skins/ProductSelectCardSkin.tsx
+   PATCH: Full replace – readability, rounded clipping fix, image-tap preview modal.
+   ACTION: REPLACE THE ENTIRE FILE with the content below.
+   ========================================================= */
+
+import { useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import UsaFlag from "@/components/UsaFlag";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Factory,
+  Package,
+  Palette,
+  Ruler,
+  X,
+  Info,
+  Eye,
+} from "lucide-react";
+
+export interface ProductSelectItem {
+  id: string;
+  name: string;
+  price: number | null;
+  cost: number | null;
+  manufacturer: string | null;
+  madeInUSA: boolean;
+  primaryImageUrl: string | null;
+  description: string | null;
+  colorsAvailable: Array<{ name: string; hex?: string }>;
+  sizesAvailable: string[];
+  defaultColor: string | null;
+}
+
+export interface ProductSelectCardSkinProps {
+  item: ProductSelectItem;
+  isSelected: boolean;
+  onSelect: (id: string, item: ProductSelectItem) => void;
+}
+
+function PreviewModal({
+  item,
+  open,
+  onOpenChange,
+  onSelect,
+  defaultColorEntry,
+}: {
+  item: ProductSelectItem;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: () => void;
+  defaultColorEntry: { name: string; hex?: string } | null;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-w-lg w-[95vw] max-h-[90vh] p-0 overflow-hidden"
+        data-testid={`modal-preview-${item.id}`}
+      >
+        <VisuallyHidden>
+          <DialogTitle>{item.name}</DialogTitle>
+        </VisuallyHidden>
+
+        <ScrollArea className="max-h-[90vh]">
+          <div className="relative">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="absolute top-2 right-2 z-10 bg-black/40 text-white hover:bg-black/50"
+              onClick={() => onOpenChange(false)}
+              data-testid={`button-close-preview-${item.id}`}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+
+            <div className="relative aspect-square bg-muted flex items-center justify-center p-3">
+              {item.primaryImageUrl ? (
+                <img
+                  src={item.primaryImageUrl}
+                  alt={item.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-contain"
+                  data-testid={`img-preview-large-${item.id}`}
+                />
+              ) : (
+                <Package className="h-24 w-24 text-muted-foreground" />
+              )}
+
+              {item.madeInUSA && (
+                <div className="absolute top-3 left-3">
+                  <Badge
+                    variant="secondary"
+                    className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm"
+                  >
+                    <UsaFlag className="w-3 h-2" /> USA
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className="space-y-2">
+                <h3
+                  className="font-semibold text-lg leading-tight"
+                  data-testid={`text-preview-name-${item.id}`}
+                >
+                  {item.name}
+                </h3>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {item.price != null && (
+                    <span className="text-xl font-bold">
+                      ${item.price.toFixed(2)}
+                    </span>
+                  )}
+                  {defaultColorEntry && (
+                    <span className="text-sm text-muted-foreground flex items-center gap-2">
+                      <span className="text-muted-foreground">•</span>
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="inline-block w-3 h-3 rounded-full border border-border"
+                          style={{
+                            backgroundColor: defaultColorEntry.hex || "#888",
+                          }}
+                        />
+                        <span>{defaultColorEntry.name}</span>
+                      </span>
+                    </span>
+                  )}
+                </div>
+
+                {(item.manufacturer || item.cost != null) && (
+                  <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
+                    {item.manufacturer && (
+                      <span className="flex items-center gap-1.5">
+                        <Factory className="w-4 h-4" />
+                        <span>{item.manufacturer}</span>
+                      </span>
+                    )}
+                    {item.cost != null && (
+                      <span className="text-muted-foreground">
+                        {item.manufacturer && <span className="mx-1">•</span>}
+                        Cost: ${item.cost.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {item.description && (
+                  <p className="text-sm text-muted-foreground">
+                    {item.description}
+                  </p>
+                )}
+              </div>
+
+              {(item.colorsAvailable.length > 0 ||
+                item.sizesAvailable.length > 0) && (
+                <div className="space-y-3">
+                  {item.colorsAvailable.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Palette className="w-3.5 h-3.5" />
+                        <span>{item.colorsAvailable.length} colors</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {item.colorsAvailable.map((c, i) => (
+                          <div
+                            key={i}
+                            className="w-5 h-5 rounded-full border border-border"
+                            style={{ backgroundColor: c.hex || "#888" }}
+                            title={c.name}
+                            data-testid={`preview-swatch-${item.id}-${i}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {item.sizesAvailable.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Ruler className="w-3.5 h-3.5" />
+                        <span>{item.sizesAvailable.length} sizes</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {item.sizesAvailable.map((s, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {s}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <Button
+                className="w-full min-h-12 text-base"
+                onClick={() => {
+                  onSelect();
+                  onOpenChange(false);
+                }}
+                data-testid={`button-modal-select-${item.id}`}
+              >
+                Select This Product
+              </Button>
+
+              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                <Info className="w-3.5 h-3.5" />
+                Tip: preview holds the “big info” so chooser cards stay clean.
+              </p>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ProductSelectCardSkin({
+  item,
+  isSelected,
+  onSelect,
+}: ProductSelectCardSkinProps) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const defaultColorEntry = useMemo(() => {
+    if (item.defaultColor) {
+      return (
+        item.colorsAvailable.find(
+          (c) => c.name.toLowerCase() === item.defaultColor!.toLowerCase()
+        ) || null
+      );
+    }
+    return item.colorsAvailable[0] || null;
+  }, [item.colorsAvailable, item.defaultColor]);
+
+  const hasExtraDetails =
+    !!item.description ||
+    item.colorsAvailable.length > 0 ||
+    item.sizesAvailable.length > 0 ||
+    item.cost != null;
+
+  return (
+    <>
+      <Card
+        /* FIX: ensures top rounding doesn’t appear clipped and children respect rounding */
+        className={`overflow-hidden transition-all ${
+          isSelected ? "ring-2 ring-primary ring-offset-2" : ""
+        }`}
+        data-testid={`select-card-${item.id}`}
+      >
+        {/* IMAGE / PREVIEW TAP AREA */}
+        <div
+          className="relative w-full aspect-square max-h-[180px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
+          onClick={() => setPreviewOpen(true)}
+          data-testid={`img-tap-${item.id}`}
+        >
+          {/* Strong selection indicator while scrolling */}
+          {isSelected && (
+            <div className="absolute top-0 left-0 right-0 z-10 bg-primary text-primary-foreground text-[11px] font-semibold text-center py-1">
+              SELECTED
+            </div>
+          )}
+
+          {item.primaryImageUrl ? (
+            <img
+              src={item.primaryImageUrl}
+              alt={item.name}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-contain p-3"
+              data-testid={`img-product-${item.id}`}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <Package className="h-12 w-12" />
+            </div>
+          )}
+
+          {item.madeInUSA && (
+            <div className="absolute top-2 right-2">
+              <Badge
+                variant="secondary"
+                className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm"
+              >
+                <UsaFlag className="w-3 h-2" />
+                USA
+              </Badge>
+            </div>
+          )}
+
+          {/* Affordance: shows the image is tappable */}
+          <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-[11px] text-muted-foreground">
+            <Eye className="w-3.5 h-3.5" />
+            Tap to preview
+          </div>
+        </div>
+
+        {/* CONTENT */}
+        <CardContent className="p-4 space-y-3">
+          {/* Name (primary) */}
+          <h3
+            className="font-semibold text-base leading-snug line-clamp-2"
+            data-testid={`text-name-${item.id}`}
+          >
+            {item.name}
+          </h3>
+
+          {/* Price (primary) */}
+          <div className="flex items-baseline gap-2 flex-wrap">
+            {item.price != null && (
+              <span
+                className="text-base font-bold"
+                data-testid={`text-price-${item.id}`}
+              >
+                ${item.price.toFixed(2)}
+              </span>
+            )}
+          </div>
+
+          {/* Secondary row: default color + manufacturer (muted) */}
+          <div className="text-xs text-muted-foreground flex flex-wrap gap-2 items-center">
+            {defaultColorEntry && (
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
+                  style={{ backgroundColor: defaultColorEntry.hex || "#888" }}
+                />
+                <span className="truncate max-w-[140px]">
+                  {defaultColorEntry.name}
+                </span>
+              </span>
+            )}
+            {item.manufacturer && (
+              <span className="flex items-center gap-1.5">
+                {defaultColorEntry && <span className="opacity-60">•</span>}
+                <Factory className="w-3.5 h-3.5" />
+                <span className="truncate max-w-[160px]">
+                  {item.manufacturer}
+                </span>
+              </span>
+            )}
+          </div>
+
+          {/* Compact “More info” toggle (only if there is extra info) */}
+          {hasExtraDetails && (
+            <button
+              className="flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors w-full pt-1"
+              onClick={() => setDetailsOpen(!detailsOpen)}
+              data-testid={`toggle-details-${item.id}`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5" />
+                More info
+              </span>
+              {detailsOpen ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
+
+          {detailsOpen && hasExtraDetails && (
+            <div
+              className="space-y-2 pt-3 border-t"
+              data-testid={`details-panel-${item.id}`}
+            >
+              {item.description && (
+                <p className="text-xs text-muted-foreground line-clamp-3">
+                  {item.description}
+                </p>
+              )}
+
+              {/* COST moved into details for readability */}
+              {item.cost != null && (
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-medium">Cost:</span>{" "}
+                  ${item.cost.toFixed(2)}
+                </div>
+              )}
+
+              {item.colorsAvailable.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Palette className="w-3 h-3" /> Colors (
+                    {item.colorsAvailable.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {item.colorsAvailable.slice(0, 12).map((c, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-1 py-0.5"
+                        data-testid={`detail-color-${item.id}-${i}`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
+                          style={{ backgroundColor: c.hex || "#888" }}
+                        />
+                        <span className="truncate max-w-[70px]">{c.name}</span>
+                      </div>
+                    ))}
+                    {item.colorsAvailable.length > 12 && (
+                      <Badge variant="outline" className="text-[10px]">
+                        +{item.colorsAvailable.length - 12} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {item.sizesAvailable.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                    <Ruler className="w-3 h-3" /> Sizes ({item.sizesAvailable.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {item.sizesAvailable.map((s, i) => (
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="text-[10px]"
+                        data-testid={`detail-size-${item.id}-${i}`}
+                      >
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Select */}
+          <Button
+            variant={isSelected ? "secondary" : "default"}
+            className="w-full min-h-11 text-sm"
+            onClick={() => onSelect(item.id, item)}
+            data-testid={`button-select-${item.id}`}
+          >
+            {isSelected ? (
+              <>
+                <Check className="w-4 h-4 mr-1.5" />
+                Selected
+              </>
+            ) : (
+              "Select Product"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Tap image => larger modal w/ more info */}
+      <PreviewModal
+        item={item}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        onSelect={() => onSelect(item.id, item)}
+        defaultColorEntry={defaultColorEntry}
+      />
+    </>
+  );
+}
