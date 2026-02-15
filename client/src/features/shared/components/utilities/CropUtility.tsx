@@ -85,20 +85,27 @@ export function CropUtility({
     setCrop(undefined);
     setImageSrc(null);
     setImageLoading(true);
-    try {
-      if (fetchImageBlob) {
-        const blobUrl = await fetchImageBlob(assetToLoad.imageUrl);
-        setImageSrc(blobUrl);
-      } else {
-        setImageSrc(assetToLoad.imageUrl);
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        if (fetchImageBlob) {
+          const blobUrl = await fetchImageBlob(assetToLoad.imageUrl);
+          setImageSrc(blobUrl);
+        } else {
+          setImageSrc(assetToLoad.imageUrl);
+        }
+        setImageLoading(false);
+        return;
+      } catch (err) {
+        console.error(`[CropUtility] Failed to load image (attempt ${attempt + 1}/${maxRetries}):`, err);
+        if (attempt < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
       }
-    } catch (err) {
-      console.error("[CropUtility] Failed to load image:", err);
-      toast({ title: "Failed to load image", variant: "destructive" });
-      onOpenChange(false);
-    } finally {
-      setImageLoading(false);
     }
+    setImageLoading(false);
+    toast({ title: "Failed to load image", variant: "destructive" });
+    onOpenChange(false);
   }, [fetchImageBlob, toast, onOpenChange]);
 
   useEffect(() => {
@@ -344,6 +351,7 @@ export function CropUtility({
                       ref={imgRef}
                       src={imageSrc}
                       alt="Crop preview"
+                      crossOrigin="anonymous"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
                       className="max-w-full max-h-[70vh] mx-auto block"
@@ -355,6 +363,7 @@ export function CropUtility({
                     ref={imgRef}
                     src={imageSrc}
                     alt="Full preview"
+                    crossOrigin="anonymous"
                     onLoad={onImageLoad}
                     className="max-w-full max-h-[70vh] mx-auto"
                     data-testid="img-full-preview"

@@ -19,6 +19,7 @@ export function registerLibraryFileRoutes(app: Express): void {
 
   app.get("/api/library-files/:file", async (req: any, res) => {
     try {
+      res.setHeader("Access-Control-Allow-Origin", "*");
       const file = String(req.params.file || "").trim();
       if (!file) return res.status(400).json({ error: "Missing filename" });
 
@@ -112,6 +113,7 @@ async function streamFromStorage(req: any, res: any, storagePath: string) {
   const contentType = metadata.contentType || "application/octet-stream";
   const fileSize = parseInt(metadata.size as string, 10);
 
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Accept-Ranges", "bytes");
   res.setHeader("Cache-Control", "public, max-age=31536000");
 
