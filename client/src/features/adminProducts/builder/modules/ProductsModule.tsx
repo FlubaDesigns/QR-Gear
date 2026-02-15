@@ -291,6 +291,7 @@ export function ProductsModule() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("shelf");
   const [activeGroupFilter, setActiveGroupFilter] = useState<string | null>(null);
+  const [shelfProviderFilter, setShelfProviderFilter] = useState<"all" | "printify" | "printful">("all");
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [shelfActionId, setShelfActionId] = useState<string | null>(null);
 
@@ -481,6 +482,9 @@ export function ProductsModule() {
 
   const filteredShelfItems = useMemo(() => {
     let items = shelf.items;
+    if (shelfProviderFilter !== "all") {
+      items = items.filter(item => item.providerId === shelfProviderFilter);
+    }
     if (activeGroupFilter) {
       items = items.filter(item => (item.groupIds || []).includes(activeGroupFilter));
     }
@@ -490,7 +494,7 @@ export function ProductsModule() {
       );
     }
     return items;
-  }, [shelf.items, activeGroupFilter, search]);
+  }, [shelf.items, shelfProviderFilter, activeGroupFilter, search]);
 
   const renderCatalogCard = useCallback(
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
@@ -658,6 +662,26 @@ export function ProductsModule() {
             >
               <Pencil className="h-3 w-3 mr-1" /> Manage
             </Button>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">Provider:</span>
+            {(["all", "printify", "printful"] as const).map((pv) => {
+              const count = pv === "all"
+                ? shelf.items.length
+                : shelf.items.filter(i => i.providerId === pv).length;
+              return (
+                <Badge
+                  key={pv}
+                  variant={shelfProviderFilter === pv ? "default" : "outline"}
+                  className="cursor-pointer text-xs capitalize"
+                  onClick={() => setShelfProviderFilter(pv)}
+                  data-testid={`filter-shelf-provider-${pv}`}
+                >
+                  {pv === "all" ? "All" : pv} ({count})
+                </Badge>
+              );
+            })}
           </div>
 
           {showGroupManager && <GroupManager onClose={() => setShowGroupManager(false)} />}
