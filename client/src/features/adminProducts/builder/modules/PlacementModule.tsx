@@ -1,8 +1,8 @@
-import { MapPin, Check, QrCode, Image, Palette, AlertCircle } from "lucide-react";
+import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { getPlacementsForCategory, QR_ONLY_PLACEMENTS, type PlacementSize, type ProductColor } from "../types";
+import { QR_ONLY_PLACEMENTS, type PlacementSize, type ProductColor } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "small", label: "S" },
@@ -17,21 +17,17 @@ export function PlacementModule() {
     return null;
   }
 
-  const category = state.category;
-  
-  // Use actual product placements from API if available, otherwise fall back to category-based
   const productPlacements = state.selectedProduct.placements;
   const hasApiPlacements = productPlacements && productPlacements.length > 0;
+  const isLoading = state.placementsLoading;
   
-  // When we have API placements, use them directly (no mapping needed)
-  // The API already provides: id, type, title, additionalPrice
   const placementOptions = hasApiPlacements
     ? productPlacements.map(p => ({
         id: p.id || p.type,
         label: p.title || p.id?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         additionalPrice: p.additionalPrice || 0,
       }))
-    : getPlacementsForCategory(category);
+    : [];
   
   const selectedPlacements = state.selectedPlacements || [];
   const placementConfig = state.placementConfig || {};
@@ -100,17 +96,24 @@ export function PlacementModule() {
           }
         </p>
         
-        {hasApiPlacements && (
-          <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-            <Check className="h-3 w-3" />
-            <span>Placements from {state.selectedProduct.fulfillmentProvider || 'provider'} catalog</span>
+        {isLoading && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            <span>Loading placements from {state.selectedProduct.fulfillmentProvider || 'provider'}...</span>
           </div>
         )}
         
-        {!hasApiPlacements && (
+        {!isLoading && hasApiPlacements && (
+          <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+            <Check className="h-3 w-3" />
+            <span>{placementOptions.length} placement{placementOptions.length !== 1 ? 's' : ''} from {state.selectedProduct.fulfillmentProvider || 'provider'}</span>
+          </div>
+        )}
+        
+        {!isLoading && !hasApiPlacements && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
             <AlertCircle className="h-3 w-3" />
-            <span>Using default placements for {category || 'this category'}</span>
+            <span>No placements found from printer — this product may not support custom printing</span>
           </div>
         )}
         

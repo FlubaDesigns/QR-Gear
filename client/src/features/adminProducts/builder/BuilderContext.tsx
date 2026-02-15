@@ -89,7 +89,8 @@ const initialState: BuilderState = {
       color: "#FFFFFF",
     },
   },
-  selectedPlacements: [],  // No default - placements selected after product is chosen
+  placementsLoading: false,
+  selectedPlacements: [],
   placementConfig: {},
   placementSizes: {},
 };
@@ -185,10 +186,53 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
-    setState(prev => ({
-      ...prev,
-      selectedProduct: product,
-    }));
+    if (!product) {
+      setState(prev => ({ ...prev, selectedProduct: null, placementsLoading: false }));
+      return;
+    }
+
+    if (product.placements && product.placements.length > 0) {
+      setState(prev => ({ ...prev, selectedProduct: product, placementsLoading: false }));
+      return;
+    }
+
+    setState(prev => ({ ...prev, selectedProduct: product, placementsLoading: true }));
+
+    const provider = product.fulfillmentProvider || 'printify';
+    const params = new URLSearchParams({ provider });
+    if (provider === 'printify') {
+      if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
+      if (product.printProviderId) params.set('printProviderId', String(product.printProviderId));
+    } else {
+      params.set('productId', String(product.id));
+    }
+
+    fetch(`/api/admin/catalog/placements?${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.placements && data.placements.length > 0) {
+          setState(prev => {
+            if (prev.selectedProduct?.id !== product.id) return prev;
+            return {
+              ...prev,
+              selectedProduct: { ...prev.selectedProduct!, placements: data.placements },
+              placementsLoading: false,
+            };
+          });
+        } else {
+          setState(prev => {
+            if (prev.selectedProduct?.id !== product.id) return prev;
+            return { ...prev, placementsLoading: false };
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch placements:', err);
+        setState(prev => {
+          if (prev.selectedProduct?.id !== product.id) return prev;
+          return { ...prev, placementsLoading: false };
+        });
+      });
   }, []);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {

@@ -939,6 +939,55 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/admin/catalog/placements", isAdmin, async (req: any, res) => {
+    try {
+      const provider = req.query.provider as string;
+      const blueprintId = req.query.blueprintId ? parseInt(req.query.blueprintId as string) : null;
+      const printProviderId = req.query.printProviderId ? parseInt(req.query.printProviderId as string) : null;
+      const productId = req.query.productId ? parseInt(req.query.productId as string) : null;
+
+      if (provider === 'printify') {
+        if (!blueprintId || !printProviderId) {
+          return res.status(400).json({ error: "blueprintId and printProviderId required for Printify" });
+        }
+        if (!printify) {
+          return res.status(503).json({ error: "Printify API not configured" });
+        }
+        const { placements } = await syncProductPlacements(blueprintId, printProviderId);
+        const mapped = placements.map(p => ({
+          id: p.position,
+          type: p.position,
+          title: p.label,
+          additionalPrice: 0,
+        }));
+        return res.json({ placements: mapped, source: 'printify-api' });
+      }
+
+      if (provider === 'printful') {
+        if (!productId) {
+          return res.status(400).json({ error: "productId required for Printful" });
+        }
+        const { printfulClient } = await import('../lib/printful');
+        const printfileInfo = await printfulClient.getPrintfiles(productId);
+        const availPlacements = printfileInfo?.available_placements
+          ? Object.keys(printfileInfo.available_placements)
+          : [];
+        const mapped = availPlacements.map((pid: string) => ({
+          id: pid,
+          type: pid,
+          title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          additionalPrice: 0,
+        }));
+        return res.json({ placements: mapped, source: 'printful-api' });
+      }
+
+      return res.status(400).json({ error: "provider must be 'printify' or 'printful'" });
+    } catch (error: any) {
+      console.error("Placement fetch error:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Batch fetch blueprint details (for efficient loading)
   app.post("/api/admin/printify/catalog/batch-details", isAdmin, async (req: any, res) => {
     try {
