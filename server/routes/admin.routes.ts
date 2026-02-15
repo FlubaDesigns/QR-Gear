@@ -4,7 +4,7 @@ import { isAdmin } from "../firebaseAuth";
 import { isAuthenticated } from "../firebaseAuth";
 import { z } from "zod";
 import { insertPricingRuleSchema, insertAdminSettingsSchema, insertProductSchema } from "@shared/schema";
-import { fsGetAll, fsCount } from "../lib/firestore-crud";
+import { fsGetAll, fsCount, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/firestore-crud";
 import { printify, syncProductPlacements, syncProductVariants, detectCategory } from "../lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "../lib/printify-cost-sync";
 import { checkProviderHealth, autoSyncVariantsFromLocalCatalog } from "./route-helpers";
@@ -3320,6 +3320,164 @@ export function registerAdminRoutes(app: Express): void {
       res.json({ success: true, created, total: defaults.length });
     } catch (error: any) {
       console.error("[NexusMail] Seed templates error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =========================================================
+  // BUILD SHELF — Admin curated catalog picks
+  // =========================================================
+
+  // --- Shelf Groups CRUD ---
+
+  app.get("/api/admin/shelf-groups", isAdmin, async (_req: any, res) => {
+    try {
+      const groups = await fsGetAll("admin_shelf_groups", "sortOrder", "asc");
+      res.json(groups);
+    } catch (error: any) {
+      console.error("[BuildShelf] List groups error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/shelf-groups", isAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1).max(100),
+        sortOrder: z.number().int().optional().default(0),
+      });
+      const parsed = schema.parse(req.body);
+
+      const existing = await fsQuery("admin_shelf_groups", [["name", "==", parsed.name]]);
+      if (existing.length > 0) {
+        return res.status(409).json({ error: "A group with that name already exists" });
+      }
+
+      const group = await fsInsert("admin_shelf_groups", parsed);
+      res.json(group);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      console.error("[BuildShelf] Create group error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/shelf-groups/:id", isAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        name: z.string().min(1).max(100).optional(),
+        sortOrder: z.number().int().optional(),
+      });
+      const parsed = schema.parse(req.body);
+
+      if (parsed.name) {
+        const existing = await fsQuery("admin_shelf_groups", [["name", "==", parsed.name]]);
+        if (existing.length > 0 && existing[0].id !== req.params.id) {
+          return res.status(409).json({ error: "A group with that name already exists" });
+        }
+      }
+
+      const updated = await fsUpdate("admin_shelf_groups", req.params.id, parsed);
+      res.json(updated);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      console.error("[BuildShelf] Update group error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/shelf-groups/:id", isAdmin, async (req: any, res) => {
+    try {
+      await fsDelete("admin_shelf_groups", req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[BuildShelf] Delete group error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // --- Shelf Items CRUD ---
+
+  app.get("/api/admin/build-shelf", isAdmin, async (req: any, res) => {
+    try {
+      const { provider, groupId } = req.query;
+      let items;
+
+      if (groupId) {
+        items = await fsQuery("admin_build_shelf", [["groupIds", "array-contains", groupId]], "createdAt", "desc");
+      } else {
+        items = await fsGetAll("admin_build_shelf", "createdAt", "desc");
+      }
+
+      if (provider) {
+        items = items.filter((item: any) => item.providerId === provider);
+      }
+
+      res.json(items);
+    } catch (error: any) {
+      console.error("[BuildShelf] List items error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/build-shelf", isAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        providerId: z.string().min(1),
+        catalogId: z.string().min(1),
+        catalog: z.record(z.any()),
+        groupIds: z.array(z.string()).optional().default([]),
+      });
+      const parsed = schema.parse(req.body);
+
+      const key = `${parsed.providerId}:${parsed.catalogId}`;
+
+      const existing = await fsQuery("admin_build_shelf", [["shelfKey", "==", key]]);
+      if (existing.length > 0) {
+        const updated = await fsUpdate("admin_build_shelf", existing[0].id, {
+          catalog: parsed.catalog,
+          groupIds: parsed.groupIds,
+        });
+        return res.json(updated);
+      }
+
+      const item = await fsInsert("admin_build_shelf", {
+        shelfKey: key,
+        providerId: parsed.providerId,
+        catalogId: parsed.catalogId,
+        catalog: parsed.catalog,
+        groupIds: parsed.groupIds,
+      });
+      res.json(item);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      console.error("[BuildShelf] Add item error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/build-shelf/:id", isAdmin, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        groupIds: z.array(z.string()).optional(),
+        catalog: z.record(z.any()).optional(),
+      });
+      const parsed = schema.parse(req.body);
+      const updated = await fsUpdate("admin_build_shelf", req.params.id, parsed);
+      res.json(updated);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+      console.error("[BuildShelf] Update item error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/build-shelf/:id", isAdmin, async (req: any, res) => {
+    try {
+      await fsDelete("admin_build_shelf", req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[BuildShelf] Delete item error:", error);
       res.status(500).json({ error: error.message });
     }
   });
