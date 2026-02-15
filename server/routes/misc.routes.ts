@@ -1357,7 +1357,8 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
       }
       
-      const assets = await fsQuery('library_assets', [['isActive', '==', true], ['assetType', '==', typeFilter]], 'createdAt');
+      const assets = await fsQuery('library_assets', [['isActive', '==', true], ['assetType', '==', typeFilter]]);
+      assets.sort((a: any, b: any) => (a.createdAt || '').localeCompare(b.createdAt || ''));
       
       const assetsWithProxy = assets.map(asset => {
         const filename = (asset.storageUrl || '').split('/').pop() || '';
