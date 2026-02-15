@@ -79,7 +79,7 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Unified Admin Authorization**: All admin endpoints use `/api/admin/` prefix with `isAdmin` middleware (Firebase Auth token validation). Public buyer-facing endpoints use `/api/public/` prefix (no auth). No `/api/test/` endpoints remain — all have been consolidated.
 
 ### Downloadable Assets
-- **Location**: All downloadable ZIP packages go in BOTH `public/downloads/` (local dev server) AND `dist/public/downloads/` (Firebase hosting build)
+- **Location**: All downloadable ZIP packages go in BOTH `client/public/downloads/` (Vite dev server static files) AND `dist/public/downloads/` (Firebase hosting build). NOTE: `public/downloads/` at project root does NOT work in dev mode - Vite's root is `client/` so static files must be in `client/public/`.
 - **Current files**: `library-upload-package.zip` - contains all library upload code, endpoints, API docs, and file dependency map
 - **Access**: Local dev at `/downloads/filename.zip`, production at `https://qrgear-c1ffd.web.app/downloads/filename.zip`
 
