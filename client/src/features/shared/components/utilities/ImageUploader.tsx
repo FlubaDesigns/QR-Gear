@@ -93,16 +93,28 @@ export function ImageUploader({
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(",")[1];
-        console.log("[ImageUploader] FileReader complete for", file.name, "base64 length:", base64?.length);
-        resolve({ name: file.name, base64, mimeType: file.type || "image/png" });
+        try {
+          const arrayBuffer = reader.result as ArrayBuffer;
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = "";
+          const chunkSize = 8192;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.subarray(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk as any);
+          }
+          const base64 = btoa(binary);
+          console.log("[ImageUploader] FileReader complete for", file.name, "base64 length:", base64?.length);
+          resolve({ name: file.name, base64, mimeType: file.type || "image/png" });
+        } catch (convertErr) {
+          console.error("[ImageUploader] Base64 conversion error for", file.name, convertErr);
+          reject(new Error(`Could not process ${file.name}. Please try again.`));
+        }
       };
       reader.onerror = () => {
         console.error("[ImageUploader] FileReader error for", file.name, reader.error);
         reject(new Error(`Could not read ${file.name}. Please try again.`));
       };
-      reader.readAsDataURL(file);
+      reader.readAsArrayBuffer(file);
     });
   };
 

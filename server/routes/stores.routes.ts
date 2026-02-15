@@ -116,6 +116,28 @@ export function registerStoreRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/admin/stores/by-id/:storeId", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      let doc = await fsDb.collection('stores').doc(storeId).get();
+      if (doc.exists) {
+        const data = doc.data();
+        return res.json({ id: doc.id, name: data?.name || storeId, type: data?.roleType || 'internal', roleType: data?.roleType || 'internal', isActive: data?.isActive ?? true });
+      }
+      doc = await fsDb.collection('partnerStores').doc(storeId).get();
+      if (doc.exists) {
+        const data = doc.data();
+        return res.json({ id: doc.id, name: data?.name || storeId, type: data?.isInternal ? 'internal' : 'external', roleType: data?.isInternal ? 'internal' : 'external', isActive: data?.isActive ?? true, isPartnerStore: true });
+      }
+      return res.status(404).json({ error: 'Store not found' });
+    } catch (error: any) {
+      console.error('[Stores] GET admin by-id error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/stores/by-id/:storeId", async (req: any, res) => {
     try {
       const { storeId } = req.params;

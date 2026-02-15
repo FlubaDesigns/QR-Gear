@@ -24,7 +24,16 @@ export function registerBackgroundAssetsRoutes(app: Express): void {
         ["assetType", "==", typeFilter],
       ]);
 
-      assets.sort((a: any, b: any) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      assets.sort((a: any, b: any) => {
+        const getTime = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val === 'string') return new Date(val).getTime() || 0;
+          if (val.toDate) return val.toDate().getTime();
+          if (val._seconds) return val._seconds * 1000;
+          return 0;
+        };
+        return getTime(a.createdAt) - getTime(b.createdAt);
+      });
 
       const assetsWithProxy = assets.map((asset: any) => {
         const filename = (asset.storageUrl || "").split("/").pop() || asset.fileName || "";

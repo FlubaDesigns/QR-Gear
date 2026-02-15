@@ -357,7 +357,24 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
-  // Update product admin settings (markup, production cost, etc.)
+  // Update product admin settings (markup, production cost, etc.) - support both PUT and PATCH
+  app.put("/api/admin/products/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const validated = insertProductSchema.partial().parse(req.body);
+      const product = await storage.updateProduct(id, validated);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      res.json(product);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.patch("/api/admin/products/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
