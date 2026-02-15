@@ -1674,14 +1674,41 @@ export function registerAdminRoutes(app: Express): void {
     return "Other";
   }
 
+  function buildPrintfulVariantLookup(variants: any[]): Map<number, { colors: Array<{ name: string; hex: string }>; sizes: string[] }> {
+    const lookup = new Map<number, { colorsMap: Map<string, string>; sizesSet: Set<string> }>();
+    for (const v of variants) {
+      const pid = v.productId;
+      if (!pid) continue;
+      if (!lookup.has(pid)) lookup.set(pid, { colorsMap: new Map(), sizesSet: new Set() });
+      const entry = lookup.get(pid)!;
+      if (v.color && !entry.colorsMap.has(v.color)) {
+        entry.colorsMap.set(v.color, v.colorCode || "#888");
+      }
+      if (v.size) entry.sizesSet.add(v.size);
+    }
+    const result = new Map<number, { colors: Array<{ name: string; hex: string }>; sizes: string[] }>();
+    for (const [pid, entry] of lookup) {
+      result.set(pid, {
+        colors: Array.from(entry.colorsMap.entries()).map(([name, hex]) => ({ name, hex })),
+        sizes: Array.from(entry.sizesSet),
+      });
+    }
+    return result;
+  }
+
   app.get("/api/admin/catalog/printful-products", isAdmin, async (req: any, res) => {
     try {
-      const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
+      const [products, allVariants] = await Promise.all([
+        fsGetAll('printful_products', 'lastSyncedAt', 'desc'),
+        fsGetAll('printful_variants'),
+      ]);
+      const variantLookup = buildPrintfulVariantLookup(allVariants);
       
       const grouped: Record<string, any[]> = {};
       for (const p of products) {
         const categoryName = classifyPrintfulProduct(p.typeName || p.type || "");
         if (!grouped[categoryName]) grouped[categoryName] = [];
+        const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
         grouped[categoryName].push({
           id: p.id,
           title: p.title,
@@ -1691,9 +1718,9 @@ export function registerAdminRoutes(app: Express): void {
           madeInUSA: (p.originCountry || "").toUpperCase() === "US",
           minPrice: p.minPrice || null,
           maxPrice: p.maxPrice || null,
-          colorCount: 0,
-          availableColors: [],
-          availableSizes: [],
+          colorCount: vData.colors.length,
+          availableColors: vData.colors,
+          availableSizes: vData.sizes,
           blueprintId: p.id,
           printProviderId: null,
           hasMockupMapping: false,
@@ -1720,7 +1747,12 @@ export function registerAdminRoutes(app: Express): void {
   // Public Printful catalog (no auth — catalog data is not sensitive, matches /api/printify/catalog pattern)
   app.get("/api/catalog/printful-products", async (_req: any, res) => {
     try {
-      const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
+      const [products, allVariants] = await Promise.all([
+        fsGetAll('printful_products', 'lastSyncedAt', 'desc'),
+        fsGetAll('printful_variants'),
+      ]);
+      const variantLookup = buildPrintfulVariantLookup(allVariants);
+
       const grouped: Record<string, any[]> = {};
       for (const p of products) {
         const categoryName = classifyPrintfulProduct(p.typeName || p.type || "");
@@ -1730,12 +1762,15 @@ export function registerAdminRoutes(app: Express): void {
           title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
           additionalPrice: 0,
         }));
+        const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
         grouped[categoryName].push({
           id: p.id, title: p.title, brand: p.brand || "", model: p.model || "",
           imageUrl: p.image || null,
           madeInUSA: (p.originCountry || "").toUpperCase() === "US",
           minPrice: p.minPrice || null, maxPrice: p.maxPrice || null,
-          colorCount: 0, availableColors: [], availableSizes: [],
+          colorCount: vData.colors.length,
+          availableColors: vData.colors,
+          availableSizes: vData.sizes,
           blueprintId: p.id, printProviderId: null, hasMockupMapping: false,
           fulfillmentProvider: 'printful',
           placements: placements.length > 0 ? placements : null,

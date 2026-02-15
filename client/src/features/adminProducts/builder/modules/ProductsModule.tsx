@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Layers, Search } from "lucide-react";
+import { Layers, Search, Filter, Flag, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -11,9 +12,10 @@ import {
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
-import { ProductViewerControls } from "../components/ProductViewerControls";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+
+type LocationFilter = "all" | "usa" | "other";
 
 function detectGender(title: string): "mens" | "womens" | "unisex" {
   const lowerTitle = title.toLowerCase();
@@ -85,6 +87,14 @@ export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const { selectedProviders } = useProductsContext();
   const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
+
+  const applyLocationFilter = useCallback((loc: LocationFilter) => {
+    setLocationFilter(loc);
+    if (loc === "all") setOriginFilter({ showUSA: true, showOther: true });
+    else if (loc === "usa") setOriginFilter({ showUSA: true, showOther: false });
+    else setOriginFilter({ showUSA: false, showOther: true });
+  }, [setOriginFilter]);
 
   // Provider comes from ProductsContext's selectedProviders (set by ProductsControlBar)
   // Use the first selected provider, or default to printify if none selected
@@ -323,17 +333,48 @@ export function ProductsModule() {
             />
           </div>
 
-          <ProductViewerControls
-            showUSA={state.originFilter.showUSA}
-            showOther={state.originFilter.showOther}
-            usaCount={usaCount}
-            otherCount={otherCount}
-            genderFilter={state.genderFilter}
-            genderCounts={genderCounts}
-            onShowUSAChange={(checked) => setOriginFilter({ showUSA: checked })}
-            onShowOtherChange={(checked) => setOriginFilter({ showOther: checked })}
-            onGenderFilterChange={setGenderFilter}
-          />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter className="h-3 w-3 text-muted-foreground" />
+              <Badge
+                variant={locationFilter === "all" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("all")}
+                data-testid="filter-location-all"
+              >
+                <Globe className="w-3 h-3 mr-1" /> All ({products.length})
+              </Badge>
+              <Badge
+                variant={locationFilter === "usa" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("usa")}
+                data-testid="filter-location-usa"
+              >
+                <Flag className="w-3 h-3 mr-1" /> USA ({usaCount})
+              </Badge>
+              <Badge
+                variant={locationFilter === "other" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("other")}
+                data-testid="filter-location-other"
+              >
+                Other ({otherCount})
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(["all", "mens", "womens", "unisex"] as const).map((g) => (
+                <Badge
+                  key={g}
+                  variant={state.genderFilter === g ? "default" : "outline"}
+                  className="cursor-pointer text-xs capitalize"
+                  onClick={() => setGenderFilter(g)}
+                  data-testid={`filter-gender-${g}`}
+                >
+                  {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({genderCounts[g]})
+                </Badge>
+              ))}
+            </div>
+          </div>
         </>
       )}
 
