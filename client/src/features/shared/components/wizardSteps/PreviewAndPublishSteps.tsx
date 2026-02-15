@@ -1184,7 +1184,7 @@ export function PreviewStep({
                 headerStyle={headerStyle}
                 footerStyle={footerStyle}
                 showQRCode={true}
-                aspectRatio="square"
+                aspectRatio="portrait"
               />
             ) : (
               <div className="w-48 h-48 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">

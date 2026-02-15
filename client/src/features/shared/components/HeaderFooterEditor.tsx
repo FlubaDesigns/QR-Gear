@@ -56,7 +56,7 @@ export function HeaderFooterEditor({
           headerStyle={headerStyle}
           footerStyle={footerStyle}
           showQRCode={true}
-          aspectRatio="square"
+          aspectRatio="portrait"
         />
         <p className="text-xs text-slate-500 mt-3 text-center">
           This shows where your text will appear on the product graphic

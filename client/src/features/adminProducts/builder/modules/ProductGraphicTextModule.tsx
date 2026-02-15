@@ -72,7 +72,7 @@ export function ProductGraphicTextModule() {
               headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
               footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
               showQRCode={true}
-              aspectRatio="square"
+              aspectRatio="portrait"
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
               This is how your product graphic will appear
