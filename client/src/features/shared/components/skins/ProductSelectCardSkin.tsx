@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Factory,
+  Info,
   Package,
   Palette,
   Ruler,
@@ -176,22 +177,26 @@ export function ProductSelectCardSkin({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  const defaultColorEntry = item.defaultColor
-    ? item.colorsAvailable.find(
-        (c) => c.name.toLowerCase() === item.defaultColor!.toLowerCase()
-      )
-    : item.colorsAvailable[0] || null;
+  const defaultColorEntry = useMemo(
+    () =>
+      item.defaultColor
+        ? item.colorsAvailable.find(
+            (c) => c.name.toLowerCase() === item.defaultColor!.toLowerCase()
+          )
+        : item.colorsAvailable[0] || null,
+    [item.defaultColor, item.colorsAvailable]
+  );
 
   return (
     <>
       <Card
-        className={`overflow-visible transition-all min-h-[45vh] ${
+        className={`overflow-hidden transition-all ${
           isSelected ? "ring-2 ring-primary ring-offset-2" : ""
         }`}
         data-testid={`select-card-${item.id}`}
       >
         <div
-          className="relative w-full aspect-[4/5] flex items-center justify-center rounded-t-md bg-muted cursor-pointer p-2"
+          className="relative w-full max-h-[180px] aspect-square flex items-center justify-center bg-muted cursor-pointer p-2"
           onClick={() => setPreviewOpen(true)}
           data-testid={`img-tap-${item.id}`}
         >
@@ -209,6 +214,16 @@ export function ProductSelectCardSkin({
               <Package className="h-12 w-12" />
             </div>
           )}
+
+          {isSelected && (
+            <div
+              className="absolute top-0 left-0 right-0 bg-primary/90 text-primary-foreground text-xs font-bold text-center py-1 tracking-wide"
+              data-testid={`banner-selected-${item.id}`}
+            >
+              SELECTED
+            </div>
+          )}
+
           {item.madeInUSA && (
             <div className="absolute top-2 right-2">
               <Badge variant="secondary" className="gap-1 bg-background/90 backdrop-blur-sm text-xs">
@@ -221,13 +236,13 @@ export function ProductSelectCardSkin({
 
         <CardContent className="p-3 space-y-2">
           <h3
-            className="font-medium text-sm line-clamp-2"
+            className="font-medium text-base line-clamp-2"
             data-testid={`text-name-${item.id}`}
           >
             {item.name}
           </h3>
 
-          <div className="flex items-center gap-1.5 text-sm flex-wrap">
+          <div className="flex items-center gap-1.5 text-base flex-wrap">
             {item.price != null && (
               <span className="font-bold" data-testid={`text-price-${item.id}`}>
                 ${item.price.toFixed(2)}
@@ -236,9 +251,9 @@ export function ProductSelectCardSkin({
             {defaultColorEntry && (
               <>
                 <span className="text-muted-foreground">·</span>
-                <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                <span className="flex items-center gap-1 text-muted-foreground text-sm">
                   <span
-                    className="inline-block w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
+                    className="inline-block w-3 h-3 rounded-full border border-border flex-shrink-0"
                     style={{ backgroundColor: defaultColorEntry.hex || "#888" }}
                   />
                   {defaultColorEntry.name}
@@ -247,10 +262,10 @@ export function ProductSelectCardSkin({
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
             {item.manufacturer && (
               <span className="flex items-center gap-1">
-                <Factory className="w-3 h-3" />
+                <Factory className="w-3.5 h-3.5" />
                 {item.manufacturer}
               </span>
             )}
@@ -269,7 +284,8 @@ export function ProductSelectCardSkin({
             onClick={() => setDetailsOpen(!detailsOpen)}
             data-testid={`toggle-details-${item.id}`}
           >
-            Details
+            <Info className="w-3 h-3" />
+            More info
             {detailsOpen ? (
               <ChevronUp className="w-3 h-3" />
             ) : (
