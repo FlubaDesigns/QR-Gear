@@ -305,6 +305,12 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
             )}
           </div>
 
+          {item.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`text-desc-${item.id}`}>
+              {item.description}
+            </p>
+          )}
+
           <button
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
             onClick={() => setDetailsOpen(!detailsOpen)}
