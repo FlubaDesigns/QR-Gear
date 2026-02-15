@@ -20,6 +20,7 @@ import { registerDesignRoutes } from "./routes/designs.routes";
 import { registerGiftRoutes } from "./routes/gifts.routes";
 import { registerPricingRoutes } from "./routes/pricing.routes";
 import { registerMiscRoutes } from "./routes/misc.routes";
+import { registerBackgroundAssetsRoutes } from "./routes/background-assets.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -32,6 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerCartCheckoutRoutes(app);
   registerAdminRoutes(app);
   registerAdminLibraryRoutes(app);
+  registerBackgroundAssetsRoutes(app);
   registerMockupRoutes(app);
   registerMemberRoutes(app);
   registerQRDynamicsRoutes(app);

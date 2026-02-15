@@ -185,13 +185,15 @@ export async function getFileFromFirebaseStorage(
   try {
     const bucket = getStorageBucket();
     
-    // Check provided folder first, then canonical library paths
     const possiblePaths = [
-      fileName, // Direct path if already includes folder
-      `${folder}/${fileName}`, // Check the explicitly provided folder
+      fileName,
+      `${folder}/${fileName}`,
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/cropped/${fileName}`,
       `library/backgrounds/zip/${fileName}`,
+      `library/templates/${fileName}`,
+      `library/designs/${fileName}`,
+      `custom-designs/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {
@@ -231,14 +233,16 @@ export async function downloadAndStreamFile(
   try {
     const bucket = getStorageBucket();
     
-    // Check provided folder first, then canonical library paths
     const possiblePaths = [
-      fileName, // Direct path if already includes folder
-      `${folder}/${fileName}`, // Check the explicitly provided folder
+      fileName,
+      `${folder}/${fileName}`,
       `library/backgrounds/raw/${fileName}`,
       `library/backgrounds/cropped/${fileName}`,
       `library/backgrounds/archive/${fileName}`,
       `library/backgrounds/zip/${fileName}`,
+      `library/templates/${fileName}`,
+      `library/designs/${fileName}`,
+      `custom-designs/${fileName}`,
     ];
 
     for (const objectName of possiblePaths) {

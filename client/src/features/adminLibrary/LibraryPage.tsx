@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
-import { QrCode, Layers, Image, Crop } from "lucide-react";
+import { QrCode, Layers, Image, Crop, FolderOpen } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
 import { LibraryProvider } from "./LibraryContext";
@@ -18,7 +18,7 @@ const TABS = [
   { id: "templates" as const, label: "Templates", icon: Layers },
   { id: "backgrounds" as const, label: "Backgrounds", icon: Image },
   { id: "cropped" as const, label: "Cropped", icon: Crop },
-  { id: "source" as const, label: "Source", icon: Image },
+  { id: "source" as const, label: "Source", icon: FolderOpen },
 ];
 
 export default function LibraryPage() {
