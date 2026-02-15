@@ -215,9 +215,6 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
     return item.colorsAvailable[0] || null;
   }, [item.colorsAvailable, item.defaultColor]);
 
-  const hasExtraDetails =
-    !!item.description || item.colorsAvailable.length > 0 || item.sizesAvailable.length > 0 || item.cost != null;
-
   return (
     <>
       <Card
@@ -281,7 +278,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
             )}
           </div>
 
-          <div className="text-xs text-muted-foreground flex flex-wrap gap-2 items-center">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
             {defaultColorEntry && (
               <span className="flex items-center gap-1.5">
                 <span
@@ -298,30 +295,36 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
                 <span className="truncate max-w-[160px]">{item.manufacturer}</span>
               </span>
             )}
+            {item.cost != null && (
+              <>
+                {(defaultColorEntry || item.manufacturer) && <span className="opacity-60">&middot;</span>}
+                <span data-testid={`text-cost-${item.id}`}>
+                  Cost: ${item.cost.toFixed(2)}
+                </span>
+              </>
+            )}
           </div>
 
-          {hasExtraDetails && (
-            <button
-              className="flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors w-full pt-1"
-              onClick={() => setDetailsOpen(!detailsOpen)}
-              data-testid={`toggle-details-${item.id}`}
-            >
-              <span className="flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5" />
-                More info
-              </span>
-              {detailsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          )}
+          <button
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
+            onClick={() => setDetailsOpen(!detailsOpen)}
+            data-testid={`toggle-details-${item.id}`}
+          >
+            <Info className="w-3 h-3" />
+            More info
+            {detailsOpen ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+          </button>
 
-          {detailsOpen && hasExtraDetails && (
-            <div className="space-y-2 pt-3 border-t" data-testid={`details-panel-${item.id}`}>
+          {detailsOpen && (
+            <div className="space-y-2 pt-1 border-t" data-testid={`details-panel-${item.id}`}>
               {item.description && <p className="text-xs text-muted-foreground line-clamp-3">{item.description}</p>}
 
-              {item.cost != null && (
-                <div className="text-xs text-muted-foreground" data-testid={`text-cost-${item.id}`}>
-                  <span className="font-medium">Cost:</span> ${item.cost.toFixed(2)}
-                </div>
+              {!item.description && item.colorsAvailable.length === 0 && item.sizesAvailable.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">No additional details available for this product yet.</p>
               )}
 
               {item.colorsAvailable.length > 0 && (
