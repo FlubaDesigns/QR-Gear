@@ -2,11 +2,11 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Crop as CropIcon, Maximize, Check, X, Trash2, Save } from "lucide-react";
+import { Loader2, Upload, Crop as CropIcon, Maximize, Check, Trash2, ZoomIn, ZoomOut, Move } from "lucide-react";
 
 export interface CropAsset {
   id: string;
@@ -32,21 +32,16 @@ export interface CropUtilityProps {
 }
 
 function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: number): Crop {
-  // Calculate maximum crop size that fits the image while maintaining aspect ratio
   const imageAspect = mediaWidth / mediaHeight;
   const targetAspect = aspect;
   
   let width: number;
-  let height: number;
   
   if (imageAspect > targetAspect) {
-    // Image is wider than target - use full height, calculate width
-    height = 100;
-    width = (targetAspect / imageAspect) * 100;
+    const height = 100;
+    width = (targetAspect / imageAspect) * height;
   } else {
-    // Image is taller than target - use full width, calculate height
     width = 100;
-    height = (imageAspect / targetAspect) * 100;
   }
   
   return centerCrop(
@@ -54,6 +49,10 @@ function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: numbe
     mediaWidth,
     mediaHeight
   );
+}
+
+function clamp(val: number, min: number, max: number) {
+  return Math.min(Math.max(val, min), max);
 }
 
 export function CropUtility({ 
@@ -151,6 +150,57 @@ export function CropUtility({
       setCrop(undefined);
     }
   };
+
+  const adjustCropSize = useCallback((delta: number) => {
+    if (!crop || !imgRef.current) return;
+    const img = imgRef.current;
+    const imageAspect = img.width / img.height;
+
+    let newWidth = crop.width + delta;
+    let newHeight = newWidth / (aspectRatio * imageAspect) * imageAspect;
+    newHeight = newWidth / aspectRatio * (img.height / img.width);
+
+    const maxW = 100;
+    const maxH = 100;
+    const heightForWidth = (w: number) => {
+      const pxW = (w / 100) * img.width;
+      const pxH = pxW / aspectRatio;
+      return (pxH / img.height) * 100;
+    };
+
+    newWidth = clamp(newWidth, 10, maxW);
+    newHeight = heightForWidth(newWidth);
+
+    if (newHeight > maxH) {
+      newHeight = maxH;
+      const pxH = (newHeight / 100) * img.height;
+      const pxW = pxH * aspectRatio;
+      newWidth = (pxW / img.width) * 100;
+    }
+
+    newWidth = clamp(newWidth, 10, maxW);
+    newHeight = heightForWidth(newWidth);
+
+    let newX = crop.x + (crop.width - newWidth) / 2;
+    let newY = crop.y + (crop.height - newHeight) / 2;
+    newX = clamp(newX, 0, maxW - newWidth);
+    newY = clamp(newY, 0, maxH - newHeight);
+
+    setCrop({
+      unit: "%",
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight,
+    });
+  }, [crop, aspectRatio]);
+
+  const moveCrop = useCallback((dx: number, dy: number) => {
+    if (!crop) return;
+    const newX = clamp(crop.x + dx, 0, 100 - crop.width);
+    const newY = clamp(crop.y + dy, 0, 100 - crop.height);
+    setCrop({ ...crop, x: newX, y: newY });
+  }, [crop]);
 
   const getCroppedImage = useCallback((): { dataUrl: string; blob: Promise<Blob | null> } | null => {
     if (!imgRef.current) return null;
@@ -279,7 +329,8 @@ export function CropUtility({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-auto max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{title} {!showUploadUI && `(${aspectLabel} ratio)`}</DialogTitle>
+          <DialogTitle>{title} ({aspectLabel} ratio locked)</DialogTitle>
+          <DialogDescription>Use the buttons below the image to resize and move the crop area</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center min-h-[200px]">
@@ -344,8 +395,8 @@ export function CropUtility({
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     aspect={aspectRatio}
-                    className="max-h-[70vh]"
-                    style={{ maxHeight: '70vh' }}
+                    className="max-h-[50vh]"
+                    style={{ maxHeight: '50vh' }}
                   >
                     <img
                       ref={imgRef}
@@ -353,7 +404,7 @@ export function CropUtility({
                       alt="Crop preview"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
-                      className="max-w-full max-h-[70vh] mx-auto block"
+                      className="max-w-full max-h-[50vh] mx-auto block"
                       data-testid="img-crop-preview"
                     />
                   </ReactCrop>
@@ -363,11 +414,82 @@ export function CropUtility({
                     src={imageSrc}
                     alt="Full preview"
                     onLoad={onImageLoad}
-                    className="max-w-full max-h-[70vh] mx-auto"
+                    className="max-w-full max-h-[50vh] mx-auto"
                     data-testid="img-full-preview"
                   />
                 )}
               </div>
+
+              {useCrop && crop && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-3">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => adjustCropSize(-10)}
+                      className="h-14 w-14 text-2xl"
+                      data-testid="button-crop-shrink"
+                    >
+                      <ZoomOut className="h-7 w-7" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground w-20 text-center">
+                      {Math.round(crop.width)}% wide
+                    </span>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => adjustCropSize(10)}
+                      className="h-14 w-14 text-2xl"
+                      data-testid="button-crop-grow"
+                    >
+                      <ZoomIn className="h-7 w-7" />
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => moveCrop(0, -5)}
+                      className="h-12 w-12"
+                      data-testid="button-crop-up"
+                    >
+                      <Move className="h-5 w-5" />
+                      <span className="sr-only">Move up</span>
+                    </Button>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => moveCrop(-5, 0)}
+                        className="h-12 w-12 text-lg"
+                        data-testid="button-crop-left"
+                      >
+                        ←
+                      </Button>
+                      <span className="text-xs text-muted-foreground w-12 text-center">Move</span>
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={() => moveCrop(5, 0)}
+                        className="h-12 w-12 text-lg"
+                        data-testid="button-crop-right"
+                      >
+                        →
+                      </Button>
+                    </div>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => moveCrop(0, 5)}
+                      className="h-12 w-12 text-lg"
+                      data-testid="button-crop-down"
+                    >
+                      ↓
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
         </div>
