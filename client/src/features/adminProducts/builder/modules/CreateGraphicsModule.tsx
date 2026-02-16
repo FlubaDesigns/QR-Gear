@@ -11,8 +11,6 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { authFetch } from "@/features/adminAuth/authFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
-import { PLACEMENT_BASE_DIMENSIONS } from "../types";
-import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
@@ -41,220 +39,6 @@ interface PacketResult {
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
-}
-
-// Always generates black QR code on white background for universal readability
-
-interface TextStyle {
-  text: string;
-  enabled: boolean;
-  fontFamily: string;
-  fontSize: string;
-  color: string;
-  letterSpacing: number;
-  strokeColor: string;
-  strokeWidth: number;
-  verticalOffset: number;
-  horizontalOffset: number;
-}
-
-interface ProductGraphicOptions {
-  qrUrl: string;
-  productColorHex: string | null;
-  headerStyle: TextStyle | null;
-  footerStyle: TextStyle | null;
-  useTransparentBackground?: boolean;
-  placement?: string;  // e.g., "front-center", "pocket", "left-shoulder"
-}
-
-async function fetchImageAsDataUrl(url: string): Promise<string> {
-  try {
-    console.log('[fetchImageAsDataUrl] Fetching:', url);
-    const response = await fetch(url, { mode: 'cors' });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    const blob = await response.blob();
-    console.log('[fetchImageAsDataUrl] Blob received, size:', blob.size);
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        console.log('[fetchImageAsDataUrl] Converted to data URL successfully');
-        resolve(reader.result as string);
-      };
-      reader.onerror = (e) => {
-        console.error('[fetchImageAsDataUrl] FileReader error:', e);
-        reject(e);
-      };
-      reader.readAsDataURL(blob);
-    });
-  } catch (e) {
-    console.error('[fetchImageAsDataUrl] Failed:', url, e);
-    throw e;
-  }
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = (e) => reject(new Error(`Failed to load image: ${src}`));
-    const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
-    img.src = absoluteSrc;
-  });
-}
-
-function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-  return lines.length > 0 ? lines : [''];
-}
-
-async function generateProductGraphic(options: ProductGraphicOptions): Promise<string> {
-  // NOTE: This function generates ONLY QR code + text on a TRANSPARENT background
-  // NO background image is used here - backgroundUrl is only for landing page snapshot
-  const { qrUrl, productColorHex, headerStyle, footerStyle, useTransparentBackground, placement } = options;
-  
-  // Get placement-specific dimensions or use default (front-center)
-  const placementDims = PLACEMENT_BASE_DIMENSIONS[placement || "front-center"] || PLACEMENT_BASE_DIMENSIONS["front-center"];
-  const CANVAS_WIDTH = placementDims.width;
-  const CANVAS_HEIGHT = placementDims.height;
-  
-  const HEADER_ZONE_TOP = 0;
-  const HEADER_ZONE_HEIGHT = CANVAS_HEIGHT * ZONE_LAYOUT.HEADER_PERCENT;
-  const QR_ZONE_TOP = HEADER_ZONE_HEIGHT;
-  const QR_ZONE_HEIGHT = CANVAS_HEIGHT * ZONE_LAYOUT.MIDDLE_PERCENT;
-  const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
-  const FOOTER_ZONE_HEIGHT = CANVAS_HEIGHT * ZONE_LAYOUT.FOOTER_PERCENT;
-
-  const QR_MARGIN_Y = QR_ZONE_HEIGHT * ZONE_LAYOUT.QR_MARGIN_PERCENT;
-  const QR_AREA_HEIGHT = QR_ZONE_HEIGHT * ZONE_LAYOUT.QR_AREA_PERCENT;
-  const BG_PADDING = 20;
-  
-  console.log('[generateProductGraphic] GENERATING TRANSPARENT PRODUCT GRAPHIC');
-  console.log('[generateProductGraphic] Options:', { 
-    qrUrl: qrUrl.substring(0, 50) + '...', 
-    productColorHex, 
-    useTransparentBackground,
-    hasHeader: !!headerStyle?.enabled,
-    hasFooter: !!footerStyle?.enabled 
-  });
-  
-  const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
-  const ctx = canvas.getContext('2d', { alpha: true });
-  if (!ctx) throw new Error('Canvas not supported');
-
-  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  
-  if (!useTransparentBackground && productColorHex) {
-    ctx.fillStyle = productColorHex;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  } else if (!useTransparentBackground) {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  }
-
-  try {
-    const qrDataUrl = await fetchImageAsDataUrl(qrUrl);
-    const qrImg = await loadImage(qrDataUrl);
-    const qrContentHeight = QR_AREA_HEIGHT - BG_PADDING * 2;
-    const qrContentWidth = qrContentHeight;
-    const qrBgWidth = qrContentWidth + BG_PADDING * 2;
-    const qrBgX = (CANVAS_WIDTH - qrBgWidth) / 2;
-    const qrBgY = QR_ZONE_TOP + QR_MARGIN_Y;
-    const qrX = (CANVAS_WIDTH - qrContentWidth) / 2;
-    const qrY = qrBgY + BG_PADDING;
-    if (!useTransparentBackground) {
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.roundRect(qrBgX, qrBgY, qrBgWidth, QR_AREA_HEIGHT, 16);
-      ctx.fill();
-    }
-    ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
-    console.log('[generateProductGraphic] QR drawn in zone (25/50/25) with 10/80/10 margins');
-  } catch (e) {
-    console.warn('[generateProductGraphic] Failed to load QR image:', e);
-  }
-
-  const MARGIN_PCT = 0.01;
-
-  if (headerStyle?.enabled && headerStyle.text) {
-    const fontSize = parseInt(headerStyle.fontSize) || 144;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const vOff = headerStyle.verticalOffset ?? 50;
-    const hOff = headerStyle.horizontalOffset ?? 50;
-    const marginY = HEADER_ZONE_HEIGHT * MARGIN_PCT;
-    const marginX = CANVAS_WIDTH * MARGIN_PCT;
-    const usableH = HEADER_ZONE_HEIGHT - 2 * marginY;
-    const usableW = CANVAS_WIDTH - 2 * marginX;
-    const maxWidth = CANVAS_WIDTH * 0.98;
-    
-    ctx.font = `bold ${scaledFontSize}px ${headerStyle.fontFamily}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const lines = wrapCanvasText(ctx, headerStyle.text, maxWidth);
-    const totalTextHeight = lines.length * scaledFontSize * 1.3;
-    let currentY = HEADER_ZONE_TOP + marginY + (vOff / 100) * (usableH - totalTextHeight);
-    const textX = marginX + (hOff / 100) * usableW;
-
-    for (const line of lines) {
-      if (headerStyle.strokeColor && headerStyle.strokeWidth && headerStyle.strokeWidth > 0) {
-        ctx.strokeStyle = headerStyle.strokeColor;
-        ctx.lineWidth = headerStyle.strokeWidth * 2;
-        ctx.strokeText(line, textX, currentY);
-      }
-      ctx.fillStyle = headerStyle.color;
-      ctx.fillText(line, textX, currentY);
-      currentY += scaledFontSize * 1.3;
-    }
-  }
-
-  if (footerStyle?.enabled && footerStyle.text) {
-    const fontSize = parseInt(footerStyle.fontSize) || 144;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const vOff = footerStyle.verticalOffset ?? 50;
-    const hOff = footerStyle.horizontalOffset ?? 50;
-    const marginY = FOOTER_ZONE_HEIGHT * MARGIN_PCT;
-    const marginX = CANVAS_WIDTH * MARGIN_PCT;
-    const usableH = FOOTER_ZONE_HEIGHT - 2 * marginY;
-    const usableW = CANVAS_WIDTH - 2 * marginX;
-    const maxWidth = CANVAS_WIDTH * 0.98;
-    
-    ctx.font = `bold ${scaledFontSize}px ${footerStyle.fontFamily}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const lines = wrapCanvasText(ctx, footerStyle.text, maxWidth);
-    const totalTextHeight = lines.length * scaledFontSize * 1.3;
-    let currentY = FOOTER_ZONE_TOP + marginY + (vOff / 100) * (usableH - totalTextHeight);
-    const textX = marginX + (hOff / 100) * usableW;
-
-    for (const line of lines) {
-      if (footerStyle.strokeColor && footerStyle.strokeWidth && footerStyle.strokeWidth > 0) {
-        ctx.strokeStyle = footerStyle.strokeColor;
-        ctx.lineWidth = footerStyle.strokeWidth * 2;
-        ctx.strokeText(line, textX, currentY);
-      }
-      ctx.fillStyle = footerStyle.color;
-      ctx.fillText(line, textX, currentY);
-      currentY += scaledFontSize * 1.3;
-    }
-  }
-
-  return canvas.toDataURL('image/png');
 }
 
 export function CreateGraphicsModule() {
@@ -496,10 +280,10 @@ export function CreateGraphicsModule() {
       const qrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000);
 
       const backgroundUrl = state.loadedBackground?.url || null;
-      const headerStyle = state.content?.headerStyle as TextStyle | null;
-      const footerStyle = state.content?.footerStyle as TextStyle | null;
-      const titleStyle = state.content?.titleStyle as TextStyle | null;
-      const descriptionStyle = state.content?.descriptionStyle as TextStyle | null;
+      const headerStyle = state.content?.headerStyle as SharedTextStyle | null;
+      const footerStyle = state.content?.footerStyle as SharedTextStyle | null;
+      const titleStyle = state.content?.titleStyle as SharedTextStyle | null;
+      const descriptionStyle = state.content?.descriptionStyle as SharedTextStyle | null;
       const productColorHex = state.selectedColor?.hex || null;
       
       // Get the primary placement for dimension sizing
