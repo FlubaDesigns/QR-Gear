@@ -42,6 +42,7 @@ export class MockupJobQueue {
     artworkVariant: "black" | "white";
     priority?: number;
     fulfillmentProvider?: string;
+    printMethod?: string;
   }): Promise<MockupJob> {
     const jobData: Record<string, any> = {
       blueprintId: params.blueprintId,
@@ -51,6 +52,9 @@ export class MockupJobQueue {
     };
     if (params.fulfillmentProvider) {
       jobData.fulfillmentProvider = params.fulfillmentProvider;
+    }
+    if (params.printMethod) {
+      jobData.printMethod = params.printMethod;
     }
 
     const job = await fsInsert('mockup_jobs', {
@@ -78,6 +82,7 @@ export class MockupJobQueue {
     artworkUrl: string;
     artworkVariant: "black" | "white";
     fulfillmentProvider?: string;
+    placementMethods?: Record<string, string>;
   }): Promise<MockupJob[]> {
     const jobs: MockupJob[] = [];
     const qrSizes = params.qrSizes || ["small", "medium", "large"];
@@ -98,6 +103,7 @@ export class MockupJobQueue {
             artworkVariant: params.artworkVariant,
             priority: priority++,
             fulfillmentProvider: params.fulfillmentProvider,
+            printMethod: params.placementMethods?.[placement],
           });
           jobs.push(job);
         }
@@ -250,6 +256,8 @@ export class MockupJobQueue {
         artworkVariant: jobData.artworkVariant,
         qrSize: job.qrSize as "small" | "medium" | "large",
         fulfillmentProvider: jobData.fulfillmentProvider || "printify",
+        placement: job.placement || "front",
+        printMethod: jobData.printMethod,
       });
 
       if (result.error) {

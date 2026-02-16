@@ -279,6 +279,7 @@ async function generatePrintfulMockupInternal(params: {
   canonicalPlacementId: string;
   qrSize?: 'small' | 'medium' | 'large';
   fulfillmentProvider?: 'printify' | 'printful';
+  printMethod?: 'dtg' | 'dtf';
 }): Promise<{ flat?: string; lifestyle?: string; isFallback?: boolean } | null> {
   const { blueprintId, printProviderId, colorName, colorHex, artworkUrl, canonicalPlacementId, fulfillmentProvider = 'printify' } = params;
 
@@ -394,8 +395,9 @@ async function generatePrintfulMockupInternal(params: {
     left: Math.round((areaWidth - qrSize) / 2),  // Centered horizontally
   };
 
-  // Step 4: Map internal placement to Printful placement using bridge
-  const printfulPlacement = toProviderPlacement('printful', canonicalPlacementId);
+  // Step 4: Map internal placement to Printful placement using bridge (respecting DTG/DTF method choice)
+  const availPlacements = printfiles?.available_placements ? Object.keys(printfiles.available_placements) : [];
+  const printfulPlacement = toProviderPlacement('printful', canonicalPlacementId, availPlacements, params.printMethod);
 
   // Step 5: Build files array - main artwork + auto-branding tag
   const mockupFiles: Array<{ placement: string; image_url: string; position?: any }> = [{
@@ -405,7 +407,6 @@ async function generatePrintfulMockupInternal(params: {
   }];
 
   // Auto-attach QR Gear branded tag based on admin preference from pricing settings
-  const availPlacements = printfiles?.available_placements ? Object.keys(printfiles.available_placements) : [];
   let preferredLabel: 'outside' | 'inside' = 'outside';
   try {
     const { getFirestoreDb } = await import('./firebase-admin');
@@ -899,6 +900,8 @@ export async function generatePrintfulMockup(params: {
   artworkVariant: "black" | "white";
   qrSize: "small" | "medium" | "large";
   fulfillmentProvider?: "printify" | "printful";
+  placement?: string;
+  printMethod?: "dtg" | "dtf";
 }): Promise<{ mockupUrl?: string; lifestyleUrl?: string; error?: string }> {
   try {
     const result = await generatePrintfulMockupInternal({
@@ -906,9 +909,10 @@ export async function generatePrintfulMockup(params: {
       printProviderId: params.printProviderId,
       colorName: params.colorName,
       artworkUrl: params.artworkUrl,
-      canonicalPlacementId: "front",
+      canonicalPlacementId: params.placement || "front",
       qrSize: params.qrSize,
       fulfillmentProvider: params.fulfillmentProvider || "printify",
+      printMethod: params.printMethod,
     });
 
     if (!result) {

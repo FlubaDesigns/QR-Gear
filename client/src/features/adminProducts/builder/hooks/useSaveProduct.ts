@@ -41,6 +41,7 @@ interface BuilderState {
   };
   colors?: Array<{ name: string; hex: string }>;
   placements?: string[];
+  placementMethods?: Record<string, string>;
   artworkUrl?: string;
   qrOnlyUrl?: string;
   artworkVariant?: "black" | "white";
@@ -120,7 +121,7 @@ export function useSaveProduct() {
   });
 
   const saveAsTemplate = async (builderState: BuilderState): Promise<SaveResult> => {
-    const { selectedProduct, qrProductState, content, colors, placements, artworkUrl, artworkVariant } = builderState;
+    const { selectedProduct, qrProductState, content, colors, placements, artworkUrl, artworkVariant, placementMethods } = builderState;
     
     if (!selectedProduct?.id) {
       throw new Error("No product selected");
@@ -139,6 +140,7 @@ export function useSaveProduct() {
       printProviderId: selectedProduct.printProviderId || 0,
       colors: colors || [],
       placements: placements || ["front"],
+      placementMethods: placementMethods || {},
       qrSizes: ["small", "medium", "large"] as const,
       artworkUrl: artworkUrl || "",
       artworkVariant: artworkVariant || "black",

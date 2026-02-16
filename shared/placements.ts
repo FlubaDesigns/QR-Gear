@@ -63,6 +63,13 @@ const INTERNAL_TO_PRINTFUL: Record<string, string> = {
   'label_outside': 'label_outside',
 };
 
+const INTERNAL_TO_PRINTFUL_DTF: Record<string, string> = {
+  'front': 'front_dtf',
+  'back': 'back_dtf',
+  'left_sleeve': 'short_sleeve_left_dtf',
+  'right_sleeve': 'short_sleeve_right_dtf',
+};
+
 export function normalizePlacement(
   provider: FulfillmentProvider,
   providerPlacement: string
@@ -74,8 +81,16 @@ export function normalizePlacement(
 export function toProviderPlacement(
   provider: FulfillmentProvider,
   internal: string,
-  availablePlacements?: string[]
+  availablePlacements?: string[],
+  printMethod?: PrintMethod
 ): string {
+  if (provider === 'printful' && printMethod === 'dtf') {
+    const dtfMapped = INTERNAL_TO_PRINTFUL_DTF[internal];
+    if (dtfMapped && (!availablePlacements || availablePlacements.includes(dtfMapped))) {
+      return dtfMapped;
+    }
+  }
+
   const map = provider === 'printify' ? INTERNAL_TO_PRINTIFY : INTERNAL_TO_PRINTFUL;
   let mapped = map[internal] || internal;
 

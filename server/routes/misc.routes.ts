@@ -651,6 +651,7 @@ ${allPages.map(page => `  <url>
           hex: z.string(),
         })),
         placements: z.array(z.string()).default(["front"]),
+        placementMethods: z.record(z.string(), z.string()).optional(),
         qrSizes: z.array(z.enum(["small", "medium", "large"])).default(["small", "medium", "large"]),
         artworkUrl: z.string().optional().default(""),
         artworkVariant: z.enum(["black", "white"]).default("black"),
@@ -697,6 +698,7 @@ ${allPages.map(page => `  <url>
           printProviderId: data.printProviderId,
           artworkUrl: data.artworkUrl,
           artworkVariant: data.artworkVariant,
+          placementMethods: data.placementMethods,
         });
         allJobs.push(...jobs);
       }
@@ -711,6 +713,7 @@ ${allPages.map(page => `  <url>
           printProviderId: data.printProviderId,
           artworkUrl: data.artworkUrl,
           artworkVariant: data.artworkVariant,
+          placementMethods: data.placementMethods,
         });
         allJobs.push(...jobs);
       }
