@@ -37,6 +37,11 @@ const INTERNAL_TO_PRINTFUL: Record<string, string> = {
   'label_inside': 'label_inside', 'label_outside': 'label_outside',
 };
 
+const INTERNAL_TO_PRINTFUL_DTF: Record<string, string> = {
+  'front': 'front_dtf', 'back': 'back_dtf',
+  'left_sleeve': 'short_sleeve_left_dtf', 'right_sleeve': 'short_sleeve_right_dtf',
+};
+
 function normalizePlacement(provider: FulfillmentProvider, providerPlacement: string): string {
   const map = provider === 'printify' ? PRINTIFY_TO_INTERNAL : PRINTFUL_TO_INTERNAL;
   return map[providerPlacement] || providerPlacement;
@@ -52,7 +57,13 @@ function normalizePlacements(provider: FulfillmentProvider, providerPlacements: 
   return result;
 }
 
-function toProviderPlacement(provider: FulfillmentProvider, internal: string, availablePlacements?: string[]): string {
+function toProviderPlacement(provider: FulfillmentProvider, internal: string, availablePlacements?: string[], printMethod?: PrintMethod): string {
+  if (provider === 'printful' && printMethod === 'dtf') {
+    const dtfMapped = INTERNAL_TO_PRINTFUL_DTF[internal];
+    if (dtfMapped && (!availablePlacements || availablePlacements.includes(dtfMapped))) {
+      return dtfMapped;
+    }
+  }
   if (provider === 'printify') {
     const INTERNAL_TO_PRINTIFY: Record<string, string> = {
       'front': 'front', 'back': 'back', 'pocket': 'pocket',
@@ -1018,6 +1029,8 @@ interface MockupRequest {
   artworkUrl: string;
   artworkVariant?: 'black' | 'white';
   fulfillmentProvider?: 'printify' | 'printful';
+  placement?: string;
+  printMethod?: PrintMethod;
 }
 
 interface MockupResult {
@@ -1148,8 +1161,9 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
     p.placement === 'front' || p.placement === 'front_large' || p.placement === 'default'
   );
   
-  const placement = toProviderPlacement('printful', 'front',
-    printfileData?.printfiles?.map((p: any) => p.placement) || []);
+  const canonicalPlacement = request.placement || 'front';
+  const availPlacementNames = printfileData?.printfiles?.map((p: any) => p.placement) || [];
+  const placement = toProviderPlacement('printful', canonicalPlacement, availPlacementNames, request.printMethod);
   const areaWidth = frontPrintfile?.width || 1800;
   const areaHeight = frontPrintfile?.height || 2400;
   
@@ -4773,6 +4787,8 @@ async function processQueueInBackground(): Promise<void> {
         colorHex: job.colorHex || '#000000',
         artworkUrl: template.artworkUrl,
         artworkVariant: template.artworkVariant || 'black',
+        placement: job.placement || 'front',
+        printMethod: job.printMethod,
       });
 
       // Store in template
@@ -4914,7 +4930,7 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
 // Admin: Full template save with batch mockup generation
 app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { template, colors = [], placements = ['front', 'back'] } = req.body;
+    const { template, colors = [], placements = ['front', 'back'], placementMethods = {} } = req.body;
 
     if (!template) {
       res.status(400).json({ error: 'Template data is required' });
@@ -4942,7 +4958,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
         const sizesToGenerate = (placement === 'front' || placement === 'back') ? qrSizes : ['large'];
         
         for (const qrSize of sizesToGenerate) {
-          const jobData = {
+          const jobData: Record<string, any> = {
             templateId,
             colorName: color.name,
             colorHex: color.hex,
@@ -4951,6 +4967,9 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
             status: 'pending',
             createdAt: now,
           };
+          if (placementMethods[placement]) {
+            jobData.printMethod = placementMethods[placement];
+          }
           await db.collection('mockupJobs').add(jobData);
           jobsQueued++;
         }

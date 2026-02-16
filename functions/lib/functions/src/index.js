@@ -64,6 +64,10 @@ const INTERNAL_TO_PRINTFUL = {
     'left_sleeve': 'sleeve_left', 'right_sleeve': 'sleeve_right',
     'label_inside': 'label_inside', 'label_outside': 'label_outside',
 };
+const INTERNAL_TO_PRINTFUL_DTF = {
+    'front': 'front_dtf', 'back': 'back_dtf',
+    'left_sleeve': 'short_sleeve_left_dtf', 'right_sleeve': 'short_sleeve_right_dtf',
+};
 function normalizePlacement(provider, providerPlacement) {
     const map = provider === 'printify' ? PRINTIFY_TO_INTERNAL : PRINTFUL_TO_INTERNAL;
     return map[providerPlacement] || providerPlacement;
@@ -80,7 +84,13 @@ function normalizePlacements(provider, providerPlacements) {
     }
     return result;
 }
-function toProviderPlacement(provider, internal, availablePlacements) {
+function toProviderPlacement(provider, internal, availablePlacements, printMethod) {
+    if (provider === 'printful' && printMethod === 'dtf') {
+        const dtfMapped = INTERNAL_TO_PRINTFUL_DTF[internal];
+        if (dtfMapped && (!availablePlacements || availablePlacements.includes(dtfMapped))) {
+            return dtfMapped;
+        }
+    }
     if (provider === 'printify') {
         const INTERNAL_TO_PRINTIFY = {
             'front': 'front', 'back': 'back', 'pocket': 'pocket',
@@ -913,7 +923,9 @@ async function generateMockupFromPrintful(request) {
     // Get printfile specs to get position info
     const printfileData = await printfulClient.getPrintfiles(printfulProductId);
     const frontPrintfile = printfileData?.printfiles?.find((p) => p.placement === 'front' || p.placement === 'front_large' || p.placement === 'default');
-    const placement = toProviderPlacement('printful', 'front', printfileData?.printfiles?.map((p) => p.placement) || []);
+    const canonicalPlacement = request.placement || 'front';
+    const availPlacementNames = printfileData?.printfiles?.map((p) => p.placement) || [];
+    const placement = toProviderPlacement('printful', canonicalPlacement, availPlacementNames, request.printMethod);
     const areaWidth = frontPrintfile?.width || 1800;
     const areaHeight = frontPrintfile?.height || 2400;
     const mockupFiles = [{
@@ -4204,6 +4216,8 @@ async function processQueueInBackground() {
                 colorHex: job.colorHex || '#000000',
                 artworkUrl: template.artworkUrl,
                 artworkVariant: template.artworkVariant || 'black',
+                placement: job.placement || 'front',
+                printMethod: job.printMethod,
             });
             // Store in template
             const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
@@ -4320,7 +4334,7 @@ app.post('/admin/graphics/save', requireAdmin, async (req, res) => {
 // Admin: Full template save with batch mockup generation
 app.post('/admin/templates/full-save', requireAdmin, async (req, res) => {
     try {
-        const { template, colors = [], placements = ['front', 'back'] } = req.body;
+        const { template, colors = [], placements = ['front', 'back'], placementMethods = {} } = req.body;
         if (!template) {
             res.status(400).json({ error: 'Template data is required' });
             return;
@@ -4351,6 +4365,9 @@ app.post('/admin/templates/full-save', requireAdmin, async (req, res) => {
                         status: 'pending',
                         createdAt: now,
                     };
+                    if (placementMethods[placement]) {
+                        jobData.printMethod = placementMethods[placement];
+                    }
                     await db.collection('mockupJobs').add(jobData);
                     jobsQueued++;
                 }

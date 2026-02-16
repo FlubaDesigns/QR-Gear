@@ -64,6 +64,7 @@ interface MockupRequest {
   productId?: string; // Optional - for placement availability validation
   qrSize?: 'small' | 'medium' | 'large'; // QR code size: small=25%, medium=45%, large=65%
   fulfillmentProvider?: 'printify' | 'printful'; // Source catalog - skip mapping for native Printful products
+  printMethod?: 'dtg' | 'dtf'; // Print method selection - affects which provider placement name is used
 }
 
 interface MockupResult {
@@ -208,6 +209,7 @@ export async function getMockupWithFallback(
     canonicalPlacementId,
     qrSize,
     fulfillmentProvider,
+    printMethod: request.printMethod,
   });
 
   if (!mockupResult || !mockupResult.flat) {

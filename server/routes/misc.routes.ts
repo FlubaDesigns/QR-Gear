@@ -901,6 +901,8 @@ ${allPages.map(page => `  <url>
             artworkVariant: template.artworkVariant || "black",
             qrSize: job.qrSize || "large",
             fulfillmentProvider: template.fulfillmentProvider || job.fulfillmentProvider || "printify",
+            placement: job.placement || "front",
+            printMethod: job.printMethod,
           });
 
           if (mockupResult.error) {

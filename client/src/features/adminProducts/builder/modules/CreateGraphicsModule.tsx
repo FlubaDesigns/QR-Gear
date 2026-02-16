@@ -415,6 +415,7 @@ export function CreateGraphicsModule() {
           fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
           colors: productColors,
           placements: state.selectedPlacements || ["front"],
+          placementMethods: state.placementMethods || {},
           qrSizes: ["small", "medium", "large"],
           artworkUrl: productGraphicUrl,
           artworkVariant: "black",
