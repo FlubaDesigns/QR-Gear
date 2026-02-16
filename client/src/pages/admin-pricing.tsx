@@ -59,6 +59,7 @@ interface PricingSettings {
   memberProfitShare: number;
   hostingTiers: HostingTier[];
   brandLabelPricing: BrandLabelPricing;
+  preferredLabelPosition: 'outside' | 'inside';
 }
 
 function CouponsSection() {
@@ -410,6 +411,7 @@ export default function AdminPricing() {
     printfulInside: 0.99,
     printfulOutside: 2.49,
   });
+  const [preferredLabelPosition, setPreferredLabelPosition] = useState<'outside' | 'inside'>('outside');
   const [initialized, setInitialized] = useState(false);
 
   if (settings && !initialized) {
@@ -421,6 +423,9 @@ export default function AdminPricing() {
     setHostingTiers(settings.hostingTiers || []);
     if (settings.brandLabelPricing) {
       setBrandLabelPricing(settings.brandLabelPricing);
+    }
+    if (settings.preferredLabelPosition) {
+      setPreferredLabelPosition(settings.preferredLabelPosition);
     }
     setInitialized(true);
   }
@@ -453,6 +458,7 @@ export default function AdminPricing() {
       memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100,
       hostingTiers,
       brandLabelPricing,
+      preferredLabelPosition,
     });
   };
   
@@ -697,10 +703,31 @@ export default function AdminPricing() {
                   </div>
                 </div>
               </div>
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-3">Default Tag Placement</h3>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="label-position"
+                      checked={preferredLabelPosition === 'inside'}
+                      onCheckedChange={(checked) => setPreferredLabelPosition(checked ? 'inside' : 'outside')}
+                      data-testid="switch-label-position"
+                    />
+                    <Label htmlFor="label-position" className="text-sm cursor-pointer">
+                      {preferredLabelPosition === 'outside'
+                        ? 'Outside Neck — printed on the back of the collar (visible to others)'
+                        : 'Inside Neck — replaces the manufacturer tag (hidden inside collar)'}
+                    </Label>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  This sets where the QR Gear branded tag goes on every product that supports labels.
+                  The tag is automatically added to all mockups and orders.
+                </p>
+              </div>
               <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1">
-                <p>Only one label type (inside OR outside) can be added per product.</p>
-                <p>Inside labels replace the manufacturer tag. Outside labels are printed on the back neck area.</p>
-                <p>Label choice is set per product in the product builder based on which fulfillment center you pick.</p>
+                <p>Inside labels replace the manufacturer tag inside the collar. Outside labels are printed on the back of the collar, visible to others.</p>
+                <p>The toggle above sets the default for all products. Cost depends on the fulfillment provider.</p>
               </div>
             </CardContent>
           </Card>

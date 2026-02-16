@@ -132,6 +132,7 @@ export function registerPricingRoutes(app: Express): void {
         memberProfitShare: data?.memberProfitShare ?? 0.25,
         sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
         brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
+        preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
       });
     } catch (error: any) {
       console.error("[Pricing Settings] Error getting settings:", error);
@@ -141,7 +142,7 @@ export function registerPricingRoutes(app: Express): void {
 
   app.post("/api/pricing-settings", isAdmin, async (req: any, res) => {
     try {
-      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing } = req.body;
+      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
       
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -171,6 +172,7 @@ export function registerPricingRoutes(app: Express): void {
           { code: "3_year", name: "3 Years", price: 10 },
         ],
         brandLabelPricing: brandLabelPricing || defaultBrandLabelPricing,
+        preferredLabelPosition: preferredLabelPosition || 'outside',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       
@@ -288,6 +290,7 @@ export function registerPricingRoutes(app: Express): void {
         memberProfitShare: data?.memberProfitShare ?? 0.25,
         sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
         brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
+        preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
       });
     } catch (error: any) {
       console.error("[Pricing Settings TEST] Error getting settings:", error);
@@ -297,7 +300,7 @@ export function registerPricingRoutes(app: Express): void {
 
   app.post("/api/admin/pricing-settings", isAdmin, async (req: any, res) => {
     try {
-      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing } = req.body;
+      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
       
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
@@ -327,6 +330,7 @@ export function registerPricingRoutes(app: Express): void {
           { code: "3_year", name: "3 Years", price: 10 },
         ],
         brandLabelPricing: brandLabelPricing || defaultBrandLabelPricing,
+        preferredLabelPosition: preferredLabelPosition || 'outside',
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       

@@ -98,6 +98,8 @@ function toProviderPlacement(provider, internal, availablePlacements) {
     return mapped;
 }
 function isEmbroideryPlacement(p) { return p.startsWith('embroidery_'); }
+const QR_GEAR_BRANDED_TAG_URL = 'https://qrgear-c1ffd.web.app/img/qr-gear-neck-tag-600.png';
+const LABEL_PLACEMENTS_PRINTFUL = ['label_outside', 'label_inside'];
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -894,19 +896,38 @@ async function generateMockupFromPrintful(request) {
     const placement = toProviderPlacement('printful', 'front', printfileData?.printfiles?.map((p) => p.placement) || []);
     const areaWidth = frontPrintfile?.width || 1800;
     const areaHeight = frontPrintfile?.height || 2400;
-    const fileEntry = {
-        placement: placement,
-        image_url: artworkUrl,
-        position: {
-            area_width: areaWidth,
-            area_height: areaHeight,
-            width: areaWidth,
-            height: areaHeight,
-            top: 0,
-            left: 0
+    const mockupFiles = [{
+            placement: placement,
+            image_url: artworkUrl,
+            position: {
+                area_width: areaWidth,
+                area_height: areaHeight,
+                width: areaWidth,
+                height: areaHeight,
+                top: 0,
+                left: 0
+            }
+        }];
+    const availPlacements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
+    let preferredLabel = 'outside';
+    try {
+        const pricingDoc = await db.collection('testSettings').doc('pricing').get();
+        if (pricingDoc.exists) {
+            preferredLabel = pricingDoc.data()?.preferredLabelPosition || 'outside';
         }
-    };
-    console.log('[Printful] Creating mockup with file entry:', JSON.stringify(fileEntry));
+    }
+    catch (e) {
+        console.warn('[Mockup] Could not read label preference, defaulting to outside');
+    }
+    const preferredPrintful = preferredLabel === 'inside' ? 'label_inside' : 'label_outside';
+    const fallbackPrintful = preferredLabel === 'inside' ? 'label_outside' : 'label_inside';
+    const labelPlacement = availPlacements.includes(preferredPrintful) ? preferredPrintful
+        : availPlacements.includes(fallbackPrintful) ? fallbackPrintful : null;
+    if (labelPlacement) {
+        mockupFiles.push({ placement: labelPlacement, image_url: QR_GEAR_BRANDED_TAG_URL });
+        console.log(`[Mockup] Auto-attaching branded tag to ${labelPlacement} (preferred: ${preferredLabel})`);
+    }
+    console.log('[Printful] Creating mockup with files:', JSON.stringify(mockupFiles));
     // Retry logic with exponential backoff for Printful rate limits and transient errors
     const maxRetries = 3;
     let lastError = null;
@@ -919,7 +940,7 @@ async function generateMockupFromPrintful(request) {
                 await new Promise(resolve => setTimeout(resolve, delayMs));
             }
             // Create mockup task - don't pass option_groups as it filters out variants
-            const task = await printfulClient.createMockupTask(printfulProductId, [variantId], [fileEntry], 'jpg');
+            const task = await printfulClient.createMockupTask(printfulProductId, [variantId], mockupFiles, 'jpg');
             // Wait for completion with longer timeout
             const result = await printfulClient.waitForMockupTask(task.task_key, 120000);
             if (!result.mockups || result.mockups.length === 0) {
@@ -4563,6 +4584,7 @@ app.get('/pricing-settings', async (_req, res) => {
                     { code: "3_year", name: "3 Years", price: 10 },
                 ],
                 brandLabelPricing: defaultBrandLabelPricing,
+                preferredLabelPosition: 'outside',
             });
             return;
         }
@@ -4572,6 +4594,7 @@ app.get('/pricing-settings', async (_req, res) => {
             memberProfitShare: data?.memberProfitShare ?? 0.25,
             sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
             brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
+            preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
         });
     }
     catch (error) {
@@ -4595,6 +4618,7 @@ app.get('/admin/pricing-settings', requireAdmin, async (_req, res) => {
                     { code: "3_year", name: "3 Years", price: 10 },
                 ],
                 brandLabelPricing: defaultBrandLabelPricing,
+                preferredLabelPosition: 'outside',
             });
             return;
         }
@@ -4604,6 +4628,7 @@ app.get('/admin/pricing-settings', requireAdmin, async (_req, res) => {
             memberProfitShare: data?.memberProfitShare ?? 0.25,
             sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
             brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
+            preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
         });
     }
     catch (error) {
@@ -4613,7 +4638,7 @@ app.get('/admin/pricing-settings', requireAdmin, async (_req, res) => {
 });
 app.post('/admin/pricing-settings', requireAdmin, async (req, res) => {
     try {
-        const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing } = req.body;
+        const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
         const defaultSizeUpcharges = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
         const defaultBrandLabelPricing = { printifyInside: 0.55, printifyOutside: 0.55, printfulInside: 0.99, printfulOutside: 2.49 };
         const settings = {
@@ -4629,6 +4654,7 @@ app.post('/admin/pricing-settings', requireAdmin, async (req, res) => {
                 { code: "3_year", name: "3 Years", price: 10 },
             ],
             brandLabelPricing: brandLabelPricing || defaultBrandLabelPricing,
+            preferredLabelPosition: preferredLabelPosition || 'outside',
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
         await db.collection("testSettings").doc("pricing").set(settings, { merge: true });

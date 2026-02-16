@@ -404,15 +404,28 @@ async function generatePrintfulMockupInternal(params: {
     position,
   }];
 
-  // Auto-attach QR Gear branded tag if product supports a label placement
+  // Auto-attach QR Gear branded tag based on admin preference from pricing settings
   const availPlacements = printfiles?.available_placements ? Object.keys(printfiles.available_placements) : [];
-  const labelPlacement = LABEL_PLACEMENTS_PRINTFUL.find(lp => availPlacements.includes(lp));
+  let preferredLabel: 'outside' | 'inside' = 'outside';
+  try {
+    const { getFirestoreDb } = await import('./firebase-admin');
+    const pricingDoc = await getFirestoreDb().collection('testSettings').doc('pricing').get();
+    if (pricingDoc.exists) {
+      preferredLabel = pricingDoc.data()?.preferredLabelPosition || 'outside';
+    }
+  } catch (e) {
+    console.warn('[MockupService] Could not read label preference, defaulting to outside');
+  }
+  const preferredPrintful = preferredLabel === 'inside' ? 'label_inside' : 'label_outside';
+  const fallbackPrintful = preferredLabel === 'inside' ? 'label_outside' : 'label_inside';
+  const labelPlacement = availPlacements.includes(preferredPrintful) ? preferredPrintful
+    : availPlacements.includes(fallbackPrintful) ? fallbackPrintful : null;
   if (labelPlacement) {
     mockupFiles.push({
       placement: labelPlacement,
       image_url: QR_GEAR_BRANDED_TAG_URL,
     });
-    console.log(`[MockupService/Printful] Auto-attaching branded tag to ${labelPlacement}`);
+    console.log(`[MockupService/Printful] Auto-attaching branded tag to ${labelPlacement} (preferred: ${preferredLabel})`);
   }
 
   // Step 6: Create mockup task with lifestyle option groups
