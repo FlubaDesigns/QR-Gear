@@ -66,9 +66,9 @@ These 88 admin routes exist in both the dev server and the Cloud Function. They 
 |--------|----------------|-----------------|--------|
 | DELETE | `/admin/background-assets/:id` | `/api/admin/background-assets/:id` | Synced |
 | GET | `/admin/background-assets` | `/api/admin/background-assets` | Synced |
-| POST | `/admin/background-assets` | `/api/admin/background-assets` | Synced |
+| POST | `/admin/background-assets` | `/api/admin/background-assets` | Synced (includes source-to-background move on crop) |
 | POST | `/admin/background-assets/sync` | `/api/admin/background-assets/sync` | Synced |
-| PUT | `/admin/background-assets/:id` | n/a (dev has PUT, CF has DELETE only) | Check |
+| PUT | `/admin/background-assets/:id` | `/api/admin/background-assets/:id` | Dev-only (CF missing PUT) |
 
 ### 1.2 Build Shelf
 
@@ -1508,7 +1508,21 @@ Verification:
   CF  = BOTH + CF-only  = 129 +  48 = 177 ✓
 ```
 
-## Appendix B: Key Files Reference
+## Appendix B: Change Log
+
+### February 16, 2026 — Session Updates
+
+| Change | Details |
+|--------|---------|
+| **CF POST `/admin/background-assets` — Added source-to-background move** | When a cropped image is uploaded with `assetType: "cropped"` and a `sourceAssetId`, the Cloud Function now automatically changes the source asset's type from `"source"` to `"background"`. This was already in the dev server (`background-assets.routes.ts` lines 157-163) but was missing from the Cloud Function. Now synced. |
+| **CF DELETE `/admin/background-assets/:id` — Confirmed working** | Soft-deletes by setting `isActive: false`. Already existed in CF but was not being triggered correctly from the frontend crop flow. |
+| **PUT `/admin/background-assets/:id` — Still dev-only** | The dev server has a PUT endpoint for updating asset name/isActive. The Cloud Function does not have this endpoint yet. Low priority since it's not used in the current crop flow. |
+| **Frontend `ImageUploader.tsx` — Fixed file reading** | Changed from blob URL approach (which failed after input clearing) to using `readFileAsBase64()` with 3-fallback method (arrayBuffer, FileReader, blob URL). Files are now read before clearing the input. |
+| **Frontend `CropUtility.tsx` — Fixed image clipping** | Reduced image max-height from 70vh to 50vh, added `overflow-hidden` on dialog, `min-h-0` on scroll container, and `object-fit: contain` on images. |
+| **Frontend `GridView.tsx` — Fixed thumbnail aspect ratio** | Changed grid thumbnails from forced `aspect-[9/16]` to `aspect-square` for natural thumbnail display. |
+| **Frontend `SourceImagesTab.tsx` — Crop flow improvements** | Crop now saves as `assetType: "cropped"` (not "background") so the server's auto-move logic triggers. Original image is downloaded to user's device before the crop saves. Crop toggle enabled so users can choose free crop or 9:16. |
+
+## Appendix C: Key Files Reference
 
 | File | Purpose |
 |------|---------|
