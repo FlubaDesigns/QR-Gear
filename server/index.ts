@@ -215,13 +215,10 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
-    // Start the mockup job queue worker
-    try {
-      const { mockupJobQueue } = await import('./lib/mockup-job-queue.js');
-      mockupJobQueue.startWorker();
-      log("Mockup job queue worker started");
-    } catch (err) {
-      console.error("Failed to start mockup job queue worker:", err);
-    }
+    // Dev server shares Firestore with production Cloud Function.
+    // Background worker disabled to prevent stealing jobs from the Cloud Function.
+    // Jobs are processed via the Cloud Function's queue/process endpoint in production.
+    // Use the /api/admin/queue/process route for manual dev processing if needed.
+    log("Mockup job queue worker disabled (production uses Cloud Function)");
   });
 })();

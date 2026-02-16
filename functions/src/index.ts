@@ -1100,8 +1100,43 @@ async function getPrintfulProductId(blueprintId: number): Promise<number | null>
   return DEFAULT_BLUEPRINT_MAPPINGS[blueprintId] || null;
 }
 
+async function toPublicUrl(url: string): Promise<string> {
+  if (!url) return url;
+  let filePath: string | null = null;
+  
+  const fbMatch = url.match(/firebasestorage\.googleapis\.com\/v0\/b\/([^/]+)\/o\/(.+?)(\?|$)/);
+  if (fbMatch) {
+    filePath = decodeURIComponent(fbMatch[2]);
+  }
+  
+  const gcsMatch = url.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
+  if (!filePath && gcsMatch) {
+    filePath = decodeURIComponent(gcsMatch[2]);
+  }
+  
+  if (filePath) {
+    try {
+      const bucket = admin.storage().bucket();
+      const file = bucket.file(filePath);
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 30 * 60 * 1000,
+      });
+      console.log(`[Mockup] Converted to signed URL: ${filePath}`);
+      return signedUrl;
+    } catch (e: any) {
+      console.warn(`[Mockup] Failed to sign URL for ${filePath}: ${e.message}`);
+      const hostingUrl = `https://qrgear-c1ffd.web.app/img/${filePath.replace(/^public\//, '')}`;
+      console.log(`[Mockup] Falling back to hosting URL: ${hostingUrl}`);
+      return hostingUrl;
+    }
+  }
+  return url;
+}
+
 async function generateMockupFromPrintful(request: MockupRequest): Promise<MockupResult> {
-  const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black', fulfillmentProvider = 'printify' } = request;
+  const { blueprintId, colorName, colorHex, artworkVariant = 'black', fulfillmentProvider = 'printify' } = request;
+  const artworkUrl = await toPublicUrl(request.artworkUrl);
   
   // Check Firestore cache first
   const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
@@ -1203,23 +1238,11 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
     }
   }];
 
-  let preferredLabel: 'outside' | 'inside' = 'outside';
-  try {
-    const pricingDoc = await db.collection('testSettings').doc('pricing').get();
-    if (pricingDoc.exists) {
-      preferredLabel = pricingDoc.data()?.preferredLabelPosition || 'outside';
-    }
-  } catch (e) {
-    console.warn('[Mockup] Could not read label preference, defaulting to outside');
-  }
-  const preferredPrintful = preferredLabel === 'inside' ? 'label_inside' : 'label_outside';
-  const fallbackPrintful = preferredLabel === 'inside' ? 'label_outside' : 'label_inside';
-  const labelPlacement = availPlacements.includes(preferredPrintful) ? preferredPrintful
-    : availPlacements.includes(fallbackPrintful) ? fallbackPrintful : null;
-  if (labelPlacement) {
-    const labelDims = getDimensionsForPlacement(labelPlacement);
+  // Hardcoded label_inside for QR Gear branded neck tag
+  if (availPlacements.includes('label_inside')) {
+    const labelDims = getDimensionsForPlacement('label_inside');
     mockupFiles.push({
-      placement: labelPlacement,
+      placement: 'label_inside',
       image_url: QR_GEAR_BRANDED_TAG_URL,
       position: {
         area_width: labelDims.width,
@@ -1230,21 +1253,20 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
         left: 0
       }
     });
-    console.log(`[Mockup] Auto-attaching branded tag to ${labelPlacement} (${labelDims.width}x${labelDims.height}, preferred: ${preferredLabel})`);
+    console.log(`[Mockup] Auto-attaching branded tag to label_inside (${labelDims.width}x${labelDims.height})`);
   }
   
   console.log('[Printful] Creating mockup with files:', JSON.stringify(mockupFiles));
   
-  // Retry logic with exponential backoff for Printful rate limits and transient errors
-  const maxRetries = 3;
+  // Retry logic - short delays to stay under Cloud Function gateway timeout
+  const maxRetries = 2;
   let lastError: Error | null = null;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Add delay between retries (longer delays for each retry)
       if (attempt > 1) {
-        const delayMs = attempt * 15000; // 15s, 30s, 45s
-        console.log(`[Printful] Retry ${attempt}/${maxRetries} - waiting ${delayMs/1000}s before retry`);
+        const delayMs = 15000; // 15s between retries
+        console.log(`[Printful] Retry ${attempt}/${maxRetries} - waiting ${delayMs/1000}s`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
       
@@ -6572,3 +6594,4 @@ export const api = onRequest(
   app
 );
 // Force deploy: 2026-02-15-v3 - removed /test/ routes, fixed query
+// Deploy timestamp: 1771255665

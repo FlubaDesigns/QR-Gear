@@ -343,7 +343,28 @@ async function generatePrintfulMockupInternal(params: {
     }
     absoluteArtworkUrl = uploadedUrl;
   } else if (artworkUrl.startsWith("http")) {
-    absoluteArtworkUrl = artworkUrl;
+    // Convert Firebase Storage URLs to signed URLs - Printful can't fetch ?alt=media format
+    const storageMatch = artworkUrl.match(/firebasestorage\.googleapis\.com\/v0\/b\/([^/]+)\/o\/(.+?)(\?|$)/);
+    if (storageMatch) {
+      try {
+        const { getFirestoreDb } = await import('./firebase-admin');
+        const admin = (await import('firebase-admin')).default;
+        const filePath = decodeURIComponent(storageMatch[2]);
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(filePath);
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 30 * 60 * 1000,
+        });
+        absoluteArtworkUrl = signedUrl;
+        console.log(`[MockupService/Printful] Converted storage URL to signed URL for: ${filePath}`);
+      } catch (e: any) {
+        console.warn(`[MockupService/Printful] Failed to sign URL: ${e.message}, using original`);
+        absoluteArtworkUrl = artworkUrl;
+      }
+    } else {
+      absoluteArtworkUrl = artworkUrl;
+    }
   } else {
     // Relative URL - make absolute
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
@@ -408,27 +429,13 @@ async function generatePrintfulMockupInternal(params: {
     position,
   }];
 
-  // Auto-attach QR Gear branded tag based on admin preference from pricing settings
-  let preferredLabel: 'outside' | 'inside' = 'outside';
-  try {
-    const { getFirestoreDb } = await import('./firebase-admin');
-    const pricingDoc = await getFirestoreDb().collection('testSettings').doc('pricing').get();
-    if (pricingDoc.exists) {
-      preferredLabel = pricingDoc.data()?.preferredLabelPosition || 'outside';
-    }
-  } catch (e) {
-    console.warn('[MockupService] Could not read label preference, defaulting to outside');
-  }
-  const preferredPrintful = preferredLabel === 'inside' ? 'label_inside' : 'label_outside';
-  const fallbackPrintful = preferredLabel === 'inside' ? 'label_outside' : 'label_inside';
-  const labelPlacement = availPlacements.includes(preferredPrintful) ? preferredPrintful
-    : availPlacements.includes(fallbackPrintful) ? fallbackPrintful : null;
-  if (labelPlacement) {
+  // Hardcoded label_inside for QR Gear branded neck tag
+  if (availPlacements.includes('label_inside')) {
     mockupFiles.push({
-      placement: labelPlacement,
+      placement: 'label_inside',
       image_url: QR_GEAR_BRANDED_TAG_URL,
     });
-    console.log(`[MockupService/Printful] Auto-attaching branded tag to ${labelPlacement} (preferred: ${preferredLabel})`);
+    console.log(`[MockupService/Printful] Auto-attaching branded tag to label_inside`);
   }
 
   // Step 6: Create mockup task with lifestyle option groups
