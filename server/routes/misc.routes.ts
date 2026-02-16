@@ -646,6 +646,7 @@ ${allPages.map(page => `  <url>
         productId: z.string(),
         blueprintId: z.number(),
         printProviderId: z.number(),
+        fulfillmentProvider: z.string().optional().default('printify'),
         colors: z.array(z.object({
           name: z.string(),
           hex: z.string(),
@@ -698,6 +699,7 @@ ${allPages.map(page => `  <url>
           printProviderId: data.printProviderId,
           artworkUrl: data.artworkUrl,
           artworkVariant: data.artworkVariant,
+          fulfillmentProvider: data.fulfillmentProvider,
           placementMethods: data.placementMethods,
         });
         allJobs.push(...jobs);
@@ -713,6 +715,7 @@ ${allPages.map(page => `  <url>
           printProviderId: data.printProviderId,
           artworkUrl: data.artworkUrl,
           artworkVariant: data.artworkVariant,
+          fulfillmentProvider: data.fulfillmentProvider,
           placementMethods: data.placementMethods,
         });
         allJobs.push(...jobs);

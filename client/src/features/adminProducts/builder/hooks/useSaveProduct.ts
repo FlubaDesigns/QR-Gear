@@ -138,6 +138,7 @@ export function useSaveProduct() {
       productId: selectedProduct.id,
       blueprintId: selectedProduct.blueprintId || 0,
       printProviderId: selectedProduct.printProviderId || 0,
+      fulfillmentProvider: (builderState as any).fulfillmentProvider || selectedProduct.fulfillmentProvider || 'printify',
       colors: colors || [],
       placements: placements || ["front"],
       placementMethods: placementMethods || {},

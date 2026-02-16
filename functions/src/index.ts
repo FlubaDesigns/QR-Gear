@@ -1,4 +1,4 @@
-// Build timestamp: 2026-01-27T06:30:00Z - Added PRINTFUL_STORE_ID to mockup generator API calls
+// Build timestamp: 2026-02-16T13:30:00Z - Fixed fulfillmentProvider passthrough in full-save and mockup queue
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -4780,6 +4780,7 @@ async function processQueueInBackground(): Promise<void> {
       const template = templateDoc.data()!;
 
       // Generate mockup
+      const effectiveProvider = template.fulfillmentProvider || job.fulfillmentProvider || 'printify';
       const mockupResult = await generateMockupFromPrintful({
         blueprintId: template.blueprintId || 5,
         printProviderId: template.printProviderId || 39,
@@ -4787,6 +4788,7 @@ async function processQueueInBackground(): Promise<void> {
         colorHex: job.colorHex || '#000000',
         artworkUrl: template.artworkUrl,
         artworkVariant: template.artworkVariant || 'black',
+        fulfillmentProvider: effectiveProvider,
         placement: job.placement || 'front',
         printMethod: job.printMethod,
       });
@@ -4930,16 +4932,22 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
 // Admin: Full template save with batch mockup generation
 app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { template, colors = [], placements = ['front', 'back'], placementMethods = {} } = req.body;
+    const { colors = [], placements = ['front', 'back'], placementMethods = {}, ...templateFields } = req.body;
 
-    if (!template) {
+    const templateKeys = ['name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
+      'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId'];
+    const template: Record<string, any> = {};
+    for (const key of templateKeys) {
+      if (templateFields[key] !== undefined) template[key] = templateFields[key];
+    }
+
+    if (!template.name && !template.productId) {
       res.status(400).json({ error: 'Template data is required' });
       return;
     }
 
     const now = admin.firestore.FieldValue.serverTimestamp();
 
-    // Save template
     const templateData = {
       ...template,
       createdAt: now,
@@ -4966,6 +4974,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
             qrSize,
             status: 'pending',
             createdAt: now,
+            fulfillmentProvider: template.fulfillmentProvider || 'printify',
           };
           if (placementMethods[placement]) {
             jobData.printMethod = placementMethods[placement];

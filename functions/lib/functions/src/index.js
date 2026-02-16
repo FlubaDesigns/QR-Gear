@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-01-27T06:30:00Z - Added PRINTFUL_STORE_ID to mockup generator API calls
+// Build timestamp: 2026-02-16T13:30:00Z - Fixed fulfillmentProvider passthrough in full-save and mockup queue
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -4209,6 +4209,7 @@ async function processQueueInBackground() {
             }
             const template = templateDoc.data();
             // Generate mockup
+            const effectiveProvider = template.fulfillmentProvider || job.fulfillmentProvider || 'printify';
             const mockupResult = await generateMockupFromPrintful({
                 blueprintId: template.blueprintId || 5,
                 printProviderId: template.printProviderId || 39,
@@ -4216,6 +4217,7 @@ async function processQueueInBackground() {
                 colorHex: job.colorHex || '#000000',
                 artworkUrl: template.artworkUrl,
                 artworkVariant: template.artworkVariant || 'black',
+                fulfillmentProvider: effectiveProvider,
                 placement: job.placement || 'front',
                 printMethod: job.printMethod,
             });
@@ -4334,13 +4336,19 @@ app.post('/admin/graphics/save', requireAdmin, async (req, res) => {
 // Admin: Full template save with batch mockup generation
 app.post('/admin/templates/full-save', requireAdmin, async (req, res) => {
     try {
-        const { template, colors = [], placements = ['front', 'back'], placementMethods = {} } = req.body;
-        if (!template) {
+        const { colors = [], placements = ['front', 'back'], placementMethods = {}, ...templateFields } = req.body;
+        const templateKeys = ['name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
+            'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId'];
+        const template = {};
+        for (const key of templateKeys) {
+            if (templateFields[key] !== undefined)
+                template[key] = templateFields[key];
+        }
+        if (!template.name && !template.productId) {
             res.status(400).json({ error: 'Template data is required' });
             return;
         }
         const now = admin.firestore.FieldValue.serverTimestamp();
-        // Save template
         const templateData = {
             ...template,
             createdAt: now,
@@ -4364,6 +4372,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req, res) => {
                         qrSize,
                         status: 'pending',
                         createdAt: now,
+                        fulfillmentProvider: template.fulfillmentProvider || 'printify',
                     };
                     if (placementMethods[placement]) {
                         jobData.printMethod = placementMethods[placement];
