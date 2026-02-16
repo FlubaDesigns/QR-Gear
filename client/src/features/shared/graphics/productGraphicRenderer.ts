@@ -40,13 +40,11 @@ const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = 
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1800;
 
-const PREVIEW_CONTAINER_WIDTH = 160;
 
-function getPreviewFontSize(fontSize: string): number {
-  if (fontSize === "12px" || fontSize === "sm") return 10;
-  if (fontSize === "24px" || fontSize === "lg") return 16;
-  if (fontSize === "32px" || fontSize === "xl") return 22;
-  return 12;
+function parseFontSize(fontSize: string): number {
+  const num = parseInt(fontSize, 10);
+  if (!isNaN(num) && num > 0) return num;
+  return 144;
 }
 
 function wrapText(
@@ -103,8 +101,6 @@ export async function renderProductGraphic(
   const W = dims.width;
   const H = dims.height;
 
-  const scaleFactor = W / PREVIEW_CONTAINER_WIDTH;
-
   const headerZoneTop = 0;
   const headerZoneHeight = H * ZONE_LAYOUT.HEADER_PERCENT;
   const qrZoneTop = headerZoneHeight;
@@ -132,8 +128,8 @@ export async function renderProductGraphic(
   ) => {
     if (!style.text) return;
 
-    const previewFontSize = getPreviewFontSize(style.fontSize);
-    const fontSize = previewFontSize * scaleFactor;
+    const baseFontSize = parseFontSize(style.fontSize);
+    const fontSize = Math.round(baseFontSize * (W / 1200) * 2.5);
     const fontFamily = style.fontFamily || "Arial";
     const fillColor = style.color || "#000000";
 
@@ -144,7 +140,7 @@ export async function renderProductGraphic(
 
     if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
       ctx.strokeStyle = style.strokeColor;
-      ctx.lineWidth = style.strokeWidth * scaleFactor;
+      ctx.lineWidth = style.strokeWidth * (W / 1200) * 2.5;
     }
 
     const lines = wrapText(ctx, style.text, W - 120);
