@@ -139,15 +139,37 @@ function SourceImagesTabInner() {
     }
   };
 
-  const handleCropComplete = useCallback((croppedDataUrl: string) => {
+  const handleCropComplete = useCallback(async (croppedDataUrl: string) => {
     if (!assetToCrop) {
       console.error("[SourceImages] handleCropComplete called but no assetToCrop");
       return;
     }
     const sourceAsset = assetToCrop;
+    const sourceId = sourceAsset.id;
+    const originalAsset = assets.find(a => a.id === sourceId);
     console.log("[SourceImages] Crop complete for:", sourceAsset.name, "dataUrl length:", croppedDataUrl.length);
     setCropDialogOpen(false);
     setAssetToCrop(null);
+
+    if (originalAsset) {
+      try {
+        const originalUrl = getImageUrl(originalAsset);
+        console.log("[SourceImages] Downloading original before removal:", originalUrl);
+        const blobUrl = await api.fetchImageBlob(originalUrl);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        const ext = originalAsset.mimeType?.includes("png") ? ".png" : ".jpg";
+        a.download = `${originalAsset.name || "original"}${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        console.log("[SourceImages] Original downloaded:", a.download);
+      } catch (dlErr) {
+        console.error("[SourceImages] Failed to download original:", dlErr);
+        toast({ title: "Could not download original", description: "Crop will still be saved", variant: "destructive" });
+      }
+    }
 
     const imageData = croppedDataUrl.includes(',')
       ? croppedDataUrl.split(',')[1]
@@ -155,23 +177,34 @@ function SourceImagesTabInner() {
 
     console.log("[SourceImages] Uploading cropped image, base64 length:", imageData.length);
     toast({ title: "Saving cropped image..." });
-    api.uploadAsset({
-      name: `cropped_${sourceAsset.name}`,
-      assetType: "cropped",
-      imageData,
-      mimeType: "image/jpeg",
-      sourceAssetId: sourceAsset.id,
-    }).then(() => {
+    try {
+      await api.uploadAsset({
+        name: `cropped_${sourceAsset.name}`,
+        assetType: "cropped",
+        imageData,
+        mimeType: "image/jpeg",
+        sourceAssetId: sourceId,
+      });
       console.log("[SourceImages] Cropped image saved successfully");
+
+      try {
+        console.log("[SourceImages] Removing original source asset:", sourceId);
+        await api.deleteAsset(sourceId);
+        console.log("[SourceImages] Original source asset removed");
+      } catch (delErr) {
+        console.error("[SourceImages] Failed to remove original:", delErr);
+      }
+
       toast({ title: "Cropped image saved" });
       api.invalidateAssets("source");
       api.invalidateAssets("cropped");
       api.invalidateAssets("background");
-    }).catch((err: Error) => {
-      console.error("[SourceImages] Crop save error:", err.message, err.stack);
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    });
-  }, [assetToCrop, api, toast]);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("[SourceImages] Crop save error:", error.message, error.stack);
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    }
+  }, [assetToCrop, assets, api, toast]);
 
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id);
