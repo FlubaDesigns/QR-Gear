@@ -20,7 +20,7 @@ interface StoreChannel {
 
 export function ChannelPickerModule() {
   const { step, currentStore, currentChannel, setCurrentChannel, setStep } = useStoreBuilderContext();
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
@@ -32,9 +32,10 @@ export function ChannelPickerModule() {
 
   const createChannelMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch(`/api/stores/${currentStore!.id}/channels`, {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${currentStore!.id}/channels`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
       if (!res.ok) {

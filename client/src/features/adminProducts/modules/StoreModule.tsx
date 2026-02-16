@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Store, Plus, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useProductsContext } from "../ProductsContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { Store as StoreType } from "../shared/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,6 +21,7 @@ export function StoreModule() {
     roles 
   } = useProductsContext();
   const { toast } = useToast();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   
   const [showAddStore, setShowAddStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -32,9 +34,10 @@ export function StoreModule() {
 
   const createStoreMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch("/api/stores", {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name, roleType: selectedRole }),
       });
       if (!res.ok) {

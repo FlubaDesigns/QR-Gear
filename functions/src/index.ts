@@ -2889,6 +2889,38 @@ app.post('/admin/partner-stores/:id/products', requireAdmin, async (req: Request
   }
 });
 
+// ============ ALLOWED PRODUCTS ============
+
+app.get('/admin/stores/:storeId/allowed-products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const doc = await db.collection('storeAllowedProducts').doc(storeId).get();
+    if (!doc.exists) { res.json({ storeId, products: [] }); return; }
+    const data = doc.data();
+    res.json({ storeId, products: data?.products || [], updatedAt: data?.updatedAt });
+  } catch (error: any) {
+    console.error('[AllowedProducts] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/stores/:storeId/allowed-products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId } = req.params;
+    const { products } = req.body;
+    if (!Array.isArray(products)) { res.status(400).json({ error: 'products must be an array' }); return; }
+    await db.collection('storeAllowedProducts').doc(storeId).set({
+      storeId,
+      products,
+      updatedAt: new Date().toISOString(),
+    });
+    res.json({ success: true, storeId, productCount: products.length });
+  } catch (error: any) {
+    console.error('[AllowedProducts] POST error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ============ QR GENERATION ============
 
 app.post('/qr/generate', async (req: Request, res: Response): Promise<void> => {

@@ -207,7 +207,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       params.set('productId', String(product.id));
     }
 
-    fetch(`/api/admin/catalog/placements?${params}`, { credentials: 'include' })
+    api.getAuthHeaders().then(headers => 
+      fetch(`${api.baseUrl}/catalog/placements?${params}`, { headers })
+    )
       .then(r => r.json())
       .then(data => {
         if (data.placements && data.placements.length > 0) {

@@ -477,7 +477,7 @@ export function CreateGraphicsModule() {
   const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: [`${apiBase}/pricing-settings`],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/pricing-settings`);
+      const res = await fetch(`/api/pricing-settings`);
       if (!res.ok) throw new Error(`pricing-settings HTTP ${res.status}`);
       return res.json();
     },
@@ -654,9 +654,10 @@ export function CreateGraphicsModule() {
           
           console.log('[CreatePacket] Base64 data length:', base64Data.length);
           
+          const authHeaders = await getAuthHeaders();
           const uploadRes = await fetch(`${apiBase}/content/upload`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { ...authHeaders, "Content-Type": "application/json" },
             body: JSON.stringify({
               mode: "play",
               userId: "admin",
@@ -743,9 +744,10 @@ export function CreateGraphicsModule() {
                    state.qrProductState === "qr_compose" ? "compose" : "basics";
       
       try {
+        const graphicAuthHeaders = await getAuthHeaders();
         const uploadRes = await fetch(`${apiBase}/content/upload`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...graphicAuthHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
             mode,
             userId: "admin",
@@ -765,9 +767,10 @@ export function CreateGraphicsModule() {
 
       if (landingPageSnapshotUrl) {
         try {
+          const snapshotAuthHeaders = await getAuthHeaders();
           const uploadRes = await fetch(`${apiBase}/content/upload`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { ...snapshotAuthHeaders, "Content-Type": "application/json" },
             body: JSON.stringify({
               mode,
               userId: "admin",
@@ -799,9 +802,10 @@ export function CreateGraphicsModule() {
         }),
       });
 
+      const graphicsSaveHeaders = await getAuthHeaders();
       await fetch(`${apiBase}/graphics/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...graphicsSaveHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           name: state.content?.title || `Graphic - ${new Date().toLocaleDateString()}`,
           description: state.content?.description || "",
@@ -818,9 +822,10 @@ export function CreateGraphicsModule() {
         ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
         : [{ name: state.selectedColor?.name || 'Black', hex: state.selectedColor?.hex || '#000000' }];
 
+      const templateSaveHeaders = await getAuthHeaders();
       const templateSaveRes = await fetch(`${apiBase}/templates/full-save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...templateSaveHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           name: state.content?.title || `Template - ${new Date().toLocaleDateString()}`,
           description: state.content?.description || "",
@@ -843,18 +848,20 @@ export function CreateGraphicsModule() {
       const templateData = await templateSaveRes.json().catch(() => ({}));
       console.log(`[CreatePacket] Template saved, mockup jobs queued: ${templateData.jobsQueued || 0}`);
 
+      const queueHeaders = await getAuthHeaders();
       fetch(`${apiBase}/queue/process`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...queueHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ limit: 3 }),
       }).catch(() => {});
 
       // Create storeProductLink if store and channel are selected (locks in assignment before Store Builder)
       if (selectedStore?.id && selectedChannel?.name) {
         try {
+          const linkHeaders = await getAuthHeaders();
           const linkRes = await fetch(`${apiBase}/store-product-links`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { ...linkHeaders, "Content-Type": "application/json" },
             body: JSON.stringify({
               storeId: selectedStore.id,
               storeName: selectedStore.name,
@@ -936,9 +943,10 @@ export function CreateGraphicsModule() {
         fulfillmentProvider: state.fulfillmentProvider,
       });
       
+      const mockupHeaders = await getAuthHeaders();
       fetch(`${apiBase}/mockup/priority`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...mockupHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           blueprintId: product?.blueprintId || 0,
           printProviderId: product?.printProviderId || 99,

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 export type StoreType = "internal" | "external" | "member";
 
@@ -61,6 +62,7 @@ interface StoreLibraryProviderProps {
 }
 
 export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: StoreLibraryProviderProps) {
+  const { getAuthHeaders } = useAdminAuth();
   const [selectedType, setSelectedType] = useState<StoreType>("internal");
   const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<ChannelInfo | null>(null);
@@ -75,7 +77,9 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
     const urlChannel = urlParams.get("channel");
     
     if (urlStoreId && urlStoreId !== "null") {
-      fetch(`${apiBase}/stores/by-id/${urlStoreId}`)
+      getAuthHeaders().then(headers =>
+        fetch(`${apiBase}/stores/by-id/${urlStoreId}`, { headers })
+      )
         .then(res => res.ok ? res.json() : null)
         .then(async (store) => {
           if (store && store.id) {
@@ -88,7 +92,8 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
             
             if (urlChannel && urlChannel !== "null") {
               try {
-                const channelsRes = await fetch(`${apiBase}/stores/${urlStoreId}/channels`);
+                const headers = await getAuthHeaders();
+                const channelsRes = await fetch(`${apiBase}/stores/${urlStoreId}/channels`, { headers });
                 if (channelsRes.ok) {
                   const channels: ChannelInfo[] = await channelsRes.json();
                   const channel = channels.find(c => c.name === urlChannel || c.id === urlChannel);
@@ -107,7 +112,7 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
     } else {
       setUrlParamsProcessed(true);
     }
-  }, [urlParamsProcessed, apiBase]);
+  }, [urlParamsProcessed, apiBase, getAuthHeaders]);
 
   const addToSelection = (product: ProductInfo) => {
     setSelectedProducts(prev => {

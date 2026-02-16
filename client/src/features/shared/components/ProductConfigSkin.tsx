@@ -7,6 +7,7 @@ import { ChevronDown, ChevronRight, Check, Loader2, ImageIcon, RefreshCw } from 
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface ColorOption {
   name: string;
@@ -59,6 +60,7 @@ export function ProductConfigSkin({
   readOnly = false,
 }: ProductConfigSkinProps) {
   const { toast } = useToast();
+  const { getAuthHeaders } = useAdminAuth();
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(
     new Set(initialEnabledSizes || sizes)
   );
@@ -143,7 +145,7 @@ export function ProductConfigSkin({
     try {
       const res = await fetch(`${apiBase}/products/${productId}/sync-printify`, {
         method: "POST",
-        credentials: "include",
+        headers: await getAuthHeaders(),
       });
       if (!res.ok) {
         const data = await res.json();

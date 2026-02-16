@@ -123,7 +123,7 @@ export function StoreChannelDropdownModule() {
   const deleteStoreMutation = useMutation({
     mutationFn: async (storeId: string) => {
       const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/stores/${storeId}`, {
+      const res = await fetch(`${api.baseUrl}/stores/by-id/${storeId}`, {
         method: "DELETE",
         headers,
       });
@@ -161,9 +161,10 @@ export function StoreChannelDropdownModule() {
   const deleteChannelMutation = useMutation({
     mutationFn: async ({ storeId, channelId }: { storeId: string; channelId: string }) => {
       const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/stores/${storeId}/channels/${channelId}`, {
+      const res = await fetch(`${api.baseUrl}/stores/${storeId}/channels`, {
         method: "DELETE",
-        headers,
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId }),
       });
       if (!res.ok) throw new Error(`Failed to delete channel: ${res.status}`);
       return res.json();

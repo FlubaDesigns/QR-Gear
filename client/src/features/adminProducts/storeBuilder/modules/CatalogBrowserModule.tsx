@@ -37,7 +37,7 @@ type ProviderFilter = 'all' | 'printify' | 'printful' | 'matched';
 
 export function CatalogBrowserModule() {
   const { step, currentChannel, selectedBaseProduct, setSelectedBaseProduct, setStep } = useStoreBuilderContext();
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [search, setSearch] = useState("");
   const [usaOnly, setUsaOnly] = useState(false);
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all');
@@ -46,7 +46,8 @@ export function CatalogBrowserModule() {
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
     queryKey: [`${apiBase}/printify/catalog`, { provider: providerFilter }],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/printify/catalog?provider=${providerFilter}`, { credentials: 'include' });
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/printify/catalog?provider=${providerFilter}`, { headers });
       if (!res.ok) throw new Error('Failed to load catalog');
       return res.json();
     },

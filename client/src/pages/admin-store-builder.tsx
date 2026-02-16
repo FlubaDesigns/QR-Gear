@@ -14,6 +14,7 @@ import { BuilderProvider, useBuilderContext } from "@/features/adminProducts/bui
 import { ProductsModule } from "@/features/adminProducts/builder/modules/ProductsModule";
 import { useProductsContext } from "@/features/adminProducts/ProductsContext";
 import AdminShell from "@/components/AdminShell";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
 interface ProductBlueprint { id: number; title: string; }
@@ -158,11 +159,16 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
 }
 
 function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose: () => void }) {
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [addedProducts, setAddedProducts] = useState<BareProduct[]>([]);
 
   const { data: existingData } = useQuery({
-    queryKey: ["/api/stores", store.id, "allowed-products"],
-    queryFn: async () => { const res = await fetch(`/api/stores/${store.id}/allowed-products`); return res.json(); },
+    queryKey: [`${apiBase}/stores`, store.id, "allowed-products"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${store.id}/allowed-products`, { headers });
+      return res.json();
+    },
   });
 
   useEffect(() => {
@@ -171,16 +177,17 @@ function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose
 
   const saveMutation = useMutation({
     mutationFn: async (products: BareProduct[]) => {
-      const res = await fetch(`/api/stores/${store.id}/allowed-products`, { 
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${store.id}/allowed-products`, { 
         method: "POST", 
         body: JSON.stringify({ products }), 
-        headers: { "Content-Type": "application/json" } 
+        headers: { ...headers, "Content-Type": "application/json" } 
       });
       if (!res.ok) throw new Error("Failed to save");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/stores", store.id, "allowed-products"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`, store.id, "allowed-products"] });
     },
   });
 
@@ -245,9 +252,15 @@ function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () =
     enabled: !!selectedBlueprint,
   });
 
+  const { apiBase, getAuthHeaders } = useAdminAuth();
+
   const { data: existingData } = useQuery({
-    queryKey: ["/api/stores", store.id, "allowed-products"],
-    queryFn: async () => { const res = await fetch(`/api/stores/${store.id}/allowed-products`); return res.json(); },
+    queryKey: [`${apiBase}/stores`, store.id, "allowed-products"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${store.id}/allowed-products`, { headers });
+      return res.json();
+    },
   });
 
   useEffect(() => {
@@ -263,16 +276,17 @@ function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () =
 
   const saveMutation = useMutation({
     mutationFn: async (products: BareProduct[]) => {
-      const res = await fetch(`/api/stores/${store.id}/allowed-products`, { 
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${store.id}/allowed-products`, { 
         method: "POST", 
         body: JSON.stringify({ products }), 
-        headers: { "Content-Type": "application/json" } 
+        headers: { ...headers, "Content-Type": "application/json" } 
       });
       if (!res.ok) throw new Error("Failed to save");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/stores", store.id, "allowed-products"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`, store.id, "allowed-products"] });
     },
   });
 
@@ -410,6 +424,7 @@ function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () =
 
 function StoreManager() {
   const { toast } = useToast();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [expanded, setExpanded] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -417,15 +432,20 @@ function StoreManager() {
   const [editingStore, setEditingStore] = useState<StoreData | null>(null);
 
   const { data: stores = [], isLoading } = useQuery<StoreData[]>({
-    queryKey: ["/api/stores"],
-    queryFn: async () => { const res = await fetch("/api/stores"); return res.json(); },
+    queryKey: [`${apiBase}/stores`],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores`, { headers });
+      return res.json();
+    },
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/stores", {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name: newStoreName.trim(), roleType: newStoreType }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed to create");
@@ -435,20 +455,21 @@ function StoreManager() {
       toast({ title: "Store Created", description: `${data.name} (${data.roleType})` });
       setNewStoreName("");
       setShowCreateForm(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/stores"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (storeId: string) => {
-      const res = await fetch(`/api/stores/${storeId}`, { method: "DELETE" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${storeId}`, { method: "DELETE", headers });
       if (!res.ok) throw new Error("Failed to delete");
       return res.json();
     },
     onSuccess: () => {
       toast({ title: "Deleted" });
-      queryClient.invalidateQueries({ queryKey: ["/api/stores"] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
     },
   });
 

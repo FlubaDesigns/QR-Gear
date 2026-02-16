@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Layers, Plus, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useProductsContext } from "../ProductsContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { Channel } from "../shared/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,6 +19,7 @@ export function ChannelModule() {
     setSelectedChannel 
   } = useProductsContext();
   const { toast } = useToast();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
@@ -30,9 +32,10 @@ export function ChannelModule() {
 
   const createChannelMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch(`/api/stores/${selectedStore!.id}/channels`, {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${selectedStore!.id}/channels`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
       if (!res.ok) {

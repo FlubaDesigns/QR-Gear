@@ -20,7 +20,7 @@ interface PartnerStore {
 
 export function StorePickerModule() {
   const { step, currentStore, setCurrentStore, setCurrentChannel, setStep } = useStoreBuilderContext();
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [showAddStore, setShowAddStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -31,9 +31,10 @@ export function StorePickerModule() {
 
   const createStoreMutation = useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch("/api/stores", {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name, roleType: "internal" }),
       });
       if (!res.ok) {

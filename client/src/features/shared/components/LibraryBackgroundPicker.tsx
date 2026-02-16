@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Image, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { SkinGridViewer } from "./SkinGridViewer";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
 import { BackgroundCardSkin, BackgroundDetailSkin, CroppedImageCardSkin, CroppedImageDetailSkin } from "./skins";
@@ -55,6 +56,7 @@ export function LibraryBackgroundPicker({
   showSourceTab = true,
 }: LibraryBackgroundPickerProps) {
   const { toast } = useToast();
+  const { getAuthHeaders } = useAdminAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>("cropped");
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -64,7 +66,8 @@ export function LibraryBackgroundPicker({
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
     queryKey: [`${apiBase}/background-assets`, "cropped"],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/background-assets?type=cropped`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/background-assets?type=cropped`, { headers });
       if (!res.ok) return [];
       return res.json();
     },
@@ -74,7 +77,8 @@ export function LibraryBackgroundPicker({
   const { data: backgrounds = [], isLoading: loadingBackgrounds } = useQuery<BackgroundAsset[]>({
     queryKey: [`${apiBase}/background-assets`, "background"],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/background-assets?type=background`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/background-assets?type=background`, { headers });
       if (!res.ok) return [];
       return res.json();
     },
@@ -110,7 +114,8 @@ export function LibraryBackgroundPicker({
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const res = await fetch(`${apiBase}/background-assets/${id}`, { method: "DELETE" });
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/background-assets/${id}`, { method: "DELETE", headers });
       if (res.ok) {
         queryClient.invalidateQueries({ queryKey: [`${apiBase}/background-assets`] });
         toast({ title: "Image deleted" });
@@ -126,9 +131,10 @@ export function LibraryBackgroundPicker({
   const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) return;
     
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${apiBase}/background-assets`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...authHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({
         name: `cropped_${sourceAsset.name}`,
         assetType: "cropped",
