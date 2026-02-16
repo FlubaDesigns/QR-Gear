@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-02-16T13:30:00Z - Fixed fulfillmentProvider passthrough in full-save and mockup queue
+// Build timestamp: 2026-02-16T14:15:00Z - Fixed printfile position lookup and label placement position data
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -922,25 +922,47 @@ async function generateMockupFromPrintful(request) {
     }
     // Get printfile specs to get position info
     const printfileData = await printfulClient.getPrintfiles(printfulProductId);
-    const frontPrintfile = printfileData?.printfiles?.find((p) => p.placement === 'front' || p.placement === 'front_large' || p.placement === 'default');
+    const availPlacements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
+    // Build printfile ID to dimensions lookup
+    const printfileById = {};
+    if (printfileData?.printfiles) {
+        for (const pf of printfileData.printfiles) {
+            printfileById[pf.printfile_id] = { width: pf.width, height: pf.height };
+        }
+    }
+    // Build placement to printfile ID mapping from variant_printfiles
+    const placementToPrintfileId = {};
+    if (printfileData?.variant_printfiles) {
+        const firstVariantKey = Object.keys(printfileData.variant_printfiles)[0];
+        const firstVariant = printfileData.variant_printfiles[firstVariantKey];
+        if (firstVariant?.placements) {
+            for (const [pName, pfId] of Object.entries(firstVariant.placements)) {
+                placementToPrintfileId[pName] = pfId;
+            }
+        }
+    }
+    // Helper to get dimensions for a placement
+    function getDimensionsForPlacement(placementName) {
+        const pfId = placementToPrintfileId[placementName];
+        if (pfId && printfileById[pfId])
+            return printfileById[pfId];
+        return { width: 1800, height: 2400 };
+    }
     const canonicalPlacement = request.placement || 'front';
-    const availPlacementNames = printfileData?.printfiles?.map((p) => p.placement) || [];
-    const placement = toProviderPlacement('printful', canonicalPlacement, availPlacementNames, request.printMethod);
-    const areaWidth = frontPrintfile?.width || 1800;
-    const areaHeight = frontPrintfile?.height || 2400;
+    const placement = toProviderPlacement('printful', canonicalPlacement, availPlacements, request.printMethod);
+    const dims = getDimensionsForPlacement(placement);
     const mockupFiles = [{
             placement: placement,
             image_url: artworkUrl,
             position: {
-                area_width: areaWidth,
-                area_height: areaHeight,
-                width: areaWidth,
-                height: areaHeight,
+                area_width: dims.width,
+                area_height: dims.height,
+                width: dims.width,
+                height: dims.height,
                 top: 0,
                 left: 0
             }
         }];
-    const availPlacements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
     let preferredLabel = 'outside';
     try {
         const pricingDoc = await db.collection('testSettings').doc('pricing').get();
@@ -956,8 +978,20 @@ async function generateMockupFromPrintful(request) {
     const labelPlacement = availPlacements.includes(preferredPrintful) ? preferredPrintful
         : availPlacements.includes(fallbackPrintful) ? fallbackPrintful : null;
     if (labelPlacement) {
-        mockupFiles.push({ placement: labelPlacement, image_url: QR_GEAR_BRANDED_TAG_URL });
-        console.log(`[Mockup] Auto-attaching branded tag to ${labelPlacement} (preferred: ${preferredLabel})`);
+        const labelDims = getDimensionsForPlacement(labelPlacement);
+        mockupFiles.push({
+            placement: labelPlacement,
+            image_url: QR_GEAR_BRANDED_TAG_URL,
+            position: {
+                area_width: labelDims.width,
+                area_height: labelDims.height,
+                width: labelDims.width,
+                height: labelDims.height,
+                top: 0,
+                left: 0
+            }
+        });
+        console.log(`[Mockup] Auto-attaching branded tag to ${labelPlacement} (${labelDims.width}x${labelDims.height}, preferred: ${preferredLabel})`);
     }
     console.log('[Printful] Creating mockup with files:', JSON.stringify(mockupFiles));
     // Retry logic with exponential backoff for Printful rate limits and transient errors
