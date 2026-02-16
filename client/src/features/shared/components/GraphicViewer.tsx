@@ -1,4 +1,5 @@
 import { QrCode } from "lucide-react";
+import { DEFAULT_FONT_SIZE_NUM } from "./TextStyleEditor";
 
 interface TextOverlay {
   text: string;
@@ -30,9 +31,9 @@ function TextOverlayDisplay({
 }) {
   if (!style.enabled || !style.text) return null;
 
-  const baseFontSize = parseInt(style.fontSize) || 144;
-  const scaleFactor = 0.08;
-  const fontSize = Math.max(10, Math.min(baseFontSize * scaleFactor, 20));
+  const baseFontSize = parseInt(style.fontSize) || DEFAULT_FONT_SIZE_NUM;
+  const scaleFactor = 0.35;
+  const fontSize = Math.max(8, Math.min(baseFontSize * scaleFactor, 28));
   
   const getWarpTransform = () => {
     if (style.warpPreset === "arc-up") {

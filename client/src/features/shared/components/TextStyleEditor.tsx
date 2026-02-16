@@ -34,7 +34,9 @@ export const FONT_FAMILIES = [
   "Palatino Linotype",
 ];
 
-export const FONT_SIZES = ["72", "96", "120", "144", "168", "192", "216", "240", "280", "320"];
+export const FONT_SIZES = ["12", "16", "20", "24", "28", "32", "36", "42", "48", "56", "64", "72"];
+export const DEFAULT_FONT_SIZE = "36";
+export const DEFAULT_FONT_SIZE_NUM = 36;
 
 export const WARP_PRESETS = [
   { value: "straight", label: "Straight" },
@@ -46,7 +48,7 @@ export const defaultTextStyle: TextStyleConfig = {
   text: "",
   enabled: false,
   fontFamily: "Arial",
-  fontSize: "144",
+  fontSize: DEFAULT_FONT_SIZE,
   color: "#FFFFFF",
   warpPreset: "straight",
   letterSpacing: 0,

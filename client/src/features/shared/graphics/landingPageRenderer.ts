@@ -1,3 +1,5 @@
+import { DEFAULT_FONT_SIZE_NUM } from "../components/TextStyleEditor";
+
 export interface LandingPageTextStyle {
   text: string;
   enabled?: boolean;
@@ -151,8 +153,8 @@ export async function renderLandingPage(
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
   if (titleStyle && titleStyle.enabled !== false && titleStyle.text) {
-    const fontSize = parseInt(titleStyle.fontSize) || 72;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
+    const fontSize = parseInt(titleStyle.fontSize) || DEFAULT_FONT_SIZE_NUM;
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
     const verticalOffset = titleStyle.verticalOffset ?? 84;
     const horizontalOffset = titleStyle.horizontalOffset ?? 8;
     const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
@@ -177,8 +179,8 @@ export async function renderLandingPage(
     descriptionStyle.enabled !== false &&
     descriptionStyle.text
   ) {
-    const fontSize = parseInt(descriptionStyle.fontSize) || 48;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
+    const fontSize = parseInt(descriptionStyle.fontSize) || DEFAULT_FONT_SIZE_NUM;
+    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
     const verticalOffset = descriptionStyle.verticalOffset ?? 72;
     const horizontalOffset = descriptionStyle.horizontalOffset ?? 10;
     const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);

@@ -1,5 +1,6 @@
 import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 
 export interface TextStyle {
   text: string;
@@ -42,7 +43,7 @@ const DEFAULT_HEIGHT = 1800;
 function parseFontSize(fontSize: string): number {
   const num = parseInt(fontSize, 10);
   if (!isNaN(num) && num > 0) return num;
-  return 144;
+  return DEFAULT_FONT_SIZE_NUM;
 }
 
 function wrapText(
@@ -127,7 +128,7 @@ export async function renderProductGraphic(
     if (!style.text) return;
 
     const baseFontSize = parseFontSize(style.fontSize);
-    const fontSize = Math.round(baseFontSize * (W / 1200) * 2.5);
+    const fontSize = Math.round(baseFontSize * (W / 360));
     const fontFamily = style.fontFamily || "Arial";
     const fillColor = style.color || "#000000";
 
@@ -138,7 +139,7 @@ export async function renderProductGraphic(
 
     if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
       ctx.strokeStyle = style.strokeColor;
-      ctx.lineWidth = style.strokeWidth * (W / 1200) * 2.5;
+      ctx.lineWidth = style.strokeWidth * (W / 360);
     }
 
     const lines = wrapText(ctx, style.text, W - 120);

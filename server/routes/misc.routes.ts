@@ -743,10 +743,10 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const pendingSnapshot = await firestoreDb.collection("mockupJobs").where("status", "==", "pending").get();
-      const processingSnapshot = await firestoreDb.collection("mockupJobs").where("status", "==", "processing").get();
-      const completedSnapshot = await firestoreDb.collection("mockupJobs").where("status", "==", "completed").limit(100).get();
-      const failedSnapshot = await firestoreDb.collection("mockupJobs").where("status", "==", "failed").limit(100).get();
+      const pendingSnapshot = await firestoreDb.collection("mockup_jobs").where("status", "==", "pending").get();
+      const processingSnapshot = await firestoreDb.collection("mockup_jobs").where("status", "==", "processing").get();
+      const completedSnapshot = await firestoreDb.collection("mockup_jobs").where("status", "==", "completed").limit(100).get();
+      const failedSnapshot = await firestoreDb.collection("mockup_jobs").where("status", "==", "failed").limit(100).get();
 
       res.json({
         success: true,
@@ -770,7 +770,7 @@ ${allPages.map(page => `  <url>
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const jobsSnapshot = await firestoreDb.collection("mockupJobs")
+      const jobsSnapshot = await firestoreDb.collection("mockup_jobs")
         .where("templateId", "==", templateId)
         .get();
 
@@ -822,7 +822,7 @@ ${allPages.map(page => `  <url>
       const admin = getFirebaseAdmin();
 
       const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      const processingSnapshot = await firestoreDb.collection("mockupJobs")
+      const processingSnapshot = await firestoreDb.collection("mockup_jobs")
         .where("status", "==", "processing")
         .limit(50)
         .get();
@@ -832,7 +832,7 @@ ${allPages.map(page => `  <url>
         const data = doc.data();
         const startedAt = data.startedAt?.toMillis?.() || data.startedAt || 0;
         if (startedAt < fiveMinutesAgo) {
-          await firestoreDb.collection("mockupJobs").doc(doc.id).update({
+          await firestoreDb.collection("mockup_jobs").doc(doc.id).update({
             status: "pending",
             retryCount: admin.firestore.FieldValue.increment(1),
             lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -842,7 +842,7 @@ ${allPages.map(page => `  <url>
         }
       }
 
-      const pendingSnapshot = await firestoreDb.collection("mockupJobs")
+      const pendingSnapshot = await firestoreDb.collection("mockup_jobs")
         .where("status", "==", "pending")
         .limit(processLimit)
         .get();
@@ -866,7 +866,7 @@ ${allPages.map(page => `  <url>
 
         try {
           const claimed = await firestoreDb.runTransaction(async (transaction) => {
-            const jobRef = firestoreDb.collection("mockupJobs").doc(jobId);
+            const jobRef = firestoreDb.collection("mockup_jobs").doc(jobId);
             const freshDoc = await transaction.get(jobRef);
             
             if (!freshDoc.exists || freshDoc.data()?.status !== "pending") {
@@ -923,7 +923,7 @@ ${allPages.map(page => `  <url>
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
-          await firestoreDb.collection("mockupJobs").doc(jobId).update({
+          await firestoreDb.collection("mockup_jobs").doc(jobId).update({
             status: "completed",
             mockupUrl: mockupResult.mockupUrl || null,
             lifestyleUrl: mockupResult.lifestyleUrl || null,
@@ -936,7 +936,7 @@ ${allPages.map(page => `  <url>
         } catch (error: any) {
           console.error(`[Queue] Job ${jobId} failed:`, error.message);
           
-          await firestoreDb.collection("mockupJobs").doc(jobId).update({
+          await firestoreDb.collection("mockup_jobs").doc(jobId).update({
             status: "failed",
             error: error.message,
             failedAt: admin.firestore.FieldValue.serverTimestamp(),

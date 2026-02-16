@@ -103,40 +103,14 @@ export interface TextStyleConfig {
   horizontalOffset: number; // Left/right position (-50 to 50, 0 = centered)
 }
 
-export const FONT_FAMILIES = [
-  "Arial",
-  "Helvetica", 
-  "Times New Roman",
-  "Georgia",
-  "Verdana",
-  "Courier New",
-  "Impact",
-  "Comic Sans MS",
-  "Trebuchet MS",
-  "Palatino Linotype",
-];
-
-export const FONT_SIZES = ["72", "96", "120", "144", "168", "192", "216", "240", "280", "320"];
-
-export const WARP_PRESETS = [
-  { value: "straight", label: "Straight" },
-  { value: "arc-up", label: "Arc Up" },
-  { value: "arc-down", label: "Arc Down" },
-];
-
-export const defaultTextStyle: TextStyleConfig = {
-  text: "",
-  enabled: false,
-  fontFamily: "Arial",
-  fontSize: "144",
-  color: "#FFFFFF",
-  warpPreset: "straight",
-  letterSpacing: 0,
-  strokeColor: "",
-  strokeWidth: 0,
-  verticalOffset: 80,    // 80% default
-  horizontalOffset: 50,  // 50 = centered
-};
+export {
+  FONT_FAMILIES,
+  FONT_SIZES,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_FONT_SIZE_NUM,
+  WARP_PRESETS,
+  defaultTextStyle,
+} from "@/features/shared/components/TextStyleEditor";
 
 export interface ContentData {
   url: string;

@@ -1085,7 +1085,7 @@ const DEFAULT_BLUEPRINT_MAPPINGS: Record<number, number> = {
 // Look up Printful product ID from Firestore mapping or fallback
 async function getPrintfulProductId(blueprintId: number): Promise<number | null> {
   // Check Firestore mapping first
-  const mappingSnapshot = await db.collection('printifyPrintfulMapping')
+  const mappingSnapshot = await db.collection('printify_printful_mapping')
     .where('printifyBlueprintId', '==', blueprintId)
     .where('isActive', '==', true)
     .limit(1)
@@ -1105,7 +1105,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   
   // Check Firestore cache first
   const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
-  const cacheDoc = await db.collection('mockupCache').doc(cacheKey).get();
+  const cacheDoc = await db.collection('mockup_cache').doc(cacheKey).get();
   
   if (cacheDoc.exists) {
     const cached = cacheDoc.data()!;
@@ -1136,7 +1136,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
     // Map Printify blueprint to Printful product (from Firestore or fallback)
     const mappedId = await getPrintfulProductId(blueprintId);
     if (!mappedId) {
-      throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+      throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printify_printful_mapping collection.`);
     }
     printfulProductId = mappedId;
   }
@@ -1311,7 +1311,7 @@ async function processMockupResult(
   }
   
   // Cache in Firestore
-  await db.collection('mockupCache').doc(cacheKey).set({
+  await db.collection('mockup_cache').doc(cacheKey).set({
     blueprintId,
     colorName,
     artworkVariant,
@@ -2571,7 +2571,7 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
     }
 
     const cacheKey = `${blueprintId}-${printProviderId}-${colorName}-${canonicalPlacementId}-${artworkVariant}`;
-    const cacheSnapshot = await db.collection('mockupCache')
+    const cacheSnapshot = await db.collection('mockup_cache')
       .where('cacheKey', '==', cacheKey)
       .limit(1)
       .get();
@@ -2632,7 +2632,7 @@ app.get('/mockups/cached/:blueprintId/:printProviderId', async (req: Request, re
   try {
     const { blueprintId, printProviderId } = req.params;
     
-    const snapshot = await db.collection('mockupCache')
+    const snapshot = await db.collection('mockup_cache')
       .where('blueprintId', '==', parseInt(blueprintId))
       .where('printProviderId', '==', parseInt(printProviderId))
       .get();
@@ -4767,7 +4767,7 @@ app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Respons
 async function processQueueInBackground(): Promise<void> {
   const processLimit = 10; // Process up to 10 jobs per batch
   
-  const pendingSnapshot = await db.collection('mockupJobs')
+  const pendingSnapshot = await db.collection('mockup_jobs')
     .where('status', '==', 'pending')
     .limit(processLimit)
     .get();
@@ -4786,7 +4786,7 @@ async function processQueueInBackground(): Promise<void> {
     try {
       // Atomic claim
       const claimed = await db.runTransaction(async (transaction) => {
-        const jobRef = db.collection('mockupJobs').doc(jobId);
+        const jobRef = db.collection('mockup_jobs').doc(jobId);
         const freshDoc = await transaction.get(jobRef);
         
         if (!freshDoc.exists || freshDoc.data()?.status !== 'pending') {
@@ -4839,7 +4839,7 @@ async function processQueueInBackground(): Promise<void> {
       });
 
       // Mark completed
-      await db.collection('mockupJobs').doc(jobId).update({
+      await db.collection('mockup_jobs').doc(jobId).update({
         status: 'completed',
         mockupUrl: mockupResult.mockupUrl,
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -4849,7 +4849,7 @@ async function processQueueInBackground(): Promise<void> {
 
     } catch (error: any) {
       console.error(`[Queue Background] Job ${jobId} failed:`, error.message);
-      await db.collection('mockupJobs').doc(jobId).update({
+      await db.collection('mockup_jobs').doc(jobId).update({
         status: 'failed',
         error: error.message,
         failedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -5013,7 +5013,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
           if (placementMethods[placement]) {
             jobData.printMethod = placementMethods[placement];
           }
-          await db.collection('mockupJobs').add(jobData);
+          await db.collection('mockup_jobs').add(jobData);
           jobsQueued++;
         }
       }
@@ -6184,20 +6184,20 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
     const { limit = 5 } = req.body;
     const processLimit = Math.min(limit, 20);
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const processingSnapshot = await db.collection("mockupJobs").where("status", "==", "processing").limit(50).get();
+    const processingSnapshot = await db.collection("mockup_jobs").where("status", "==", "processing").limit(50).get();
     let recoveredCount = 0;
     for (const doc of processingSnapshot.docs) {
       const data = doc.data();
       const startedAt = data.startedAt?.toMillis?.() || data.startedAt || 0;
       if (startedAt < fiveMinutesAgo) {
-        await db.collection("mockupJobs").doc(doc.id).update({
+        await db.collection("mockup_jobs").doc(doc.id).update({
           status: "pending", retryCount: admin.firestore.FieldValue.increment(1),
           lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         recoveredCount++;
       }
     }
-    const pendingSnapshot = await db.collection("mockupJobs").where("status", "==", "pending").limit(processLimit).get();
+    const pendingSnapshot = await db.collection("mockup_jobs").where("status", "==", "pending").limit(processLimit).get();
     if (pendingSnapshot.empty) {
       res.json({ success: true, processed: 0, recovered: recoveredCount, message: "No pending jobs in queue" });
       return;
@@ -6209,7 +6209,7 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
       const jobId = jobDoc.id;
       try {
         const claimed = await db.runTransaction(async (transaction) => {
-          const jobRef = db.collection("mockupJobs").doc(jobId);
+          const jobRef = db.collection("mockup_jobs").doc(jobId);
           const freshDoc = await transaction.get(jobRef);
           if (!freshDoc.exists || freshDoc.data()?.status !== "pending") return false;
           transaction.update(jobRef, { status: "processing", startedAt: admin.firestore.FieldValue.serverTimestamp(), processorId: `cf-${Date.now()}` });
@@ -6238,7 +6238,7 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
           [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: (mockupResult as any).lifestyleUrl || null,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        await db.collection("mockupJobs").doc(jobId).update({
+        await db.collection("mockup_jobs").doc(jobId).update({
           status: "completed", mockupUrl: (mockupResult as any).mockupUrl || null,
           lifestyleUrl: (mockupResult as any).lifestyleUrl || null,
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -6247,7 +6247,7 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
         console.log(`[Queue CF] Job ${jobId} completed`);
       } catch (error: any) {
         console.error(`[Queue CF] Job ${jobId} failed:`, error.message);
-        await db.collection("mockupJobs").doc(jobId).update({
+        await db.collection("mockup_jobs").doc(jobId).update({
           status: "failed", error: error.message, failedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         results.push({ jobId, status: "failed", error: error.message });

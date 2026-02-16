@@ -588,6 +588,8 @@ async function createAutoMapping(printifyBlueprintId: number): Promise<any | nul
     184: { printfulId: 162, brand: 'Bella+Canvas', model: '3413' },
     // Bella+Canvas 3001Y Youth Tee
     420: { printfulId: 307, brand: 'Bella+Canvas', model: '3001Y' },
+    // Bella+Canvas 3001C Unisex Jersey Short Sleeve
+    577: { printfulId: 71, brand: 'Bella+Canvas', model: '3001', colorMapping: { 'Solid Black': 'Black', 'Solid White': 'White', 'Sport Grey': 'Athletic Heather' } },
     // Bella+Canvas 3001T Toddler Tee
     580: { printfulId: 306, brand: 'Bella+Canvas', model: '3001T' },
     // Bella+Canvas 6400 Women's Relaxed T-Shirt

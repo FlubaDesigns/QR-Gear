@@ -1,3 +1,5 @@
+import { DEFAULT_FONT_SIZE_NUM } from "../TextStyleEditor";
+
 interface TextStyle {
   text: string;
   enabled: boolean;
@@ -40,9 +42,9 @@ export function TextPreviewView({
     );
   }
 
-  const baseFontSize = parseInt(style.fontSize) || 144;
-  const scaleFactor = 0.15;
-  const fontSize = Math.max(12, Math.min(baseFontSize * scaleFactor, 36));
+  const baseFontSize = parseInt(style.fontSize) || DEFAULT_FONT_SIZE_NUM;
+  const scaleFactor = 0.5;
+  const fontSize = Math.max(10, Math.min(baseFontSize * scaleFactor, 36));
   
   const getWarpTransform = () => {
     if (style.warpPreset === "arc-up") {
