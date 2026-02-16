@@ -861,7 +861,7 @@ const DEFAULT_BLUEPRINT_MAPPINGS = {
 // Look up Printful product ID from Firestore mapping or fallback
 async function getPrintfulProductId(blueprintId) {
     // Check Firestore mapping first
-    const mappingSnapshot = await db.collection('printifyPrintfulMapping')
+    const mappingSnapshot = await db.collection('printify_printful_mapping')
         .where('printifyBlueprintId', '==', blueprintId)
         .where('isActive', '==', true)
         .limit(1)
@@ -877,7 +877,7 @@ async function generateMockupFromPrintful(request) {
     const { blueprintId, colorName, colorHex, artworkUrl, artworkVariant = 'black', fulfillmentProvider = 'printify' } = request;
     // Check Firestore cache first
     const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
-    const cacheDoc = await db.collection('mockupCache').doc(cacheKey).get();
+    const cacheDoc = await db.collection('mockup_cache').doc(cacheKey).get();
     if (cacheDoc.exists) {
         const cached = cacheDoc.data();
         if (cached.status === 'active' && cached.mockupUrl) {
@@ -905,7 +905,7 @@ async function generateMockupFromPrintful(request) {
         // Map Printify blueprint to Printful product (from Firestore or fallback)
         const mappedId = await getPrintfulProductId(blueprintId);
         if (!mappedId) {
-            throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printifyPrintfulMapping collection.`);
+            throw new Error(`No Printful mapping for blueprint ${blueprintId}. Add mapping to printify_printful_mapping collection.`);
         }
         printfulProductId = mappedId;
     }
@@ -1047,7 +1047,7 @@ async function processMockupResult(result, blueprintId, colorName, artworkVarian
         lifestyleUrl = await downloadAndStoreImage(lifestyleMockup.mockup_url, lifestylePath);
     }
     // Cache in Firestore
-    await db.collection('mockupCache').doc(cacheKey).set({
+    await db.collection('mockup_cache').doc(cacheKey).set({
         blueprintId,
         colorName,
         artworkVariant,
@@ -2187,7 +2187,7 @@ app.post('/mockups/get-or-generate', async (req, res) => {
             return;
         }
         const cacheKey = `${blueprintId}-${printProviderId}-${colorName}-${canonicalPlacementId}-${artworkVariant}`;
-        const cacheSnapshot = await db.collection('mockupCache')
+        const cacheSnapshot = await db.collection('mockup_cache')
             .where('cacheKey', '==', cacheKey)
             .limit(1)
             .get();
@@ -2243,7 +2243,7 @@ app.post('/mockups/get-or-generate', async (req, res) => {
 app.get('/mockups/cached/:blueprintId/:printProviderId', async (req, res) => {
     try {
         const { blueprintId, printProviderId } = req.params;
-        const snapshot = await db.collection('mockupCache')
+        const snapshot = await db.collection('mockup_cache')
             .where('blueprintId', '==', parseInt(blueprintId))
             .where('printProviderId', '==', parseInt(printProviderId))
             .get();
@@ -4205,7 +4205,7 @@ app.delete('/admin/library/:id', requireAdmin, async (req, res) => {
 // Background queue processor - processes mockup jobs without blocking the response
 async function processQueueInBackground() {
     const processLimit = 10; // Process up to 10 jobs per batch
-    const pendingSnapshot = await db.collection('mockupJobs')
+    const pendingSnapshot = await db.collection('mockup_jobs')
         .where('status', '==', 'pending')
         .limit(processLimit)
         .get();
@@ -4220,7 +4220,7 @@ async function processQueueInBackground() {
         try {
             // Atomic claim
             const claimed = await db.runTransaction(async (transaction) => {
-                const jobRef = db.collection('mockupJobs').doc(jobId);
+                const jobRef = db.collection('mockup_jobs').doc(jobId);
                 const freshDoc = await transaction.get(jobRef);
                 if (!freshDoc.exists || freshDoc.data()?.status !== 'pending') {
                     return false;
@@ -4265,7 +4265,7 @@ async function processQueueInBackground() {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
             // Mark completed
-            await db.collection('mockupJobs').doc(jobId).update({
+            await db.collection('mockup_jobs').doc(jobId).update({
                 status: 'completed',
                 mockupUrl: mockupResult.mockupUrl,
                 completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -4274,7 +4274,7 @@ async function processQueueInBackground() {
         }
         catch (error) {
             console.error(`[Queue Background] Job ${jobId} failed:`, error.message);
-            await db.collection('mockupJobs').doc(jobId).update({
+            await db.collection('mockup_jobs').doc(jobId).update({
                 status: 'failed',
                 error: error.message,
                 failedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -4411,7 +4411,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req, res) => {
                     if (placementMethods[placement]) {
                         jobData.printMethod = placementMethods[placement];
                     }
-                    await db.collection('mockupJobs').add(jobData);
+                    await db.collection('mockup_jobs').add(jobData);
                     jobsQueued++;
                 }
             }
@@ -5644,25 +5644,52 @@ app.get('/catalog/printful-products', async (_req, res) => {
     }
 });
 // ============ PRODUCTS PAGE: QUEUE/PROCESS ============
+app.post('/admin/queue/retry-failed', requireAdmin, async (req, res) => {
+    try {
+        const failedSnapshot = await db.collection("mockup_jobs").where("status", "==", "failed").get();
+        if (failedSnapshot.empty) {
+            res.json({ success: true, reset: 0, message: "No failed jobs to retry" });
+            return;
+        }
+        let resetCount = 0;
+        const batch = db.batch();
+        for (const doc of failedSnapshot.docs) {
+            batch.update(doc.ref, {
+                status: "pending",
+                error: null,
+                retryCount: admin.firestore.FieldValue.increment(1),
+                lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            resetCount++;
+        }
+        await batch.commit();
+        console.log(`[Queue CF] Reset ${resetCount} failed jobs to pending`);
+        res.json({ success: true, reset: resetCount, message: `Reset ${resetCount} failed jobs to pending` });
+    }
+    catch (error) {
+        console.error("[Queue CF] Error retrying failed:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.post('/admin/queue/process', requireAdmin, async (req, res) => {
     try {
         const { limit = 5 } = req.body;
         const processLimit = Math.min(limit, 20);
         const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-        const processingSnapshot = await db.collection("mockupJobs").where("status", "==", "processing").limit(50).get();
+        const processingSnapshot = await db.collection("mockup_jobs").where("status", "==", "processing").limit(50).get();
         let recoveredCount = 0;
         for (const doc of processingSnapshot.docs) {
             const data = doc.data();
             const startedAt = data.startedAt?.toMillis?.() || data.startedAt || 0;
             if (startedAt < fiveMinutesAgo) {
-                await db.collection("mockupJobs").doc(doc.id).update({
+                await db.collection("mockup_jobs").doc(doc.id).update({
                     status: "pending", retryCount: admin.firestore.FieldValue.increment(1),
                     lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
                 recoveredCount++;
             }
         }
-        const pendingSnapshot = await db.collection("mockupJobs").where("status", "==", "pending").limit(processLimit).get();
+        const pendingSnapshot = await db.collection("mockup_jobs").where("status", "==", "pending").limit(processLimit).get();
         if (pendingSnapshot.empty) {
             res.json({ success: true, processed: 0, recovered: recoveredCount, message: "No pending jobs in queue" });
             return;
@@ -5674,7 +5701,7 @@ app.post('/admin/queue/process', requireAdmin, async (req, res) => {
             const jobId = jobDoc.id;
             try {
                 const claimed = await db.runTransaction(async (transaction) => {
-                    const jobRef = db.collection("mockupJobs").doc(jobId);
+                    const jobRef = db.collection("mockup_jobs").doc(jobId);
                     const freshDoc = await transaction.get(jobRef);
                     if (!freshDoc.exists || freshDoc.data()?.status !== "pending")
                         return false;
@@ -5709,7 +5736,7 @@ app.post('/admin/queue/process', requireAdmin, async (req, res) => {
                     [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: mockupResult.lifestyleUrl || null,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
-                await db.collection("mockupJobs").doc(jobId).update({
+                await db.collection("mockup_jobs").doc(jobId).update({
                     status: "completed", mockupUrl: mockupResult.mockupUrl || null,
                     lifestyleUrl: mockupResult.lifestyleUrl || null,
                     completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -5719,7 +5746,7 @@ app.post('/admin/queue/process', requireAdmin, async (req, res) => {
             }
             catch (error) {
                 console.error(`[Queue CF] Job ${jobId} failed:`, error.message);
-                await db.collection("mockupJobs").doc(jobId).update({
+                await db.collection("mockup_jobs").doc(jobId).update({
                     status: "failed", error: error.message, failedAt: admin.firestore.FieldValue.serverTimestamp(),
                 });
                 results.push({ jobId, status: "failed", error: error.message });

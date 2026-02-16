@@ -6179,6 +6179,33 @@ app.get('/catalog/printful-products', async (_req: Request, res: Response): Prom
 
 // ============ PRODUCTS PAGE: QUEUE/PROCESS ============
 
+app.post('/admin/queue/retry-failed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const failedSnapshot = await db.collection("mockup_jobs").where("status", "==", "failed").get();
+    if (failedSnapshot.empty) {
+      res.json({ success: true, reset: 0, message: "No failed jobs to retry" });
+      return;
+    }
+    let resetCount = 0;
+    const batch = db.batch();
+    for (const doc of failedSnapshot.docs) {
+      batch.update(doc.ref, {
+        status: "pending",
+        error: null,
+        retryCount: admin.firestore.FieldValue.increment(1),
+        lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      resetCount++;
+    }
+    await batch.commit();
+    console.log(`[Queue CF] Reset ${resetCount} failed jobs to pending`);
+    res.json({ success: true, reset: resetCount, message: `Reset ${resetCount} failed jobs to pending` });
+  } catch (error: any) {
+    console.error("[Queue CF] Error retrying failed:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { limit = 5 } = req.body;

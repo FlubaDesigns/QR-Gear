@@ -812,6 +812,41 @@ ${allPages.map(page => `  <url>
     }
   });
 
+  app.post("/api/admin/queue/retry-failed", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb, getFirebaseAdmin } = await import("../lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const admin = getFirebaseAdmin();
+
+      const failedSnapshot = await firestoreDb.collection("mockup_jobs")
+        .where("status", "==", "failed")
+        .get();
+
+      if (failedSnapshot.empty) {
+        return res.json({ success: true, reset: 0, message: "No failed jobs to retry" });
+      }
+
+      let resetCount = 0;
+      const batch = firestoreDb.batch();
+      for (const doc of failedSnapshot.docs) {
+        batch.update(doc.ref, {
+          status: "pending",
+          error: null,
+          retryCount: admin.firestore.FieldValue.increment(1),
+          lastRetryAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        resetCount++;
+      }
+      await batch.commit();
+
+      console.log(`[Queue] Reset ${resetCount} failed jobs to pending`);
+      res.json({ success: true, reset: resetCount, message: `Reset ${resetCount} failed jobs to pending` });
+    } catch (error: any) {
+      console.error("[Queue] Error retrying failed jobs:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/admin/queue/process", isAdmin, async (req: any, res) => {
     try {
       const { limit = 5 } = req.body;
