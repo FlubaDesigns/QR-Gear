@@ -32,9 +32,6 @@ export function PlacementModule() {
   const placementOptions = allPlacementOptions.filter(
     p => !(BRANDING_PLACEMENTS as string[]).includes(p.id)
   );
-  const hasBrandingPlacement = allPlacementOptions.some(
-    p => (BRANDING_PLACEMENTS as string[]).includes(p.id)
-  );
   
   const selectedPlacements = state.selectedPlacements || [];
   const placementConfig = state.placementConfig || {};
@@ -121,13 +118,6 @@ export function PlacementModule() {
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
             <AlertCircle className="h-3 w-3" />
             <span>No placements found from printer — this product may not support custom printing</span>
-          </div>
-        )}
-        
-        {!isLoading && hasBrandingPlacement && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <QrCode className="h-3 w-3" />
-            <span>QR Gear neck tag auto-included on this product</span>
           </div>
         )}
         
