@@ -1126,9 +1126,11 @@ async function toPublicUrl(url: string): Promise<string> {
       return signedUrl;
     } catch (e: any) {
       console.warn(`[Mockup] Failed to sign URL for ${filePath}: ${e.message}`);
-      const hostingUrl = `https://qrgear-c1ffd.web.app/img/${filePath.replace(/^public\//, '')}`;
-      console.log(`[Mockup] Falling back to hosting URL: ${hostingUrl}`);
-      return hostingUrl;
+      // Use direct GCS public URL - the file was made public via makePublic()
+      const bucket = admin.storage().bucket();
+      const gcsUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+      console.log(`[Mockup] Falling back to GCS public URL: ${gcsUrl}`);
+      return gcsUrl;
     }
   }
   return url;
@@ -4865,37 +4867,72 @@ async function processQueueInBackground(): Promise<void> {
       // Rate limiting: 10 seconds between Printful calls
       await new Promise(resolve => setTimeout(resolve, 10000));
 
-      // Get template
-      const templateDoc = await db.collection('productTemplates').doc(job.templateId).get();
-      if (!templateDoc.exists) {
-        throw new Error(`Template ${job.templateId} not found`);
-      }
-      const template = templateDoc.data()!;
+      let effectiveProvider: string;
+      let resolvedBlueprintId: number;
+      let artworkUrl: string;
+      let artworkVariant: string;
+      let printProviderId: number;
 
-      // Generate mockup
-      const effectiveProvider = template.fulfillmentProvider || job.fulfillmentProvider || 'printify';
+      if (job.templateId) {
+        // Template-based job
+        const templateDoc = await db.collection('productTemplates').doc(job.templateId).get();
+        if (!templateDoc.exists) {
+          throw new Error(`Template ${job.templateId} not found`);
+        }
+        const template = templateDoc.data()!;
+        effectiveProvider = template.fulfillmentProvider || job.fulfillmentProvider || 'printify';
+        // For Printful products, productId IS the Printful catalog product ID
+        // For Printify products, blueprintId is the Printify blueprint ID
+        if (effectiveProvider === 'printful') {
+          resolvedBlueprintId = template.productId || template.blueprintId || 71;
+          console.log(`[Queue BG] Printful product - using productId ${resolvedBlueprintId}`);
+        } else {
+          resolvedBlueprintId = template.blueprintId || template.productId || 5;
+          console.log(`[Queue BG] Printify blueprint - using blueprintId ${resolvedBlueprintId}`);
+        }
+        artworkUrl = template.artworkUrl;
+        artworkVariant = template.artworkVariant || 'black';
+        printProviderId = template.printProviderId || 39;
+      } else if (job.jobData) {
+        // Packet-based job (jobData embedded)
+        effectiveProvider = job.jobData.fulfillmentProvider || 'printify';
+        if (effectiveProvider === 'printful') {
+          resolvedBlueprintId = job.jobData.blueprintId || 71;
+        } else {
+          resolvedBlueprintId = job.jobData.blueprintId || 5;
+        }
+        artworkUrl = job.jobData.artworkUrl;
+        artworkVariant = job.jobData.artworkVariant || 'black';
+        printProviderId = job.jobData.printProviderId || 39;
+        console.log(`[Queue BG] Packet job - provider: ${effectiveProvider}, productId: ${resolvedBlueprintId}`);
+      } else {
+        throw new Error(`Job ${jobId} has no templateId or jobData`);
+      }
+
       const mockupResult = await generateMockupFromPrintful({
-        blueprintId: template.blueprintId || 5,
-        printProviderId: template.printProviderId || 39,
+        blueprintId: resolvedBlueprintId,
+        printProviderId,
         colorName: job.colorName,
         colorHex: job.colorHex || '#000000',
-        artworkUrl: template.artworkUrl,
-        artworkVariant: template.artworkVariant || 'black',
-        fulfillmentProvider: effectiveProvider,
+        artworkUrl,
+        artworkVariant: artworkVariant as 'black' | 'white',
+        fulfillmentProvider: effectiveProvider as 'printify' | 'printful',
         placement: job.placement || 'front',
         printMethod: job.printMethod,
       });
 
-      // Store in template
-      const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
-      const placementKey = job.placement || 'front';
-      const sizeKey = job.qrSize || 'large';
-      
-      await db.collection('productTemplates').doc(job.templateId).update({
-        [`mockupsByColor.${colorKey}.${placementKey}.${sizeKey}`]: mockupResult.mockupUrl,
-        [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: mockupResult.lifestyleMockupUrl || null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // Store in template if template-based
+      if (job.templateId) {
+        const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
+        const placementKey = job.placement || 'front';
+        const sizeKey = job.qrSize || 'large';
+        
+        await db.collection('productTemplates').doc(job.templateId).update({
+          [`mockupsByColor.${colorKey}.${placementKey}.${sizeKey}`]: mockupResult.mockupUrl,
+          [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: mockupResult.lifestyleMockupUrl || null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
 
       // Mark completed
       await db.collection('mockup_jobs').doc(jobId).update({
@@ -5673,6 +5710,26 @@ app.get('/admin/packets', requireAdmin, async (_req: Request, res: Response): Pr
   }
 });
 
+app.get('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packetId } = req.params;
+    if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
+    const doc = await db.collection("productPackets").doc(packetId).get();
+    if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
+    const data = doc.data();
+    let linkedTemplateId = null;
+    const templatesSnapshot = await db.collection("productTemplates").where("packetId", "==", packetId).limit(1).get();
+    if (!templatesSnapshot.empty) { linkedTemplateId = templatesSnapshot.docs[0].id; }
+    res.json({
+      success: true,
+      packet: { id: doc.id, ...data, templateId: linkedTemplateId, createdAt: data?.createdAt?.toDate?.() || null, updatedAt: data?.updatedAt?.toDate?.() || null },
+    });
+  } catch (error: any) {
+    console.error("[Packets] Error getting packet:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/public/packets/:packetId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { packetId } = req.params;
@@ -6437,6 +6494,20 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
     res.json({ success: true, processed: results.length, completed, failed, recovered: recoveredCount, results, message: `Processed ${results.length} jobs: ${completed} completed, ${failed} failed` });
   } catch (error: any) {
     console.error("[Queue CF] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============ MOCKUP QUEUE PROCESSOR ============
+
+app.post('/admin/mockup/queue-process', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('[Queue Process] Manually triggered');
+    processQueueInBackground().catch(err => {
+      console.error('[Queue Process] Background error:', err.message);
+    });
+    res.json({ success: true, message: 'Queue processing triggered' });
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
