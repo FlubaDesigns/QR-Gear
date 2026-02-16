@@ -23,7 +23,20 @@ export interface CompositeImageOptions {
   bottomText?: TextStyle | null;
   qrUrl: string;
   qrColor?: 'black' | 'white';
+  placement?: string;
 }
+
+const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  "front-center": { width: 3600, height: 4800 },
+  "back": { width: 3600, height: 4200 },
+  "center-chest": { width: 2400, height: 1800 },
+  "left-chest": { width: 1200, height: 1200 },
+  "pocket": { width: 1200, height: 1200 },
+  "left-shoulder": { width: 1200, height: 1500 },
+  "right-shoulder": { width: 1200, height: 1500 },
+  "sleeve-left": { width: 900, height: 1200 },
+  "sleeve-right": { width: 900, height: 1200 },
+};
 
 const FONT_MAP: Record<string, string> = {
   "Arial": "Arial",
@@ -239,22 +252,28 @@ export async function generatePrintifyComposite(
   bottomText: TextStyle | null,
   printWidth: number = 1200,
   printHeight: number = 1800,
-  qrColor: 'black' | 'white' = 'black'
+  qrColor: 'black' | 'white' = 'black',
+  placement?: string
 ): Promise<string> {
-  // Calculate exact scale to match preview
-  const scaleFactor = printWidth / PREVIEW_WIDTH; // 7.5x for 1200px
-  const qrSize = PREVIEW_QR_SIZE * scaleFactor;   // 270px - smaller for text room
-  
-  // Use transparent background so the shirt color shows through
+  let finalWidth = printWidth;
+  let finalHeight = printHeight;
+  if (placement && PLACEMENT_DIMENSIONS[placement]) {
+    finalWidth = PLACEMENT_DIMENSIONS[placement].width;
+    finalHeight = PLACEMENT_DIMENSIONS[placement].height;
+  }
+  const scaleFactor = finalWidth / PREVIEW_WIDTH; // 7.5x for 1200px
+  const qrSize = PREVIEW_QR_SIZE * scaleFactor;
+
   return generateCompositeImage({
-    width: printWidth,
-    height: printHeight,
+    width: finalWidth,
+    height: finalHeight,
     backgroundColor: "transparent",
     qrSize: qrSize,
     topText,
     bottomText,
     qrUrl,
     qrColor,
+    placement,
   });
 }
 

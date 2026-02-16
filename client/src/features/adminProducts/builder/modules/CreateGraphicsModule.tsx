@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PLACEMENT_BASE_DIMENSIONS } from "../types";
 import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
+import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
 
 interface HostingTier {
   code: string;
@@ -713,13 +714,14 @@ export function CreateGraphicsModule() {
       
       let productGraphicUrl: string;
       try {
-        productGraphicUrl = await generateProductGraphic({
-          qrUrl,
-          productColorHex,
-          headerStyle,
-          footerStyle,
-          useTransparentBackground: true,  // Save with transparent background
-          placement: primaryPlacement,      // Use placement-specific dimensions
+        productGraphicUrl = await renderProductGraphic({
+          qrContent: finalQrContent.trim(),
+          qrColor: "black",
+          headerStyle: headerStyle?.enabled ? headerStyle as SharedTextStyle : null,
+          footerStyle: footerStyle?.enabled ? footerStyle as SharedTextStyle : null,
+          backgroundColor: productColorHex || undefined,
+          transparent: true,
+          placement: primaryPlacement,
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

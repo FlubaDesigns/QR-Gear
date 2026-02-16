@@ -16,7 +16,7 @@ import {
   calculateAutoTextSize,
 } from "./wizardTypes";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
-import { UnifiedGraphic } from "@/features/shared/components/UnifiedGraphic";
+import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 
 export function GraphicSizeStep({
   selectedSize,
@@ -139,13 +139,16 @@ export function GraphicSizeStep({
           width={currentSize.w}
           height={currentSize.h}
         >
-          <div style={{ width: '100%', height: '100%' }}>
-            <UnifiedGraphic
-              qrColor="black"
-              backgroundColor="transparent"
-              width="100%"
-              className="w-full h-full"
-            />
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none" stroke="#22c55e" strokeWidth="1.5">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="3" height="3" />
+              <rect x="18" y="14" width="3" height="3" />
+              <rect x="14" y="18" width="3" height="3" />
+              <rect x="18" y="18" width="3" height="3" />
+            </svg>
           </div>
         </foreignObject>
       </svg>

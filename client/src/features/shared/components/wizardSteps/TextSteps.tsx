@@ -10,7 +10,7 @@ import {
   Type,
 } from "lucide-react";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
-import { UnifiedGraphic } from "@/features/shared/components/UnifiedGraphic";
+import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 import { ZoneThumbnail } from "@/features/shared/components/ZonePreview";
 import {
   type TextLayoutChoice,
@@ -492,14 +492,12 @@ export function HeaderTextEditStep({
       </div>
 
       <div className="flex justify-center">
-        <UnifiedGraphic
-          headerStyle={{ ...headerStyle, enabled: true }}
+        <GraphicPreviewView
+          headerStyle={{ ...headerStyle, enabled: true, warpPreset: "straight" }}
           footerStyle={undefined}
-          qrColor="black"
           backgroundColor={colorHex}
-          highlightHeader={true}
-          width={150}
-          data-testid="svg-header-preview"
+          showQRCode={true}
+          aspectRatio="portrait"
         />
       </div>
 
@@ -648,14 +646,12 @@ export function FooterTextEditStep({
       </div>
 
       <div className="flex justify-center">
-        <UnifiedGraphic
-          headerStyle={headerStyle?.text ? { ...headerStyle, enabled: true } : undefined}
-          footerStyle={{ ...footerStyle, enabled: true }}
-          qrColor="black"
+        <GraphicPreviewView
+          headerStyle={headerStyle?.text ? { ...headerStyle, enabled: true, warpPreset: "straight" } : undefined}
+          footerStyle={{ ...footerStyle, enabled: true, warpPreset: "straight" }}
           backgroundColor={colorHex}
-          highlightFooter={true}
-          width={150}
-          data-testid="svg-footer-preview"
+          showQRCode={true}
+          aspectRatio="portrait"
         />
       </div>
 
