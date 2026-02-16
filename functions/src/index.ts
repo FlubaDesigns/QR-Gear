@@ -3585,6 +3585,18 @@ app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Res
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     
+    if (assetType === 'cropped' && sourceAssetId) {
+      try {
+        await db.collection('library_assets').doc(sourceAssetId).update({
+          assetType: 'background',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.log(`[BackgroundAssets] Source ${sourceAssetId} moved to background after crop`);
+      } catch (moveErr: any) {
+        console.error(`[BackgroundAssets] Failed to move source to background:`, moveErr.message);
+      }
+    }
+
     const doc = await docRef.get();
     console.log(`[BackgroundAssets] Upload complete: ${doc.id}`);
     res.json(docToObject(doc));

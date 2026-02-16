@@ -180,21 +180,12 @@ function SourceImagesTabInner() {
     try {
       await api.uploadAsset({
         name: `cropped_${sourceAsset.name}`,
-        assetType: "background",
+        assetType: "cropped",
         imageData,
         mimeType: "image/jpeg",
         sourceAssetId: sourceId,
       });
-      console.log("[SourceImages] Cropped image saved successfully");
-
-      try {
-        console.log("[SourceImages] Removing original source asset:", sourceId);
-        await api.deleteAsset(sourceId);
-        console.log("[SourceImages] Original source asset removed");
-      } catch (delErr) {
-        console.error("[SourceImages] Failed to remove original:", delErr);
-      }
-
+      console.log("[SourceImages] Cropped image saved, server moves source to background automatically");
       toast({ title: "Cropped image saved" });
       api.invalidateAssets("source");
       api.invalidateAssets("cropped");
