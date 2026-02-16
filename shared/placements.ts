@@ -30,9 +30,13 @@ const PRINTIFY_TO_INTERNAL: Record<string, InternalPlacement> = {
 const PRINTFUL_TO_INTERNAL: Record<string, InternalPlacement> = {
   'front': 'front',
   'front_large': 'front',
+  'front_dtf': 'front',
   'back': 'back',
+  'back_dtf': 'back',
   'sleeve_left': 'left_sleeve',
   'sleeve_right': 'right_sleeve',
+  'short_sleeve_left_dtf': 'left_sleeve',
+  'short_sleeve_right_dtf': 'right_sleeve',
   'label_outside': 'label_outside',
   'label_inside': 'label_inside',
   'default': 'front',
@@ -104,4 +108,37 @@ export function normalizePlacements(
 
 export function isEmbroideryPlacement(providerPlacement: string): boolean {
   return providerPlacement.startsWith('embroidery_');
+}
+
+export type PrintMethod = 'dtg' | 'dtf';
+
+export function detectPrintMethod(providerPlacement: string): PrintMethod {
+  if (providerPlacement.endsWith('_dtf')) return 'dtf';
+  return 'dtg';
+}
+
+export interface PlacementWithMethods {
+  internal: InternalPlacement;
+  methods: { method: PrintMethod; providerName: string }[];
+}
+
+export function groupPlacementsByLocation(
+  provider: FulfillmentProvider,
+  rawPlacements: string[]
+): PlacementWithMethods[] {
+  const groups = new Map<InternalPlacement, { method: PrintMethod; providerName: string }[]>();
+  for (const raw of rawPlacements) {
+    const internal = normalizePlacement(provider, raw);
+    const method = detectPrintMethod(raw);
+    if (!groups.has(internal)) groups.set(internal, []);
+    const existing = groups.get(internal)!;
+    if (!existing.some(m => m.method === method)) {
+      existing.push({ method, providerName: raw });
+    }
+  }
+  const result: PlacementWithMethods[] = [];
+  groups.forEach((methods, internal) => {
+    result.push({ internal, methods });
+  });
+  return result;
 }

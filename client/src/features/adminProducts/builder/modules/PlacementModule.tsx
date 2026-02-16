@@ -1,8 +1,8 @@
-import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { QR_ONLY_PLACEMENTS, BRANDING_PLACEMENTS, type PlacementSize, type ProductColor } from "../types";
+import { QR_ONLY_PLACEMENTS, BRANDING_PLACEMENTS, type PlacementSize, type ProductColor, type PlacementMethodOption } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "small", label: "S" },
@@ -10,8 +10,18 @@ const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "large", label: "L" },
 ];
 
+const METHOD_LABELS: Record<string, string> = {
+  dtg: "DTG",
+  dtf: "DTF",
+};
+
+const METHOD_DESCRIPTIONS: Record<string, string> = {
+  dtg: "Direct-to-Garment (ink on fabric)",
+  dtf: "Direct-to-Film (heat transfer, more vibrant)",
+};
+
 export function PlacementModule() {
-  const { state, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor } = useBuilderContext();
+  const { state, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor } = useBuilderContext();
   
   if (!state.qrProductState || !state.selectedProduct) {
     return null;
@@ -26,6 +36,7 @@ export function PlacementModule() {
         id: p.id || p.type,
         label: p.title || p.id?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         additionalPrice: p.additionalPrice || 0,
+        methods: p.methods || [] as PlacementMethodOption[],
       }))
     : [];
   
@@ -137,6 +148,8 @@ export function PlacementModule() {
             const placementType = placementConfig[placement.id] || "qr";
             const placementSize = placementSizes[placement.id] || "medium";
             const isQrOnly = (QR_ONLY_PLACEMENTS as string[]).includes(placement.id);
+            const hasMethods = placement.methods && placement.methods.length > 1;
+            const selectedMethod = state.placementMethods[placement.id] || (placement.methods?.[0]?.method ?? 'dtg');
             
             return (
               <div key={placement.id} className="space-y-2">
@@ -228,6 +241,39 @@ export function PlacementModule() {
                         ))}
                       </div>
                     </div>
+
+                    {placement.methods && placement.methods.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Printer className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Print Method:</span>
+                        </div>
+                        {hasMethods ? (
+                          <div className="flex gap-2">
+                            {placement.methods.map((m) => (
+                              <Button
+                                key={m.method}
+                                type="button"
+                                variant={selectedMethod === m.method ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setPlacementMethod(placement.id, m.method)}
+                                className="flex-1"
+                                data-testid={`placement-method-${m.method}-${placement.id}`}
+                              >
+                                {METHOD_LABELS[m.method] || m.method.toUpperCase()}
+                              </Button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {METHOD_LABELS[placement.methods[0].method] || placement.methods[0].method.toUpperCase()} only
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {METHOD_DESCRIPTIONS[selectedMethod] || ''}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -242,16 +288,18 @@ export function PlacementModule() {
             </p>
             <div className="text-xs text-muted-foreground mt-2 space-y-1">
               {selectedPlacements.map(p => {
-                // Use placementOptions (from API or fallback) for label lookup
                 const placement = placementOptions.find(opt => opt.id === p);
                 const label = placement?.label || p.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 const type = placementConfig[p] || "qr";
                 const size = placementSizes[p] || "medium";
+                const method = state.placementMethods[p];
+                const methodLabel = method ? (METHOD_LABELS[method] || method.toUpperCase()) : null;
                 return (
                   <p key={p}>
                     <span className="font-medium">{label}:</span>{" "}
                     {showPlacementTypeToggle ? (type === "qr" ? "QR Code" : "Graphic") + " • " : ""}
                     {size.charAt(0).toUpperCase() + size.slice(1)}
+                    {methodLabel ? ` • ${methodLabel}` : ""}
                   </p>
                 );
               })}

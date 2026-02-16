@@ -990,18 +990,21 @@ export function registerAdminRoutes(app: Express): void {
           return res.status(400).json({ error: "productId required for Printful" });
         }
         const { printfulClient } = await import('../lib/printful');
+        const { groupPlacementsByLocation } = await import('../../shared/placements');
         const printfileInfo = await printfulClient.getPrintfiles(productId);
         const rawPlacements = printfileInfo?.available_placements
           ? Object.keys(printfileInfo.available_placements)
           : [];
         const printPlacements = rawPlacements.filter(p => !isEmbroideryPlacement(p));
-        const mapped = printPlacements.map((pid: string) => {
-          const normalized = normalizePlacement('printful', pid);
+        const grouped = groupPlacementsByLocation('printful', printPlacements);
+        const mapped = grouped.map(g => {
+          const label = g.internal.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
           return {
-            id: normalized,
-            type: normalized,
-            title: normalized.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            id: g.internal,
+            type: g.internal,
+            title: label,
             additionalPrice: 0,
+            methods: g.methods.map(m => ({ method: m.method, providerName: m.providerName })),
           };
         });
         return res.json({ placements: mapped, source: 'printful-api' });

@@ -52,8 +52,10 @@ const PRINTIFY_TO_INTERNAL = {
     'neck_label': 'label_outside', 'label': 'label_inside',
 };
 const PRINTFUL_TO_INTERNAL = {
-    'front': 'front', 'front_large': 'front', 'back': 'back',
+    'front': 'front', 'front_large': 'front', 'front_dtf': 'front',
+    'back': 'back', 'back_dtf': 'back',
     'sleeve_left': 'left_sleeve', 'sleeve_right': 'right_sleeve',
+    'short_sleeve_left_dtf': 'left_sleeve', 'short_sleeve_right_dtf': 'right_sleeve',
     'label_outside': 'label_outside', 'label_inside': 'label_inside',
     'default': 'front',
 };
@@ -98,6 +100,24 @@ function toProviderPlacement(provider, internal, availablePlacements) {
     return mapped;
 }
 function isEmbroideryPlacement(p) { return p.startsWith('embroidery_'); }
+function detectPrintMethod(providerPlacement) {
+    return providerPlacement.endsWith('_dtf') ? 'dtf' : 'dtg';
+}
+function groupPlacementsByLocation(provider, rawPlacements) {
+    const groups = new Map();
+    for (const raw of rawPlacements) {
+        const internal = normalizePlacement(provider, raw);
+        const method = detectPrintMethod(raw);
+        if (!groups.has(internal))
+            groups.set(internal, []);
+        const existing = groups.get(internal);
+        if (!existing.some(m => m.method === method))
+            existing.push({ method, providerName: raw });
+    }
+    const result = [];
+    groups.forEach((methods, internal) => result.push({ internal, methods }));
+    return result;
+}
 const QR_GEAR_BRANDED_TAG_URL = 'https://qrgear-c1ffd.web.app/img/qr-gear-neck-tag-600.png';
 const LABEL_PLACEMENTS_PRINTFUL = ['label_outside', 'label_inside'];
 if (!admin.apps.length) {
@@ -5178,9 +5198,12 @@ app.get('/admin/catalog/placements', requireAdmin, async (req, res) => {
             const printfileInfo = await printfulClient.getPrintfiles(productId);
             const rawPlacements = printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : [];
             const printPlacements = rawPlacements.filter(p => !isEmbroideryPlacement(p));
-            const normalized = normalizePlacements('printful', printPlacements);
-            const mapped = normalized.map((pid) => ({
-                id: pid, type: pid, title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), additionalPrice: 0,
+            const grouped = groupPlacementsByLocation('printful', printPlacements);
+            const mapped = grouped.map(g => ({
+                id: g.internal, type: g.internal,
+                title: g.internal.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                additionalPrice: 0,
+                methods: g.methods.map(m => ({ method: m.method, providerName: m.providerName })),
             }));
             res.json({ placements: mapped, source: 'printful-api' });
             return;

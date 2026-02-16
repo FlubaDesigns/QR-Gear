@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection } from "./types";
 import type { RoleType, Store, Channel } from "../shared/types";
 import { defaultTextStyle } from "./types";
 
@@ -25,6 +25,7 @@ interface BuilderContextValue {
   togglePlacement: (placementId: string) => void;
   setPlacementType: (placementId: string, type: PlacementType) => void;
   setPlacementSize: (placementId: string, size: PlacementSize) => void;
+  setPlacementMethod: (placementId: string, method: 'dtg' | 'dtf') => void;
   setSelectedColor: (color: SelectedColor | null) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
@@ -93,6 +94,7 @@ const initialState: BuilderState = {
   selectedPlacements: [],
   placementConfig: {},
   placementSizes: {},
+  placementMethods: {},
 };
 
 interface BuilderProviderProps {
@@ -241,10 +243,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setState(prev => ({
       ...prev,
       qrProductState: qrState,
-      content: initialContent, // Reset content when QR state changes
-      selectedPlacements: [], // Reset placements when QR state changes
-      placementConfig: {}, // Reset placement config when QR state changes
-      placementSizes: {}, // Reset placement sizes when QR state changes
+      content: initialContent,
+      selectedPlacements: [],
+      placementConfig: {},
+      placementSizes: {},
+      placementMethods: {},
     }));
   }, []);
 
@@ -265,12 +268,18 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       // Also update placementConfig - default new placements to "qr"
       const newConfig = { ...prev.placementConfig };
       const newSizes = { ...prev.placementSizes };
+      const newMethods = { ...prev.placementMethods };
       if (!isSelected) {
-        newConfig[placementId] = "qr"; // Default to QR when adding
-        newSizes[placementId] = "medium"; // Default to medium size when adding
+        newConfig[placementId] = "qr";
+        newSizes[placementId] = "medium";
+        const placement = prev.selectedProduct?.placements?.find(p => p.id === placementId);
+        if (placement?.methods && placement.methods.length > 0) {
+          newMethods[placementId] = placement.methods[0].method;
+        }
       } else {
-        delete newConfig[placementId]; // Remove from config when removing
-        delete newSizes[placementId]; // Remove size when removing
+        delete newConfig[placementId];
+        delete newSizes[placementId];
+        delete newMethods[placementId];
       }
       
       return {
@@ -278,6 +287,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         selectedPlacements: newPlacements,
         placementConfig: newConfig,
         placementSizes: newSizes,
+        placementMethods: newMethods,
       };
     });
   }, []);
@@ -298,6 +308,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementSizes: {
         ...prev.placementSizes,
         [placementId]: size,
+      },
+    }));
+  }, []);
+
+  const setPlacementMethod = useCallback((placementId: string, method: 'dtg' | 'dtf') => {
+    setState(prev => ({
+      ...prev,
+      placementMethods: {
+        ...prev.placementMethods,
+        [placementId]: method,
       },
     }));
   }, []);
@@ -333,10 +353,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     togglePlacement,
     setPlacementType,
     setPlacementSize,
+    setPlacementMethod,
     setSelectedColor,
     resetBuilder,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setSelectedColor, resetBuilder, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

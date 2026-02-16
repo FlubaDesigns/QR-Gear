@@ -31,13 +31,18 @@ export interface ProductColor {
   hex: string;
 }
 
-// Print placement from Printful/Printify API
+export interface PlacementMethodOption {
+  method: 'dtg' | 'dtf';
+  providerName: string;
+}
+
 export interface ProductPlacement {
-  id: string;          // e.g., "front", "back", "front_large", "pocket"
-  type: string;        // Same as id, normalized
-  title: string;       // Human-readable: "Front", "Back", "Front Large"
-  additionalPrice?: number;  // Extra cost for this placement (Printful)
-  options?: any;       // Provider-specific options
+  id: string;
+  type: string;
+  title: string;
+  additionalPrice?: number;
+  options?: any;
+  methods?: PlacementMethodOption[];
 }
 
 export interface CatalogProduct {
@@ -208,6 +213,8 @@ export interface SelectedColor {
   hex: string;
 }
 
+export type PrintMethodSelection = Record<string, 'dtg' | 'dtf'>;
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -225,4 +232,5 @@ export interface BuilderState {
   selectedPlacements: string[];
   placementConfig: _PlacementConfig;
   placementSizes: _PlacementSizeConfig;
+  placementMethods: PrintMethodSelection;
 }
