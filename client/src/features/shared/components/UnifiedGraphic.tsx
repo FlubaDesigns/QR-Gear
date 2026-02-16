@@ -43,10 +43,9 @@ const FOOTER_ZONE_TOP = QR_ZONE_TOP + QR_ZONE_HEIGHT;
 const FOOTER_ZONE_HEIGHT = CANVAS_H * ZONE_LAYOUT.FOOTER_PERCENT;
 
 export function getUnifiedFontSize(fontSize: string): number {
-  if (fontSize === '12px' || fontSize === 'sm') return 10 * SCALE_FACTOR;
-  if (fontSize === '24px' || fontSize === 'lg') return 16 * SCALE_FACTOR;
-  if (fontSize === '32px' || fontSize === 'xl') return 22 * SCALE_FACTOR;
-  return 12 * SCALE_FACTOR;
+  const num = parseInt(fontSize, 10);
+  if (!isNaN(num) && num > 0) return Math.round(num * (CANVAS_W / 1200) * 2.5);
+  return Math.round(144 * (CANVAS_W / 1200) * 2.5);
 }
 
 function wrapText(text: string, fontSize: number): string[] {

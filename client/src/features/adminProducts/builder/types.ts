@@ -129,7 +129,7 @@ export const defaultTextStyle: TextStyleConfig = {
   letterSpacing: 0,
   strokeColor: "",
   strokeWidth: 0,
-  verticalOffset: 15,    // 15% from QR (top text default)
+  verticalOffset: 80,    // 80% default
   horizontalOffset: 50,  // 50 = centered
 };
 
