@@ -43,9 +43,9 @@ fetch("/api/members/...")   →  rewrites /api/** to CF  →  receives /members/
 
 | Metric | Count |
 |--------|-------|
-| Total dev server routes | 432 |
-| Total Cloud Function routes | 177 |
-| Routes in BOTH | 129 |
+| Total dev server routes | 433 |
+| Total Cloud Function routes | 178 |
+| Routes in BOTH | 130 |
 | Dev-only routes | 303 |
 | — Admin dev-only | 154 |
 | — Non-admin dev-only | 149 |
@@ -147,6 +147,8 @@ These 88 admin routes exist in both the dev server and the Cloud Function. They 
 |--------|----------------|-----------------|--------|
 | POST | `/admin/mockup/priority` | `/api/admin/mockup/priority` | Synced |
 | POST | `/admin/queue/process` | `/api/admin/queue/process` | Synced |
+| POST | `/admin/queue/retry-failed` | `/api/admin/queue/retry-failed` | Synced |
+| GET | — | `/api/admin/queue/status` | Dev-only (CF missing GET) |
 
 ### 1.11 NexusMail
 
@@ -1497,20 +1499,30 @@ Over 35 fixes were applied across the codebase to address auth issues, route mis
 ## Appendix A: Route Count Verification
 
 ```
-Dev server routes:    432 (wc -l /tmp/dev_routes.txt)
-Cloud Function routes: 177 (wc -l /tmp/cf_routes.txt)
-Routes in BOTH:       129 (wc -l /tmp/both.txt)
-Dev-only routes:      303 (wc -l /tmp/dev_only.txt)
-CF-only routes:        48 (wc -l /tmp/cf_only.txt)
+Dev server routes:    433 (+1 queue/retry-failed)
+Cloud Function routes: 178 (+1 queue/retry-failed)
+Routes in BOTH:       130
+Dev-only routes:      303
+CF-only routes:        48
 
 Verification:
-  Dev = BOTH + Dev-only = 129 + 303 = 432 ✓
-  CF  = BOTH + CF-only  = 129 +  48 = 177 ✓
+  Dev = BOTH + Dev-only = 130 + 303 = 433 ✓
+  CF  = BOTH + CF-only  = 130 +  48 = 178 ✓
 ```
 
 ## Appendix B: Change Log
 
-### February 16, 2026 — Session Updates
+### February 16, 2026 — Session 2: Collection Names & Queue Retry
+
+| Change | Details |
+|--------|---------|
+| **CF Firestore collection names — Standardized to snake_case** | Cloud Function was using camelCase collection names (`mockupCache`, `mockupJobs`, `printifyPrintfulMapping`) while the dev server uses snake_case (`mockup_cache`, `mockup_jobs`, `printify_printful_mapping`). Both now use snake_case. This was the root cause of mockup generation failures in production — the CF couldn't find cached mockups or mapping records created by the dev server. |
+| **POST `/admin/queue/retry-failed` — Added to both codebases** | New endpoint that resets all failed mockup jobs back to "pending" status so they can be reprocessed. Added to both the dev server (`server/routes/misc.routes.ts`) and Cloud Function (`functions/src/index.ts`). Uses Firestore batch write to reset `status`, clear `error`, increment `retryCount`, and set `lastRetryAt`. |
+| **Printify Blueprint 577 — Added to dev server auto-mapping** | Added explicit mapping for Printify blueprint 577 (Bella Canvas 3001C) → Printful product 71 in `server/lib/mockup-service.ts` `createAutoMapping()`. The Cloud Function already had this in `DEFAULT_BLUEPRINT_MAPPINGS`. Color mapping: Solid Black→Black, Solid White→White, Sport Grey→Athletic Heather. |
+| **GET `/admin/queue/status` — Still dev-only** | The dev server has a GET endpoint for queue status monitoring. The Cloud Function does not have this endpoint yet. |
+| **Cloud Function version bumped to 1.0.13** | `functions/package.json` updated from 1.0.12 to 1.0.13. |
+
+### February 16, 2026 — Session 1: Auth Fixes & Background Assets
 
 | Change | Details |
 |--------|---------|
