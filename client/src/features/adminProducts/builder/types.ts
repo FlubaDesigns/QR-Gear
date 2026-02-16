@@ -185,89 +185,63 @@ export interface PricingBreakdown {
 
 // Re-export placement types from shared location (single source of truth)
 export {
-  type PlacementId,
   type PlacementType,
   type PlacementSize,
   type PlacementConfig,
   type PlacementSizeConfig,
   type PlacementOption,
   QR_ONLY_PLACEMENTS,
-  ALL_PLACEMENT_OPTIONS,
-  CATEGORY_PLACEMENTS,
-  DEFAULT_PLACEMENTS,
-  getPlacementsForCategory,
+  BRANDING_PLACEMENTS,
+  FALLBACK_PLACEMENTS,
   isQrOnlyPlacement,
+  isBrandingPlacement,
+  filterSelectablePlacements,
+  getPlacementLabel,
 } from "@/features/shared/placementTypes";
 
 // Size scaling for different placement areas
-// Front/Back have more dramatic size differences
-// Sleeve/Shoulder have more gradual/subtle differences
+// Large areas get more dramatic size differences, small areas get gradual ones
+// Uses actual Printify/Printful API position names
 export const PLACEMENT_SIZE_SCALES: Record<string, Record<_PlacementSize, number>> = {
-  // Large areas - more dramatic differences
-  "front-chest": { small: 0.6, medium: 0.8, large: 1.0 },
-  "front-center": { small: 0.6, medium: 0.8, large: 1.0 },
+  "front": { small: 0.6, medium: 0.8, large: 1.0 },
   "back": { small: 0.6, medium: 0.8, large: 1.0 },
-  "bag-front": { small: 0.6, medium: 0.8, large: 1.0 },
-  "bag-back": { small: 0.6, medium: 0.8, large: 1.0 },
-  // Small areas - more gradual differences
-  "left-shoulder": { small: 0.7, medium: 0.85, large: 1.0 },
-  "right-shoulder": { small: 0.7, medium: 0.85, large: 1.0 },
+  "front_large": { small: 0.6, medium: 0.8, large: 1.0 },
+  "front_small": { small: 0.7, medium: 0.85, large: 1.0 },
+  "front_center": { small: 0.6, medium: 0.8, large: 1.0 },
+  "left_sleeve": { small: 0.7, medium: 0.85, large: 1.0 },
+  "right_sleeve": { small: 0.7, medium: 0.85, large: 1.0 },
   "pocket": { small: 0.7, medium: 0.85, large: 1.0 },
-  "hat-front": { small: 0.7, medium: 0.85, large: 1.0 },
-  "hat-side": { small: 0.7, medium: 0.85, large: 1.0 },
-  "hat-back": { small: 0.7, medium: 0.85, large: 1.0 },
-  "bag-pocket": { small: 0.7, medium: 0.85, large: 1.0 },
-  // Mugs - medium differences
-  "mug-wrap": { small: 0.65, medium: 0.8, large: 1.0 },
-  "mug-front": { small: 0.65, medium: 0.8, large: 1.0 },
-  "mug-back": { small: 0.65, medium: 0.8, large: 1.0 },
+  "left": { small: 0.7, medium: 0.85, large: 1.0 },
+  "right": { small: 0.7, medium: 0.85, large: 1.0 },
+  "center": { small: 0.6, medium: 0.8, large: 1.0 },
+  "wraparound": { small: 0.65, medium: 0.8, large: 1.0 },
+  "side": { small: 0.7, medium: 0.85, large: 1.0 },
 };
 
 // Base dimensions per placement at 300 DPI (width × height in pixels)
 // These are the LARGE sizes - small/medium use the scale factors above
-// Compatible with both Printful and Printify print areas
+// Uses actual Printify/Printful API position names
+// When a placement isn't listed here, we fall back to a safe 3000×3000 default
 export const PLACEMENT_BASE_DIMENSIONS: Record<string, { width: number; height: number }> = {
-  // Full front: Printful 12"×16" (standard) or 15"×18" (large_front)
-  //             Printify 12"×16" standard, up to 14"×18" oversized
-  // Using 12"×16" as safe universal maximum = 3600×4800 pixels
-  "front-center": { width: 3600, height: 4800 },
-  
-  // Full back: Printful 12"×14", Printify 10"×14" to 14"×15"
-  // Using 12"×14" = 3600×4200 pixels
+  "front": { width: 3600, height: 4800 },
   "back": { width: 3600, height: 4200 },
-  
-  // Center chest: Printful 10"×6", Printify 8"×8" average
-  // Using 10"×8" as compromise = 3000×2400 pixels
-  "front-chest": { width: 3000, height: 2400 },
-  
-  // Left chest/pocket: Printful 4"×4", Printify 3.5"×3.5" to 5"×5"
-  // Using 4"×4" = 1200×1200 pixels
+  "front_large": { width: 3600, height: 4800 },
+  "front_small": { width: 3000, height: 2400 },
+  "front_center": { width: 3600, height: 4800 },
+  "back_center": { width: 3600, height: 4200 },
   "pocket": { width: 1200, height: 1200 },
-  
-  // Sleeve (QR ONLY): Printful 4"×3.5", Printify 3"×4"
-  // QR codes need less space - using 3"×3" = 900×900 pixels
-  // Square format optimal for QR scanning
-  "left-shoulder": { width: 900, height: 900 },
-  "right-shoulder": { width: 900, height: 900 },
-  
-  // Hat front: Printful 4"×4" embroidery, Printify varies by product
-  // Using 4"×2.5" = 1200×750 pixels (typical hat panel)
-  "hat-front": { width: 1200, height: 750 },
-  "hat-side": { width: 900, height: 600 },
-  "hat-back": { width: 1200, height: 750 },
-  
-  // Bag front/back: Typically 10"×10" to 12"×12"
-  // Using 10"×10" = 3000×3000 pixels
-  "bag-front": { width: 3000, height: 3000 },
-  "bag-back": { width: 3000, height: 3000 },
-  "bag-pocket": { width: 1200, height: 1200 },
-  
-  // Mug wrap: Printful 9.5"×3.5", varies by mug size
-  // Using 9.5"×3.5" = 2850×1050 pixels
-  "mug-wrap": { width: 2850, height: 1050 },
-  "mug-front": { width: 1200, height: 1050 },
-  "mug-back": { width: 1200, height: 1050 },
+  "left_sleeve": { width: 900, height: 900 },
+  "right_sleeve": { width: 900, height: 900 },
+  "neck": { width: 750, height: 750 },
+  "center": { width: 3000, height: 3000 },
+  "left": { width: 3000, height: 3000 },
+  "right": { width: 3000, height: 3000 },
+  "side": { width: 1200, height: 1050 },
+  "wraparound": { width: 2850, height: 1050 },
 };
+
+// Fallback dimensions for any placement not in the table above
+export const DEFAULT_PLACEMENT_DIMENSIONS = { width: 3000, height: 3000 };
 
 export interface SelectedColor {
   name: string;

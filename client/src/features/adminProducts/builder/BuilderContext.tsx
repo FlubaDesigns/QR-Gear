@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementId, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor } from "./types";
 import type { RoleType, Store, Channel } from "../shared/types";
 import { defaultTextStyle } from "./types";
 

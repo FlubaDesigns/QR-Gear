@@ -2,7 +2,7 @@ import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2 } from "luc
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { QR_ONLY_PLACEMENTS, type PlacementSize, type ProductColor } from "../types";
+import { QR_ONLY_PLACEMENTS, BRANDING_PLACEMENTS, type PlacementSize, type ProductColor } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
   { value: "small", label: "S" },
@@ -21,13 +21,20 @@ export function PlacementModule() {
   const hasApiPlacements = productPlacements && productPlacements.length > 0;
   const isLoading = state.placementsLoading;
   
-  const placementOptions = hasApiPlacements
+  const allPlacementOptions = hasApiPlacements
     ? productPlacements.map(p => ({
         id: p.id || p.type,
         label: p.title || p.id?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         additionalPrice: p.additionalPrice || 0,
       }))
     : [];
+  
+  const placementOptions = allPlacementOptions.filter(
+    p => !(BRANDING_PLACEMENTS as string[]).includes(p.id)
+  );
+  const hasBrandingPlacement = allPlacementOptions.some(
+    p => (BRANDING_PLACEMENTS as string[]).includes(p.id)
+  );
   
   const selectedPlacements = state.selectedPlacements || [];
   const placementConfig = state.placementConfig || {};
@@ -114,6 +121,13 @@ export function PlacementModule() {
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
             <AlertCircle className="h-3 w-3" />
             <span>No placements found from printer — this product may not support custom printing</span>
+          </div>
+        )}
+        
+        {!isLoading && hasBrandingPlacement && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <QrCode className="h-3 w-3" />
+            <span>QR Gear neck tag auto-included on this product</span>
           </div>
         )}
         
