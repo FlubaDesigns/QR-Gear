@@ -14,6 +14,7 @@ import type { PricingBreakdown } from "../types";
 import { PLACEMENT_BASE_DIMENSIONS } from "../types";
 import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
+import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 
 interface HostingTier {
   code: string;
@@ -96,6 +97,34 @@ async function fetchImageAsDataUrl(url: string): Promise<string> {
     console.error('[fetchImageAsDataUrl] Failed:', url, e);
     throw e;
   }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(new Error(`Failed to load image: ${src}`));
+    const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
+    img.src = absoluteSrc;
+  });
+}
+
+function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.length > 0 ? lines : [''];
 }
 
 async function generateProductGraphic(options: ProductGraphicOptions): Promise<string> {
@@ -228,237 +257,6 @@ async function generateProductGraphic(options: ProductGraphicOptions): Promise<s
       ctx.fillText(line, textX, currentY);
       currentY += scaledFontSize * 1.3;
     }
-  }
-
-  return canvas.toDataURL('image/png');
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = (e) => {
-      console.error(`[loadImage] Failed to load: ${src}`, e);
-      reject(new Error(`Failed to load image: ${src}`));
-    };
-    // Convert relative URLs to absolute for canvas CORS
-    const absoluteSrc = src.startsWith('/') ? `${window.location.origin}${src}` : src;
-    console.log(`[loadImage] Loading: ${absoluteSrc}`);
-    img.src = absoluteSrc;
-  });
-}
-
-function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-  return lines.length > 0 ? lines : [''];
-}
-
-function drawAutoFitText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  baseFontSize: number,
-  fontFamily: string,
-  color: string,
-  strokeColor?: string,
-  strokeWidth?: number,
-  lineHeight: number = 1.2
-) {
-  const minScale = 0.65; // Shrink down to 65% before wrapping
-  let currentFontSize = baseFontSize;
-  
-  // Set initial font
-  ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  let textWidth = ctx.measureText(text).width;
-  
-  // Step 1: Try to shrink the font if text is too wide
-  if (textWidth > maxWidth) {
-    const scale = maxWidth / textWidth;
-    if (scale >= minScale) {
-      // Can fit with shrinking - use scaled font
-      currentFontSize = Math.floor(baseFontSize * scale);
-      ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
-      textWidth = ctx.measureText(text).width;
-    } else {
-      // Need to wrap - first shrink to min scale
-      currentFontSize = Math.floor(baseFontSize * minScale);
-      ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
-    }
-  }
-  
-  // Check if we still need to wrap
-  textWidth = ctx.measureText(text).width;
-  
-  if (textWidth <= maxWidth) {
-    // Fits on one line - draw it
-    if (strokeColor && strokeWidth && strokeWidth > 0) {
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = strokeWidth * 2;
-      ctx.strokeText(text, x, y);
-    }
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-  } else {
-    // Need to wrap - split text into lines
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-    
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = ctx.measureText(testLine).width;
-      
-      if (testWidth <= maxWidth) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) {
-          lines.push(currentLine);
-        }
-        // If single word is too long, just add it (will overflow)
-        currentLine = word;
-      }
-    }
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-    
-    // If no spaces to split on, force character wrap
-    if (lines.length === 1 && ctx.measureText(lines[0]).width > maxWidth) {
-      const chars = text.split('');
-      lines.length = 0;
-      currentLine = '';
-      for (const char of chars) {
-        const testLine = currentLine + char;
-        if (ctx.measureText(testLine).width <= maxWidth) {
-          currentLine = testLine;
-        } else {
-          if (currentLine) lines.push(currentLine);
-          currentLine = char;
-        }
-      }
-      if (currentLine) lines.push(currentLine);
-    }
-    
-    // Draw each line, centered vertically around the original Y
-    const totalHeight = lines.length * currentFontSize * lineHeight;
-    const startY = y - (totalHeight / 2) + (currentFontSize * lineHeight / 2);
-    
-    lines.forEach((line, index) => {
-      const lineY = startY + (index * currentFontSize * lineHeight);
-      if (strokeColor && strokeWidth && strokeWidth > 0) {
-        ctx.strokeStyle = strokeColor;
-        ctx.lineWidth = strokeWidth * 2;
-        ctx.strokeText(line, x, lineY);
-      }
-      ctx.fillStyle = color;
-      ctx.fillText(line, x, lineY);
-    });
-  }
-}
-
-interface LandingPageSnapshotOptions {
-  backgroundUrl: string | null;
-  titleStyle: TextStyle | null;
-  descriptionStyle: TextStyle | null;
-}
-
-async function generateLandingPageSnapshot(options: LandingPageSnapshotOptions): Promise<string> {
-  const { backgroundUrl, titleStyle, descriptionStyle } = options;
-  // Match product graphic dimensions for consistency
-  const CANVAS_WIDTH = 2700;
-  const CANVAS_HEIGHT = 4800;
-  
-  console.log('[generateLandingPageSnapshot] Starting with:', { backgroundUrl, titleStyle, descriptionStyle });
-  
-  const canvas = document.createElement('canvas');
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas not supported');
-
-  ctx.fillStyle = '#1a1a2e';
-  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-  if (backgroundUrl) {
-    try {
-      console.log('[generateLandingPageSnapshot] Loading background...');
-      const bgImg = await loadImage(backgroundUrl);
-      const scale = Math.min(CANVAS_WIDTH / bgImg.width, CANVAS_HEIGHT / bgImg.height);
-      const scaledWidth = bgImg.width * scale;
-      const scaledHeight = bgImg.height * scale;
-      const x = (CANVAS_WIDTH - scaledWidth) / 2;
-      const y = (CANVAS_HEIGHT - scaledHeight) / 2;
-      ctx.drawImage(bgImg, x, y, scaledWidth, scaledHeight);
-      console.log('[generateLandingPageSnapshot] Background drawn successfully');
-    } catch (e) {
-      console.warn('[generateLandingPageSnapshot] Failed to load background image:', e);
-    }
-  } else {
-    console.log('[generateLandingPageSnapshot] No background URL provided');
-  }
-
-  if (titleStyle?.text) {
-    const fontSize = parseInt(titleStyle.fontSize) || 72;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const verticalOffset = titleStyle.verticalOffset ?? 84;
-    const horizontalOffset = titleStyle.horizontalOffset ?? 8;
-    const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
-    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    // Use 90% of canvas width as max text width
-    const maxWidth = CANVAS_WIDTH * 0.9;
-    drawAutoFitText(
-      ctx,
-      titleStyle.text,
-      textX,
-      textY,
-      maxWidth,
-      scaledFontSize,
-      titleStyle.fontFamily || 'Arial',
-      titleStyle.color || '#ffffff',
-      titleStyle.strokeColor,
-      titleStyle.strokeWidth
-    );
-  }
-
-  if (descriptionStyle?.text) {
-    const fontSize = parseInt(descriptionStyle.fontSize) || 48;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 1200) * 2.5);
-    const verticalOffset = descriptionStyle.verticalOffset ?? 72;
-    const horizontalOffset = descriptionStyle.horizontalOffset ?? 10;
-    const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
-    const textX = (CANVAS_WIDTH / 2) + (horizontalOffset * 5);
-    // Use 90% of canvas width as max text width
-    const maxWidth = CANVAS_WIDTH * 0.9;
-    drawAutoFitText(
-      ctx,
-      descriptionStyle.text,
-      textX,
-      textY,
-      maxWidth,
-      scaledFontSize,
-      descriptionStyle.fontFamily || 'Arial',
-      descriptionStyle.color || '#cccccc',
-      descriptionStyle.strokeColor,
-      descriptionStyle.strokeWidth
-    );
   }
 
   return canvas.toDataURL('image/png');
@@ -731,7 +529,7 @@ export function CreateGraphicsModule() {
       let landingPageSnapshotUrl: string = "";
       if (isLandingPageMode) {
         try {
-          landingPageSnapshotUrl = await generateLandingPageSnapshot({
+          landingPageSnapshotUrl = await renderLandingPage({
             backgroundUrl,
             titleStyle,
             descriptionStyle,

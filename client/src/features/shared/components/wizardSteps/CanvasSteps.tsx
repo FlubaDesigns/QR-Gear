@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { auth } from "@/lib/firebase";
+import { useLandingPagePreview } from "@/hooks/useLandingPagePreview";
 import { CropUtility } from "../utilities/CropUtility";
 import type {
   QRCanvasSaveOption,
@@ -958,6 +959,34 @@ export function SimplePreviewStep({
   descFont: string;
   onGoBack: () => void;
 }) {
+  const titleStyle = useMemo(() => title ? {
+    text: title,
+    enabled: true,
+    fontFamily: titleFont,
+    fontSize: titleSize,
+    color: titleColor,
+    verticalOffset: titleVertical,
+    horizontalOffset: titleHorizontal,
+  } : null, [title, titleFont, titleSize, titleColor, titleVertical, titleHorizontal]);
+
+  const descriptionStyle = useMemo(() => description ? {
+    text: description,
+    enabled: true,
+    fontFamily: descFont,
+    fontSize: descSize,
+    color: descColor,
+    verticalOffset: descVertical,
+    horizontalOffset: descHorizontal,
+  } : null, [description, descFont, descSize, descColor, descVertical, descHorizontal]);
+
+  const { dataUrl, isLoading } = useLandingPagePreview({
+    backgroundUrl: background || null,
+    titleStyle,
+    descriptionStyle,
+    enabled: true,
+    debounceMs: 200,
+  });
+
   return (
     <div className="text-center space-y-4">
       <div>
@@ -969,59 +998,19 @@ export function SimplePreviewStep({
         <div className="relative w-44 h-72 rounded-3xl border-4 border-slate-700 bg-black overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
           
-          <div className="w-full h-full relative">
-            {background ? (
+          <div className="w-full h-full flex items-center justify-center">
+            {dataUrl ? (
               <img 
-                src={background} 
-                alt="Background" 
-                className="w-full h-full object-cover"
+                src={dataUrl} 
+                alt="Landing page preview" 
+                className="w-full h-full object-contain"
+                data-testid="img-simple-preview"
               />
+            ) : isLoading ? (
+              <Loader2 className="h-6 w-6 animate-spin text-white/60" />
             ) : (
               <div className="w-full h-full bg-gradient-to-b from-slate-700 to-slate-900" />
             )}
-            
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-              
-              {title && (
-                <div
-                  className="absolute w-full px-2 text-center"
-                  style={{
-                    bottom: `${titleVertical}%`,
-                    left: `${(titleHorizontal - 50) * 0.2}%`
-                  }}
-                >
-                  <h3
-                    className="font-bold truncate drop-shadow-lg"
-                    style={{
-                      color: titleColor,
-                      fontSize: titleSize,
-                      fontFamily: titleFont
-                    }}
-                  >
-                    {title}
-                  </h3>
-                </div>
-              )}
-              {description && (
-                <div
-                  className="absolute w-full px-2 text-center"
-                  style={{
-                    bottom: `${descVertical}%`,
-                    left: `${(descHorizontal - 50) * 0.2}%`
-                  }}
-                >
-                  <p
-                    className="line-clamp-2 drop-shadow-lg"
-                    style={{
-                      color: descColor,
-                      fontSize: descSize,
-                      fontFamily: descFont
-                    }}
-                  >
-                    {description}
-                  </p>
-                </div>
-              )}
           </div>
         </div>
       </div>
