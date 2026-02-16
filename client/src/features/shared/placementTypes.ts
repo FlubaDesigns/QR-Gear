@@ -31,7 +31,7 @@ export interface PlacementSizeConfig {
 
 // Placements that are auto-handled as branding — never shown to the user as a choice.
 // The system automatically attaches the QR Gear branded tag to these.
-export const BRANDING_PLACEMENTS: string[] = ["neck"];
+export const BRANDING_PLACEMENTS: string[] = ["neck", "label_inside", "label_outside"];
 
 // Placements that can ONLY have QR codes (no full graphics option).
 // Uses actual Printify/Printful API position names.
