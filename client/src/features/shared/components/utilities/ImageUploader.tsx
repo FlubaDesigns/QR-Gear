@@ -161,8 +161,8 @@ export function ImageUploader({
 
     console.log("[ImageUploader] Starting upload of", files.length, "files");
 
-    const captures: { name: string; mimeType: string; blobUrl: string; size: number }[] = [];
     const tooLarge: string[] = [];
+    const validFiles: File[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -172,32 +172,25 @@ export function ImageUploader({
         tooLarge.push(file.name);
         continue;
       }
-      const blobUrl = URL.createObjectURL(file);
-      captures.push({ name: file.name, mimeType: file.type || "image/png", blobUrl, size: file.size });
+      validFiles.push(file);
     }
 
-    e.target.value = "";
-
     const readResults: { name: string; base64: string; mimeType: string }[] = [];
-    for (const cap of captures) {
+    for (const file of validFiles) {
       try {
-        console.log("[ImageUploader] Reading from blob URL:", cap.name);
-        const resp = await fetch(cap.blobUrl);
-        const arrayBuffer = await resp.arrayBuffer();
-        const base64 = arrayBufferToBase64(arrayBuffer);
-        console.log("[ImageUploader] Read complete for", cap.name, "base64 length:", base64.length);
-        readResults.push({ name: cap.name, base64, mimeType: cap.mimeType });
+        const result = await readFileAsBase64(file);
+        readResults.push(result);
       } catch (readErr) {
-        console.error("[ImageUploader] Read failed for", cap.name, readErr);
+        console.error("[ImageUploader] Read failed for", file.name, readErr);
         toast({
-          title: `Could not read: ${cap.name}`,
+          title: `Could not read: ${file.name}`,
           description: "Try selecting the file again",
           variant: "destructive",
         });
-      } finally {
-        URL.revokeObjectURL(cap.blobUrl);
       }
     }
+
+    e.target.value = "";
 
     if (tooLarge.length > 0) {
       toast({
