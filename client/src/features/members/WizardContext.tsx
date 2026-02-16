@@ -479,7 +479,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const generatePreviewQrCode = async () => {
     const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(previewUrl)}`;
+    const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
     setQrGraphic(qrApiUrl);
     setProductGraphic(qrApiUrl);
     return qrApiUrl;

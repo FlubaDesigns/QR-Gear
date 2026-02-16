@@ -15,6 +15,7 @@ import { PLACEMENT_BASE_DIMENSIONS } from "../types";
 import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
+import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 interface HostingTier {
   code: string;
@@ -43,12 +44,6 @@ interface PacketResult {
 }
 
 // Always generates black QR code on white background for universal readability
-function generateQRCodeUrl(content: string, size: number = 3000): string {
-  // Black QR code on white background - always readable regardless of product color
-  const qrColor = "000000";
-  const bgColor = "ffffff";
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${qrColor}&bgcolor=${bgColor}`;
-}
 
 interface TextStyle {
   text: string;

@@ -1,4 +1,5 @@
 import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
+import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 export interface TextStyle {
   text: string;
@@ -80,16 +81,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
       : src;
     img.src = absoluteSrc;
   });
-}
-
-function generateQRCodeUrl(
-  content: string,
-  size: number,
-  qrColor: "black" | "white" = "black"
-): string {
-  const dark = qrColor === "white" ? "ffffff" : "000000";
-  const light = qrColor === "white" ? "000000" : "ffffff";
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${dark}&bgcolor=${light}`;
 }
 
 export async function renderProductGraphic(

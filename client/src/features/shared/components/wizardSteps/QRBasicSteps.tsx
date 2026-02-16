@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import type { QRBasicInputType, QRBasicSaveOption, GraphicSize } from "./wizardTypes";
-import { SHIRT_COLORS } from "./wizardTypes";
+import { SHIRT_COLORS, generateQRCodeUrl } from "./wizardTypes";
 
 function isValidUrl(urlString: string): boolean {
   if (!urlString.trim()) return false;
@@ -396,7 +396,7 @@ export function QRBasicConfirmStep({
         {(saveChoice === 'graphic' || saveChoice === 'both') && (
           <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
             <img 
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${encodeURIComponent(qrContent)}`} 
+              src={generateQRCodeUrl(qrContent, 128)} 
               alt="QR Code" 
               className="w-32 h-32 object-contain mx-auto mb-2 bg-white rounded"
             />
