@@ -327,13 +327,13 @@ export function CropUtility({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-auto max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-[95vw] w-auto max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>{title} ({aspectLabel} ratio locked)</DialogTitle>
           <DialogDescription>Use the buttons below the image to resize and move the crop area</DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center min-h-[200px]">
+        <div className="flex-1 overflow-y-auto flex flex-col items-center min-h-0">
           {imageLoading ? (
             <Loader2 className="h-8 w-8 animate-spin" />
           ) : showUploadUI ? (
@@ -389,14 +389,14 @@ export function CropUtility({
                 </div>
               )}
 
-              <div className="relative rounded-lg bg-black/10 flex items-center justify-center">
+              <div className="relative rounded-lg bg-black/10 flex items-center justify-center overflow-visible">
                 {useCrop ? (
                   <ReactCrop
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     aspect={aspectRatio}
-                    className="max-h-[70vh]"
-                    style={{ maxHeight: '70vh' }}
+                    className="max-h-[50vh]"
+                    style={{ maxHeight: '50vh' }}
                   >
                     <img
                       ref={imgRef}
@@ -404,7 +404,8 @@ export function CropUtility({
                       alt="Crop preview"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
-                      className="max-w-full max-h-[70vh] mx-auto block"
+                      className="max-w-full max-h-[50vh] mx-auto block"
+                      style={{ objectFit: 'contain' }}
                       data-testid="img-crop-preview"
                     />
                   </ReactCrop>
@@ -414,7 +415,8 @@ export function CropUtility({
                     src={imageSrc}
                     alt="Full preview"
                     onLoad={onImageLoad}
-                    className="max-w-full max-h-[70vh] mx-auto"
+                    className="max-w-full max-h-[50vh] mx-auto"
+                    style={{ objectFit: 'contain' }}
                     data-testid="img-full-preview"
                   />
                 )}
