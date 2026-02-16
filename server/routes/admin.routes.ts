@@ -8,6 +8,7 @@ import { fsGetAll, fsCount, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from 
 import { printify, syncProductPlacements, syncProductVariants, detectCategory } from "../lib/printify";
 import { startCostSync, getCostSyncStatus, cancelCostSync, isCostSyncRunning } from "../lib/printify-cost-sync";
 import { checkProviderHealth, autoSyncVariantsFromLocalCatalog } from "./route-helpers";
+import { normalizePlacement, normalizePlacements, isEmbroideryPlacement } from '../../shared/placements';
 
 const USA_MADE_BRANDS = [
   'american apparel',
@@ -972,12 +973,15 @@ export function registerAdminRoutes(app: Express): void {
           return res.status(503).json({ error: "Printify API not configured" });
         }
         const { placements } = await syncProductPlacements(blueprintId, printProviderId);
-        const mapped = placements.map(p => ({
-          id: p.position,
-          type: p.position,
-          title: p.label,
-          additionalPrice: 0,
-        }));
+        const mapped = placements.map(p => {
+          const normalized = normalizePlacement('printify', p.position);
+          return {
+            id: normalized,
+            type: normalized,
+            title: p.label,
+            additionalPrice: 0,
+          };
+        });
         return res.json({ placements: mapped, source: 'printify-api' });
       }
 
@@ -987,15 +991,19 @@ export function registerAdminRoutes(app: Express): void {
         }
         const { printfulClient } = await import('../lib/printful');
         const printfileInfo = await printfulClient.getPrintfiles(productId);
-        const availPlacements = printfileInfo?.available_placements
+        const rawPlacements = printfileInfo?.available_placements
           ? Object.keys(printfileInfo.available_placements)
           : [];
-        const mapped = availPlacements.map((pid: string) => ({
-          id: pid,
-          type: pid,
-          title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-          additionalPrice: 0,
-        }));
+        const printPlacements = rawPlacements.filter(p => !isEmbroideryPlacement(p));
+        const mapped = printPlacements.map((pid: string) => {
+          const normalized = normalizePlacement('printful', pid);
+          return {
+            id: normalized,
+            type: normalized,
+            title: normalized.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            additionalPrice: 0,
+          };
+        });
         return res.json({ placements: mapped, source: 'printful-api' });
       }
 
@@ -1865,9 +1873,11 @@ export function registerAdminRoutes(app: Express): void {
       for (const p of products) {
         const categoryName = classifyPrintfulProduct(p.typeName || p.type || "");
         if (!grouped[categoryName]) grouped[categoryName] = [];
-        const placements = (p.availablePlacements || []).map((pid: string) => ({
-          id: pid, type: pid,
-          title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        const rawPlacements = (p.availablePlacements || []).filter((pid: string) => !isEmbroideryPlacement(pid));
+        const normalizedIds = normalizePlacements('printful', rawPlacements);
+        const placements = normalizedIds.map((nid) => ({
+          id: nid, type: nid,
+          title: nid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
           additionalPrice: 0,
         }));
         const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };

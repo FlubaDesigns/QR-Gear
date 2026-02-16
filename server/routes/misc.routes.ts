@@ -8,6 +8,7 @@ import { insertPartnerStoreSchema, insertEmailTemplateSchema } from "@shared/sch
 import { uploadToFirebaseStorage, listFilesInFolder } from "../lib/firebase-storage-service";
 import { z } from "zod";
 import JSZip from "jszip";
+import { normalizePlacements } from '../../shared/placements';
 import crypto from "crypto";
 
 export function registerMiscRoutes(app: Express): void {
@@ -1875,7 +1876,7 @@ ${allPages.map(page => `  <url>
       }
       
       const updatedProduct = await storage.updateProduct(product.id, {
-        availablePlacements: placements.map(p => p.position),
+        availablePlacements: normalizePlacements('printify', placements.map(p => p.position)),
         availableColors: colors,
         availableSizes: sizes,
         imageUrl: mockupImageUrl || product.imageUrl,

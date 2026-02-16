@@ -12,6 +12,7 @@ import { fsGet, fsGetAll, fsQuery, fsInsert, fsUpdate, fsUpsert } from "./firest
 import type { IStorage } from "../storage";
 import { downloadAndStoreFromUrl, uploadImageFromBuffer } from "./firebase-storage-service";
 import { printfulClient } from "./printful";
+import { toProviderPlacement } from '../../shared/placements';
 
 /**
  * Upload a data URI to Firebase Storage and return public URL
@@ -389,11 +390,8 @@ async function generatePrintfulMockupInternal(params: {
     left: Math.round((areaWidth - qrSize) / 2),  // Centered horizontally
   };
 
-  // Step 4: Map canonical placement to Printful placement
-  let printfulPlacement = 'front';
-  if (canonicalPlacementId === 'BACK_FULL' || canonicalPlacementId === 'BACK_UPPER') {
-    printfulPlacement = 'back';
-  }
+  // Step 4: Map internal placement to Printful placement using bridge
+  const printfulPlacement = toProviderPlacement('printful', canonicalPlacementId);
 
   // Step 5: Create mockup task with lifestyle option groups
   const lifestyleOptionGroups = ["Men's Lifestyle", "Women's Lifestyle"];

@@ -45,6 +45,59 @@ const stripe_1 = __importDefault(require("stripe"));
 const resend_1 = require("resend");
 // NexusMail imports
 const nexusmail_1 = require("./nexusmail");
+const PRINTIFY_TO_INTERNAL = {
+    'front': 'front', 'back': 'back', 'pocket': 'pocket',
+    'sleeve_left': 'left_sleeve', 'sleeve_right': 'right_sleeve',
+    'left': 'left', 'right': 'right',
+    'neck_label': 'label_outside', 'label': 'label_inside',
+};
+const PRINTFUL_TO_INTERNAL = {
+    'front': 'front', 'front_large': 'front', 'back': 'back',
+    'sleeve_left': 'left_sleeve', 'sleeve_right': 'right_sleeve',
+    'label_outside': 'label_outside', 'label_inside': 'label_inside',
+    'default': 'front',
+};
+const INTERNAL_TO_PRINTFUL = {
+    'front': 'front_large', 'back': 'back',
+    'left_sleeve': 'sleeve_left', 'right_sleeve': 'sleeve_right',
+    'label_inside': 'label_inside', 'label_outside': 'label_outside',
+};
+function normalizePlacement(provider, providerPlacement) {
+    const map = provider === 'printify' ? PRINTIFY_TO_INTERNAL : PRINTFUL_TO_INTERNAL;
+    return map[providerPlacement] || providerPlacement;
+}
+function normalizePlacements(provider, providerPlacements) {
+    const seen = new Set();
+    const result = [];
+    for (const pp of providerPlacements) {
+        const internal = normalizePlacement(provider, pp);
+        if (!seen.has(internal)) {
+            seen.add(internal);
+            result.push(internal);
+        }
+    }
+    return result;
+}
+function toProviderPlacement(provider, internal, availablePlacements) {
+    if (provider === 'printify') {
+        const INTERNAL_TO_PRINTIFY = {
+            'front': 'front', 'back': 'back', 'pocket': 'pocket',
+            'left_sleeve': 'sleeve_left', 'right_sleeve': 'sleeve_right',
+            'label_inside': 'label', 'label_outside': 'neck_label',
+            'left': 'left', 'right': 'right',
+        };
+        return INTERNAL_TO_PRINTIFY[internal] || internal;
+    }
+    let mapped = INTERNAL_TO_PRINTFUL[internal] || internal;
+    if (internal === 'front' && availablePlacements) {
+        if (availablePlacements.includes('front_large'))
+            mapped = 'front_large';
+        else if (availablePlacements.includes('front'))
+            mapped = 'front';
+    }
+    return mapped;
+}
+function isEmbroideryPlacement(p) { return p.startsWith('embroidery_'); }
 if (!admin.apps.length) {
     admin.initializeApp();
 }
@@ -837,10 +890,8 @@ async function generateMockupFromPrintful(request) {
     }
     // Get printfile specs to get position info
     const printfileData = await printfulClient.getPrintfiles(printfulProductId);
-    const frontPrintfile = printfileData?.printfiles?.find((p) => p.placement === 'front' || p.placement === 'default');
-    // Build file entry with position (required by Printful Mockup Generator)
-    // Position is ALWAYS required - use printfile specs if available, otherwise sensible defaults
-    const placement = frontPrintfile?.placement || 'front';
+    const frontPrintfile = printfileData?.printfiles?.find((p) => p.placement === 'front' || p.placement === 'front_large' || p.placement === 'default');
+    const placement = toProviderPlacement('printful', 'front', printfileData?.printfiles?.map((p) => p.placement) || []);
     const areaWidth = frontPrintfile?.width || 1800;
     const areaHeight = frontPrintfile?.height || 2400;
     const fileEntry = {
@@ -5082,7 +5133,8 @@ app.get('/admin/catalog/placements', requireAdmin, async (req, res) => {
                 }
                 if (placementSet.size === 0)
                     placementSet.add('front');
-                const mapped = Array.from(placementSet).map(p => ({
+                const normalized = normalizePlacements('printify', Array.from(placementSet));
+                const mapped = normalized.map(p => ({
                     id: p, type: p, title: p.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), additionalPrice: 0,
                 }));
                 res.json({ placements: mapped, source: 'printify-api' });
@@ -5098,8 +5150,10 @@ app.get('/admin/catalog/placements', requireAdmin, async (req, res) => {
                 return;
             }
             const printfileInfo = await printfulClient.getPrintfiles(productId);
-            const availPlacements = printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : [];
-            const mapped = availPlacements.map((pid) => ({
+            const rawPlacements = printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : [];
+            const printPlacements = rawPlacements.filter(p => !isEmbroideryPlacement(p));
+            const normalized = normalizePlacements('printful', printPlacements);
+            const mapped = normalized.map((pid) => ({
                 id: pid, type: pid, title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), additionalPrice: 0,
             }));
             res.json({ placements: mapped, source: 'printful-api' });

@@ -4,6 +4,7 @@ import { isAuthenticated, isAdmin } from "../firebaseAuth";
 import { verifyFirebaseToken } from "../lib/firebase-admin";
 import { uploadToFirebaseStorage } from "../lib/firebase-storage-service";
 import { lookupPrintifyCosts } from "../lib/printify-cost-lookup";
+import { normalizePlacement } from '../../shared/placements';
 
 async function verifyMemberAuth(req: any, memberId: string): Promise<{ authorized: boolean; userId?: string; error?: string }> {
   const authHeader = req.headers.authorization;
@@ -1587,11 +1588,12 @@ export function registerMemberRoutes(app: Express): void {
             }
             
             placements = Array.from(placementMap.entries()).map(([position, dims]) => {
+              const normalized = normalizePlacement('printify', position);
               const widthInches = (dims.widthPx / 300).toFixed(1);
               const heightInches = (dims.heightPx / 300).toFixed(1);
               return {
-                id: position,
-                title: position.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                id: normalized,
+                title: normalized.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
                 widthPx: dims.widthPx,
                 heightPx: dims.heightPx,
                 widthInches: `${widthInches}"`,

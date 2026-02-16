@@ -5,6 +5,10 @@
 // PHILOSOPHY: Placements come from the fulfillment provider API (Printify/Printful).
 // We do NOT guess or hardcode placements per category.
 // Fallback is always just front + back if the API doesn't return data.
+// Bridge: shared/placements.ts normalizes provider-specific names to these internal names.
+
+export type { FulfillmentProvider, InternalPlacement } from '@shared/placements';
+export { normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement } from '@shared/placements';
 
 export type PlacementType = "graphic" | "qr";
 
