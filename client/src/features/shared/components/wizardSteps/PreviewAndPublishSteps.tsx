@@ -88,10 +88,10 @@ export function ShirtPreviewStep({
   const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
   const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
   
-  const hasFrontPlacement = selectedPlacements.includes('front') || selectedPlacements.includes('left_chest');
+  const hasFrontPlacement = selectedPlacements.includes('front') || selectedPlacements.includes('pocket');
   const hasBackPlacement = selectedPlacements.includes('back');
-  const hasLeftSleeve = selectedPlacements.includes('sleeve_left');
-  const hasRightSleeve = selectedPlacements.includes('sleeve_right');
+  const hasLeftSleeve = selectedPlacements.includes('left_sleeve');
+  const hasRightSleeve = selectedPlacements.includes('right_sleeve');
   
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';

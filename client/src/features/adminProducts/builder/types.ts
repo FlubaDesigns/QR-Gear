@@ -1,4 +1,4 @@
-import type { PlacementSize as _PlacementSize, PlacementConfig as _PlacementConfig, PlacementSizeConfig as _PlacementSizeConfig } from "@/features/shared/placementTypes";
+import type { PlacementSize as _PlacementSize, PlacementConfig as _PlacementConfig, PlacementSizeConfig as _PlacementSizeConfig, PlacementOption as _PlacementOption } from "@/features/shared/placementTypes";
 
 export type SourceType = "custom" | "product_template" | "graphic_template" | "background" | null;
 
@@ -33,7 +33,7 @@ export interface ProductColor {
 
 // Print placement from Printful/Printify API
 export interface ProductPlacement {
-  id: string;          // e.g., "front", "back", "front_large", "left_chest"
+  id: string;          // e.g., "front", "back", "front_large", "pocket"
   type: string;        // Same as id, normalized
   title: string;       // Human-readable: "Front", "Back", "Front Large"
   additionalPrice?: number;  // Extra cost for this placement (Printful)
@@ -183,7 +183,7 @@ export interface PricingBreakdown {
   hostingTierCode: string;
 }
 
-// Re-export placement types from shared location (single source of truth)
+// Re-export placement types and data from shared location (single source of truth)
 export {
   type PlacementType,
   type PlacementSize,
@@ -197,51 +197,11 @@ export {
   isBrandingPlacement,
   filterSelectablePlacements,
   getPlacementLabel,
+  buildPlacementOption,
+  PLACEMENT_SIZE_SCALES,
+  PLACEMENT_BASE_DIMENSIONS,
+  DEFAULT_PLACEMENT_DIMENSIONS,
 } from "@/features/shared/placementTypes";
-
-// Size scaling for different placement areas
-// Large areas get more dramatic size differences, small areas get gradual ones
-// Uses actual Printify/Printful API position names
-export const PLACEMENT_SIZE_SCALES: Record<string, Record<_PlacementSize, number>> = {
-  "front": { small: 0.6, medium: 0.8, large: 1.0 },
-  "back": { small: 0.6, medium: 0.8, large: 1.0 },
-  "front_large": { small: 0.6, medium: 0.8, large: 1.0 },
-  "front_small": { small: 0.7, medium: 0.85, large: 1.0 },
-  "front_center": { small: 0.6, medium: 0.8, large: 1.0 },
-  "left_sleeve": { small: 0.7, medium: 0.85, large: 1.0 },
-  "right_sleeve": { small: 0.7, medium: 0.85, large: 1.0 },
-  "pocket": { small: 0.7, medium: 0.85, large: 1.0 },
-  "left": { small: 0.7, medium: 0.85, large: 1.0 },
-  "right": { small: 0.7, medium: 0.85, large: 1.0 },
-  "center": { small: 0.6, medium: 0.8, large: 1.0 },
-  "wraparound": { small: 0.65, medium: 0.8, large: 1.0 },
-  "side": { small: 0.7, medium: 0.85, large: 1.0 },
-};
-
-// Base dimensions per placement at 300 DPI (width × height in pixels)
-// These are the LARGE sizes - small/medium use the scale factors above
-// Uses actual Printify/Printful API position names
-// When a placement isn't listed here, we fall back to a safe 3000×3000 default
-export const PLACEMENT_BASE_DIMENSIONS: Record<string, { width: number; height: number }> = {
-  "front": { width: 3600, height: 4800 },
-  "back": { width: 3600, height: 4200 },
-  "front_large": { width: 3600, height: 4800 },
-  "front_small": { width: 3000, height: 2400 },
-  "front_center": { width: 3600, height: 4800 },
-  "back_center": { width: 3600, height: 4200 },
-  "pocket": { width: 1200, height: 1200 },
-  "left_sleeve": { width: 900, height: 900 },
-  "right_sleeve": { width: 900, height: 900 },
-  "neck": { width: 750, height: 750 },
-  "center": { width: 3000, height: 3000 },
-  "left": { width: 3000, height: 3000 },
-  "right": { width: 3000, height: 3000 },
-  "side": { width: 1200, height: 1050 },
-  "wraparound": { width: 2850, height: 1050 },
-};
-
-// Fallback dimensions for any placement not in the table above
-export const DEFAULT_PLACEMENT_DIMENSIONS = { width: 3000, height: 3000 };
 
 export interface SelectedColor {
   name: string;

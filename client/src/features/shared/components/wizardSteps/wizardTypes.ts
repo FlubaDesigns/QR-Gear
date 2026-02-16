@@ -17,7 +17,7 @@ export type UrlSourceChoice = 'upload' | 'library' | '';
 export type LibraryChoice = 'personal' | 'common' | '';
 export type PlacementGraphicChoice = 'full' | 'qr-only' | '';
 export type QRBasicInputType = 'url' | 'text' | '';
-export type PlacementOption = 'front' | 'back' | 'left_chest' | 'sleeve_left' | 'sleeve_right';
+export type PlacementOption = string;
 export type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | 'qr-compose' | '';
 export type WizardTier = 'simple' | 'advanced' | 'studio' | 'super-simple';
 export type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop' | 'full-or-crop';
@@ -129,12 +129,15 @@ export const SHIRT_TEXT_FONTS = [
   { id: 'script', label: 'Script', family: 'Georgia' }
 ];
 
-export const PLACEMENT_OPTIONS: { id: PlacementOption; label: string; description: string; sizeLabel: string }[] = [
-  { id: 'front', label: 'Front Center', description: 'Large main print', sizeLabel: '12"×16"' },
-  { id: 'left_chest', label: 'Left Chest', description: 'Small logo area', sizeLabel: '4"×4"' },
-  { id: 'back', label: 'Back Center', description: 'Large back print', sizeLabel: '12"×16"' },
-  { id: 'sleeve_left', label: 'Left Sleeve', description: 'Sleeve print', sizeLabel: '4"×4"' },
-  { id: 'sleeve_right', label: 'Right Sleeve', description: 'Sleeve print', sizeLabel: '4"×4"' },
+export { buildPlacementOption, getPlacementLabel, isQrOnlyPlacement, isBrandingPlacement, filterSelectablePlacements, QR_ONLY_PLACEMENTS, BRANDING_PLACEMENTS, FALLBACK_PLACEMENTS } from "@/features/shared/placementTypes";
+import { FALLBACK_PLACEMENTS, buildPlacementOption as _buildOpt } from "@/features/shared/placementTypes";
+
+export const PLACEMENT_OPTIONS = [
+  _buildOpt('front'),
+  _buildOpt('pocket'),
+  _buildOpt('back'),
+  _buildOpt('left_sleeve'),
+  _buildOpt('right_sleeve'),
 ];
 
 export const QR_TYPES = [
@@ -289,7 +292,7 @@ export async function fetchProductMockup(
     colorName,
     artworkUrl,
     artworkVariant = 'black',
-    canonicalPlacementId = 'FRONT_CHEST',
+    canonicalPlacementId = 'front',
     qrSize = 'medium',
   } = params;
 
