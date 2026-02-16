@@ -180,7 +180,7 @@ function SourceImagesTabInner() {
     try {
       await api.uploadAsset({
         name: `cropped_${sourceAsset.name}`,
-        assetType: "cropped",
+        assetType: "background",
         imageData,
         mimeType: "image/jpeg",
         sourceAssetId: sourceId,
@@ -302,7 +302,7 @@ function SourceImagesTabInner() {
         fetchImageBlob={api.fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Image"
-        allowCropToggle={false}
+        allowCropToggle={true}
       />
     </>
   );

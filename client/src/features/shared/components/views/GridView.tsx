@@ -46,7 +46,7 @@ export function GridView({
       {items.map((item) => (
         <div
           key={item.id}
-          className="relative aspect-[9/16] rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
+          className="relative aspect-square rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
           onClick={() => onSelect(item)}
           data-testid={`card-grid-item-${item.id}`}
         >
