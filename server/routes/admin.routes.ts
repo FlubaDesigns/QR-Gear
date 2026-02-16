@@ -1830,6 +1830,7 @@ export function registerAdminRoutes(app: Express): void {
           blueprintId: p.id,
           printProviderId: null,
           hasMockupMapping: false,
+          fulfillmentProvider: 'printful',
         });
       }
       

@@ -608,7 +608,7 @@ export function CreateGraphicsModule() {
         channelId: selectedChannel?.id || null,
         channelName: selectedChannel?.name || null,
         // Fulfillment provider
-        fulfillmentProvider: state.fulfillmentProvider || 'printify',
+        fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
@@ -832,7 +832,8 @@ export function CreateGraphicsModule() {
           category: state.qrProductState || "General",
           productId: state.selectedProduct?.id || null,
           blueprintId: product?.blueprintId || 0,
-          printProviderId: product?.printProviderId || 0,
+          printProviderId: product?.printProviderId || null,
+          fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
           colors: productColors,
           placements: state.selectedPlacements || ["front"],
           qrSizes: ["small", "medium", "large"],
@@ -949,13 +950,13 @@ export function CreateGraphicsModule() {
         headers: { ...mockupHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           blueprintId: product?.blueprintId || 0,
-          printProviderId: product?.printProviderId || 99,
+          printProviderId: product?.printProviderId || null,
           colorName: state.selectedColor?.name || 'Black',
           colorHex: state.selectedColor?.hex || '#000000',
           placement: canonicalPlacement,
           artworkUrl: productGraphicUrl,
           qrSize: selectedSize,
-          fulfillmentProvider: state.fulfillmentProvider || 'printify',
+          fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
         }),
       })
         .then(res => res.json())

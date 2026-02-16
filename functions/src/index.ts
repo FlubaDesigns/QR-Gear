@@ -5282,7 +5282,9 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
     console.log(`[Packets CF] Created packet: ${packetId}`);
 
     let mockupJobsQueued = 0;
-    if (blueprintId && printProviderId && colors && Array.isArray(colors) && colors.length > 0) {
+    const canQueueMockups = blueprintId && colors && Array.isArray(colors) && colors.length > 0 &&
+      (fulfillmentProvider === 'printful' || printProviderId);
+    if (canQueueMockups) {
       try {
         const artworkUrl = compositeUrl || qrOnlyUrl;
         if (artworkUrl) {
@@ -5303,9 +5305,10 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
                   placement,
                   jobData: {
                     blueprintId: parseInt(blueprintId),
-                    printProviderId: parseInt(printProviderId),
+                    printProviderId: printProviderId ? parseInt(printProviderId) : null,
                     artworkUrl,
                     artworkVariant: "black",
+                    fulfillmentProvider: fulfillmentProvider || 'printify',
                   },
                   status: "pending",
                   priority: priority++,
@@ -5948,6 +5951,7 @@ app.get('/admin/catalog/printful-products', requireAdmin, async (_req: Request, 
         minPrice: p.minPrice || null, maxPrice: p.maxPrice || null,
         colorCount: vData.colors.length, availableColors: vData.colors, availableSizes: vData.sizes,
         blueprintId: p.id, printProviderId: null, hasMockupMapping: false,
+        fulfillmentProvider: 'printful',
       });
     }
     const result = Object.entries(grouped).map(([name, items]) => ({ name, items, count: items.length }));
@@ -6099,7 +6103,7 @@ app.post('/admin/mockup/priority', requireAdmin, async (req: Request, res: Respo
     console.log(`[Priority Mockup CF] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
     const result = await generateMockupFromPrintful({
       blueprintId: parseInt(blueprintId),
-      printProviderId: parseInt(printProviderId) || 99,
+      printProviderId: printProviderId ? parseInt(printProviderId) : 0,
       colorName,
       colorHex,
       artworkUrl,

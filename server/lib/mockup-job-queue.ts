@@ -41,13 +41,17 @@ export class MockupJobQueue {
     artworkUrl: string;
     artworkVariant: "black" | "white";
     priority?: number;
+    fulfillmentProvider?: string;
   }): Promise<MockupJob> {
-    const jobData = {
+    const jobData: Record<string, any> = {
       blueprintId: params.blueprintId,
       printProviderId: params.printProviderId,
       artworkUrl: params.artworkUrl,
       artworkVariant: params.artworkVariant,
     };
+    if (params.fulfillmentProvider) {
+      jobData.fulfillmentProvider = params.fulfillmentProvider;
+    }
 
     const job = await fsInsert('mockup_jobs', {
       productId: params.productId,
@@ -73,6 +77,7 @@ export class MockupJobQueue {
     printProviderId: number;
     artworkUrl: string;
     artworkVariant: "black" | "white";
+    fulfillmentProvider?: string;
   }): Promise<MockupJob[]> {
     const jobs: MockupJob[] = [];
     const qrSizes = params.qrSizes || ["small", "medium", "large"];
@@ -92,6 +97,7 @@ export class MockupJobQueue {
             artworkUrl: params.artworkUrl,
             artworkVariant: params.artworkVariant,
             priority: priority++,
+            fulfillmentProvider: params.fulfillmentProvider,
           });
           jobs.push(job);
         }
@@ -238,11 +244,12 @@ export class MockupJobQueue {
       const result = await generatePrintfulMockup({
         productId: job.productId,
         blueprintId: jobData.blueprintId,
-        printProviderId: jobData.printProviderId,
+        printProviderId: jobData.printProviderId || 0,
         colorName: job.colorName,
         artworkUrl: jobData.artworkUrl,
         artworkVariant: jobData.artworkVariant,
         qrSize: job.qrSize as "small" | "medium" | "large",
+        fulfillmentProvider: jobData.fulfillmentProvider || "printify",
       });
 
       if (result.error) {

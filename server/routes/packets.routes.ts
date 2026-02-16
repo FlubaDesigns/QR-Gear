@@ -107,7 +107,9 @@ export function registerPacketRoutes(app: Express): void {
       console.log(`[Packets] Created packet: ${packetId}`);
 
       let mockupJobsQueued = 0;
-      if (blueprintId && printProviderId && colors && Array.isArray(colors) && colors.length > 0) {
+      const canQueueMockups = blueprintId && colors && Array.isArray(colors) && colors.length > 0 &&
+        (fulfillmentProvider === 'printful' || printProviderId);
+      if (canQueueMockups) {
         try {
           const { mockupJobQueue } = await import('../lib/mockup-job-queue.js');
           
@@ -126,9 +128,10 @@ export function registerPacketRoutes(app: Express): void {
               qrSizes,
               placements: targetPlacements,
               blueprintId: parseInt(blueprintId),
-              printProviderId: parseInt(printProviderId),
+              printProviderId: printProviderId ? parseInt(printProviderId) : 0,
               artworkUrl,
               artworkVariant: "black",
+              fulfillmentProvider: fulfillmentProvider || 'printify',
             });
             
             mockupJobsQueued = jobs.length;
@@ -334,7 +337,9 @@ export function registerPacketRoutes(app: Express): void {
       console.log(`[Packets TEST] Created packet: ${packetId}`);
 
       let mockupJobsQueued = 0;
-      if (blueprintId && printProviderId && colors && Array.isArray(colors) && colors.length > 0) {
+      const canQueueMockups = blueprintId && colors && Array.isArray(colors) && colors.length > 0 &&
+        (fulfillmentProvider === 'printful' || printProviderId);
+      if (canQueueMockups) {
         try {
           const { mockupJobQueue } = await import('../lib/mockup-job-queue.js');
           
@@ -353,9 +358,10 @@ export function registerPacketRoutes(app: Express): void {
               qrSizes,
               placements: targetPlacements,
               blueprintId: parseInt(blueprintId),
-              printProviderId: parseInt(printProviderId),
+              printProviderId: printProviderId ? parseInt(printProviderId) : 0,
               artworkUrl,
               artworkVariant: "black",
+              fulfillmentProvider: fulfillmentProvider || 'printify',
             });
             
             mockupJobsQueued = jobs.length;
