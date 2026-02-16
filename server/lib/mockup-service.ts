@@ -666,7 +666,7 @@ export async function getCachedMockupsForProduct(
     }
 
     // Map canonical placement to front/back
-    if (entry.canonicalPlacementId === "FRONT_CHEST" || entry.canonicalPlacementId === "FRONT_CENTER") {
+    if (entry.canonicalPlacementId === "front" || entry.canonicalPlacementId === "FRONT_CHEST" || entry.canonicalPlacementId === "FRONT_CENTER") {
       result[entry.colorName].front = entry.mockupUrl;
       // Include lifestyle mockup if available
       if (entry.lifestyleMockupUrl) {
@@ -708,7 +708,7 @@ export async function preGenerateMockupsForProduct(
           printProviderId,
           colorName: color.name,
           colorHex: color.hex,
-          canonicalPlacementId: "FRONT_CHEST",
+          canonicalPlacementId: "front",
           artworkUrl,
           artworkVariant,
         },
@@ -877,7 +877,7 @@ export async function generatePrintfulMockup(params: {
       printProviderId: params.printProviderId,
       colorName: params.colorName,
       artworkUrl: params.artworkUrl,
-      canonicalPlacementId: "FRONT_CHEST",
+      canonicalPlacementId: "front",
       qrSize: params.qrSize,
       fulfillmentProvider: params.fulfillmentProvider || "printify",
     });

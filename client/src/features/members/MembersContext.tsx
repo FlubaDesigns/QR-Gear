@@ -185,7 +185,7 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
             printProviderId: params.printProviderId,
             colorName: params.colorName,
             colorHex: params.colorHex || '#000000',
-            placement: params.placement || 'FRONT_CHEST',
+            placement: params.placement || 'front',
             artworkUrl: params.artworkUrl,
             qrSize: params.qrSize || 'medium',
             fulfillmentProvider: params.fulfillmentProvider || 'printify',

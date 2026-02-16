@@ -1077,7 +1077,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
           printProviderId: selectedProductType.printProviderId,
           colorName: selectedColor,
           artworkUrl: artworkForMockup,
-          placement: 'FRONT_CHEST',
+          placement: 'front',
           qrSize: effectiveQrSize,
         });
 
@@ -1146,7 +1146,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
             printProviderId: selectedProductType.printProviderId,
             colorName: selectedColor,
             artworkUrl: qrApiUrl,
-            placement: 'FRONT_CHEST',
+            placement: 'front',
             qrSize: effectiveQrSize,
           });
 

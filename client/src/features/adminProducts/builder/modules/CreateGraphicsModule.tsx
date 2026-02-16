@@ -494,24 +494,7 @@ export function CreateGraphicsModule() {
         : "front";
       const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
       
-      const placementToCanonical: Record<string, string> = {
-        "front": "FRONT_CHEST",
-        "front-center": "FRONT_CHEST",
-        "front-chest": "FRONT_CHEST",
-        "front-pocket": "FRONT_POCKET",
-        "back": "BACK_FULL",
-        "back-full": "BACK_FULL",
-        "back-upper": "BACK_UPPER",
-        "left-sleeve": "LEFT_SLEEVE",
-        "left-shoulder": "LEFT_SLEEVE",
-        "right-sleeve": "RIGHT_SLEEVE",
-        "right-shoulder": "RIGHT_SLEEVE",
-        "hood-front": "HOOD_FRONT",
-        "hood-back": "HOOD_BACK",
-        "hat-front": "HAT_FRONT",
-        "hat-back": "HAT_BACK",
-      };
-      const canonicalPlacement = placementToCanonical[(selectedPlacement || "front").toLowerCase()] || "FRONT_CHEST";
+      const canonicalPlacement = (selectedPlacement || "front").toLowerCase();
       
       console.log('[CreatePacket] Requesting priority mockup:', {
         blueprintId: product?.blueprintId,

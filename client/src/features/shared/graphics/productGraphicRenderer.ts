@@ -26,15 +26,13 @@ export interface RenderOptions {
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
-  "front-center": { width: 3600, height: 4800 },
+  "front": { width: 3600, height: 4800 },
+  "front_large": { width: 3600, height: 4800 },
   "back": { width: 3600, height: 4200 },
-  "center-chest": { width: 2400, height: 1800 },
-  "left-chest": { width: 1200, height: 1200 },
+  "front_small": { width: 2400, height: 1800 },
   "pocket": { width: 1200, height: 1200 },
-  "left-shoulder": { width: 1200, height: 1500 },
-  "right-shoulder": { width: 1200, height: 1500 },
-  "sleeve-left": { width: 900, height: 1200 },
-  "sleeve-right": { width: 900, height: 1200 },
+  "left_sleeve": { width: 1200, height: 1500 },
+  "right_sleeve": { width: 1200, height: 1500 },
 };
 
 const DEFAULT_WIDTH = 1200;

@@ -1865,7 +1865,7 @@ app.post('/storefront/generate-mockup', async (req, res) => {
         const normalizeColor = (c) => c.toLowerCase().trim();
         const requestColorNorm = normalizeColor(color);
         // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
-        const placement = 'front-chest';
+        const placement = 'front';
         const fullKey = `${color}_${resolvedQrSize}_${placement}`;
         const colorSizeKey = `${color}_${resolvedQrSize}`;
         const fullKeyNorm = `${requestColorNorm}_${resolvedQrSize}_${placement}`;
@@ -1955,13 +1955,13 @@ app.post('/storefront/generate-mockup', async (req, res) => {
             colorHex = colorInfo?.hex || null;
         }
         const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
-        const blackArtwork = designPlacements['front-chest'] ||
+        const blackArtwork = designPlacements['front'] ||
+            designPlacements['front-chest'] ||
             designPlacements['front-chest-black'] ||
-            designPlacements['front-center'] ||
-            designPlacements['front'];
-        const whiteArtwork = designPlacements['front-chest-white'] ||
-            designPlacements['front-center-white'] ||
-            designPlacements['front-white'];
+            designPlacements['front-center'];
+        const whiteArtwork = designPlacements['front-white'] ||
+            designPlacements['front-chest-white'] ||
+            designPlacements['front-center-white'];
         let artworkUrl;
         let artworkVariant = 'black';
         if (needsWhiteQR && whiteArtwork) {
@@ -2041,7 +2041,7 @@ app.get('/placements', async (req, res) => {
 });
 app.post('/mockups/get-or-generate', async (req, res) => {
     try {
-        const { blueprintId, printProviderId, colorName, colorHex, canonicalPlacementId = 'FRONT_CHEST', artworkUrl, artworkVariant = 'black' } = req.body;
+        const { blueprintId, printProviderId, colorName, colorHex, canonicalPlacementId = 'front', artworkUrl, artworkVariant = 'black' } = req.body;
         if (!blueprintId || !printProviderId || !colorName || !artworkUrl) {
             res.status(400).json({
                 error: 'Missing required fields: blueprintId, printProviderId, colorName, artworkUrl'
@@ -2615,8 +2615,8 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req, res
         if (typeof design.placementImages === 'object') {
             designPlacements = design.placementImages;
         }
-        const blackArtwork = designPlacements['front-chest'] || designPlacements['front'];
-        const whiteArtwork = designPlacements['front-chest-white'];
+        const blackArtwork = designPlacements['front'] || designPlacements['front-chest'];
+        const whiteArtwork = designPlacements['front-white'] || designPlacements['front-chest-white'];
         // Get colors to regenerate
         const allColors = product.availableColors || [];
         const colorsToProcess = color ? allColors.filter(c => c.name === color) : allColors;
@@ -2639,9 +2639,9 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req, res
                     artworkUrl,
                     artworkVariant,
                 });
-                // Save with full key: color_size_placement (e.g., "Black_medium_front-chest")
+                // Save with full key: color_size_placement (e.g., "Black_medium_front")
                 const graphicSize = 'medium';
-                const placement = 'front-chest';
+                const placement = 'front';
                 const fullKey = `${colorInfo.name}_${graphicSize}_${placement}`;
                 mockupsByColor[fullKey] = {
                     front: mockupResult.mockupUrl,

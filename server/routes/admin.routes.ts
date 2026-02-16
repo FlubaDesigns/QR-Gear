@@ -429,8 +429,8 @@ export function registerAdminRoutes(app: Express): void {
       }
       
       const placementImages = design.placementImages as Record<string, string>;
-      const artworkBlackUrl = placementImages?.["front-center"] || placementImages?.["front-chest"];
-      const artworkWhiteUrl = placementImages?.["front-center-white"] || placementImages?.["front-chest-white"];
+      const artworkBlackUrl = placementImages?.["front"] || placementImages?.["front-center"] || placementImages?.["front-chest"];
+      const artworkWhiteUrl = placementImages?.["front-white"] || placementImages?.["front-center-white"] || placementImages?.["front-chest-white"];
       
       if (!artworkBlackUrl) {
         return res.status(400).json({ error: "No artwork found for this design" });
@@ -518,10 +518,11 @@ export function registerAdminRoutes(app: Express): void {
         console.error('[Admin] Failed to parse placementImages:', e);
       }
       
-      const blackArtwork = designPlacements["front-chest"] || 
-                           designPlacements["front-center"] ||
-                           designPlacements["front"];
-      const whiteArtwork = designPlacements["front-chest-white"] || 
+      const blackArtwork = designPlacements["front"] || 
+                           designPlacements["front-chest"] || 
+                           designPlacements["front-center"];
+      const whiteArtwork = designPlacements["front-white"] || 
+                           designPlacements["front-chest-white"] || 
                            designPlacements["front-center-white"];
       
       if (!blackArtwork) {
@@ -549,7 +550,7 @@ export function registerAdminRoutes(app: Express): void {
             printProviderId: product.printProviderId || 0,
             colorName: color,
             colorHex,
-            canonicalPlacementId: "FRONT_CHEST",
+            canonicalPlacementId: "front",
             artworkUrl,
             artworkVariant,
           }, storage);
@@ -2979,8 +2980,8 @@ export function registerAdminRoutes(app: Express): void {
           
           const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
           
-          const blackArtwork = designPlacements["front-chest"] || designPlacements["front-chest-black"];
-          const whiteArtwork = designPlacements["front-chest-white"];
+          const blackArtwork = designPlacements["front"] || designPlacements["front-chest"] || designPlacements["front-chest-black"];
+          const whiteArtwork = designPlacements["front-white"] || designPlacements["front-chest-white"];
           
           if (needsWhiteQR && whiteArtwork) {
             artworkUrl = whiteArtwork;

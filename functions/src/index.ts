@@ -2214,7 +2214,7 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
     const requestColorNorm = normalizeColor(color);
     
     // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
-    const placement = 'front-chest';
+    const placement = 'front';
     const fullKey = `${color}_${resolvedQrSize}_${placement}`;
     const colorSizeKey = `${color}_${resolvedQrSize}`;
     const fullKeyNorm = `${requestColorNorm}_${resolvedQrSize}_${placement}`;
@@ -2316,13 +2316,13 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
     
     const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
     
-    const blackArtwork = designPlacements['front-chest'] || 
+    const blackArtwork = designPlacements['front'] || 
+                         designPlacements['front-chest'] || 
                          designPlacements['front-chest-black'] || 
-                         designPlacements['front-center'] ||
-                         designPlacements['front'];
-    const whiteArtwork = designPlacements['front-chest-white'] || 
-                         designPlacements['front-center-white'] ||
-                         designPlacements['front-white'];
+                         designPlacements['front-center'];
+    const whiteArtwork = designPlacements['front-white'] || 
+                         designPlacements['front-chest-white'] || 
+                         designPlacements['front-center-white'];
     
     let artworkUrl: string;
     let artworkVariant: 'black' | 'white' = 'black';
@@ -2412,7 +2412,7 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
       printProviderId, 
       colorName, 
       colorHex,
-      canonicalPlacementId = 'FRONT_CHEST',
+      canonicalPlacementId = 'front',
       artworkUrl,
       artworkVariant = 'black'
     } = req.body;
@@ -3014,8 +3014,8 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Req
       designPlacements = design.placementImages as Record<string, string>;
     }
     
-    const blackArtwork = designPlacements['front-chest'] || designPlacements['front'];
-    const whiteArtwork = designPlacements['front-chest-white'];
+    const blackArtwork = designPlacements['front'] || designPlacements['front-chest'];
+    const whiteArtwork = designPlacements['front-white'] || designPlacements['front-chest-white'];
     
     // Get colors to regenerate
     const allColors = (product.availableColors as Array<{ name: string; hex: string }>) || [];
@@ -3044,9 +3044,9 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Req
           artworkVariant,
         });
         
-        // Save with full key: color_size_placement (e.g., "Black_medium_front-chest")
+        // Save with full key: color_size_placement (e.g., "Black_medium_front")
         const graphicSize = 'medium';
-        const placement = 'front-chest';
+        const placement = 'front';
         const fullKey = `${colorInfo.name}_${graphicSize}_${placement}`;
         mockupsByColor[fullKey] = {
           front: mockupResult.mockupUrl,

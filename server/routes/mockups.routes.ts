@@ -27,7 +27,7 @@ export function registerMockupRoutes(app: Express): void {
         printProviderId, 
         colorName, 
         colorHex,
-        canonicalPlacementId = "FRONT_CHEST",
+        canonicalPlacementId = "front",
         artworkUrl,
         artworkVariant = "black"
       } = req.body;
@@ -211,7 +211,7 @@ export function registerMockupRoutes(app: Express): void {
       const requestColorNorm = normalizeColor(color);
       
       // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
-      const placement = 'front-chest'; // default placement for storefront
+      const placement = 'front';
       const fullKey = `${color}_${resolvedQrSize}_${placement}`;
       const colorSizeKey = `${color}_${resolvedQrSize}`;
       const fullKeyNorm = `${requestColorNorm}_${resolvedQrSize}_${placement}`;
@@ -330,14 +330,14 @@ export function registerMockupRoutes(app: Express): void {
       const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
       
       // Support multiple naming conventions: front-chest, front-center, or just "front"
-      const blackArtwork = designPlacements["front-chest"] || 
+      const blackArtwork = designPlacements["front"] || 
+                           designPlacements["front-chest"] || 
                            designPlacements["front-chest-black"] || 
                            designPlacements["front-center"] ||
-                           designPlacements["front-center-black"] ||
-                           designPlacements["front"];
-      const whiteArtwork = designPlacements["front-chest-white"] || 
-                           designPlacements["front-center-white"] ||
-                           designPlacements["front-white"];
+                           designPlacements["front-center-black"];
+      const whiteArtwork = designPlacements["front-white"] ||
+                           designPlacements["front-chest-white"] || 
+                           designPlacements["front-center-white"];
       
       let artworkUrl: string;
       let artworkVariant: "black" | "white" = "black";
@@ -437,8 +437,8 @@ export function registerMockupRoutes(app: Express): void {
       const { isColorDark } = await import('../lib/mockup-service.js');
       const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
       
-      const blackArtwork = designPlacements["front-chest"] || designPlacements["front-center"] || designPlacements["front"];
-      const whiteArtwork = designPlacements["front-chest-white"] || designPlacements["front-center-white"];
+      const blackArtwork = designPlacements["front"] || designPlacements["front-chest"] || designPlacements["front-center"];
+      const whiteArtwork = designPlacements["front-white"] || designPlacements["front-chest-white"] || designPlacements["front-center-white"];
       
       const artworkUrl = needsWhiteQR && whiteArtwork ? whiteArtwork : blackArtwork;
       
@@ -567,7 +567,7 @@ export function registerMockupRoutes(app: Express): void {
   // Public - anyone can create a shirt without login
   // Options:
   //   fullGeneration: true = all placements × all QR sizes (for admin catalog products)
-  //   placements: ["front-chest", "back"] = specific placements to generate
+  //   placements: ["front", "back"] = specific placements to generate
   //   qrSizes: ["small", "medium", "large"] = specific QR sizes to generate
   app.post("/api/mockup-jobs/batch", async (req: any, res) => {
     try {
@@ -615,15 +615,15 @@ export function registerMockupRoutes(app: Express): void {
         designPlacements = design.placementImages as Record<string, string>;
       }
       
-      const blackArtwork = designPlacements["front-chest"] || designPlacements["front-center"] || designPlacements["front"];
-      const whiteArtwork = designPlacements["front-chest-white"] || designPlacements["front-center-white"];
+      const blackArtwork = designPlacements["front"] || designPlacements["front-chest"] || designPlacements["front-center"];
+      const whiteArtwork = designPlacements["front-white"] || designPlacements["front-chest-white"] || designPlacements["front-center-white"];
       
       if (!blackArtwork) {
         return res.status(400).json({ error: "No artwork found for product" });
       }
       
       // Determine which placements and QR sizes to generate
-      const ALL_PLACEMENTS = ["front-chest", "back", "left-shoulder", "right-shoulder"];
+      const ALL_PLACEMENTS = ["front", "back", "left_sleeve", "right_sleeve"];
       const ALL_QR_SIZES: Array<"small" | "medium" | "large"> = ["small", "medium", "large"];
       
       let targetPlacements: string[];
@@ -635,7 +635,7 @@ export function registerMockupRoutes(app: Express): void {
         targetQrSizes = qrSizes || ALL_QR_SIZES;
       } else {
         // Custom order: generate specified or default
-        targetPlacements = placements || ["front-chest"];
+        targetPlacements = placements || ["front"];
         targetQrSizes = qrSizes || ALL_QR_SIZES;
       }
       
@@ -805,7 +805,7 @@ export function registerMockupRoutes(app: Express): void {
       
       // Check print-ready artwork exists
       const printReadyArtUrl = design.printifyCompositeUrl || 
-        (design.placementImages as any)?.["front-chest"] ||
+        (design.placementImages as any)?.["front"] || (design.placementImages as any)?.["front-chest"] ||
         Object.values(design.placementImages || {})[0];
       
       if (!printReadyArtUrl) {

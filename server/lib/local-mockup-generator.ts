@@ -28,7 +28,7 @@ const SHIRT_TEMPLATES: Record<string, { light: string; dark: string }> = {
 };
 
 const PLACEMENT_CONFIG = {
-  'front-chest': {
+  'front': {
     x: 0.5,
     y: 0.35,
     scale: 0.25,
@@ -63,7 +63,7 @@ export async function generateLocalMockup(
     
     const shirtShape = createShirtShape(ctx as any, canvasWidth, canvasHeight, config.shirtHex);
     
-    const placement = PLACEMENT_CONFIG['front-chest'];
+    const placement = PLACEMENT_CONFIG['front'];
     const artworkSize = Math.min(canvasWidth, canvasHeight) * placement.scale;
     const artworkX = canvasWidth * placement.x - artworkSize / 2;
     const artworkY = canvasHeight * placement.y - artworkSize / 2;

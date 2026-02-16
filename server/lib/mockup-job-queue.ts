@@ -81,7 +81,7 @@ export class MockupJobQueue {
   }): Promise<MockupJob[]> {
     const jobs: MockupJob[] = [];
     const qrSizes = params.qrSizes || ["small", "medium", "large"];
-    const placements = params.placements || ["front-chest"];
+    const placements = params.placements || ["front"];
     
     let priority = 0;
     for (const placement of placements) {

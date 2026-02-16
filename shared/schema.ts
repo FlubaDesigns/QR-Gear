@@ -238,7 +238,7 @@ export type InsertCustomDesign = z.infer<typeof insertCustomDesignSchema>;
 export type CustomDesign = typeof customDesigns.$inferSelect;
 
 // Multi-graphic configuration type (portable for Firestore migration)
-export type GraphicPlacement = 'front-chest' | 'back' | 'left-shoulder' | 'right-shoulder';
+export type GraphicPlacement = 'front' | 'back' | 'left_sleeve' | 'right_sleeve' | 'pocket';
 export type QRSize = 'small' | 'medium' | 'large'; // 25%, 45%, 65% of print area
 
 export interface GraphicConfig {
@@ -1744,7 +1744,7 @@ export const mockupJobs = pgTable("mockup_jobs", {
   productId: varchar("product_id").notNull(),
   colorName: text("color_name").notNull(),
   qrSize: text("qr_size").notNull().default("medium"), // 'small', 'medium', 'large'
-  placement: text("placement").notNull().default("front-chest"), // 'front-chest', 'back', 'left-shoulder', etc.
+  placement: text("placement").notNull().default("front"), // 'front', 'back', 'left_sleeve', etc.
   // Job data (portable JSON blob)
   jobData: jsonb("job_data").notNull(), // { blueprintId, providerId, artworkUrl, etc }
   // Status tracking

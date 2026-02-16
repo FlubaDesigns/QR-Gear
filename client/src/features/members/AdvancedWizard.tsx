@@ -576,7 +576,7 @@ export function AdvancedWizard() {
                       printProviderId: selectedProductType.printProviderId,
                       colorName: selectedColor,
                       artworkUrl: artworkForMockup,
-                      placement: 'FRONT_CHEST',
+                      placement: 'front',
                       qrSize: effectiveQrSize,
                     });
                     

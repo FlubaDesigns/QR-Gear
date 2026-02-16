@@ -115,8 +115,8 @@ export function registerProductRoutes(app: Express): void {
               ? JSON.parse(matchingDesign.placementImages) 
               : matchingDesign.placementImages;
             placementImages = placements;
-            frontChestImage = placements?.["front-chest"] || null;
-            frontChestImageWhite = placements?.["front-chest-white"] || null;
+            frontChestImage = placements?.["front"] || placements?.["front-chest"] || null;
+            frontChestImageWhite = placements?.["front-white"] || placements?.["front-chest-white"] || null;
           }
           
           // Get Printify mockups if available (realistic product images)

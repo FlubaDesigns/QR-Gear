@@ -505,7 +505,7 @@ export function registerDesignRoutes(app: Express): void {
             const availableColors = provider?.availableColors as Array<{name: string; hex: string}> || [];
             
             if (availableColors.length > 0) {
-              const artworkUrl = (placementImages as any)?.["front-chest"] || 
+              const artworkUrl = (placementImages as any)?.["front"] || (placementImages as any)?.["front-chest"] || 
                                  Object.values(placementImages || {})[0] as string;
               
               if (artworkUrl) {
@@ -515,7 +515,7 @@ export function registerDesignRoutes(app: Express): void {
                   productId,
                   colors: availableColors,
                   qrSizes: ["small", "medium", "large"],
-                  placements: ["front-chest"],
+                  placements: ["front"],
                   blueprintId: validatedData.productId,
                   printProviderId: validatedData.printProviderId,
                   artworkUrl,
