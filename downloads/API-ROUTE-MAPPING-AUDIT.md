@@ -1,178 +1,199 @@
-# QR Gear API Route Mapping Audit
+# QR Gear — API Route Naming Audit
 
-## How to Read This Document
+## THE NAMING CONVENTION (Proposed Standard)
 
-- **Frontend Call** = exactly what the frontend code sends
-- **Dev Server Route** = the route defined in `server/routes/*.ts`
-- **Cloud Function Route** = the route defined in `functions/src/index.ts`
-- **Auth Method** = how the frontend authenticates the call
-- **Status** = MATCH (all 3 agree) | MISMATCH (something is wrong)
+Every API call in the app should follow ONE of these two patterns:
 
-### Key Variables
-- `apiBase` = `/api/admin` (from AdminAuthContext)
-- `api.baseUrl` = `/api/admin` (same value, passed through ProductsContext)
-- In production, Firebase Hosting rewrites `/api/**` → Cloud Function, which strips the `/api` prefix
+### Pattern A: Admin Routes (requires login)
+```
+Frontend:   ${apiBase}/[resource]         which resolves to → /api/admin/[resource]
+Dev Server: /api/admin/[resource]
+Cloud Func: /admin/[resource]             (CF strips the /api prefix)
+Auth:       Bearer token via getAuthHeaders() or authFetch()
+```
 
-So: Frontend `/api/admin/stores` → CF receives `/admin/stores`
-And: Frontend `/api/stores` → CF receives `/stores`
+### Pattern B: Public Routes (no login needed)
+```
+Frontend:   /api/[resource]               (hardcoded, no apiBase prefix)
+Dev Server: /api/[resource]
+Cloud Func: /[resource]                   (CF strips the /api prefix)
+Auth:       None
+```
 
-### Auth Methods
-- **Bearer** = `Authorization: Bearer <firebase-token>` header (works everywhere)
-- **Cookie** = `credentials: 'include'` (only works in dev, FAILS in production)
-- **None** = no auth sent (only works if route has no auth middleware)
-
----
-
-## SECTION 1: Stores & Channels
-
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 1 | `${apiBase}/stores` → `/api/admin/stores` | Bearer | `/api/admin/stores` | `/admin/stores` | MATCH |
-| 2 | `${apiBase}/stores?roleType=internal` | Bearer | `/api/admin/stores` | `/admin/stores` | MATCH |
-| 3 | `${apiBase}/stores?roleType=${roleType}` | Bearer | `/api/admin/stores` | `/admin/stores` | MATCH |
-| 4 | `${apiBase}/stores/by-id/${storeId}` → `/api/admin/stores/by-id/:storeId` | Bearer | `/api/admin/stores/by-id/:storeId` | `/admin/stores/by-id/:storeId` | MATCH |
-| 5 | `${apiBase}/stores/${storeId}/channels` → `/api/admin/stores/:storeId/channels` | Bearer | `/api/admin/stores/:storeId/channels` | `/admin/stores/:storeId/channels` | MATCH |
-| 6 | `${api.baseUrl}/stores` → `/api/admin/stores` | Bearer | `/api/admin/stores` | `/admin/stores` | MATCH |
-| 7 | `${api.baseUrl}/stores/${storeId}` → `/api/admin/stores/:storeId` | Bearer | **NO ROUTE** (only `/api/admin/stores/by-id/:storeId` exists) | **NO ROUTE** | **MISMATCH** |
-| 8 | `${api.baseUrl}/stores/${storeId}/channels` → `/api/admin/stores/:storeId/channels` | Bearer | `/api/admin/stores/:storeId/channels` | `/admin/stores/:storeId/channels` | MATCH |
-| 9 | `${api.baseUrl}/stores/${storeId}/channels/${channelId}` → `/api/admin/stores/:storeId/channels/:channelId` | Bearer | **NO ROUTE** (no single-channel GET) | **NO ROUTE** | **MISMATCH** |
-| 10 | `/api/stores` (hardcoded) | **None** | `/api/stores` (public, no auth) | `/stores` | MATCH (but see auth note below) |
-| 11 | `/api/stores/${storeId}/channels` (hardcoded) | **None** | `/api/stores/:storeId/channels` (public) | `/stores/:storeId/channels` | **MISMATCH** — CF has NO public `/stores/:storeId/channels` route |
-
-### Notes on Stores
-- Row 7: `StoreChannelDropdownModule.tsx:126` calls `${api.baseUrl}/stores/${storeId}` but dev server only has `/api/admin/stores/by-id/:storeId`. These are different URL patterns. The call will 404.
-- Row 9: `StoreChannelDropdownModule.tsx:164` calls `${api.baseUrl}/stores/${storeId}/channels/${channelId}` (single channel GET). No route exists in dev server or CF for fetching one channel by ID.
-- Row 10-11: `StoreModule.tsx` and `ChannelModule.tsx` use hardcoded `/api/stores` paths with NO auth headers. Dev server has these as public routes. CF has `/stores` (public) but does NOT have public `/stores/:storeId/channels`.
-- Row 10-11: `StorePickerModule.tsx` and `ChannelPickerModule.tsx` also use the same hardcoded paths with no auth.
+### Rules
+1. `apiBase` and `api.baseUrl` are ALWAYS `/api/admin` — never use them for public routes
+2. EVERY admin fetch MUST include Bearer auth — either `authFetch()` or `{ headers: await getAuthHeaders() }`
+3. NEVER use `credentials: 'include'` — that's cookie auth and only works in dev
+4. NEVER do a bare `fetch(adminUrl, { body... })` without auth headers on an admin route
+5. If a route needs no login (pricing lookups, public store pages), use Pattern B with no `/admin/` in the path
 
 ---
 
-## SECTION 2: Fulfillment & Catalog
+## THE FULL ROUTE MAP
 
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 12 | `${api.baseUrl}/catalog/sync-status` → `/api/admin/catalog/sync-status` | Bearer | `/api/admin/catalog/sync-status` | `/admin/catalog/sync-status` | MATCH |
-| 13 | `${api.baseUrl}/catalog/sync` → `/api/admin/catalog/sync` | Bearer | `/api/admin/catalog/sync` | `/admin/catalog/sync` | MATCH |
-| 14 | `${api.baseUrl}/catalog/sync-printful` → `/api/admin/catalog/sync-printful` | Bearer | `/api/admin/catalog/sync-printful` | `/admin/catalog/sync-printful` | MATCH |
-| 15 | `/api/admin/catalog/placements?${params}` (hardcoded) | **Cookie** | `/api/admin/catalog/placements` (admin) | `/admin/catalog/placements` (requireAdmin) | **MISMATCH** — Cookie auth fails in production; CF needs Bearer token |
-| 16 | `${api.baseUrl}/printify/catalog` → `/api/admin/printify/catalog` | Bearer | `/api/admin/printify/catalog` | `/admin/printify/catalog` | MATCH |
-| 17 | `${api.baseUrl}/catalog/printful-products` → `/api/admin/catalog/printful-products` | Bearer | `/api/admin/catalog/printful-products` | `/admin/catalog/printful-products` | MATCH |
-| 18 | `${apiBase}/printify/catalog?provider=${filter}` → `/api/admin/printify/catalog` | **Cookie** | `/api/admin/printify/catalog` | `/admin/printify/catalog` | **MISMATCH** — Cookie auth, CatalogBrowserModule.tsx:49 |
+Organized by resource name. Each row shows what the frontend CURRENTLY does vs what it SHOULD do.
 
-### Notes on Catalog
-- **Row 15 is the main blocker**: `BuilderContext.tsx:210` fetches placements with `credentials: 'include'` (cookie auth). The Cloud Function's `requireAdmin` middleware checks for a Bearer token. This call silently fails in production, so selecting a product never loads the builder.
-- Row 18: Same cookie auth problem in `CatalogBrowserModule.tsx`.
+### STORES
 
----
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/stores` | GET | `${apiBase}/stores` | Bearer | No change needed | OK |
+| `/admin/stores` | POST | `${apiBase}/stores` | Bearer | No change needed | OK |
+| `/admin/stores/by-id/:id` | GET | `${api.baseUrl}/stores/${storeId}` | Bearer | `${api.baseUrl}/stores/by-id/${storeId}` | WRONG PATH — frontend says `/stores/:id`, backend expects `/stores/by-id/:id` |
+| `/admin/stores/:id/channels` | GET | `${apiBase}/stores/${storeId}/channels` | Bearer | No change needed | OK |
+| `/admin/stores/:id/channels` | POST | `${apiBase}/stores/${storeId}/channels` | Bearer | No change needed | OK |
+| `/admin/stores/:id/channels/:cid` | GET | `${api.baseUrl}/stores/${storeId}/channels/${channelId}` | Bearer | Route doesn't exist | MISSING ROUTE — no backend handles single-channel GET |
+| `/stores` (public) | GET | `/api/stores` (hardcoded) | None | No change needed | OK |
+| `/stores` (public) | POST | `/api/stores` (hardcoded) | None | `${apiBase}/stores` with Bearer auth | WRONG — creating a store should be admin, not public/unauthenticated |
+| `/stores/:id/channels` (public) | GET | `/api/stores/${storeId}/channels` (hardcoded) | None | No change needed (dev has it) | MISSING from CF — need to add public route |
+| `/stores/:id/channels` (public) | POST | `/api/stores/${storeId}/channels` (hardcoded) | None | `${apiBase}/stores/${storeId}/channels` with Bearer auth | WRONG — creating a channel should be admin, not public/unauthenticated |
 
-## SECTION 3: Pricing Settings
-
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 19 | `${apiBase}/pricing-settings` → `/api/admin/pricing-settings` | **None** | `/api/admin/pricing-settings` (admin) | `/admin/pricing-settings` (requireAdmin) | **MISMATCH** — No auth header sent in CreateGraphicsModule.tsx:480 |
-
-### Notes on Pricing
-- Row 19: `CreateGraphicsModule.tsx:480` does a bare `fetch()` with no auth headers. The dev server route requires `isAdmin`. The CF route requires `requireAdmin`. This call will fail with 401 in both dev and production unless the browser has a session cookie from dev.
-- There IS a public `/pricing-settings` route (no admin prefix) in both dev server and CF that works without auth. But the frontend is calling the admin path without sending auth.
-
----
-
-## SECTION 4: Packets (Product Packets)
-
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 20 | `${apiBase}/packets` POST → `/api/admin/packets` | Bearer (authFetch) | `/api/admin/packets` | `/admin/packets` | MATCH |
-| 21 | `${apiBase}/packets/${packetId}` PATCH → `/api/admin/packets/:packetId` | Bearer (authFetch) | `/api/admin/packets/:packetId` | `/admin/packets/:packetId` | MATCH |
-| 22 | `${apiBase}/packets/${packetId}` DELETE | Bearer (authFetch) | `/api/admin/packets/:packetId` | `/admin/packets/:packetId` | MATCH |
-| 23 | `${apiBase}/packets?status=published&types=...` GET | Bearer (authFetch) | `/api/admin/packets` | `/admin/packets` | MATCH (query params handled server-side) |
-
-### Notes on Packets
-- Packets routes all use `authFetch` with proper Bearer token. These should work correctly.
+**Where the problems are:**
+- `StoreChannelDropdownModule.tsx:126` — wrong URL path for single store GET
+- `StoreChannelDropdownModule.tsx:164` — calls route that doesn't exist
+- `StoreModule.tsx:35` — creates stores with no auth
+- `StorePickerModule.tsx:34` — creates stores with no auth  
+- `ChannelModule.tsx:33` — creates channels with no auth
+- `ChannelPickerModule.tsx:35` — creates channels with no auth
 
 ---
 
-## SECTION 5: Builder Actions (Graphics, Templates, Upload, Queue, Mockups)
+### CATALOG & FULFILLMENT
 
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 24 | `${apiBase}/content/upload` POST → `/api/admin/content/upload` | **None** | `/api/admin/content/upload` | `/admin/content/upload` | **MISMATCH** — No auth headers sent (CreateGraphicsModule.tsx:657,746,768) |
-| 25 | `${apiBase}/graphics/save` POST → `/api/admin/graphics/save` | **None** | `/api/admin/graphics/save` | `/admin/graphics/save` | **MISMATCH** — No auth headers sent (CreateGraphicsModule.tsx:802) |
-| 26 | `${apiBase}/templates/full-save` POST → `/api/admin/templates/full-save` | **None** | `/api/admin/templates/full-save` | `/admin/templates/full-save` | **MISMATCH** — No auth headers sent (CreateGraphicsModule.tsx:821) |
-| 27 | `${apiBase}/queue/process` POST → `/api/admin/queue/process` | **None** | `/api/admin/queue/process` | `/admin/queue/process` | **MISMATCH** — No auth headers sent (CreateGraphicsModule.tsx:846) |
-| 28 | `${apiBase}/store-product-links` POST → `/api/admin/store-product-links` | **None** | `/api/admin/store-product-links` | `/admin/store-product-links` | **MISMATCH** — No auth headers sent (CreateGraphicsModule.tsx:855) |
-| 29 | `${apiBase}/mockup/priority` POST → `/api/admin/mockup/priority` | **None** | `/api/admin/mockup/priority` (`/api/mockup/priority` also exists) | `/admin/mockup/priority` | **MISMATCH** — No auth headers sent (CreateGraphicsModule.tsx:939) |
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/fulfillment-providers` | GET | `${apiBase}/fulfillment-providers` | Bearer | No change needed | OK |
+| `/admin/catalog/sync` | POST | `${api.baseUrl}/catalog/sync` | Bearer | No change needed | OK |
+| `/admin/catalog/sync-printful` | POST | `${api.baseUrl}/catalog/sync-printful` | Bearer | No change needed | OK |
+| `/admin/catalog/sync-status` | GET | `${api.baseUrl}/catalog/sync-status` | Bearer | No change needed | OK |
+| `/admin/catalog/placements` | GET | `/api/admin/catalog/placements` (hardcoded) | **Cookie** | `${api.baseUrl}/catalog/placements` with Bearer | BROKEN — cookie auth fails in production |
+| `/admin/catalog/printful-products` | GET | `${api.baseUrl}/catalog/printful-products` | Bearer | No change needed | OK |
+| `/admin/printify/catalog` | GET | `${api.baseUrl}/printify/catalog` | Bearer | No change needed | OK |
+| `/admin/printify/catalog` | GET | `${apiBase}/printify/catalog` | **Cookie** | Same path but with Bearer auth | BROKEN — cookie auth fails in production |
 
-### Notes on Builder Actions
-- **ALL of rows 24-29 are broken in production.** `CreateGraphicsModule.tsx` uses bare `fetch()` calls without auth headers for these admin endpoints. They work in dev only because of session cookies.
-- These are the calls that happen AFTER selecting a product — content upload, graphic save, template save, queue processing, store linking, and mockup generation. Even if we fix the product selection (Row 15), these would all fail next.
-
----
-
-## SECTION 6: Shelf & Build Shelf
-
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 30 | `${api.baseUrl}/shelf-groups` GET/POST → `/api/admin/shelf-groups` | Bearer | `/api/admin/shelf-groups` | `/admin/shelf-groups` | MATCH |
-| 31 | `${api.baseUrl}/shelf-groups/${groupId}` PATCH/DELETE | Bearer | `/api/admin/shelf-groups/:id` | `/admin/shelf-groups/:id` | MATCH |
-| 32 | `${api.baseUrl}/build-shelf` GET/POST → `/api/admin/build-shelf` | Bearer | `/api/admin/build-shelf` | `/admin/build-shelf` | MATCH |
-| 33 | `${api.baseUrl}/build-shelf/${itemId}` PATCH/DELETE | Bearer | `/api/admin/build-shelf/:id` | `/admin/build-shelf/:id` | MATCH |
-
-### Notes on Shelf
-- All shelf routes use proper Bearer auth via `api.getAuthHeaders()`. These should work.
+**Where the problems are:**
+- `BuilderContext.tsx:210` — placements fetch uses cookie auth, hardcoded path (THIS IS THE MAIN BLOCKER)
+- `CatalogBrowserModule.tsx:49` — catalog fetch uses cookie auth
 
 ---
 
-## SECTION 7: Compose & Publish
+### PRICING
 
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 34 | `${apiBase}/published-compose-items` GET | Bearer (authFetch) | `/api/admin/published-compose-items` | `/admin/published-compose-items` | MATCH |
-| 35 | `${apiBase}/compose/publish` POST | Bearer (authFetch) | `/api/admin/compose/publish` | `/admin/compose/publish` | MATCH |
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/pricing-settings` | GET | `${apiBase}/pricing-settings` | **None** | Either add Bearer auth, OR switch to public `/api/pricing-settings` | BROKEN — admin route called with no auth |
+| `/admin/pricing-settings` | POST | `${apiBase}/pricing-settings` | Bearer | No change needed | OK |
+| `/admin/pricing-settings/sync` | POST | `${apiBase}/pricing-settings/sync` | Bearer | No change needed | OK |
+| `/pricing-settings` (public) | GET | Not used here (used elsewhere) | None | This one works fine | OK |
 
----
-
-## SECTION 8: Other
-
-| # | Frontend Call | Auth | Dev Server Route | CF Route | Status |
-|---|-------------|------|-----------------|----------|--------|
-| 36 | `${apiBase}/products` GET → `/api/admin/products` | Bearer | `/api/admin/products` | `/admin/products` | MATCH |
-| 37 | `${apiBase}/background-assets?type=${type}` GET | Bearer | `/api/admin/background-assets` | `/admin/background-assets` | MATCH |
-| 38 | `${apiBase}/partner-stores/${id}/products` GET | Bearer (authFetch) | `/api/admin/partner-stores/:id/products` | `/admin/partner-stores/:id/products` | MATCH |
+**Where the problem is:**
+- `CreateGraphicsModule.tsx:480` — fetches admin pricing-settings with zero auth
 
 ---
 
-## SUMMARY OF ALL MISMATCHES
+### PACKETS
 
-### Critical (will cause production failures):
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/packets` | POST | `${apiBase}/packets` | Bearer (authFetch) | No change needed | OK |
+| `/admin/packets` | GET | `${apiBase}/packets` | Bearer (authFetch) | No change needed | OK |
+| `/admin/packets/:id` | PATCH | `${apiBase}/packets/${id}` | Bearer (authFetch) | No change needed | OK |
+| `/admin/packets/:id` | DELETE | `${apiBase}/packets/${id}` | Bearer (authFetch) | No change needed | OK |
 
-| Row | File | Problem | Fix Needed |
-|-----|------|---------|------------|
-| **15** | `BuilderContext.tsx:210` | Placements fetch uses `credentials: 'include'` (cookie auth) — FAILS in production | Change to use `api.getAuthHeaders()` Bearer token |
-| **18** | `CatalogBrowserModule.tsx:49` | Catalog fetch uses `credentials: 'include'` — FAILS in production | Change to use Bearer auth |
-| **19** | `CreateGraphicsModule.tsx:480` | Pricing-settings fetch has NO auth at all on admin endpoint | Either add auth headers, or change to use public `/api/pricing-settings` path |
-| **24** | `CreateGraphicsModule.tsx:657,746,768` | Content upload — no auth headers | Add `getAuthHeaders()` to all 3 fetch calls |
-| **25** | `CreateGraphicsModule.tsx:802` | Graphics save — no auth headers | Add `getAuthHeaders()` |
-| **26** | `CreateGraphicsModule.tsx:821` | Template save — no auth headers | Add `getAuthHeaders()` |
-| **27** | `CreateGraphicsModule.tsx:846` | Queue process — no auth headers | Add `getAuthHeaders()` |
-| **28** | `CreateGraphicsModule.tsx:855` | Store-product-links — no auth headers | Add `getAuthHeaders()` |
-| **29** | `CreateGraphicsModule.tsx:939` | Mockup priority — no auth headers | Add `getAuthHeaders()` |
+All packet routes are correct — they all use `authFetch`.
 
-### Medium (may cause issues in some flows):
+---
 
-| Row | File | Problem | Fix Needed |
-|-----|------|---------|------------|
-| **7** | `StoreChannelDropdownModule.tsx:126` | Calls `/api/admin/stores/${storeId}` but route is `/api/admin/stores/by-id/:storeId` | Change URL to use `stores/by-id/${storeId}` |
-| **9** | `StoreChannelDropdownModule.tsx:164` | Calls `/api/admin/stores/${storeId}/channels/${channelId}` — no such route exists | Add route or remove call |
-| **11** | `ChannelModule.tsx:33`, `ChannelPickerModule.tsx:35` | Calls public `/api/stores/:storeId/channels` — CF has no public version | Add public route to CF, or change to use admin path with auth |
-| **10** | `StoreModule.tsx:35`, `StorePickerModule.tsx:34` | Calls public `/api/stores` — CF has it but with no auth, which works |  OK in CF |
+### BUILDER ACTIONS (Content, Graphics, Templates, Queue, Links, Mockups)
 
-### Pattern Summary
-- **9 calls** in `CreateGraphicsModule.tsx` and `BuilderContext.tsx` are completely broken in production because they don't send Firebase Auth tokens
-- **2 calls** use incorrect URL patterns that don't match any backend route
-- **1 route** is missing from the Cloud Function (public stores/channels)
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/content/upload` | POST | `${apiBase}/content/upload` | **None** | Same path + Bearer auth | BROKEN — no auth on 3 separate calls |
+| `/admin/graphics/save` | POST | `${apiBase}/graphics/save` | **None** | Same path + Bearer auth | BROKEN — no auth |
+| `/admin/templates/full-save` | POST | `${apiBase}/templates/full-save` | **None** | Same path + Bearer auth | BROKEN — no auth |
+| `/admin/queue/process` | POST | `${apiBase}/queue/process` | **None** | Same path + Bearer auth | BROKEN — no auth |
+| `/admin/store-product-links` | POST | `${apiBase}/store-product-links` | **None** | Same path + Bearer auth | BROKEN — no auth |
+| `/admin/mockup/priority` | POST | `${apiBase}/mockup/priority` | **None** | Same path + Bearer auth | BROKEN — no auth |
 
-### Root Cause
-The frontend mixes THREE different auth patterns:
-1. `authFetch(url, getAuthHeaders, options)` — correct, always works
-2. `fetch(url, { headers: await api.getAuthHeaders() })` — correct, always works
-3. `fetch(url, { credentials: 'include' })` or bare `fetch(url, {...})` — **BROKEN in production**, only works in dev with session cookies
+**Where ALL the problems are — ONE FILE:**
+- `CreateGraphicsModule.tsx` lines 657, 746, 768 (content/upload ×3)
+- `CreateGraphicsModule.tsx` line 802 (graphics/save)
+- `CreateGraphicsModule.tsx` line 821 (templates/full-save)
+- `CreateGraphicsModule.tsx` line 846 (queue/process)
+- `CreateGraphicsModule.tsx` line 855 (store-product-links)
+- `CreateGraphicsModule.tsx` line 939 (mockup/priority)
+
+---
+
+### SHELF & BUILD SHELF
+
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/shelf-groups` | GET/POST | `${api.baseUrl}/shelf-groups` | Bearer | No change needed | OK |
+| `/admin/shelf-groups/:id` | PATCH/DELETE | `${api.baseUrl}/shelf-groups/${id}` | Bearer | No change needed | OK |
+| `/admin/build-shelf` | GET/POST | `${api.baseUrl}/build-shelf` | Bearer | No change needed | OK |
+| `/admin/build-shelf/:id` | PATCH/DELETE | `${api.baseUrl}/build-shelf/${id}` | Bearer | No change needed | OK |
+
+All shelf routes are correct.
+
+---
+
+### COMPOSE & PUBLISH
+
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/published-compose-items` | GET | `${apiBase}/published-compose-items` | Bearer (authFetch) | No change needed | OK |
+| `/admin/compose/publish` | POST | `${apiBase}/compose/publish` | Bearer (authFetch) | No change needed | OK |
+
+All compose routes are correct.
+
+---
+
+### OTHER ADMIN
+
+| Resource Path | Method | Frontend Currently Sends | Auth Currently | Should Be | Problem |
+|--------------|--------|------------------------|----------------|-----------|---------|
+| `/admin/products` | GET | `${apiBase}/products` | Bearer | No change needed | OK |
+| `/admin/background-assets` | GET | `${apiBase}/background-assets` | Bearer | No change needed | OK |
+| `/admin/partner-stores/:id/products` | GET | `${apiBase}/partner-stores/${id}/products` | Bearer (authFetch) | No change needed | OK |
+
+All correct.
+
+---
+
+## SCOREBOARD
+
+| Category | Total Calls | Working | Broken | 
+|----------|------------|---------|--------|
+| Stores & Channels | 10 | 6 | 4 |
+| Catalog & Fulfillment | 8 | 6 | 2 |
+| Pricing | 4 | 3 | 1 |
+| Packets | 4 | 4 | 0 |
+| Builder Actions | 6 | 0 | **6** |
+| Shelf | 4 | 4 | 0 |
+| Compose | 2 | 2 | 0 |
+| Other Admin | 3 | 3 | 0 |
+| **TOTAL** | **41** | **28** | **13** |
+
+---
+
+## FIX PLAN (sorted by impact)
+
+### Fix 1: CreateGraphicsModule.tsx — 8 broken calls (highest impact)
+Every bare `fetch()` in this file needs `headers: await getAuthHeaders()` added. This file already has `getAuthHeaders` imported and available — it's just not being used on these calls.
+
+### Fix 2: BuilderContext.tsx — 1 broken call (the main blocker)
+The placements fetch at line 210 needs to switch from `credentials: 'include'` to using `api.getAuthHeaders()` Bearer token. This is the call that fires when you click a product, and it's why the builder never loads.
+
+### Fix 3: CatalogBrowserModule.tsx — 1 broken call
+Same cookie-to-Bearer fix.
+
+### Fix 4: StoreChannelDropdownModule.tsx — 2 wrong paths
+- Line 126: Change `stores/${storeId}` to `stores/by-id/${storeId}`
+- Line 164: Either add a single-channel GET route to the backend, or remove this call
+
+### Fix 5: Cloud Function — 1 missing public route
+Add `/stores/:storeId/channels` GET (public, no auth) to match dev server.
+
+### Fix 6: StoreModule/ChannelModule — public create mutations with no auth
+These POST to `/api/stores` and `/api/stores/:id/channels` with no auth. Should use admin path with Bearer auth since creating stores/channels is an admin action. Lower priority since the user flow may not hit these in the current products page.
