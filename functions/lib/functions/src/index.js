@@ -2589,6 +2589,40 @@ app.delete('/admin/stores/:storeId/channels/:channelId', requireAdmin, async (re
         res.status(500).json({ error: error.message });
     }
 });
+// Admin: Get collections for a store channel
+app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, async (req, res) => {
+    try {
+        const { storeId, channelId } = req.params;
+        if (!storeId || !channelId) {
+            res.status(400).json({ error: 'storeId and channelId are required' });
+            return;
+        }
+        const linksSnapshot = await db.collection('storeProductLinks')
+            .where('storeId', '==', storeId)
+            .where('channel', '==', channelId)
+            .get();
+        const collectionsSet = new Set();
+        linksSnapshot.docs.forEach(doc => {
+            const collection = doc.data().collection;
+            if (collection)
+                collectionsSet.add(collection);
+        });
+        const explicitSnapshot = await db.collection('dynamicsCollections')
+            .where('storeId', '==', storeId)
+            .where('channelId', '==', channelId)
+            .get();
+        explicitSnapshot.docs.forEach(doc => {
+            const name = doc.data().name;
+            if (name)
+                collectionsSet.add(name);
+        });
+        const collections = Array.from(collectionsSet).sort();
+        res.json({ success: true, collections, count: collections.length });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============ ADMIN PARTNER STORES ============
 app.get('/admin/partner-stores', requireAdmin, async (_req, res) => {
     try {
@@ -4383,6 +4417,96 @@ app.post('/admin/graphics/save', requireAdmin, async (req, res) => {
     }
     catch (error) {
         console.error('[Graphics] Error saving graphics:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: List all product templates
+app.get('/admin/templates', requireAdmin, async (_req, res) => {
+    try {
+        const snapshot = await db.collection('productTemplates').get();
+        const templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.json({ templates });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Create a product template
+app.post('/admin/templates', requireAdmin, async (req, res) => {
+    try {
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        const data = { ...req.body, createdAt: now, updatedAt: now };
+        const ref = await db.collection('productTemplates').add(data);
+        res.json({ id: ref.id, ...data });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Update a product template
+app.put('/admin/templates/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        const data = { ...req.body, updatedAt: now };
+        await db.collection('productTemplates').doc(id).update(data);
+        const updated = await db.collection('productTemplates').doc(id).get();
+        res.json({ id, ...updated.data() });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Delete a product template
+app.delete('/admin/templates/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection('productTemplates').doc(id).delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Admin: Get mockups for a template
+app.get('/admin/templates/:templateId/mockups', requireAdmin, async (req, res) => {
+    try {
+        const { templateId } = req.params;
+        const jobsSnapshot = await db.collection('mockup_jobs')
+            .where('templateId', '==', templateId)
+            .get();
+        const mockups = jobsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                status: data.status,
+                color: data.color,
+                size: data.size,
+                placement: data.placement,
+                mockupUrl: data.mockupUrl || null,
+                error: data.error || null,
+                createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+                completedAt: data.completedAt?.toDate?.()?.toISOString() || null,
+            };
+        });
+        const completed = mockups.filter(m => m.status === 'completed');
+        const pending = mockups.filter(m => m.status === 'pending');
+        const processing = mockups.filter(m => m.status === 'processing');
+        const failed = mockups.filter(m => m.status === 'failed');
+        res.json({
+            success: true,
+            templateId,
+            summary: {
+                total: mockups.length,
+                completed: completed.length,
+                pending: pending.length,
+                processing: processing.length,
+                failed: failed.length,
+            },
+            mockups,
+        });
+    }
+    catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
