@@ -293,7 +293,7 @@ function SourceImagesTabInner() {
         fetchImageBlob={api.fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Image"
-        allowCropToggle={true}
+        allowCropToggle={false}
       />
     </>
   );
