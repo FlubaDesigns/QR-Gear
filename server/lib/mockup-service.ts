@@ -14,6 +14,10 @@ import { downloadAndStoreFromUrl, uploadImageFromBuffer } from "./firebase-stora
 import { printfulClient } from "./printful";
 import { toProviderPlacement } from '../../shared/placements';
 
+export const QR_GEAR_BRANDED_TAG_URL = 'https://qrgear-c1ffd.web.app/img/qr-gear-neck-tag-600.png';
+const LABEL_PLACEMENTS_PRINTFUL = ['label_outside', 'label_inside'];
+const LABEL_PLACEMENTS_PRINTIFY = ['neck_label', 'label'];
+
 /**
  * Upload a data URI to Firebase Storage and return public URL
  * Used for member-generated productGraphics that need to be sent to Printful
@@ -393,17 +397,31 @@ async function generatePrintfulMockupInternal(params: {
   // Step 4: Map internal placement to Printful placement using bridge
   const printfulPlacement = toProviderPlacement('printful', canonicalPlacementId);
 
-  // Step 5: Create mockup task with lifestyle option groups
+  // Step 5: Build files array - main artwork + auto-branding tag
+  const mockupFiles: Array<{ placement: string; image_url: string; position?: any }> = [{
+    placement: printfulPlacement,
+    image_url: absoluteArtworkUrl,
+    position,
+  }];
+
+  // Auto-attach QR Gear branded tag if product supports a label placement
+  const availPlacements = printfiles?.available_placements ? Object.keys(printfiles.available_placements) : [];
+  const labelPlacement = LABEL_PLACEMENTS_PRINTFUL.find(lp => availPlacements.includes(lp));
+  if (labelPlacement) {
+    mockupFiles.push({
+      placement: labelPlacement,
+      image_url: QR_GEAR_BRANDED_TAG_URL,
+    });
+    console.log(`[MockupService/Printful] Auto-attaching branded tag to ${labelPlacement}`);
+  }
+
+  // Step 6: Create mockup task with lifestyle option groups
   const lifestyleOptionGroups = ["Men's Lifestyle", "Women's Lifestyle"];
   
   const task = await printfulClient.createMockupTask(
     printfulProductId,
     [targetVariant.id],
-    [{
-      placement: printfulPlacement,
-      image_url: absoluteArtworkUrl,
-      position,
-    }],
+    mockupFiles,
     'jpg',
     lifestyleOptionGroups
   );
@@ -415,7 +433,7 @@ async function generatePrintfulMockupInternal(params: {
 
   console.log(`[MockupService/Printful] Task created: ${task.task_key}`);
 
-  // Step 6: Wait for task completion
+  // Step 7: Wait for task completion
   const result = await printfulClient.waitForMockupTask(task.task_key, 60000);
 
   if (!result.mockups || result.mockups.length === 0) {
@@ -423,7 +441,7 @@ async function generatePrintfulMockupInternal(params: {
     return null;
   }
 
-  // Step 7: Extract mockup URLs
+  // Step 8: Extract mockup URLs
   const mockupImages: { flat?: string; lifestyle?: string } = {};
   
   const mainMockup = result.mockups[0];
@@ -445,7 +463,7 @@ async function generatePrintfulMockupInternal(params: {
     }
   }
 
-  // Step 8: Download and store in Object Storage for permanent URLs
+  // Step 9: Download and store in Object Storage for permanent URLs
   const permanentImages: { flat?: string; lifestyle?: string } = {};
   
   if (mockupImages.flat) {

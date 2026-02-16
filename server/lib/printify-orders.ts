@@ -2,6 +2,8 @@ import { printify, type CreateOrderRequest, type PrintifyOrderAddress, type Prin
 import { storage } from '../storage';
 import { sendShippingUpdateEmail } from './email';
 
+const QR_GEAR_BRANDED_TAG_URL = 'https://qrgear-c1ffd.web.app/img/qr-gear-neck-tag-600.png';
+
 interface ShippingAddress {
   firstName: string;
   lastName: string;
@@ -48,6 +50,11 @@ export async function submitOrderToPrintify(
         continue;
       }
 
+      // TODO: Auto-attach QR Gear branded neck tag to Printify orders.
+      // Printify requires uploaded image IDs (not URLs) for print_areas,
+      // so the branded tag (QR_GEAR_BRANDED_TAG_URL) must first be uploaded
+      // via the Printify Image Upload API and cached before it can be injected
+      // into neck_label or label placements. This is a future enhancement.
       lineItems.push({
         product_id: customization.printifyProductId,
         variant_id: customization.printifyVariantId,

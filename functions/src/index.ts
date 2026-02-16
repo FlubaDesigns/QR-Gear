@@ -70,6 +70,9 @@ function toProviderPlacement(provider: FulfillmentProvider, internal: string, av
 
 function isEmbroideryPlacement(p: string): boolean { return p.startsWith('embroidery_'); }
 
+const QR_GEAR_BRANDED_TAG_URL = 'https://qrgear-c1ffd.web.app/img/qr-gear-neck-tag-600.png';
+const LABEL_PLACEMENTS_PRINTFUL = ['label_outside', 'label_inside'];
+
 if (!admin.apps.length) {
   admin.initializeApp();
 }
@@ -1130,7 +1133,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   const areaWidth = frontPrintfile?.width || 1800;
   const areaHeight = frontPrintfile?.height || 2400;
   
-  const fileEntry: any = { 
+  const mockupFiles: Array<{ placement: string; image_url: string; position?: any }> = [{
     placement: placement, 
     image_url: artworkUrl,
     position: {
@@ -1141,9 +1144,16 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
       top: 0,
       left: 0
     }
-  };
+  }];
+
+  const availPlacements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
+  const labelPlacement = LABEL_PLACEMENTS_PRINTFUL.find(lp => availPlacements.includes(lp));
+  if (labelPlacement) {
+    mockupFiles.push({ placement: labelPlacement, image_url: QR_GEAR_BRANDED_TAG_URL });
+    console.log(`[Mockup] Auto-attaching branded tag to ${labelPlacement}`);
+  }
   
-  console.log('[Printful] Creating mockup with file entry:', JSON.stringify(fileEntry));
+  console.log('[Printful] Creating mockup with files:', JSON.stringify(mockupFiles));
   
   // Retry logic with exponential backoff for Printful rate limits and transient errors
   const maxRetries = 3;
@@ -1162,7 +1172,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
       const task = await printfulClient.createMockupTask(
         printfulProductId,
         [variantId],
-        [fileEntry],
+        mockupFiles,
         'jpg'
       );
       
