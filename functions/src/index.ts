@@ -1361,6 +1361,73 @@ app.get('/health', (_req: Request, res: Response): void => {
   });
 });
 
+app.get('/members/allowed-products', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doc = await db.collection('storeAllowedProducts').doc('member-products').get();
+
+    if (!doc.exists) {
+      res.json({ products: [], message: 'No products added to member-products store yet' });
+      return;
+    }
+
+    const data = doc.data();
+    const storedProducts = data?.products || [];
+
+    const pricingDoc = await db.collection('testSettings').doc('pricing').get();
+    const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+    const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
+    const markupPercent = pricingSettings?.markupPercent ?? 25;
+    const markupFixed = pricingSettings?.markupFixed ?? 0;
+
+    const products = await Promise.all(storedProducts.map(async (p: any) => {
+      let baseCost = p.baseCost || 0;
+
+      if (baseCost === 0 && p.blueprintId && p.printProviderId) {
+        try {
+          const provDoc = await db.collection('printifyPrintProviders')
+            .doc(`${p.blueprintId}_${p.printProviderId}`).get();
+          if (provDoc.exists) {
+            const minCost = provDoc.data()?.minCost;
+            if (minCost) baseCost = minCost / 100;
+          }
+        } catch (e: any) {
+          console.warn(`[Member Products CF] Cost lookup failed for ${p.blueprintId}_${p.printProviderId}: ${e.message}`);
+        }
+      }
+
+      const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+      const profit = retailPrice - baseCost;
+      const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+
+      let placements = p.placements;
+      if (!placements || placements.length === 0) {
+        placements = [
+          { id: 'front', title: 'Front', widthInches: '12"', heightInches: '16"' },
+          { id: 'back', title: 'Back', widthInches: '12"', heightInches: '16"' },
+          { id: 'left_chest', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
+          { id: 'sleeve_left', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
+          { id: 'sleeve_right', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
+        ];
+      }
+
+      return {
+        ...p,
+        baseCost,
+        retailPrice,
+        profit,
+        memberEarnings,
+        placements,
+      };
+    }));
+
+    console.log(`[Member Products CF] Found ${products.length} products, earnings @ ${memberProfitShare * 100}% share`);
+    res.json({ products, storeId: 'member-products' });
+  } catch (error: any) {
+    console.error('[Member Products CF] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/products', async (req: Request, res: Response): Promise<void> => {
   try {
     const featured = req.query.featured === 'true';

@@ -246,6 +246,9 @@ Firebase Hosting rewrites `/api/**` → Cloud Function. The CF strips the `/api`
 - `POST /cart` — Add to cart
 - `DELETE /cart/:id` — Remove from cart
 
+#### Member Routes (no admin auth required)
+- `GET /members/allowed-products` — Get member-allowed products with pricing from `storeAllowedProducts/member-products` + `printifyPrintProviders` cost lookup + `testSettings/pricing` markup
+
 #### Public Routes (no auth)
 - `GET /public/packets/:packetId` — Get packet (public view)
 - `GET /public/products` — List published products
