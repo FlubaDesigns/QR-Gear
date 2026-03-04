@@ -6847,6 +6847,40 @@ app.post('/admin/pricing-settings/sync', requireAdmin, async (_req: Request, res
   }
 });
 
+// ============ BRAIN PROXY ENDPOINTS ============
+app.post("/brain/submit", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const secret = process.env.FLUBA_SITE_SECRET;
+    const brainUrl = process.env.FLUBA_BRAIN_URL;
+    if (!secret || !brainUrl) {
+      res.status(503).json({ error: "Brain proxy not configured" });
+      return;
+    }
+    const crypto = await import("crypto");
+    const body = {
+      action: req.body.action,
+      payload: req.body.payload,
+      prompt: req.body.prompt,
+    };
+    const raw = JSON.stringify(body);
+    const sig = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    const r = await fetch(brainUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-site-id": "qr-gear",
+        "x-signature": sig,
+      },
+      body: raw,
+    });
+    const data = await r.json();
+    res.json(data);
+  } catch (err: any) {
+    console.error("[Brain Proxy CF] Error:", err.message);
+    res.status(500).json({ error: "Brain proxy failed" });
+  }
+});
+
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
