@@ -52,14 +52,15 @@ function _makeClient() {
 
   async function submitToBrain(input: BrainSubmitInput): Promise<BrainSubmitResult> {
     const call = httpsCallable(functions, "brainSubmit");
-    const res: any = await call({
+    const data: Record<string, any> = {
       siteId: SITE_ID,
       prompt: input.prompt,
-      action: input.action || "default",
       payload: input.payload || {},
       idempotencyKey: input.idempotencyKey || null,
       traceId: input.traceId || null,
-    });
+    };
+    if (input.action) data.action = input.action;
+    const res: any = await call(data);
     return res.data as BrainSubmitResult;
   }
 
