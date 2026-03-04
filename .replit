@@ -57,6 +57,11 @@ PRINTIFY_SHOP_ID = "19642701"
 STORAGE_MODE = "firestore-only"
 KC-API-KEY = "b7582532b2AY7a026019f34245460cc1f6fc9871cb5282a81fe21cf32acf901961"
 ADMIN_BYPASS = "true"
+VITE_FLUBA_API_KEY = "AIzaSyAM0WzYh5XfFwwJI3klvEHme-iKfmesBsw"
+VITE_FLUBA_AUTH_DOMAIN = "flubadesigns-25482.firebaseapp.com"
+VITE_FLUBA_PROJECT_ID = "flubadesigns-25482"
+VITE_FLUBA_APP_ID = "1:299349451575:web:690d760028ddd00c8df0b2"
+VITE_SITE_ID = "qr-gear"
 
 [userenv.development]
 
