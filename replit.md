@@ -94,11 +94,25 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Current files**: `library-upload-package.zip`, `qrgear-updated-files.zip`, and many others
 - **Access**: User downloads directly from the Replit file manager by right-clicking the file in the `downloads/` folder
 
+### Fluba Brain Harness
+- **Client**: `client/src/lib/flubaBrainClient.ts` — universal harness connecting QR Gear to the Fluba Brain gateway
+- **Pattern**: Initializes a separate Firebase app (`fluba-brain`) pointing at the Fluba project, while QR Gear keeps its own Firebase for all other operations
+- **API**: `getFlubaBrainClient()` returns `{ submitToBrain(), listenToBrainResponse() }` or `null` if not configured
+- **Env vars required** (set these once Fluba is deployed):
+  - `VITE_SITE_ID` — site identifier for Brain (default: `qr-gear`)
+  - `VITE_FLUBA_API_KEY` — Fluba Firebase API key
+  - `VITE_FLUBA_AUTH_DOMAIN` — Fluba Firebase auth domain
+  - `VITE_FLUBA_PROJECT_ID` — Fluba Firebase project ID
+  - `VITE_FLUBA_APP_ID` — Fluba Firebase app ID
+- **Flow**: Website calls `brainSubmit` callable → Fluba writes `brain_inbox/{requestId}` → processor writes `brain_responses/{requestId}` → real-time listener picks it up
+- **Status**: Harness installed, inactive until Fluba env vars are configured
+
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
 - **Printful**: Product mockup generation.
 - **Stripe**: Payment processing.
 - **Firebase**: Hosting, Firestore, Firebase Storage, Cloud Functions, Authentication.
+- **Fluba Brain**: AI governance gateway (separate Firebase project, connected via universal harness).
 - **Resend**: Email services.
 - **TanStack Query**: Frontend data fetching and state management.
 - **shadcn/ui**: UI component library.
