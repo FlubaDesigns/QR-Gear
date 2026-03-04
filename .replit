@@ -62,6 +62,8 @@ VITE_FLUBA_AUTH_DOMAIN = "flubadesigns-25482.firebaseapp.com"
 VITE_FLUBA_PROJECT_ID = "flubadesigns-25482"
 VITE_FLUBA_APP_ID = "1:299349451575:web:690d760028ddd00c8df0b2"
 VITE_SITE_ID = "qr-gear"
+FLUBA_BRAIN_URL = "https://us-central1-flubadesigns-25482.cloudfunctions.net/brainIngressHttp"
+FLUBA_SITE_SECRET = "32755af7ebe92c9b7cab06a7cbb45040c8be2bab80a21ff81fcd835c34293619"
 
 [userenv.development]
 
