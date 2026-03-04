@@ -15,7 +15,8 @@ const flubaConfig = {
 };
 
 export type BrainSubmitInput = {
-  action: string;
+  prompt: string;
+  action?: string;
   payload?: Record<string, any>;
   idempotencyKey?: string;
   traceId?: string;
@@ -53,7 +54,8 @@ function _makeClient() {
     const call = httpsCallable(functions, "brainSubmit");
     const res: any = await call({
       siteId: SITE_ID,
-      action: input.action,
+      prompt: input.prompt,
+      action: input.action || "default",
       payload: input.payload || {},
       idempotencyKey: input.idempotencyKey || null,
       traceId: input.traceId || null,
