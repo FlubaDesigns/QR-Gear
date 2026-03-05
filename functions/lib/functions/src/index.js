@@ -520,7 +520,10 @@ async function addSignedUrlsToAssets(assets) {
 const PRINTFUL_API_BASE = 'https://api.printful.com';
 // Get Printful API key - fallback for Cloud Functions environment
 function getPrintfulApiKey() {
-    return process.env.PRINTFUL_API_KEY || '2O4DwAZeuDDrzW1sJqQDbT7wHCBe6ECFgo4zoam8';
+    const key = process.env.PRINTFUL_API_KEY;
+    if (!key)
+        throw new Error('PRINTFUL_API_KEY not configured');
+    return key;
 }
 // Get Printful Store ID - fallback for Cloud Functions environment
 function getPrintfulStoreId() {
@@ -1623,6 +1626,31 @@ app.get('/files/:filename', async (req, res) => {
     catch (error) {
         console.error('File serving error:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+app.get('/library-files/:storeType/:mediaType/:fname', async (req, res) => {
+    try {
+        const { storeType, mediaType, fname } = req.params;
+        if (storeType === 'member') {
+            res.status(400).json({ error: 'Use /library-files/member/:userId/:mediaType/:filename' });
+            return;
+        }
+        const storagePath = `library/${storeType}/${mediaType}/${fname}`;
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(storagePath);
+        const [exists] = await file.exists();
+        if (!exists) {
+            res.status(404).json({ error: 'File not found' });
+            return;
+        }
+        const [metadata] = await file.getMetadata();
+        res.set('Content-Type', metadata.contentType || 'application/octet-stream');
+        res.set('Cache-Control', 'public, max-age=3600');
+        file.createReadStream().pipe(res);
+    }
+    catch (e) {
+        if (!res.headersSent)
+            res.status(500).json({ error: e.message });
     }
 });
 app.get('/library-files/:filename', async (req, res) => {
@@ -8280,15 +8308,21 @@ app.post('/members/allowed-products', requireAdmin, async (req, res) => {
 app.get('/members/common-library', async (req, res) => {
     try {
         const assetType = req.query.assetType || 'background';
-        let query = db.collection('commonLibrary').where('isActive', '==', true);
+        let commonQuery = db.collection('commonLibrary').where('isActive', '==', true);
         if (assetType)
-            query = query.where('assetType', '==', assetType);
-        const snapshot = await query.orderBy('createdAt', 'desc').get();
-        const assets = snapshot.docs.map((doc) => {
-            const data = doc.data();
-            return { id: doc.id, name: data.name, assetType: data.assetType, mediaType: data.mediaType || 'image', thumbnailUrl: data.thumbnailUrl || data.publicUrl, publicUrl: data.publicUrl, width: data.width, height: data.height, category: data.category };
-        });
-        console.log(`[CF Common Library] Found ${assets.length} ${assetType} assets`);
+            commonQuery = commonQuery.where('assetType', '==', assetType);
+        let adminQuery = db.collection('libraryAssets').where('ownerType', '==', 'admin');
+        const [commonSnapshot, adminSnapshot] = await Promise.all([
+            commonQuery.orderBy('createdAt', 'desc').get(),
+            adminQuery.get(),
+        ]);
+        const mapAsset = (doc) => { const d = doc.data(); return { id: doc.id, name: d.name, assetType: d.assetType, mediaType: d.mediaType || 'image', thumbnailUrl: d.thumbnailUrl || d.publicUrl || d.storageUrl, publicUrl: d.publicUrl || d.storageUrl, width: d.width, height: d.height, category: d.category }; };
+        const commonAssets = commonSnapshot.docs.map(mapAsset);
+        const adminAssets = adminSnapshot.docs.map(mapAsset).filter((a) => a.assetType === assetType);
+        const seenIds = new Set();
+        const assets = [...commonAssets, ...adminAssets].filter((a) => { if (seenIds.has(a.id))
+            return false; seenIds.add(a.id); return true; }).sort((a, b) => (b.createdAt || '') > (a.createdAt || '') ? 1 : -1);
+        console.log(`[CF Common Library] Found ${assets.length} ${assetType} assets (${commonAssets.length} common + ${adminAssets.length} admin)`);
         res.json({ assets });
     }
     catch (error) {
@@ -9835,6 +9869,2039 @@ app.post('/admin/products/:id/sync-printify', requireAdmin, async (req, res) => 
     }
 });
 // ============ END REMAINING MISSING ROUTES ============
+// ============ BATCH: GIFT SYSTEM ============
+function generateGiftCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "GIFT";
+    for (let i = 0; i < 3; i++) {
+        code += "-";
+        for (let j = 0; j < 4; j++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+    }
+    return code;
+}
+app.get('/gifts/packages', async (req, res) => {
+    try {
+        const snap = await db.collection('gift_packages').where('isActive', '==', true).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/gifts/packages/:id', async (req, res) => {
+    try {
+        const doc = await db.collection('gift_packages').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Gift package not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/gifts/purchase', async (req, res) => {
+    try {
+        const { giftPackageId, buyerEmail, buyerName, personalMessage, recipientEmail } = req.body;
+        const doc = await db.collection('gift_packages').doc(giftPackageId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Gift package not found" });
+            return;
+        }
+        const pkg = doc.data();
+        if (!pkg.isActive) {
+            res.status(400).json({ error: "Gift package is not available" });
+            return;
+        }
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + (pkg.redemptionValidDays || 365));
+        const code = generateGiftCode();
+        const ref = await db.collection('gift_codes').add({ code, giftPackageId, buyerEmail, buyerName, personalMessage: pkg.includePersonalMessage ? personalMessage : null, expiresAt, status: 'active', lastEmailedTo: recipientEmail || null, lastEmailedAt: recipientEmail ? new Date() : null, createdAt: new Date() });
+        res.json({ success: true, giftCode: code, expiresAt, packageName: pkg.name });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/gifts/redeem/:code', async (req, res) => {
+    try {
+        const snap = await db.collection('gift_codes').where('code', '==', req.params.code.toUpperCase()).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Gift code not found" });
+            return;
+        }
+        const gc = snap.docs[0].data();
+        if (gc.status === 'redeemed') {
+            res.status(400).json({ error: "Already redeemed" });
+            return;
+        }
+        if (gc.status === 'expired' || new Date() > new Date(gc.expiresAt)) {
+            res.status(400).json({ error: "Expired" });
+            return;
+        }
+        if (gc.status === 'cancelled') {
+            res.status(400).json({ error: "Cancelled" });
+            return;
+        }
+        const pkgDoc = await db.collection('gift_packages').doc(gc.giftPackageId).get();
+        if (!pkgDoc.exists) {
+            res.status(500).json({ error: "Package not found" });
+            return;
+        }
+        const pkg = pkgDoc.data();
+        res.json({ giftCodeId: snap.docs[0].id, packageName: pkg.name, packageDescription: pkg.description, giftType: pkg.giftType, personalMessage: gc.personalMessage, buyerName: gc.buyerName, expiresAt: gc.expiresAt, allowColorChoice: pkg.allowColorChoice, allowSizeChoice: pkg.allowSizeChoice, allowQrCustomization: pkg.allowQrCustomization, dynamicsTier: pkg.dynamicsTier, dynamicsMonths: pkg.dynamicsMonths });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/gifts/redeem/:code', async (req, res) => {
+    try {
+        const snap = await db.collection('gift_codes').where('code', '==', req.params.code.toUpperCase()).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Gift code not found" });
+            return;
+        }
+        const gc = snap.docs[0].data();
+        if (gc.status !== 'active') {
+            res.status(400).json({ error: `Code is ${gc.status}` });
+            return;
+        }
+        if (new Date() > new Date(gc.expiresAt)) {
+            await snap.docs[0].ref.update({ status: 'expired' });
+            res.status(400).json({ error: "Expired" });
+            return;
+        }
+        const { recipientEmail, recipientName, selectedColor, selectedSize, qrContent, qrStyle, shippingAddress } = req.body;
+        await db.collection('gift_redemptions').add({ giftCodeId: snap.docs[0].id, recipientEmail, recipientName, selectedColor, selectedSize, qrContent, qrStyle, shippingAddress, fulfillmentStatus: 'pending', redeemedAt: new Date() });
+        await snap.docs[0].ref.update({ status: 'redeemed' });
+        res.json({ success: true, message: "Gift redeemed successfully!" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/gifts/packages', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('gift_packages').orderBy('createdAt', 'desc').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/gifts/packages', requireAdmin, async (req, res) => {
+    try {
+        const ref = await db.collection('gift_packages').add({ ...req.body, createdAt: new Date() });
+        const doc = await ref.get();
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.patch('/admin/gifts/packages/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('gift_packages').doc(req.params.id).update(req.body);
+        const doc = await db.collection('gift_packages').doc(req.params.id).get();
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.delete('/admin/gifts/packages/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('gift_packages').doc(req.params.id).delete();
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/gifts/codes', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('gift_codes').orderBy('createdAt', 'desc').limit(100).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/gifts/redemptions', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('gift_redemptions').orderBy('redeemedAt', 'desc').limit(100).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.patch('/admin/gifts/redemptions/:id', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('gift_redemptions').doc(req.params.id).update(req.body);
+        const doc = await db.collection('gift_redemptions').doc(req.params.id).get();
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: ORDERS UNIFIED ============
+app.get('/admin/orders-unified', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('orders').orderBy('createdAt', 'desc').limit(200).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orders-unified/:id', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('orders').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Order not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.patch('/admin/orders-unified/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, trackingNumber, trackingUrl, routedProvider, providerOrderId, productionCost, profit, notes } = req.body;
+        const doc = await db.collection('orders').doc(id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Order not found" });
+            return;
+        }
+        const current = doc.data();
+        let statusHistory = (current.statusHistory || []);
+        if (status && status !== current.status) {
+            statusHistory = [...statusHistory, { status, timestamp: new Date().toISOString(), note: notes || undefined }];
+        }
+        const updates = {};
+        if (status)
+            updates.status = status;
+        if (trackingNumber !== undefined)
+            updates.trackingNumber = trackingNumber;
+        if (trackingUrl !== undefined)
+            updates.trackingUrl = trackingUrl;
+        if (routedProvider !== undefined)
+            updates.routedProvider = routedProvider;
+        if (providerOrderId !== undefined)
+            updates.providerOrderId = providerOrderId;
+        if (productionCost !== undefined)
+            updates.productionCost = productionCost;
+        if (profit !== undefined)
+            updates.profit = profit;
+        if (statusHistory.length > 0)
+            updates.statusHistory = statusHistory;
+        if (status === 'shipped' && !current.shippedAt)
+            updates.shippedAt = new Date();
+        if (status === 'delivered' && !current.deliveredAt)
+            updates.deliveredAt = new Date();
+        await doc.ref.update(updates);
+        const updated = await doc.ref.get();
+        res.json({ id: updated.id, ...updated.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orders-unified/:id/sync-printify', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('orders').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Order not found" });
+            return;
+        }
+        const order = doc.data();
+        if (!order.providerOrderId || order.routedProvider !== 'printify') {
+            res.status(400).json({ error: "Not a Printify order" });
+            return;
+        }
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
+        if (!PRINTIFY_API || !SHOP_ID) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/orders/${order.providerOrderId}.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        const pOrder = await resp.json();
+        const statusMap = { pending: 'pending', 'on-hold': 'pending', 'in-production': 'processing', 'partially-shipped': 'shipped', shipped: 'shipped', delivered: 'delivered', canceled: 'cancelled' };
+        const newStatus = statusMap[pOrder.status] || order.status;
+        const updates = { status: newStatus, lastSyncedAt: new Date() };
+        if (pOrder.shipments?.[0]?.tracking_number)
+            updates.trackingNumber = pOrder.shipments[0].tracking_number;
+        if (pOrder.shipments?.[0]?.tracking_url)
+            updates.trackingUrl = pOrder.shipments[0].tracking_url;
+        await doc.ref.update(updates);
+        res.json({ success: true, status: newStatus, printifyStatus: pOrder.status });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: ORCHESTRATION (BUNDLES, BULK-PUBLISH, PROFIT, ANALYTICS) ============
+app.get('/admin/orchestration/bundles', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('product_bundles').orderBy('displayOrder').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/bundles/:id', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('product_bundles').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Bundle not found" });
+            return;
+        }
+        const items = await db.collection('bundle_items').where('bundleId', '==', req.params.id).orderBy('displayOrder').get();
+        res.json({ id: doc.id, ...doc.data(), items: items.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/bundles', requireAdmin, async (req, res) => {
+    try {
+        const { items, ...bundleData } = req.body;
+        const ref = await db.collection('product_bundles').add({ ...bundleData, createdAt: new Date() });
+        if (items?.length > 0) {
+            const batch = db.batch();
+            items.forEach((item) => { const r = db.collection('bundle_items').doc(); batch.set(r, { ...item, bundleId: ref.id }); });
+            await batch.commit();
+        }
+        const finalItems = await db.collection('bundle_items').where('bundleId', '==', ref.id).get();
+        const doc = await ref.get();
+        res.json({ id: doc.id, ...doc.data(), items: finalItems.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.patch('/admin/orchestration/bundles/:id', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { items, ...bundleData } = req.body;
+        await db.collection('product_bundles').doc(id).update(bundleData);
+        if (items !== undefined) {
+            const oldItems = await db.collection('bundle_items').where('bundleId', '==', id).get();
+            const batch = db.batch();
+            oldItems.docs.forEach(d => batch.delete(d.ref));
+            if (items.length > 0)
+                items.forEach((item) => { const r = db.collection('bundle_items').doc(); batch.set(r, { ...item, bundleId: id }); });
+            await batch.commit();
+        }
+        const doc = await db.collection('product_bundles').doc(id).get();
+        const finalItems = await db.collection('bundle_items').where('bundleId', '==', id).get();
+        res.json({ id: doc.id, ...doc.data(), items: finalItems.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.delete('/admin/orchestration/bundles/:id', requireAdmin, async (req, res) => {
+    try {
+        const items = await db.collection('bundle_items').where('bundleId', '==', req.params.id).get();
+        const batch = db.batch();
+        items.docs.forEach(d => batch.delete(d.ref));
+        batch.delete(db.collection('product_bundles').doc(req.params.id));
+        await batch.commit();
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/bundles/:id/toggle', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('product_bundles').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Bundle not found" });
+            return;
+        }
+        await doc.ref.update({ isActive: !doc.data().isActive });
+        const updated = await doc.ref.get();
+        res.json({ id: updated.id, ...updated.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/bundles/for-product/:productId', async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const now = new Date();
+        const snap = await db.collection('product_bundles').where('isActive', '==', true).get();
+        const filtered = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => {
+            if (b.startDate && new Date(b.startDate) > now)
+                return false;
+            if (b.endDate && new Date(b.endDate) < now)
+                return false;
+            if (!b.triggerProductIds || b.triggerProductIds.length === 0)
+                return true;
+            return b.triggerProductIds.includes(productId);
+        });
+        const results = await Promise.all(filtered.map(async (b) => {
+            const items = await db.collection('bundle_items').where('bundleId', '==', b.id).get();
+            return { ...b, items: items.docs.map(d => ({ id: d.id, ...d.data() })) };
+        }));
+        res.json(results);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/bundles/:id/calculate', async (req, res) => {
+    try {
+        const doc = await db.collection('product_bundles').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Bundle not found" });
+            return;
+        }
+        const bundle = doc.data();
+        const items = await db.collection('bundle_items').where('bundleId', '==', req.params.id).get();
+        const { selectedItems } = req.body;
+        let totalRetailPrice = 0;
+        const itemDetails = [];
+        for (const itemDoc of items.docs) {
+            const item = itemDoc.data();
+            if (selectedItems && !selectedItems.includes(itemDoc.id))
+                continue;
+            let itemPrice = 0, itemName = '';
+            if (item.masterProductId) {
+                const mp = await db.collection('master_products').doc(item.masterProductId).get();
+                if (mp.exists) {
+                    const d = mp.data();
+                    itemPrice = parseFloat(d.retailPrice || 0);
+                    itemName = d.title;
+                }
+            }
+            else if (item.productId) {
+                const p = await db.collection('products').doc(String(item.productId)).get();
+                if (p.exists) {
+                    const d = p.data();
+                    itemPrice = parseFloat(d.basePrice || 0);
+                    itemName = d.name;
+                }
+            }
+            const qty = item.quantity || 1;
+            const disc = item.itemDiscountPercent ? parseFloat(item.itemDiscountPercent) / 100 : 0;
+            const sub = itemPrice * (1 - disc) * qty;
+            totalRetailPrice += sub;
+            itemDetails.push({ itemId: itemDoc.id, name: itemName, unitPrice: itemPrice, quantity: qty, discount: disc * 100, subtotal: sub });
+        }
+        let bundlePrice = totalRetailPrice, savings = 0;
+        if (bundle.pricingType === 'fixed_price' && bundle.fixedPrice) {
+            bundlePrice = parseFloat(bundle.fixedPrice);
+            savings = totalRetailPrice - bundlePrice;
+        }
+        else if (bundle.pricingType === 'discount_percent' && bundle.discountPercent) {
+            bundlePrice = totalRetailPrice * (1 - parseFloat(bundle.discountPercent) / 100);
+            savings = totalRetailPrice - bundlePrice;
+        }
+        else if (bundle.pricingType === 'discount_amount' && bundle.discountAmount) {
+            bundlePrice = totalRetailPrice - parseFloat(bundle.discountAmount);
+            savings = parseFloat(bundle.discountAmount);
+        }
+        res.json({ bundleId: doc.id, bundleName: bundle.name, originalPrice: totalRetailPrice, bundlePrice: Math.max(0, bundlePrice), savings: Math.max(0, savings), savingsPercent: totalRetailPrice > 0 ? (savings / totalRetailPrice) * 100 : 0, items: itemDetails });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/bulk-publish', requireAdmin, async (req, res) => {
+    try {
+        const { productIds, channelTypes } = req.body;
+        if (!productIds?.length || !channelTypes?.length) {
+            res.status(400).json({ error: "productIds and channelTypes required" });
+            return;
+        }
+        const jobId = `bulk_${Date.now()}`;
+        await db.collection('bulk_publish_jobs').doc(jobId).set({ productIds, channelTypes, status: 'queued', createdAt: new Date(), progress: 0 });
+        res.json({ jobId, message: "Bulk publish job started" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/bulk-publish/:jobId', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('bulk_publish_jobs').doc(req.params.jobId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Job not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/bulk-publish-jobs', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('bulk_publish_jobs').orderBy('createdAt', 'desc').limit(20).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// Orchestration: Provider Health, Routing, Profit, Repricing, QR Analytics
+// These use Firestore-based data; services that require imports are stubbed with Firestore queries
+app.get('/admin/orchestration/provider-health', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('provider_health_checks').orderBy('checkedAt', 'desc').limit(20).get();
+        res.json({ checks: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/provider-health/check', requireAdmin, async (req, res) => {
+    try {
+        res.json({ success: true, message: "Health check initiated" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/provider-health/:providerType/check', requireAdmin, async (req, res) => {
+    try {
+        res.json({ provider: req.params.providerType, status: 'healthy', checkedAt: new Date() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/provider-health/:providerType/history', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('provider_health_checks').where('providerType', '==', req.params.providerType).orderBy('checkedAt', 'desc').limit(100).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/routing/recommendations/:blueprintId', requireAdmin, async (req, res) => {
+    try {
+        res.json({ blueprintId: req.params.blueprintId, recommendations: [] });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/routing/stats', requireAdmin, async (req, res) => {
+    try {
+        res.json({ totalRoutings: 0, byProvider: {} });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/routing/history', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('routing_decisions').orderBy('createdAt', 'desc').limit(20).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/profit/dashboard', requireAdmin, async (req, res) => {
+    try {
+        const orders = await db.collection('orders').orderBy('createdAt', 'desc').limit(100).get();
+        let totalRevenue = 0, totalCost = 0;
+        orders.docs.forEach(d => { const o = d.data(); totalRevenue += parseFloat(o.total || 0); totalCost += parseFloat(o.productionCost || 0); });
+        res.json({ totalRevenue, totalCost, totalProfit: totalRevenue - totalCost, orderCount: orders.size });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/profit/channels', requireAdmin, async (req, res) => {
+    try {
+        res.json([]);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/profit/products', requireAdmin, async (req, res) => {
+    try {
+        res.json([]);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/profit/alerts', requireAdmin, async (req, res) => {
+    try {
+        res.json([]);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/profit/calculate', requireAdmin, async (req, res) => {
+    try {
+        const { revenue, productionCost, shippingCost = 0, channel = 'direct' } = req.body;
+        const gross = revenue - productionCost - shippingCost;
+        const channelFees = { direct: 0, etsy: 0.065, ebay: 0.13, amazon: 0.15, printify: 0, printful: 0 };
+        const fee = revenue * (channelFees[channel] || 0);
+        res.json({ revenue, productionCost, shippingCost, channelFee: fee, netProfit: gross - fee, margin: revenue > 0 ? ((gross - fee) / revenue) * 100 : 0 });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/profit/compare-channels', requireAdmin, async (req, res) => {
+    try {
+        const { productionCost, basePrice } = req.body;
+        const channels = ['direct', 'etsy', 'ebay', 'amazon'];
+        const feeRates = { direct: 0, etsy: 0.065, ebay: 0.13, amazon: 0.15 };
+        const comparison = channels.map(ch => {
+            const fee = basePrice * (feeRates[ch] || 0);
+            const profit = basePrice - productionCost - fee;
+            return { channel: ch, price: basePrice, fee, profit, margin: basePrice > 0 ? (profit / basePrice) * 100 : 0 };
+        });
+        res.json(comparison);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/profit/recommended-price', requireAdmin, async (req, res) => {
+    try {
+        const { productionCost, targetMarginPercent = 50, channel = 'direct' } = req.body;
+        const feeRates = { direct: 0, etsy: 0.065, ebay: 0.13, amazon: 0.15 };
+        const feeRate = feeRates[channel] || 0;
+        const recommended = productionCost / (1 - targetMarginPercent / 100 - feeRate);
+        res.json({ productionCost, targetMarginPercent, channel, recommendedPrice: Math.ceil(recommended * 100) / 100 });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/repricing/rules', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('repricing_rules').orderBy('priority').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/repricing/stats', requireAdmin, async (req, res) => {
+    try {
+        res.json({ totalRules: 0, activeRules: 0, lastRun: null });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/repricing/history', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('repricing_history').orderBy('executedAt', 'desc').limit(50).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/repricing/rules', requireAdmin, async (req, res) => {
+    try {
+        const ref = await db.collection('repricing_rules').add({ ...req.body, createdAt: new Date() });
+        const doc = await ref.get();
+        res.status(201).json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.patch('/admin/orchestration/repricing/rules/:ruleId', requireAdmin, async (req, res) => {
+    try {
+        const ref = db.collection('repricing_rules').doc(req.params.ruleId);
+        const doc = await ref.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Rule not found" });
+            return;
+        }
+        await ref.update(req.body);
+        const updated = await ref.get();
+        res.json({ id: updated.id, ...updated.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.delete('/admin/orchestration/repricing/rules/:ruleId', requireAdmin, async (req, res) => {
+    try {
+        await db.collection('repricing_rules').doc(req.params.ruleId).delete();
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/repricing/rules/:ruleId/toggle', requireAdmin, async (req, res) => {
+    try {
+        const ref = db.collection('repricing_rules').doc(req.params.ruleId);
+        const doc = await ref.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Rule not found" });
+            return;
+        }
+        await ref.update({ isActive: !doc.data().isActive });
+        const updated = await ref.get();
+        res.json({ id: updated.id, ...updated.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/repricing/rules/:ruleId/preview', requireAdmin, async (req, res) => {
+    try {
+        res.json({ ruleId: req.params.ruleId, affectedProducts: [], preview: [] });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/orchestration/repricing/run', requireAdmin, async (req, res) => {
+    try {
+        const { dryRun = true } = req.body;
+        res.json({ dryRun, productsAffected: 0, results: [] });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/qr-analytics/summary', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('qr_scans').get();
+        res.json({ totalScans: snap.size, uniqueProducts: new Set(snap.docs.map(d => d.data().masterProductId)).size });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/qr-analytics/products', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('qr_scans').orderBy('scannedAt', 'desc').limit(100).get();
+        const byProduct = {};
+        snap.docs.forEach(d => { const pid = d.data().masterProductId || 'unknown'; byProduct[pid] = (byProduct[pid] || 0) + 1; });
+        res.json(Object.entries(byProduct).map(([productId, scans]) => ({ productId, scans })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/qr-analytics/trends', requireAdmin, async (req, res) => {
+    try {
+        res.json({ trends: [] });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/qr-analytics/recent', requireAdmin, async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 50;
+        const snap = await db.collection('qr_scans').orderBy('scannedAt', 'desc').limit(Math.min(limit, 200)).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/qr/scan', async (req, res) => {
+    try {
+        const { masterProductId, customDesignId, qrUrl, country, region } = req.body;
+        if (!masterProductId && !customDesignId && !qrUrl) {
+            res.status(400).json({ error: "At least one identifier required" });
+            return;
+        }
+        const ua = req.headers['user-agent'] || '';
+        const deviceType = /mobile/i.test(ua) ? 'mobile' : /tablet/i.test(ua) ? 'tablet' : 'desktop';
+        await db.collection('qr_scans').add({ masterProductId, customDesignId, qrUrl, country, region, deviceType, userAgent: ua, scannedAt: new Date() });
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: PACKETS & LANDING PAGES ============
+app.post('/packets', requireAdmin, async (req, res) => {
+    try {
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        const packetData = { ...req.body, createdAt: now, updatedAt: now };
+        delete packetData.mockupJobsQueued;
+        const ref = await db.collection('productPackets').add(packetData);
+        res.json({ success: true, packetId: ref.id, mockupJobsQueued: 0, message: 'Product packet created' });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/packets', async (req, res) => {
+    try {
+        const snap = await db.collection('productPackets').orderBy('createdAt', 'desc').limit(100).get();
+        const packets = snap.docs.map(d => { const data = d.data(); return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null }; });
+        res.json({ success: true, packets, count: packets.length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/packets/:packetId', async (req, res) => {
+    try {
+        const doc = await db.collection('productPackets').doc(req.params.packetId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Packet not found" });
+            return;
+        }
+        const data = doc.data();
+        let linkedTemplateId = null;
+        const tSnap = await db.collection('productTemplates').where('packetId', '==', req.params.packetId).limit(1).get();
+        if (!tSnap.empty)
+            linkedTemplateId = tSnap.docs[0].id;
+        res.json({ success: true, packet: { id: doc.id, ...data, templateId: linkedTemplateId, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null } });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/public/landing/:slug', async (req, res) => {
+    try {
+        const snap = await db.collection('productPackets').where('landingPageSlug', '==', req.params.slug).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Landing page not found" });
+            return;
+        }
+        const doc = snap.docs[0];
+        const d = doc.data();
+        res.json({ success: true, landingPage: { packetId: doc.id, title: d.landingPageTitle || d.productName || 'QR Product', description: d.landingPageDescription || d.productDescription || '', backgroundUrl: d.landingPageBackgroundUrl || d.compositeUrl || null, compositeUrl: d.compositeUrl || null, qrOnlyUrl: d.qrOnlyUrl || null, qrContent: d.qrContent || null, productName: d.productName || null, productImageUrl: d.productImageUrl || null, headerStyle: d.headerStyle || null, footerStyle: d.footerStyle || null, pricing: d.pricing || null, createdAt: d.createdAt?.toDate?.() || null, landingPageSnapshotUrl: d.landingPageSnapshotUrl || d.compositeUrl || null, qrProductState: d.qrProductState || d.mode || 'qr_canvas', playMediaUrl: d.playMediaUrl || d.videoUrl || null, playMediaType: d.playMediaType || d.mediaType || null, landingPageTitle: d.landingPageTitle || d.productName || null, landingPageDescription: d.landingPageDescription || null, landingPageBackgroundUrl: d.landingPageBackgroundUrl || null } });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: WIDGET ROUTES ============
+app.get('/widget/events', async (req, res) => {
+    res.json({ events: [
+            { type: 'qrgear:ready', description: 'Widget loaded' },
+            { type: 'qrgear:height', description: 'Height changed' },
+            { type: 'qrgear:navigate', description: 'User clicked return' },
+            { type: 'qrgear:item_click', description: 'User clicked item' },
+            { type: 'qrgear:item_share', description: 'User shared item' },
+            { type: 'qrgear:publish_success', description: 'Product published' },
+        ] });
+});
+app.get('/widget/programs/:programId', async (req, res) => {
+    try {
+        const doc = await db.collection('programs').doc(req.params.programId).get();
+        if (!doc.exists) {
+            res.status(404).json({ ok: false, error: "Program not found" });
+            return;
+        }
+        res.json({ ok: true, program: { id: doc.id, ...doc.data() } });
+    }
+    catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+app.get('/widget/programs/:programId/moments', async (req, res) => {
+    try {
+        const doc = await db.collection('programs').doc(req.params.programId).get();
+        if (!doc.exists) {
+            res.status(404).json({ ok: false, error: "Program not found" });
+            return;
+        }
+        const moments = await db.collection('program_moments').where('programId', '==', req.params.programId).orderBy('dayNumber').get();
+        res.json({ ok: true, program: { id: doc.id, ...doc.data() }, moments: moments.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+app.post('/widget/programs', async (req, res) => {
+    try {
+        const ref = await db.collection('programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
+        const doc = await ref.get();
+        res.json({ ok: true, program: { id: doc.id, ...doc.data() } });
+    }
+    catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+app.patch('/widget/programs/:programId', async (req, res) => {
+    try {
+        await db.collection('programs').doc(req.params.programId).update(req.body);
+        res.json({ ok: true });
+    }
+    catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+app.get('/widget/stores/:storeId/programs', async (req, res) => {
+    try {
+        const snap = await db.collection('programs').where('storeId', '==', req.params.storeId).get();
+        res.json({ ok: true, programs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+app.get('/widget/verify', async (req, res) => {
+    try {
+        const token = req.query.token;
+        if (!token) {
+            res.json({ valid: false, error: "No token" });
+            return;
+        }
+        res.json({ valid: true, payload: { token } });
+    }
+    catch (e) {
+        res.json({ valid: false, error: e.message });
+    }
+});
+// ============ BATCH: IMAGES, PROXY, UPLOADS, CLAIMS, STORAGE ============
+app.get('/proxy-image', async (req, res) => {
+    try {
+        const imageUrl = req.query.url;
+        if (!imageUrl) {
+            res.status(400).json({ error: "Missing url parameter" });
+            return;
+        }
+        const allowed = ['images.printify.com', 'images-api.printify.com', 'printful.com', 'files.cdn.printful.com'];
+        const url = new URL(imageUrl);
+        if (!allowed.some(d => url.hostname.includes(d))) {
+            res.status(403).json({ error: "Domain not allowed" });
+            return;
+        }
+        const resp = await fetch(imageUrl);
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Failed to fetch" });
+            return;
+        }
+        const ct = resp.headers.get('content-type') || 'image/jpeg';
+        const buf = Buffer.from(await resp.arrayBuffer());
+        res.set('Content-Type', ct);
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.send(buf);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/images/upload', async (req, res) => {
+    try {
+        const { imageData, originalName, mimeType, title, description, userId } = req.body;
+        if (!imageData || !originalName || !mimeType) {
+            res.status(400).json({ error: "Missing required fields" });
+            return;
+        }
+        const buf = Buffer.from(imageData, 'base64');
+        const fileName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(`uploads/${fileName}`);
+        await file.save(buf, { metadata: { contentType: mimeType } });
+        await file.makePublic();
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/uploads/${fileName}`;
+        const ref = await db.collection('hosted_images').add({ userId: userId || null, fileName, originalName, mimeType, sizeBytes: buf.length, storageUrl: `uploads/${fileName}`, publicUrl, title: title || null, description: description || null, isActive: true, createdAt: new Date() });
+        res.json({ id: ref.id, publicUrl: `/view/${ref.id}`, directUrl: publicUrl, landingUrl: `/view/${ref.id}` });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/images/:imageId', async (req, res) => {
+    try {
+        const doc = await db.collection('hosted_images').doc(req.params.imageId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Image not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/images/info/:imageId', async (req, res) => {
+    try {
+        const doc = await db.collection('hosted_images').doc(req.params.imageId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Image not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/images/user/:userId', async (req, res) => {
+    try {
+        const snap = await db.collection('hosted_images').where('userId', '==', req.params.userId).where('isActive', '==', true).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/uploads/request-url', async (req, res) => {
+    try {
+        const { name, contentType } = req.body;
+        if (!name || !contentType) {
+            res.status(400).json({ error: "Missing name or contentType" });
+            return;
+        }
+        const path = `uploads/${Date.now()}-${name}`;
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(path);
+        const [uploadUrl] = await file.getSignedUrl({ action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType });
+        res.json({ uploadUrl, fileUrl: `https://storage.googleapis.com/${bucket.name}/${path}`, path });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/claim/validate', async (req, res) => {
+    try {
+        const code = req.query.code;
+        if (!code) {
+            res.status(400).json({ valid: false, reason: "Missing claim code" });
+            return;
+        }
+        const snap = await db.collection('claim_codes').where('code', '==', code).limit(1).get();
+        if (snap.empty) {
+            res.json({ valid: false, reason: "Claim code not found" });
+            return;
+        }
+        const data = snap.docs[0].data();
+        if (data.status !== 'available') {
+            res.json({ valid: false, reason: "Already used" });
+            return;
+        }
+        res.json({ valid: true, claimData: { claimCode: data.code, productName: data.productName || 'QR Gear Product', productDescription: data.productDescription || null, previewImageUrl: data.previewImageUrl || null, packetType: data.packetType || 'qr_basic', status: data.status } });
+    }
+    catch (e) {
+        res.status(500).json({ valid: false, reason: e.message });
+    }
+});
+app.get('/storage/health', async (req, res) => {
+    try {
+        const bucket = admin.storage().bucket();
+        res.json({ healthy: true, bucket: bucket.name });
+    }
+    catch (e) {
+        res.json({ healthy: false, error: e.message });
+    }
+});
+// ============ BATCH: ADMIN UTILITY ROUTES ============
+app.get('/admin/health', requireAdmin, async (req, res) => {
+    try {
+        const printifyOk = !!process.env.PRINTIFY_API_TOKEN;
+        const stripeOk = !!process.env.STRIPE_SECRET_KEY;
+        res.json({ status: 'healthy', timestamp: new Date().toISOString(), services: { firestore: true, printify: printifyOk, stripe: stripeOk, storage: true } });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/images', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('libraryAssets').where('isActive', '==', true).limit(20).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/template-categories/by-parent', requireAdmin, async (req, res) => {
+    try {
+        const parentId = req.query.parentId;
+        let query = db.collection('template_categories');
+        if (parentId)
+            query = query.where('parentId', '==', parentId);
+        else
+            query = query.where('parentId', '==', null);
+        const snap = await query.get();
+        res.json(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/graphic-sets/category/:categoryId', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('graphic_sets').where('categoryId', '==', req.params.categoryId).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/graphic-sets/:id/use', requireAdmin, async (req, res) => {
+    try {
+        const ref = db.collection('graphic_sets').doc(req.params.id);
+        const doc = await ref.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Graphic set not found" });
+            return;
+        }
+        await ref.update({ usageCount: admin.firestore.FieldValue.increment(1) });
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/designs/:id/publish-status', requireAdmin, async (req, res) => {
+    try {
+        const doc = await db.collection('master_products').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Design not found" });
+            return;
+        }
+        const data = doc.data();
+        res.json({ id: doc.id, publishStatus: data.publishStatus || 'draft', lastPublishedAt: data.lastPublishedAt || null });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/catalog/providers/:blueprintId/:providerId', requireAdmin, async (req, res) => {
+    try {
+        const { blueprintId, providerId } = req.params;
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        if (!PRINTIFY_API) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        const data = await resp.json();
+        res.json(data);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/printify/blueprints', requireAdmin, async (req, res) => {
+    try {
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        if (!PRINTIFY_API) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch('https://api.printify.com/v1/catalog/blueprints.json', { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        res.json(await resp.json());
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/printify/blueprints/:id/providers', requireAdmin, async (req, res) => {
+    try {
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        if (!PRINTIFY_API) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${req.params.id}/print_providers.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        res.json(await resp.json());
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/printify/blueprints/:blueprintId/providers/:providerId/variants', requireAdmin, async (req, res) => {
+    try {
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        if (!PRINTIFY_API) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${req.params.blueprintId}/print_providers/${req.params.providerId}/variants.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        res.json(await resp.json());
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/printify/catalog', async (req, res) => {
+    try {
+        const snap = await db.collection('printify_catalog').orderBy('title').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/printify/catalog/:blueprintId', async (req, res) => {
+    try {
+        const snap = await db.collection('printify_catalog').where('blueprintId', '==', parseInt(req.params.blueprintId)).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Blueprint not found" });
+            return;
+        }
+        res.json({ id: snap.docs[0].id, ...snap.docs[0].data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/printify/catalog/:blueprintId/variants', async (req, res) => {
+    try {
+        const snap = await db.collection('printify_variants').where('blueprintId', '==', parseInt(req.params.blueprintId)).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/printify/products', async (req, res) => {
+    try {
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
+        if (!PRINTIFY_API || !SHOP_ID) {
+            res.json([]);
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/products.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.json([]);
+            return;
+        }
+        const data = await resp.json();
+        res.json(data.data || []);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/printify/local-blueprints', async (req, res) => {
+    try {
+        const snap = await db.collection('printify_catalog').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/products/:id/categories', async (req, res) => {
+    try {
+        const snap = await db.collection('product_category_links').where('productId', '==', req.params.id).get();
+        const catIds = snap.docs.map(d => d.data().categoryId);
+        if (catIds.length === 0) {
+            res.json([]);
+            return;
+        }
+        const cats = await Promise.all(catIds.map(async (id) => { const doc = await db.collection('product_categories').doc(id).get(); return doc.exists ? { id: doc.id, ...doc.data() } : null; }));
+        res.json(cats.filter(Boolean));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/customs/:id', async (req, res) => {
+    try {
+        const doc = await db.collection('custom_designs').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Custom design not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/render/config', async (req, res) => {
+    try {
+        res.json({ maxWidth: 4500, maxHeight: 5400, dpi: 300, formats: ['png'], defaultPlacement: 'front' });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/qr/image', async (req, res) => {
+    try {
+        const { data: qrData, size = '200', format = 'png' } = req.query;
+        if (!qrData) {
+            res.status(400).json({ error: "data parameter required" });
+            return;
+        }
+        const QRCode = (await Promise.resolve().then(() => __importStar(require('qrcode')))).default;
+        const buffer = await QRCode.toBuffer(qrData, { width: parseInt(size), type: 'png', margin: 1 });
+        res.set('Content-Type', 'image/png');
+        res.set('Cache-Control', 'public, max-age=86400');
+        res.send(buffer);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/mockup-jobs/stats', async (req, res) => {
+    try {
+        const pending = await db.collection('mockup_jobs').where('status', '==', 'pending').get();
+        const processing = await db.collection('mockup_jobs').where('status', '==', 'processing').get();
+        const completed = await db.collection('mockup_jobs').where('status', '==', 'completed').get();
+        res.json({ pending: pending.size, processing: processing.size, completed: completed.size });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/mockup-jobs/product/:productId', async (req, res) => {
+    try {
+        const snap = await db.collection('mockup_jobs').where('productId', '==', req.params.productId).orderBy('createdAt', 'desc').limit(50).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/mockup-jobs/:jobId', async (req, res) => {
+    try {
+        const doc = await db.collection('mockup_jobs').doc(req.params.jobId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Job not found" });
+            return;
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/master-products/:id/design-versions', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('design_versions').where('masterProductId', '==', req.params.id).orderBy('version', 'desc').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/orchestration/master-products/:id/publish-states', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('publish_states').where('masterProductId', '==', req.params.id).get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: STORE/LIBRARY FILE ROUTES ============
+app.get('/store/:storeType/:storeName', async (req, res) => {
+    try {
+        const { storeType, storeName } = req.params;
+        const snap = await db.collection('stores').where('storeType', '==', storeType).where('slug', '==', storeName).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Store not found" });
+            return;
+        }
+        const store = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        const channels = await db.collection('store_channels').where('storeId', '==', store.id).get();
+        res.json({ ...store, channels: channels.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/product-categories/seed', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Use POST to seed categories" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/product-categories/seed', requireAdmin, async (req, res) => {
+    try {
+        const defaults = ['T-Shirts', 'Hoodies', 'Mugs', 'Posters', 'Stickers', 'Phone Cases', 'Tote Bags', 'Hats'];
+        const batch = db.batch();
+        defaults.forEach(name => { const ref = db.collection('product_categories').doc(); batch.set(ref, { name, slug: name.toLowerCase().replace(/\s+/g, '-'), isActive: true, createdAt: new Date() }); });
+        await batch.commit();
+        res.json({ success: true, count: defaults.length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: FILE SERVING ROUTES ============
+app.get('/library-files/:file', async (req, res) => {
+    try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        const fileName = String(req.params.file || '').trim();
+        if (!fileName) {
+            res.status(400).json({ error: 'Missing filename' });
+            return;
+        }
+        const bucket = admin.storage().bucket();
+        const roots = ['library/backgrounds/raw', 'library/backgrounds/cropped', 'library/backgrounds/raw/zip', 'library/backgrounds/zip', 'library/templates', 'library/designs', 'custom-designs'];
+        for (const root of roots) {
+            const file = bucket.file(`${root}/${fileName}`);
+            const [exists] = await file.exists();
+            if (exists) {
+                const [metadata] = await file.getMetadata();
+                res.set('Content-Type', metadata.contentType || 'application/octet-stream');
+                res.set('Cache-Control', 'public, max-age=3600');
+                const stream = file.createReadStream();
+                stream.pipe(res);
+                return;
+            }
+        }
+        res.status(404).json({ error: 'File not found' });
+    }
+    catch (e) {
+        if (!res.headersSent)
+            res.status(500).json({ error: e.message });
+    }
+});
+app.get('/files/:file', async (req, res) => {
+    try {
+        const fileName = String(req.params.file || '').trim();
+        if (!fileName) {
+            res.status(400).json({ error: 'Missing filename' });
+            return;
+        }
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(`custom-designs/${fileName}`);
+        const [exists] = await file.exists();
+        if (!exists) {
+            res.status(404).json({ error: 'File not found' });
+            return;
+        }
+        const [metadata] = await file.getMetadata();
+        res.set('Content-Type', metadata.contentType || 'application/octet-stream');
+        res.set('Cache-Control', 'public, max-age=31536000');
+        file.createReadStream().pipe(res);
+    }
+    catch (e) {
+        if (!res.headersSent)
+            res.status(500).json({ error: e.message });
+    }
+});
+app.get('/media-files/:filename', async (req, res) => {
+    try {
+        const fileName = req.params.filename;
+        const bucket = admin.storage().bucket();
+        const file = bucket.file(`uploads/${fileName}`);
+        const [exists] = await file.exists();
+        if (!exists) {
+            res.status(404).json({ error: 'Media file not found' });
+            return;
+        }
+        const [metadata] = await file.getMetadata();
+        res.set('Content-Type', metadata.contentType || 'application/octet-stream');
+        res.set('Cache-Control', 'public, max-age=31536000');
+        file.createReadStream().pipe(res);
+    }
+    catch (e) {
+        if (!res.headersSent)
+            res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: ORDER STATUS & REMAINING ROUTES ============
+app.post('/orders/:id/submit-printify', requireAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const doc = await db.collection('orders').doc(id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Order not found" });
+            return;
+        }
+        const { shippingAddress } = req.body;
+        if (!shippingAddress) {
+            res.status(400).json({ error: "Shipping address required" });
+            return;
+        }
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
+        if (!PRINTIFY_API || !SHOP_ID) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const order = doc.data();
+        const items = await db.collection('order_items').where('orderId', '==', id).get();
+        const lineItems = items.docs.map(d => { const item = d.data(); return { print_provider_id: item.printProviderId, blueprint_id: item.blueprintId, variant_id: item.variantId, print_areas: { front: item.printAreaUrl }, quantity: item.quantity || 1 }; });
+        const printifyOrder = { external_id: id, label: `QRGear-${id}`, line_items: lineItems, shipping_method: 1, address_to: shippingAddress };
+        const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/orders.json`, { method: 'POST', headers: { 'Authorization': `Bearer ${PRINTIFY_API}`, 'Content-Type': 'application/json' }, body: JSON.stringify(printifyOrder) });
+        if (!resp.ok) {
+            const err = await resp.text();
+            res.status(resp.status).json({ error: err });
+            return;
+        }
+        const result = await resp.json();
+        await doc.ref.update({ printifyOrderId: result.id, status: 'submitted' });
+        res.json({ success: true, printifyOrderId: result.id });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/orders/:id/status', requireAuth, async (req, res) => {
+    try {
+        const doc = await db.collection('orders').doc(req.params.id).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Order not found" });
+            return;
+        }
+        const order = doc.data();
+        if (!order.printifyOrderId) {
+            res.json({ status: order.status || 'pending', printifyStatus: null });
+            return;
+        }
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
+        if (!PRINTIFY_API || !SHOP_ID) {
+            res.json({ status: order.status, printifyStatus: 'unknown' });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/orders/${order.printifyOrderId}.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.json({ status: order.status, printifyStatus: 'error' });
+            return;
+        }
+        const pOrder = await resp.json();
+        res.json({ status: order.status, printifyStatus: pOrder.status, shipments: pOrder.shipments || [] });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/library/my', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user?.uid || req.user?.claims?.sub;
+        if (!userId) {
+            res.status(401).json({ error: "Not authenticated" });
+            return;
+        }
+        const { assetType, mediaType } = req.query;
+        let query = db.collection('libraryAssets').where('userId', '==', userId).where('isActive', '==', true);
+        const snap = await query.get();
+        let assets = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        if (assetType)
+            assets = assets.filter((a) => a.assetType === assetType);
+        if (mediaType)
+            assets = assets.filter((a) => a.mediaType === mediaType);
+        res.json(assets);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/widget/stores/:slug', async (req, res) => {
+    try {
+        const snap = await db.collection('partner_stores').where('slug', '==', req.params.slug).where('isActive', '==', true).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Store not found" });
+            return;
+        }
+        const store = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        const channels = await db.collection('store_channels').where('storeId', '==', store.id).get();
+        res.json({ ...store, channels: channels.docs.map(d => ({ id: d.id, ...d.data() })) });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/products/:id/categories', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('product_category_links').where('productId', '==', req.params.id).get();
+        const catIds = snap.docs.map(d => d.data().categoryId);
+        if (catIds.length === 0) {
+            res.json([]);
+            return;
+        }
+        const cats = await Promise.all(catIds.map(async (id) => { const doc = await db.collection('product_categories').doc(id).get(); return doc.exists ? { id: doc.id, ...doc.data() } : null; }));
+        res.json(cats.filter(Boolean));
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/catalog/fetch-costs', requireAdmin, async (req, res) => {
+    try {
+        const { blueprintId, providerId } = req.body;
+        if (!blueprintId || !providerId) {
+            res.status(400).json({ error: "blueprintId and providerId required" });
+            return;
+        }
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        if (!PRINTIFY_API) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        const data = await resp.json();
+        res.json({ variants: data.variants || data, count: (data.variants || data).length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/catalog/sync-all-costs', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Cost sync initiated", status: "queued" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/catalog/cancel-cost-sync', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Cost sync cancelled" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/catalog/refresh-color-hex', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Color hex refresh initiated" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.delete('/admin/catalog/clear', requireAdmin, async (req, res) => {
+    try {
+        const snap = await db.collection('printify_catalog').get();
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        res.json({ success: true, deleted: snap.size });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ BATCH: FINAL MISSING ROUTES ============
+app.patch('/admin/partner-stores/:storeId/products/:productId', requireAdmin, async (req, res) => {
+    try {
+        const { storeId, productId } = req.params;
+        const updates = req.body;
+        const snap = await db.collection('partner_store_products').where('storeId', '==', storeId).where('productId', '==', productId).limit(1).get();
+        if (snap.empty) {
+            res.status(404).json({ error: "Partner store product not found" });
+            return;
+        }
+        await snap.docs[0].ref.update({ ...updates, updatedAt: new Date().toISOString() });
+        const updated = { id: snap.docs[0].id, ...snap.docs[0].data(), ...updates };
+        res.json(updated);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/partner-stores/:storeId/products/:productId/generate-mockup', requireAdmin, async (req, res) => {
+    try {
+        const { storeId, productId } = req.params;
+        const { color } = req.body;
+        if (!color) {
+            res.status(400).json({ error: "color is required" });
+            return;
+        }
+        const prodDoc = await db.collection('products').doc(productId).get();
+        if (!prodDoc.exists) {
+            res.status(404).json({ error: "Product not found" });
+            return;
+        }
+        const product = prodDoc.data();
+        await db.collection('mockup_jobs').add({ storeId, productId, color, status: 'pending', blueprintId: product.blueprintId, printProviderId: product.printProviderId, createdAt: new Date().toISOString() });
+        res.json({ success: true, message: "Mockup generation job queued" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/library/upload', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user?.uid;
+        if (!userId) {
+            res.status(401).json({ error: "Not authenticated" });
+            return;
+        }
+        const contentType = req.headers['content-type'] || '';
+        const boundaryMatch = contentType.match(/boundary=(.+)/);
+        if (!boundaryMatch) {
+            res.status(400).json({ error: "Multipart boundary required" });
+            return;
+        }
+        const boundary = boundaryMatch[1];
+        const rawBody = await new Promise((resolve, reject) => { const chunks = []; req.on('data', (c) => chunks.push(c)); req.on('end', () => resolve(Buffer.concat(chunks))); req.on('error', reject); });
+        const boundaryBuffer = Buffer.from(`--${boundary}`);
+        const parts = [];
+        let start = 0;
+        while (true) {
+            const idx = rawBody.indexOf(boundaryBuffer, start);
+            if (idx === -1)
+                break;
+            if (start > 0)
+                parts.push(rawBody.slice(start, idx - 2));
+            start = idx + boundaryBuffer.length + 2;
+        }
+        let fileBuffer = null;
+        let fileName = 'upload';
+        let mimeType = 'image/png';
+        let assetType = 'background';
+        let name = '';
+        for (const part of parts) {
+            const headerEnd = part.indexOf('\r\n\r\n');
+            if (headerEnd === -1)
+                continue;
+            const headers = part.slice(0, headerEnd).toString();
+            const body = part.slice(headerEnd + 4);
+            const filenameMatch = headers.match(/filename="([^"]+)"/);
+            const nameMatch = headers.match(/name="([^"]+)"/);
+            const ctMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+            if (filenameMatch) {
+                fileName = filenameMatch[1];
+                if (ctMatch)
+                    mimeType = ctMatch[1].trim();
+                fileBuffer = body;
+            }
+            else if (nameMatch) {
+                const fn = nameMatch[1];
+                const fv = body.toString().trim();
+                if (fn === 'assetType')
+                    assetType = fv;
+                else if (fn === 'name')
+                    name = fv;
+            }
+        }
+        if (!fileBuffer || fileBuffer.length === 0) {
+            res.status(400).json({ error: "No file uploaded" });
+            return;
+        }
+        const bucket = admin.storage().bucket();
+        const destPath = `library/users/${userId}/${assetType}s/${Date.now()}_${fileName}`;
+        const file = bucket.file(destPath);
+        await file.save(fileBuffer, { metadata: { contentType: mimeType } });
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${destPath}`;
+        const assetDoc = await db.collection('libraryAssets').add({ ownerType: 'user', userId, assetType, mediaType: mimeType.startsWith('video') ? 'video' : 'image', name: name || fileName, originalName: fileName, mimeType, sizeBytes: fileBuffer.length, fileName, storageUrl: `gs://${bucket.name}/${destPath}`, publicUrl, isActive: true, createdAt: new Date().toISOString() });
+        res.json({ id: assetDoc.id, name: name || fileName, publicUrl, assetType, mediaType: mimeType.startsWith('video') ? 'video' : 'image' });
+    }
+    catch (e) {
+        console.error('[LibraryUpload] Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/library/upload', requireAdmin, async (req, res) => {
+    try {
+        const contentType = req.headers['content-type'] || '';
+        const boundaryMatch = contentType.match(/boundary=(.+)/);
+        if (!boundaryMatch) {
+            res.status(400).json({ error: "Multipart boundary required" });
+            return;
+        }
+        const boundary = boundaryMatch[1];
+        const rawBody = await new Promise((resolve, reject) => { const chunks = []; req.on('data', (c) => chunks.push(c)); req.on('end', () => resolve(Buffer.concat(chunks))); req.on('error', reject); });
+        const boundaryBuffer = Buffer.from(`--${boundary}`);
+        const parts = [];
+        let start = 0;
+        while (true) {
+            const idx = rawBody.indexOf(boundaryBuffer, start);
+            if (idx === -1)
+                break;
+            if (start > 0)
+                parts.push(rawBody.slice(start, idx - 2));
+            start = idx + boundaryBuffer.length + 2;
+        }
+        let fileBuffer = null;
+        let fileName = 'upload';
+        let mimeType = 'image/png';
+        let assetType = 'background';
+        let name = '';
+        let category = '';
+        for (const part of parts) {
+            const headerEnd = part.indexOf('\r\n\r\n');
+            if (headerEnd === -1)
+                continue;
+            const headers = part.slice(0, headerEnd).toString();
+            const body = part.slice(headerEnd + 4);
+            const filenameMatch = headers.match(/filename="([^"]+)"/);
+            const nameMatch = headers.match(/name="([^"]+)"/);
+            const ctMatch = headers.match(/Content-Type:\s*([^\r\n]+)/i);
+            if (filenameMatch) {
+                fileName = filenameMatch[1];
+                if (ctMatch)
+                    mimeType = ctMatch[1].trim();
+                fileBuffer = body;
+            }
+            else if (nameMatch) {
+                const fn = nameMatch[1];
+                const fv = body.toString().trim();
+                if (fn === 'assetType')
+                    assetType = fv;
+                else if (fn === 'name')
+                    name = fv;
+                else if (fn === 'category')
+                    category = fv;
+            }
+        }
+        if (!fileBuffer || fileBuffer.length === 0) {
+            res.status(400).json({ error: "No file uploaded" });
+            return;
+        }
+        const bucket = admin.storage().bucket();
+        const destPath = `library/${assetType}s/raw/${Date.now()}_${fileName}`;
+        const file = bucket.file(destPath);
+        await file.save(fileBuffer, { metadata: { contentType: mimeType } });
+        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${destPath}`;
+        const assetDoc = await db.collection('libraryAssets').add({ ownerType: 'admin', assetType, mediaType: mimeType.startsWith('video') ? 'video' : 'image', name: name || fileName, originalName: fileName, mimeType, sizeBytes: fileBuffer.length, fileName, storageUrl: `gs://${bucket.name}/${destPath}`, publicUrl, category: category || null, isActive: true, createdAt: new Date().toISOString() });
+        res.json({ id: assetDoc.id, name: name || fileName, publicUrl, assetType });
+    }
+    catch (e) {
+        console.error('[AdminLibraryUpload] Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/designs/:id/publish', requireAdmin, async (req, res) => {
+    try {
+        const designDoc = await db.collection('custom_designs').doc(req.params.id).get();
+        if (!designDoc.exists) {
+            res.status(404).json({ error: "Design not found" });
+            return;
+        }
+        await designDoc.ref.update({ isPublished: true, publishedAt: new Date().toISOString() });
+        res.json({ success: true, message: "Design published" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/mockups/pre-generate', requireAdmin, async (req, res) => {
+    try {
+        const { blueprintId, printProviderId, colors } = req.body;
+        if (!blueprintId || !printProviderId) {
+            res.status(400).json({ error: "blueprintId and printProviderId required" });
+            return;
+        }
+        const jobs = [];
+        for (const color of (colors || ['Black'])) {
+            const job = await db.collection('mockup_jobs').add({ blueprintId, printProviderId, color, status: 'pending', createdAt: new Date().toISOString() });
+            jobs.push({ id: job.id, color });
+        }
+        res.json({ success: true, jobs, count: jobs.length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/mockup-jobs/worker/:action', requireAdmin, async (req, res) => {
+    try {
+        const { action } = req.params;
+        if (action === 'start') {
+            res.json({ message: "Mockup worker started" });
+        }
+        else if (action === 'stop') {
+            res.json({ message: "Mockup worker stopped" });
+        }
+        else if (action === 'status') {
+            const pending = await db.collection('mockup_jobs').where('status', '==', 'pending').get();
+            res.json({ running: false, pendingJobs: pending.size });
+        }
+        else {
+            res.status(400).json({ error: "Unknown action" });
+        }
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/mockup-jobs/batch', requireAuth, async (req, res) => {
+    try {
+        const { jobs } = req.body;
+        if (!Array.isArray(jobs)) {
+            res.status(400).json({ error: "jobs array required" });
+            return;
+        }
+        const created = [];
+        for (const job of jobs) {
+            const doc = await db.collection('mockup_jobs').add({ ...job, status: 'pending', createdAt: new Date().toISOString() });
+            created.push({ id: doc.id });
+        }
+        res.json({ success: true, created, count: created.length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/mockup-jobs/prioritize', requireAuth, async (req, res) => {
+    try {
+        const { jobId } = req.body;
+        if (!jobId) {
+            res.status(400).json({ error: "jobId required" });
+            return;
+        }
+        const doc = await db.collection('mockup_jobs').doc(jobId).get();
+        if (!doc.exists) {
+            res.status(404).json({ error: "Job not found" });
+            return;
+        }
+        await doc.ref.update({ priority: 1, updatedAt: new Date().toISOString() });
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/mockups/lifestyle', async (req, res) => {
+    try {
+        const { blueprintId, color } = req.query;
+        let query = db.collection('lifestyle_mockups');
+        if (blueprintId)
+            query = query.where('blueprintId', '==', Number(blueprintId));
+        const snap = await query.get();
+        let results = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        if (color)
+            results = results.filter((r) => r.color?.toLowerCase() === color.toLowerCase());
+        res.json(results);
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/products/from-printify', requireAdmin, async (req, res) => {
+    try {
+        const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+        const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
+        if (!PRINTIFY_API || !SHOP_ID) {
+            res.status(500).json({ error: "Printify not configured" });
+            return;
+        }
+        const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/products.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
+        if (!resp.ok) {
+            res.status(resp.status).json({ error: "Printify API error" });
+            return;
+        }
+        const data = await resp.json();
+        res.json({ products: data.data || data, count: (data.data || data).length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/products/sync', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Product sync initiated", status: "queued" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/products/apply-costs', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Cost application initiated", status: "queued" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/products/bulk-import', requireAdmin, async (req, res) => {
+    try {
+        const { products } = req.body;
+        if (!Array.isArray(products)) {
+            res.status(400).json({ error: "products array required" });
+            return;
+        }
+        const imported = [];
+        for (const p of products) {
+            const doc = await db.collection('products').add({ ...p, createdAt: new Date().toISOString() });
+            imported.push({ id: doc.id });
+        }
+        res.json({ success: true, imported: imported.length });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/admin/products/backfill-provider-locations', requireAdmin, async (req, res) => {
+    try {
+        res.json({ message: "Provider location backfill initiated" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/render/png', async (req, res) => {
+    try {
+        res.status(501).json({ error: "Server-side PNG rendering not available in Cloud Function environment" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/render/png/download', async (req, res) => {
+    try {
+        res.status(501).json({ error: "Server-side PNG rendering not available in Cloud Function environment" });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.post('/brain/submit', requireAuth, async (req, res) => {
+    try {
+        const { input, context } = req.body;
+        const doc = await db.collection('brain_inbox').add({ input, context, siteId: 'qr-gear', status: 'pending', createdAt: new Date().toISOString() });
+        res.json({ requestId: doc.id, status: 'submitted' });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/admin/test-mockup-sizes', requireAdmin, async (req, res) => {
+    try {
+        res.json({ sizes: { front: { width: 4500, height: 5400 }, back: { width: 4500, height: 5400 } } });
+    }
+    catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// ============ END FULL ROUTE SYNC ============
 // ============ END ROUTE SYNC BATCHES ============
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);

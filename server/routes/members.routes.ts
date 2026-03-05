@@ -1675,37 +1675,57 @@ export function registerMemberRoutes(app: Express): void {
   // ============== MEMBER LIBRARY SYSTEM (Firestore-based) ==============
   
   // Get Common Library (admin-curated assets available to all members) - from Firestore
+  // Reads from BOTH 'commonLibrary' and 'libraryAssets' (where admin uploads actually go)
   app.get("/api/members/common-library", async (req: any, res) => {
     try {
       const { assetType = 'background' } = req.query;
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      let query = firestoreDb.collection('commonLibrary')
+      // Query commonLibrary collection
+      let commonQuery = firestoreDb.collection('commonLibrary')
         .where('isActive', '==', true);
-      
       if (assetType) {
-        query = query.where('assetType', '==', assetType);
+        commonQuery = commonQuery.where('assetType', '==', assetType);
       }
       
-      const snapshot = await query.orderBy('createdAt', 'desc').get();
+      // Query libraryAssets collection (where admin uploads go via admin/library/upload)
+      // Simple query to avoid composite index requirements - filter in memory
+      let adminQuery = firestoreDb.collection('libraryAssets')
+        .where('ownerType', '==', 'admin');
       
-      const assets = snapshot.docs.map(doc => {
+      const [commonSnapshot, adminSnapshot] = await Promise.all([
+        commonQuery.orderBy('createdAt', 'desc').get(),
+        adminQuery.get(),
+      ]);
+      
+      const mapAsset = (doc: any) => {
         const data = doc.data();
         return {
           id: doc.id,
           name: data.name,
           assetType: data.assetType,
           mediaType: data.mediaType || 'image',
-          thumbnailUrl: data.thumbnailUrl || data.publicUrl,
-          publicUrl: data.publicUrl,
+          thumbnailUrl: data.thumbnailUrl || data.publicUrl || data.storageUrl,
+          publicUrl: data.publicUrl || data.storageUrl,
           width: data.width,
           height: data.height,
           category: data.category,
         };
+      };
+      
+      const commonAssets = commonSnapshot.docs.map(mapAsset);
+      const adminAssets = adminSnapshot.docs.map(mapAsset).filter((a: any) => a.assetType === assetType);
+      
+      // Merge and deduplicate by id
+      const seenIds = new Set<string>();
+      const assets = [...commonAssets, ...adminAssets].filter(a => {
+        if (seenIds.has(a.id)) return false;
+        seenIds.add(a.id);
+        return true;
       });
       
-      console.log(`[Member Common Library] Found ${assets.length} ${assetType} assets`);
+      console.log(`[Member Common Library] Found ${assets.length} ${assetType} assets (${commonAssets.length} common + ${adminAssets.length} admin)`);
       res.json({ assets });
     } catch (error: any) {
       console.error("[Member Common Library] Error:", error);
