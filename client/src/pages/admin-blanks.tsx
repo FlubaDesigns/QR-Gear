@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Box, Save, Loader2, Check, Search, Filter } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Box, Save, Loader2, Search, Filter, Flag, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,59 +8,73 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
+import {
+  ProductSelectCardSkin,
+  type ProductSelectItem,
+} from "@/features/shared/components/skins/ProductSelectCardSkin";
 
-interface CatalogItem {
-  id: string;
+interface CatalogProduct {
+  id: number;
   title: string;
-  provider: "printify" | "printful";
+  description?: string;
+  brand?: string;
+  model?: string;
+  imageUrl?: string;
+  image_url?: string;
+  thumbnailUrl?: string;
+  madeInUSA?: boolean;
+  blueprintId?: number;
+  printProviderId?: number;
+  minPrice?: string;
+  maxPrice?: string;
+  colorCount?: number;
+  availableColors?: Array<{ name: string; hex?: string }>;
+  availableSizes?: string[];
+  fulfillmentProvider?: string;
 }
 
-interface AllowedProduct {
-  blueprintId: number;
-  title: string;
-  addedAt: string;
-  provider?: string;
+interface CatalogCategory {
+  name: string;
+  items: CatalogProduct[];
+  count: number;
 }
+
+function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
+  const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
+  const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
+  return {
+    id: String(p.id),
+    name: p.title || "",
+    price: minPrice,
+    cost: null,
+    manufacturer: p.brand || null,
+    madeInUSA: p.madeInUSA ?? false,
+    primaryImageUrl: imageUrl,
+    description: p.description || p.model || null,
+    colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
+    sizesAvailable: p.availableSizes || [],
+    defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,
+  };
+}
+
+type LocationFilter = "all" | "usa" | "other";
 
 export default function AdminBlanks() {
   const { toast } = useToast();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
   const [search, setSearch] = useState("");
-  const [providerFilter, setProviderFilter] = useState<"all" | "printify" | "printful">("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
 
-  const { data: printifyItems = [], isLoading: loadingPrintify } = useQuery<CatalogItem[]>({
-    queryKey: ["/api/printify/local-blueprints", "blanks"],
+  const { data: categories = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
+    queryKey: ["/api/printify/catalog", "blanks"],
     queryFn: async () => {
-      const res = await fetch("/api/printify/local-blueprints");
+      const res = await fetch("/api/printify/catalog");
       const d = await res.json();
-      const bps = d.blueprints || d || [];
-      return (Array.isArray(bps) ? bps : []).map((bp: any) => ({
-        id: String(bp.id),
-        title: bp.title || `Printify #${bp.id}`,
-        provider: "printify" as const,
-      }));
+      return Array.isArray(d) ? d : [];
     },
   });
-
-  const { data: printfulItems = [], isLoading: loadingPrintful } = useQuery<CatalogItem[]>({
-    queryKey: ["/api/admin/catalog/printful-products", "blanks"],
-    queryFn: async () => {
-      try {
-        const res = await fetch("/api/admin/catalog/printful-products");
-        if (!res.ok) return [];
-        const d = await res.json();
-        const items = d.products || d || [];
-        return (Array.isArray(items) ? items : []).map((p: any) => ({
-          id: `pf_${p.id || p.product_id}`,
-          title: p.title || p.name || `Printful #${p.id}`,
-          provider: "printful" as const,
-        }));
-      } catch { return []; }
-    },
-  });
-
-  const allItems: CatalogItem[] = [...printifyItems, ...printfulItems];
 
   const { data: allowedData, isLoading: loadingAllowed } = useQuery({
     queryKey: ["/api/members/allowed-products"],
@@ -71,12 +84,29 @@ export default function AdminBlanks() {
     },
   });
 
+  const allProducts = useMemo(() => {
+    const items: CatalogProduct[] = [];
+    const seen = new Set<number>();
+    for (const cat of categories) {
+      for (const item of (cat.items || [])) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          items.push(item);
+        }
+      }
+    }
+    return items;
+  }, [categories]);
+
+  const categoryNames = useMemo(() => {
+    return ["all", ...categories.map(c => c.name)];
+  }, [categories]);
+
   useEffect(() => {
     if (allowedData?.products) {
-      const ids = new Set<string>(
-        allowedData.products.map((p: AllowedProduct) => String(p.blueprintId))
-      );
-      setSelectedIds(ids);
+      setSelectedIds(new Set<string>(
+        allowedData.products.map((p: any) => String(p.blueprintId))
+      ));
       setHasChanges(false);
     }
   }, [allowedData]);
@@ -84,11 +114,11 @@ export default function AdminBlanks() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const products = Array.from(selectedIds).map(id => {
-        const item = allItems.find(i => i.id === id);
+        const item = allProducts.find(p => String(p.id) === id);
         return {
-          blueprintId: isNaN(Number(id)) ? id : Number(id),
+          blueprintId: Number(id),
           title: item?.title || `Product ${id}`,
-          provider: item?.provider || "printify",
+          provider: item?.fulfillmentProvider || "printify",
           addedAt: new Date().toISOString(),
         };
       });
@@ -119,16 +149,32 @@ export default function AdminBlanks() {
     setHasChanges(true);
   };
 
-  const filtered = allItems.filter(item => {
-    if (providerFilter !== "all" && item.provider !== providerFilter) return false;
-    if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    let items = allProducts;
+    if (categoryFilter !== "all") {
+      const cat = categories.find(c => c.name === categoryFilter);
+      if (cat) {
+        const catIds = new Set(cat.items.map(i => i.id));
+        items = items.filter(p => catIds.has(p.id));
+      }
+    }
+    if (locationFilter === "usa") items = items.filter(p => p.madeInUSA);
+    if (locationFilter === "other") items = items.filter(p => !p.madeInUSA);
+    if (search) {
+      const q = search.toLowerCase();
+      items = items.filter(p =>
+        (p.title || "").toLowerCase().includes(q) ||
+        (p.brand || "").toLowerCase().includes(q) ||
+        (p.description || "").toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [allProducts, categories, categoryFilter, locationFilter, search]);
 
   const selectAllFiltered = () => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      filtered.forEach(item => next.add(item.id));
+      filtered.forEach(item => next.add(String(item.id)));
       return next;
     });
     setHasChanges(true);
@@ -139,69 +185,90 @@ export default function AdminBlanks() {
     setHasChanges(true);
   };
 
-  const isLoading = loadingPrintify || loadingPrintful || loadingAllowed;
-  const printifyCount = printifyItems.length;
-  const printfulCount = printfulItems.length;
+  const isLoading = loadingCatalog || loadingAllowed;
 
   return (
     <AdminShell title="Blanks" subtitle="Set up base products for members to customize" icon={Box}>
       <div className="space-y-4">
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">
-            Choose which blank products members can use in their sandbox. Members will be able to add their own QR codes, graphics, and text to these items.
+            Choose which blank products members can use in their sandbox. Members will add their own QR codes, graphics, and text to these items.
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
-            <Badge variant="secondary">Printify: {printifyCount}</Badge>
-            <Badge variant="secondary">Printful: {printfulCount}</Badge>
-            <Badge variant="secondary">Total: {allItems.length}</Badge>
+            <Badge variant="secondary">{allProducts.length} in catalog</Badge>
+            <Badge variant="secondary">{selectedIds.size} selected</Badge>
+            {categories.length > 0 && (
+              <Badge variant="secondary">{categories.length} categories</Badge>
+            )}
           </div>
         </Card>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="flex flex-col gap-2">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search products..."
+              placeholder="Search by name, brand, or description..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9"
               data-testid="input-search-blanks"
             />
           </div>
-          <div className="flex items-center gap-1">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            {(["all", "printify", "printful"] as const).map(f => (
-              <Button
-                key={f}
-                size="sm"
-                variant={providerFilter === f ? "default" : "outline"}
-                onClick={() => setProviderFilter(f)}
-                className="toggle-elevate"
-                data-testid={`button-filter-${f}`}
-              >
-                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
-              </Button>
-            ))}
-          </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">{selectedIds.size} selected</Badge>
-          <Button size="sm" variant="outline" onClick={selectAllFiltered} data-testid="button-select-all-blanks">
-            Select All Shown
-          </Button>
-          <Button size="sm" variant="outline" onClick={clearAll} data-testid="button-clear-all-blanks">
-            Clear All
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => saveMutation.mutate()}
-            disabled={!hasChanges || saveMutation.isPending}
-            data-testid="button-save-blanks"
-          >
-            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
+              <select
+                value={categoryFilter}
+                onChange={e => setCategoryFilter(e.target.value)}
+                className="text-sm bg-background border rounded-md px-2 py-1.5"
+                data-testid="select-category-filter"
+              >
+                {categoryNames.map(name => (
+                  <option key={name} value={name}>
+                    {name === "all" ? "All Categories" : name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {([
+                { value: "all" as LocationFilter, label: "All", icon: null },
+                { value: "usa" as LocationFilter, label: "USA", icon: Flag },
+                { value: "other" as LocationFilter, label: "Global", icon: Globe },
+              ]).map(f => (
+                <Button
+                  key={f.value}
+                  size="sm"
+                  variant={locationFilter === f.value ? "default" : "outline"}
+                  onClick={() => setLocationFilter(f.value)}
+                  data-testid={`button-location-${f.value}`}
+                >
+                  {f.icon && <f.icon className="h-3 w-3" />}
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={selectAllFiltered} data-testid="button-select-all-blanks">
+              Select All Shown ({filtered.length})
+            </Button>
+            <Button size="sm" variant="outline" onClick={clearAll} data-testid="button-clear-all-blanks">
+              Clear All
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => saveMutation.mutate()}
+              disabled={!hasChanges || saveMutation.isPending}
+              data-testid="button-save-blanks"
+            >
+              {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save ({selectedIds.size})
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -211,36 +278,23 @@ export default function AdminBlanks() {
         ) : filtered.length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">
-              {allItems.length === 0
-                ? "No products in catalog yet. Sync your Printify or Printful catalog first from the Products page."
-                : "No products match your search or filter."}
+              {allProducts.length === 0
+                ? "No products in catalog yet. Sync your Printify catalog first from the Products page."
+                : "No products match your search or filters."}
             </p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filtered.map(item => {
-              const isSelected = selectedIds.has(item.id);
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {filtered.map(product => {
+              const selectItem = catalogToSelectItem(product);
+              const isSelected = selectedIds.has(selectItem.id);
               return (
-                <label
-                  key={item.id}
-                  className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
-                    isSelected ? "border-primary bg-primary/5" : "border-border"
-                  } hover-elevate`}
-                  data-testid={`card-blank-${item.id}`}
-                >
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => toggleItem(item.id)}
-                    data-testid={`checkbox-blank-${item.id}`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{item.title}</div>
-                    <Badge variant="outline" className="mt-1 text-[10px]">
-                      {item.provider === "printify" ? "Printify" : "Printful"}
-                    </Badge>
-                  </div>
-                  {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
-                </label>
+                <ProductSelectCardSkin
+                  key={selectItem.id}
+                  item={selectItem}
+                  isSelected={isSelected}
+                  onSelect={(id) => toggleItem(id)}
+                />
               );
             })}
           </div>
