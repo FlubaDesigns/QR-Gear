@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Box, Save, Loader2, Check, Search } from "lucide-react";
+import { Box, Save, Loader2, Check, Search, Filter } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,32 +10,58 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
 
-interface ProductBlueprint {
-  id: number;
+interface CatalogItem {
+  id: string;
   title: string;
-  images?: string[];
+  provider: "printify" | "printful";
 }
 
 interface AllowedProduct {
   blueprintId: number;
   title: string;
   addedAt: string;
+  provider?: string;
 }
 
 export default function AdminBlanks() {
   const { toast } = useToast();
-  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
   const [search, setSearch] = useState("");
+  const [providerFilter, setProviderFilter] = useState<"all" | "printify" | "printful">("all");
 
-  const { data: blueprints = [], isLoading: loadingBlueprints } = useQuery<ProductBlueprint[]>({
-    queryKey: ["/api/printify/local-blueprints"],
+  const { data: printifyItems = [], isLoading: loadingPrintify } = useQuery<CatalogItem[]>({
+    queryKey: ["/api/printify/local-blueprints", "blanks"],
     queryFn: async () => {
       const res = await fetch("/api/printify/local-blueprints");
       const d = await res.json();
-      return d.blueprints || [];
+      const bps = d.blueprints || d || [];
+      return (Array.isArray(bps) ? bps : []).map((bp: any) => ({
+        id: String(bp.id),
+        title: bp.title || `Printify #${bp.id}`,
+        provider: "printify" as const,
+      }));
     },
   });
+
+  const { data: printfulItems = [], isLoading: loadingPrintful } = useQuery<CatalogItem[]>({
+    queryKey: ["/api/admin/catalog/printful-products", "blanks"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/admin/catalog/printful-products");
+        if (!res.ok) return [];
+        const d = await res.json();
+        const items = d.products || d || [];
+        return (Array.isArray(items) ? items : []).map((p: any) => ({
+          id: `pf_${p.id || p.product_id}`,
+          title: p.title || p.name || `Printful #${p.id}`,
+          provider: "printful" as const,
+        }));
+      } catch { return []; }
+    },
+  });
+
+  const allItems: CatalogItem[] = [...printifyItems, ...printfulItems];
 
   const { data: allowedData, isLoading: loadingAllowed } = useQuery({
     queryKey: ["/api/members/allowed-products"],
@@ -47,18 +73,22 @@ export default function AdminBlanks() {
 
   useEffect(() => {
     if (allowedData?.products) {
-      setSelectedProducts(new Set<number>(allowedData.products.map((p: AllowedProduct) => p.blueprintId)));
+      const ids = new Set<string>(
+        allowedData.products.map((p: AllowedProduct) => String(p.blueprintId))
+      );
+      setSelectedIds(ids);
       setHasChanges(false);
     }
   }, [allowedData]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const products = Array.from(selectedProducts).map(blueprintId => {
-        const bp = blueprints.find(b => b.id === blueprintId);
+      const products = Array.from(selectedIds).map(id => {
+        const item = allItems.find(i => i.id === id);
         return {
-          blueprintId,
-          title: bp?.title || `Product ${blueprintId}`,
+          blueprintId: isNaN(Number(id)) ? id : Number(id),
+          title: item?.title || `Product ${id}`,
+          provider: item?.provider || "printify",
           addedAt: new Date().toISOString(),
         };
       });
@@ -71,7 +101,7 @@ export default function AdminBlanks() {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Blanks saved", description: `${selectedProducts.size} products available for members` });
+      toast({ title: "Blanks saved", description: `${selectedIds.size} products available for members` });
       setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ["/api/members/allowed-products"] });
     },
@@ -80,8 +110,8 @@ export default function AdminBlanks() {
     },
   });
 
-  const toggleProduct = (id: number) => {
-    setSelectedProducts(prev => {
+  const toggleItem = (id: string) => {
+    setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -89,21 +119,29 @@ export default function AdminBlanks() {
     setHasChanges(true);
   };
 
-  const selectAll = () => {
-    setSelectedProducts(new Set(filteredBlueprints.map(b => b.id)));
+  const filtered = allItems.filter(item => {
+    if (providerFilter !== "all" && item.provider !== providerFilter) return false;
+    if (search && !item.title.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const selectAllFiltered = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      filtered.forEach(item => next.add(item.id));
+      return next;
+    });
     setHasChanges(true);
   };
 
   const clearAll = () => {
-    setSelectedProducts(new Set());
+    setSelectedIds(new Set());
     setHasChanges(true);
   };
 
-  const filteredBlueprints = blueprints.filter(bp =>
-    !search || bp.title.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const isLoading = loadingBlueprints || loadingAllowed;
+  const isLoading = loadingPrintify || loadingPrintful || loadingAllowed;
+  const printifyCount = printifyItems.length;
+  const printfulCount = printfulItems.length;
 
   return (
     <AdminShell title="Blanks" subtitle="Set up base products for members to customize" icon={Box}>
@@ -112,6 +150,11 @@ export default function AdminBlanks() {
           <p className="text-sm text-muted-foreground">
             Choose which blank products members can use in their sandbox. Members will be able to add their own QR codes, graphics, and text to these items.
           </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Badge variant="secondary">Printify: {printifyCount}</Badge>
+            <Badge variant="secondary">Printful: {printfulCount}</Badge>
+            <Badge variant="secondary">Total: {allItems.length}</Badge>
+          </div>
         </Card>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -125,12 +168,30 @@ export default function AdminBlanks() {
               data-testid="input-search-blanks"
             />
           </div>
-          <Badge variant="secondary">{selectedProducts.size} selected</Badge>
-          <Button size="sm" variant="outline" onClick={selectAll} data-testid="button-select-all-blanks">
-            Select All
+          <div className="flex items-center gap-1">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            {(["all", "printify", "printful"] as const).map(f => (
+              <Button
+                key={f}
+                size="sm"
+                variant={providerFilter === f ? "default" : "outline"}
+                onClick={() => setProviderFilter(f)}
+                className="toggle-elevate"
+                data-testid={`button-filter-${f}`}
+              >
+                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{selectedIds.size} selected</Badge>
+          <Button size="sm" variant="outline" onClick={selectAllFiltered} data-testid="button-select-all-blanks">
+            Select All Shown
           </Button>
           <Button size="sm" variant="outline" onClick={clearAll} data-testid="button-clear-all-blanks">
-            Clear
+            Clear All
           </Button>
           <Button
             size="sm"
@@ -147,36 +208,36 @@ export default function AdminBlanks() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredBlueprints.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">
-              {blueprints.length === 0
-                ? "No products in catalog yet. Sync your Printify catalog first from the Products page."
-                : "No products match your search."}
+              {allItems.length === 0
+                ? "No products in catalog yet. Sync your Printify or Printful catalog first from the Products page."
+                : "No products match your search or filter."}
             </p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredBlueprints.map(bp => {
-              const isSelected = selectedProducts.has(bp.id);
+            {filtered.map(item => {
+              const isSelected = selectedIds.has(item.id);
               return (
                 <label
-                  key={bp.id}
+                  key={item.id}
                   className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
-                    isSelected
-                      ? "border-primary bg-primary/5"
-                      : "border-border"
+                    isSelected ? "border-primary bg-primary/5" : "border-border"
                   } hover-elevate`}
-                  data-testid={`card-blank-${bp.id}`}
+                  data-testid={`card-blank-${item.id}`}
                 >
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={() => toggleProduct(bp.id)}
-                    data-testid={`checkbox-blank-${bp.id}`}
+                    onCheckedChange={() => toggleItem(item.id)}
+                    data-testid={`checkbox-blank-${item.id}`}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{bp.title}</div>
-                    <div className="text-xs text-muted-foreground">ID: {bp.id}</div>
+                    <div className="text-sm font-medium truncate">{item.title}</div>
+                    <Badge variant="outline" className="mt-1 text-[10px]">
+                      {item.provider === "printify" ? "Printify" : "Printful"}
+                    </Badge>
                   </div>
                   {isSelected && <Check className="h-4 w-4 text-primary shrink-0" />}
                 </label>

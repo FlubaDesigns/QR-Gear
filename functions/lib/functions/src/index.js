@@ -11117,8 +11117,9 @@ app.get('/printify/products', async (req, res) => {
 });
 app.get('/printify/local-blueprints', async (req, res) => {
     try {
-        const snap = await db.collection('printify_catalog').get();
-        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        const snap = await db.collection('printifyBlueprints').get();
+        const blueprints = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        res.json({ blueprints });
     }
     catch (e) {
         res.status(500).json({ error: e.message });
