@@ -272,35 +272,67 @@ export function PlacementCountStep({
         </p>
       </div>
       
-      <div className="flex justify-center items-center gap-4 py-2">
-        <svg width="180" height="200" viewBox="0 0 180 180" className="drop-shadow-lg">
-          <path
-            d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
-            fill={colorHex}
-            stroke="#444"
-            strokeWidth="2"
-          />
+      <div className="flex justify-center items-center gap-3 py-2">
+        <div className="flex items-end gap-1">
+          <svg width="140" height="160" viewBox="0 0 180 200" className="drop-shadow-lg">
+            <path
+              d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
+              fill={colorHex}
+              stroke="#444"
+              strokeWidth="2"
+            />
+            
+            {selected.filter(p => p !== 'left_sleeve' && p !== 'right_sleeve').map(placement => {
+              const pos = placementPositions[placement];
+              if (!pos) return null;
+              const displaySize = placement === 'back' ? pos.size * 1.3 : pos.size;
+              return (
+                <g key={placement} transform={`translate(${pos.x - displaySize/2}, ${pos.y - displaySize/2})`}>
+                  <rect width={displaySize} height={displaySize} fill="white" rx="2" opacity="0.95" stroke="#22c55e" strokeWidth="2" />
+                  <rect x="2" y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
+                  <rect x={displaySize - displaySize * 0.2 - 2} y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
+                  <rect x="2" y={displaySize - displaySize * 0.2 - 2} width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
+                  {placement === 'back' && (
+                    <text x={displaySize/2} y={displaySize/2 + 4} textAnchor="middle" fontSize="8" fill="#22c55e" fontWeight="bold">BACK</text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
           
-          {selected.map(placement => {
-            const pos = placementPositions[placement];
-            if (!pos) return null;
-            const displaySize = placement === 'back' ? pos.size * 1.3 : pos.size;
-            return (
-              <g key={placement} transform={`translate(${pos.x - displaySize/2}, ${pos.y - displaySize/2})`}>
-                <rect width={displaySize} height={displaySize} fill="white" rx="2" opacity="0.95" stroke="#22c55e" strokeWidth="2" />
-                <rect x="2" y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
-                <rect x={displaySize - displaySize * 0.2 - 2} y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
-                <rect x="2" y={displaySize - displaySize * 0.2 - 2} width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
-                {placement === 'back' && (
-                  <text x={displaySize/2} y={displaySize/2 + 4} textAnchor="middle" fontSize="8" fill="#22c55e" fontWeight="bold">BACK</text>
-                )}
+          {selected.includes('left_sleeve') && (
+            <svg width="70" height="120" viewBox="0 0 120 160" className="drop-shadow-lg">
+              <path d="M70,50 L70,140 L90,140 L90,50 Q80,38 70,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+              <path d="M70,52 L25,62 L20,88 L25,90 L70,78" fill={colorHex} stroke="#444" strokeWidth="2"/>
+              <path d="M70,50 Q62,42 70,35 Q80,28 90,35 Q98,42 90,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+              <g transform="translate(34, 68) rotate(-8)">
+                <rect width="14" height="14" fill="white" rx="2" opacity="0.95" stroke="#22c55e" strokeWidth="2"/>
+                <rect x="2" y="2" width="3" height="3" fill="#22c55e"/>
+                <rect x="9" y="2" width="3" height="3" fill="#22c55e"/>
+                <rect x="2" y="9" width="3" height="3" fill="#22c55e"/>
               </g>
-            );
-          })}
-        </svg>
+              <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">L SLEEVE</text>
+            </svg>
+          )}
+          
+          {selected.includes('right_sleeve') && (
+            <svg width="70" height="120" viewBox="0 0 120 160" className="drop-shadow-lg">
+              <path d="M50,50 L50,140 L30,140 L30,50 Q40,38 50,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+              <path d="M50,52 L95,62 L100,88 L95,90 L50,78" fill={colorHex} stroke="#444" strokeWidth="2"/>
+              <path d="M50,50 Q58,42 50,35 Q40,28 30,35 Q22,42 30,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
+              <g transform="translate(72, 68) rotate(8)">
+                <rect width="14" height="14" fill="white" rx="2" opacity="0.95" stroke="#22c55e" strokeWidth="2"/>
+                <rect x="2" y="2" width="3" height="3" fill="#22c55e"/>
+                <rect x="9" y="2" width="3" height="3" fill="#22c55e"/>
+                <rect x="2" y="9" width="3" height="3" fill="#22c55e"/>
+              </g>
+              <text x="60" y="155" textAnchor="middle" fill="#9ca3af" fontSize="9" fontWeight="bold">R SLEEVE</text>
+            </svg>
+          )}
+        </div>
         
         <div className="flex flex-col items-center">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold transition-all ${
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold transition-all ${
             selected.length > 0 
               ? 'bg-orange-500 text-white' 
               : 'bg-slate-700 text-slate-400'
