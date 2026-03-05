@@ -9553,10 +9553,24 @@ app.post('/store-product-links', requireAdmin, async (req, res) => {
 });
 app.post('/mockup/priority', requireAuth, async (req, res) => {
     try {
-        res.json({ success: true, message: 'Mockup priority generation via CF', mockupUrl: null });
+        const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
+        if (!blueprintId || !colorName || !artworkUrl) {
+            res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" });
+            return;
+        }
+        console.log(`[CF Priority Mockup] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
+        const result = await generateMockupFromPrintful({
+            blueprintId: parseInt(blueprintId), printProviderId: parseInt(printProviderId) || 99,
+            colorName, colorHex, artworkUrl, artworkVariant: 'black',
+            fulfillmentProvider: fulfillmentProvider,
+            placement: placement || 'front',
+        });
+        console.log(`[CF Priority Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+        res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("[CF Priority Mockup] Error:", error);
+        res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
     }
 });
 app.post('/admin/hosting-tiers/seed', requireAdmin, async (_req, res) => {
@@ -9604,7 +9618,11 @@ app.get('/templates', async (_req, res) => {
 });
 app.get('/admin/queue/status', requireAdmin, async (_req, res) => {
     try {
-        res.json({ queue: [], active: 0, completed: 0, failed: 0, waiting: 0 });
+        const pendingSnapshot = await db.collection('mockup_jobs').where('status', '==', 'pending').get();
+        const processingSnapshot = await db.collection('mockup_jobs').where('status', '==', 'processing').get();
+        const completedSnapshot = await db.collection('mockup_jobs').where('status', '==', 'completed').limit(100).get();
+        const failedSnapshot = await db.collection('mockup_jobs').where('status', '==', 'failed').limit(100).get();
+        res.json({ success: true, queue: { pending: pendingSnapshot.size, processing: processingSnapshot.size, completed: completedSnapshot.size, failed: failedSnapshot.size }, message: `Queue status: ${pendingSnapshot.size} pending, ${processingSnapshot.size} processing` });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -9753,9 +9771,66 @@ app.patch('/admin/products/:id/options', requireAdmin, async (req, res) => {
 });
 app.post('/admin/products/:id/sync-printify', requireAdmin, async (req, res) => {
     try {
-        res.json({ success: true, message: 'Printify sync initiated', productId: req.params.id });
+        const { id } = req.params;
+        const productDoc = await db.collection('products').doc(id).get();
+        if (!productDoc.exists) {
+            res.status(404).json({ error: 'Product not found' });
+            return;
+        }
+        const product = { id: productDoc.id, ...productDoc.data() };
+        if (!product.blueprintId || !product.printProviderId) {
+            res.status(400).json({ error: 'Product missing Printify blueprint or provider IDs' });
+            return;
+        }
+        console.log(`[CF ProductSync] Syncing product ${id}, blueprint=${product.blueprintId}, provider=${product.printProviderId}`);
+        const variantData = await printifyClient.getVariants(product.blueprintId, product.printProviderId);
+        const variants = variantData.variants || [];
+        const colorMap = new Map();
+        const sizeSet = new Set();
+        const placementSet = new Set();
+        for (const v of variants) {
+            if (v.options?.color && !colorMap.has(v.options.color)) {
+                colorMap.set(v.options.color, { name: v.options.color, hex: v.options.colorHex || '#000000', colors: [v.options.colorHex || '#000000'] });
+            }
+            if (v.options?.size)
+                sizeSet.add(v.options.size);
+            if (v.placeholders) {
+                for (const ph of v.placeholders) {
+                    if (ph.position)
+                        placementSet.add(ph.position);
+                }
+            }
+        }
+        const colors = Array.from(colorMap.values());
+        const sizes = Array.from(sizeSet);
+        const placements = normalizePlacements('printify', Array.from(placementSet));
+        const variantBatch = db.batch();
+        for (const v of variants) {
+            const variantDocRef = db.collection('product_variants').doc(`${id}_${v.id}`);
+            variantBatch.set(variantDocRef, {
+                productId: id, printifyVariantId: v.id, title: v.title || '',
+                size: v.options?.size || null, color: v.options?.color || null,
+                colorHex: v.options?.colorHex || null,
+                price: String((v.price || 0) / 100), isEnabled: true,
+                isInStock: v.is_available ?? true, updatedAt: new Date().toISOString(),
+            }, { merge: true });
+        }
+        await variantBatch.commit();
+        await db.collection('products').doc(id).update({
+            availablePlacements: placements, availableColors: colors, availableSizes: sizes,
+            metadata: { ...(product.metadata || {}), lastSyncedAt: new Date().toISOString() },
+            updatedAt: new Date().toISOString(),
+        });
+        const updatedDoc = await db.collection('products').doc(id).get();
+        console.log(`[CF ProductSync] Synced ${variants.length} variants, ${colors.length} colors, ${sizes.length} sizes, ${placements.length} placements`);
+        res.json({
+            success: true,
+            product: { id: updatedDoc.id, ...updatedDoc.data() },
+            syncedData: { placements, colors, sizes, variantsCount: variants.length },
+        });
     }
     catch (error) {
+        console.error('[CF ProductSync] Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
