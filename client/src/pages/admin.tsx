@@ -19,6 +19,7 @@ import {
   Gift,
   Mail,
   Book,
+  Box,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +48,12 @@ const adminSections = [
     description: "Manage product catalog and sync from Printify",
     icon: Package,
     href: "/admin/products",
+  },
+  {
+    title: "Blanks",
+    description: "Set up base products for members to customize",
+    icon: Box,
+    href: "/admin/blanks",
   },
   {
     title: "Pricing",
