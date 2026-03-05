@@ -455,8 +455,8 @@ export function OwnerWizard() {
     }
   }, [tempPacketId]);
 
-  const generateRealMockup = useCallback(async () => {
-    if (!selectedProductType) return;
+  const generateRealMockup = useCallback(async (): Promise<boolean> => {
+    if (!selectedProductType) return false;
     setIsGeneratingRealMockup(true);
     try {
       const colorInfo = SHIRT_COLORS.find(c => c.id === selectedColor);
@@ -487,11 +487,14 @@ export function OwnerWizard() {
         setRealMockupUrl(data.mockupUrl);
         setLifestyleMockupUrl(data.lifestyleMockupUrl || null);
         console.log('[OwnerWizard] Real mockup generated:', data.mockupUrl);
+        return true;
       } else {
         console.warn('[OwnerWizard] Mockup generation returned:', data);
+        return false;
       }
     } catch (err) {
       console.warn('[OwnerWizard] Mockup generation failed:', err);
+      return false;
     } finally {
       setIsGeneratingRealMockup(false);
     }
@@ -695,12 +698,15 @@ export function OwnerWizard() {
       updateTempPacket({ headerStyle, footerStyle, textLayoutChoice });
       setIsGeneratingPlusMockup(true);
       setSimpleStep('qr-plus-mockup');
-      generateRealMockup().then((result) => {
+      generateRealMockup().then((success) => {
         setIsGeneratingPlusMockup(false);
+        if (!success) {
+          const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
+          setQrPlusMockup(generateQRCodeUrl(previewUrl, 1000));
+        }
       }).catch(() => {
         const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-        const qrApiUrl = generateQRCodeUrl(previewUrl, 1000);
-        setQrPlusMockup(qrApiUrl);
+        setQrPlusMockup(generateQRCodeUrl(previewUrl, 1000));
         setIsGeneratingPlusMockup(false);
       });
       return;
@@ -709,11 +715,13 @@ export function OwnerWizard() {
       updateTempPacket({ qrBasicInputType, qrBasicContent });
       setIsGeneratingBasicMockup(true);
       setSimpleStep('qr-basic-mockup');
-      generateRealMockup().then(() => {
+      generateRealMockup().then((success) => {
         setIsGeneratingBasicMockup(false);
+        if (!success) {
+          setQrBasicMockup(generateQRCodeUrl(qrBasicContent, 1000));
+        }
       }).catch(() => {
-        const qrApiUrl = generateQRCodeUrl(qrBasicContent, 1000);
-        setQrBasicMockup(qrApiUrl);
+        setQrBasicMockup(generateQRCodeUrl(qrBasicContent, 1000));
         setIsGeneratingBasicMockup(false);
       });
       return;
