@@ -8320,8 +8320,8 @@ app.post('/members/allowed-products', requireAdmin, async (req: Request, res: Re
   try {
     const { products } = req.body;
     if (!Array.isArray(products)) { res.status(400).json({ error: "products must be an array" }); return; }
-    await db.collection("config").doc("memberProductLibrary").set({ products, updatedAt: new Date().toISOString() });
-    console.log(`[CF Member Product Library] Saved ${products.length} products`);
+    await db.collection("storeAllowedProducts").doc("member-products").set({ products, updatedAt: new Date().toISOString() });
+    console.log(`[CF Member Product Library] Saved ${products.length} products to storeAllowedProducts/member-products`);
     res.json({ success: true, count: products.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });

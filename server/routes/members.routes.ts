@@ -1658,12 +1658,12 @@ export function registerMemberRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      await firestoreDb.collection("config").doc("memberProductLibrary").set({
+      await firestoreDb.collection("storeAllowedProducts").doc("member-products").set({
         products,
         updatedAt: new Date().toISOString()
       });
       
-      console.log(`[Member Product Library] Saved ${products.length} products`);
+      console.log(`[Member Product Library] Saved ${products.length} products to storeAllowedProducts/member-products`);
       
       res.json({ success: true, count: products.length });
     } catch (error: any) {

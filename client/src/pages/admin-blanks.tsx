@@ -125,10 +125,15 @@ export default function AdminBlanks() {
     mutationFn: async () => {
       const products = Array.from(selectedIds).map(id => {
         const item = productMap.get(id);
+        const imageUrl = item?.imageUrl || item?.image_url || item?.thumbnailUrl || "";
         return {
           blueprintId: Number(id),
           title: item?.title || `Product ${id}`,
           provider: item?.fulfillmentProvider || "printify",
+          imageUrl,
+          colors: (item?.availableColors || []).map(c => c.name),
+          sizes: item?.availableSizes || [],
+          printProviderId: item?.printProviderId || null,
           addedAt: new Date().toISOString(),
         };
       });
