@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, Check, DollarSign } from "lucide-react";
+import { Loader2, Package, Check, DollarSign, X, Ruler, Palette, ShoppingBag } from "lucide-react";
 import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } from "./wizardTypes";
 
 export type WizardContextType = 'member' | 'owner';
@@ -142,32 +142,101 @@ export function ProductPickerStep({
 
       {zoomedImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setZoomedImage(null)}
           data-testid="overlay-product-zoom"
         >
           <div 
-            className="relative max-w-[85vw] max-h-[80vh] animate-in zoom-in-90 duration-200"
+            className="relative w-[90vw] max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl animate-in zoom-in-90 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={zoomedImage.url}
-              alt={zoomedImage.title}
-              className="w-full h-auto max-h-[60vh] object-contain rounded-xl shadow-2xl"
-            />
-            <p className="text-white text-center text-sm font-medium mt-3 mb-3">{zoomedImage.title}</p>
-            <Button
-              onClick={() => {
-                onSelect(zoomedImage.product);
-                setZoomedImage(null);
-              }}
-              className="w-full bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40 transition-all duration-300"
-              style={{ animation: "glow 1.2s ease-in-out infinite" }}
-              data-testid="button-zoom-select"
+            <button
+              onClick={() => setZoomedImage(null)}
+              className="absolute top-3 right-3 z-10 bg-black/50 rounded-full p-1.5"
+              data-testid="button-close-lightbox"
             >
-              <Check className="w-4 h-4 mr-2" />
-              Select This Product
-            </Button>
+              <X className="w-5 h-5 text-white" />
+            </button>
+
+            <div className="bg-white rounded-t-2xl p-4 flex items-center justify-center min-h-[200px]">
+              <img
+                src={zoomedImage.url}
+                alt={zoomedImage.title}
+                className="max-h-[40vh] w-auto object-contain"
+              />
+            </div>
+
+            <div className="p-4 space-y-3">
+              <h3 className="text-lg font-bold text-white">{zoomedImage.title}</h3>
+
+              <div className="flex flex-wrap gap-2">
+                {context === 'member' && zoomedImage.product.memberEarnings != null && (
+                  <Badge variant="secondary" className="bg-green-500/15 text-green-400 border-green-500/30">
+                    <DollarSign className="w-3 h-3 mr-1" />
+                    Earn ${zoomedImage.product.memberEarnings.toFixed(2)}
+                  </Badge>
+                )}
+                {context === 'owner' && zoomedImage.product.retailPrice != null && (
+                  <Badge variant="secondary" className="bg-blue-500/15 text-blue-400 border-blue-500/30">
+                    <ShoppingBag className="w-3 h-3 mr-1" />
+                    ${zoomedImage.product.retailPrice.toFixed(2)}
+                  </Badge>
+                )}
+              </div>
+
+              {(() => {
+                const colorList = zoomedImage.product.colors || zoomedImage.product.availableColors?.map(c => c.name) || [];
+                return colorList.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <Palette className="w-3 h-3" />
+                      {colorList.length} colors available
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {colorList.slice(0, 6).join(', ')}
+                      {colorList.length > 6 ? ` +${colorList.length - 6} more` : ''}
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+
+              {(() => {
+                const sizeList = zoomedImage.product.sizes || zoomedImage.product.availableSizes || [];
+                return sizeList.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
+                      <Ruler className="w-3 h-3" />
+                      Sizes
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {sizeList.map((s: string) => (
+                        <Badge key={s} variant="outline" className="text-xs text-slate-300 border-slate-600">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              {zoomedImage.product.placements && zoomedImage.product.placements.length > 0 && (
+                <p className="text-xs text-slate-400">
+                  Print areas: {zoomedImage.product.placements.map((pl: any) => pl.title || pl.id).join(', ')}
+                </p>
+              )}
+
+              <Button
+                onClick={() => {
+                  onSelect(zoomedImage.product);
+                  setZoomedImage(null);
+                }}
+                className="w-full bg-green-600 text-white"
+                data-testid="button-zoom-select"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Select This Product
+              </Button>
+            </div>
           </div>
         </div>
       )}

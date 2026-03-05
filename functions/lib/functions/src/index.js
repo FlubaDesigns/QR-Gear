@@ -1108,8 +1108,30 @@ app.get('/members/allowed-products', async (req, res) => {
         const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
         const markupPercent = pricingSettings?.markupPercent ?? 25;
         const markupFixed = pricingSettings?.markupFixed ?? 0;
+        const blueprintCache = new Map();
         const products = await Promise.all(storedProducts.map(async (p) => {
             let baseCost = p.baseCost || 0;
+            let imageUrl = p.imageUrl;
+            if ((!imageUrl || imageUrl.includes('/api/files/')) && p.blueprintId) {
+                try {
+                    if (!blueprintCache.has(p.blueprintId)) {
+                        const bpDoc = await db.collection('printifyBlueprints').doc(String(p.blueprintId)).get();
+                        if (bpDoc.exists)
+                            blueprintCache.set(p.blueprintId, bpDoc.data());
+                    }
+                    const bpData = blueprintCache.get(p.blueprintId);
+                    if (bpData) {
+                        const bpImage = bpData.images?.[0] || bpData.imageUrl || bpData.image_url;
+                        if (bpImage) {
+                            imageUrl = bpImage;
+                            console.log(`[Member Products CF] Resolved image for blueprint ${p.blueprintId} from catalog`);
+                        }
+                    }
+                }
+                catch (e) {
+                    console.log(`[Member Products CF] Could not look up blueprint ${p.blueprintId}: ${e.message}`);
+                }
+            }
             if (baseCost === 0 && p.blueprintId && p.printProviderId) {
                 try {
                     const provDoc = await db.collection('printifyPrintProviders')
@@ -1139,6 +1161,7 @@ app.get('/members/allowed-products', async (req, res) => {
             }
             return {
                 ...p,
+                imageUrl,
                 baseCost,
                 retailPrice,
                 profit,

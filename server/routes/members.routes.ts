@@ -1528,6 +1528,8 @@ export function registerMemberRoutes(app: Express): void {
       
       let needsUpdate = false;
       
+      const blueprintCache = new Map<number, any>();
+      
       const products = await Promise.all(storedProducts.map(async (p: any) => {
         let baseCost = p.baseCost || 0;
         let imageUrl = p.imageUrl;
@@ -1541,6 +1543,27 @@ export function registerMemberRoutes(app: Express): void {
             p.imageUrl = firebaseUrl;
             needsUpdate = true;
             console.log(`[Member Products] Migrated to: ${firebaseUrl}`);
+          }
+        }
+        
+        if ((!imageUrl || imageUrl.includes('/api/files/')) && p.blueprintId) {
+          try {
+            if (!blueprintCache.has(p.blueprintId)) {
+              const bpDoc = await firestoreDb.collection("printifyBlueprints").doc(String(p.blueprintId)).get();
+              if (bpDoc.exists) blueprintCache.set(p.blueprintId, bpDoc.data());
+            }
+            const bpData = blueprintCache.get(p.blueprintId);
+            if (bpData) {
+              const bpImage = bpData.images?.[0] || bpData.imageUrl || bpData.image_url;
+              if (bpImage) {
+                imageUrl = bpImage;
+                p.imageUrl = bpImage;
+                needsUpdate = true;
+                console.log(`[Member Products] Resolved image for blueprint ${p.blueprintId} from catalog`);
+              }
+            }
+          } catch (e: any) {
+            console.log(`[Member Products] Could not look up blueprint ${p.blueprintId}: ${e.message}`);
           }
         }
         

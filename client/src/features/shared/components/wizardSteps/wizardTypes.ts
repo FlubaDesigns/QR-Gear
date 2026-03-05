@@ -51,6 +51,8 @@ export interface AllowedProduct {
   placements?: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[];
   availableColors?: Array<{ name: string; hex: string }>;
   availableSizes?: string[];
+  colors?: string[];
+  sizes?: string[];
 }
 
 export interface MemberChannel {
