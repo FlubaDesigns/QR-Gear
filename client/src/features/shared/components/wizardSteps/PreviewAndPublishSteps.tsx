@@ -22,6 +22,9 @@ import {
   type ProductItem,
   QR_TYPES,
   SHIRT_COLORS,
+  isSleevePlacement,
+  isLeftSleevePlacement,
+  isRightSleevePlacement,
 } from "./wizardTypes";
 
 const LANDING_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -90,8 +93,8 @@ export function ShirtPreviewStep({
   
   const hasFrontPlacement = selectedPlacements.includes('front') || selectedPlacements.includes('pocket');
   const hasBackPlacement = selectedPlacements.includes('back');
-  const hasLeftSleeve = selectedPlacements.includes('left_sleeve');
-  const hasRightSleeve = selectedPlacements.includes('right_sleeve');
+  const hasLeftSleeve = selectedPlacements.some(p => isLeftSleevePlacement(p));
+  const hasRightSleeve = selectedPlacements.some(p => isRightSleevePlacement(p));
   
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';

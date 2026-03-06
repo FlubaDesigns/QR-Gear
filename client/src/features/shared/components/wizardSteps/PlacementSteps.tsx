@@ -14,6 +14,8 @@ import {
   TextLayoutChoice,
   calculateAutoTextSize,
   getPlacementLabel,
+  isSleevePlacement,
+  isLeftSleevePlacement,
 } from "./wizardTypes";
 import { isQrOnlyPlacement, isBrandingPlacement, buildPlacementOption } from "@/features/shared/placementTypes";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
@@ -33,7 +35,7 @@ export function GraphicSizeStep({
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
   const getSizeOptionsForPlacement = () => {
-    if (currentPlacement === 'left_sleeve' || currentPlacement === 'right_sleeve') {
+    if (isSleevePlacement(currentPlacement)) {
       return { small: { w: 16, h: 16 }, medium: { w: 22, h: 22 }, large: { w: 28, h: 28 } };
     }
     if (currentPlacement === 'pocket') {
@@ -45,8 +47,8 @@ export function GraphicSizeStep({
   const sizeOptions = getSizeOptionsForPlacement();
   const currentSize = sizeOptions[selectedSize || 'medium'] || sizeOptions.medium;
   
-  const isSleeve = currentPlacement === 'left_sleeve' || currentPlacement === 'right_sleeve';
-  const isLeftSleeve = currentPlacement === 'left_sleeve';
+  const isSleeve = isSleevePlacement(currentPlacement);
+  const isLeftSleeve = isLeftSleevePlacement(currentPlacement);
   const isPocket = currentPlacement === 'pocket';
   const isBack = currentPlacement === 'back';
   
@@ -242,8 +244,6 @@ export function PlacementCountStep({
     'front': { x: 90, y: 100, size: 24 },
     'pocket': { x: 70, y: 75, size: 8 },
     'back': { x: 90, y: 100, size: 24 },
-    'left_sleeve': { x: 44, y: 52, size: 10 },
-    'right_sleeve': { x: 136, y: 52, size: 10 },
   };
   
   return (
@@ -282,7 +282,7 @@ export function PlacementCountStep({
               strokeWidth="2"
             />
             
-            {selected.filter(p => p !== 'left_sleeve' && p !== 'right_sleeve').map(placement => {
+            {selected.filter(p => !isSleevePlacement(p)).map(placement => {
               const pos = placementPositions[placement];
               if (!pos) return null;
               const displaySize = placement === 'back' ? pos.size * 1.3 : pos.size;
@@ -300,7 +300,7 @@ export function PlacementCountStep({
             })}
           </svg>
           
-          {selected.includes('left_sleeve') && (
+          {selected.some(p => isLeftSleevePlacement(p)) && (
             <svg width="70" height="120" viewBox="0 0 120 160" className="drop-shadow-lg">
               <path d="M70,50 L70,140 L90,140 L90,50 Q80,38 70,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
               <path d="M70,52 L25,62 L20,88 L25,90 L70,78" fill={colorHex} stroke="#444" strokeWidth="2"/>
@@ -315,7 +315,7 @@ export function PlacementCountStep({
             </svg>
           )}
           
-          {selected.includes('right_sleeve') && (
+          {selected.some(p => isRightSleevePlacement(p)) && (
             <svg width="70" height="120" viewBox="0 0 120 160" className="drop-shadow-lg">
               <path d="M50,50 L50,140 L30,140 L30,50 Q40,38 50,50" fill={colorHex} stroke="#444" strokeWidth="2"/>
               <path d="M50,52 L95,62 L100,88 L95,90 L50,78" fill={colorHex} stroke="#444" strokeWidth="2"/>
@@ -567,20 +567,11 @@ export function PlacementDiagram({ placement, size }: { placement: PlacementOpti
   );
   
   const renderDiagram = () => {
-    switch (placement) {
-      case 'front':
-        return <FrontShirt highlight="center" />;
-      case 'back':
-        return <BackShirt />;
-      case 'pocket':
-        return <FrontShirt highlight="left-chest" />;
-      case 'left_sleeve':
-        return <LeftSleeveView />;
-      case 'right_sleeve':
-        return <RightSleeveView />;
-      default:
-        return <FrontShirt highlight="center" />;
-    }
+    if (placement === 'back') return <BackShirt />;
+    if (placement === 'pocket') return <FrontShirt highlight="left-chest" />;
+    if (isLeftSleevePlacement(placement)) return <LeftSleeveView />;
+    if (isRightSleevePlacement(placement)) return <RightSleeveView />;
+    return <FrontShirt highlight="center" />;
   };
   
   return (
@@ -619,7 +610,7 @@ export function PlacementConfigStep({
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
   const isPocket = currentPlacement === 'pocket';
-  const isSleeve = currentPlacement === 'left_sleeve' || currentPlacement === 'right_sleeve';
+  const isSleeve = isSleevePlacement(currentPlacement);
   
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';
@@ -772,7 +763,7 @@ export function PlacementConfigStep({
       <div className="flex items-center justify-center gap-3">
         <div className="w-32 h-40">
           {isSleeve ? (
-            <SleevePreviewWithGraphic side={currentPlacement === 'left_sleeve' ? 'left' : 'right'} />
+            <SleevePreviewWithGraphic side={isLeftSleevePlacement(currentPlacement) ? 'left' : 'right'} />
           ) : (
             <ShirtPreviewWithGraphic />
           )}

@@ -18,6 +18,16 @@ export type LibraryChoice = 'personal' | 'common' | '';
 export type PlacementGraphicChoice = 'full' | 'qr-only' | '';
 export type QRBasicInputType = 'url' | 'text' | '';
 export type PlacementOption = string;
+
+export function isLeftSleevePlacement(p: string): boolean {
+  return p === 'left_sleeve' || p === 'sleeve_left' || p === 'short_sleeve_left_dtf';
+}
+export function isRightSleevePlacement(p: string): boolean {
+  return p === 'right_sleeve' || p === 'sleeve_right' || p === 'short_sleeve_right_dtf';
+}
+export function isSleevePlacement(p: string): boolean {
+  return isLeftSleevePlacement(p) || isRightSleevePlacement(p);
+}
 export type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | 'qr-compose' | '';
 export type WizardTier = 'simple' | 'advanced' | 'studio' | 'super-simple';
 export type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop' | 'full-or-crop';
