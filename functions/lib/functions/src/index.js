@@ -518,8 +518,40 @@ async function addSignedUrlsToAssets(assets) {
 }
 // ============ PRINTFUL CLIENT (No Replit Dependencies) ============
 const PRINTFUL_API_BASE = 'https://api.printful.com';
-// Get Printful API key - fallback for Cloud Functions environment
+let _cachedPrintfulKey = null;
+let _printfulKeyLastFetch = 0;
+const PRINTFUL_KEY_CACHE_TTL = 60000;
+async function getPrintfulApiKeyFromFirestore() {
+    const now = Date.now();
+    if (_cachedPrintfulKey && (now - _printfulKeyLastFetch) < PRINTFUL_KEY_CACHE_TTL) {
+        return _cachedPrintfulKey;
+    }
+    try {
+        const doc = await db.collection('system_config').doc('api_keys').get();
+        if (doc.exists) {
+            const data = doc.data();
+            if (data.printfulApiKey && data.printfulApiKey.length > 10) {
+                _cachedPrintfulKey = data.printfulApiKey;
+                _printfulKeyLastFetch = now;
+                return _cachedPrintfulKey;
+            }
+        }
+    }
+    catch (e) { }
+    return null;
+}
 function getPrintfulApiKey() {
+    if (_cachedPrintfulKey)
+        return _cachedPrintfulKey;
+    const key = process.env.PRINTFUL_API_KEY;
+    if (!key)
+        throw new Error('PRINTFUL_API_KEY not configured');
+    return key;
+}
+async function getPrintfulApiKeyAsync() {
+    const firestoreKey = await getPrintfulApiKeyFromFirestore();
+    if (firestoreKey)
+        return firestoreKey;
     const key = process.env.PRINTFUL_API_KEY;
     if (!key)
         throw new Error('PRINTFUL_API_KEY not configured');
@@ -530,19 +562,28 @@ function getPrintfulStoreId() {
     return process.env.PRINTFUL_STORE_ID || '17456917';
 }
 class PrintfulClient {
-    get headers() {
+    async getHeaders() {
+        const key = await getPrintfulApiKeyAsync();
         return {
-            'Authorization': `Bearer ${getPrintfulApiKey()}`,
+            'Authorization': `Bearer ${key}`,
             'Content-Type': 'application/json',
         };
     }
     get isConfigured() {
-        const key = getPrintfulApiKey();
-        return !!key && key.length > 10;
+        try {
+            if (_cachedPrintfulKey)
+                return true;
+            const key = process.env.PRINTFUL_API_KEY;
+            return !!key && key.length > 10;
+        }
+        catch {
+            return false;
+        }
     }
     async request(method, endpoint, body) {
         const url = `${PRINTFUL_API_BASE}${endpoint}`;
-        const options = { method, headers: this.headers };
+        const headers = await this.getHeaders();
+        const options = { method, headers };
         if (body)
             options.body = JSON.stringify(body);
         const response = await fetch(url, options);
@@ -9744,6 +9785,88 @@ app.post('/mockup/priority', requireAuth, async (req, res) => {
         else {
             res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
         }
+    }
+});
+app.get('/admin/api-keys', requireAdmin, async (_req, res) => {
+    try {
+        const doc = await db.collection('system_config').doc('api_keys').get();
+        const data = doc.exists ? doc.data() : {};
+        const printfulKey = data.printfulApiKey || process.env.PRINTFUL_API_KEY || '';
+        const masked = printfulKey.length > 8 ? printfulKey.substring(0, 4) + '...' + printfulKey.substring(printfulKey.length - 4) : '(not set)';
+        let printfulStatus = 'unknown';
+        try {
+            const testRes = await fetch('https://api.printful.com/stores', {
+                headers: { 'Authorization': `Bearer ${printfulKey}` },
+            });
+            printfulStatus = testRes.ok ? 'valid' : 'invalid';
+        }
+        catch {
+            printfulStatus = 'unknown';
+        }
+        res.json({
+            printful: { masked, status: printfulStatus, source: data.printfulApiKey ? 'dashboard' : 'env', updatedAt: data.printfulUpdatedAt || null },
+            printify: { masked: (process.env.PRINTIFY_API_KEY || '').substring(0, 8) + '...', status: 'valid', source: 'env' },
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/api-keys', requireAdmin, async (req, res) => {
+    try {
+        const { provider, apiKey } = req.body;
+        if (!provider || !apiKey) {
+            res.status(400).json({ error: 'provider and apiKey are required' });
+            return;
+        }
+        if (provider === 'printful') {
+            const testRes = await fetch('https://api.printful.com/stores', {
+                headers: { 'Authorization': `Bearer ${apiKey}` },
+            });
+            if (!testRes.ok) {
+                const errText = await testRes.text();
+                res.status(400).json({ error: `Printful API key validation failed (${testRes.status}): ${errText}` });
+                return;
+            }
+            await db.collection('system_config').doc('api_keys').set({
+                printfulApiKey: apiKey,
+                printfulUpdatedAt: new Date().toISOString(),
+            }, { merge: true });
+            _cachedPrintfulKey = apiKey;
+            _printfulKeyLastFetch = Date.now();
+            console.log('[Admin] Printful API key updated via dashboard');
+            res.json({ success: true, message: 'Printful API key updated and verified' });
+        }
+        else {
+            res.status(400).json({ error: `Unsupported provider: ${provider}` });
+        }
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/admin/api-keys/test', requireAdmin, async (req, res) => {
+    try {
+        const { provider } = req.body;
+        if (provider === 'printful') {
+            const key = await getPrintfulApiKeyAsync();
+            const testRes = await fetch('https://api.printful.com/stores', {
+                headers: { 'Authorization': `Bearer ${key}` },
+            });
+            const data = await testRes.json();
+            if (testRes.ok) {
+                res.json({ success: true, status: 'valid', stores: data.result?.length || 0 });
+            }
+            else {
+                res.json({ success: false, status: 'invalid', error: `HTTP ${testRes.status}` });
+            }
+        }
+        else {
+            res.status(400).json({ error: `Unsupported provider: ${provider}` });
+        }
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 app.post('/admin/hosting-tiers/seed', requireAdmin, async (_req, res) => {

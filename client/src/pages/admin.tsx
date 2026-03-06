@@ -122,6 +122,12 @@ const adminSections = [
     href: "/admin/email-health",
   },
   {
+    title: "Settings",
+    description: "Manage API keys and provider integrations",
+    icon: Settings,
+    href: "/admin/settings",
+  },
+  {
     title: "Admin Manual",
     description: "Complete guide to managing QR Gear",
     icon: Book,
