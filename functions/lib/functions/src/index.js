@@ -2247,6 +2247,19 @@ app.post('/storefront/generate-mockup', async (req, res) => {
         }
         // Generate mockup via Printful if not cached
         if (!printfulClient.isConfigured) {
+            let fallbackUrl = null;
+            try {
+                const bpDoc = await db.collection('printifyBlueprints').doc(String(product.blueprintId)).get();
+                if (bpDoc.exists) {
+                    const bpData = bpDoc.data();
+                    fallbackUrl = bpData.images?.[0] || bpData.image || null;
+                }
+            }
+            catch (fbErr) { /* ignore */ }
+            if (fallbackUrl) {
+                res.json({ success: true, color, mockupUrl: fallbackUrl, lifestyleMockupUrl: null, fromCache: false, fallback: true });
+                return;
+            }
             res.status(404).json({
                 error: `No mockup available for ${color}. Printful API key not configured.`,
                 color
@@ -2288,6 +2301,22 @@ app.post('/storefront/generate-mockup', async (req, res) => {
         }
         catch (genError) {
             console.error(`[StorefrontMockup] Printful generation failed:`, genError.message);
+            let fallbackUrl = null;
+            try {
+                const bpDoc = await db.collection('printifyBlueprints').doc(String(product.blueprintId)).get();
+                if (bpDoc.exists) {
+                    const bpData = bpDoc.data();
+                    fallbackUrl = bpData.images?.[0] || bpData.image || null;
+                }
+                if (fallbackUrl) {
+                    console.log(`[StorefrontMockup] Using catalog fallback image for blueprint ${product.blueprintId}`);
+                    res.json({ success: true, color, mockupUrl: fallbackUrl, lifestyleMockupUrl: null, fromCache: false, fallback: true });
+                    return;
+                }
+            }
+            catch (fbErr) {
+                console.error("[StorefrontMockup] Fallback lookup failed:", fbErr.message);
+            }
             res.status(500).json({
                 error: `Failed to generate mockup for ${color}: ${genError.message}`,
                 color
@@ -8337,7 +8366,36 @@ app.post('/public/generate-mockup', async (req, res) => {
     }
     catch (error) {
         console.error("[CF PublicMockup] Error:", error);
-        res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
+        const bid = parseInt(req.body.blueprintId);
+        let fallbackUrl = null;
+        try {
+            const bpDoc = await db.collection('printifyBlueprints').doc(String(bid)).get();
+            if (bpDoc.exists) {
+                const bpData = bpDoc.data();
+                fallbackUrl = bpData.images?.[0] || bpData.image || null;
+            }
+            if (!fallbackUrl) {
+                const memberProds = await db.collection('storeAllowedProducts').doc('member-products').get();
+                if (memberProds.exists) {
+                    const prods = memberProds.data()?.products || [];
+                    const match = prods.find((p) => p.blueprintId === bid);
+                    if (match?.image)
+                        fallbackUrl = match.image;
+                }
+            }
+            if (fallbackUrl) {
+                console.log(`[CF PublicMockup] Using catalog fallback image for blueprint ${bid}`);
+            }
+        }
+        catch (fbErr) {
+            console.error("[CF PublicMockup] Fallback lookup failed:", fbErr.message);
+        }
+        if (fallbackUrl) {
+            res.json({ success: true, mockupUrl: fallbackUrl, lifestyleMockupUrl: null, fromCache: false, fallback: true });
+        }
+        else {
+            res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
+        }
     }
 });
 // ============ BATCH: MEMBER ALLOWED PRODUCTS ============
