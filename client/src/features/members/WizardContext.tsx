@@ -1110,7 +1110,12 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     if (simpleStep === 'product-congrats' && selectedProductType) {
-      setRunningEarnings(prev => prev + (selectedProductType.memberEarnings || 0));
+      setRunningEarnings(prev => {
+        if (prev === 0) {
+          return selectedProductType.memberEarnings || 0;
+        }
+        return prev;
+      });
     }
 
     if (simpleStep === 'qr-basic-type') {
@@ -1577,11 +1582,11 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       case 'qr-plus-mockup': return true;
       case 'qr-plus-save-choice': return qrPlusSaveChoice !== '';
       case 'qr-plus-confirm': return true;
-      case 'canvas-mockup': return contentRightsConfirmed;
+      case 'canvas-mockup': return true;
       case 'play-mockup': return true;
       case 'canvas-save-choice': return canvasSaveChoice !== '';
       case 'canvas-confirm': return true;
-      case 'play-video-source': return playVideoUrl !== '' && !isUploadingVideo && contentRightsConfirmed;
+      case 'play-video-source': return playVideoUrl !== '' && !isUploadingVideo;
       case 'play-preview': return true;
       case 'play-publish': return true;
       case 'play-save-choice': return true;

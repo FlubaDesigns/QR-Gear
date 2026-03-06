@@ -119,11 +119,11 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
     lines: [
       { text: "You just completed the guided walkthrough." },
       { text: "From here on out, things get faster and quieter.", highlight: true },
-      { text: "You're graduating to the Simple Wizard \u2014 same steps, fewer explanations." },
+      { text: "You're all set! Create another product anytime." },
       { text: "The training wheels are coming off. You've got this." },
     ],
     tip: "After your first publish, Advanced and Studio modes unlock too.",
-    buttonText: "Enter Simple Wizard",
+    buttonText: "Back to Dashboard",
   },
 };
 
@@ -455,6 +455,8 @@ export function SuperSimpleWizard() {
     descColor, setDescColor,
     descSize, setDescSize,
     descFont, setDescFont,
+    contentRightsConfirmed,
+    setContentRightsConfirmed,
   } = useWizardContext();
 
   const [blackboardQueue, setBlackboardQueue] = useState<string[]>(['bb-welcome', 'bb-channels']);
@@ -772,7 +774,7 @@ export function SuperSimpleWizard() {
             data={BLACKBOARD_CONTENT['bb-finish']}
             onContinue={() => {
               setShowFinishBlackboard(false);
-              setSimpleStep('channel');
+              setViewMode('index');
             }}
           />
         </CardContent>
@@ -982,7 +984,11 @@ export function SuperSimpleWizard() {
                     }}
                     onNo={() => {
                       setWantsHeaderFooter(false);
-                      setSimpleStep('canvas-fork');
+                      if (qrType === 'qr-basic') {
+                        setSimpleStep('qr-basic-type');
+                      } else {
+                        setSimpleStep('canvas-fork');
+                      }
                     }}
                   />
                 </div>
@@ -1479,6 +1485,8 @@ export function SuperSimpleWizard() {
                   uploadError={videoUploadError}
                   uploadProgress={videoUploadProgress}
                   uploadSuccess={videoUploadSuccess}
+                  contentRightsConfirmed={contentRightsConfirmed}
+                  onContentRightsToggle={() => setContentRightsConfirmed(!contentRightsConfirmed)}
                 />
               )}
 

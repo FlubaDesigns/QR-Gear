@@ -304,7 +304,11 @@ export function AdvancedWizard() {
                 }}
                 onNo={() => {
                   setWantsHeaderFooter(false);
-                  setSimpleStep('canvas-fork');
+                  if (qrType === 'qr-basic') {
+                    setSimpleStep('qr-basic-type');
+                  } else {
+                    setSimpleStep('canvas-fork');
+                  }
                 }}
               />
             </div>
