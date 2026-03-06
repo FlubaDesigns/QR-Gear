@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -876,12 +876,42 @@ function MembersSandboxInner() {
   );
 }
 
+class MembersErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null; errorInfo: string }> {
+  state = { error: null as Error | null, errorInfo: '' };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    this.setState({ errorInfo: info.componentStack || '' });
+    console.error('[MembersPage crash]', error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+          <Card className="bg-slate-800/80 border-red-500/50 max-w-lg">
+            <CardContent className="p-6 space-y-4">
+              <h2 className="text-xl font-bold text-white">Something went wrong</h2>
+              <p className="text-red-300 text-sm font-mono break-all">{this.state.error.message}</p>
+              <pre className="text-xs text-slate-400 max-h-40 overflow-auto whitespace-pre-wrap">{this.state.errorInfo}</pre>
+              <Button onClick={() => { this.setState({ error: null, errorInfo: '' }); window.location.reload(); }} data-testid="button-reload-members">
+                Reload Page
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function TestMembersSandbox() {
   return (
-    <MemberAuthProvider apiBase="/api/members">
-      <MembersProvider>
-        <MembersSandboxContent />
-      </MembersProvider>
-    </MemberAuthProvider>
+    <MembersErrorBoundary>
+      <MemberAuthProvider apiBase="/api/members">
+        <MembersProvider>
+          <MembersSandboxContent />
+        </MembersProvider>
+      </MemberAuthProvider>
+    </MembersErrorBoundary>
   );
 }
