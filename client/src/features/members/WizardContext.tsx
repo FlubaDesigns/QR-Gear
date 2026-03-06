@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -294,7 +294,11 @@ export function useWizardContext() {
 
 export function WizardProvider({ children }: { children: React.ReactNode }) {
   const { user: apiUser, firebaseUser, isLoading: authLoading, isAuthenticated } = useAuth();
-  const user = apiUser || (firebaseUser ? { id: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName } as any : null);
+  const user = useMemo(() => {
+    if (apiUser) return apiUser;
+    if (firebaseUser) return { id: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName } as any;
+    return null;
+  }, [apiUser, firebaseUser?.uid]);
   const { toast } = useToast();
   const { api } = useMembersContext();
   const { apiBase, getAuthHeaders: getMemberAuthHeaders } = useMemberAuth();

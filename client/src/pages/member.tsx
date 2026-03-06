@@ -6,9 +6,9 @@ import SEO from "@/components/SEO";
 import { MemberOnboarding } from "@/features/members/MemberOnboarding";
 
 export default function MemberOnboardingPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user: apiUser, firebaseUser, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const userId = user?.id || '';
+  const userId = apiUser?.id || firebaseUser?.uid || '';
   const onboardingKey = `member_onboarding_complete_${userId}`;
   const isComplete = userId ? localStorage.getItem(onboardingKey) === 'true' : false;
 

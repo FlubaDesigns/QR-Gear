@@ -736,48 +736,17 @@ export function SuperSimpleWizard() {
     );
   }
 
-  if (tutorialAlreadyDone) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="w-full max-w-sm text-center space-y-4">
-          <Check className="w-10 h-10 text-emerald-400 mx-auto" />
-          <h2 className="text-xl font-bold text-white">Walkthrough Complete</h2>
-          <p className="text-slate-400 text-sm">
-            You've already completed the guided walkthrough. Jump into the Simple Wizard to create your next product!
-          </p>
-          <div className="flex flex-col gap-2">
-            <Button
-              onClick={() => {
-                setSimpleStep('channel');
-                setWizardTier('simple');
-              }}
-              className="w-full bg-emerald-600 text-white"
-              data-testid="tutorial-go-to-builder"
-            >
-              Open Builder
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setTutorialAlreadyDone(false);
-                setBlackboardQueue(['bb-welcome', 'bb-channels']);
-                setSeenSteps(new Set(['channel']));
-                setShowQrTypeCards(false);
-                setShowQrCongrats(false);
-                setShowFinishBlackboard(false);
-                setQrTypeExploreStep('bb-qr-basic');
-              }}
-              className="text-slate-400"
-              data-testid="tutorial-replay"
-            >
-              Replay Tutorial
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (tutorialAlreadyDone) {
+      setBlackboardQueue([]);
+      const allStepKeys = Object.keys(PRE_STEP_BLACKBOARDS).concat(Object.keys(POST_STEP_BLACKBOARDS));
+      setSeenSteps(prev => {
+        const next = new Set(prev);
+        allStepKeys.forEach(k => next.add(k));
+        return next;
+      });
+    }
+  }, [tutorialAlreadyDone]);
 
   if (showFinishBlackboard) {
     return (
@@ -804,7 +773,6 @@ export function SuperSimpleWizard() {
             onContinue={() => {
               setShowFinishBlackboard(false);
               setSimpleStep('channel');
-              setWizardTier('simple');
             }}
           />
         </CardContent>
