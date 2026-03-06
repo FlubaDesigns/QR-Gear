@@ -598,7 +598,8 @@ function EarningsView({ memberId }: { memberId: string }) {
 
 
 function MembersSandboxContent() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user: apiUser, firebaseUser, isLoading: authLoading, isAuthenticated } = useAuth();
+  const user = apiUser || (firebaseUser ? { id: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName } as any : null);
 
   if (authLoading) {
     return (

@@ -293,7 +293,8 @@ export function useWizardContext() {
 }
 
 export function WizardProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user: apiUser, firebaseUser, isLoading: authLoading, isAuthenticated } = useAuth();
+  const user = apiUser || (firebaseUser ? { id: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName } as any : null);
   const { toast } = useToast();
   const { api } = useMembersContext();
   const { apiBase, getAuthHeaders: getMemberAuthHeaders } = useMemberAuth();
