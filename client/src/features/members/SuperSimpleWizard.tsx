@@ -487,6 +487,18 @@ export function SuperSimpleWizard() {
   }, [user?.id]);
 
   useEffect(() => {
+    if (tutorialAlreadyDone) {
+      setBlackboardQueue([]);
+      const allStepKeys = Object.keys(PRE_STEP_BLACKBOARDS).concat(Object.keys(POST_STEP_BLACKBOARDS));
+      setSeenSteps(prev => {
+        const next = new Set(prev);
+        allStepKeys.forEach(k => next.add(k));
+        return next;
+      });
+    }
+  }, [tutorialAlreadyDone]);
+
+  useEffect(() => {
     if (blackboardQueue.length === 0 && pendingAdvance) {
       setPendingAdvance(false);
       handleSimpleNext();
@@ -735,18 +747,6 @@ export function SuperSimpleWizard() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (tutorialAlreadyDone) {
-      setBlackboardQueue([]);
-      const allStepKeys = Object.keys(PRE_STEP_BLACKBOARDS).concat(Object.keys(POST_STEP_BLACKBOARDS));
-      setSeenSteps(prev => {
-        const next = new Set(prev);
-        allStepKeys.forEach(k => next.add(k));
-        return next;
-      });
-    }
-  }, [tutorialAlreadyDone]);
 
   if (showFinishBlackboard) {
     return (
