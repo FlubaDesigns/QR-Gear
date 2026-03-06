@@ -123,7 +123,7 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
       { text: "The training wheels are coming off. You've got this." },
     ],
     tip: "After your first publish, Advanced and Studio modes unlock too.",
-    buttonText: "Back to Dashboard",
+    buttonText: "Start",
   },
 };
 
