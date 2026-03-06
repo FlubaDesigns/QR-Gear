@@ -175,7 +175,7 @@ export default function AdminSettings() {
                   <p className="text-xs text-muted-foreground">
                     Get your key from{" "}
                     <a
-                      href="https://www.printful.com/dashboard/developer/api-keys"
+                      href="https://www.printful.com/dashboard/settings/api"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-400 underline"
