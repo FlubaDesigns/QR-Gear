@@ -16,6 +16,7 @@ import {
   getPlacementLabel,
   isSleevePlacement,
   isLeftSleevePlacement,
+  isRightSleevePlacement,
 } from "./wizardTypes";
 import { isQrOnlyPlacement, isBrandingPlacement, buildPlacementOption } from "@/features/shared/placementTypes";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
