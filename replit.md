@@ -7,29 +7,29 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Communication**: Simple, everyday language
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
-- **Deployment**: ALL fixes must be deployed to Firebase production after making changes in dev. Never just fix in dev without deploying.
-- **CRITICAL WORKFLOW**: After ANY code change, deploy directly to Firebase using the service account. User tests in production only - they cannot see dev changes.
-- **Firebase Deploy Method**: Use `FIREBASE_SERVICE_ACCOUNT_KEY` env var to deploy directly:
+- **PRODUCTION-ONLY MODE**: The dev server is DISABLED. Do NOT start or use it. All work deploys directly to Firebase production. The `server/` directory exists only as build dependency — never run it.
+- **Firebase Deploy — Hosting** (frontend):
   ```bash
   npm run build
   echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
   export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-  firebase deploy --only hosting
+  firebase deploy --only hosting --project qrgear-c1ffd
   rm /tmp/firebase-sa.json
   ```
-- **CRITICAL: DUAL CODEBASE** — The production API runs through a Firebase Cloud Function (`functions/src/index.ts`), which is a COMPLETELY SEPARATE Express app from the dev server (`server/`). ANY route change, bug fix, or API update must be applied to BOTH codebases. After changing server routes, ALWAYS also check and update the Cloud Function. Deploy functions with:
+- **Firebase Deploy — Functions** (API):
   ```bash
   cd functions && npm run build && cd ..
   echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
   export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-  firebase deploy --only functions
+  firebase deploy --only functions --project qrgear-c1ffd
   rm /tmp/firebase-sa.json
   ```
-- **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → `queryClient.ts getApiUrl()` rewrites `/api/*` to Cloud Function URL → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, etc. The `LibraryContext` uses raw `fetch()` with `apiBase="/api/admin"` which Firebase Hosting rewrites to the Cloud Function via `firebase.json` rewrite rules.
+- **SINGLE API CODEBASE**: The Cloud Function (`functions/src/index.ts`) is the ONLY production API. The `server/` directory code is NOT used at runtime. All API route changes go directly into `functions/src/index.ts`.
+- **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → Firebase Hosting rewrites `/api/*` to Cloud Function → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, `/members/*`, etc.
 - **Session Rules**:
     - Handle voice-to-text transcription errors
     - Verify/confirm before acting
-    - Deploy and test BOTH dev AND production every time
+    - Deploy and test in production after every change
     - Automate everything - no manual testing requests
     - "Let's talk" = discussion only, no code changes
     - Always read the page code before making new code
