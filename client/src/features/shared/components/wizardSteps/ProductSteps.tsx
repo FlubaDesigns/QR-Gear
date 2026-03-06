@@ -61,12 +61,16 @@ export function ProductPickerStep({
   context?: WizardContextType;
 }) {
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; product: AllowedProduct } | null>(null);
-  const { data: productsData, isLoading } = useQuery<{ products: AllowedProduct[] }>({
+  const {
+    data: productsData,
+    isLoading,
+    error
+  } = useQuery<{ products: AllowedProduct[]; source?: string }>({
     queryKey: ["/api/members/allowed-products"],
   });
-  
+
   const products = productsData?.products || [];
-  
+
   if (isLoading) {
     return (
       <div className="text-center py-8">
@@ -75,13 +79,27 @@ export function ProductPickerStep({
       </div>
     );
   }
-  
+
+  if (error) {
+    return (
+      <div className="text-center py-8 space-y-3">
+        <Package className="w-12 h-12 mx-auto text-red-400" />
+        <h2 className="text-lg font-bold text-white" data-testid="text-product-picker-error">Product Picker Error</h2>
+        <p className="text-slate-400 text-sm">
+          {error instanceof Error ? error.message : 'Failed to load products'}
+        </p>
+      </div>
+    );
+  }
+
   if (products.length === 0) {
     return (
       <div className="text-center py-8 space-y-3">
         <Package className="w-12 h-12 mx-auto text-slate-500" />
-        <h2 className="text-lg font-bold text-white">No Products Available</h2>
-        <p className="text-slate-400 text-sm">Contact admin to unlock products for you.</p>
+        <h2 className="text-lg font-bold text-white" data-testid="text-no-products">No Products Available</h2>
+        <p className="text-slate-400 text-sm">
+          No products are currently enabled. Contact admin to add products to the catalog.
+        </p>
       </div>
     );
   }

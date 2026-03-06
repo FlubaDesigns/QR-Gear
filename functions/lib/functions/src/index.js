@@ -1137,81 +1137,118 @@ app.get('/health', (_req, res) => {
 });
 app.get('/members/allowed-products', async (req, res) => {
     try {
-        const doc = await db.collection('storeAllowedProducts').doc('member-products').get();
-        if (!doc.exists) {
-            res.json({ products: [], message: 'No products added to member-products store yet' });
-            return;
-        }
-        const data = doc.data();
-        const storedProducts = data?.products || [];
         const pricingDoc = await db.collection('testSettings').doc('pricing').get();
         const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
         const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
         const markupPercent = pricingSettings?.markupPercent ?? 25;
         const markupFixed = pricingSettings?.markupFixed ?? 0;
         const blueprintCache = new Map();
-        const products = await Promise.all(storedProducts.map(async (p) => {
-            let baseCost = p.baseCost || 0;
-            let imageUrl = p.imageUrl;
-            if ((!imageUrl || imageUrl.includes('/api/files/')) && p.blueprintId) {
-                try {
-                    if (!blueprintCache.has(p.blueprintId)) {
-                        const bpDoc = await db.collection('printifyBlueprints').doc(String(p.blueprintId)).get();
-                        if (bpDoc.exists)
-                            blueprintCache.set(p.blueprintId, bpDoc.data());
-                    }
-                    const bpData = blueprintCache.get(p.blueprintId);
-                    if (bpData) {
-                        const bpImage = bpData.images?.[0] || bpData.imageUrl || bpData.image_url;
-                        if (bpImage) {
-                            imageUrl = bpImage;
-                            console.log(`[Member Products CF] Resolved image for blueprint ${p.blueprintId} from catalog`);
+        const enrichProducts = async (rawProducts) => {
+            return await Promise.all((rawProducts || []).map(async (p) => {
+                let baseCost = Number(p.baseCost || 0);
+                let imageUrl = p.imageUrl || p.thumbnailUrl || p.image_url || null;
+                const blueprintId = Number(p.blueprintId || p.blueprint_id || 0) || null;
+                const printProviderId = Number(p.printProviderId || p.print_provider_id || 0) || null;
+                if ((!imageUrl || String(imageUrl).includes('/api/files/')) && blueprintId) {
+                    try {
+                        if (!blueprintCache.has(blueprintId)) {
+                            const bpDoc = await db.collection('printifyBlueprints').doc(String(blueprintId)).get();
+                            if (bpDoc.exists)
+                                blueprintCache.set(blueprintId, bpDoc.data());
+                        }
+                        const bpData = blueprintCache.get(blueprintId);
+                        if (bpData) {
+                            const bpImage = bpData.images?.[0] ||
+                                bpData.imageUrl ||
+                                bpData.image_url ||
+                                null;
+                            if (bpImage)
+                                imageUrl = bpImage;
                         }
                     }
-                }
-                catch (e) {
-                    console.log(`[Member Products CF] Could not look up blueprint ${p.blueprintId}: ${e.message}`);
-                }
-            }
-            if (baseCost === 0 && p.blueprintId && p.printProviderId) {
-                try {
-                    const provDoc = await db.collection('printifyPrintProviders')
-                        .doc(`${p.blueprintId}_${p.printProviderId}`).get();
-                    if (provDoc.exists) {
-                        const minCost = provDoc.data()?.minCost;
-                        if (minCost)
-                            baseCost = minCost / 100;
+                    catch (e) {
+                        console.log(`[Member Products CF] Blueprint image lookup failed for ${blueprintId}: ${e.message}`);
                     }
                 }
-                catch (e) {
-                    console.warn(`[Member Products CF] Cost lookup failed for ${p.blueprintId}_${p.printProviderId}: ${e.message}`);
+                if (baseCost === 0 && blueprintId && printProviderId) {
+                    try {
+                        const provDoc = await db.collection('printifyPrintProviders')
+                            .doc(`${blueprintId}_${printProviderId}`)
+                            .get();
+                        if (provDoc.exists) {
+                            const minCost = provDoc.data()?.minCost;
+                            if (minCost)
+                                baseCost = Number(minCost) / 100;
+                        }
+                    }
+                    catch (e) {
+                        console.warn(`[Member Products CF] Cost lookup failed for ${blueprintId}_${printProviderId}: ${e.message}`);
+                    }
                 }
-            }
-            const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
-            const profit = retailPrice - baseCost;
-            const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
-            let placements = p.placements;
-            if (!placements || placements.length === 0) {
-                placements = [
-                    { id: 'front', title: 'Front', widthInches: '12"', heightInches: '16"' },
-                    { id: 'back', title: 'Back', widthInches: '12"', heightInches: '16"' },
-                    { id: 'left_chest', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
-                    { id: 'sleeve_left', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
-                    { id: 'sleeve_right', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
-                ];
-            }
+                const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+                const profit = retailPrice - baseCost;
+                const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+                let placements = p.placements;
+                if (!placements || placements.length === 0) {
+                    placements = [
+                        { id: 'front', title: 'Front', widthInches: '12"', heightInches: '16"' },
+                        { id: 'back', title: 'Back', widthInches: '12"', heightInches: '16"' },
+                        { id: 'left_chest', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
+                        { id: 'sleeve_left', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
+                        { id: 'sleeve_right', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
+                    ];
+                }
+                return {
+                    ...p,
+                    blueprintId,
+                    printProviderId,
+                    title: p.title || p.name || 'Untitled Product',
+                    imageUrl,
+                    baseCost,
+                    retailPrice,
+                    profit,
+                    memberEarnings,
+                    placements,
+                };
+            }));
+        };
+        const memberDoc = await db.collection('storeAllowedProducts').doc('member-products').get();
+        const memberData = memberDoc.exists ? memberDoc.data() : null;
+        const memberProducts = Array.isArray(memberData?.products) ? memberData.products : [];
+        if (memberProducts.length > 0) {
+            const products = await enrichProducts(memberProducts);
+            console.log(`[Member Products CF] Using curated member-products doc with ${products.length} products`);
+            res.json({
+                products,
+                storeId: 'member-products',
+                source: 'storeAllowedProducts/member-products'
+            });
+            return;
+        }
+        const catalogSnap = await db.collection('products')
+            .where('isEnabled', '==', true)
+            .get();
+        const catalogProducts = catalogSnap.docs.map(doc => {
+            const d = doc.data();
             return {
-                ...p,
-                imageUrl,
-                baseCost,
-                retailPrice,
-                profit,
-                memberEarnings,
-                placements,
+                id: doc.id,
+                blueprintId: d.blueprintId || d.blueprint_id || null,
+                printProviderId: d.printProviderId || d.print_provider_id || null,
+                title: d.title || d.name || 'Untitled Product',
+                imageUrl: d.imageUrl || d.thumbnailUrl || d.image_url || null,
+                baseCost: d.baseCost || 0,
+                placements: d.placements || [],
+                brand: d.brand || null,
+                isEnabled: d.isEnabled === true,
             };
-        }));
-        console.log(`[Member Products CF] Found ${products.length} products, earnings @ ${memberProfitShare * 100}% share`);
-        res.json({ products, storeId: 'member-products' });
+        }).filter(p => !!p.blueprintId);
+        const products = await enrichProducts(catalogProducts);
+        console.log(`[Member Products CF] member-products empty/missing. Falling back to /products catalog with ${products.length} products`);
+        res.json({
+            products,
+            storeId: 'member-products',
+            source: 'products-fallback'
+        });
     }
     catch (error) {
         console.error('[Member Products CF] Error:', error);
