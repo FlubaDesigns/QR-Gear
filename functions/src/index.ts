@@ -7158,9 +7158,29 @@ app.get('/members/:memberId/published-items', async (req: Request, res: Response
     const types = req.query.types as string;
     const auth = await verifyMemberAuthCF(req, memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+
+    const normalizeType = (type: string): string => {
+      if (!type) return '';
+      return String(type).replace(/_/g, '-').toLowerCase();
+    };
+
+    const requestedTypes = types
+      ? types.split(',').map((t: string) => normalizeType(t.trim()))
+      : [];
+
     const snapshot = await db.collection('memberPackets').where('memberId', '==', memberId).where('status', '==', 'published').get();
-    let items = snapshot.docs.map(doc => ({ id: doc.id, packetId: doc.id, ...doc.data() }));
-    if (types) { const typeList = types.split(',').map(t => t.trim()); items = items.filter((item: any) => typeList.includes(item.packetType)); }
+
+    const items: any[] = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const rawType = data.packetType || data.kind || '';
+      const normalizedType = normalizeType(rawType);
+      const normalizedItem = { id: doc.id, packetId: doc.id, ...data, packetType: normalizedType };
+      if (requestedTypes.length === 0 || requestedTypes.includes(normalizedType)) {
+        items.push(normalizedItem);
+      }
+    });
+
     res.json({ items });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
