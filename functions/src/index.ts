@@ -1860,6 +1860,7 @@ app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<
       cancel_url: cancelUrl || `${req.headers.origin}/cart`,
       metadata: {
         userId,
+        referrerId: req.body.referrerId || '',
       },
     });
 
@@ -7170,6 +7171,18 @@ app.post('/members/:memberId/products', async (req: Request, res: Response): Pro
         }
       } catch (pricingErr: any) { console.error('[UnifiedPublish CF] Pricing snapshot failed (non-fatal):', pricingErr.message); }
 
+      const socialBaseUrl = process.env.PUBLIC_URL || 'https://qrgear-c1ffd.web.app';
+      packetData.socialPacket = {
+        itemImage: packetData.itemImage || null,
+        title: packetData.title || 'QR Gear Product',
+        description: packetData.description || '',
+        retailPrice: packetData.pricingSnapshot?.retailPriceBase || boundProduct?.retailPrice || null,
+        shareUrl: `${socialBaseUrl}/p/${packetId}`,
+        referralUrl: `${socialBaseUrl}/p/${packetId}?ref=${memberId}`,
+        memberId,
+        createdAt: new Date().toISOString(),
+      };
+
       await db.collection("memberPackets").doc(packetId).set(packetData);
 
       if (packetType === 'qr-compose' && body.composeItems && Array.isArray(body.composeItems)) {
@@ -8050,6 +8063,105 @@ app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response
     const orderRef = await db.collection('orders_public').add(orderData);
     await packetDoc.ref.update({ status: 'completed', completedAt: now.toISOString(), realPacketId: realPacketRef.id, orderId: orderRef.id, updatedAt: now.toISOString() });
     res.json({ success: true, order: { id: orderRef.id, ...orderData }, realPacketId: realPacketRef.id, claimCode });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+// ============ REFERRAL TRACKING (Share & Earn — Forever) ============
+
+app.post('/public/referral/capture', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { referrerId, buyerEmail, buyerUserId } = req.body;
+    if (!referrerId) { res.status(400).json({ error: "referrerId is required" }); return; }
+    if (!buyerEmail && !buyerUserId) { res.status(400).json({ error: "buyerEmail or buyerUserId is required" }); return; }
+    const buyerKey = buyerUserId || buyerEmail;
+    const existingQuery = await db.collection('referrals')
+      .where('buyerKey', '==', buyerKey)
+      .limit(1).get();
+    if (!existingQuery.empty) {
+      res.json({ success: true, message: 'Referral already exists', referralId: existingQuery.docs[0].id, existing: true });
+      return;
+    }
+    const referralData = {
+      referrerId,
+      buyerKey,
+      buyerEmail: buyerEmail || null,
+      buyerUserId: buyerUserId || null,
+      profitSharePercent: 25,
+      lifetime: true,
+      createdAt: new Date().toISOString(),
+    };
+    const docRef = await db.collection('referrals').add(referralData);
+    console.log(`[Referral] Captured: ${referrerId} -> ${buyerKey} (${docRef.id})`);
+    res.json({ success: true, referralId: docRef.id });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/public/referral/lookup', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const buyerKey = (req.query.buyerUserId || req.query.buyerEmail) as string;
+    if (!buyerKey) { res.status(400).json({ error: "buyerUserId or buyerEmail required" }); return; }
+    const snapshot = await db.collection('referrals').where('buyerKey', '==', buyerKey).limit(1).get();
+    if (snapshot.empty) { res.json({ success: true, referral: null }); return; }
+    const doc = snapshot.docs[0];
+    res.json({ success: true, referral: { id: doc.id, ...doc.data() } });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/public/member-packet/:packetId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packetId } = req.params;
+    if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
+    let doc = await db.collection('memberPackets').doc(packetId).get();
+    if (!doc.exists) {
+      doc = await db.collection('productPackets').doc(packetId).get();
+    }
+    if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
+    const data = doc.data()!;
+    const publicData = {
+      id: doc.id,
+      title: data.title || 'QR Gear Product',
+      description: data.description || '',
+      itemImage: data.itemImage || data.qrCanvasMockup || data.qrBasicMockup || data.qrPlusMockup || data.qrPlayMockup || data.composeMockup || data.productGraphic || null,
+      retailPrice: data.pricingSnapshot?.retailPriceBase || data.boundProduct?.retailPrice || data.pricingSnapshot?.customerPrice || null,
+      productTitle: data.boundProduct?.title || data.title || 'QR Gear Product',
+      productImage: data.boundProduct?.imageUrl || null,
+      selectedColor: data.selectedColor || null,
+      selectedShirtSize: data.selectedShirtSize || null,
+      qrType: data.qrType || data.packetType || null,
+      memberId: data.memberId || null,
+      status: data.status || 'unknown',
+    };
+    res.json({ success: true, packet: publicData });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/public/referral/record-earnings', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { orderId, buyerKey, orderTotal, productCost } = req.body;
+    if (!orderId || !buyerKey) { res.status(400).json({ error: "orderId and buyerKey required" }); return; }
+    const refSnap = await db.collection('referrals').where('buyerKey', '==', buyerKey).limit(1).get();
+    if (refSnap.empty) { res.json({ success: true, message: 'No referral found for buyer', earnings: 0 }); return; }
+    const referral = refSnap.docs[0].data();
+    const profit = (orderTotal || 0) - (productCost || 0);
+    if (profit <= 0) { res.json({ success: true, message: 'No profit to share', earnings: 0 }); return; }
+    const sharePercent = referral.profitSharePercent || 25;
+    const earnings = Math.round((profit * sharePercent / 100) * 100) / 100;
+    const earningsData = {
+      memberId: referral.referrerId,
+      orderId,
+      buyerKey,
+      referralId: refSnap.docs[0].id,
+      orderTotal,
+      productCost,
+      profit,
+      sharePercent,
+      earnings,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    const earningsRef = await db.collection('referral_earnings').add(earningsData);
+    console.log(`[Referral Earnings] ${referral.referrerId} earned $${earnings} from order ${orderId}`);
+    res.json({ success: true, earningsId: earningsRef.id, earnings });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

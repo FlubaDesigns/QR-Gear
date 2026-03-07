@@ -12,7 +12,9 @@ import {
   Plus,
   Image,
   Mail,
-  MessageCircle
+  MessageCircle,
+  DollarSign,
+  Infinity as InfinityIcon
 } from "lucide-react";
 import { SiFacebook, SiLinkedin, SiWhatsapp } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
@@ -29,6 +31,9 @@ export interface ShareKitData {
   shareImageSquareUrl?: string;
   shareImageLinkUrl?: string;
   shareCaption?: string;
+  memberId?: string;
+  itemImage?: string;
+  retailPrice?: number;
 }
 
 interface ShareKitHandoffProps {
@@ -50,9 +55,13 @@ export function ShareKitHandoff({
 }: ShareKitHandoffProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const fullShareUrl = data.shareUrl.startsWith("http") 
+  const baseShareUrl = data.shareUrl.startsWith("http") 
     ? data.shareUrl 
     : `${baseUrl || window.location.origin}${data.shareUrl}`;
+
+  const fullShareUrl = data.memberId 
+    ? `${baseShareUrl}${baseShareUrl.includes('?') ? '&' : '?'}ref=${data.memberId}`
+    : baseShareUrl;
 
   const defaultCaption = data.shareCaption || 
     `Check this out!\n${data.title || ''}\n\n${data.description ? data.description.slice(0, 100) + '...' : ''}\n\n${fullShareUrl}`;
@@ -95,6 +104,46 @@ export function ShareKitHandoff({
       <CardContent className="space-y-4">
         {data.title && (
           <p className="text-lg font-medium">{data.title}</p>
+        )}
+
+        {data.memberId && (
+          <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-4 border border-green-500/20" data-testid="card-share-and-earn">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="h-4 w-4 text-green-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-green-400 flex items-center gap-1">
+                  Share & Earn
+                  <InfinityIcon className="h-4 w-4" />
+                  Forever
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-300 mb-2">
+              Share your product link on social media. When someone buys from your link, you earn <span className="font-bold text-green-400">25% of the profit</span>.
+            </p>
+            <p className="text-sm text-slate-300 mb-3">
+              And here's the best part — that 25% isn't just a one-time thing. <span className="font-bold text-white">Every future purchase they ever make on QR Gear, you still earn. Forever.</span>
+            </p>
+            {(data.itemImage || data.previewUrl) && (
+              <div className="flex items-center gap-3 bg-slate-800/50 rounded-lg p-2 mb-2">
+                <img 
+                  src={data.itemImage || data.previewUrl} 
+                  alt={data.title || 'Product'} 
+                  className="w-12 h-12 object-contain rounded"
+                  data-testid="img-share-preview"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white truncate">{data.title || 'Your Product'}</p>
+                  {data.retailPrice != null && data.retailPrice > 0 && (
+                    <p className="text-xs text-green-400">${data.retailPrice.toFixed(2)}</p>
+                  )}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-slate-500 italic">Your referral ID is embedded in every link below</p>
+          </div>
         )}
 
         <div className="bg-slate-800/50 rounded-lg p-4 space-y-3">

@@ -13,6 +13,7 @@ import { QRCanvasExplainerStep, UrlSourceChoiceStep, SimpleBackgroundStep, QRCan
 import { PlayVideoSourceStep, PlayPreviewStep, PlayPublishStep, PlayPublishedStep } from "@/features/shared/components/wizardSteps/PlaySteps";
 import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import { ShirtPreviewStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
+import { ShareKitHandoff } from "@/features/shared/components/ShareKitHandoff";
 import { calculateSizeEarningsBonuses, generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
 import { ContentRightsCheckbox } from "@/features/shared/components/ContentRightsCheckbox";
 import { useWizardContext } from './WizardContext';
@@ -60,6 +61,7 @@ export function SimpleWizard() {
     isCanvasSaving,
     publishedQrGraphicUrl,
     publishedProductGraphicUrl,
+    publishedPacketId,
     playVideoUrl, setPlayVideoUrl,
     isUploadingVideo,
     videoUploadError,
@@ -108,6 +110,30 @@ export function SimpleWizard() {
     descSize, setDescSize,
     descFont, setDescFont,
   } = useWizardContext();
+
+  const sharePacketId = publishedPacketId || currentPacketId || '';
+  const getShareKitData = () => ({
+    packetId: sharePacketId,
+    shareUrl: `/p/${sharePacketId}`,
+    title: simpleTitle || 'QR Gear Product',
+    description: simpleDescription || '',
+    memberId: user?.id || '',
+    itemImage: qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || composeMockup || productGraphic || '',
+    previewUrl: productGraphic || urlGraphic || '',
+    retailPrice: selectedProductType?.retailPrice || 0,
+    channelName: selectedChannel?.name || '',
+  });
+
+  const handleCreateAnother = () => {
+    setSimpleStep('channel');
+    setCurrentPacketId(null);
+    setSimpleTitle('');
+    setSimpleDescription('');
+    setQrType('');
+    setContentRightsConfirmed(false);
+    setUrlGraphic('');
+    setProductGraphic('');
+  };
 
   if (!user) {
     return (
@@ -355,20 +381,28 @@ export function SimpleWizard() {
           )}
           
           {simpleStep === 'qr-basic-confirm' && (
-            <QRBasicConfirmStep
-              saveChoice={qrBasicSaveChoice}
-              mockupUrl={qrBasicMockup}
-              qrContent={qrBasicContent}
-              isSaving={isQrBasicSaving}
-              onDone={() => {
-                setSimpleStep('channel');
-                setCurrentPacketId(null);
-                setQrBasicInputType('');
-                setQrBasicContent('');
-                setQrBasicMockup('');
-                setQrBasicSaveChoice('');
-              }}
-            />
+            <div className="space-y-4">
+              <QRBasicConfirmStep
+                saveChoice={qrBasicSaveChoice}
+                mockupUrl={qrBasicMockup}
+                qrContent={qrBasicContent}
+                isSaving={isQrBasicSaving}
+                onDone={() => {
+                  setSimpleStep('channel');
+                  setCurrentPacketId(null);
+                  setQrBasicInputType('');
+                  setQrBasicContent('');
+                  setQrBasicMockup('');
+                  setQrBasicSaveChoice('');
+                }}
+              />
+              {sharePacketId && (
+                <ShareKitHandoff
+                  data={getShareKitData()}
+                  onCreateAnother={handleCreateAnother}
+                />
+              )}
+            </div>
           )}
           
           {simpleStep === 'qr-plus-mockup' && (
@@ -390,21 +424,29 @@ export function SimpleWizard() {
           )}
           
           {simpleStep === 'qr-plus-confirm' && (
-            <QRPlusConfirmStep
-              saveChoice={qrPlusSaveChoice}
-              mockupUrl={qrPlusMockup}
-              productGraphicUrl={productGraphic}
-              qrGraphicUrl={qrGraphic}
-              isSaving={isQrPlusSaving}
-              onDone={() => {
-                setSimpleStep('channel');
-                setCurrentPacketId(null);
-                setQrPlusMockup('');
-                setQrPlusSaveChoice('');
-                setQrGraphic('');
-                setProductGraphic('');
-              }}
-            />
+            <div className="space-y-4">
+              <QRPlusConfirmStep
+                saveChoice={qrPlusSaveChoice}
+                mockupUrl={qrPlusMockup}
+                productGraphicUrl={productGraphic}
+                qrGraphicUrl={qrGraphic}
+                isSaving={isQrPlusSaving}
+                onDone={() => {
+                  setSimpleStep('channel');
+                  setCurrentPacketId(null);
+                  setQrPlusMockup('');
+                  setQrPlusSaveChoice('');
+                  setQrGraphic('');
+                  setProductGraphic('');
+                }}
+              />
+              {sharePacketId && (
+                <ShareKitHandoff
+                  data={getShareKitData()}
+                  onCreateAnother={handleCreateAnother}
+                />
+              )}
+            </div>
           )}
           
           {simpleStep === 'text-choice' && (
@@ -792,14 +834,22 @@ export function SimpleWizard() {
           )}
           
           {simpleStep === 'canvas-confirm' && (
-            <QRCanvasConfirmStep
-              saveChoice={'all'}
-              productGraphicUrl={publishedProductGraphicUrl}
-              backgroundUrl={urlGraphic}
-              qrGraphicUrl={publishedQrGraphicUrl}
-              isSaving={isCanvasSaving}
-              onDone={handleCanvasDone}
-            />
+            <div className="space-y-4">
+              <QRCanvasConfirmStep
+                saveChoice={'all'}
+                productGraphicUrl={publishedProductGraphicUrl}
+                backgroundUrl={urlGraphic}
+                qrGraphicUrl={publishedQrGraphicUrl}
+                isSaving={isCanvasSaving}
+                onDone={handleCanvasDone}
+              />
+              {sharePacketId && (
+                <ShareKitHandoff
+                  data={getShareKitData()}
+                  onCreateAnother={handleCreateAnother}
+                />
+              )}
+            </div>
           )}
           
           {simpleStep === 'play-video-source' && (
@@ -845,7 +895,15 @@ export function SimpleWizard() {
           )}
           
           {simpleStep === 'play-save-choice' && (
-            <PlayPublishedStep />
+            <div className="space-y-4">
+              <PlayPublishedStep />
+              {sharePacketId && (
+                <ShareKitHandoff
+                  data={getShareKitData()}
+                  onCreateAnother={handleCreateAnother}
+                />
+              )}
+            </div>
           )}
           
           {simpleStep === 'compose-mode' && (
@@ -955,11 +1013,19 @@ export function SimpleWizard() {
           )}
 
           {simpleStep === 'compose-confirm' && (
-            <ComposeConfirmStep
-              instanceId={composeInstanceId}
-              resolverUrl={composeInstanceId ? `/qr/d/${composeInstanceId}` : null}
-              itemCount={composeItems.length}
-            />
+            <div className="space-y-4">
+              <ComposeConfirmStep
+                instanceId={composeInstanceId}
+                resolverUrl={composeInstanceId ? `/qr/d/${composeInstanceId}` : null}
+                itemCount={composeItems.length}
+              />
+              {sharePacketId && (
+                <ShareKitHandoff
+                  data={getShareKitData()}
+                  onCreateAnother={handleCreateAnother}
+                />
+              )}
+            </div>
           )}
         </div>
 

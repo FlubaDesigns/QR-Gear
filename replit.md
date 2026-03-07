@@ -1,7 +1,7 @@
 # QR Gear - Compressed System Reference Guide
 
 ## Overview
-QR Gear is an e-commerce platform specializing in personalized promotional merchandise with custom QR codes. It integrates with Printify for print-on-demand fulfillment, targeting a niche market by enabling efficient design and ordering of QR-enhanced products. The platform offers advanced features for product management, custom QR code integration, and streamlined order fulfillment, aiming for significant market potential in personalized promotional goods.
+QR Gear is an e-commerce platform focused on personalized promotional merchandise featuring custom QR codes. It integrates with Printify for print-on-demand fulfillment, targeting a niche market by enabling efficient design and ordering of QR-enhanced products. The platform aims to offer advanced features for product management, custom QR code integration, and streamlined order fulfillment, aspiring to capture significant market potential in personalized promotional goods.
 
 ## User Preferences
 - **Communication**: Simple, everyday language
@@ -46,36 +46,37 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Mockup System**: Utilizes Printful for generating high-quality mockups for all product variations via a background job queue.
 - **QR Artwork Selection**: Automatic black or white QR code selection based on background luminance.
 - **Product Catalogs**: Printify and Printful catalogs are synced locally and to Firestore.
-- **Firestore-Only Storage**: All data persistence uses Firebase/Firestore exclusively (STORAGE_MODE=firestore-only). PostgreSQL is no longer used for any application data. Both dev and production use the same Firebase database.
+- **Firestore-Only Storage**: All data persistence uses Firebase/Firestore exclusively. Both dev and production use the same Firebase database.
 - **File Storage**: Exclusively uses Firebase Storage for all file assets, including a background image library.
-- **Admin Library Module**: Modular, tenant-aware feature set for managing backgrounds, templates, and images (`client/src/features/adminLibrary/`).
-- **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for reusable UI components (e.g., `SkinGridViewer`, `CropUtility`).
-- **Wizard Step Engines**: Shared, modular components (`client/src/features/shared/components/wizardSteps/`) defining steps for product creation, graphic placement, QR setup, and publishing across various wizards.
-- **Modular Wizard Architecture**: Refactored `MembersPage.tsx` into `WizardContext.tsx` (shared state, pricing, API), `SuperSimpleWizard.tsx` (6-step card flow), `SimpleWizard.tsx` (full guided wizard), `AdvancedWizard.tsx` (rebuilt with shared step components), and `StudioMode.tsx` (quick publish). `MembersPage.tsx` acts as a routing shell. All modules consume state via `useWizardContext()`.
-- **Public Wizard**: A public-facing conversion funnel (`client/src/features/owner/OwnerWizard.tsx`) for unauthenticated users to build custom QR products. It's a self-contained component without `WizardContext` dependency, using cost framing and minimum tier enforcement. It reuses shared wizard step components and integrates with a planned Stripe checkout.
+- **Admin Library Module**: Modular, tenant-aware feature set for managing backgrounds, templates, and images.
+- **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for reusable UI components.
+- **Wizard Step Engines**: Shared, modular components defining steps for product creation, graphic placement, QR setup, and publishing across various wizards.
+- **Modular Wizard Architecture**: Refactored `MembersPage.tsx` into shared state management (`WizardContext.tsx`), and different wizard flows (`SuperSimpleWizard.tsx`, `SimpleWizard.tsx`, `AdvancedWizard.tsx`, `StudioMode.tsx`).
+- **Public Wizard**: A public-facing conversion funnel for unauthenticated users to build custom QR products, integrating with Stripe checkout.
 - **Authentication**: Exclusively uses Firebase Authentication.
-- **Unified Rendering Architecture**: Both product graphics and landing pages use a single "image of truth" pattern. Each has a dedicated canvas renderer (`productGraphicRenderer.ts` for QR graphics, `landingPageRenderer.ts` for landing pages) and a React hook (`useProductGraphicPreview`, `useLandingPagePreview`) that provides debounced rendering. The same canvas-rendered image is used for live preview, snapshot generation at save time, and public display. Landing page dimensions: 2700x4800 (9:16). Background uses cover scaling with dark overlay.
+- **Unified Rendering Architecture**: Product graphics and landing pages use a single "image of truth" pattern with dedicated canvas renderers and React hooks for debounced rendering and live preview.
 - **Nexus Self-Healing System**: Client-side self-healing with automatic retry, error capture, and an admin debugging console.
 - **NexusMail Email System**: Portable, self-healing, queue-first, idempotent, provider-agnostic email system.
-- **Placement Bridge** (`shared/placements.ts`): Normalizes provider-specific placement names (Printify: `sleeve_left`, Printful: `front_large`) to unified internal names (`left_sleeve`, `front`). Functions: `normalizePlacement()` at fetch time, `toProviderPlacement()` at send time. Handles Printful's 2025 `front`→`front_large` transition. Filters embroidery placements. Client re-exports via `placementTypes.ts`. Cloud Function inlines same logic. Internal placement vocabulary: `front`, `back`, `pocket`, `left_sleeve`, `right_sleeve`, `label_inside`, `label_outside`, `left`, `right`, `center`, `side`, `wraparound`.
-- **Smart Diff-Based Catalog Sync**: Both Printify and Printful sync operations load existing Firestore data first, compare field-by-field, and only write changed/new records. Tracks added/updated/skipped counts. Endpoint: `/api/admin/catalog/sync` (Printify), `/api/admin/catalog/sync-printful` (Printful). Status polling: `/api/admin/catalog/sync-status`. Frontend: Merged FulfillmentPickerModule handles both provider selection and sync (no separate SyncModule). No auto-sync on provider switch.
-- **Printify Cost Lookup**: Server-side logic (`server/lib/printify-cost-lookup.ts`) to extract per-variant manufacturing costs from Printify.
-- **Pricing Snapshot Architecture**: At packet save time, the server calculates and stores a full pricing breakdown (`printifyCostVariants`, `adminMarginBase`, `memberEarningsRange`) within the packet's `pricingSnapshot`.
-- **Order-Time Cost Tracking**: Actual Printify costs and earnings (`actualPrintifyCost`, `memberEarningsActual`, `adminMarginActual`) are logged on the order item from the packet's `pricingSnapshot`.
-- **Public Wizard Stripe Checkout & Post-Sale Flow**: Planned features include a `temp_packets` Firestore document system for public wizard creations (24-hour TTL), guest checkout via Stripe, public checkout endpoints (`/api/public/checkout`), conversion of temp packets to permanent product packets on successful payment, a unique claim code system for item registration, and a post-sale member conversion push with two paths (account creation or clean goodbye). Pricing is validated server-side at checkout.
+- **Placement Bridge**: Normalizes provider-specific placement names (e.g., Printify's `sleeve_left`) to unified internal names (e.g., `left_sleeve`).
+- **Smart Diff-Based Catalog Sync**: Printify and Printful sync operations perform field-by-field comparisons and only write changed/new records to Firestore.
+- **Printify Cost Lookup**: Server-side logic to extract per-variant manufacturing costs from Printify.
+- **Pricing Snapshot Architecture**: Server stores a full pricing breakdown (`pricingSnapshot`) within the product packet at save time.
+- **Order-Time Cost Tracking**: Actual Printify costs and earnings are logged on the order item from the packet's `pricingSnapshot`.
+- **Public Wizard Stripe Checkout & Post-Sale Flow**: Planned features include `temp_packets` in Firestore, guest checkout via Stripe, conversion of temp packets to permanent product packets, a claim code system, and post-sale member conversion.
+- **Social Media Packet & Share & Earn Referral System**: `socialPacket` sub-object on `memberPackets` facilitates sharing. Referral tracking via `/p/:packetId` and `referralUrl`. Persistent referral relationships are stored in Firestore.
 
 ### Feature Specifications
 - **Product Management**: Admins manage products, pricing, and visibility.
 - **Custom QR Code Integration**: Products can be customized with QR codes.
 - **Shopping Cart**: Standard e-commerce cart.
 - **Order Fulfillment Flow**: Integrates with Stripe, creates Firestore orders, enables admin review, and syncs with Printify.
-- **Product Packet Architecture**: A `Product Packet` is the single source of truth for product configurations, linking to `Graphics` and `Template` entries, using a "fork-on-edit" pattern.
-- **Store Library Architecture**: Admin interface (`/admin/library`) for managing products linked to stores and channels.
-- **QR Compose Architecture**: Enables members and admins to build rotating playlists from published Canvas/Play items, creating `qr_dynamics_instances` with time-based slot rotation. The type was renamed from `qr_dynamics` to `qr_compose`.
-- **Members Sandbox**: A simplified product builder (`/test-members`) for authenticated members to create and sell products using unlocked templates, offering Wizard and Power modes, member-scoped channels/collections, and an earnings dashboard.
+- **Product Packet Architecture**: A `Product Packet` is the single source of truth for product configurations, using a "fork-on-edit" pattern.
+- **Store Library Architecture**: Admin interface for managing products linked to stores and channels.
+- **QR Compose Architecture**: Enables members and admins to build rotating playlists from published Canvas/Play items, creating `qr_dynamics_instances`.
+- **Members Sandbox**: A simplified product builder for authenticated members to create and sell products using unlocked templates.
 - **QR GEAR DUAL-PRODUCT ARCHITECTURE**: Comprises **QR COMPOSER** (member/creator tool for sellable QR merchandise templates) and **QR DYNAMICS** (buyer/owner app for controlling purchased instances post-sale).
 - **Three Surfaces (Resolver Engine)**: Supports IMAGE (Canvas), VIDEO (Play), and future DOCUMENT (PDF) based QR experiences.
-- **Critical Flows**: Strict publish ordering (Packet → Assets → Template → Catalog Link), `channelId` persistence, and `ShareKitHandoff` post-publish.
+- **Critical Flows**: Strict publish ordering and `ShareKitHandoff` post-publish.
 - **Phase 8: Share Kit + Auto-Generated Assets**: Includes automatic generation of social media images, captions, and a Share Kit UI.
 - **Member Library Storage Paths**: Member-isolated Firebase Storage paths for assets with associated Firestore metadata.
 - **Member Creation Wizards**: Progressive unlock system for members (Quick Create, Advanced, Studio) based on publishing activity.
@@ -84,35 +85,28 @@ The storefront emphasizes lifestyle mockups. Product pricing is shown as the adm
 - **Printful-First Mockup Architecture**: Decouples mockup generation from fulfillment.
 - **Backend**: Node.js, Express, TypeScript.
 - **Frontend**: React, TypeScript, Vite.
-- **Database**: Firebase/Firestore exclusively (no PostgreSQL for application data). Firestore CRUD helper at `server/lib/firestore-crud.ts`.
+- **Database**: Firebase/Firestore exclusively.
 - **Nexus Vision Philosophy**: Self-learning, self-healing system using composable modules.
-- **Modular Route Architecture**: `server/routes.ts` refactored into 16 feature-based modules within `server/routes/` (e.g., `auth.routes.ts`, `products.routes.ts`, `admin.routes.ts`, `packets.routes.ts`, `designs.routes.ts`, `gifts.routes.ts`, `pricing.routes.ts`), with `routes.ts` acting as an orchestrator.
-- **Unified Admin Authorization**: All admin endpoints use `/api/admin/` prefix with `isAdmin` middleware (Firebase Auth token validation). Public buyer-facing endpoints use `/api/public/` prefix (no auth). No `/api/test/` endpoints remain — all have been consolidated.
+- **Modular Route Architecture**: `server/routes.ts` refactored into feature-based modules within `server/routes/`.
+- **Unified Admin Authorization**: All admin endpoints use `/api/admin/` prefix with `isAdmin` middleware. Public buyer-facing endpoints use `/api/public/` prefix (no auth).
 
 ### Downloadable Assets
-- **CRITICAL: Location**: All downloadable ZIP packages go in the ROOT `downloads/` folder (`/home/runner/workspace/downloads/`). This is where the user looks in the Replit file manager. NEVER put ZIPs only in `client/public/downloads/` — ALWAYS put them in the root `downloads/` folder. The user browses downloads via the Replit file manager, not via URL.
-- **Current files**: `library-upload-package.zip`, `qrgear-updated-files.zip`, and many others
-- **Access**: User downloads directly from the Replit file manager by right-clicking the file in the `downloads/` folder
+- **Location**: All downloadable ZIP packages go in the ROOT `downloads/` folder.
+- **Access**: User downloads directly from the Replit file manager by right-clicking the file in the `downloads/` folder.
 
 ### Fluba Brain Harness
-- **Client**: `client/src/lib/flubaBrainClient.ts` — universal harness connecting QR Gear to the Fluba Brain gateway
-- **Pattern**: Initializes a separate Firebase app (`fluba-brain`) pointing at the Fluba project, while QR Gear keeps its own Firebase for all other operations
-- **API**: `getFlubaBrainClient()` returns `{ submitToBrain(), listenToBrainResponse() }` or `null` if not configured
-- **Env vars required** (set these once Fluba is deployed):
-  - `VITE_SITE_ID` — site identifier for Brain (default: `qr-gear`)
-  - `VITE_FLUBA_API_KEY` — Fluba Firebase API key
-  - `VITE_FLUBA_AUTH_DOMAIN` — Fluba Firebase auth domain
-  - `VITE_FLUBA_PROJECT_ID` — Fluba Firebase project ID
-  - `VITE_FLUBA_APP_ID` — Fluba Firebase app ID
-- **Flow**: Website calls `brainSubmit` callable → Fluba writes `brain_inbox/{requestId}` → processor writes `brain_responses/{requestId}` → real-time listener picks it up
-- **Status**: Harness installed, inactive until Fluba env vars are configured
+- **Client**: `client/src/lib/flubaBrainClient.ts` – universal harness connecting QR Gear to the Fluba Brain gateway.
+- **Pattern**: Initializes a separate Firebase app (`fluba-brain`) while QR Gear maintains its own Firebase.
+- **API**: `getFlubaBrainClient()` returns `{ submitToBrain(), listenToBrainResponse() }` or `null`.
+- **Flow**: Website calls `brainSubmit` callable → Fluba writes `brain_inbox/{requestId}` → processor writes `brain_responses/{requestId}` → real-time listener picks it up.
+- **Status**: Harness installed, inactive until Fluba env vars are configured.
 
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
 - **Printful**: Product mockup generation.
 - **Stripe**: Payment processing.
 - **Firebase**: Hosting, Firestore, Firebase Storage, Cloud Functions, Authentication.
-- **Fluba Brain**: AI governance gateway (separate Firebase project, connected via universal harness).
+- **Fluba Brain**: AI governance gateway.
 - **Resend**: Email services.
 - **TanStack Query**: Frontend data fetching and state management.
 - **shadcn/ui**: UI component library.
