@@ -80,6 +80,7 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Database**: Firebase/Firestore exclusively.
 - **Nexus Vision Philosophy**: Emphasizes self-learning, self-healing, and composable modules.
 - **Modular Route Architecture**: Routes are organized into feature-based modules.
+- **Four Store Types**: `internal` (QR Gear's own storefront, e.g. USA 250), `marketplace` (Etsy/eBay/Amazon — push listings, pull orders, you sell on their surface), `partner` (external sites embedding your UX — they build channels, you enable), `member` (individual member stores via wizard). Each type has its own admin section and data flows.
 - **Unified Admin Authorization**: All admin endpoints use `/api/admin/` with `isAdmin` middleware; public endpoints use `/api/public/` without authentication.
 - **Downloadable Assets**: Stored in the ROOT `downloads/` folder for direct user access.
 - **Fluba Brain Harness**: A universal harness (`client/src/lib/flubaBrainClient.ts`) connects to an AI governance gateway, using a separate Firebase app instance for communication.

@@ -8,6 +8,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-03-07 | Added Four Store Types architecture — split "external" into marketplace + partner (Section 13) |
 | 2026-02-10 | Added Public Wizard Stripe Checkout & Post-Sale Flow (Section 12) |
 | 2026-02-07 | Added QR Architecture Decision: Two-Tier QR System (Section 11) |
 | 2026-02-07 | Added Graceful Intro + Unlock Flow for Moments → Compose → Platform (Section 9) |
@@ -668,6 +669,50 @@ This flow primarily serves **Layer 2 (Direct Buyer / Buyer-Creator)** — the ho
 - **Layer 3 → Revenue**: Owner may subscribe for advanced QR Dynamic features
 
 The Growth Flywheel in action: visitor → builder → buyer → owner → member → distributor.
+
+---
+
+### 13. Four Store Types Architecture
+**Established: 2026-03-07**
+
+The previous "external" store type has been split to properly represent two fundamentally different business relationships. The platform now recognizes four store types:
+
+#### Store Type 1 — Internal
+- **What it is**: QR Gear's own storefront (e.g., USA 250 channel)
+- **Who controls it**: QR Gear admin
+- **Data flow**: Admin builds products → assigns to channels → shows on QR Gear homepage/shop pages
+- **Revenue**: QR Gear keeps 100% (minus member earnings if applicable)
+- **Distribution Layer**: Layer 2 (Direct Buyer / House Revenue Engine)
+
+#### Store Type 2 — Marketplace
+- **What it is**: Etsy, eBay, Amazon — external sales surfaces
+- **Who controls it**: QR Gear admin pushes listings; marketplace handles checkout
+- **Data flow**: Admin builds product → pushes listing to marketplace → order comes back → fulfills via Printify/Printful → QR on product routes buyer to QR Gear platform
+- **Revenue**: QR Gear sells at marketplace price, pays marketplace fees, keeps the rest
+- **Key features needed**: API credentials per marketplace, listing push, order pull, inventory sync, fee calculation, marketplace-specific pricing rules
+- **Distribution Layer**: Layer 5 (External Marketplaces / Acquisition Engine)
+
+#### Store Type 3 — Partner
+- **What it is**: External sites that embed QR Gear's UX — they build channels, you enable the backend
+- **Who controls it**: Partner manages their storefront; QR Gear provides the engine
+- **Data flow**: Partner embeds widget/API → their customers use QR Gear tools → orders route through QR Gear fulfillment
+- **Revenue**: Revenue sharing between QR Gear and partner
+- **Key features needed**: Embed codes, channel permissions, branding controls, revenue sharing config
+- **Distribution Layer**: Layer 4 (API / Embedded Mini-Stores / Network Engine)
+
+#### Store Type 4 — Member
+- **What it is**: Individual member stores created through the wizard system
+- **Who controls it**: Members create via QR Compose wizards; admin sets catalog/pricing
+- **Data flow**: Member picks blank → customizes → publishes → shares on social → earns 25% of profit on each sale
+- **Revenue**: 25% to member creator, 75% to QR Gear (minus manufacturing)
+- **Distribution Layer**: Layer 1 (Member / Creator / Affiliate Engine)
+
+#### Why This Split Matters
+"Marketplace" and "Partner" have completely different admin interfaces, API requirements, and data flows:
+- **Marketplace** = you push OUT (listings, images, pricing) and pull IN (orders, payments)
+- **Partner** = they pull IN (your UX, your tools) and you enable their surface
+
+Trying to manage both through one "external" type would create a confusing admin experience and tangled data models.
 
 ---
 
