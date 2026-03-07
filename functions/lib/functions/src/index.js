@@ -8754,6 +8754,30 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req, res) => {
         };
         const orderRef = await db.collection('orders_public').add(orderData);
         console.log(`[PacketCheckout] Order ${orderRef.id} created for packet ${packetId}`);
+        const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
+        const profit = serverTotal - productCost;
+        if (creatorMemberId && profit > 0) {
+            try {
+                const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
+                await db.collection('member_earnings').add({
+                    memberId: creatorMemberId,
+                    orderId: orderRef.id,
+                    packetId,
+                    orderTotal: serverTotal,
+                    productCost,
+                    profit,
+                    sharePercent: 25,
+                    earnings: creatorEarnings,
+                    type: 'product_sale',
+                    status: 'pending',
+                    createdAt: now.toISOString(),
+                });
+                console.log(`[Member Earnings] Creator ${creatorMemberId} earned $${creatorEarnings} from packet order ${orderRef.id}`);
+            }
+            catch (earnErr) {
+                console.error('[Member Earnings] Non-fatal error:', earnErr.message);
+            }
+        }
         if (referrerId && buyerEmail) {
             try {
                 const buyerKey = buyerEmail;
@@ -8770,10 +8794,8 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req, res) => {
                     });
                     console.log(`[Referral] Captured: ${referrerId} → ${buyerKey}`);
                 }
-                const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
-                const profit = serverTotal - productCost;
-                if (profit > 0) {
-                    const earnings = Math.round((profit * 0.25) * 100) / 100;
+                if (profit > 0 && referrerId !== creatorMemberId) {
+                    const referralEarnings = Math.round((profit * 0.25) * 100) / 100;
                     await db.collection('referral_earnings').add({
                         memberId: referrerId,
                         orderId: orderRef.id,
@@ -8782,11 +8804,11 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req, res) => {
                         productCost,
                         profit,
                         sharePercent: 25,
-                        earnings,
+                        earnings: referralEarnings,
                         status: 'pending',
                         createdAt: now.toISOString(),
                     });
-                    console.log(`[Referral Earnings] ${referrerId} earned $${earnings} from packet order ${orderRef.id}`);
+                    console.log(`[Referral Earnings] ${referrerId} earned $${referralEarnings} from packet order ${orderRef.id}`);
                 }
             }
             catch (refErr) {
@@ -9549,12 +9571,11 @@ app.post('/members/:memberId/media', async (req, res) => {
             return;
         }
         const boundary = boundaryMatch[1];
-        const rawBody = await new Promise((resolve, reject) => {
-            const chunks = [];
-            req.on("data", (chunk) => chunks.push(chunk));
-            req.on("end", () => resolve(Buffer.concat(chunks)));
-            req.on("error", reject);
-        });
+        const rawBody = req.rawBody || Buffer.from(req.body || '');
+        if (!rawBody || rawBody.length === 0) {
+            res.status(400).json({ error: "No request body received" });
+            return;
+        }
         console.log(`[CF MemberMedia] Received ${rawBody.length} bytes`);
         const boundaryBuffer = Buffer.from(`--${boundary}`);
         const parts = [];
