@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
+import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
@@ -52,23 +52,9 @@ function FeaturedStores() {
     {
       title: "USA 250",
       subtitle: "Patriotic drops + limited runs",
-      href: "/shop/usa/250",
+      href: "/shop/channel/usa250",
       badge: "Preview Store",
       icon: <Flag className="w-5 h-5" />,
-    },
-    {
-      title: "Wedding QR Shirts",
-      subtitle: "Photo + video + RSVP memories",
-      href: "/wedding-qr-shirts",
-      badge: "Use Case",
-      icon: <Sparkles className="w-5 h-5" />,
-    },
-    {
-      title: "Memorial QR Gifts",
-      subtitle: "Stories that live on",
-      href: "/memorial-qr-gifts",
-      badge: "Use Case",
-      icon: <Users className="w-5 h-5" />,
     },
   ];
 

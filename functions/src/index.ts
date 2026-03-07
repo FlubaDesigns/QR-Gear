@@ -11657,11 +11657,111 @@ app.get('/admin/orchestration/master-products/:id/publish-states', requireAdmin,
 app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeType, storeName } = req.params;
-    const snap = await db.collection('stores').where('storeType', '==', storeType).where('slug', '==', storeName).limit(1).get();
+    const segment = req.query.segment as string | undefined;
+
+    if (storeType === 'channel') {
+      const channelDoc = await db.collection('storeChannels').doc(storeName).get();
+      if (!channelDoc.exists) {
+        res.status(404).json({ error: "Channel not found" });
+        return;
+      }
+      const channelData = channelDoc.data() || {};
+      const storeId = channelData.storeId;
+
+      let storeData: any = { id: storeId, name: storeId };
+      if (storeId) {
+        const storeDoc = await db.collection('stores').doc(storeId).get();
+        if (storeDoc.exists) {
+          storeData = { id: storeDoc.id, ...storeDoc.data() };
+        }
+      }
+
+      let linksQuery: any = db.collection('storeProductLinks')
+        .where('storeId', '==', storeId)
+        .where('channel', '==', storeName);
+      if (segment) {
+        linksQuery = linksQuery.where('collection', '==', segment);
+      }
+      const linksSnapshot = await linksQuery.get();
+
+      const products = linksSnapshot.docs.map((doc: any) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          name: d.productName || 'Untitled Product',
+          imageUrl: d.mockupUrl || d.compositeUrl || d.qrOnlyUrl || null,
+          segment: d.collection || null,
+          isFeatured: false,
+          isSeasonalPromo: false,
+          templateVariant: null,
+          qrProductType: d.qrProductState || 'qr-basics',
+          qrCodeUrl: d.qrOnlyUrl || null,
+          selectedColors: d.enabledColors || [],
+          defaultColor: d.defaultColor || null,
+          mockupsByColor: null,
+          createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+        };
+      });
+
+      console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} products`);
+      res.json({
+        storeType: storeData.roleType || 'internal',
+        storeName: channelData.name || storeName,
+        segment: segment || null,
+        products,
+      });
+      return;
+    }
+
+    const snap = await db.collection('stores').where('roleType', '==', storeType).limit(10).get();
     if (snap.empty) { res.status(404).json({ error: "Store not found" }); return; }
-    const store = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-    const channels = await db.collection('store_channels').where('storeId', '==', store.id).get();
-    res.json({ ...store, channels: channels.docs.map(d => ({ id: d.id, ...d.data() })) });
+
+    let matchedStore: any = null;
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const storeSlug = (data.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      if (doc.id === storeName || storeSlug === storeName) {
+        matchedStore = { id: doc.id, ...data };
+        break;
+      }
+    }
+    if (!matchedStore) { res.status(404).json({ error: "Store not found" }); return; }
+
+    const channelsSnap = await db.collection('storeChannels').where('storeId', '==', matchedStore.id).get();
+    const channels = channelsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+
+    let linksQuery: any = db.collection('storeProductLinks').where('storeId', '==', matchedStore.id);
+    if (segment) {
+      linksQuery = linksQuery.where('collection', '==', segment);
+    }
+    const linksSnapshot = await linksQuery.get();
+    const products = linksSnapshot.docs.map((doc: any) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        name: d.productName || 'Untitled Product',
+        imageUrl: d.mockupUrl || d.compositeUrl || d.qrOnlyUrl || null,
+        segment: d.collection || null,
+        isFeatured: false,
+        isSeasonalPromo: false,
+        templateVariant: null,
+        qrProductType: d.qrProductState || 'qr-basics',
+        qrCodeUrl: d.qrOnlyUrl || null,
+        selectedColors: d.enabledColors || [],
+        defaultColor: d.defaultColor || null,
+        mockupsByColor: null,
+        createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+      };
+    });
+
+    console.log(`[Public Store] Store "${matchedStore.name}" (${storeType}): ${products.length} products, ${channels.length} channels`);
+    res.json({
+      storeType,
+      storeName: matchedStore.name,
+      segment: segment || null,
+      channels,
+      products,
+    });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
