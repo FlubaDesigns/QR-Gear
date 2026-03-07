@@ -27,6 +27,9 @@ import {
   isSleevePlacement,
   isLeftSleevePlacement,
   isRightSleevePlacement,
+  isPocketPlacement,
+  isBackPlacement,
+  isFrontPlacement,
 } from "./wizardTypes";
 
 const LANDING_TEXT_COLORS = ['#ffffff', '#000000', '#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -93,8 +96,8 @@ export function ShirtPreviewStep({
   const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
   const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
   
-  const hasFrontPlacement = selectedPlacements.includes('front') || selectedPlacements.includes('pocket');
-  const hasBackPlacement = selectedPlacements.includes('back');
+  const hasFrontPlacement = selectedPlacements.some(p => isFrontPlacement(p) || isPocketPlacement(p));
+  const hasBackPlacement = selectedPlacements.some(p => isBackPlacement(p));
   const hasLeftSleeve = selectedPlacements.some(p => isLeftSleevePlacement(p));
   const hasRightSleeve = selectedPlacements.some(p => isRightSleevePlacement(p));
   

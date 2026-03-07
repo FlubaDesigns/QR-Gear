@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, Layers, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
+import { Shield, FlaskConical, Users, Sparkles, Store, Wand2, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
@@ -37,19 +37,7 @@ function AdminQuickAccess() {
       </Link>
       <Link href="/members" className="admin-quick-link" data-testid="link-member">
         <Users className="w-4 h-4" />
-        Member Area
-      </Link>
-      <Link href="/members?wizard=super-simple" className="admin-quick-link" data-testid="link-super-simple-wizard">
-        <Sparkles className="w-4 h-4" />
-        Super Simple
-      </Link>
-      <Link href="/members?wizard=simple" className="admin-quick-link" data-testid="link-simple-wizard">
-        <Wand2 className="w-4 h-4" />
-        Simple Wizard
-      </Link>
-      <Link href="/members?wizard=advanced" className="admin-quick-link" data-testid="link-advanced-wizard">
-        <Layers className="w-4 h-4" />
-        Advanced
+        Member Dashboard
       </Link>
       <Link href="/admin/store-builder" className="admin-quick-link" data-testid="link-store-builder">
         <Store className="w-4 h-4" />

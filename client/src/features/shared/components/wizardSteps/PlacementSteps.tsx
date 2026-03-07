@@ -235,7 +235,7 @@ export function PlacementCountStep({
     ? filteredPlacements
     : [buildPlacementOption('front'), buildPlacementOption('back')];
   
-  const placementPositions: Record<string, { x: number; y: number; size: number }> = {
+  const ZONE_POSITIONS: Record<string, { x: number; y: number; size: number }> = {
     'front': { x: 90, y: 100, size: 24 },
     'pocket': { x: 70, y: 75, size: 8 },
     'back': { x: 90, y: 100, size: 24 },
@@ -278,16 +278,17 @@ export function PlacementCountStep({
             />
             
             {selected.filter(p => !isSleevePlacement(p)).map(placement => {
-              const pos = placementPositions[placement];
+              const zone = getPlacementZone(placement);
+              const pos = ZONE_POSITIONS[zone];
               if (!pos) return null;
-              const displaySize = placement === 'back' ? pos.size * 1.3 : pos.size;
+              const displaySize = isBackPlacement(placement) ? pos.size * 1.3 : pos.size;
               return (
                 <g key={placement} transform={`translate(${pos.x - displaySize/2}, ${pos.y - displaySize/2})`}>
                   <rect width={displaySize} height={displaySize} fill="white" rx="2" opacity="0.95" stroke="#22c55e" strokeWidth="2" />
                   <rect x="2" y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
                   <rect x={displaySize - displaySize * 0.2 - 2} y="2" width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
                   <rect x="2" y={displaySize - displaySize * 0.2 - 2} width={displaySize * 0.2} height={displaySize * 0.2} fill="#22c55e" />
-                  {placement === 'back' && (
+                  {isBackPlacement(placement) && (
                     <text x={displaySize/2} y={displaySize/2 + 4} textAnchor="middle" fontSize="8" fill="#22c55e" fontWeight="bold">BACK</text>
                   )}
                 </g>
@@ -562,8 +563,8 @@ export function PlacementDiagram({ placement, size }: { placement: PlacementOpti
   );
   
   const renderDiagram = () => {
-    if (placement === 'back') return <BackShirt />;
-    if (placement === 'pocket') return <FrontShirt highlight="left-chest" />;
+    if (isBackPlacement(placement)) return <BackShirt />;
+    if (isPocketPlacement(placement)) return <FrontShirt highlight="left-chest" />;
     if (isLeftSleevePlacement(placement)) return <LeftSleeveView />;
     if (isRightSleevePlacement(placement)) return <RightSleeveView />;
     return <FrontShirt highlight="center" />;
@@ -604,7 +605,7 @@ export function PlacementConfigStep({
   const showFooter = graphicChoice === 'full' && (textLayoutChoice === 'footer' || textLayoutChoice === 'both');
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  const isPocket = currentPlacement === 'pocket';
+  const isPocket = isPocketPlacement(currentPlacement);
   const isSleeve = isSleevePlacement(currentPlacement);
   
   const graphicDims = getPrintAreaDims(isPocket ? 'pocket' : (isSleeve ? 'sleeve' : 'front'), graphicSize);
@@ -646,7 +647,7 @@ export function PlacementConfigStep({
           stroke="#444"
           strokeWidth="2"
         />
-        {currentPlacement === 'back' && (
+        {isBackPlacement(currentPlacement) && (
           <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
         )}
         
@@ -703,7 +704,7 @@ export function PlacementConfigStep({
         )}
         
         <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
-          {currentPlacement === 'back' ? 'BACK' : 'FRONT'}
+          {isBackPlacement(currentPlacement) ? 'BACK' : 'FRONT'}
         </text>
       </svg>
     );

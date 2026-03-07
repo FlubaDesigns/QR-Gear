@@ -1,4 +1,4 @@
-// Build timestamp: 2026-03-07T20:00:00Z - Fixed all 8 t-shirt Printful mappings for mockup generation
+// Build timestamp: 2026-03-07T21:30:00Z - Fixed placement ID normalization in allowed-products API
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1466,10 +1466,15 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
           placements = [
             { id: 'front', title: 'Front', widthInches: '12"', heightInches: '16"' },
             { id: 'back', title: 'Back', widthInches: '12"', heightInches: '16"' },
-            { id: 'left_chest', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
-            { id: 'sleeve_left', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
-            { id: 'sleeve_right', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
+            { id: 'pocket', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
+            { id: 'left_sleeve', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
+            { id: 'right_sleeve', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
           ];
+        } else {
+          placements = placements.map((pl: any) => {
+            const nId = normalizePlacement(p.fulfillmentProvider || 'printify', pl.id || pl.type || '');
+            return { ...pl, id: nId };
+          });
         }
 
         return {
@@ -6586,9 +6591,11 @@ app.get('/catalog/printful-products', async (_req: Request, res: Response): Prom
       const categoryName = cfClassifyPrintfulProduct(p.typeName || p.type || "");
       if (!grouped[categoryName]) grouped[categoryName] = [];
       const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
-      const placements = ((p as any).availablePlacements || []).map((pid: string) => ({
-        id: pid, type: pid, title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()), additionalPrice: 0,
-      }));
+      const placements = ((p as any).availablePlacements || []).map((pid: string) => {
+        const nId = normalizePlacement('printful', pid);
+        const title = nId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+        return { id: nId, type: nId, title, additionalPrice: 0 };
+      });
       grouped[categoryName].push({
         id: p.id, title: (p as any).title, brand: (p as any).brand || "", model: (p as any).model || "",
         imageUrl: (p as any).image || null, madeInUSA: ((p as any).originCountry || "").toUpperCase() === "US",

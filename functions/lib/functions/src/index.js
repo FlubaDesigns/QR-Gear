@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-03-07T20:00:00Z - Fixed all 8 t-shirt Printful mappings for mockup generation
+// Build timestamp: 2026-03-07T21:30:00Z - Fixed placement ID normalization in allowed-products API
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -1199,10 +1199,16 @@ app.get('/members/allowed-products', async (req, res) => {
                     placements = [
                         { id: 'front', title: 'Front', widthInches: '12"', heightInches: '16"' },
                         { id: 'back', title: 'Back', widthInches: '12"', heightInches: '16"' },
-                        { id: 'left_chest', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
-                        { id: 'sleeve_left', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
-                        { id: 'sleeve_right', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
+                        { id: 'pocket', title: 'Left Chest', widthInches: '4"', heightInches: '4"' },
+                        { id: 'left_sleeve', title: 'Left Sleeve', widthInches: '4"', heightInches: '4"' },
+                        { id: 'right_sleeve', title: 'Right Sleeve', widthInches: '4"', heightInches: '4"' },
                     ];
+                }
+                else {
+                    placements = placements.map((pl) => {
+                        const nId = normalizePlacement(p.fulfillmentProvider || 'printify', pl.id || pl.type || '');
+                        return { ...pl, id: nId };
+                    });
                 }
                 return {
                     ...p,
@@ -6060,9 +6066,11 @@ app.get('/catalog/printful-products', async (_req, res) => {
             if (!grouped[categoryName])
                 grouped[categoryName] = [];
             const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
-            const placements = (p.availablePlacements || []).map((pid) => ({
-                id: pid, type: pid, title: pid.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), additionalPrice: 0,
-            }));
+            const placements = (p.availablePlacements || []).map((pid) => {
+                const nId = normalizePlacement('printful', pid);
+                const title = nId.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+                return { id: nId, type: nId, title, additionalPrice: 0 };
+            });
             grouped[categoryName].push({
                 id: p.id, title: p.title, brand: p.brand || "", model: p.model || "",
                 imageUrl: p.image || null, madeInUSA: (p.originCountry || "").toUpperCase() === "US",
