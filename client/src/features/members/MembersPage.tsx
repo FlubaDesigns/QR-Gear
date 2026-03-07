@@ -61,7 +61,7 @@ interface EarningsSummary {
 
 interface MemberIndexViewProps {
   memberId: string;
-  onNavigate: (view: ViewMode) => void;
+  onNavigate: (view: ViewMode, channelId?: string) => void;
   onStartWizard: (tier: WizardTier) => void;
   publishCount: number;
 }
@@ -331,7 +331,7 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
               {(channels || []).slice(0, 4).map((channel) => (
                 <button
                   key={channel.id}
-                  onClick={() => onNavigate('channels')}
+                  onClick={() => onNavigate('channels', channel.id)}
                   className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer flex items-center justify-between text-left w-full"
                   data-testid={`channel-preview-${channel.id}`}
                 >
@@ -371,9 +371,9 @@ function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: 
   );
 }
 
-function ChannelsView({ memberId }: { memberId: string }) {
+function ChannelsView({ memberId, initialChannelId }: { memberId: string; initialChannelId?: string | null }) {
   const { toast } = useToast();
-  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(initialChannelId || null);
   const [confirmDeleteChannel, setConfirmDeleteChannel] = useState<string | null>(null);
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<string | null>(null);
   const [newChannelName, setNewChannelName] = useState('');
@@ -922,6 +922,7 @@ function MembersSandboxInner() {
 
   const userId = user?.id || '';
   const [, setLocation] = useLocation();
+  const [initialChannelId, setInitialChannelId] = useState<string | null>(null);
   const onboardingKey = `member_onboarding_complete_${userId}`;
   const localComplete = userId ? localStorage.getItem(onboardingKey) === 'true' : false;
   const [serverChecked, setServerChecked] = useState(false);
@@ -1163,7 +1164,14 @@ function MembersSandboxInner() {
         {viewMode === 'index' && (
           <MemberIndexView 
             memberId={user?.id || ''} 
-            onNavigate={setViewMode}
+            onNavigate={(view, channelId) => {
+              if (view === 'channels' && channelId) {
+                setInitialChannelId(channelId);
+              } else {
+                setInitialChannelId(null);
+              }
+              setViewMode(view);
+            }}
             onStartWizard={(tier) => {
               setWizardTier(tier);
               setViewMode('wizard');
@@ -1173,7 +1181,7 @@ function MembersSandboxInner() {
         )}
 
         {viewMode === 'channels' && (
-          <ChannelsView memberId={user?.id || ''} />
+          <ChannelsView memberId={user?.id || ''} initialChannelId={initialChannelId} />
         )}
 
         {viewMode === 'collections' && (
