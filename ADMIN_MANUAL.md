@@ -499,6 +499,42 @@ The Public Wizard (`/build` and `/creator`) lets visitors build custom QR produc
 
 ---
 
+## Marketplaces
+
+Sell your products on external platforms like Etsy, eBay, and Amazon.
+
+### Accessing Marketplaces
+Navigate to **Admin > Marketplaces** or visit `/admin/marketplaces`.
+
+### Connecting a Marketplace
+1. Click **Add Marketplace**
+2. Enter a store name (e.g., "My Etsy Shop")
+3. Select the platform (Etsy, eBay, or Amazon)
+4. Click **Create Marketplace Store**
+
+### Configuring a Marketplace
+After creating a marketplace store, click the gear icon to configure:
+- **Shop Name**: Your shop name on that platform
+- **Shop / Seller ID**: The marketplace-assigned ID
+- **Marketplace Fee %**: Used to calculate listing prices that maintain your target margin
+- **Auto-Sync Inventory**: Toggle automatic inventory sync with the marketplace
+
+### Managing Listings
+Expand a marketplace store to see assigned products. From here you can:
+- View listing status (Draft, Listed, Syncing, Error, Delisted)
+- Push products to the marketplace
+- View the listing on the marketplace (external link)
+- Sync all listings
+
+### Store Types Overview
+The platform uses four store types:
+- **Internal**: QR Gear's own storefront (USA 250, etc.)
+- **Marketplace**: Etsy, eBay, Amazon (you sell, they display)
+- **Partner**: External sites embedding QR Gear UX
+- **Member**: Individual member stores via wizard
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Building2, Users, Globe, Store, Layers } from "lucide-react";
+import { Building2, Users, Globe, Store, Layers, ShoppingBag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useStoreLibraryContext, StoreType, StoreInfo, ChannelInfo } from "../StoreLibraryContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -7,7 +7,8 @@ import { CustomDropdown } from "@/components/ui/custom-dropdown";
 
 const storeTypes: { type: StoreType; label: string; icon: typeof Building2 }[] = [
   { type: "internal", label: "Internal", icon: Building2 },
-  { type: "external", label: "External", icon: Globe },
+  { type: "marketplace", label: "Marketplace", icon: ShoppingBag },
+  { type: "partner", label: "Partner", icon: Globe },
   { type: "member", label: "Member", icon: Users },
 ];
 

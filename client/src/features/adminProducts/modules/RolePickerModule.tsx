@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Globe, User } from "lucide-react";
+import { Building2, Globe, User, ShoppingBag } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useProductsContext } from "../ProductsContext";
 import type { RoleType } from "../shared/types";
 
 const ROLE_ICONS: Record<RoleType, React.ReactNode> = {
   internal: <Building2 className="h-4 w-4" />,
+  marketplace: <ShoppingBag className="h-4 w-4" />,
+  partner: <Globe className="h-4 w-4" />,
   external: <Globe className="h-4 w-4" />,
   member: <User className="h-4 w-4" />,
 };

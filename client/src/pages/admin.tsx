@@ -98,10 +98,10 @@ const adminSections = [
     href: "/admin/partners",
   },
   {
-    title: "Multi-Provider",
-    description: "Orchestrate products across Printify, Printful, Etsy, eBay, Amazon",
+    title: "Marketplaces",
+    description: "Sell on Etsy, eBay, Amazon and other surfaces",
     icon: Globe,
-    href: "/admin/orchestration",
+    href: "/admin/marketplaces",
   },
   {
     title: "System Health",

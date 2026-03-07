@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
-export type StoreType = "internal" | "external" | "member";
+export type StoreType = "internal" | "marketplace" | "partner" | "external" | "member";
 
 export interface StoreInfo {
   id: string;

@@ -21,7 +21,7 @@ export interface FulfillmentProvider {
   role: 'fulfillment' | 'mockup';
 }
 
-export type RoleType = 'internal' | 'external' | 'member';
+export type RoleType = 'internal' | 'marketplace' | 'partner' | 'external' | 'member';
 
 export interface Role {
   id: RoleType;

@@ -23,7 +23,8 @@ const FALLBACK_PROVIDERS: FulfillmentProvider[] = [
 
 const DEFAULT_ROLES: Role[] = [
   { id: "internal", name: "Internal", description: "Products for QR Gear stores and channels", icon: "building" },
-  { id: "external", name: "External", description: "Products for partner stores like Kingdom Connects", icon: "globe" },
+  { id: "marketplace", name: "Marketplace", description: "Products listed on Etsy, eBay, Amazon", icon: "shopping-bag" },
+  { id: "partner", name: "Partner", description: "Products for partner sites embedding QR Gear UX", icon: "globe" },
   { id: "member", name: "Member", description: "Member-created personalized products", icon: "user" },
 ];
 
