@@ -637,6 +637,12 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         placementUpcharge,
         memberEarnings: runningEarnings,
         source: { entryPoint: 'simple-wizard' },
+        itemImage: qrType === 'qr-canvas' ? (qrCanvasMockup || productGraphic || null)
+          : qrType === 'qr-basic' ? (qrBasicMockup || productGraphic || null)
+          : qrType === 'qr-plus' ? (qrPlusMockup || productGraphic || null)
+          : qrType === 'qr-play' ? (qrPlayMockup || productGraphic || null)
+          : qrType === 'qr-compose' ? (composeMockup || productGraphic || null)
+          : (productGraphic || null),
       };
 
       console.log('[UnifiedPublish] Publishing packet:', {

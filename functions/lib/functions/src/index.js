@@ -6680,6 +6680,7 @@ app.post('/members/:memberId/products', async (req, res) => {
                 composeMode: body.composeMode || 'auto-rotate', composeHostingTerm: body.composeHostingTerm || null,
                 composeInstanceId: null, textLines: textLines || 0, textUpcharge: textUpcharge || 0,
                 placementUpcharge: placementUpcharge || 0, memberEarnings: memberEarnings || 0,
+                itemImage: body.itemImage || qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || body.composeMockup || body.productGraphic || body.qrGraphic || null,
             };
             try {
                 if (boundProduct?.blueprintId && boundProduct?.printProviderId) {

@@ -1539,7 +1539,7 @@ export function SuperSimpleWizard() {
                       setComposeItems(prev => [...prev, {
                         packetId,
                         name: item.title || item.name || 'Untitled',
-                        thumbnailUrl: item.qrCanvasMockup || item.qrPlayMockup || item.composeMockup || item.urlGraphic || item.thumbnailUrl || '',
+                        thumbnailUrl: item.itemImage || item.qrCanvasMockup || item.qrPlayMockup || item.composeMockup || item.urlGraphic || item.thumbnailUrl || '',
                         type: item.packetType === 'qr-play' ? 'qr-play' : 'qr-canvas',
                         durationSeconds: 86400,
                         order: prev.length + 1,
