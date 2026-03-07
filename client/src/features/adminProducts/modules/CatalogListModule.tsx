@@ -20,7 +20,7 @@ function productToScrollItem(product: Product): ScrollViewItem {
   const raw = product as Record<string, any>;
   const baseCost = typeof metadata.cachedMinCost === "number" ? metadata.cachedMinCost / 100 : 0;
   const qrUpcharge = typeof metadata.qrUpcharge === "number" ? metadata.qrUpcharge : 0.99;
-  const markupPercent = typeof metadata.markupPercent === "number" ? metadata.markupPercent : 40;
+  const markupPercent = typeof metadata.markupPercent === "number" ? metadata.markupPercent : 25;
 
   const calculatedPrice = baseCost > 0
     ? ((baseCost + qrUpcharge) * (1 + markupPercent / 100))

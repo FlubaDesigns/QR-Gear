@@ -32,7 +32,7 @@ function productToSelectItem(product: Product): ProductSelectItem {
   const qrUpcharge =
     typeof metadata.qrUpcharge === "number" ? metadata.qrUpcharge : 0.99;
   const markupPercent =
-    typeof metadata.markupPercent === "number" ? metadata.markupPercent : 40;
+    typeof metadata.markupPercent === "number" ? metadata.markupPercent : 25;
 
   const calculatedPrice =
     baseCost > 0 ? (baseCost + qrUpcharge) * (1 + markupPercent / 100) : null;

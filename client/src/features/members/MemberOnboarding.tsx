@@ -82,10 +82,11 @@ function slugify(text: string): string {
 }
 
 export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) {
-  const { data: pricingSettings } = useQuery<{ memberProfitShare?: number }>({
+  const { data: pricingSettings } = useQuery<{ memberProfitShare?: number; baseRetailPrice?: number }>({
     queryKey: ['/api/pricing-settings'],
   });
   const profitShare = pricingSettings?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;
+  const exampleRetailPrice = pricingSettings?.baseRetailPrice ?? 29.99;
   const shareLabel = formatProfitSharePercent(profitShare);
 
   const [step, setStep] = useState(0);
@@ -549,11 +550,11 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-4 bg-white/5 rounded-lg text-center">
-                  <p className="text-2xl font-bold text-amber-400" data-testid="text-example-retail">$29.99</p>
+                  <p className="text-2xl font-bold text-amber-400" data-testid="text-example-retail">${exampleRetailPrice.toFixed(2)}</p>
                   <p className="text-xs text-slate-500 line-through">Retail price</p>
                 </div>
                 <div className="p-4 bg-emerald-900/20 rounded-lg text-center border border-emerald-500/30">
-                  <p className="text-2xl font-bold text-emerald-400" data-testid="text-example-member">${(29.99 * (1 - profitShare)).toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-emerald-400" data-testid="text-example-member">${(exampleRetailPrice * (1 - profitShare)).toFixed(2)}</p>
                   <p className="text-xs text-emerald-300">Your price</p>
                 </div>
               </div>
