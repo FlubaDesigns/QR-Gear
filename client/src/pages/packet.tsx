@@ -25,7 +25,7 @@ interface PublicPacketData {
 }
 
 const AVAILABLE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
-const SIZE_UPCHARGES: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
+const DEFAULT_SIZE_UPCHARGES: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
 
 function getQrTypeLabel(qrType: string | null): string {
   switch (qrType) {
@@ -63,6 +63,12 @@ export default function PacketPage() {
     enabled: !!packetId,
   });
 
+  const { data: pricingData } = useQuery<{ sizeUpcharges?: Record<string, number> }>({
+    queryKey: ["/api/pricing-settings"],
+  });
+
+  const sizeUpcharges = pricingData?.sizeUpcharges || DEFAULT_SIZE_UPCHARGES;
+
   const packet = data?.packet;
   const referrerId = localStorage.getItem('qrgear_referrer');
 
@@ -75,7 +81,7 @@ export default function PacketPage() {
   }, [packet]);
 
   const basePrice = packet?.retailPrice || 0;
-  const sizeUpcharge = SIZE_UPCHARGES[selectedSize] || 0;
+  const sizeUpcharge = sizeUpcharges[selectedSize] || 0;
   const totalPrice = Math.round((basePrice + sizeUpcharge) * 100) / 100;
 
   const checkoutMutation = useMutation({
@@ -221,7 +227,7 @@ export default function PacketPage() {
                         {AVAILABLE_SIZES.map((size) => (
                           <SelectItem key={size} value={size} data-testid={`select-size-${size}`}>
                             {size}
-                            {SIZE_UPCHARGES[size] > 0 ? ` (+$${SIZE_UPCHARGES[size].toFixed(2)})` : ''}
+                            {(sizeUpcharges[size] || 0) > 0 ? ` (+$${(sizeUpcharges[size] || 0).toFixed(2)})` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
