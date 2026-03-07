@@ -441,11 +441,11 @@ export function generateQRCodeUrl(
 ): string {
   const dark = qrColor === "white" ? "ffffff" : "000000";
   const light = qrColor === "white" ? "000000" : "ffffff";
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=1&ecc=H&color=${dark}&bgcolor=${light}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=0&ecc=H&color=${dark}&bgcolor=${light}`;
 }
 
 export function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 4, '18px': 5.5, '24px': 7 };
+  const sizeMap: Record<string, number> = { '12px': 5.5, '18px': 7, '24px': 9 };
   const baseSvgSize = sizeMap[baseSize] || 3.5;
   const maxCharsPerLine = 20;
 

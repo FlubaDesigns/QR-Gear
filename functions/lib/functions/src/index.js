@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-03-07T18:45:00Z - Added member channel/product delete endpoints and ChannelsView rewrite
+// Build timestamp: 2026-03-07T20:00:00Z - Fixed all 8 t-shirt Printful mappings for mockup generation
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -870,16 +870,21 @@ async function downloadAndStoreImage(imageUrl, storagePath) {
 }
 // Default Printify blueprint to Printful product mappings (fallback)
 const DEFAULT_BLUEPRINT_MAPPINGS = {
-    // T-Shirts
-    5: 71, // Bella Canvas 3001 Unisex Jersey Tee -> Printful Bella Canvas 3001
+    // T-Shirts (all 8 currently allowed member products)
+    5: 71, // Unisex Cotton Crew Tee -> Printful Bella Canvas 3001
     6: 71, // Gildan 5000 -> Printful Bella Canvas 3001
+    9: 71, // Women's Favorite Tee -> Printful Bella Canvas 3001
+    11: 71, // Women's Jersey Short Sleeve Deep V-Neck Tee -> Printful Bella Canvas 3001
     12: 71, // Gildan 64000 -> Printful Bella Canvas 3001
+    45: 71, // Men's Long Sleeve Crew Tee -> Printful Bella Canvas 3001
     145: 380, // Heavyweight tee -> Printful Gildan 5000
+    460: 71, // Women's Triblend Tee -> Printful Bella Canvas 3001
+    472: 71, // Women's Cotton Tee -> Printful Bella Canvas 3001
     474: 71, // Cotton Crew -> Printful Bella Canvas 3001
-    577: 71, // Bella Canvas 3001C -> Printful Bella Canvas 3001
+    498: 71, // Unisex Deluxe T-shirt -> Printful Bella Canvas 3001
+    577: 71, // Men's Jersey Curved Hem Tee -> Printful Bella Canvas 3001
     578: 71, // Alternative to Bella Canvas
     // Hoodies & Sweatshirts
-    45: 380, // Sweatshirt/Crewneck -> Printful Gildan 18000
     77: 380, // Gildan 18500 Hoodie -> Printful Gildan 18500
     80: 380, // Unisex Hoodie -> Printful Gildan 18500
     81: 380, // Pullover Hoodie -> Printful Gildan 18500

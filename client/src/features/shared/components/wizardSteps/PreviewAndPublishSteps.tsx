@@ -44,7 +44,7 @@ const LANDING_TEXT_FONTS = [
 ];
 
 function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 4, '18px': 5.5, '24px': 7 };
+  const sizeMap: Record<string, number> = { '12px': 5.5, '18px': 7, '24px': 9 };
   const baseSvgSize = sizeMap[baseSize] || 3.5;
   const maxCharsPerLine = 20;
 

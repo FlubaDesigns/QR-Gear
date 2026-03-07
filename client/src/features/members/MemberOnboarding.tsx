@@ -161,7 +161,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
       case 3: return data.productInterests.length > 0;
       case 4:
         return data.fullName.length >= 2 && data.storeName.length >= 2 && data.creatorSlug.length >= 3 && !!data.country;
-      case 5: return true;
+      case 5: return data.socialSurfaces.length === 0 || data.socialHandle.length >= 2;
       case 6: return true;
       case 7: return data.termsAccepted;
       case 8: return true;
@@ -519,19 +519,18 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                 </div>
               </div>
             </div>
-            <div className="max-w-md mx-auto grid grid-cols-3 gap-3">
-              <div className="p-3 bg-white/5 rounded-lg text-center">
-                <Shirt className="w-6 h-6 text-blue-400 mx-auto mb-1" />
-                <p className="text-xs text-slate-400">Apparel</p>
-              </div>
-              <div className="p-3 bg-white/5 rounded-lg text-center">
-                <Coffee className="w-6 h-6 text-amber-400 mx-auto mb-1" />
-                <p className="text-xs text-slate-400">Mugs</p>
-              </div>
-              <div className="p-3 bg-white/5 rounded-lg text-center">
-                <Smartphone className="w-6 h-6 text-emerald-400 mx-auto mb-1" />
-                <p className="text-xs text-slate-400">Phone Cases</p>
-              </div>
+            <div className={`max-w-md mx-auto grid gap-3 ${dynamicCategories.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {dynamicCategories.length > 0 ? dynamicCategories.map(cat => (
+                <div key={cat.id} className="p-3 bg-white/5 rounded-lg text-center">
+                  <div className="w-6 h-6 text-blue-400 mx-auto mb-1">{cat.icon}</div>
+                  <p className="text-xs text-slate-400">{cat.label}</p>
+                </div>
+              )) : (
+                <div className="p-3 bg-white/5 rounded-lg text-center col-span-3">
+                  <Loader2 className="w-6 h-6 text-slate-400 mx-auto mb-1 animate-spin" />
+                  <p className="text-xs text-slate-400">Loading...</p>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -548,7 +547,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                 <p className="text-slate-300">When products you create sell through our platform, you earn <span className="text-emerald-400 font-bold">at least {shareLabel}</span> of the profit.</p>
               </div>
               <div className="p-4 bg-white/5 rounded-lg">
-                <p className="text-slate-300">You don't need to set up payouts right now. We'll prompt you later only if you need it — for example, after you start getting sales.</p>
+                <p className="text-slate-300">Once you make a sale, we'll verify your email and ask where to send your payment. Simple as that.</p>
               </div>
               <div className="flex items-center gap-3 p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
                 <Checkbox
