@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import type { QRBasicInputType, QRBasicSaveOption, GraphicSize } from "./wizardTypes";
-import { SHIRT_COLORS, generateQRCodeUrl } from "./wizardTypes";
+import { SHIRT_COLORS, generateQRCodeUrl, getPrintAreaDims } from "./wizardTypes";
 
 function isValidUrl(urlString: string): boolean {
   if (!urlString.trim()) return false;
@@ -26,16 +26,7 @@ export function QRBasicTypeStep({
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  const getOutlineSize = () => {
-    const sizeKey = graphicSize || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 19, h: 27 }, 
-      medium: { w: 30, h: 46 }, 
-      large: { w: 44, h: 73 } 
-    };
-    return sizes[sizeKey] || sizes.medium;
-  };
-  const outlineSize = getOutlineSize();
+  const outlineSize = getPrintAreaDims('front', graphicSize);
   
   return (
     <div className="text-center space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
@@ -148,16 +139,7 @@ export function QRBasicInputStep({
   const charCount = content.length;
   const urlError = isUrl && content.trim() !== '' && !isValidUrl(content);
   
-  const getOutlineSize = () => {
-    const sizeKey = graphicSize || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = { 
-      small: { w: 19, h: 27 }, 
-      medium: { w: 30, h: 46 }, 
-      large: { w: 44, h: 73 } 
-    };
-    return sizes[sizeKey] || sizes.medium;
-  };
-  const outlineSize = getOutlineSize();
+  const outlineSize = getPrintAreaDims('front', graphicSize);
   
   return (
     <div className="space-y-6">

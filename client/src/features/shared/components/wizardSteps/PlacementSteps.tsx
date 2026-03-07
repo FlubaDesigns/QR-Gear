@@ -13,6 +13,8 @@ import {
   SHIRT_COLORS,
   TextLayoutChoice,
   calculateAutoTextSize,
+  getPrintAreaDims,
+  GRAPHIC_CENTER,
   getPlacementLabel,
   isSleevePlacement,
   isLeftSleevePlacement,
@@ -35,18 +37,7 @@ export function GraphicSizeStep({
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
-  const getSizeOptionsForPlacement = () => {
-    if (isSleevePlacement(currentPlacement)) {
-      return { small: { w: 14, h: 14 }, medium: { w: 19, h: 19 }, large: { w: 24, h: 24 } };
-    }
-    if (currentPlacement === 'pocket') {
-      return { small: { w: 12, h: 12 }, medium: { w: 15, h: 15 }, large: { w: 19, h: 19 } };
-    }
-    return { small: { w: 19, h: 27 }, medium: { w: 30, h: 46 }, large: { w: 44, h: 73 } };
-  };
-  
-  const sizeOptions = getSizeOptionsForPlacement();
-  const currentSize = sizeOptions[selectedSize || 'medium'] || sizeOptions.medium;
+  const currentSize = getPrintAreaDims(currentPlacement, selectedSize);
   
   const isSleeve = isSleevePlacement(currentPlacement);
   const isLeftSleeve = isLeftSleevePlacement(currentPlacement);
@@ -109,8 +100,8 @@ export function GraphicSizeStep({
   );
   
   const renderBodyView = () => {
-    const graphicX = isPocket ? 77 : 90;
-    const graphicY = isPocket ? 68 : 79;
+    const graphicX = isPocket ? GRAPHIC_CENTER.pocket.x : GRAPHIC_CENTER.front.x;
+    const graphicY = isPocket ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
     
     return (
       <svg width="150" height="180" viewBox="0 0 180 210" className="drop-shadow-xl">
@@ -613,19 +604,10 @@ export function PlacementConfigStep({
   const isPocket = currentPlacement === 'pocket';
   const isSleeve = isSleevePlacement(currentPlacement);
   
-  const getGraphicDimensions = () => {
-    const sizeKey = graphicSize || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 19, h: 27 },
-      medium: { w: 30, h: 46 },
-      large: { w: 44, h: 73 }
-    };
-    return sizes[sizeKey] || sizes.medium;
-  };
-  const graphicDims = getGraphicDimensions();
+  const graphicDims = getPrintAreaDims(isPocket ? 'pocket' : (isSleeve ? 'sleeve' : 'front'), graphicSize);
   
-  const graphicX = isPocket ? 77 : 90;
-  const graphicY = isPocket ? 68 : 79;
+  const graphicX = isPocket ? GRAPHIC_CENTER.pocket.x : GRAPHIC_CENTER.front.x;
+  const graphicY = isPocket ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
 
   const qrHeight = graphicDims.h * 0.18;
   const qrWidth = qrHeight;

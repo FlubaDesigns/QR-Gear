@@ -22,6 +22,8 @@ import {
   type ProductItem,
   QR_TYPES,
   SHIRT_COLORS,
+  getPrintAreaDims,
+  GRAPHIC_CENTER,
   isSleevePlacement,
   isLeftSleevePlacement,
   isRightSleevePlacement,
@@ -96,20 +98,10 @@ export function ShirtPreviewStep({
   const hasLeftSleeve = selectedPlacements.some(p => isLeftSleevePlacement(p));
   const hasRightSleeve = selectedPlacements.some(p => isRightSleevePlacement(p));
   
-  const getGraphicDimensions = () => {
-    const sizeKey = graphicSize || 'medium';
-    const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 19, h: 27 },
-      medium: { w: 30, h: 46 },
-      large: { w: 44, h: 73 }
-    };
-    return sizes[sizeKey] || sizes.medium;
-  };
-  
-  const graphicDims = getGraphicDimensions();
+  const graphicDims = getPrintAreaDims('front', graphicSize);
   const isLeftChest = graphicLocation === 'left-chest';
-  const graphicX = isLeftChest ? 77 : 90;
-  const graphicY = isLeftChest ? 68 : 79;
+  const graphicX = isLeftChest ? GRAPHIC_CENTER.pocket.x : GRAPHIC_CENTER.front.x;
+  const graphicY = isLeftChest ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
   
   const qrHeight = graphicDims.h * 0.18;
   const qrWidth = qrHeight;

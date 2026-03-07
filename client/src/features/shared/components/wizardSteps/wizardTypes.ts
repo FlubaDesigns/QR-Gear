@@ -36,6 +36,42 @@ export type GraphicLocation = 'front-center' | 'left-chest' | 'back-center' | ''
 export type GraphicSize = 'small' | 'medium' | 'large' | '';
 export type ViewMode = 'index' | 'wizard' | 'channels' | 'collections' | 'earnings';
 
+export const PRINT_AREA_DIMS: Record<string, Record<string, { w: number; h: number }>> = {
+  front: {
+    small: { w: 19, h: 27 },
+    medium: { w: 30, h: 46 },
+    large: { w: 44, h: 73 },
+  },
+  pocket: {
+    small: { w: 12, h: 12 },
+    medium: { w: 15, h: 15 },
+    large: { w: 19, h: 19 },
+  },
+  sleeve: {
+    small: { w: 14, h: 14 },
+    medium: { w: 19, h: 19 },
+    large: { w: 24, h: 24 },
+  },
+};
+
+export const LOCATION_AREA_DIMS = {
+  'front-center': { x: 68, y: 88, w: 44, h: 73 },
+  'left-chest': { x: 62, y: 68, w: 18, h: 18 },
+  'back-center': { x: 68, y: 88, w: 44, h: 73 },
+};
+
+export const GRAPHIC_CENTER = {
+  front: { x: 90, y: 101 },
+  pocket: { x: 77, y: 75 },
+};
+
+export function getPrintAreaDims(placement: string, size: GraphicSize | ''): { w: number; h: number } {
+  const sizeKey = size || 'medium';
+  if (placement === 'pocket') return PRINT_AREA_DIMS.pocket[sizeKey] || PRINT_AREA_DIMS.pocket.medium;
+  if (placement.includes('sleeve')) return PRINT_AREA_DIMS.sleeve[sizeKey] || PRINT_AREA_DIMS.sleeve.medium;
+  return PRINT_AREA_DIMS.front[sizeKey] || PRINT_AREA_DIMS.front.medium;
+}
+
 export interface ProductItem {
   id: number;
   productId?: number;

@@ -11,7 +11,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import type { QRType, GraphicLocation, GraphicSize } from "./wizardTypes";
-import { SHIRT_COLORS } from "./wizardTypes";
+import { SHIRT_COLORS, LOCATION_AREA_DIMS } from "./wizardTypes";
 
 export function TypePickerStep({ 
   selectedType, 
@@ -419,10 +419,8 @@ export function GraphicLocationStep({
         <p className="text-slate-400">Tap a location to select</p>
       </div>
       
-      {/* Shirt with location boxes */}
       <div className="flex justify-center">
-        <svg width="120" height="140" viewBox="0 0 180 210" className="drop-shadow-lg">
-          {/* Shirt shape */}
+        <svg width="160" height="190" viewBox="0 0 180 210" className="drop-shadow-lg">
           <path
             d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
             fill={colorHex}
@@ -430,28 +428,32 @@ export function GraphicLocationStep({
             strokeWidth="2"
           />
           
-          {/* Left Chest location */}
           <rect
-            x="60" y="65" width="25" height="25"
+            x={LOCATION_AREA_DIMS['left-chest'].x}
+            y={LOCATION_AREA_DIMS['left-chest'].y}
+            width={LOCATION_AREA_DIMS['left-chest'].w}
+            height={LOCATION_AREA_DIMS['left-chest'].h}
             fill={selectedLocation === 'left-chest' ? '#22c55e' : '#666'}
             fillOpacity={selectedLocation === 'left-chest' ? 0.8 : 0.4}
             stroke={selectedLocation === 'left-chest' ? '#22c55e' : '#888'}
             strokeWidth="2"
             strokeDasharray={selectedLocation === 'left-chest' ? '0' : '4'}
-            rx="3"
+            rx="2"
             className="cursor-pointer"
             onClick={() => onSelect('left-chest')}
           />
           
-          {/* Front Center location */}
           <rect
-            x="65" y="100" width="50" height="50"
+            x={LOCATION_AREA_DIMS['front-center'].x}
+            y={LOCATION_AREA_DIMS['front-center'].y}
+            width={LOCATION_AREA_DIMS['front-center'].w}
+            height={LOCATION_AREA_DIMS['front-center'].h}
             fill={selectedLocation === 'front-center' ? '#22c55e' : '#666'}
             fillOpacity={selectedLocation === 'front-center' ? 0.8 : 0.4}
             stroke={selectedLocation === 'front-center' ? '#22c55e' : '#888'}
             strokeWidth="2"
             strokeDasharray={selectedLocation === 'front-center' ? '0' : '4'}
-            rx="3"
+            rx="2"
             className="cursor-pointer"
             onClick={() => onSelect('front-center')}
           />
