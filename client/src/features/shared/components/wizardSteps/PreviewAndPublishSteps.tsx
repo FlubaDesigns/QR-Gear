@@ -47,8 +47,8 @@ const LANDING_TEXT_FONTS = [
 ];
 
 function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 5.5, '18px': 7, '24px': 9 };
-  const baseSvgSize = sizeMap[baseSize] || 3.5;
+  const sizeMap: Record<string, number> = { '12px': 7, '18px': 9, '24px': 12 };
+  const baseSvgSize = sizeMap[baseSize] || 5;
   const maxCharsPerLine = 20;
 
   if (!text) return { lines: [''], fontSize: baseSvgSize };
@@ -132,8 +132,10 @@ export function ShirtPreviewStep({
   const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => {
     const areaX = graphicX - graphicDims.w / 2;
     const areaY = graphicY - graphicDims.h / 2;
+    const pocketZoom = isLeftChest && view === 'front';
+    const vb = pocketZoom ? "70 25 80 100" : "0 0 180 210";
     return (
-    <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
+    <svg viewBox={vb} className="w-full h-full drop-shadow-xl">
       <path
         d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
         fill={colorHex}
@@ -191,8 +193,8 @@ export function ShirtPreviewStep({
           {line}
         </text>
       ))}
-      <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
-        {view === 'front' ? 'FRONT' : 'BACK'}
+      <text x={pocketZoom ? 110 : 90} y={pocketZoom ? 120 : 200} textAnchor="middle" fill="#9ca3af" fontSize={pocketZoom ? 7 : 10} fontWeight="bold">
+        {view === 'back' ? 'BACK' : (pocketZoom ? 'LEFT CHEST' : 'FRONT')}
       </text>
     </svg>
   );

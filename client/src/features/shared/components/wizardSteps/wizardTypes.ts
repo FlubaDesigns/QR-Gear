@@ -78,7 +78,7 @@ export const LOCATION_AREA_DIMS = {
 
 export const GRAPHIC_CENTER = {
   front: { x: 90, y: 101 },
-  pocket: { x: 77, y: 75 },
+  pocket: { x: 103, y: 75 },
 };
 
 export function getPrintAreaDims(placement: string, size: GraphicSize | ''): { w: number; h: number } {
@@ -461,8 +461,8 @@ export function generateQRCodeUrl(
 }
 
 export function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {
-  const sizeMap: Record<string, number> = { '12px': 5.5, '18px': 7, '24px': 9 };
-  const baseSvgSize = sizeMap[baseSize] || 3.5;
+  const sizeMap: Record<string, number> = { '12px': 7, '18px': 9, '24px': 12 };
+  const baseSvgSize = sizeMap[baseSize] || 5;
   const maxCharsPerLine = 20;
 
   if (!text) return { lines: [''], fontSize: baseSvgSize };

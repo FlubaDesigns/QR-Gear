@@ -105,9 +105,10 @@ export function GraphicSizeStep({
   const renderBodyView = () => {
     const graphicX = isPocket ? GRAPHIC_CENTER.pocket.x : GRAPHIC_CENTER.front.x;
     const graphicY = isPocket ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
+    const vb = isPocket ? "70 25 80 100" : "0 0 180 210";
     
     return (
-      <svg width="150" height="180" viewBox="0 0 180 210" className="drop-shadow-xl">
+      <svg width="150" height="180" viewBox={vb} className="drop-shadow-xl">
         <path
           d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
           fill={colorHex}
@@ -437,7 +438,7 @@ export function PlacementDiagram({ placement, size }: { placement: PlacementOpti
       {highlight === 'left-chest' && (
         <g>
           <rect 
-            x={28} 
+            x={70} 
             y={50} 
             width={22 * sizeScale} 
             height={22 * sizeScale} 
@@ -447,7 +448,7 @@ export function PlacementDiagram({ placement, size }: { placement: PlacementOpti
             strokeDasharray="4,2"
             rx="2"
           />
-          <circle cx={39} cy={50 + 11 * sizeScale} r="6" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
+          <circle cx={81} cy={50 + 11 * sizeScale} r="6" fill="rgba(255,255,255,0.2)" stroke="white" strokeWidth="1.5"/>
         </g>
       )}
     </svg>
@@ -639,8 +640,13 @@ export function PlacementConfigStep({
   const ShirtPreviewWithGraphic = () => {
     const areaX = graphicX - graphicDims.w / 2;
     const areaY = graphicY - graphicDims.h / 2;
+    const pocketZoom = isPocket;
+    const vb = pocketZoom ? "70 25 80 100" : "0 0 180 210";
+    const labelX = pocketZoom ? 110 : 90;
+    const labelY = pocketZoom ? 120 : 200;
+    const placementLabel2 = isBackPlacement(currentPlacement) ? 'BACK' : (pocketZoom ? 'LEFT CHEST' : 'FRONT');
     return (
-      <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
+      <svg viewBox={vb} className="w-full h-full drop-shadow-xl">
         <path
           d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
           fill={colorHex}
@@ -703,8 +709,8 @@ export function PlacementConfigStep({
           </>
         )}
         
-        <text x="90" y="200" textAnchor="middle" fill="#9ca3af" fontSize="10" fontWeight="bold">
-          {isBackPlacement(currentPlacement) ? 'BACK' : 'FRONT'}
+        <text x={labelX} y={labelY} textAnchor="middle" fill="#9ca3af" fontSize={pocketZoom ? 7 : 10} fontWeight="bold">
+          {placementLabel2}
         </text>
       </svg>
     );
