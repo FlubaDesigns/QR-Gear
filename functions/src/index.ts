@@ -9291,6 +9291,50 @@ app.get('/catalog-for-section/:section', async (req: Request, res: Response): Pr
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.get('/admin/catalog-health', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [productsSnap, allowedDoc, catalogsSnap, assignDoc] = await Promise.all([
+      db.collection('products').get(),
+      db.collection('storeAllowedProducts').doc('member-products').get(),
+      db.collection('catalogs').get(),
+      db.collection('systemSettings').doc('catalog-assignments').get(),
+    ]);
+
+    const allProducts = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const enabledProducts = allProducts.filter((p: any) => p.isEnabled !== false);
+    const allowedProducts = allowedDoc.exists ? (allowedDoc.data()?.products || []) : [];
+    const providers = [...new Set(allProducts.map((p: any) => p.provider || 'unknown'))];
+
+    const catalogs = catalogsSnap.docs.map(d => {
+      const data = d.data();
+      return { id: d.id, name: data.name, blankCount: (data.blankIds || []).length };
+    });
+
+    const assignments = assignDoc.exists ? assignDoc.data() : {};
+    const sections = ['member', 'public', 'external', 'platform'];
+    const sectionStatus: Record<string, any> = {};
+    for (const s of sections) {
+      const catId = assignments?.[s] || null;
+      const cat = catId ? catalogs.find(c => c.id === catId) : null;
+      sectionStatus[s] = {
+        catalogId: catId,
+        catalogName: cat?.name || null,
+        blankCount: cat?.blankCount || 0,
+        status: catId ? (cat ? 'assigned' : 'missing-catalog') : 'unassigned',
+      };
+    }
+
+    res.json({
+      totalProducts: allProducts.length,
+      enabledProducts: enabledProducts.length,
+      allowedMemberProducts: allowedProducts.length,
+      providers,
+      catalogs,
+      sections: sectionStatus,
+    });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 // ============ BATCH: MEMBER LIBRARY SYSTEM ============
 
 app.get('/members/common-library', async (req: Request, res: Response): Promise<void> => {

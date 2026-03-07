@@ -71,9 +71,13 @@ export function ProductPickerStep({
     queryKey: ["/api/members/allowed-products", context],
     queryFn: async () => {
       const res = await fetch(`/api/members/allowed-products${sectionParam}`);
-      if (!res.ok) throw new Error('Failed to load products');
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Failed to load products (${res.status}): ${text || res.statusText}`);
+      }
       return res.json();
     },
+    staleTime: 300000,
   });
 
   const products = productsData?.products || [];
@@ -95,6 +99,9 @@ export function ProductPickerStep({
         <p className="text-slate-400 text-sm">
           {error instanceof Error ? error.message : 'Failed to load products'}
         </p>
+        <p className="text-slate-500 text-xs" data-testid="text-error-endpoint">
+          Endpoint: /api/members/allowed-products{sectionParam}
+        </p>
       </div>
     );
   }
@@ -105,7 +112,11 @@ export function ProductPickerStep({
         <Package className="w-12 h-12 mx-auto text-slate-500" />
         <h2 className="text-lg font-bold text-white" data-testid="text-no-products">No Products Available</h2>
         <p className="text-slate-400 text-sm">
-          No products are currently enabled. Contact admin to add products to the catalog.
+          No products are currently enabled for this section.
+        </p>
+        <p className="text-slate-500 text-xs">
+          An admin needs to enable products in the catalog.
+          {context === 'member' && ' Go to Admin \u2192 Blanks \u2192 Catalogs to assign products.'}
         </p>
       </div>
     );
@@ -134,6 +145,7 @@ export function ProductPickerStep({
               <img 
                 src={product.imageUrl} 
                 alt={product.title}
+                loading="lazy"
                 className="w-14 h-14 rounded-lg object-cover bg-white flex-shrink-0 cursor-zoom-in"
                 onClick={(e) => {
                   e.stopPropagation();
