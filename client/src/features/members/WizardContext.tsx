@@ -1001,6 +1001,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const handlePlayDone = () => {
     setSimpleStep('channel');
+    setViewMode('index');
     setCurrentPacketId(null);
     setSimpleTitle('');
     setSimpleDescription('');
