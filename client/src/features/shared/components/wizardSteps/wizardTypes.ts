@@ -28,6 +28,22 @@ export function isRightSleevePlacement(p: string): boolean {
 export function isSleevePlacement(p: string): boolean {
   return isLeftSleevePlacement(p) || isRightSleevePlacement(p);
 }
+export function isPocketPlacement(p: string): boolean {
+  return p === 'pocket' || p === 'front_small' || p === 'left_chest';
+}
+export function isBackPlacement(p: string): boolean {
+  return p === 'back' || p === 'back_center';
+}
+export function isFrontPlacement(p: string): boolean {
+  return p === 'front' || p === 'front_center' || p === 'front_large' || p === 'center';
+}
+export function getPlacementZone(p: string): 'front' | 'pocket' | 'back' | 'left-sleeve' | 'right-sleeve' {
+  if (isPocketPlacement(p)) return 'pocket';
+  if (isBackPlacement(p)) return 'back';
+  if (isLeftSleevePlacement(p)) return 'left-sleeve';
+  if (isRightSleevePlacement(p)) return 'right-sleeve';
+  return 'front';
+}
 export type QRType = 'qr-basic' | 'qr-plus' | 'qr-canvas' | 'qr-play' | 'qr-compose' | '';
 export type WizardTier = 'simple' | 'advanced' | 'studio' | 'super-simple';
 export type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'personal-library' | 'common-library' | 'crop' | 'full-or-crop';

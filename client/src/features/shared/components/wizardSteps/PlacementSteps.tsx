@@ -19,6 +19,9 @@ import {
   isSleevePlacement,
   isLeftSleevePlacement,
   isRightSleevePlacement,
+  isPocketPlacement,
+  isBackPlacement,
+  getPlacementZone,
 } from "./wizardTypes";
 import { isQrOnlyPlacement, isBrandingPlacement, buildPlacementOption } from "@/features/shared/placementTypes";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
@@ -41,8 +44,8 @@ export function GraphicSizeStep({
   
   const isSleeve = isSleevePlacement(currentPlacement);
   const isLeftSleeve = isLeftSleevePlacement(currentPlacement);
-  const isPocket = currentPlacement === 'pocket';
-  const isBack = currentPlacement === 'back';
+  const isPocket = isPocketPlacement(currentPlacement);
+  const isBack = isBackPlacement(currentPlacement);
   
   const renderSleeveView = () => (
     <svg width="140" height="160" viewBox="0 0 180 200" className="drop-shadow-xl">
