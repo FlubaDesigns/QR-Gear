@@ -51,7 +51,7 @@ export interface MembersApi {
   getAuthHeaders: () => Promise<HeadersInit>;
   getQueryKey: (type?: string) => string[];
   invalidateMembers: (type?: string) => void;
-  fetchAllowedProducts: () => Promise<AllowedProduct[]>;
+  fetchAllowedProducts: (section?: string) => Promise<AllowedProduct[]>;
   fetchChannels: (memberId: string) => Promise<Channel[]>;
   createChannel: (memberId: string, name: string, storeId?: string) => Promise<Channel>;
   generateMockup: (params: MockupParams) => Promise<MockupResult>;
@@ -116,9 +116,10 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
       getQueryKey,
       invalidateMembers,
 
-      fetchAllowedProducts: async (): Promise<AllowedProduct[]> => {
+      fetchAllowedProducts: async (section?: string): Promise<AllowedProduct[]> => {
         const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/allowed-products`, { headers });
+        const sectionQuery = section ? `?section=${section}` : '';
+        const res = await fetch(`${apiBase}/allowed-products${sectionQuery}`, { headers });
         if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
         const data = await res.json();
         return data.products || [];

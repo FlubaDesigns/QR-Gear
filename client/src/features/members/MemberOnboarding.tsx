@@ -130,7 +130,12 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
     queryKey: ['/api/pricing-settings'],
   });
   const { data: allowedProductsData } = useQuery<{ products: { title: string }[] }>({
-    queryKey: ['/api/members/allowed-products'],
+    queryKey: ['/api/members/allowed-products', 'member'],
+    queryFn: async () => {
+      const res = await fetch('/api/members/allowed-products?section=member');
+      if (!res.ok) throw new Error('Failed to load products');
+      return res.json();
+    },
   });
   const dynamicCategories = detectProductCategories(allowedProductsData?.products || []);
   const profitShare = pricingSettings?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Package, Check, DollarSign, X, Ruler, Palette, ShoppingBag } from "lucide-react";
 import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } from "./wizardTypes";
 
-export type WizardContextType = 'member' | 'owner';
+export type WizardContextType = 'member' | 'owner' | 'public' | 'external' | 'platform';
 
 export function getProductFriendlyName(title?: string | null): string {
   if (!title) return 'product';
@@ -61,12 +61,19 @@ export function ProductPickerStep({
   context?: WizardContextType;
 }) {
   const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; product: AllowedProduct } | null>(null);
+  const sectionMap: Record<string, string> = { member: 'member', public: 'public', external: 'external', platform: 'platform' };
+  const sectionParam = sectionMap[context || ''] ? `?section=${sectionMap[context || '']}` : '';
   const {
     data: productsData,
     isLoading,
     error
   } = useQuery<{ products: AllowedProduct[]; source?: string }>({
-    queryKey: ["/api/members/allowed-products"],
+    queryKey: ["/api/members/allowed-products", context],
+    queryFn: async () => {
+      const res = await fetch(`/api/members/allowed-products${sectionParam}`);
+      if (!res.ok) throw new Error('Failed to load products');
+      return res.json();
+    },
   });
 
   const products = productsData?.products || [];
