@@ -649,6 +649,8 @@ export function PlacementConfigStep({
   const footerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (footerHOffset / 100));
 
   const ShirtPreviewWithGraphic = () => {
+    const areaX = graphicX - graphicDims.w / 2;
+    const areaY = graphicY - graphicDims.h / 2;
     return (
       <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
         <path
@@ -660,6 +662,18 @@ export function PlacementConfigStep({
         {currentPlacement === 'back' && (
           <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
         )}
+        
+        <rect
+          x={areaX}
+          y={areaY}
+          width={graphicDims.w}
+          height={graphicDims.h}
+          fill="rgba(255,255,255,0.06)"
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth="0.8"
+          strokeDasharray="3,2"
+          rx="1"
+        />
         
         {graphicChoice && (
           <>
@@ -762,7 +776,7 @@ export function PlacementConfigStep({
       </div>
       
       <div className="flex items-center justify-center gap-3">
-        <div className="w-32 h-40">
+        <div className="w-44 h-56">
           {isSleeve ? (
             <SleevePreviewWithGraphic side={isLeftSleevePlacement(currentPlacement) ? 'left' : 'right'} />
           ) : (

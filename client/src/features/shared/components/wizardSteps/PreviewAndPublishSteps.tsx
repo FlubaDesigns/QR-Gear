@@ -132,7 +132,10 @@ export function ShirtPreviewStep({
   const footerTextY = Math.max(footerZoneTop + footerAutoText.fontSize * 0.8, Math.min(footerZoneBottom - (footerAutoText.lines.length > 1 ? footerAutoText.fontSize : 0), footerZoneTop + ((footerZoneBottom - footerZoneTop) * (footerVOffset / 100))));
   const footerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (footerHOffset / 100));
 
-  const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => (
+  const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => {
+    const areaX = graphicX - graphicDims.w / 2;
+    const areaY = graphicY - graphicDims.h / 2;
+    return (
     <svg viewBox="0 0 180 210" className="w-full h-full drop-shadow-xl">
       <path
         d="M30,52 L52,30 L75,37 L90,30 L105,37 L128,30 L150,52 L142,82 L127,75 L127,180 L53,180 L53,75 L38,82 Z"
@@ -143,6 +146,18 @@ export function ShirtPreviewStep({
       {view === 'back' && (
         <path d="M75,37 Q90,42 105,37" fill="none" stroke="#444" strokeWidth="1.5"/>
       )}
+      
+      <rect
+        x={areaX}
+        y={areaY}
+        width={graphicDims.w}
+        height={graphicDims.h}
+        fill="rgba(255,255,255,0.06)"
+        stroke="rgba(255,255,255,0.35)"
+        strokeWidth="0.8"
+        strokeDasharray="3,2"
+        rx="1"
+      />
       
       {showHeader && headerAutoText.lines.map((line, i) => (
         <text
@@ -184,6 +199,7 @@ export function ShirtPreviewStep({
       </text>
     </svg>
   );
+  };
   
   const LeftSleeveView = () => (
     <svg viewBox="0 0 120 160" className="w-full h-full drop-shadow-xl">
