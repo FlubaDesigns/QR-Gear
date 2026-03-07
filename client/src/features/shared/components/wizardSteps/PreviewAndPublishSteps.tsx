@@ -400,7 +400,10 @@ export function UrlTitleStep({
       <div className="space-y-4 max-w-md mx-auto">
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
           <div>
-            <Label className="text-white text-sm font-medium">Title</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-white text-sm font-medium">Title</Label>
+              <span className="text-xs text-slate-500 italic">Tap to customize</span>
+            </div>
             <Input
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
@@ -563,7 +566,10 @@ export function UrlDescriptionStep({
       <div className="space-y-4 max-w-md mx-auto">
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
           <div>
-            <Label className="text-white text-sm font-medium">Description</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-white text-sm font-medium">Description</Label>
+              <span className="text-xs text-slate-500 italic">Tap to customize</span>
+            </div>
             <Input
               value={description}
               onChange={(e) => onDescriptionChange(e.target.value)}
@@ -782,7 +788,10 @@ export function UrlCreationStep({
       <div className="space-y-4 max-w-md mx-auto">
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
           <div>
-            <Label className="text-white text-sm font-medium">Title</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-white text-sm font-medium">Title</Label>
+              <span className="text-xs text-slate-500 italic">Tap to customize</span>
+            </div>
             <Input
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
@@ -876,7 +885,10 @@ export function UrlCreationStep({
         
         <div className="bg-slate-800/50 rounded-lg p-3 space-y-3">
           <div>
-            <Label className="text-white text-sm font-medium">Description</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-white text-sm font-medium">Description</Label>
+              <span className="text-xs text-slate-500 italic">Tap to customize</span>
+            </div>
             <Input
               value={description}
               onChange={(e) => onDescriptionChange(e.target.value)}

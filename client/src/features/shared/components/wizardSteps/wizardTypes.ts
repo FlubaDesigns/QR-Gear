@@ -101,6 +101,35 @@ export interface AllowedProduct {
   sizes?: string[];
 }
 
+export function getProductTypeLabel(productTitle: string): string {
+  const t = productTitle.toLowerCase();
+  if (t.includes('hoodie') || t.includes('hooded')) return 'Hoodie';
+  if (t.includes('tank')) return 'Tank Top';
+  if (t.includes('sweatshirt')) return 'Sweatshirt';
+  if (t.includes('long sleeve') || t.includes('longsleeve')) return 'Long Sleeve';
+  if (t.includes('polo')) return 'Polo';
+  if (t.includes('jacket')) return 'Jacket';
+  if (t.includes('crop')) return 'Crop Top';
+  if (t.includes('dress')) return 'Dress';
+  if (t.includes('hat') || t.includes('cap') || t.includes('beanie')) return 'Hat';
+  if (t.includes('bag') || t.includes('tote')) return 'Bag';
+  if (t.includes('mug') || t.includes('cup') || t.includes('tumbler')) return 'Mug';
+  if (t.includes('phone') || t.includes('case')) return 'Phone Case';
+  if (t.includes('poster') || t.includes('print') || t.includes('canvas')) return 'Print';
+  if (t.includes('tee') || t.includes('t-shirt') || t.includes('shirt')) return 'Tee';
+  return 'Item';
+}
+
+export function getDefaultPacketTitle(productTitle: string): string {
+  const typeLabel = getProductTypeLabel(productTitle);
+  return `QR Gear Custom ${typeLabel}`;
+}
+
+export function getDefaultPacketDescription(productTitle: string): string {
+  const typeLabel = getProductTypeLabel(productTitle).toLowerCase();
+  return `Premium custom ${typeLabel} featuring your unique QR code design. Made to wear with pride.`;
+}
+
 export interface MemberChannel {
   id: string;
   name: string;

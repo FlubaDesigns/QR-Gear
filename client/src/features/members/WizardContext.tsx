@@ -17,6 +17,8 @@ import {
   SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS, QR_PLAY_STEPS, QR_COMPOSE_STEPS, WIZARD_STEPS,
   isQRBasicStep, isQRPlusStep, isQRPlayStep, isQRComposeStep,
   generateQRCodeUrl,
+  getDefaultPacketTitle,
+  getDefaultPacketDescription,
 } from "@/features/shared/components/wizardSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
 
@@ -1031,6 +1033,12 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const handleProductSelect = async (product: AllowedProduct) => {
     setSelectedProductType(product);
+    if (!simpleTitle) {
+      setSimpleTitle(getDefaultPacketTitle(product.title));
+    }
+    if (!simpleDescription) {
+      setSimpleDescription(getDefaultPacketDescription(product.title));
+    }
     await createPacketForProduct(product);
   };
 
