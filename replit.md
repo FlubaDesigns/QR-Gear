@@ -65,7 +65,7 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Video Upload**: Handles multipart FormData video uploads via Cloud Functions, leveraging `req.rawBody`.
 - **QR Code Rendering**: Optimized QR code rendering with reduced quiet zone and proportional graphic filling.
 - **Mockup Cache**: Includes artwork URL hash in the mockup cache key to prevent stale mockups.
-- **QR GEAR DUAL-PRODUCT ARCHITECTURE**: Comprises **QR COMPOSER** (for creating sellable QR merchandise templates) and **QR DYNAMICS** (for controlling purchased instances post-sale).
+- **QR GEAR DUAL-PRODUCT ARCHITECTURE**: Comprises **QR COMPOSER** (for creating sellable QR merchandise templates) and **QR DYNAMICS** (for controlling purchased instances post-sale). **Naming convention**: "QR Compose" = the member wizard process of stitching items together; "QR Dynamics" = the resulting stitched item that rotates content. The member dashboard tab is labeled "QR Dynamics" and shows items built via QR Compose.
 - **Three Surfaces (Resolver Engine)**: Supports IMAGE (Canvas), VIDEO (Play), and future DOCUMENT (PDF) based QR experiences.
 - **Member Creation Wizards**: Progressive unlock system for members based on publishing activity (Quick Create, Advanced, Studio). Code-split via React.lazy for reduced initial bundle size.
 - **Advanced Wizard Differentiation**: Advanced tier includes Quick Start resume, font size slider, vertical offset controls, and placement coordinate display with X/Y offset adjusters.

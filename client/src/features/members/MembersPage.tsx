@@ -781,61 +781,68 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
 }
 
 function CollectionsView({ memberId }: { memberId: string }) {
-  const { data: collections, isLoading } = useQuery<any[]>({
-    queryKey: ['/api/members', memberId, 'compose-packets'],
+  const { data: dynamicsItems, isLoading } = useQuery<any[]>({
+    queryKey: ['/api/members', memberId, 'dynamics'],
     queryFn: async () => {
       if (!memberId) return [];
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/packets?status=published&kind=qr-compose`, { headers });
+      const res = await fetch(`/api/members/${memberId}/published-items?types=qr-compose`, { headers });
       if (!res.ok) return [];
       const data = await res.json();
-      return data.packets || data || [];
+      return data.items || [];
     },
     enabled: !!memberId
   });
 
-  const collectionList = collections || [];
+  const itemList = dynamicsItems || [];
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-white flex items-center gap-2">
           <QrCode className="w-5 h-5" />
-          My Collections (Compose)
+          QR Dynamics
         </CardTitle>
-        <Button size="sm" className="bg-blue-600 hover:bg-blue-500" data-testid="button-create-collection">
-          <Plus className="w-4 h-4 mr-1" />
-          New Collection
-        </Button>
+        <Badge variant="outline" className="text-slate-400 border-slate-600">
+          Built with QR Compose
+        </Badge>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
           </div>
-        ) : collectionList.length === 0 ? (
+        ) : itemList.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
             <QrCode className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="mb-2">No collections yet</p>
-            <p className="text-sm">Build rotating QR experiences from your items</p>
+            <p className="mb-2">No QR Dynamics yet</p>
+            <p className="text-sm">Use QR Compose in any wizard to stitch your Canvas and Play items into a rotating QR experience</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {collectionList.map((collection: any) => (
+            {itemList.map((item: any) => (
               <div 
-                key={collection.id} 
+                key={item.id} 
                 className="p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer"
-                data-testid={`collection-${collection.id}`}
+                data-testid={`dynamics-item-${item.id}`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-white font-medium">{collection.name}</h3>
+                <div className="flex items-start gap-3">
+                  {item.itemImage && (
+                    <img src={item.itemImage} alt={item.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-medium truncate">{item.title || 'Untitled'}</h3>
                     <p className="text-sm text-slate-400">
-                      {collection.itemCount || 0} items · {collection.rotationInterval || 'daily'} rotation
+                      {item.composeItems?.length || 0} items · {item.composeMode || 'auto-rotate'}
                     </p>
+                    {item.composeInstanceId && (
+                      <p className="text-xs text-blue-400 mt-1 truncate">
+                        Instance: {item.composeInstanceId}
+                      </p>
+                    )}
                   </div>
-                  <Badge variant="outline" className="text-blue-400 border-blue-400">
-                    Active
+                  <Badge variant="outline" className="text-green-400 border-green-400 flex-shrink-0">
+                    Live
                   </Badge>
                 </div>
               </div>
@@ -1130,7 +1137,7 @@ function MembersSandboxInner() {
                 className={viewMode === 'collections' ? 'bg-blue-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
               >
                 <QrCode className="w-4 h-4 mr-1" />
-                Compose
+                QR Dynamics
               </Button>
               <Button
                 variant={viewMode === 'earnings' ? 'default' : 'ghost'}
