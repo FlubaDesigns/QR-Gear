@@ -3161,13 +3161,15 @@ app.post('/admin/stores', requireAdmin, async (req: Request, res: Response): Pro
     const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const storeData: Record<string, any> = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
     if (roleType === 'marketplace') {
-      const { platform, apiKeyRef, shopId, feePercent, syncEnabled } = req.body;
+      const { platform, apiKeyRef, shopId, shopName, feePercent, syncEnabled } = req.body;
       storeData.marketplaceConfig = {
         platform: platform || '',
         apiKeyRef: apiKeyRef || '',
         shopId: shopId || '',
+        shopName: shopName || '',
         feePercent: typeof feePercent === 'number' ? feePercent : 0,
         syncEnabled: syncEnabled === true,
+        apiKeyConfigured: false,
       };
     }
     await db.collection('stores').doc(storeId).set(storeData);
@@ -7757,13 +7759,15 @@ app.post('/stores', requireAdmin, async (req: Request, res: Response): Promise<v
     const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const storeData: Record<string, any> = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
     if (roleType === 'marketplace') {
-      const { platform, apiKeyRef, shopId, feePercent, syncEnabled } = req.body;
+      const { platform, apiKeyRef, shopId, shopName, feePercent, syncEnabled } = req.body;
       storeData.marketplaceConfig = {
         platform: platform || '',
         apiKeyRef: apiKeyRef || '',
         shopId: shopId || '',
+        shopName: shopName || '',
         feePercent: typeof feePercent === 'number' ? feePercent : 0,
         syncEnabled: syncEnabled === true,
+        apiKeyConfigured: false,
       };
     }
     await db.collection('stores').doc(storeId).set(storeData);
@@ -12285,11 +12289,12 @@ app.put('/admin/marketplace/stores/:storeId/config', requireAdmin, async (req: R
     if (!storeDoc.exists) { res.status(404).json({ error: 'Store not found' }); return; }
     const storeData = storeDoc.data();
     if (storeData?.roleType !== 'marketplace') { res.status(400).json({ error: 'Store is not a marketplace store' }); return; }
-    const { platform, apiKeyRef, shopId, feePercent, syncEnabled } = req.body;
+    const { platform, apiKeyRef, shopId, shopName, feePercent, syncEnabled } = req.body;
     const updatedConfig: Record<string, any> = { ...(storeData?.marketplaceConfig || {}) };
     if (platform !== undefined) updatedConfig.platform = platform;
     if (apiKeyRef !== undefined) updatedConfig.apiKeyRef = apiKeyRef;
     if (shopId !== undefined) updatedConfig.shopId = shopId;
+    if (shopName !== undefined) updatedConfig.shopName = shopName;
     if (feePercent !== undefined) updatedConfig.feePercent = typeof feePercent === 'number' ? feePercent : parseFloat(feePercent) || 0;
     if (syncEnabled !== undefined) updatedConfig.syncEnabled = syncEnabled === true;
     updatedConfig.updatedAt = new Date().toISOString();

@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -21,7 +20,6 @@ import {
   ExternalLink,
   Upload,
   CheckCircle,
-  XCircle,
   AlertCircle,
   ChevronDown,
   ChevronUp,
@@ -53,15 +51,17 @@ interface MarketplaceStore {
 interface MarketplaceListing {
   id: string;
   storeId: string;
-  productName: string;
+  productId: string;
+  title: string;
   marketplaceListingId: string | null;
-  status: "draft" | "listed" | "syncing" | "error" | "delisted";
+  status: "pending" | "draft" | "listed" | "syncing" | "error" | "delisted";
   listingUrl: string | null;
-  marketplacePrice: number | null;
+  price: number | null;
+  sku: string | null;
+  platform: string;
   lastSyncAt: string | null;
   errorMessage: string | null;
   mockupUrl: string | null;
-  packetId: string | null;
 }
 
 const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string }> = {
@@ -287,6 +287,18 @@ export default function AdminMarketplaces() {
                       data-testid={`button-config-${store.id}`}
                     >
                       <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm(`Delete marketplace "${store.name}"? This cannot be undone.`)) {
+                          deleteMutation.mutate(store.id);
+                        }
+                      }}
+                      data-testid={`button-delete-${store.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -522,7 +534,7 @@ function MarketplaceListings({ storeId, platform }: { storeId: string; platform:
                 {listing.mockupUrl ? (
                   <img
                     src={listing.mockupUrl}
-                    alt={listing.productName}
+                    alt={listing.title || listing.productId}
                     className="h-10 w-10 rounded object-cover flex-shrink-0"
                     loading="lazy"
                   />
@@ -533,15 +545,15 @@ function MarketplaceListings({ storeId, platform }: { storeId: string; platform:
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate" data-testid={`text-listing-name-${listing.id}`}>
-                    {listing.productName}
+                    {listing.title || listing.productId}
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mt-0.5">
                     <Badge variant={statusInfo.variant} className="text-xs">
                       {statusInfo.label}
                     </Badge>
-                    {listing.marketplacePrice && (
+                    {listing.price != null && listing.price > 0 && (
                       <span className="text-xs text-muted-foreground">
-                        ${listing.marketplacePrice.toFixed(2)}
+                        ${listing.price.toFixed(2)}
                       </span>
                     )}
                     {listing.marketplaceListingId && (
