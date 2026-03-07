@@ -441,7 +441,7 @@ export function generateQRCodeUrl(
 ): string {
   const dark = qrColor === "white" ? "ffffff" : "000000";
   const light = qrColor === "white" ? "000000" : "ffffff";
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=2&ecc=H&color=${dark}&bgcolor=${light}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(content)}&format=png&qzone=1&ecc=H&color=${dark}&bgcolor=${light}`;
 }
 
 export function calculateAutoTextSize(text: string, baseSize: string, areaWidth: number): { lines: string[]; fontSize: number } {

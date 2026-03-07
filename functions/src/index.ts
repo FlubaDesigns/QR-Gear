@@ -1,4 +1,4 @@
-// Build timestamp: 2026-02-16T14:15:00Z - Fixed printfile position lookup and label placement position data
+// Build timestamp: 2026-03-07T18:45:00Z - Added member channel/product delete endpoints and ChannelsView rewrite
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1178,8 +1178,9 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   const { blueprintId, colorName, colorHex, artworkVariant = 'black', fulfillmentProvider = 'printify' } = request;
   const artworkUrl = await toPublicUrl(request.artworkUrl);
   
-  // Check Firestore cache first
-  const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}`;
+  const crypto = require('crypto');
+  const artworkHash = crypto.createHash('md5').update(artworkUrl).digest('hex').substring(0, 12);
+  const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${artworkHash}`;
   const cacheDoc = await db.collection('mockup_cache').doc(cacheKey).get();
   
   if (cacheDoc.exists) {
@@ -7299,6 +7300,46 @@ app.post('/members/:memberId/channels', async (req: Request, res: Response): Pro
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.delete('/members/:memberId/channels/:channelId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { memberId, channelId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    const channelDoc = await db.collection('channels').doc(channelId).get();
+    if (!channelDoc.exists) { res.status(404).json({ error: 'Channel not found' }); return; }
+    if (channelDoc.data()?.ownerId !== memberId) { res.status(403).json({ error: 'Not authorized' }); return; }
+    const productsSnap = await db.collection('memberProducts').where('channelId', '==', channelId).get();
+    const packetsSnap = await db.collection('memberPackets').where('channelId', '==', channelId).where('memberId', '==', memberId).get();
+    const batch = db.batch();
+    productsSnap.docs.forEach(doc => batch.delete(doc.ref));
+    packetsSnap.docs.forEach(doc => batch.delete(doc.ref));
+    batch.delete(db.collection('channels').doc(channelId));
+    await batch.commit();
+    console.log(`[CF] Deleted channel ${channelId} with ${productsSnap.size} products and ${packetsSnap.size} packets`);
+    res.json({ success: true, deletedProducts: productsSnap.size, deletedPackets: packetsSnap.size });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.delete('/members/:memberId/products/:productId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { memberId, productId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    const doc = await db.collection('memberProducts').doc(productId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Product not found' }); return; }
+    if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: 'Not authorized' }); return; }
+    const packetId = doc.data()?.packetId;
+    if (packetId) {
+      const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+      if (packetDoc.exists && packetDoc.data()?.memberId === memberId) {
+        await db.collection('memberPackets').doc(packetId).delete();
+      }
+    }
+    await db.collection('memberProducts').doc(productId).delete();
+    res.json({ success: true });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 app.get('/members/:memberId/products', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
@@ -8838,33 +8879,8 @@ app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Resp
     res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
   } catch (error: any) {
     console.error("[CF Member Mockup] Error:", error);
-    const bid = parseInt(req.body.blueprintId);
-    let fallbackUrl: string | null = null;
-    try {
-      const bpDoc = await db.collection('printifyBlueprints').doc(String(bid)).get();
-      if (bpDoc.exists) {
-        const bpData = bpDoc.data()!;
-        fallbackUrl = bpData.images?.[0] || bpData.image || null;
-      }
-      if (!fallbackUrl) {
-        const memberProds = await db.collection('storeAllowedProducts').doc('member-products').get();
-        if (memberProds.exists) {
-          const prods = memberProds.data()?.products || [];
-          const match = prods.find((p: any) => p.blueprintId === bid);
-          if (match?.image) fallbackUrl = match.image;
-        }
-      }
-      if (fallbackUrl) {
-        console.log(`[CF Member Mockup] Using catalog fallback image for blueprint ${bid}`);
-      }
-    } catch (fbErr: any) {
-      console.error("[CF Member Mockup] Fallback lookup failed:", fbErr.message);
-    }
-    if (fallbackUrl) {
-      res.json({ success: true, mockupUrl: fallbackUrl, lifestyleMockupUrl: null, fromCache: false, fallback: true, generatedAt: new Date().toISOString() });
-    } else {
-      res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
-    }
+    console.error("[CF Member Mockup] Mockup generation failed:", error.message);
+    res.json({ success: false, error: error.message, mockupUrl: null, lifestyleMockupUrl: null, message: "Mockup generation failed - please try again" });
   }
 });
 

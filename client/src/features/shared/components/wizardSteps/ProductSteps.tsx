@@ -454,7 +454,7 @@ export function SizePickerStep({
               key={size}
               onClick={(e) => {
                 if (size !== selectedSize) {
-                  const btnRect = e.currentTarget.getBoundingClientRect();
+                  const btnRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                   const containerRect = containerRef.current?.getBoundingClientRect();
                   if (containerRect) {
                     const x = btnRect.left - containerRect.left + btnRect.width / 2 - 50;
@@ -465,15 +465,15 @@ export function SizePickerStep({
                 }
                 onSelect(size);
               }}
-              className={`w-16 h-20 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
+              className={`w-20 h-24 rounded-lg border-2 font-bold transition-all flex flex-col items-center justify-center ${
                 selectedSize === size
                   ? 'border-orange-500 bg-orange-500/15 text-orange-400'
                   : 'border-slate-600 bg-slate-800/50 text-white hover:border-slate-400'
               }`}
               data-testid={`button-size-${size}`}
             >
-              <span className="text-lg">{size}</span>
-              <span className={`text-[10px] ${selectedSize === size ? 'text-orange-400' : context === 'owner' ? 'text-blue-400/70' : 'text-green-400/70'}`}>
+              <span className="text-2xl">{size}</span>
+              <span className={`text-xs ${selectedSize === size ? 'text-orange-400' : context === 'owner' ? 'text-blue-400/70' : 'text-green-400/70'}`}>
                 +${bonus.toFixed(2)}
               </span>
             </button>

@@ -609,9 +609,11 @@ export function PlacementConfigStep({
   const graphicX = isPocket ? GRAPHIC_CENTER.pocket.x : GRAPHIC_CENTER.front.x;
   const graphicY = isPocket ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
 
-  const qrHeight = graphicDims.h * 0.18;
-  const qrWidth = qrHeight;
-  const qrY = graphicY - qrHeight / 2;
+  const hasText = (graphicChoice === 'full') && (textLayoutChoice === 'header' || textLayoutChoice === 'footer' || textLayoutChoice === 'both');
+  const qrScale = hasText ? 0.55 : 0.75;
+  const qrWidth = graphicDims.w * qrScale;
+  const qrHeight = qrWidth;
+  const qrY = hasText ? (graphicY - graphicDims.h * 0.05) - qrHeight / 2 : graphicY - qrHeight / 2;
   const headerZoneTop = graphicY - graphicDims.h / 2 + 2;
   const headerZoneBottom = qrY - 2;
   const footerZoneTop = qrY + qrHeight + 2;
