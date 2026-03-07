@@ -621,7 +621,29 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
                             {status}
                           </Badge>
                         </div>
-                        <div className="flex flex-col gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {status === 'published' && item.packetId && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                const pkt = packetList.find((p: any) => p.id === item.packetId);
+                                const shareUrl = pkt?.socialPacket?.shareUrl || `/p/${item.packetId}`;
+                                const fullUrl = shareUrl.startsWith('http') ? shareUrl : `${window.location.origin}${shareUrl}`;
+                                const refUrl = `${fullUrl}${fullUrl.includes('?') ? '&' : '?'}ref=${memberId}`;
+                                if (navigator.share) {
+                                  navigator.share({ title: title, text: pkt?.socialPacket?.shareCaption || `Check out ${title}!`, url: refUrl }).catch(() => {});
+                                } else {
+                                  navigator.clipboard?.writeText(refUrl);
+                                  toast({ title: 'Share link copied!' });
+                                }
+                              }}
+                              className="text-blue-400"
+                              data-testid={`share-product-${item.id}`}
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </Button>
+                          )}
                           {confirmDeleteProduct === item.id ? (
                             <div className="flex items-center gap-1">
                               <Button size="sm" variant="destructive" onClick={() => {
