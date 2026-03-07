@@ -923,14 +923,39 @@ function MembersSandboxInner() {
   const userId = user?.id || '';
   const [, setLocation] = useLocation();
   const onboardingKey = `member_onboarding_complete_${userId}`;
-  const onboardingComplete = userId ? localStorage.getItem(onboardingKey) === 'true' : false;
+  const localComplete = userId ? localStorage.getItem(onboardingKey) === 'true' : false;
+  const [serverChecked, setServerChecked] = useState(false);
+  const [serverComplete, setServerComplete] = useState(false);
 
   useEffect(() => {
-    if (userId && !onboardingComplete) {
+    if (!userId || localComplete) { setServerChecked(true); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { auth } = await import("@/lib/firebase");
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) { setServerChecked(true); return; }
+        const res = await fetch('/api/members/profile', { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) { setServerChecked(true); return; }
+        const data = await res.json();
+        if (!cancelled && data.isMember) {
+          localStorage.setItem(onboardingKey, 'true');
+          setServerComplete(true);
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setServerChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [userId, localComplete, onboardingKey]);
+
+  const onboardingComplete = localComplete || serverComplete;
+
+  useEffect(() => {
+    if (userId && serverChecked && !onboardingComplete) {
       const params = window.location.search;
       setLocation(`/member${params}`);
     }
-  }, [userId, onboardingComplete, setLocation]);
+  }, [userId, onboardingComplete, serverChecked, setLocation]);
 
   const params = new URLSearchParams(window.location.search);
   const tempPacketIdFromUrl = params.get('tempPacketId') || localStorage.getItem('pending_temp_packet_id');
