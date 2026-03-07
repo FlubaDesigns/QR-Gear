@@ -28,6 +28,7 @@ import CheckoutSuccess from "@/pages/checkout-success";
 import BuildSuccess from "@/pages/build-success";
 import Customs from "@/pages/customs";
 import Packet from "@/pages/packet";
+import PacketSuccess from "@/pages/packet-success";
 import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
@@ -146,6 +147,7 @@ function Router() {
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />
       <Route path="/customs/:id" component={Customs} />
+      <Route path="/p/success" component={PacketSuccess} />
       <Route path="/p/:id" component={Packet} />
       <Route path="/play/:packetId" component={PlayLanding} />
       <Route path="/i/:slug" component={ProductLanding} />

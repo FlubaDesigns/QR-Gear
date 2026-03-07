@@ -1,10 +1,11 @@
 import { useRoute, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Loader2, QrCode, ArrowLeft, ShoppingCart, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -22,6 +23,9 @@ interface PublicPacketData {
   memberId: string | null;
   status: string;
 }
+
+const AVAILABLE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+const SIZE_UPCHARGES: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
 
 function getQrTypeLabel(qrType: string | null): string {
   switch (qrType) {
@@ -47,6 +51,8 @@ function captureReferral() {
 export default function PacketPage() {
   const [match, params] = useRoute("/p/:id");
   const packetId = params?.id;
+  const [selectedSize, setSelectedSize] = useState<string>('');
+  const [checkoutError, setCheckoutError] = useState<string>('');
 
   useEffect(() => {
     captureReferral();
@@ -59,6 +65,46 @@ export default function PacketPage() {
 
   const packet = data?.packet;
   const referrerId = localStorage.getItem('qrgear_referrer');
+
+  useEffect(() => {
+    if (packet?.selectedShirtSize && !selectedSize) {
+      setSelectedSize(packet.selectedShirtSize);
+    } else if (!selectedSize) {
+      setSelectedSize('M');
+    }
+  }, [packet]);
+
+  const basePrice = packet?.retailPrice || 0;
+  const sizeUpcharge = SIZE_UPCHARGES[selectedSize] || 0;
+  const totalPrice = Math.round((basePrice + sizeUpcharge) * 100) / 100;
+
+  const checkoutMutation = useMutation({
+    mutationFn: async () => {
+      setCheckoutError('');
+      const response = await fetch('/api/public/packet-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packetId,
+          selectedShirtSize: selectedSize,
+          referrerId: referrerId || undefined,
+        }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to create checkout');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (err: Error) => {
+      setCheckoutError(err.message);
+    },
+  });
 
   if (!match || !packetId) {
     return (
@@ -151,32 +197,66 @@ export default function PacketPage() {
                   )}
                 </div>
 
-                {packet.retailPrice != null && packet.retailPrice > 0 && (
-                  <p className="text-3xl font-bold text-green-400" data-testid="text-packet-price">
-                    ${packet.retailPrice.toFixed(2)}
-                  </p>
+                {totalPrice > 0 && (
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-bold text-green-400" data-testid="text-packet-price">
+                      ${totalPrice.toFixed(2)}
+                    </p>
+                    {sizeUpcharge > 0 && (
+                      <span className="text-sm text-slate-500">
+                        (includes ${sizeUpcharge.toFixed(2)} size upcharge)
+                      </span>
+                    )}
+                  </div>
                 )}
 
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm text-slate-400 mb-1 block">Size</label>
+                    <Select value={selectedSize} onValueChange={setSelectedSize}>
+                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white" data-testid="select-size">
+                        <SelectValue placeholder="Select size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AVAILABLE_SIZES.map((size) => (
+                          <SelectItem key={size} value={size} data-testid={`select-size-${size}`}>
+                            {size}
+                            {SIZE_UPCHARGES[size] > 0 ? ` (+$${SIZE_UPCHARGES[size].toFixed(2)})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {packet.selectedColor && (
-                    <Badge variant="secondary" data-testid="badge-color">
-                      {packet.selectedColor}
-                    </Badge>
-                  )}
-                  {packet.selectedShirtSize && (
-                    <Badge variant="secondary" data-testid="badge-size">
-                      {packet.selectedShirtSize}
-                    </Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" data-testid="badge-color">
+                        {packet.selectedColor}
+                      </Badge>
+                    </div>
                   )}
                 </div>
 
+                {checkoutError && (
+                  <p className="text-red-400 text-sm" data-testid="text-checkout-error">
+                    {checkoutError}
+                  </p>
+                )}
+
                 <div className="space-y-3 pt-2">
-                  <Link href={`/store${referrerId ? `?ref=${referrerId}` : ''}`}>
-                    <Button className="w-full bg-green-600 hover:bg-green-700 text-lg py-6" data-testid="button-buy-now">
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-lg py-6"
+                    onClick={() => checkoutMutation.mutate()}
+                    disabled={checkoutMutation.isPending || !selectedSize}
+                    data-testid="button-buy-now"
+                  >
+                    {checkoutMutation.isPending ? (
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    ) : (
                       <ShoppingCart className="h-5 w-5 mr-2" />
-                      Shop Now
-                    </Button>
-                  </Link>
+                    )}
+                    {checkoutMutation.isPending ? 'Creating checkout...' : `Buy Now — $${totalPrice.toFixed(2)}`}
+                  </Button>
                 </div>
               </div>
             </CardContent>
