@@ -124,7 +124,20 @@ export function SimpleWizard() {
     channelName: selectedChannel?.name || '',
   });
 
+  const FINAL_CONFIRM_STEPS = ['qr-basic-confirm', 'qr-plus-confirm', 'canvas-confirm', 'play-save-choice', 'compose-confirm'];
+
   const handleCreateAnother = () => {
+    setSimpleStep('channel');
+    setCurrentPacketId(null);
+    setSimpleTitle('');
+    setSimpleDescription('');
+    setQrType('');
+    setContentRightsConfirmed(false);
+    setUrlGraphic('');
+    setProductGraphic('');
+  };
+
+  const handleBackToDashboard = () => {
     setSimpleStep('channel');
     setViewMode('index');
     setCurrentPacketId(null);
@@ -401,6 +414,7 @@ export function SimpleWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -445,6 +459,7 @@ export function SimpleWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -848,6 +863,7 @@ export function SimpleWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -902,6 +918,7 @@ export function SimpleWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -1024,41 +1041,44 @@ export function SimpleWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
           )}
         </div>
 
-        <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
-          <Button
-            variant="outline"
-            onClick={handleSimpleBack}
-            disabled={simpleStep === 'channel'}
-            className="flex-1 min-w-[100px] sm:flex-none"
-            data-testid="button-simple-back"
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Back
-          </Button>
-          
-          {simpleStep !== 'url-publish' && (
+        {!FINAL_CONFIRM_STEPS.includes(simpleStep) && (
+          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
             <Button
-              onClick={handleSimpleNext}
-              disabled={!canProceed}
-              className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
-                canProceed 
-                  ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
-                  : "bg-slate-600"
-              }`}
-              style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
-              data-testid="button-simple-next"
+              variant="outline"
+              onClick={handleSimpleBack}
+              disabled={simpleStep === 'channel'}
+              className="flex-1 min-w-[100px] sm:flex-none"
+              data-testid="button-simple-back"
             >
-              Next
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back
             </Button>
-          )}
-        </div>
+            
+            {simpleStep !== 'url-publish' && (
+              <Button
+                onClick={handleSimpleNext}
+                disabled={!canProceed}
+                className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                  canProceed 
+                    ? "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40" 
+                    : "bg-slate-600"
+                }`}
+                style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+                data-testid="button-simple-next"
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

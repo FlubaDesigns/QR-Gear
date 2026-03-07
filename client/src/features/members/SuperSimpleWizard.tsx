@@ -727,6 +727,17 @@ export function SuperSimpleWizard() {
 
   const handleCreateAnother = () => {
     setSimpleStep('channel');
+    setCurrentPacketId(null);
+    setSimpleTitle('');
+    setSimpleDescription('');
+    setQrType('');
+    setContentRightsConfirmed(false);
+    setUrlGraphic('');
+    setProductGraphic('');
+  };
+
+  const handleBackToDashboard = () => {
+    setSimpleStep('channel');
     setViewMode('index');
     setCurrentPacketId(null);
     setSimpleTitle('');
@@ -1082,6 +1093,7 @@ export function SuperSimpleWizard() {
                     <ShareKitHandoff
                       data={getShareKitData()}
                       onCreateAnother={handleCreateAnother}
+                      onBackToDashboard={handleBackToDashboard}
                     />
                   )}
                 </div>
@@ -1127,6 +1139,7 @@ export function SuperSimpleWizard() {
                     <ShareKitHandoff
                       data={getShareKitData()}
                       onCreateAnother={handleCreateAnother}
+                      onBackToDashboard={handleBackToDashboard}
                     />
                   )}
                 </div>
@@ -1521,6 +1534,7 @@ export function SuperSimpleWizard() {
                     <ShareKitHandoff
                       data={getShareKitData()}
                       onCreateAnother={handleCreateAnother}
+                      onBackToDashboard={handleBackToDashboard}
                     />
                   )}
                 </div>
@@ -1575,6 +1589,7 @@ export function SuperSimpleWizard() {
                     <ShareKitHandoff
                       data={getShareKitData()}
                       onCreateAnother={handleCreateAnother}
+                      onBackToDashboard={handleBackToDashboard}
                     />
                   )}
                 </div>
@@ -1697,6 +1712,7 @@ export function SuperSimpleWizard() {
                     <ShareKitHandoff
                       data={getShareKitData()}
                       onCreateAnother={handleCreateAnother}
+                      onBackToDashboard={handleBackToDashboard}
                     />
                   )}
                 </div>
@@ -1705,7 +1721,7 @@ export function SuperSimpleWizard() {
           )}
         </div>
 
-        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
+        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && !FINAL_CONFIRM_STEPS.includes(simpleStep) && (
           <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
             <Button
               variant="outline"

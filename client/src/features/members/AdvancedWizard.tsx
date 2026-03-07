@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Layers, DollarSign, X } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { ChevronLeft, ChevronRight, Layers, DollarSign, X, Crosshair, SlidersHorizontal, Copy } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
@@ -15,6 +17,7 @@ import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeO
 import { ShirtPreviewStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
 import { ShareKitHandoff } from "@/features/shared/components/ShareKitHandoff";
 import { calculateSizeEarningsBonuses, generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
+import { getPrintAreaDims, GRAPHIC_CENTER, getPlacementLabel } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { ContentRightsCheckbox } from "@/features/shared/components/ContentRightsCheckbox";
 import { useWizardContext } from './WizardContext';
 
@@ -111,6 +114,10 @@ export function AdvancedWizard() {
     descFont, setDescFont,
   } = useWizardContext();
 
+  const [customFontSize, setCustomFontSize] = useState(18);
+  const [placementOffsetX, setPlacementOffsetX] = useState(0);
+  const [placementOffsetY, setPlacementOffsetY] = useState(0);
+
   const sharePacketId = publishedPacketId || currentPacketId || '';
   const getShareKitData = () => ({
     packetId: sharePacketId,
@@ -124,7 +131,20 @@ export function AdvancedWizard() {
     channelName: selectedChannel?.name || '',
   });
 
+  const FINAL_CONFIRM_STEPS = ['qr-basic-confirm', 'qr-plus-confirm', 'canvas-confirm', 'play-save-choice', 'compose-confirm'];
+
   const handleCreateAnother = () => {
+    setSimpleStep('channel');
+    setCurrentPacketId(null);
+    setSimpleTitle('');
+    setSimpleDescription('');
+    setQrType('');
+    setContentRightsConfirmed(false);
+    setUrlGraphic('');
+    setProductGraphic('');
+  };
+
+  const handleBackToDashboard = () => {
     setSimpleStep('channel');
     setViewMode('index');
     setCurrentPacketId(null);
@@ -227,15 +247,38 @@ export function AdvancedWizard() {
 
         <div className="min-h-[350px]" id="wizard-step-content">
           {simpleStep === 'channel' && (
-            <ChannelStep
-              selectedChannel={selectedChannel}
-              onSelect={setSelectedChannel}
-              memberId={user.id}
-              isCreatingChannel={isCreatingChannel}
-              setIsCreatingChannel={setIsCreatingChannel}
-              newChannelName={newChannelName}
-              setNewChannelName={setNewChannelName}
-            />
+            <div className="space-y-4">
+              <ChannelStep
+                selectedChannel={selectedChannel}
+                onSelect={setSelectedChannel}
+                memberId={user.id}
+                isCreatingChannel={isCreatingChannel}
+                setIsCreatingChannel={setIsCreatingChannel}
+                newChannelName={newChannelName}
+                setNewChannelName={setNewChannelName}
+              />
+              {selectedChannel && currentPacketId && (
+                <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-quick-start">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Copy className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-xs font-medium text-blue-400">Quick Start</span>
+                  </div>
+                  <p className="text-xs text-white/60 mb-2">
+                    Continue editing your current design or start fresh.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-blue-500/30 text-blue-300"
+                    onClick={() => setSimpleStep('product')}
+                    data-testid="button-advanced-duplicate-design"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    Resume Current Design
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
           
           {simpleStep === 'product' && (
@@ -401,6 +444,7 @@ export function AdvancedWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -445,6 +489,7 @@ export function AdvancedWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -494,41 +539,174 @@ export function AdvancedWizard() {
           )}
           
           {simpleStep === 'text-edit-header' && (
-            <HeaderTextEditStep
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-              graphicLocation={graphicLocation}
-              headerStyle={headerStyle}
-              onHeaderChange={setHeaderStyle}
-              earningsPerLine={textLineEarningsBonus}
-            />
+            <div className="space-y-4">
+              <HeaderTextEditStep
+                selectedColor={selectedColor}
+                graphicSize={graphicSize}
+                graphicLocation={graphicLocation}
+                headerStyle={headerStyle}
+                onHeaderChange={setHeaderStyle}
+                earningsPerLine={textLineEarningsBonus}
+              />
+              <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-text-controls-header">
+                <div className="flex items-center gap-2 mb-2">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-xs font-medium text-blue-400">Advanced Text Controls</span>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Font Size: {customFontSize}px</label>
+                    <Slider
+                      value={[customFontSize]}
+                      onValueChange={([v]) => {
+                        setCustomFontSize(v);
+                        const sizeStr = `${v}px`;
+                        setHeaderStyle(prev => ({ ...prev, fontSize: sizeStr }));
+                      }}
+                      min={10}
+                      max={48}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-advanced-header-font-size"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Vertical Offset: {headerStyle.verticalOffset || 0}%</label>
+                    <Slider
+                      value={[headerStyle.verticalOffset || 0]}
+                      onValueChange={([v]) => {
+                        setHeaderStyle(prev => ({ ...prev, verticalOffset: v }));
+                      }}
+                      min={-50}
+                      max={50}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-advanced-header-offset"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {simpleStep === 'text-edit-footer' && (
-            <FooterTextEditStep
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-              graphicLocation={graphicLocation}
-              footerStyle={footerStyle}
-              onFooterChange={setFooterStyle}
-              headerStyle={headerStyle}
-              earningsPerLine={textLineEarningsBonus}
-            />
+            <div className="space-y-4">
+              <FooterTextEditStep
+                selectedColor={selectedColor}
+                graphicSize={graphicSize}
+                graphicLocation={graphicLocation}
+                footerStyle={footerStyle}
+                onFooterChange={setFooterStyle}
+                headerStyle={headerStyle}
+                earningsPerLine={textLineEarningsBonus}
+              />
+              <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-text-controls-footer">
+                <div className="flex items-center gap-2 mb-2">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-xs font-medium text-blue-400">Advanced Text Controls</span>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Font Size: {customFontSize}px</label>
+                    <Slider
+                      value={[customFontSize]}
+                      onValueChange={([v]) => {
+                        setCustomFontSize(v);
+                        const sizeStr = `${v}px`;
+                        setFooterStyle(prev => ({ ...prev, fontSize: sizeStr }));
+                      }}
+                      min={10}
+                      max={48}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-advanced-footer-font-size"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/60 mb-1 block">Vertical Offset: {footerStyle.verticalOffset || 0}%</label>
+                    <Slider
+                      value={[footerStyle.verticalOffset || 0]}
+                      onValueChange={([v]) => {
+                        setFooterStyle(prev => ({ ...prev, verticalOffset: v }));
+                      }}
+                      min={-50}
+                      max={50}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-advanced-footer-offset"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
           
           {simpleStep === 'placement-config' && (
-            <PlacementConfigStep
-              currentPlacement={currentPlacement}
-              currentIndex={currentPlacementIndex}
-              totalPlacements={selectedPlacements.length}
-              graphicChoice={placementGraphicChoice}
-              onGraphicChoiceChange={setPlacementGraphicChoice}
-              headerStyle={headerStyle}
-              footerStyle={footerStyle}
-              textLayoutChoice={textLayoutChoice}
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-            />
+            <div className="space-y-4">
+              <PlacementConfigStep
+                currentPlacement={currentPlacement}
+                currentIndex={currentPlacementIndex}
+                totalPlacements={selectedPlacements.length}
+                graphicChoice={placementGraphicChoice}
+                onGraphicChoiceChange={setPlacementGraphicChoice}
+                headerStyle={headerStyle}
+                footerStyle={footerStyle}
+                textLayoutChoice={textLayoutChoice}
+                selectedColor={selectedColor}
+                graphicSize={graphicSize}
+              />
+              <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-placement-coords">
+                <div className="flex items-center gap-2 mb-2">
+                  <Crosshair className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-xs font-medium text-blue-400">Placement Coordinates</span>
+                </div>
+                {(() => {
+                  const dims = getPrintAreaDims(currentPlacement, graphicSize);
+                  const center = GRAPHIC_CENTER[currentPlacement as keyof typeof GRAPHIC_CENTER] || GRAPHIC_CENTER.front;
+                  return (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-800/50 rounded p-2">
+                          <span className="text-[10px] text-white/40 block mb-0.5">Print Area</span>
+                          <span className="text-xs text-white/80 font-mono" data-testid="text-advanced-print-dims">{dims.w}" x {dims.h}"</span>
+                        </div>
+                        <div className="bg-slate-800/50 rounded p-2">
+                          <span className="text-[10px] text-white/40 block mb-0.5">Center Point</span>
+                          <span className="text-xs text-white/80 font-mono" data-testid="text-advanced-center-point">({center.x}, {center.y})</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-white/60 mb-1 block">X Offset: {placementOffsetX}px</label>
+                        <Slider
+                          value={[placementOffsetX]}
+                          onValueChange={([v]) => setPlacementOffsetX(v)}
+                          min={-20}
+                          max={20}
+                          step={1}
+                          className="w-full"
+                          data-testid="slider-advanced-placement-x"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-white/60 mb-1 block">Y Offset: {placementOffsetY}px</label>
+                        <Slider
+                          value={[placementOffsetY]}
+                          onValueChange={([v]) => setPlacementOffsetY(v)}
+                          min={-20}
+                          max={20}
+                          step={1}
+                          className="w-full"
+                          data-testid="slider-advanced-placement-y"
+                        />
+                      </div>
+                      <p className="text-[10px] text-white/30">
+                        {getPlacementLabel(currentPlacement)} placement at ({center.x + placementOffsetX}, {center.y + placementOffsetY})
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           )}
           
           {simpleStep === 'shirt-preview' && (
@@ -815,6 +993,7 @@ export function AdvancedWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -869,6 +1048,7 @@ export function AdvancedWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
@@ -991,41 +1171,44 @@ export function AdvancedWizard() {
                 <ShareKitHandoff
                   data={getShareKitData()}
                   onCreateAnother={handleCreateAnother}
+                  onBackToDashboard={handleBackToDashboard}
                 />
               )}
             </div>
           )}
         </div>
 
-        <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
-          <Button
-            variant="outline"
-            onClick={handleSimpleBack}
-            disabled={simpleStep === 'channel'}
-            className="flex-1 min-w-[100px] sm:flex-none"
-            data-testid="button-advanced-back"
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Back
-          </Button>
-          
-          {simpleStep !== 'url-publish' && (
+        {!FINAL_CONFIRM_STEPS.includes(simpleStep) && (
+          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
             <Button
-              onClick={handleSimpleNext}
-              disabled={!canProceed}
-              className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
-                canProceed 
-                  ? "bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/40" 
-                  : "bg-slate-600"
-              }`}
-              style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
-              data-testid="button-advanced-next"
+              variant="outline"
+              onClick={handleSimpleBack}
+              disabled={simpleStep === 'channel'}
+              className="flex-1 min-w-[100px] sm:flex-none"
+              data-testid="button-advanced-back"
             >
-              Next
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back
             </Button>
-          )}
-        </div>
+            
+            {simpleStep !== 'url-publish' && (
+              <Button
+                onClick={handleSimpleNext}
+                disabled={!canProceed}
+                className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                  canProceed 
+                    ? "bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/40" 
+                    : "bg-slate-600"
+                }`}
+                style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+                data-testid="button-advanced-next"
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -67,7 +67,10 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Mockup Cache**: Includes artwork URL hash in the mockup cache key to prevent stale mockups.
 - **QR GEAR DUAL-PRODUCT ARCHITECTURE**: Comprises **QR COMPOSER** (for creating sellable QR merchandise templates) and **QR DYNAMICS** (for controlling purchased instances post-sale).
 - **Three Surfaces (Resolver Engine)**: Supports IMAGE (Canvas), VIDEO (Play), and future DOCUMENT (PDF) based QR experiences.
-- **Member Creation Wizards**: Progressive unlock system for members based on publishing activity (Quick Create, Advanced, Studio).
+- **Member Creation Wizards**: Progressive unlock system for members based on publishing activity (Quick Create, Advanced, Studio). Code-split via React.lazy for reduced initial bundle size.
+- **Advanced Wizard Differentiation**: Advanced tier includes Quick Start resume, font size slider, vertical offset controls, and placement coordinate display with X/Y offset adjusters.
+- **Wizard Completion Flow**: All wizard confirm screens hide Back/Next footer and show dual "Dashboard" / "Create Another" buttons via ShareKitHandoff.
+- **Error Toasts**: Packet creation failures and library auto-save failures show user-visible toast notifications instead of silent console logs.
 
 ### System Design Choices
 - **Printful-First Mockup Architecture**: Decouples mockup generation from fulfillment.

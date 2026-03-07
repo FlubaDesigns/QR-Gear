@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Check, 
+  ChevronLeft,
   Copy, 
   Download, 
   ExternalLink, 
@@ -39,6 +40,7 @@ export interface ShareKitData {
 interface ShareKitHandoffProps {
   data: ShareKitData;
   onCreateAnother?: () => void;
+  onBackToDashboard?: () => void;
   onViewLibrary?: () => void;
   onRegenerateAssets?: () => void;
   baseUrl?: string;
@@ -48,6 +50,7 @@ interface ShareKitHandoffProps {
 export function ShareKitHandoff({
   data,
   onCreateAnother,
+  onBackToDashboard,
   onViewLibrary,
   onRegenerateAssets,
   baseUrl = "",
@@ -389,6 +392,18 @@ export function ShareKitHandoff({
         </div>
 
         <div className="flex gap-3 pt-4 border-t border-slate-700">
+          {onBackToDashboard && (
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={onBackToDashboard}
+              data-testid="btn-back-to-dashboard"
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Dashboard
+            </Button>
+          )}
+
           {onCreateAnother && (
             <Button
               className="flex-1"

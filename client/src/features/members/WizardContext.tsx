@@ -720,10 +720,12 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
               });
             } catch (err) {
               console.error('[Canvas Auto-Save] Failed:', asset.assetType, err);
+              toast({ title: 'Auto-save warning', description: `Could not auto-save ${asset.assetType} to your library.`, variant: 'destructive' });
             }
           }
         } catch (saveErr) {
           console.error('[Canvas Auto-Save] Error:', saveErr);
+          toast({ title: 'Auto-save warning', description: 'Could not auto-save assets to your library.', variant: 'destructive' });
         }
         setSimpleStep('canvas-confirm');
       } else if (qrType === 'qr-basic') {
@@ -808,7 +810,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
       for (const asset of assetsToSave) {
         try {
-          await fetch(`/api/members/${user.id}/library`, {
+          const saveRes = await fetch(`/api/members/${user.id}/library`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...authHeaders },
             body: JSON.stringify({
@@ -820,9 +822,15 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
               fileName: asset.name.replace(/[^a-zA-Z0-9]/g, '_') + '.png'
             })
           });
-          console.log('[Canvas Save] Saved to library:', asset.assetType, asset.name);
+          if (!saveRes.ok) {
+            console.error('[Canvas Save] Failed to save:', asset.assetType);
+            toast({ title: 'Library save warning', description: `Could not save ${asset.assetType} to your library.`, variant: 'destructive' });
+          } else {
+            console.log('[Canvas Save] Saved to library:', asset.assetType, asset.name);
+          }
         } catch (err) {
           console.error('[Canvas Save] Failed to save:', asset.assetType, err);
+          toast({ title: 'Library save warning', description: `Could not save ${asset.assetType} to your library.`, variant: 'destructive' });
         }
       }
 
@@ -1040,7 +1048,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (!simpleDescription) {
       setSimpleDescription(getDefaultPacketDescription(product.title));
     }
-    await createPacketForProduct(product);
+    const packetId = await createPacketForProduct(product);
+    if (!packetId) {
+      toast({ title: 'Packet creation failed', description: 'Could not initialize your product. Please try again.', variant: 'destructive' });
+    }
   };
 
   useEffect(() => {

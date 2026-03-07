@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Component, type ErrorInfo, type ReactNode } from "react";
+import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -37,11 +37,20 @@ import {
   getAuthHeaders,
 } from "@/features/shared/components/wizardSteps";
 import { WizardProvider, useWizardContext } from "./WizardContext";
-import { SuperSimpleWizard } from "./SuperSimpleWizard";
-import { SimpleWizard } from "./SimpleWizard";
-import { AdvancedWizard } from "./AdvancedWizard";
-import { StudioMode } from "./StudioMode";
-import { SocialHubView } from "./SocialHubView";
+
+const SuperSimpleWizard = lazy(() => import("./SuperSimpleWizard").then(m => ({ default: m.SuperSimpleWizard })));
+const SimpleWizard = lazy(() => import("./SimpleWizard").then(m => ({ default: m.SimpleWizard })));
+const AdvancedWizard = lazy(() => import("./AdvancedWizard").then(m => ({ default: m.AdvancedWizard })));
+const StudioMode = lazy(() => import("./StudioMode").then(m => ({ default: m.StudioMode })));
+const SocialHubView = lazy(() => import("./SocialHubView").then(m => ({ default: m.SocialHubView })));
+
+function LazyFallback() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
+    </div>
+  );
+}
 
 interface MemberProduct {
   id: string;
@@ -773,12 +782,14 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
 
 function CollectionsView({ memberId }: { memberId: string }) {
   const { data: collections, isLoading } = useQuery<any[]>({
-    queryKey: ['/api/members', memberId, 'collections'],
+    queryKey: ['/api/members', memberId, 'compose-packets'],
     queryFn: async () => {
       if (!memberId) return [];
-      const res = await fetch(`/api/stores/qr-gear/collections?ownerId=${memberId}`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/packets?status=published&kind=qr-compose`, { headers });
       if (!res.ok) return [];
-      return res.json();
+      const data = await res.json();
+      return data.packets || data || [];
     },
     enabled: !!memberId
   });
@@ -1187,19 +1198,27 @@ function MembersSandboxInner() {
         )}
 
         {viewMode === 'wizard' && wizardTier === 'simple' && (
-          <SimpleWizard />
+          <Suspense fallback={<LazyFallback />}>
+            <SimpleWizard />
+          </Suspense>
         )}
 
         {viewMode === 'wizard' && wizardTier === 'advanced' && (
-          <AdvancedWizard />
+          <Suspense fallback={<LazyFallback />}>
+            <AdvancedWizard />
+          </Suspense>
         )}
 
         {viewMode === 'wizard' && wizardTier === 'studio' && (
-          <StudioMode />
+          <Suspense fallback={<LazyFallback />}>
+            <StudioMode />
+          </Suspense>
         )}
 
         {viewMode === 'wizard' && wizardTier === 'super-simple' && (
-          <SuperSimpleWizard />
+          <Suspense fallback={<LazyFallback />}>
+            <SuperSimpleWizard />
+          </Suspense>
         )}
 
         {viewMode === 'index' && (
@@ -1234,7 +1253,9 @@ function MembersSandboxInner() {
         )}
 
         {viewMode === 'social' && (
-          <SocialHubView memberId={user?.id || ''} />
+          <Suspense fallback={<LazyFallback />}>
+            <SocialHubView memberId={user?.id || ''} />
+          </Suspense>
         )}
 
         <div className="mt-6 text-center text-white/50 text-sm">
