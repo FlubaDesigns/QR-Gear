@@ -1,4 +1,4 @@
-// Build timestamp: 2026-03-07T21:30:00Z - Fixed placement ID normalization in allowed-products API
+// Build timestamp: 2026-03-07T22:00:00Z - Added catalog management system with section assignments
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1407,11 +1407,32 @@ app.get('/health', (_req: Request, res: Response): void => {
 
 app.get('/members/allowed-products', async (req: Request, res: Response): Promise<void> => {
   try {
+    const section = req.query.section as string | undefined;
+    const validSections = ['member', 'public', 'external', 'platform'];
+    if (section && !validSections.includes(section)) {
+      res.status(400).json({ error: `Invalid section. Must be one of: ${validSections.join(', ')}` });
+      return;
+    }
+
     const pricingDoc = await db.collection('testSettings').doc('pricing').get();
     const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
     const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
     const markupPercent = pricingSettings?.markupPercent ?? 25;
     const markupFixed = pricingSettings?.markupFixed ?? 0;
+
+    let catalogBlankFilter: Set<string> | null = null;
+    if (section) {
+      const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
+      const catalogId = assignDoc.exists ? assignDoc.data()?.[section] : null;
+      if (catalogId) {
+        const catDoc = await db.collection('catalogs').doc(catalogId).get();
+        if (catDoc.exists) {
+          const blankIds = catDoc.data()?.blankIds || [];
+          catalogBlankFilter = new Set(blankIds.map(String));
+          console.log(`[Member Products CF] Filtering by catalog "${catDoc.data()?.name}" (${blankIds.length} blanks) for section "${section}"`);
+        }
+      }
+    }
 
     const blueprintCache = new Map<number, any>();
 
@@ -1497,7 +1518,11 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
     const memberProducts = Array.isArray(memberData?.products) ? memberData.products : [];
 
     if (memberProducts.length > 0) {
-      const products = await enrichProducts(memberProducts);
+      let products = await enrichProducts(memberProducts);
+      if (catalogBlankFilter) {
+        products = products.filter((p: any) => catalogBlankFilter!.has(String(p.blueprintId)));
+        console.log(`[Member Products CF] Catalog filter applied: ${products.length} products remain from ${memberProducts.length}`);
+      }
       console.log(`[Member Products CF] Using curated member-products doc with ${products.length} products`);
       res.json({
         products,
@@ -1526,7 +1551,11 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
       };
     }).filter(p => !!p.blueprintId);
 
-    const products = await enrichProducts(catalogProducts);
+    let products = await enrichProducts(catalogProducts);
+    if (catalogBlankFilter) {
+      products = products.filter((p: any) => catalogBlankFilter!.has(String(p.blueprintId)));
+      console.log(`[Member Products CF] Catalog filter applied (fallback): ${products.length} products remain`);
+    }
 
     console.log(`[Member Products CF] member-products empty/missing. Falling back to /products catalog with ${products.length} products`);
 
@@ -9118,6 +9147,147 @@ app.post('/members/allowed-products', requireAdmin, async (req: Request, res: Re
     await db.collection("storeAllowedProducts").doc("member-products").set({ products, updatedAt: new Date().toISOString() });
     console.log(`[CF Member Product Library] Saved ${products.length} products to storeAllowedProducts/member-products`);
     res.json({ success: true, count: products.length });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+// ============ CATALOG MANAGEMENT SYSTEM ============
+
+app.get('/admin/catalogs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const snap = await db.collection('catalogs').orderBy('createdAt', 'desc').get();
+    const catalogs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json({ catalogs });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/admin/catalogs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, description } = req.body;
+    if (!name || typeof name !== 'string') { res.status(400).json({ error: 'name is required' }); return; }
+    const doc = await db.collection('catalogs').add({
+      name: name.trim(),
+      description: (description || '').trim(),
+      blankIds: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    console.log(`[Catalogs] Created catalog "${name}" with id ${doc.id}`);
+    res.json({ id: doc.id, name: name.trim(), description: (description || '').trim(), blankIds: [], createdAt: new Date().toISOString() });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.patch('/admin/catalogs/:catalogId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const updates: any = { updatedAt: new Date().toISOString() };
+    if (req.body.name !== undefined) updates.name = String(req.body.name).trim();
+    if (req.body.description !== undefined) updates.description = String(req.body.description).trim();
+    if (Array.isArray(req.body.blankIds)) updates.blankIds = req.body.blankIds.map(String);
+    await db.collection('catalogs').doc(catalogId).update(updates);
+    console.log(`[Catalogs] Updated catalog ${catalogId}`);
+    res.json({ success: true, catalogId });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.delete('/admin/catalogs/:catalogId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
+    if (assignDoc.exists) {
+      const data = assignDoc.data() || {};
+      const sections = ['member', 'public', 'external', 'platform'];
+      for (const section of sections) {
+        if (data[section] === catalogId) {
+          res.status(400).json({ error: `Cannot delete: catalog is assigned to "${section}" section. Unassign it first.` });
+          return;
+        }
+      }
+    }
+    await db.collection('catalogs').doc(catalogId).delete();
+    console.log(`[Catalogs] Deleted catalog ${catalogId}`);
+    res.json({ success: true });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const { blankIds } = req.body;
+    if (!Array.isArray(blankIds)) { res.status(400).json({ error: 'blankIds must be an array' }); return; }
+    const docRef = db.collection('catalogs').doc(catalogId);
+    const doc = await docRef.get();
+    if (!doc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
+    const existing = (doc.data()?.blankIds || []).map(String);
+    const merged = [...new Set([...existing, ...blankIds.map(String)])];
+    await docRef.update({ blankIds: merged, updatedAt: new Date().toISOString() });
+    console.log(`[Catalogs] Added ${blankIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
+    res.json({ success: true, count: merged.length });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.delete('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const { blankIds } = req.body;
+    if (!Array.isArray(blankIds)) { res.status(400).json({ error: 'blankIds must be an array' }); return; }
+    const docRef = db.collection('catalogs').doc(catalogId);
+    const doc = await docRef.get();
+    if (!doc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
+    const existing: string[] = doc.data()?.blankIds || [];
+    const removeSet = new Set(blankIds.map(String));
+    const filtered = existing.filter(id => !removeSet.has(String(id)));
+    await docRef.update({ blankIds: filtered, updatedAt: new Date().toISOString() });
+    console.log(`[Catalogs] Removed ${blankIds.length} blanks from catalog ${catalogId}. Remaining: ${filtered.length}`);
+    res.json({ success: true, count: filtered.length });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doc = await db.collection('systemSettings').doc('catalog-assignments').get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({
+      member: data?.member || null,
+      public: data?.public || null,
+      external: data?.external || null,
+      platform: data?.platform || null,
+    });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.put('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { member, public: pub, external, platform } = req.body;
+    const updates: any = { updatedAt: new Date().toISOString() };
+    if (member !== undefined) updates.member = member;
+    if (pub !== undefined) updates.public = pub;
+    if (external !== undefined) updates.external = external;
+    if (platform !== undefined) updates.platform = platform;
+    await db.collection('systemSettings').doc('catalog-assignments').set(updates, { merge: true });
+    console.log(`[Catalogs] Updated section assignments:`, updates);
+    res.json({ success: true, assignments: updates });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/catalog-for-section/:section', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { section } = req.params;
+    const validSections = ['member', 'public', 'external', 'platform'];
+    if (!validSections.includes(section)) { res.status(400).json({ error: `Invalid section. Must be one of: ${validSections.join(', ')}` }); return; }
+    const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
+    const catalogId = assignDoc.exists ? assignDoc.data()?.[section] : null;
+    if (!catalogId) {
+      res.json({ catalog: null, blanks: [], message: `No catalog assigned to "${section}"` });
+      return;
+    }
+    const catDoc = await db.collection('catalogs').doc(catalogId).get();
+    if (!catDoc.exists) {
+      res.json({ catalog: null, blanks: [], message: `Assigned catalog not found` });
+      return;
+    }
+    const catData = catDoc.data() || {};
+    const catalog = { id: catDoc.id, ...catData };
+    res.json({ catalog, blanks: catData.blankIds || [] });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

@@ -9,6 +9,7 @@ import {
   BookmarkPlus,
   BookmarkMinus,
   Heart,
+  BookOpen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,12 @@ import { useProductsContext } from "../../ProductsContext";
 import { useBuildShelf, type ShelfItem } from "../hooks/useBuildShelf";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+
+interface AdminCatalog {
+  id: string;
+  name: string;
+  blankIds: string[];
+}
 
 type LocationFilter = "all" | "usa" | "other";
 type DataMode = "all" | "favorites";
@@ -97,6 +104,17 @@ export function ProductsModule() {
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [dataMode, setDataMode] = useState<DataMode>("all");
+  const [catalogFilter, setCatalogFilter] = useState<string>("all");
+
+  const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
+    queryKey: ["/api/admin/catalogs"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/catalogs");
+      if (!res.ok) return { catalogs: [] };
+      return res.json();
+    },
+  });
+  const adminCatalogs = adminCatalogsData?.catalogs || [];
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
     setLocationFilter(loc);
@@ -182,15 +200,22 @@ export function ProductsModule() {
     [products]
   );
 
+  const activeCatalogBlankSet = useMemo(() => {
+    if (catalogFilter === "all") return null;
+    const cat = adminCatalogs.find(c => c.id === catalogFilter);
+    return cat ? new Set(cat.blankIds.map(String)) : null;
+  }, [catalogFilter, adminCatalogs]);
+
   const filteredProducts = useMemo(() => {
     return productsWithGender.filter(p => {
       const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) ||
                            (state.originFilter.showOther && !p.madeInUSA);
       const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
       const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
-      return passesOrigin && passesGender && passesSearch;
+      const passesCatalog = !activeCatalogBlankSet || activeCatalogBlankSet.has(String(p.id));
+      return passesOrigin && passesGender && passesSearch && passesCatalog;
     });
-  }, [productsWithGender, state.originFilter, state.genderFilter, search]);
+  }, [productsWithGender, state.originFilter, state.genderFilter, search, activeCatalogBlankSet]);
 
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
@@ -385,6 +410,22 @@ export function ProductsModule() {
         >
           <Heart className="w-3 h-3 mr-1" /> Favorites ({shelf.items.length})
         </Badge>
+        {adminCatalogs.length > 0 && (
+          <div className="flex items-center gap-1 ml-auto">
+            <BookOpen className="h-3 w-3 text-muted-foreground" />
+            <select
+              value={catalogFilter}
+              onChange={e => setCatalogFilter(e.target.value)}
+              className="text-xs bg-background border rounded-md px-1.5 py-1"
+              data-testid="select-catalog-filter"
+            >
+              <option value="all">All Catalogs</option>
+              {adminCatalogs.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0})</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {dataMode === "favorites" && (
