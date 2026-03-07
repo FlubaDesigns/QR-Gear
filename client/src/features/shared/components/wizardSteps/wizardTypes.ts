@@ -34,7 +34,7 @@ export type BackgroundSubStep = 'choice' | 'upload' | 'library-choice' | 'person
 export type TextLayoutChoice = 'header' | 'footer' | 'both' | '';
 export type GraphicLocation = 'front-center' | 'left-chest' | 'back-center' | '';
 export type GraphicSize = 'small' | 'medium' | 'large' | '';
-export type ViewMode = 'index' | 'wizard' | 'channels' | 'collections' | 'earnings';
+export type ViewMode = 'index' | 'wizard' | 'channels' | 'collections' | 'earnings' | 'social';
 
 export const PRINT_AREA_DIMS: Record<string, Record<string, { w: number; h: number }>> = {
   front: {

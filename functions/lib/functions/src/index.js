@@ -6590,6 +6590,295 @@ app.get('/members/check-status', requireAuth, async (req, res) => {
         res.json({ isMember: false });
     }
 });
+app.put('/members/:memberId/social-handles', async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const { socialHandles } = req.body;
+        if (!socialHandles || typeof socialHandles !== 'object') {
+            res.status(400).json({ error: 'socialHandles object is required' });
+            return;
+        }
+        const allowed = ['instagram', 'tiktok', 'x', 'facebook', 'youtube', 'linkedin'];
+        const cleaned = {};
+        for (const key of allowed) {
+            if (typeof socialHandles[key] === 'string')
+                cleaned[key] = socialHandles[key].trim();
+        }
+        await db.collection('member_profiles').doc(memberId).set({ socialHandles: cleaned, updatedAt: new Date().toISOString() }, { merge: true });
+        res.json({ success: true, socialHandles: cleaned });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/members/:memberId/social-schedule', async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const { packetId, cadence, platforms } = req.body;
+        if (!packetId) {
+            res.status(400).json({ error: 'packetId is required' });
+            return;
+        }
+        const validCadences = ['daily', 'every-3-days', 'weekly', 'bi-weekly', 'monthly'];
+        if (!cadence || !validCadences.includes(cadence)) {
+            res.status(400).json({ error: `cadence must be one of: ${validCadences.join(', ')}` });
+            return;
+        }
+        const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+        if (!packetDoc.exists) {
+            res.status(404).json({ error: 'Packet not found' });
+            return;
+        }
+        const packetData = packetDoc.data();
+        if (packetData?.memberId !== memberId) {
+            res.status(403).json({ error: 'Not your packet' });
+            return;
+        }
+        const allowedPlatforms = ['instagram', 'tiktok', 'x', 'facebook', 'youtube', 'linkedin'];
+        const cleanedPlatforms = Array.isArray(platforms) ? platforms.filter((p) => allowedPlatforms.includes(p)) : [];
+        if (cleanedPlatforms.length === 0) {
+            res.status(400).json({ error: 'At least one valid platform is required' });
+            return;
+        }
+        const now = new Date();
+        const cadenceMs = { 'daily': 86400000, 'every-3-days': 259200000, 'weekly': 604800000, 'bi-weekly': 1209600000, 'monthly': 2592000000 };
+        const nextPostAt = new Date(now.getTime() + (cadenceMs[cadence] || 604800000));
+        const scheduleData = { memberId, packetId, cadence, platforms: cleanedPlatforms, lastPostedAt: null, nextPostAt: nextPostAt.toISOString(), isActive: true, createdAt: now.toISOString() };
+        const ref = await db.collection('member_social_schedule').add(scheduleData);
+        res.json({ success: true, id: ref.id, ...scheduleData });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/members/:memberId/social-schedule', async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const snapshot = await db.collection('member_social_schedule').where('memberId', '==', memberId).get();
+        const schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const packetIds = [...new Set(schedules.map((s) => s.packetId).filter(Boolean))];
+        const packetMap = {};
+        for (const pid of packetIds) {
+            const pdoc = await db.collection('memberPackets').doc(pid).get();
+            if (pdoc.exists) {
+                const pd = pdoc.data();
+                packetMap[pid] = { id: pid, title: pd?.title || pd?.simpleTitle || 'Untitled', itemImage: pd?.socialPacket?.itemImage || pd?.itemImage || null, retailPrice: pd?.socialPacket?.retailPrice || pd?.retailPrice || null, shareUrl: pd?.socialPacket?.shareUrl || `/p/${pid}`, referralUrl: pd?.socialPacket?.referralUrl || null, shareCaption: pd?.socialPacket?.shareCaption || null, shareImageSquareUrl: pd?.socialPacket?.shareImageSquareUrl || null, shareImageLinkUrl: pd?.socialPacket?.shareImageLinkUrl || null, qrType: pd?.qrType || pd?.packetType || null };
+            }
+        }
+        const enriched = schedules.map((s) => ({ ...s, packet: packetMap[s.packetId] || null }));
+        res.json({ success: true, schedules: enriched });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/members/:memberId/social-schedule/:scheduleId', async (req, res) => {
+    try {
+        const { memberId, scheduleId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const docRef = db.collection('member_social_schedule').doc(scheduleId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Schedule not found' });
+            return;
+        }
+        if (doc.data()?.memberId !== memberId) {
+            res.status(403).json({ error: 'Not your schedule' });
+            return;
+        }
+        const updates = { updatedAt: new Date().toISOString() };
+        const validCadences = ['daily', 'every-3-days', 'weekly', 'bi-weekly', 'monthly'];
+        if (req.body.cadence && validCadences.includes(req.body.cadence))
+            updates.cadence = req.body.cadence;
+        if (typeof req.body.isActive === 'boolean')
+            updates.isActive = req.body.isActive;
+        if (Array.isArray(req.body.platforms)) {
+            const allowedPlatforms = ['instagram', 'tiktok', 'x', 'facebook', 'youtube', 'linkedin'];
+            updates.platforms = req.body.platforms.filter((p) => allowedPlatforms.includes(p));
+        }
+        if (req.body.cadence && validCadences.includes(req.body.cadence)) {
+            const cadenceMs = { 'daily': 86400000, 'every-3-days': 259200000, 'weekly': 604800000, 'bi-weekly': 1209600000, 'monthly': 2592000000 };
+            const lastPosted = doc.data()?.lastPostedAt ? new Date(doc.data()?.lastPostedAt).getTime() : Date.now();
+            updates.nextPostAt = new Date(lastPosted + (cadenceMs[req.body.cadence] || 604800000)).toISOString();
+        }
+        await docRef.update(updates);
+        const updated = await docRef.get();
+        res.json({ success: true, schedule: { id: scheduleId, ...updated.data() } });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.delete('/members/:memberId/social-schedule/:scheduleId', async (req, res) => {
+    try {
+        const { memberId, scheduleId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const docRef = db.collection('member_social_schedule').doc(scheduleId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Schedule not found' });
+            return;
+        }
+        if (doc.data()?.memberId !== memberId) {
+            res.status(403).json({ error: 'Not your schedule' });
+            return;
+        }
+        await docRef.delete();
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/members/:memberId/social-schedule/:scheduleId/mark-posted', async (req, res) => {
+    try {
+        const { memberId, scheduleId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const docRef = db.collection('member_social_schedule').doc(scheduleId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Schedule not found' });
+            return;
+        }
+        if (doc.data()?.memberId !== memberId) {
+            res.status(403).json({ error: 'Not your schedule' });
+            return;
+        }
+        const now = new Date();
+        const cadence = doc.data()?.cadence || 'weekly';
+        const cadenceMs = { 'daily': 86400000, 'every-3-days': 259200000, 'weekly': 604800000, 'bi-weekly': 1209600000, 'monthly': 2592000000 };
+        const nextPostAt = new Date(now.getTime() + (cadenceMs[cadence] || 604800000));
+        await docRef.update({ lastPostedAt: now.toISOString(), nextPostAt: nextPostAt.toISOString(), updatedAt: now.toISOString() });
+        res.json({ success: true, lastPostedAt: now.toISOString(), nextPostAt: nextPostAt.toISOString() });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.post('/members/:memberId/social-schedule/send-reminders', async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const profileDoc = await db.collection('member_profiles').doc(memberId).get();
+        const profile = profileDoc.data();
+        let memberEmail = profile?.email || null;
+        if (!memberEmail) {
+            try {
+                const userRecord = await admin.auth().getUser(memberId);
+                memberEmail = userRecord.email || null;
+            }
+            catch { }
+        }
+        if (!memberEmail) {
+            res.status(400).json({ error: 'No email address found' });
+            return;
+        }
+        const memberName = profile?.fullName || profile?.storeName || 'Creator';
+        const snapshot = await db.collection('member_social_schedule').where('memberId', '==', memberId).where('isActive', '==', true).get();
+        const now = new Date();
+        const dueItems = [];
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            if (new Date(data.nextPostAt) <= now) {
+                const packetDoc = await db.collection('memberPackets').doc(data.packetId).get();
+                const pd = packetDoc.data();
+                dueItems.push({
+                    title: pd?.title || pd?.simpleTitle || 'Your Product',
+                    image: pd?.socialPacket?.itemImage || pd?.itemImage || null,
+                    shareUrl: pd?.socialPacket?.referralUrl || pd?.socialPacket?.shareUrl || `https://qrgear-c1ffd.web.app/p/${data.packetId}`,
+                    caption: pd?.socialPacket?.shareCaption || `Check out ${pd?.title || 'this product'}!`,
+                    cadence: data.cadence,
+                    platforms: data.platforms || [],
+                });
+            }
+        }
+        if (dueItems.length === 0) {
+            res.json({ success: true, sent: false, message: 'No items due for posting' });
+            return;
+        }
+        const resend = getResendClient();
+        if (!resend) {
+            res.status(500).json({ error: 'Email service not configured' });
+            return;
+        }
+        const platformLabels = { instagram: 'Instagram', tiktok: 'TikTok', x: 'X (Twitter)', facebook: 'Facebook', youtube: 'YouTube', linkedin: 'LinkedIn' };
+        const itemsHtml = dueItems.map(item => `
+      <div style="margin-bottom:24px;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          ${item.image ? `<img src="${item.image}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;" />` : ''}
+          <div>
+            <h3 style="margin:0;font-size:16px;color:#1a1a2e;">${item.title}</h3>
+            <p style="margin:4px 0 0;font-size:13px;color:#666;">Post to: ${item.platforms.map((p) => platformLabels[p] || p).join(', ')}</p>
+          </div>
+        </div>
+        <div style="padding:12px;background:#fff;border-radius:6px;margin-bottom:12px;">
+          <p style="margin:0;font-size:14px;color:#333;">${item.caption}</p>
+        </div>
+        <a href="${item.shareUrl}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;">View Product</a>
+      </div>
+    `).join('');
+        const html = `
+      <div style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="padding:24px;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px 12px 0 0;">
+          <h1 style="margin:0;color:#fff;font-size:22px;">Time to Post!</h1>
+          <p style="margin:8px 0 0;color:#a0aec0;font-size:14px;">Hey ${memberName}, you have ${dueItems.length} ${dueItems.length === 1 ? 'product' : 'products'} ready to share.</p>
+        </div>
+        <div style="padding:24px;background:#fff;">
+          ${itemsHtml}
+          <div style="text-align:center;margin-top:24px;">
+            <a href="https://qrgear-c1ffd.web.app/members" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;">Open Social Hub</a>
+          </div>
+        </div>
+        <div style="padding:16px;text-align:center;color:#999;font-size:12px;">
+          <p>You're receiving this because you have active social schedules on QR Gear.</p>
+          <p>Share & Earn — Forever. 25% of every sale, for life.</p>
+        </div>
+      </div>
+    `;
+        await resend.emails.send({
+            from: QR_GEAR_FROM_EMAIL,
+            to: memberEmail,
+            subject: `${dueItems.length} ${dueItems.length === 1 ? 'product' : 'products'} ready to post — QR Gear`,
+            html,
+        });
+        res.json({ success: true, sent: true, itemCount: dueItems.length });
+    }
+    catch (error) {
+        console.error('[Social Reminder Email]', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/members/:memberId/channels', async (req, res) => {
     try {
         const { memberId } = req.params;

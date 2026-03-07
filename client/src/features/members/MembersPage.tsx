@@ -35,6 +35,7 @@ import { SuperSimpleWizard } from "./SuperSimpleWizard";
 import { SimpleWizard } from "./SimpleWizard";
 import { AdvancedWizard } from "./AdvancedWizard";
 import { StudioMode } from "./StudioMode";
+import { SocialHubView } from "./SocialHubView";
 
 interface MemberProduct {
   id: string;
@@ -784,6 +785,16 @@ function MembersSandboxInner() {
                 <DollarSign className="w-4 h-4 mr-1" />
                 Earnings
               </Button>
+              <Button
+                variant={viewMode === 'social' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('social')}
+                data-testid="tab-social"
+                className={viewMode === 'social' ? 'bg-pink-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+              >
+                <Share2 className="w-4 h-4 mr-1" />
+                Social Hub
+              </Button>
         </div>
         )}
 
@@ -867,6 +878,10 @@ function MembersSandboxInner() {
 
         {viewMode === 'earnings' && (
           <EarningsView memberId={user?.id || ''} />
+        )}
+
+        {viewMode === 'social' && (
+          <SocialHubView memberId={user?.id || ''} />
         )}
 
         <div className="mt-6 text-center text-white/50 text-sm">
