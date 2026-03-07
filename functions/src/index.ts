@@ -7337,12 +7337,30 @@ app.delete('/members/:memberId/channels/:channelId', async (req: Request, res: R
     const productsSnap = await db.collection('memberProducts').where('channelId', '==', channelId).get();
     const packetsSnap = await db.collection('memberPackets').where('channelId', '==', channelId).where('memberId', '==', memberId).get();
     const batch = db.batch();
-    productsSnap.docs.forEach(doc => batch.delete(doc.ref));
-    packetsSnap.docs.forEach(doc => batch.delete(doc.ref));
+    productsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
+    packetsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
     batch.delete(db.collection('channels').doc(channelId));
     await batch.commit();
-    console.log(`[CF] Deleted channel ${channelId} with ${productsSnap.size} products and ${packetsSnap.size} packets`);
-    res.json({ success: true, deletedProducts: productsSnap.size, deletedPackets: packetsSnap.size });
+    console.log(`[CF] Deleted channel ${channelId}, unlinked ${productsSnap.size} products and ${packetsSnap.size} packets`);
+    res.json({ success: true, unlinkedProducts: productsSnap.size, unlinkedPackets: packetsSnap.size });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.put('/members/:memberId/channels/:channelId/remove-item', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { memberId, channelId } = req.params;
+    const { itemId, itemType } = req.body;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    const collection = itemType === 'packet' ? 'memberPackets' : 'memberProducts';
+    const doc = await db.collection(collection).doc(itemId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Item not found' }); return; }
+    const data = doc.data();
+    if (data?.memberId !== memberId && data?.ownerId !== memberId) { res.status(403).json({ error: 'Not authorized' }); return; }
+    if (data?.channelId !== channelId) { res.status(400).json({ error: 'Item not in this channel' }); return; }
+    await db.collection(collection).doc(itemId).update({ channelId: null });
+    console.log(`[CF] Removed ${itemType} ${itemId} from channel ${channelId}`);
+    res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

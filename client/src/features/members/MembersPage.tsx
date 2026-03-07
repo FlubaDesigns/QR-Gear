@@ -443,10 +443,29 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: 'Channel deleted', description: `Removed ${data.deletedProducts} products and ${data.deletedPackets} packets.` });
+      toast({ title: 'Channel deleted', description: `${(data.unlinkedProducts || 0) + (data.unlinkedPackets || 0)} items moved back to your library.` });
       setSelectedChannelId(null);
       setConfirmDeleteChannel(null);
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'channels'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/member/packets'] });
+    },
+    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const removeFromChannelMutation = useMutation({
+    mutationFn: async ({ channelId, itemId, itemType }: { channelId: string; itemId: string; itemType: string }) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/members/${memberId}/channels/${channelId}/remove-item`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ itemId, itemType }),
+      });
+      if (!res.ok) throw new Error('Failed to remove item from channel');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'Removed from channel', description: 'Item is still in your library.' });
+      setConfirmDeleteProduct(null);
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'products'] });
       queryClient.invalidateQueries({ queryKey: ['/api/member/packets'] });
     },
@@ -563,7 +582,7 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
               {confirmDeleteChannel === selectedChannelId ? (
                 <div className="flex items-center gap-1">
                   <Button size="sm" variant="destructive" onClick={() => deleteChannelMutation.mutate(selectedChannelId!)} disabled={deleteChannelMutation.isPending} data-testid="button-confirm-delete-channel">
-                    {deleteChannelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Delete All'}
+                    {deleteChannelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Delete Channel'}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteChannel(null)} className="text-white" data-testid="button-cancel-delete-channel">Cancel</Button>
                 </div>
@@ -578,7 +597,7 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
           {confirmDeleteChannel === selectedChannelId && (
             <div className="mx-6 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2">
               <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-300">This will permanently delete this channel and all {allItems.length} items inside it.</p>
+              <p className="text-sm text-red-300">This will delete the channel. Your {allItems.length} items will stay in your library.</p>
             </div>
           )}
           <CardContent>
@@ -647,18 +666,18 @@ function ChannelsView({ memberId, initialChannelId }: { memberId: string; initia
                           {confirmDeleteProduct === item.id ? (
                             <div className="flex items-center gap-1">
                               <Button size="sm" variant="destructive" onClick={() => {
-                                if (item._type === 'packet') {
-                                  deletePacketMutation.mutate(item.id);
-                                } else {
-                                  deleteProductMutation.mutate(item.id);
-                                }
-                              }} disabled={deleteProductMutation.isPending || deletePacketMutation.isPending} data-testid={`confirm-delete-product-${item.id}`}>
-                                {(deleteProductMutation.isPending || deletePacketMutation.isPending) ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                                removeFromChannelMutation.mutate({
+                                  channelId: selectedChannelId!,
+                                  itemId: item.id,
+                                  itemType: item._type || 'product',
+                                });
+                              }} disabled={removeFromChannelMutation.isPending} data-testid={`confirm-delete-product-${item.id}`}>
+                                {removeFromChannelMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Remove'}
                               </Button>
                               <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteProduct(null)} className="text-white" data-testid={`cancel-delete-product-${item.id}`}>No</Button>
                             </div>
                           ) : (
-                            <Button size="icon" variant="ghost" onClick={() => setConfirmDeleteProduct(item.id)} className="text-red-400" data-testid={`delete-product-${item.id}`}>
+                            <Button size="icon" variant="ghost" onClick={() => setConfirmDeleteProduct(item.id)} className="text-orange-400" data-testid={`delete-product-${item.id}`}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
