@@ -28,6 +28,8 @@ interface OnboardingData {
   socialSurfaces: string[];
   primarySocial: string;
   socialHandle: string;
+  contactEmail: string;
+  phoneNumber: string;
   attributionSource: string;
   termsAccepted: boolean;
 }
@@ -96,13 +98,14 @@ function detectProductCategories(products: { title: string }[]): { id: string; l
 }
 
 const SOCIAL_PLATFORMS = [
-  { id: "instagram", label: "Instagram", icon: <Instagram className="w-5 h-5" /> },
-  { id: "facebook", label: "Facebook", icon: <Facebook className="w-5 h-5" /> },
-  { id: "tiktok", label: "TikTok", icon: <SiTiktok className="w-5 h-5" /> },
-  { id: "x", label: "X", icon: <MessageSquare className="w-5 h-5" /> },
-  { id: "youtube", label: "YouTube", icon: <Youtube className="w-5 h-5" /> },
-  { id: "email-text", label: "Email / Text", icon: <Mail className="w-5 h-5" /> },
-  { id: "qr-print", label: "QR Code (in-person)", icon: <QrCode className="w-5 h-5" /> },
+  { id: "instagram", label: "Instagram", icon: <Instagram className="w-5 h-5" />, needsHandle: true },
+  { id: "facebook", label: "Facebook", icon: <Facebook className="w-5 h-5" />, needsHandle: true },
+  { id: "tiktok", label: "TikTok", icon: <SiTiktok className="w-5 h-5" />, needsHandle: true },
+  { id: "x", label: "X", icon: <MessageSquare className="w-5 h-5" />, needsHandle: true },
+  { id: "youtube", label: "YouTube", icon: <Youtube className="w-5 h-5" />, needsHandle: true },
+  { id: "email", label: "Email", icon: <Mail className="w-5 h-5" />, needsHandle: false },
+  { id: "text", label: "Text / SMS", icon: <Smartphone className="w-5 h-5" />, needsHandle: false },
+  { id: "qr-print", label: "QR Code (in-person)", icon: <QrCode className="w-5 h-5" />, needsHandle: false },
 ];
 
 const ATTRIBUTION_OPTIONS = [
@@ -136,6 +139,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const firebaseEmail = auth.currentUser?.email || '';
   const [data, setData] = useState<OnboardingData>({
     useCase: "",
     productInterests: [],
@@ -146,6 +150,8 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
     socialSurfaces: [],
     primarySocial: "",
     socialHandle: "",
+    contactEmail: firebaseEmail,
+    phoneNumber: "",
     attributionSource: "",
     termsAccepted: false,
   });
@@ -161,7 +167,17 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
       case 3: return data.productInterests.length > 0;
       case 4:
         return data.fullName.length >= 2 && data.storeName.length >= 2 && data.creatorSlug.length >= 3 && !!data.country;
-      case 5: return data.socialSurfaces.length === 0 || data.socialHandle.length >= 2;
+      case 5: {
+        if (data.socialSurfaces.length === 0) return true;
+        const hasHandlePlatform = data.socialSurfaces.some(id => SOCIAL_PLATFORMS.find(p => p.id === id)?.needsHandle);
+        const hasEmail = data.socialSurfaces.includes('email');
+        const hasText = data.socialSurfaces.includes('text');
+        if (hasHandlePlatform && data.socialHandle.length < 2) return false;
+        if (hasEmail && data.contactEmail.length < 5) return false;
+        if (hasText && data.phoneNumber.length < 7) return false;
+        if (!hasHandlePlatform && !hasEmail && !hasText) return true;
+        return true;
+      }
       case 6: return true;
       case 7: return data.termsAccepted;
       case 8: return true;
@@ -449,36 +465,74 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                 );
               })}
             </div>
-            {data.socialSurfaces.length > 0 && (
-              <div className="max-w-md mx-auto space-y-4 text-left">
-                <div className="space-y-2">
-                  <Label className="text-slate-300">Primary platform</Label>
-                  <select
-                    value={data.primarySocial}
-                    onChange={e => setData(prev => ({ ...prev, primarySocial: e.target.value }))}
-                    className="w-full rounded-md bg-slate-700/50 border border-slate-600 text-white px-3 py-2 text-sm"
-                    data-testid="select-primary-social"
-                  >
-                    <option value="">Select primary</option>
-                    {data.socialSurfaces.map(id => {
-                      const platform = SOCIAL_PLATFORMS.find(p => p.id === id);
-                      return <option key={id} value={id}>{platform?.label || id}</option>;
-                    })}
-                  </select>
+            {data.socialSurfaces.length > 0 && (() => {
+              const hasHandlePlatform = data.socialSurfaces.some(id => SOCIAL_PLATFORMS.find(p => p.id === id)?.needsHandle);
+              const hasEmail = data.socialSurfaces.includes('email');
+              const hasText = data.socialSurfaces.includes('text');
+              const handlePlatforms = data.socialSurfaces.filter(id => SOCIAL_PLATFORMS.find(p => p.id === id)?.needsHandle);
+              return (
+                <div className="max-w-md mx-auto space-y-4 text-left">
+                  {handlePlatforms.length > 0 && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-slate-300">Primary platform</Label>
+                        <select
+                          value={data.primarySocial}
+                          onChange={e => setData(prev => ({ ...prev, primarySocial: e.target.value }))}
+                          className="w-full rounded-md bg-slate-700/50 border border-slate-600 text-white px-3 py-2 text-sm"
+                          data-testid="select-primary-social"
+                        >
+                          <option value="">Select primary</option>
+                          {handlePlatforms.map(id => {
+                            const platform = SOCIAL_PLATFORMS.find(p => p.id === id);
+                            return <option key={id} value={id}>{platform?.label || id}</option>;
+                          })}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-slate-300">Your @ handle</Label>
+                        <Input
+                          value={data.socialHandle}
+                          onChange={e => setData(prev => ({ ...prev, socialHandle: e.target.value }))}
+                          placeholder="@yourhandle"
+                          className="bg-slate-700/50 border-slate-600 text-white"
+                          data-testid="input-social-handle"
+                        />
+                        <p className="text-xs text-slate-500">Used in Share Kit assets ("follow me @handle")</p>
+                      </div>
+                    </>
+                  )}
+                  {hasEmail && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-300">Email address</Label>
+                      <Input
+                        type="email"
+                        value={data.contactEmail}
+                        onChange={e => setData(prev => ({ ...prev, contactEmail: e.target.value }))}
+                        placeholder="you@example.com"
+                        className="bg-slate-700/50 border-slate-600 text-white"
+                        data-testid="input-contact-email"
+                      />
+                      <p className="text-xs text-slate-500">We'll use this to send you notifications and acceptance info</p>
+                    </div>
+                  )}
+                  {hasText && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-300">Phone number</Label>
+                      <Input
+                        type="tel"
+                        value={data.phoneNumber}
+                        onChange={e => setData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                        placeholder="(555) 123-4567"
+                        className="bg-slate-700/50 border-slate-600 text-white"
+                        data-testid="input-phone-number"
+                      />
+                      <p className="text-xs text-slate-500">For text reminders about your content schedule</p>
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-slate-300">Your @ handle</Label>
-                  <Input
-                    value={data.socialHandle}
-                    onChange={e => setData(prev => ({ ...prev, socialHandle: e.target.value }))}
-                    placeholder="@yourhandle"
-                    className="bg-slate-700/50 border-slate-600 text-white"
-                    data-testid="input-social-handle"
-                  />
-                  <p className="text-xs text-slate-500">Used in Share Kit assets ("follow me @handle")</p>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         );
 
@@ -539,17 +593,20 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
         return (
           <div className="text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-              <DollarSign className="w-10 h-10 text-white" />
+              <Mail className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white">How you get paid (later)</h2>
+            <h2 className="text-2xl font-bold text-white">One last thing — verification</h2>
             <div className="max-w-md mx-auto space-y-4 text-left">
               <div className="p-4 bg-white/5 rounded-lg">
-                <p className="text-slate-300">When products you create sell through our platform, you earn <span className="text-emerald-400 font-bold">at least {shareLabel}</span> of the profit.</p>
+                <p className="text-slate-300">After you finish here, we'll send you an email to verify your account. Just reply to that email — it's how we confirm you're a real person and complete your onboarding.</p>
               </div>
               <div className="p-4 bg-white/5 rounded-lg">
-                <p className="text-slate-300">Once you make a sale, we'll verify your email and ask where to send your payment. Simple as that.</p>
+                <p className="text-slate-300">That's also where we'll share the next steps for getting everything set up, including how earnings work when you start selling.</p>
               </div>
-              <div className="flex items-center gap-3 p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
+              <div className="p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
+                <p className="text-sm text-emerald-200">Quick version: you create, you share, people buy, you earn <span className="text-white font-bold">{shareLabel}</span> of the profit. We'll explain the details in your verification email.</p>
+              </div>
+              <div className="flex items-center gap-3 p-4 bg-slate-700/50 rounded-lg">
                 <Checkbox
                   id="terms"
                   checked={data.termsAccepted}
@@ -557,7 +614,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                   data-testid="checkbox-terms"
                 />
                 <label htmlFor="terms" className="text-sm text-white cursor-pointer">
-                  I understand and agree
+                  Sounds good — I'll check my email after this
                 </label>
               </div>
             </div>
@@ -643,7 +700,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
   const stepLabels = [
     "Welcome", "How It Works", "About You", "Products",
-    "Identity", "Sharing", "Inspiration", "Earnings",
+    "Identity", "Sharing", "Inspiration", "Verification",
     "Attribution", "Member Perk", "Launch",
   ];
 

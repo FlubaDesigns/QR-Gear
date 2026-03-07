@@ -23,6 +23,11 @@ interface SocialHandles {
   linkedin?: string;
 }
 
+interface ContactInfo {
+  contactEmail: string;
+  phoneNumber: string;
+}
+
 interface SchedulePacket {
   id: string;
   title: string;
@@ -104,6 +109,7 @@ function SocialProfilesSection({ memberId }: { memberId: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [handles, setHandles] = useState<SocialHandles>({});
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({ contactEmail: '', phoneNumber: '' });
   const [hasChanges, setHasChanges] = useState(false);
 
   const { data: profileData, isLoading } = useQuery<{ isMember: boolean; profile?: any }>({
@@ -130,22 +136,34 @@ function SocialProfilesSection({ memberId }: { memberId: string }) {
         }
         setHandles(migrated);
       }
+      setContactInfo({
+        contactEmail: p.contactEmail || '',
+        phoneNumber: p.phoneNumber || '',
+      });
     }
   }, [profileData]);
 
   const saveMutation = useMutation({
-    mutationFn: async (socialHandles: SocialHandles) => {
+    mutationFn: async ({ socialHandles, contact }: { socialHandles: SocialHandles; contact: ContactInfo }) => {
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-handles`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ socialHandles }),
-      });
-      if (!res.ok) throw new Error('Failed to save');
-      return res.json();
+      const [handlesRes, contactRes] = await Promise.all([
+        fetch(`/api/members/${memberId}/social-handles`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ socialHandles }),
+        }),
+        fetch(`/api/members/${memberId}/contact-info`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify(contact),
+        }),
+      ]);
+      if (!handlesRes.ok) throw new Error('Failed to save social handles');
+      if (!contactRes.ok) throw new Error('Failed to save contact info');
+      return { handles: await handlesRes.json(), contact: await contactRes.json() };
     },
     onSuccess: () => {
-      toast({ title: 'Social profiles saved' });
+      toast({ title: 'Profiles saved' });
       setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ['/api/members/profile'] });
     },
@@ -156,6 +174,11 @@ function SocialProfilesSection({ memberId }: { memberId: string }) {
 
   const updateHandle = (key: string, value: string) => {
     setHandles(prev => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+  };
+
+  const updateContact = (key: keyof ContactInfo, value: string) => {
+    setContactInfo(prev => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
 
@@ -180,7 +203,7 @@ function SocialProfilesSection({ memberId }: { memberId: string }) {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-slate-400 mb-4">
-              Add your social media handles so we know where to send your content.
+              Add your social media handles and contact info for notifications and sharing.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {PLATFORMS.map((platform) => {
@@ -201,10 +224,41 @@ function SocialProfilesSection({ memberId }: { memberId: string }) {
                 );
               })}
             </div>
+            <div className="border-t border-slate-700 pt-4 mt-4">
+              <p className="text-sm text-slate-400 mb-3">Contact info for notifications and reminders</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 flex items-center justify-center rounded-md bg-slate-700/50 text-blue-400">
+                    <Send className="w-4 h-4" />
+                  </div>
+                  <Input
+                    type="email"
+                    value={contactInfo.contactEmail}
+                    onChange={(e) => updateContact('contactEmail', e.target.value)}
+                    placeholder="you@example.com"
+                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                    data-testid="input-contact-email"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 flex items-center justify-center rounded-md bg-slate-700/50 text-green-400">
+                    <Copy className="w-4 h-4" />
+                  </div>
+                  <Input
+                    type="tel"
+                    value={contactInfo.phoneNumber}
+                    onChange={(e) => updateContact('phoneNumber', e.target.value)}
+                    placeholder="(555) 123-4567"
+                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500"
+                    data-testid="input-phone-number"
+                  />
+                </div>
+              </div>
+            </div>
             {hasChanges && (
               <div className="flex justify-end pt-2">
                 <Button
-                  onClick={() => saveMutation.mutate(handles)}
+                  onClick={() => saveMutation.mutate({ socialHandles: handles, contact: contactInfo })}
                   disabled={saveMutation.isPending}
                   data-testid="button-save-social-handles"
                 >

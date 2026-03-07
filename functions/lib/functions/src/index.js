@@ -6567,12 +6567,12 @@ async function verifyMemberAuthCF(req, memberId) {
 app.post('/members/profile', requireAuth, async (req, res) => {
     try {
         const userId = req.user?.uid;
-        const { fullName, storeName, creatorSlug, country, useCase, productInterests, socialSurfaces, primarySocial, socialHandle, attributionSource } = req.body;
+        const { fullName, storeName, creatorSlug, country, useCase, productInterests, socialSurfaces, primarySocial, socialHandle, contactEmail, phoneNumber, attributionSource } = req.body;
         if (!fullName || !storeName || !creatorSlug) {
             res.status(400).json({ error: "fullName, storeName, and creatorSlug are required" });
             return;
         }
-        const profileData = { userId, fullName, storeName, creatorSlug, country: country || '', useCase: useCase || '', productInterests: productInterests || [], socialSurfaces: socialSurfaces || [], primarySocial: primarySocial || '', socialHandle: socialHandle || '', attributionSource: attributionSource || '', isMember: true, memberSince: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        const profileData = { userId, fullName, storeName, creatorSlug, country: country || '', useCase: useCase || '', productInterests: productInterests || [], socialSurfaces: socialSurfaces || [], primarySocial: primarySocial || '', socialHandle: socialHandle || '', contactEmail: contactEmail || '', phoneNumber: phoneNumber || '', attributionSource: attributionSource || '', isMember: true, memberSince: new Date().toISOString(), updatedAt: new Date().toISOString() };
         await db.collection('member_profiles').doc(userId).set(profileData, { merge: true });
         res.json({ success: true, profile: profileData });
     }
@@ -6625,6 +6625,27 @@ app.put('/members/:memberId/social-handles', async (req, res) => {
         }
         await db.collection('member_profiles').doc(memberId).set({ socialHandles: cleaned, updatedAt: new Date().toISOString() }, { merge: true });
         res.json({ success: true, socialHandles: cleaned });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/members/:memberId/contact-info', async (req, res) => {
+    try {
+        const { memberId } = req.params;
+        const auth = await verifyMemberAuthCF(req, memberId);
+        if (!auth.authorized) {
+            res.status(401).json({ error: auth.error });
+            return;
+        }
+        const { contactEmail, phoneNumber } = req.body;
+        const update = { updatedAt: new Date().toISOString() };
+        if (typeof contactEmail === 'string')
+            update.contactEmail = contactEmail.trim();
+        if (typeof phoneNumber === 'string')
+            update.phoneNumber = phoneNumber.trim();
+        await db.collection('member_profiles').doc(memberId).set(update, { merge: true });
+        res.json({ success: true, contactEmail: update.contactEmail || '', phoneNumber: update.phoneNumber || '' });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
