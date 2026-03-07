@@ -45,14 +45,55 @@ const USE_CASES = [
   { id: "other", label: "Something Else", icon: <Globe className="w-5 h-5" /> },
 ];
 
-const PRODUCT_TYPES = [
-  { id: "shirts", label: "T-Shirts", icon: <Shirt className="w-5 h-5" /> },
-  { id: "hats", label: "Hats", icon: <HardHat className="w-5 h-5" /> },
-  { id: "mugs", label: "Mugs", icon: <CupSoda className="w-5 h-5" /> },
-  { id: "bags", label: "Bags", icon: <BaggageClaim className="w-5 h-5" /> },
-  { id: "phone-cases", label: "Phone Cases", icon: <Smartphone className="w-5 h-5" /> },
-  { id: "other", label: "Other / All", icon: <Package className="w-5 h-5" /> },
-];
+const PRODUCT_CATEGORY_MAP: Record<string, { label: string; icon: JSX.Element }> = {
+  "tee": { label: "T-Shirts", icon: <Shirt className="w-5 h-5" /> },
+  "shirt": { label: "T-Shirts", icon: <Shirt className="w-5 h-5" /> },
+  "t-shirt": { label: "T-Shirts", icon: <Shirt className="w-5 h-5" /> },
+  "hoodie": { label: "Hoodies", icon: <Package className="w-5 h-5" /> },
+  "hat": { label: "Hats", icon: <HardHat className="w-5 h-5" /> },
+  "cap": { label: "Hats", icon: <HardHat className="w-5 h-5" /> },
+  "mug": { label: "Mugs", icon: <CupSoda className="w-5 h-5" /> },
+  "bag": { label: "Bags", icon: <BaggageClaim className="w-5 h-5" /> },
+  "tote": { label: "Bags", icon: <BaggageClaim className="w-5 h-5" /> },
+  "phone": { label: "Phone Cases", icon: <Smartphone className="w-5 h-5" /> },
+  "case": { label: "Phone Cases", icon: <Smartphone className="w-5 h-5" /> },
+  "poster": { label: "Posters", icon: <Package className="w-5 h-5" /> },
+  "sticker": { label: "Stickers", icon: <Tag className="w-5 h-5" /> },
+};
+
+function detectProductCategories(products: { title: string }[]): { id: string; label: string; icon: JSX.Element; count: number }[] {
+  const found = new Map<string, { label: string; icon: JSX.Element; count: number }>();
+  for (const product of products) {
+    const titleLower = (product.title || '').toLowerCase();
+    let matched = false;
+    for (const [keyword, meta] of Object.entries(PRODUCT_CATEGORY_MAP)) {
+      if (titleLower.includes(keyword)) {
+        const existing = found.get(meta.label);
+        if (existing) {
+          existing.count++;
+        } else {
+          found.set(meta.label, { ...meta, count: 1 });
+        }
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      const existing = found.get("Other");
+      if (existing) {
+        existing.count++;
+      } else {
+        found.set("Other", { label: "Other", icon: <Package className="w-5 h-5" />, count: 1 });
+      }
+    }
+  }
+  return Array.from(found.entries()).map(([, val]) => ({
+    id: val.label.toLowerCase().replace(/\s+/g, '-'),
+    label: val.label,
+    icon: val.icon,
+    count: val.count,
+  }));
+}
 
 const SOCIAL_PLATFORMS = [
   { id: "instagram", label: "Instagram", icon: <Instagram className="w-5 h-5" /> },
@@ -85,6 +126,10 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
   const { data: pricingSettings } = useQuery<{ memberProfitShare?: number; baseRetailPrice?: number }>({
     queryKey: ['/api/pricing-settings'],
   });
+  const { data: allowedProductsData } = useQuery<{ products: { title: string }[] }>({
+    queryKey: ['/api/members/allowed-products'],
+  });
+  const dynamicCategories = detectProductCategories(allowedProductsData?.products || []);
   const profitShare = pricingSettings?.memberProfitShare ?? DEFAULT_MEMBER_PROFIT_SHARE;
   const exampleRetailPrice = pricingSettings?.baseRetailPrice ?? 29.99;
   const shareLabel = formatProfitSharePercent(profitShare);
@@ -263,32 +308,44 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
               <Package className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">What products interest you?</h2>
-            <p className="text-slate-400">Pick as many as you like. You can always change this later.</p>
-            <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-              {PRODUCT_TYPES.map(pt => {
-                const selected = data.productInterests.includes(pt.id);
-                return (
-                  <button
-                    key={pt.id}
-                    onClick={() => toggleProductInterest(pt.id)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
-                      selected
-                        ? "border-amber-500 bg-amber-900/30"
-                        : "border-slate-600 bg-slate-700/30 hover:border-slate-500"
-                    }`}
-                    data-testid={`product-interest-${pt.id}`}
-                  >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      selected ? "bg-amber-500/20 text-amber-400" : "bg-slate-600/50 text-slate-400"
-                    }`}>
-                      {pt.icon}
-                    </div>
-                    <span className={`text-sm ${selected ? "text-white font-medium" : "text-slate-300"}`}>{pt.label}</span>
-                    {selected && <Check className="w-4 h-4 text-amber-400" />}
-                  </button>
-                );
-              })}
-            </div>
+            <p className="text-slate-400">
+              {dynamicCategories.length > 0
+                ? "Pick as many as you like. You can always change this later."
+                : "Loading available products..."}
+            </p>
+            {dynamicCategories.length > 0 && (
+              <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
+                {dynamicCategories.map(cat => {
+                  const selected = data.productInterests.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => toggleProductInterest(cat.id)}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                        selected
+                          ? "border-amber-500 bg-amber-900/30"
+                          : "border-slate-600 bg-slate-700/30 hover:border-slate-500"
+                      }`}
+                      data-testid={`product-interest-${cat.id}`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        selected ? "bg-amber-500/20 text-amber-400" : "bg-slate-600/50 text-slate-400"
+                      }`}>
+                        {cat.icon}
+                      </div>
+                      <span className={`text-sm ${selected ? "text-white font-medium" : "text-slate-300"}`}>{cat.label}</span>
+                      <span className="text-xs text-slate-500">{cat.count} {cat.count === 1 ? 'style' : 'styles'}</span>
+                      {selected && <Check className="w-4 h-4 text-amber-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {dynamicCategories.length === 0 && (
+              <div className="flex justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
+              </div>
+            )}
           </div>
         );
 
