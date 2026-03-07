@@ -126,6 +126,7 @@ export function AdvancedWizard() {
 
   const handleCreateAnother = () => {
     setSimpleStep('channel');
+    setViewMode('index');
     setCurrentPacketId(null);
     setSimpleTitle('');
     setSimpleDescription('');

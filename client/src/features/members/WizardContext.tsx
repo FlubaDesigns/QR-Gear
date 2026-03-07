@@ -731,8 +731,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       } else if (qrType === 'qr-plus') {
         // QR Plus goes to confirm step (save already handled via saveQrPlusToPacket wrapper)
       } else {
-        setViewMode('channels');
         setSimpleStep('channel');
+        setViewMode('index');
         setCurrentPacketId(null);
         setSimpleTitle('');
         setSimpleDescription('');
@@ -1016,7 +1016,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleCanvasDone = () => {
-    setViewMode('channels');
+    setViewMode('index');
     setSimpleStep('channel');
     setCurrentPacketId(null);
     setSimpleTitle('');
@@ -1681,7 +1681,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
       setCompletedSteps(prev => new Set<WizardStep>([...Array.from(prev), 'publish']));
       incrementPublishCount();
-      setViewMode('channels');
+      setViewMode('index');
     } catch (error) {
       console.error('Publish error:', error);
       toast({ title: 'Publish failed', description: 'Failed to publish. Please try again.', variant: 'destructive' });

@@ -727,6 +727,7 @@ export function SuperSimpleWizard() {
 
   const handleCreateAnother = () => {
     setSimpleStep('channel');
+    setViewMode('index');
     setCurrentPacketId(null);
     setSimpleTitle('');
     setSimpleDescription('');
@@ -1069,6 +1070,7 @@ export function SuperSimpleWizard() {
                     isSaving={isQrBasicSaving}
                     onDone={() => {
                       setSimpleStep('channel');
+                      setViewMode('index');
                       setCurrentPacketId(null);
                       setQrBasicInputType('');
                       setQrBasicContent('');
@@ -1113,6 +1115,7 @@ export function SuperSimpleWizard() {
                     isSaving={isQrPlusSaving}
                     onDone={() => {
                       setSimpleStep('channel');
+                      setViewMode('index');
                       setCurrentPacketId(null);
                       setQrPlusMockup('');
                       setQrPlusSaveChoice('');
