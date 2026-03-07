@@ -37,12 +37,12 @@ export function GraphicSizeStep({
   
   const getSizeOptionsForPlacement = () => {
     if (isSleevePlacement(currentPlacement)) {
-      return { small: { w: 16, h: 16 }, medium: { w: 22, h: 22 }, large: { w: 28, h: 28 } };
+      return { small: { w: 14, h: 14 }, medium: { w: 19, h: 19 }, large: { w: 24, h: 24 } };
     }
     if (currentPlacement === 'pocket') {
-      return { small: { w: 15, h: 15 }, medium: { w: 20, h: 20 }, large: { w: 25, h: 25 } };
+      return { small: { w: 12, h: 12 }, medium: { w: 15, h: 15 }, large: { w: 19, h: 19 } };
     }
-    return { small: { w: 22, h: 30 }, medium: { w: 33, h: 44 }, large: { w: 41, h: 52 } };
+    return { small: { w: 19, h: 27 }, medium: { w: 30, h: 46 }, large: { w: 44, h: 73 } };
   };
   
   const sizeOptions = getSizeOptionsForPlacement();
@@ -616,9 +616,9 @@ export function PlacementConfigStep({
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';
     const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 22, h: 30 },
-      medium: { w: 33, h: 44 },
-      large: { w: 41, h: 52 }
+      small: { w: 19, h: 27 },
+      medium: { w: 30, h: 46 },
+      large: { w: 44, h: 73 }
     };
     return sizes[sizeKey] || sizes.medium;
   };

@@ -99,9 +99,9 @@ export function ShirtPreviewStep({
   const getGraphicDimensions = () => {
     const sizeKey = graphicSize || 'medium';
     const sizes: Record<string, { w: number; h: number }> = {
-      small: { w: 22, h: 30 },
-      medium: { w: 33, h: 44 },
-      large: { w: 41, h: 52 }
+      small: { w: 19, h: 27 },
+      medium: { w: 30, h: 46 },
+      large: { w: 44, h: 73 }
     };
     return sizes[sizeKey] || sizes.medium;
   };
