@@ -11678,6 +11678,122 @@ app.get('/admin/orchestration/master-products/:id/publish-states', requireAdmin,
 
 // ============ BATCH: STORE/LIBRARY FILE ROUTES ============
 
+app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { linkId } = req.params;
+    const linkDoc = await db.collection('storeProductLinks').doc(linkId).get();
+    if (!linkDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
+    const link = linkDoc.data()!;
+
+    let price: number | null = null;
+    let availableSizes: string[] = link.enabledSizes || [];
+    let availableColors: string[] = link.enabledColors || [];
+    let availablePlacements: string[] = [];
+    let description = '';
+    let category = '';
+    let productLine = '';
+
+    if (link.packetId) {
+      const packetDoc = await db.collection('packets').doc(link.packetId).get();
+      if (packetDoc.exists) {
+        const packet = packetDoc.data()!;
+        const productId = packet.productId;
+        if (productId) {
+          price = await getAuthoritativePrice(productId);
+          const productDoc = await db.collection('products').doc(productId).get();
+          if (productDoc.exists) {
+            const product = productDoc.data()!;
+            if (availableSizes.length === 0) availableSizes = product.availableSizes || product.sizes || [];
+            if (availableColors.length === 0) availableColors = product.availableColors || product.colors || [];
+            availablePlacements = product.availablePlacements || [];
+            description = product.description || '';
+            category = product.category || '';
+            productLine = product.productLine || '';
+          }
+        }
+        if (price === null && packet.pricingSnapshot?.totalPrice) {
+          price = parseFloat(packet.pricingSnapshot.totalPrice);
+        }
+      }
+    }
+
+    if (price === null && link.pricing) {
+      price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
+    }
+
+    res.json({
+      id: linkDoc.id,
+      name: link.productName || 'Untitled Product',
+      description,
+      category,
+      productLine,
+      imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
+      qrCodeUrl: link.qrOnlyUrl || null,
+      qrProductType: link.qrProductState || 'qr-basics',
+      price: price !== null ? Math.round(price * 100) / 100 : null,
+      availableSizes,
+      availableColors,
+      availablePlacements,
+      defaultColor: link.defaultColor || null,
+      mockupsByColor: null,
+      selectedGraphicSize: link.selectedGraphicSize || null,
+      storeId: link.storeId || null,
+      storeName: link.storeName || null,
+      channel: link.channel || null,
+      collection: link.collection || null,
+      packetId: link.packetId || null,
+    });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { linkId } = req.params;
+    const { selectedColor, selectedSize, quantity = 1 } = req.body;
+
+    const linkDoc = await db.collection('storeProductLinks').doc(linkId).get();
+    if (!linkDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
+    const link = linkDoc.data()!;
+
+    let price: number | null = null;
+    let productId: string | null = null;
+
+    if (link.packetId) {
+      const packetDoc = await db.collection('packets').doc(link.packetId).get();
+      if (packetDoc.exists) {
+        const packet = packetDoc.data()!;
+        productId = packet.productId || null;
+        if (productId) {
+          price = await getAuthoritativePrice(productId);
+        }
+        if (price === null && packet.pricingSnapshot?.totalPrice) {
+          price = parseFloat(packet.pricingSnapshot.totalPrice);
+        }
+      }
+    }
+
+    if (price === null && link.pricing) {
+      price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
+    }
+
+    if (price === null || price <= 0) {
+      res.status(400).json({ error: "Price could not be determined for this product" });
+      return;
+    }
+
+    res.json({
+      productId: productId || linkId,
+      linkId,
+      price: Math.round(price * 100) / 100,
+      name: link.productName || 'Untitled Product',
+      imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
+      selectedColor: selectedColor || link.defaultColor || null,
+      selectedSize: selectedSize || null,
+      quantity,
+    });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeType, storeName } = req.params;
@@ -11708,7 +11824,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       }
       const linksSnapshot = await linksQuery.get();
 
-      const products = linksSnapshot.docs.map((doc: any) => {
+      const productsRaw = linksSnapshot.docs.map((doc: any) => {
         const d = doc.data();
         return {
           id: doc.id,
@@ -11723,9 +11839,27 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           selectedColors: d.enabledColors || [],
           defaultColor: d.defaultColor || null,
           mockupsByColor: null,
+          packetId: d.packetId || null,
+          pricing: d.pricing || null,
           createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
         };
       });
+
+      const products = await Promise.all(productsRaw.map(async (p: any) => {
+        let price: number | null = null;
+        if (p.packetId) {
+          const pDoc = await db.collection('packets').doc(p.packetId).get();
+          if (pDoc.exists) {
+            const pkt = pDoc.data()!;
+            if (pkt.productId) price = await getAuthoritativePrice(pkt.productId);
+            if (price === null && pkt.pricingSnapshot?.totalPrice) price = parseFloat(pkt.pricingSnapshot.totalPrice);
+          }
+        }
+        if (price === null && p.pricing) {
+          price = parseFloat(p.pricing.customerPrice || p.pricing.totalPrice || p.pricing.retailPrice || '0');
+        }
+        return { ...p, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
+      }));
 
       console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} products`);
       res.json({
@@ -11759,7 +11893,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       linksQuery = linksQuery.where('collection', '==', segment);
     }
     const linksSnapshot = await linksQuery.get();
-    const products = linksSnapshot.docs.map((doc: any) => {
+    const productsRaw2 = linksSnapshot.docs.map((doc: any) => {
       const d = doc.data();
       return {
         id: doc.id,
@@ -11774,9 +11908,27 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         selectedColors: d.enabledColors || [],
         defaultColor: d.defaultColor || null,
         mockupsByColor: null,
+        packetId: d.packetId || null,
+        pricing: d.pricing || null,
         createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
       };
     });
+
+    const products = await Promise.all(productsRaw2.map(async (p: any) => {
+      let price: number | null = null;
+      if (p.packetId) {
+        const pDoc = await db.collection('packets').doc(p.packetId).get();
+        if (pDoc.exists) {
+          const pkt = pDoc.data()!;
+          if (pkt.productId) price = await getAuthoritativePrice(pkt.productId);
+          if (price === null && pkt.pricingSnapshot?.totalPrice) price = parseFloat(pkt.pricingSnapshot.totalPrice);
+        }
+      }
+      if (price === null && p.pricing) {
+        price = parseFloat(p.pricing.customerPrice || p.pricing.totalPrice || p.pricing.retailPrice || '0');
+      }
+      return { ...p, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
+    }));
 
     console.log(`[Public Store] Store "${matchedStore.name}" (${storeType}): ${products.length} products, ${channels.length} channels`);
     res.json({

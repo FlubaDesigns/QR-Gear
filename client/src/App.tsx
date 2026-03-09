@@ -41,6 +41,7 @@ import AdminEmailHealth from "@/pages/admin-email-health";
 import AdminManual from "@/pages/admin-manual";
 import AdminSettings from "@/pages/admin-settings";
 import ShopSegment from "@/pages/shop-segment";
+import ShopProduct from "@/pages/shop-product";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import QRBasics from "@/pages/qr-basics";
@@ -157,6 +158,7 @@ function Router() {
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
+      <Route path="/shop/product/:linkId" component={ShopProduct} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route path="/admin/dynamics">{() => <AdminRoute><AdminDynamics /></AdminRoute>}</Route>

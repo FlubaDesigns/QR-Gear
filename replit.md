@@ -42,6 +42,7 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 The storefront features lifestyle mockups and displays admin-configured retail pricing. The Admin Library Module offers a modular, multi-tenant interface.
 
 ### Technical Implementations
+- **Storefront Purchase Path**: Complete buy flow from store listing → product detail page (`/shop/product/:linkId`) → add-to-cart → checkout. Backend `GET /store/product/:linkId` returns full product detail with calculated price. `POST /store/product/:linkId/add-to-cart` resolves canonical productId and price server-side before writing to cart. Store listings include computed prices. Both guest (localStorage) and authenticated (server) cart paths supported.
 - **Pricing System**: Supports complex, configurable pricing structures including markups and additional costs.
 - **Mockup System**: Generates high-quality product mockups for all variations via a background job queue, utilizing Printful.
 - **QR Artwork Selection**: Automatically selects black or white QR codes based on background luminance.

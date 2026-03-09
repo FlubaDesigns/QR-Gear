@@ -32,6 +32,7 @@ interface StoreProduct {
   selectedColors?: string[] | null;
   defaultColor?: string | null;
   mockupsByColor?: MockupsByColor | null;
+  price?: number | null;
   createdAt: string;
 }
 
@@ -277,14 +278,21 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
         <h3 className="font-semibold text-lg line-clamp-2" data-testid={`text-product-name-${product.id}`}>
           {product.name}
         </h3>
-        {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
-          <Badge 
-            className={`mt-2 text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
-            data-testid={`badge-product-type-${product.id}`}
-          >
-            {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
-          </Badge>
-        )}
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          {product.price != null && product.price > 0 && (
+            <span className="text-lg font-bold text-foreground" data-testid={`text-price-${product.id}`}>
+              ${product.price.toFixed(2)}
+            </span>
+          )}
+          {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
+            <Badge 
+              className={`text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
+              data-testid={`badge-product-type-${product.id}`}
+            >
+              {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
+            </Badge>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -402,7 +410,7 @@ export default function ShopSegmentPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {data?.products.map((product) => (
-            <Link key={product.id} href={`/customs/${product.id}`}>
+            <Link key={product.id} href={`/shop/product/${product.id}`}>
               <StoreProductCard product={product} storeType={storeType} storeName={storeName} />
             </Link>
           ))}
