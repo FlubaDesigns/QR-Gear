@@ -1,309 +1,304 @@
-# QR GEAR — Investor Revenue Projections
-
-## Company Overview
-
-**QR Gear** is a marketing technology platform that merges physical merchandise with dynamic digital experiences through custom QR codes. Every product sold becomes a permanent, updateable marketing touchpoint — turning one-time merchandise into ongoing digital engagement.
-
-**Website:** qrgear.com (qrgear-c1ffd.web.app)
+# QR GEAR — Revenue Projections (Detailed Breakdown)
 
 ---
 
-## The QR Gear Difference: Marketing, Not Merch
+## What This Document Is
 
-Every QR Gear product is a **living marketing asset**. The QR code on each item links to dynamic content the owner controls forever — rotating images, videos, links, and promotions. A single printed shirt can promote different campaigns for years without reprinting.
+This is the detailed financial breakdown behind the QR Gear Executive Summary. If you've read the summary and want to see the math, this is where it lives.
 
----
-
-## Platform Metrics (Current State)
-
-| Metric | Value |
-|--------|-------|
-| Products in catalog | 631 |
-| Active storefronts | 4 |
-| Store channels | 6 |
-| Published product listings | 51 |
-| Average retail price | $27.67 |
-| Average manufacturing cost | $22.13 |
-| Average merchandise profit/item | $5.54 |
-| Base merchandise margin | 20.0% |
-| Price range | $1.52 – $162.74 |
-| Print-on-demand providers | 2 (Printify + Printful) |
-| Current members | 0 |
-| Current completed sales | 0 |
-| Marketing budget | $0 (bootstrapped) |
-
-**This is a pre-revenue platform.** The technology is fully built and deployed. All projections start from zero and assume bootstrapped growth — no paid advertising, no marketing budget. Growth comes from organic social media, direct outreach, the built-in referral system, and marketplace organic search.
+All numbers assume **zero marketing budget** — growth comes from personal outreach, social media, free marketplace listings, and the built-in referral system. These are conservative, bootstrapped projections starting from zero customers and zero revenue.
 
 ---
 
-## Revenue Streams (6 Legs)
+## Where We Stand Today
 
-### Leg 1: Direct Merchandise Sales (QR Gear Storefront)
-
-The storefront currently lists 51 products from a 631-item catalog. Without paid ads, traffic comes from organic search, social media posts, word-of-mouth, and QR code scans from products already in the wild.
-
-**Bootstrapped growth assumptions:**
-- Site traffic from personal social media, local networking, and organic SEO
-- 1–2% conversion rate on visitors (industry standard for e-commerce)
-- Average order of 1.2 items
-- Growth driven by the compounding effect of more QR codes in circulation
-
-| Period | Monthly Orders | Avg Order Value | Monthly Revenue | Monthly Profit (20%) |
-|--------|---------------|-----------------|-----------------|---------------------|
-| Mo 1–3 | 5 | $28.00 | $140 | $28 |
-| Mo 6 | 15 | $30.00 | $450 | $90 |
-| Mo 12 | 50 | $32.00 | $1,600 | $320 |
-| Mo 18 | 100 | $34.00 | $3,400 | $680 |
-| Mo 24 | 180 | $35.00 | $6,300 | $1,260 |
+| What | Number |
+|------|--------|
+| Products ready to sell | 631 |
+| Storefronts live | 4 |
+| Average selling price | $27.67 |
+| What it costs us to make (average) | $22.13 |
+| What we keep per sale (average) | $5.54 |
+| Our profit margin on merchandise | 20% |
+| Cheapest product | $1.52 (vinyl decals) |
+| Most expensive product | $162.74 |
+| Current customers | 0 |
+| Current revenue | $0 |
+| Current marketing budget | $0 |
 
 ---
 
-### Leg 2: QR Dynamics Subscriptions (Recurring Revenue)
+## Revenue Stream #1: Our Own Store
 
-Every product sold creates a QR Dynamics instance. Basic QR is free. Premium tiers are where recurring revenue lives.
+This is straightforward — people visit our website, buy a product, we earn the profit.
 
-| QR Tier | Monthly Price | Features |
-|---------|--------------|----------|
-| QR Basics | Free | Static link, basic scan tracking |
-| QR Plus | $2.99/mo | Rotating content, scan analytics |
-| QR Canvas | $4.99/mo | Custom branded landing pages, image galleries |
-| QR Play | $7.99/mo | Video content, media player experiences |
-| QR Dynamics Pro | $14.99/mo | Full content management, A/B testing, API access |
+Without paid advertising, traffic comes from:
+- Our own social media posts
+- People finding us through Google searches
+- Word of mouth from existing customers
+- People scanning QR codes on products already out in the world
 
-**Assumptions:** Paid conversion starts at 2% (very conservative for freemium) and grows to 5% as features mature. Cumulative instances = every product ever sold across all channels combined.
+**What we expect:**
 
-| Period | Cumulative QR Instances | Paid Conversion | Avg Sub Price | Monthly Recurring Revenue |
-|--------|------------------------|----------------|--------------|--------------------------|
-| Mo 1–3 | 10 | 0% | — | $0 |
-| Mo 6 | 60 | 2% | $3.99 | $5 |
-| Mo 12 | 300 | 3% | $4.49 | $40 |
-| Mo 18 | 900 | 4% | $4.99 | $180 |
-| Mo 24 | 2,200 | 5% | $5.49 | $605 |
+| When | Orders/Month | Average Order | Revenue | Our Profit |
+|------|-------------|---------------|---------|------------|
+| Month 1–3 | 5 | $28 | $140 | $28 |
+| Month 6 | 15 | $30 | $450 | $90 |
+| Month 12 | 50 | $32 | $1,600 | $320 |
+| Month 18 | 100 | $34 | $3,400 | $680 |
+| Month 24 | 180 | $35 | $6,300 | $1,260 |
 
-**Why this matters even at small numbers:** QR subscriptions are pure-margin recurring revenue with zero fulfillment cost. They compound — every product ever sold remains a potential future subscriber. The installed base never shrinks.
+**Why these numbers are realistic:** 5 orders in the first month means roughly one sale per week. By Month 24, 180 orders per month is about 6 per day — achievable with 50 creators promoting products, marketplace listings generating traffic, and a growing base of repeat customers.
 
 ---
 
-### Leg 3: Creator Platform (Member Stores)
+## Revenue Stream #2: QR Subscriptions
 
-Creators use QR Gear's wizard to design products and sell through their own storefronts. QR Gear handles manufacturing, fulfillment, and payments.
+Every product we sell comes with a free basic QR code. If the owner wants premium features — rotating content, scan analytics, video, branded pages — they pay a monthly fee.
 
-**Revenue split:** QR Gear retains 75% of profit. Creators earn 25%.
+**What the subscription tiers look like:**
 
-**Bootstrapped creator acquisition:** Direct outreach to micro-influencers, local business owners, church groups, school booster clubs. Free to join, no inventory risk for them. The 25% permanent commission is the pitch.
+| Level | Monthly Price | What You Get |
+|-------|-------------|-------------|
+| Basic | Free | Your QR code links to one thing |
+| Plus | $3/month | Change what it links to anytime, see how many people scanned it |
+| Canvas | $5/month | Build a custom branded page people see when they scan |
+| Play | $8/month | Show videos when people scan |
+| Pro | $15/month | Everything — analytics, A/B testing, full control |
 
-| Period | Active Creators | Avg Products | Avg Monthly Sales/Creator | QR Gear Share (75% of profit) |
-|--------|----------------|-------------|--------------------------|-------------------------------|
-| Mo 1–3 | 1 | 2 | $30 | $5 |
-| Mo 6 | 3 | 4 | $60 | $27 |
-| Mo 12 | 10 | 6 | $100 | $150 |
-| Mo 18 | 25 | 8 | $150 | $563 |
-| Mo 24 | 50 | 10 | $200 | $1,500 |
+**What we expect:**
 
-**Reality check:** Getting to 50 active creators in 2 years means signing roughly 2–3 per month — achievable through consistent personal outreach without any ad spend.
+| When | Total QR Codes Out There | % That Pay | Average Payment | Monthly Income |
+|------|--------------------------|-----------|----------------|----------------|
+| Month 1–3 | 10 | 0% | — | $0 |
+| Month 6 | 60 | 2% | $4/mo | $5 |
+| Month 12 | 300 | 3% | $4.50/mo | $40 |
+| Month 18 | 900 | 4% | $5/mo | $180 |
+| Month 24 | 2,200 | 5% | $5.50/mo | $605 |
 
----
-
-### Leg 4: Marketplace Distribution (Etsy, eBay, Amazon)
-
-Marketplaces provide organic buyer traffic — no ad spend needed. Etsy in particular rewards niche products with good SEO.
-
-**Assumptions:** Etsy first (easiest onboarding). eBay by Month 6. Amazon by Month 12 (requires brand registry). Margins are thinner after marketplace fees (6.5–15%), but volume compensates.
-
-| Period | Active Listings | Platform(s) | Monthly Sales | Net Profit (after fees) |
-|--------|----------------|-------------|---------------|------------------------|
-| Mo 1–3 | 10 | Etsy | $80 | $6 |
-| Mo 6 | 30 | Etsy + eBay | $400 | $32 |
-| Mo 12 | 80 | All 3 | $1,500 | $120 |
-| Mo 18 | 150 | All 3 | $3,500 | $280 |
-| Mo 24 | 250 | All 3 | $7,000 | $560 |
-
-**Strategic value:** Marketplace sales feed QR Dynamics instances (Leg 2) and introduce new customers to the QR Gear ecosystem. Some marketplace buyers become direct customers or creators.
+**Why this matters even though it's small at first:** This is pure profit — no printing, no shipping, no cost to deliver. And it builds over time. Every product we've ever sold, across every channel, adds to the pool of potential subscribers. A shirt sold in Month 3 might become a paying subscriber in Month 15. The number only goes up.
 
 ---
 
-### Leg 5: Partner/White-Label Stores (B2B)
+## Revenue Stream #3: Creators Selling for Us
 
-Businesses use QR Gear as their merchandise + marketing backend. Their brand, our infrastructure.
+People sign up for free, design products using our tools, and get their own store. When their stuff sells, we print it, ship it, and split the profit 75/25 (we get 75%).
 
-| Tier | Monthly Fee | Per-Transaction Fee | Target |
-|------|------------|-------------------|--------|
-| Starter | $49/mo | 8% of sale | Small businesses, churches, teams |
-| Professional | $199/mo | 5% of sale | Marketing agencies, mid-size brands |
+**How we find creators (with no budget):**
+- Reaching out personally to local business owners, church leaders, school groups
+- Social media outreach to micro-influencers (people with 500–5,000 followers)
+- Existing customers becoming creators after they see how it works
+- Referrals from other creators
 
-**Bootstrapped B2B reality:** No sales team. Partners come from personal network, creator referrals, and inbound from the platform itself. B2B is the slowest channel to start but has the highest ceiling.
+| When | Active Creators | Products Each | Their Monthly Sales | Our Share (75% of profit) |
+|------|----------------|--------------|--------------------|-----------------------------|
+| Month 1–3 | 1 | 2 | $30 | $5 |
+| Month 6 | 3 | 4 | $60 each | $27 |
+| Month 12 | 10 | 6 | $100 each | $150 |
+| Month 18 | 25 | 8 | $150 each | $563 |
+| Month 24 | 50 | 10 | $200 each | $1,500 |
 
-| Period | Active Partners | Avg Monthly Fee | Avg Transaction Revenue | Monthly Revenue |
-|--------|----------------|----------------|------------------------|-----------------|
-| Mo 1–3 | 0 | — | — | $0 |
-| Mo 6 | 1 | $49 | $20 | $69 |
-| Mo 12 | 3 | $49 | $60 | $327 |
-| Mo 18 | 6 | $74 | $120 | $1,164 |
-| Mo 24 | 12 | $99 | $200 | $3,588 |
+**Reality check:** 50 creators in 2 years means signing about 2 new creators per month. That's achievable with consistent personal outreach — a few DMs per week, attending a local networking event monthly, asking existing creators to refer friends.
 
----
-
-### Leg 6: Referral Network ("Share & Earn — Forever")
-
-The 25% permanent referral commission is the primary growth engine in a bootstrapped model. Instead of paying for ads, QR Gear pays commissions only on actual sales — making customer acquisition cost perfectly predictable.
-
-**Assumptions:** 5% of all customers become active referrers. Average referrer brings 0.5 new customers per month (one every two months). Modest but compounding.
-
-| Period | Active Referrers | New Customers/Mo via Referral | Referral Revenue | Commission Cost (25%) | Net Value |
-|--------|-----------------|------------------------------|------------------|-----------------------|-----------|
-| Mo 1–3 | 1 | 0 | $0 | $0 | $0 |
-| Mo 6 | 3 | 2 | $56 | $14 | $42 |
-| Mo 12 | 12 | 6 | $192 | $48 | $144 |
-| Mo 18 | 30 | 15 | $510 | $128 | $383 |
-| Mo 24 | 60 | 30 | $1,050 | $263 | $788 |
+**Why this stream is so valuable:** Each creator brings their own audience. If a creator has 1,000 Instagram followers and posts about their QR Gear store, that's 1,000 eyeballs we didn't pay for. Multiply that by 50 creators and we're reaching 50,000+ people for free.
 
 ---
 
-## Combined Revenue Projections (Bootstrapped — $0 Marketing Budget)
+## Revenue Stream #4: Marketplace Sales (Etsy, eBay, Amazon)
 
-| Revenue Leg | Mo 1–3 | Mo 6 | Mo 12 | Mo 18 | Mo 24 |
-|-------------|--------|------|-------|-------|-------|
-| 1. Direct Merch Sales | $28 | $90 | $320 | $680 | $1,260 |
-| 2. QR Dynamics Subs | $0 | $5 | $40 | $180 | $605 |
-| 3. Creator Platform | $5 | $27 | $150 | $563 | $1,500 |
-| 4. Marketplace Dist. | $6 | $32 | $120 | $280 | $560 |
-| 5. Partner Stores (B2B) | $0 | $69 | $327 | $1,164 | $3,588 |
-| 6. Referral Network | $0 | $42 | $144 | $383 | $788 |
-| **Total Monthly Profit** | **$39** | **$265** | **$1,101** | **$3,250** | **$8,301** |
-| **Annual Run Rate** | **$468** | **$3,180** | **$13,212** | **$39,000** | **$99,612** |
+These platforms have millions of shoppers every day looking for custom and personalized products. We list our products there and let the marketplace bring us buyers.
 
----
+**The trade-off:** We pay fees to the marketplace (6.5% on Etsy, up to 15% on Amazon), so our margin is thinner. But we don't pay anything to list — only when something sells.
 
-## Milestone Markers
+| When | Where | How Many Listings | Monthly Sales | Our Profit (after fees) |
+|------|-------|------------------|---------------|------------------------|
+| Month 1–3 | Etsy only | 10 | $80 | $6 |
+| Month 6 | Etsy + eBay | 30 | $400 | $32 |
+| Month 12 | All three | 80 | $1,500 | $120 |
+| Month 18 | All three | 150 | $3,500 | $280 |
+| Month 24 | All three | 250 | $7,000 | $560 |
 
-| Milestone | Projected Timeline | What It Means |
-|-----------|--------------------|---------------|
-| First sale | Month 1–2 | Proof of concept — real money from a real customer |
-| $100/mo profit | Month 4–5 | Covering basic operating costs |
-| 10 active creators | Month 10–12 | Creator flywheel beginning to turn |
-| $1,000/mo profit | Month 11–13 | Side-income territory |
-| First B2B partner | Month 5–7 | Validation of platform value for businesses |
-| 1,000 cumulative QR instances | Month 14–16 | Meaningful installed base of scannable marketing assets |
-| $5,000/mo profit | Month 20–22 | Part-time income replacement |
-| $100K annual run rate | Month 23–25 | Full-time business viability |
+**Hidden benefit:** Every marketplace sale also puts a QR code into the world. That customer might upgrade to a QR subscription. They might visit our main site. They might become a creator. The marketplace is a funnel into our broader ecosystem.
 
 ---
 
-## Revenue Mix at Month 24
+## Revenue Stream #5: Businesses Using Our Platform (B2B)
 
-| Revenue Leg | Monthly Profit | % of Total |
-|-------------|---------------|-----------|
-| Partner Stores (B2B) | $3,588 | 43.2% |
-| Creator Platform | $1,500 | 18.1% |
-| Direct Merch Sales | $1,260 | 15.2% |
-| Referral Network | $788 | 9.5% |
-| QR Dynamics Subscriptions | $605 | 7.3% |
-| Marketplace Distribution | $560 | 6.7% |
+This is where a business says: "I want to offer custom QR merchandise to my customers, but I don't want to build the technology myself." They use our system — their branding, our engine behind the scenes.
 
-Even bootstrapped, direct merch is only 15% of revenue by Month 24. The platform services — B2B, creator revenue share, and referral network — account for 70.8%.
+**Who would do this:**
+- A marketing agency adding QR merch to their services
+- A church selling branded merchandise to members
+- A real estate company putting QR codes on yard signs and promo items
+- A youth sports league selling team gear with QR codes linking to schedules
 
----
+**What they pay:**
+- A monthly platform fee ($49–$199/month depending on size)
+- Plus a small percentage of each sale (3–8%)
 
-## Operating Costs (Bootstrapped Monthly)
+| When | Business Partners | Avg Monthly Fee | Avg Sale Revenue | Monthly Income |
+|------|------------------|----------------|-----------------|----------------|
+| Month 1–3 | 0 | — | — | $0 |
+| Month 6 | 1 | $49 | $20 | $69 |
+| Month 12 | 3 | $49 | $60 each | $327 |
+| Month 18 | 6 | $74 | $120 each | $1,164 |
+| Month 24 | 12 | $99 | $200 each | $3,588 |
 
-| Category | Mo 1–3 | Mo 6 | Mo 12 | Mo 24 |
-|----------|--------|------|-------|-------|
-| Firebase/Cloud (free tier covers most) | $0 | $10 | $25 | $75 |
-| Stripe Processing (2.9% + $0.30) | $5 | $15 | $75 | $400 |
-| Email (Resend free tier) | $0 | $0 | $0 | $20 |
-| Domain | $15 | $15 | $15 | $15 |
-| Marketplace fees (Etsy/eBay/Amazon) | $5 | $40 | $200 | $900 |
-| Paid marketing | $0 | $0 | $0 | $0 |
-| **Total Operating** | **$25** | **$80** | **$315** | **$1,410** |
+**Why 12 partners in 2 years is realistic:** These come from personal connections, creator referrals ("hey, my church wants to do this for the whole congregation"), and businesses discovering us through our marketplace presence. No cold-calling army needed.
 
-**Note:** All costs are variable and scale with revenue. There are no fixed employee costs in the bootstrapped model.
+**Why this is the biggest slice of the pie:** Unlike individual product sales ($6 profit each), a single business partner paying $99/month plus generating $200 in transaction revenue equals $299/month from one relationship. And they bring their own customers.
 
 ---
 
-## What Investment Would Accelerate
+## Revenue Stream #6: The Referral System
 
-The bootstrapped path above reaches ~$100K annual run rate by Month 24. Here's what targeted investment would change:
+This is our replacement for paid advertising. Instead of paying Google or Facebook to show our ads, we pay real people to spread the word — but only when it results in an actual sale.
 
-| Investment Level | Use | Expected Impact |
-|-----------------|-----|----------------|
-| $5,000 | Targeted social ads + Etsy promoted listings for 3 months | 2–3x marketplace sales, faster creator signups |
-| $15,000 | Above + content marketing + micro-influencer partnerships | 3–5x total growth rate, reach $100K run rate by Month 15 |
-| $50,000 | Above + part-time B2B sales outreach + trade show presence | 5–8x growth, B2B channel accelerated significantly |
+**How it works:**
+- You tell a friend about QR Gear
+- Your friend buys a shirt
+- You earn 25% of the profit on that sale
+- Every time that friend buys again — forever — you earn again
+- If your friend tells someone else, you earn on those sales too
+
+**Why this is better than paid ads:**
+- Paid ads: You spend $500 and hope for sales. Maybe it works, maybe it doesn't.
+- Referrals: You spend $0 upfront. You only pay when a real sale happens. Your cost is always exactly 25% of profit — guaranteed.
+
+| When | People Actively Referring | New Customers They Bring/Month | Sales from Referrals | What We Pay in Commissions | Net Profit |
+|------|--------------------------|-------------------------------|---------------------|---------------------------|------------|
+| Month 1–3 | 1 | 0 | $0 | $0 | $0 |
+| Month 6 | 3 | 2 | $56 | $14 | $42 |
+| Month 12 | 12 | 6 | $192 | $48 | $144 |
+| Month 18 | 30 | 15 | $510 | $128 | $383 |
+| Month 24 | 60 | 30 | $1,050 | $263 | $788 |
 
 ---
 
-## Product Catalog Snapshot
+## Putting It All Together
 
-### Price Distribution (631 Products)
+### Monthly Profit — All Six Streams Combined
 
-| Range | Count | % of Catalog |
-|-------|-------|-------------|
-| Under $10 | 36 | 5.7% |
-| $10 – $20 | 197 | 31.2% |
-| $20 – $30 | 184 | 29.2% |
-| $30 – $40 | 82 | 13.0% |
-| Over $40 | 132 | 20.9% |
+| When | Store Sales | QR Subs | Creators | Marketplaces | Business Partners | Referrals | **Total** |
+|------|------------|---------|----------|-------------|------------------|-----------|-----------|
+| Mo 1–3 | $28 | $0 | $5 | $6 | $0 | $0 | **$39** |
+| Mo 6 | $90 | $5 | $27 | $32 | $69 | $42 | **$265** |
+| Mo 12 | $320 | $40 | $150 | $120 | $327 | $144 | **$1,101** |
+| Mo 18 | $680 | $180 | $563 | $280 | $1,164 | $383 | **$3,250** |
+| Mo 24 | $1,260 | $605 | $1,500 | $560 | $3,588 | $788 | **$8,301** |
 
-### Top 10 Products by Per-Unit Profit
+### What That Looks Like Per Year
 
-| Product | Retail | Cost | Profit |
-|---------|--------|------|--------|
-| Women's Organic Crew Neck Sweatshirt | $40.79 | $32.63 | $8.16 |
-| Men's Recycled Rash Guard (AOP) | $40.79 | $32.63 | $8.16 |
-| Unisex Wide-Leg Pants (AOP) | $40.74 | $32.59 | $8.15 |
-| Recycled Hockey Fan Jersey (AOP) | $40.74 | $32.59 | $8.15 |
-| Unisex Relax Crew Neck Sweatshirt | $40.63 | $32.50 | $8.13 |
+| When | Monthly Profit | Annual Run Rate |
+|------|---------------|----------------|
+| Month 6 | $265 | $3,180/year |
+| Month 12 | $1,101 | $13,212/year |
+| Month 18 | $3,250 | $39,000/year |
+| Month 24 | $8,301 | $99,612/year |
+
+---
+
+## What Does It Cost to Run This Business?
+
+One of the biggest advantages: **almost everything is pay-as-you-go.** We don't pay for things until we're actually making money from them.
+
+| Expense | What It Is | When We Start Paying |
+|---------|-----------|---------------------|
+| Printing & shipping | The cost of making each product | Only when someone buys (already included in our profit math above) |
+| Credit card processing | Stripe takes 2.9% + $0.30 per transaction | Only when someone buys |
+| Website hosting | Firebase cloud services | Free until we hit high traffic |
+| Email service | Sending order confirmations and updates | Free tier covers us until we're large |
+| Domain name | qrgear.com | $15/month |
+| Marketplace fees | Etsy, eBay, Amazon commissions | Only when something sells there |
+
+**Monthly fixed costs: about $15–25 at the start.** Everything else scales with revenue.
+
+| When | Total Operating Costs | Profit After Costs |
+|------|-----------------------|-------------------|
+| Month 1–3 | $25 | $14 |
+| Month 6 | $80 | $185 |
+| Month 12 | $315 | $786 |
+| Month 18 | $900 | $2,350 |
+| Month 24 | $1,410 | $6,891 |
+
+---
+
+## What Would a Small Investment Do?
+
+Everything above assumes $0 in marketing spend. Here's what even a modest investment could change:
+
+| If We Had... | We'd Spend It On... | What Would Happen |
+|-------------|--------------------|--------------------|
+| $5,000 | Promoted Etsy listings + social media content for 3 months | Marketplace sales grow 2–3x faster. Reach more creators. |
+| $15,000 | Above + small influencer partnerships + improving our Google search ranking | Hit the $100K/year mark by Month 15 instead of Month 24. |
+| $50,000 | Above + attending industry events + dedicated outreach to businesses | B2B partnerships accelerate dramatically. 5–8x overall growth. |
+
+**The platform is already built.** Investment doesn't go to developers or technology. It goes directly into getting the product in front of more people.
+
+---
+
+## The Risks (Being Honest)
+
+| Risk | What It Means | How We Handle It |
+|------|--------------|-----------------|
+| Slow start | Month 1–3 profit is $39. That requires patience. | Low costs mean we can afford to be patient. We're not burning cash. |
+| Nobody signs up as a creator | If creators don't join, we lose that revenue stream | We start by personally recruiting from our own network. Quality over quantity. |
+| Businesses take a long time to sign up | B2B sales cycles can be months | We don't depend on B2B alone. Five other streams keep us moving. |
+| Marketplace competition is tough | Lots of other sellers on Etsy and Amazon | Our QR code feature is genuinely different. We're not just another shirt. |
+| QR subscriptions might not convert | People might stick with the free tier | Even at 2–5% conversion, it's still pure-profit income that compounds over time. |
+
+---
+
+## What Could Go Better Than Expected
+
+| Upside Scenario | What Happens |
+|----------------|-------------|
+| One creator with a big following (10,000+ followers) joins | Could multiply monthly sales by 5x overnight |
+| One large business deal (franchise, school district) | Could add $500–$2,000/month from a single partner |
+| A social media post goes viral showing someone scanning a QR shirt | Spike in traffic and awareness costs us nothing |
+| Restaurants start using QR Dynamics for their menus | Opens up an entirely new market beyond merchandise |
+
+---
+
+## The Product Catalog: What We Sell
+
+We have **631 products** across a wide range. Here's how they break down by price:
+
+| Price Range | How Many Products | Examples |
+|-------------|------------------|---------|
+| Under $10 | 36 items | Stickers, magnets, postcards, vinyl decals |
+| $10 – $20 | 197 items | T-shirts, mugs, phone grips, can coolers |
+| $20 – $30 | 184 items | Hoodies, tote bags, water bottles, baby clothes |
+| $30 – $40 | 82 items | Sweatshirts, premium tees, slides, blankets |
+| Over $40 | 132 items | Premium hoodies, jackets, all-over print apparel, jewelry boxes |
+
+**Our best sellers (by profit per item):**
+
+| Product | What Customers Pay | What It Costs Us | Our Profit |
+|---------|-------------------|-----------------|------------|
+| Women's Organic Sweatshirt | $40.79 | $32.63 | $8.16 |
+| Men's Recycled Rash Guard | $40.79 | $32.63 | $8.16 |
+| Wide-Leg Pants | $40.74 | $32.59 | $8.15 |
+| Hockey Fan Jersey | $40.74 | $32.59 | $8.15 |
+| Unisex Crew Neck Sweatshirt | $40.63 | $32.50 | $8.13 |
 | Men's Slides | $40.63 | $32.50 | $8.13 |
 | Women's Slides | $40.63 | $32.50 | $8.13 |
 | Oversized Heavyweight Sweatshirt | $40.63 | $32.50 | $8.13 |
-| Men's Athletic T-Shirt (AOP) | $40.44 | $32.35 | $8.09 |
+| Men's Athletic T-Shirt | $40.44 | $32.35 | $8.09 |
 | Unisex Supply Hoodie | $40.34 | $32.27 | $8.07 |
 
 ---
 
-## Key Assumptions & Risks
+## The Bottom Line
 
-### What These Projections Assume
-- Zero marketing budget — all growth is organic
-- Personal outreach for creator and B2B partner acquisition
-- Marketplace listings optimized for organic search
-- QR Dynamics premium tiers built and launched by Month 3
-- Founder handles all operations (no employees)
-- Consistent effort: 10–15 hours/week on outreach and content
+QR Gear is a fully built marketing technology platform that makes money six different ways. It costs almost nothing to operate. Every product sold makes the network more valuable. And even without spending a dollar on advertising, the math shows a path to a $100,000/year business within two years.
 
-### Key Risks
-- **Slow start is real.** Month 1–3 revenue of $39/month means patience is required
-- **Creator adoption is unproven.** Platform must demonstrate clear value to attract first creators
-- **B2B without a sales team is slow.** 12 partners by Month 24 requires consistent personal networking
-- **QR subscription conversion is uncertain.** 2–5% paid rate is conservative but still unproven in this category
-- **Marketplace competition is fierce.** POD products compete on price; QR differentiation must be clearly visible
-
-### What Could Accelerate Growth (Upside)
-- A single creator with 10K+ followers could 5x monthly sales overnight
-- One enterprise B2B deal (franchise, school district) could add $500–$2,000/mo instantly
-- A viral social media post showcasing QR product interaction could spike traffic
-- QR Dynamics applied beyond merch (restaurant menus, event programs) opens new markets
-- Even a modest $5K marketing investment could 2–3x the bootstrapped trajectory
+**The technology is finished. The products are live. What's needed now is customers — and every tool to find them is already built into the platform.**
 
 ---
 
-## Investment Thesis
+*All projections start from zero revenue, zero customers, and zero marketing budget. Growth assumptions use industry-standard rates for e-commerce conversion and freemium subscription services. Actual results depend on founder effort and market conditions.*
 
-1. **The platform is built.** This isn't a pitch deck for vaporware. 631 products, full checkout, creator tools, marketplace integration, referral system — all live and deployed.
-
-2. **Capital-light by design.** Zero inventory, print-on-demand fulfillment, cloud infrastructure on free/low tiers. Monthly costs stay under $100 until revenue justifies scaling.
-
-3. **Six revenue streams reduce risk.** If marketplace sales are slow, creator revenue compensates. If B2B takes longer, direct sales and referrals fill the gap.
-
-4. **Recurring revenue compounds.** Every product sold creates a permanent QR instance that can convert to a monthly subscription at any future point.
-
-5. **Viral mechanics are structural.** The 25% forever referral commission means customer acquisition cost is always a fixed percentage of revenue — never an upfront gamble.
-
-6. **The ask is modest.** Bootstrapped path reaches $100K annual run rate in 24 months. A small investment ($5K–$15K) could cut that timeline in half.
-
----
-
-*Conservative projections based on current product catalog of 631 items at 20% base merchandise margin. All growth assumptions use bootstrapped, zero-budget model. No paid advertising included. Starting from zero revenue, zero members, zero sales. Actual results will depend on founder effort and market conditions.*
-
-*Generated: March 2026*
-*Platform: QR Gear (qrgear-c1ffd.web.app)*
+*QR Gear | qrgear.com*
+*Confidential — For Investor Review Only*
+*March 2026*
