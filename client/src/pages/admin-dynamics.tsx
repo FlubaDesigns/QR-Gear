@@ -415,7 +415,7 @@ export default function TestDynamicsPage() {
                 setSelectedChannel(null);
               }}
             >
-              <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-store">
+              <SelectTrigger className="flex-1" data-testid="select-store">
                 <SelectValue placeholder="Store" />
               </SelectTrigger>
               <SelectContent>
@@ -433,7 +433,7 @@ export default function TestDynamicsPage() {
                 setSelectedChannel(val);
               }}
             >
-              <SelectTrigger className="flex-1 bg-slate-800 border-slate-600 text-white" data-testid="select-channel">
+              <SelectTrigger className="flex-1" data-testid="select-channel">
                 <SelectValue placeholder="Channel" />
               </SelectTrigger>
               <SelectContent>
@@ -595,7 +595,7 @@ export default function TestDynamicsPage() {
             </div>
 
             {instanceId && (
-              <Card className="bg-slate-800/80 border-slate-700">
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-white flex items-center gap-2">
                     <Eye className="h-5 w-5 text-green-400" />
@@ -605,7 +605,7 @@ export default function TestDynamicsPage() {
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 text-sm">Instance ID</span>
-                    <code className="text-green-400 text-xs bg-slate-900 px-2 py-1 rounded">
+                    <code className="text-green-400 text-xs bg-muted px-2 py-1 rounded">
                       {instanceId}
                     </code>
                   </div>

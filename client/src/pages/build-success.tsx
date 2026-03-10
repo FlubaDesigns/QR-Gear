@@ -158,7 +158,7 @@ export default function BuildSuccess() {
             </Link>
             <Button
               variant="ghost"
-              className="w-full text-slate-500"
+              className="w-full"
               onClick={() => setChosenPath('guest')}
               data-testid="button-skip-member"
             >
@@ -243,7 +243,7 @@ export default function BuildSuccess() {
               </Button>
             </Link>
             <Link href="/">
-              <Button variant="outline" className="w-full sm:w-auto border-slate-600 text-slate-300" data-testid="button-back-home">
+              <Button variant="outline" className="w-full sm:w-auto" data-testid="button-back-home">
                 Back to Home
               </Button>
             </Link>
@@ -356,7 +356,7 @@ export default function BuildSuccess() {
               <Button
                 onClick={() => setChosenPath('guest')}
                 variant="outline"
-                className="flex-1 border-slate-600 text-slate-300 min-w-[140px]"
+                className="flex-1 min-w-[140px]"
                 data-testid="button-path-guest"
               >
                 No Thanks

@@ -169,12 +169,12 @@ export default function PacketSuccessPage() {
                   <p className="font-medium text-white">{order.productTitle}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {order.selectedColor && (
-                      <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                      <Badge variant="outline" className="text-xs">
                         {order.selectedColor}
                       </Badge>
                     )}
                     {order.selectedSize && (
-                      <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                      <Badge variant="outline" className="text-xs">
                         Size {order.selectedSize}
                       </Badge>
                     )}

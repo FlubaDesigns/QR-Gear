@@ -184,7 +184,7 @@ export default function PacketPage() {
                     data-testid="img-packet-product"
                   />
                   {packet.qrType && (
-                    <Badge className="absolute top-3 right-3 bg-slate-800/80 text-slate-300 border-slate-600" data-testid="badge-qr-type">
+                    <Badge className="absolute top-3 right-3" data-testid="badge-qr-type">
                       {getQrTypeLabel(packet.qrType)}
                     </Badge>
                   )}
@@ -220,7 +220,7 @@ export default function PacketPage() {
                   <div>
                     <label className="text-sm text-slate-400 mb-1 block">Size</label>
                     <Select value={selectedSize} onValueChange={setSelectedSize}>
-                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white" data-testid="select-size">
+                      <SelectTrigger data-testid="select-size">
                         <SelectValue placeholder="Select size" />
                       </SelectTrigger>
                       <SelectContent>

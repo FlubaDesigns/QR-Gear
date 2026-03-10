@@ -141,7 +141,7 @@ export default function AdminTags() {
   const actionButtons = user ? (
     <div className="flex items-center gap-3">
       <div className="text-right hidden sm:block">
-        <p className="text-xs text-slate-400">Logged in as</p>
+        <p className="text-xs text-muted-foreground">Logged in as</p>
         <p className="text-sm font-medium">{user.email || user.id}</p>
       </div>
       <Button 

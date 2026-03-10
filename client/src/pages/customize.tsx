@@ -233,7 +233,7 @@ export default function Customize() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setBackgroundUrl('')}
-                        className="w-full text-slate-400 hover:text-white"
+                        className="w-full"
                         data-testid="button-reset-background"
                       >
                         <RotateCcw className="w-4 h-4 mr-2" />
@@ -447,7 +447,7 @@ export default function Customize() {
                     <Button
                       variant="ghost"
                       onClick={() => setStep('start')}
-                      className="w-full text-slate-400 hover:text-white"
+                      className="w-full"
                       data-testid="button-start-over"
                     >
                       Start over with a new design

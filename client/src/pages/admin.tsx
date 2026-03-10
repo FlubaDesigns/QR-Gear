@@ -151,7 +151,7 @@ export default function Admin() {
       variant="outline" 
       size="sm" 
       onClick={copyUserId}
-      className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800"
+      className="font-mono text-xs"
       data-testid="button-copy-user-id"
     >
       Copy ID
