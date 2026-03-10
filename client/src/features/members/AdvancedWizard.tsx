@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { ChevronLeft, ChevronRight, Layers, DollarSign, X, Crosshair, SlidersHorizontal, Copy } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
-import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
+import { ProductPickerStep, ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
 import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { TypePickerStep, SurfacePickerStep, GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
@@ -282,9 +282,10 @@ export function AdvancedWizard() {
           )}
           
           {simpleStep === 'product' && (
-            <ProductPickerStep
+            <TierPickerStep
               selectedProduct={selectedProductType}
               onSelect={handleProductSelect}
+              context="member"
             />
           )}
           

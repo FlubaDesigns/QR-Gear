@@ -33,10 +33,15 @@ export interface ProductSelectItem {
   defaultColor: string | null;
 }
 
+export type TierValue = "good" | "better" | "best" | null;
+
 export interface ProductSelectCardSkinProps {
   item: ProductSelectItem;
   isSelected: boolean;
   onSelect: (id: string, item: ProductSelectItem) => void;
+  tier?: TierValue;
+  onTierChange?: (id: string, tier: TierValue) => void;
+  showTierControls?: boolean;
 }
 
 function PreviewModal({
@@ -108,9 +113,20 @@ function PreviewModal({
 
                 <div className="flex items-center gap-2 flex-wrap">
                   {item.price != null && <span className="text-xl font-bold">${item.price.toFixed(2)}</span>}
+                  {item.cost != null && (
+                    <span className="text-sm text-muted-foreground">
+                      Cost: ${item.cost.toFixed(2)}
+                    </span>
+                  )}
+                  {item.price != null && item.cost != null && (
+                    <span className="text-sm font-semibold text-green-600">
+                      +${(item.price - item.cost).toFixed(2)} profit
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
                   {defaultColorEntry && (
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
-                      <span className="text-muted-foreground">&middot;</span>
                       <span className="flex items-center gap-1.5">
                         <span
                           className="inline-block w-3 h-3 rounded-full border border-border"
@@ -122,20 +138,12 @@ function PreviewModal({
                   )}
                 </div>
 
-                {(item.manufacturer || item.cost != null) && (
+                {item.manufacturer && (
                   <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
-                    {item.manufacturer && (
-                      <span className="flex items-center gap-1.5">
-                        <Factory className="w-4 h-4" />
-                        <span>{item.manufacturer}</span>
-                      </span>
-                    )}
-                    {item.cost != null && (
-                      <span className="text-muted-foreground">
-                        {item.manufacturer && <span className="mx-1">&middot;</span>}
-                        Cost: ${item.cost.toFixed(2)}
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1.5">
+                      <Factory className="w-4 h-4" />
+                      <span>{item.manufacturer}</span>
+                    </span>
                   </div>
                 )}
 
@@ -200,7 +208,19 @@ function PreviewModal({
   );
 }
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSelectCardSkinProps) {
+const TIER_COLORS: Record<string, string> = {
+  good: "bg-blue-600 text-white",
+  better: "bg-amber-500 text-white",
+  best: "bg-emerald-600 text-white",
+};
+
+const TIER_LABELS: Record<string, string> = {
+  good: "Good",
+  better: "Better",
+  best: "Best",
+};
+
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls }: ProductSelectCardSkinProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -259,6 +279,14 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
             </div>
           )}
 
+          {tier && (
+            <div className="absolute top-2 left-2">
+              <Badge className={`text-xs shadow-sm ${TIER_COLORS[tier]}`} data-testid={`badge-tier-${item.id}`}>
+                {TIER_LABELS[tier]}
+              </Badge>
+            </div>
+          )}
+
           <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-[11px] text-muted-foreground">
             <Eye className="w-3.5 h-3.5" />
             Tap to preview
@@ -274,6 +302,16 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
             {item.price != null && (
               <span className="text-base font-bold" data-testid={`text-price-${item.id}`}>
                 ${item.price.toFixed(2)}
+              </span>
+            )}
+            {item.cost != null && (
+              <span className="text-sm text-muted-foreground" data-testid={`text-cost-card-${item.id}`}>
+                Cost: ${item.cost.toFixed(2)}
+              </span>
+            )}
+            {item.price != null && item.cost != null && (
+              <span className="text-sm font-semibold text-green-600" data-testid={`text-profit-${item.id}`}>
+                +${(item.price - item.cost).toFixed(2)} profit
               </span>
             )}
           </div>
@@ -294,14 +332,6 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
                 <Factory className="w-3.5 h-3.5" />
                 <span className="truncate max-w-[160px]">{item.manufacturer}</span>
               </span>
-            )}
-            {item.cost != null && (
-              <>
-                {(defaultColorEntry || item.manufacturer) && <span className="opacity-60">&middot;</span>}
-                <span data-testid={`text-cost-${item.id}`}>
-                  Cost: ${item.cost.toFixed(2)}
-                </span>
-              </>
             )}
           </div>
 
@@ -393,6 +423,23 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect }: ProductSel
               "Select Product"
             )}
           </Button>
+
+          {showTierControls && isSelected && onTierChange && (
+            <div className="flex gap-1.5" data-testid={`tier-controls-${item.id}`}>
+              {(["good", "better", "best"] as const).map((t) => (
+                <Button
+                  key={t}
+                  size="sm"
+                  variant={tier === t ? "default" : "outline"}
+                  className={`flex-1 text-xs ${tier === t ? TIER_COLORS[t] : ""}`}
+                  onClick={() => onTierChange(item.id, tier === t ? null : t)}
+                  data-testid={`button-tier-${t}-${item.id}`}
+                >
+                  {TIER_LABELS[t]}
+                </Button>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

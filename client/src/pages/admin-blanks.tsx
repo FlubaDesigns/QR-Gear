@@ -51,6 +51,9 @@ interface AdminCatalog {
   name: string;
   description: string;
   blankIds: string[];
+  blankTiers?: Record<string, string>;
+  tierConfig?: Record<string, { displayName?: string; description?: string; tagline?: string }>;
+  blankDescriptions?: Record<string, string>;
   createdAt: string;
   updatedAt?: string;
 }
@@ -63,14 +66,23 @@ interface CatalogAssignments {
   platform: string | null;
 }
 
-function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
-  const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
+interface PricingSettings {
+  markupPercent: number;
+  markupFixed: number;
+  memberProfitShare: number;
+}
+
+function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings): ProductSelectItem {
+  const cost = p.minPrice ? parseFloat(p.minPrice) : null;
+  const retailPrice = cost !== null
+    ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
+    : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
   return {
     id: String(p.id),
     name: p.title || "",
-    price: minPrice,
-    cost: null,
+    price: retailPrice,
+    cost: cost,
     manufacturer: p.brand || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
@@ -302,6 +314,19 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary" className="text-sm">{cat.blankIds?.length || 0} blanks</Badge>
+                            {cat.blankTiers && (() => {
+                              const counts = { good: 0, better: 0, best: 0 };
+                              Object.values(cat.blankTiers).forEach(t => { if (t in counts) counts[t as keyof typeof counts]++; });
+                              const total = counts.good + counts.better + counts.best;
+                              if (total === 0) return null;
+                              return (
+                                <>
+                                  {counts.good > 0 && <Badge className="text-xs bg-blue-600 text-white">{counts.good} Good</Badge>}
+                                  {counts.better > 0 && <Badge className="text-xs bg-amber-500 text-white">{counts.better} Better</Badge>}
+                                  {counts.best > 0 && <Badge className="text-xs bg-emerald-600 text-white">{counts.best} Best</Badge>}
+                                </>
+                              );
+                            })()}
                             {assignedSections.map(s => (
                               <Badge key={s.key} variant="default" className="text-sm">
                                 <Link2 className="h-3 w-3" /> {s.label}
@@ -488,6 +513,20 @@ export default function AdminBlanks() {
     queryKey: ["/api/admin/catalog-defaults"],
   });
 
+  const { data: pricingData } = useQuery<PricingSettings>({
+    queryKey: ["/api/admin/pricing-settings"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/pricing-settings");
+      const d = await res.json();
+      return {
+        markupPercent: d.markupPercent ?? d.globalMarkupPercent ?? 25,
+        markupFixed: d.markupFixed ?? d.globalMarkupFixed ?? 0,
+        memberProfitShare: d.memberProfitShare ?? 0.25,
+      };
+    },
+  });
+  const pricing: PricingSettings = pricingData || { markupPercent: 25, markupFixed: 0, memberProfitShare: 0.25 };
+
   const catalogs = catalogsData?.catalogs || [];
   const activeCatalog = selectedCatalogId ? catalogs.find(c => c.id === selectedCatalogId) : null;
   const validSelectedCatalogId = activeCatalog ? selectedCatalogId : null;
@@ -551,6 +590,17 @@ export default function AdminBlanks() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const setBlankTierMutation = useMutation({
+    mutationFn: async ({ catalogId, blankId, tier }: { catalogId: string; blankId: string; tier: string | null }) => {
+      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-tier`, { blankId, tier });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error setting tier", description: err.message, variant: "destructive" }),
+  });
+
   const toggleItem = useCallback((id: string) => {
     if (!validSelectedCatalogId) {
       toast({ title: "Select a catalog first", description: "Choose a catalog from the dropdown to add or remove blanks.", variant: "destructive" });
@@ -587,9 +637,9 @@ export default function AdminBlanks() {
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, ProductSelectItem>();
-    filtered.forEach(p => map.set(String(p.id), catalogToSelectItem(p)));
+    filtered.forEach(p => map.set(String(p.id), catalogToSelectItem(p, pricing)));
     return map;
-  }, [filtered]);
+  }, [filtered, pricing]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     filtered.map(p => ({
@@ -605,20 +655,31 @@ export default function AdminBlanks() {
     [filtered]
   );
 
+  const blankTiers = activeCatalog?.blankTiers || {};
+
+  const handleTierChange = useCallback((blankId: string, tier: string | null) => {
+    if (!validSelectedCatalogId) return;
+    setBlankTierMutation.mutate({ catalogId: validSelectedCatalogId, blankId, tier });
+  }, [validSelectedCatalogId, setBlankTierMutation]);
+
   const renderCatalogCard = useCallback(
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
       const selectItem = selectItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
       const isSelected = catalogBlankSet.has(String(scrollItem.id));
+      const itemTier = blankTiers[String(scrollItem.id)] as "good" | "better" | "best" | undefined;
       return (
         <ProductSelectCardSkin
           item={selectItem}
           isSelected={isSelected}
           onSelect={(id) => toggleItem(id)}
+          tier={itemTier || null}
+          onTierChange={handleTierChange}
+          showTierControls={!!validSelectedCatalogId}
         />
       );
     },
-    [selectItemMap, toggleItem, catalogBlankSet]
+    [selectItemMap, toggleItem, catalogBlankSet, blankTiers, handleTierChange, validSelectedCatalogId]
   );
 
   const catalogProducts = useMemo(() => {
@@ -711,6 +772,17 @@ export default function AdminBlanks() {
                                 <Box className="h-10 w-10 text-muted-foreground" />
                               )}
                             </div>
+                            {blankTiers[String(p.id)] && (
+                              <div className="absolute top-1 left-1">
+                                <Badge className={`text-[10px] px-1 py-0 ${
+                                  blankTiers[String(p.id)] === 'good' ? 'bg-blue-600 text-white' :
+                                  blankTiers[String(p.id)] === 'better' ? 'bg-amber-500 text-white' :
+                                  'bg-emerald-600 text-white'
+                                }`}>
+                                  {blankTiers[String(p.id)] === 'good' ? 'G' : blankTiers[String(p.id)] === 'better' ? 'B' : 'B+'}
+                                </Badge>
+                              </div>
+                            )}
                             <div className="px-1.5 pb-1.5">
                               <p className="text-xs leading-tight line-clamp-2 text-foreground">{p.title}</p>
                             </div>

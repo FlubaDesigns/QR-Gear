@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Palette, Crosshair, PenLine, PartyPopper } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
-import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName } from "@/features/shared/components/wizardSteps/ProductSteps";
+import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
 import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
@@ -957,7 +957,7 @@ export function OwnerWizard() {
           ) : (<>
 
           {simpleStep === 'product' && (
-            <ProductPickerStep
+            <TierPickerStep
               selectedProduct={selectedProductType}
               onSelect={handleProductSelect}
               context="owner"

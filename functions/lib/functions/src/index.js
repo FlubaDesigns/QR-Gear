@@ -5874,7 +5874,14 @@ app.get('/admin/printify/catalog', requireAdmin, async (req, res) => {
             return { id: d.id || parseInt(doc.id), title: d.title, description: d.description || '', brand: d.brand, model: d.model, images: d.images || [] };
         });
         const provSnapshot = await db.collection("printify_providers").get();
-        const allProviders = provSnapshot.docs.map(doc => doc.data());
+        let allProviders = provSnapshot.docs.map(doc => doc.data());
+        if (allProviders.length === 0) {
+            const ppSnapshot = await db.collection("printifyPrintProviders").get();
+            allProviders = ppSnapshot.docs.map(doc => {
+                const d = doc.data();
+                return { blueprintId: d.blueprintId, providerId: d.providerId, minCost: d.minCost || 0, maxCost: d.maxCost || 0, availableColors: d.availableColors || [], availableSizes: d.availableSizes || [] };
+            });
+        }
         const providersByBlueprint = new Map();
         for (const prov of allProviders) {
             const existing = providersByBlueprint.get(prov.blueprintId);
@@ -9442,13 +9449,20 @@ app.post('/admin/catalogs/:catalogId/duplicate', requireAdmin, async (req, res) 
         }
         const src = srcDoc.data();
         const newName = req.body.name || `${src.name} (Copy)`;
-        const doc = await db.collection('catalogs').add({
+        const newCatalog = {
             name: newName,
             description: src.description || '',
             blankIds: src.blankIds || [],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-        });
+        };
+        if (src.blankTiers)
+            newCatalog.blankTiers = src.blankTiers;
+        if (src.tierConfig)
+            newCatalog.tierConfig = src.tierConfig;
+        if (src.blankDescriptions)
+            newCatalog.blankDescriptions = src.blankDescriptions;
+        const doc = await db.collection('catalogs').add(newCatalog);
         console.log(`[Catalogs] Duplicated catalog "${src.name}" → "${newName}" (${doc.id}), ${(src.blankIds || []).length} blanks`);
         res.json({ id: doc.id, name: newName, description: src.description || '', blankIds: src.blankIds || [], createdAt: new Date().toISOString() });
     }
@@ -9551,6 +9565,225 @@ app.put('/admin/catalog-assignments', requireAdmin, async (req, res) => {
         await db.collection('systemSettings').doc('catalog-assignments').set(updates, { merge: true });
         console.log(`[Catalogs] Updated section assignments:`, updates);
         res.json({ success: true, assignments: updates });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============ TIER MANAGEMENT ============
+app.put('/admin/catalogs/:catalogId/tiers', requireAdmin, async (req, res) => {
+    try {
+        const { catalogId } = req.params;
+        const { blankTiers, tierConfig } = req.body;
+        const docRef = db.collection('catalogs').doc(catalogId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Catalog not found' });
+            return;
+        }
+        const updates = { updatedAt: new Date().toISOString() };
+        if (blankTiers !== undefined)
+            updates.blankTiers = blankTiers;
+        if (tierConfig !== undefined)
+            updates.tierConfig = tierConfig;
+        await docRef.update(updates);
+        console.log(`[Catalogs] Updated tiers for catalog ${catalogId}`);
+        res.json({ success: true });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/catalogs/:catalogId/blank-tier', requireAdmin, async (req, res) => {
+    try {
+        const { catalogId } = req.params;
+        const { blankId, tier } = req.body;
+        if (!blankId) {
+            res.status(400).json({ error: 'blankId is required' });
+            return;
+        }
+        const validTiers = ['good', 'better', 'best', null];
+        if (!validTiers.includes(tier)) {
+            res.status(400).json({ error: 'tier must be good, better, best, or null' });
+            return;
+        }
+        const docRef = db.collection('catalogs').doc(catalogId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Catalog not found' });
+            return;
+        }
+        const blankTiers = doc.data()?.blankTiers || {};
+        if (tier === null) {
+            delete blankTiers[String(blankId)];
+        }
+        else {
+            blankTiers[String(blankId)] = tier;
+        }
+        await docRef.update({ blankTiers, updatedAt: new Date().toISOString() });
+        console.log(`[Catalogs] Set blank ${blankId} tier to ${tier || 'none'} in catalog ${catalogId}`);
+        res.json({ success: true, blankTiers });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/catalogs/:catalogId/tier-config', requireAdmin, async (req, res) => {
+    try {
+        const { catalogId } = req.params;
+        const { tierConfig } = req.body;
+        if (!tierConfig || typeof tierConfig !== 'object') {
+            res.status(400).json({ error: 'tierConfig object is required' });
+            return;
+        }
+        const docRef = db.collection('catalogs').doc(catalogId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Catalog not found' });
+            return;
+        }
+        await docRef.update({ tierConfig, updatedAt: new Date().toISOString() });
+        console.log(`[Catalogs] Updated tier config for catalog ${catalogId}`);
+        res.json({ success: true, tierConfig });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.put('/admin/catalogs/:catalogId/blank-description', requireAdmin, async (req, res) => {
+    try {
+        const { catalogId } = req.params;
+        const { blankId, description } = req.body;
+        if (!blankId) {
+            res.status(400).json({ error: 'blankId is required' });
+            return;
+        }
+        const docRef = db.collection('catalogs').doc(catalogId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            res.status(404).json({ error: 'Catalog not found' });
+            return;
+        }
+        const blankDescriptions = doc.data()?.blankDescriptions || {};
+        if (description === null || description === '') {
+            delete blankDescriptions[String(blankId)];
+        }
+        else {
+            blankDescriptions[String(blankId)] = description;
+        }
+        await docRef.update({ blankDescriptions, updatedAt: new Date().toISOString() });
+        console.log(`[Catalogs] Updated description for blank ${blankId} in catalog ${catalogId}`);
+        res.json({ success: true, blankDescriptions });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/members/tier-products', async (req, res) => {
+    try {
+        const section = req.query.section || 'member';
+        const validSections = ['member', 'public', 'external', 'marketplace', 'platform'];
+        if (!validSections.includes(section)) {
+            res.status(400).json({ error: `Invalid section` });
+            return;
+        }
+        const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
+        const catalogId = assignDoc.exists ? assignDoc.data()?.[section] : null;
+        if (!catalogId) {
+            res.json({ hasTiers: false, catalog: null, tiers: {} });
+            return;
+        }
+        const catDoc = await db.collection('catalogs').doc(catalogId).get();
+        if (!catDoc.exists) {
+            res.json({ hasTiers: false, catalog: null, tiers: {} });
+            return;
+        }
+        const catData = catDoc.data();
+        const blankTiers = catData.blankTiers || {};
+        const tierConfig = catData.tierConfig || {};
+        const blankDescriptions = catData.blankDescriptions || {};
+        const hasTiers = Object.keys(blankTiers).length > 0;
+        if (!hasTiers) {
+            res.json({ hasTiers: false, catalogId, catalogName: catData.name, tiers: {}, tierConfig });
+            return;
+        }
+        const bpSnapshot = await db.collection("printify_blueprints").get();
+        const blueprints = new Map();
+        bpSnapshot.docs.forEach(doc => {
+            const d = doc.data();
+            blueprints.set(d.id || parseInt(doc.id), d);
+        });
+        let providersByBlueprint = new Map();
+        const provSnapshot = await db.collection("printify_providers").get();
+        let allProviders = provSnapshot.docs.map(doc => doc.data());
+        if (allProviders.length === 0) {
+            const ppSnapshot = await db.collection("printifyPrintProviders").get();
+            allProviders = ppSnapshot.docs.map(doc => {
+                const d = doc.data();
+                return { blueprintId: d.blueprintId, providerId: d.providerId, minCost: d.minCost || 0, maxCost: d.maxCost || 0, availableColors: d.availableColors || [], availableSizes: d.availableSizes || [] };
+            });
+        }
+        for (const prov of allProviders) {
+            const existing = providersByBlueprint.get(prov.blueprintId);
+            if (!existing || (prov.availableColors || []).length > (existing.availableColors || []).length) {
+                providersByBlueprint.set(prov.blueprintId, prov);
+            }
+        }
+        const pricingDoc = await db.collection('testSettings').doc('pricing').get();
+        const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+        const markupPercent = pricingSettings?.markupPercent ?? 25;
+        const markupFixed = pricingSettings?.markupFixed ?? 0;
+        const categoryTierMap = {};
+        for (const blankId of (catData.blankIds || [])) {
+            const tier = blankTiers[String(blankId)];
+            if (!tier || !['good', 'better', 'best'].includes(tier))
+                continue;
+            const bpId = parseInt(blankId);
+            const bp = blueprints.get(bpId);
+            if (!bp)
+                continue;
+            const category = cfCategorizeProduct(bp.title);
+            if (!categoryTierMap[category])
+                categoryTierMap[category] = {};
+            if (!categoryTierMap[category][tier])
+                categoryTierMap[category][tier] = [];
+            const prov = providersByBlueprint.get(bpId);
+            const cost = prov?.minCost ? prov.minCost / 100 : 0;
+            const retailPrice = Math.ceil((cost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+            const memberEarnings = Math.round((retailPrice - cost) * 25) / 100;
+            categoryTierMap[category][tier].push({
+                blueprintId: bpId,
+                title: bp.title,
+                description: blankDescriptions[String(bpId)] || bp.description || '',
+                brand: bp.brand,
+                imageUrl: bp.images?.[0] || bp.primaryImageUrl || null,
+                cost,
+                retailPrice,
+                memberEarnings,
+                colors: (prov?.availableColors || []).length,
+                sizes: (prov?.availableSizes || []).length,
+            });
+        }
+        const defaultNames = {
+            good: { displayName: 'Good', description: 'Premium quality products', tagline: 'Great value, great quality' },
+            better: { displayName: 'Better', description: 'Enhanced premium products', tagline: 'Step up your game' },
+            best: { displayName: 'Best', description: 'Boutique-level products', tagline: 'The finest available' },
+        };
+        const tiers = {};
+        for (const [category, tierMap] of Object.entries(categoryTierMap)) {
+            tiers[category] = {};
+            for (const [tier, products] of Object.entries(tierMap)) {
+                const cfg = tierConfig[tier] || {};
+                tiers[category][tier] = {
+                    tier,
+                    displayName: cfg.displayName || defaultNames[tier]?.displayName || tier,
+                    description: cfg.description || defaultNames[tier]?.description || '',
+                    tagline: cfg.tagline || defaultNames[tier]?.tagline || '',
+                    products,
+                };
+            }
+        }
+        res.json({ hasTiers: true, catalogId, catalogName: catData.name, tiers, tierConfig });
     }
     catch (error) {
         res.status(500).json({ error: error.message });
@@ -13906,4 +14139,5 @@ exports.api = (0, https_1.onRequest)({
 // Force deploy: 2026-03-05-v2 - fixed /printify/catalog to read from printifyBlueprints+printifyProviders with categories
 // Deploy timestamp: 1772900000
 // Build: 1772924431
+// force deploy 1773125804
 //# sourceMappingURL=index.js.map

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Package, Check, DollarSign, X, Ruler, Palette, ShoppingBag } from "lucide-react";
+import { Loader2, Package, Check, DollarSign, X, Ruler, Palette, ShoppingBag, Crown, Star, Award } from "lucide-react";
 import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } from "./wizardTypes";
 
 export type WizardContextType = 'member' | 'owner' | 'public' | 'external' | 'platform';
@@ -495,6 +495,246 @@ export function SizePickerStep({
               <span className={`text-xs ${selectedSize === size ? 'text-orange-400' : context === 'owner' ? 'text-blue-400/70' : 'text-green-400/70'}`}>
                 +${bonus.toFixed(2)}
               </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+interface TierProduct {
+  blueprintId: number;
+  title: string;
+  imageUrl: string;
+  brand?: string;
+  category?: string;
+  retailPrice?: number;
+  memberEarnings?: number;
+}
+
+interface TierGroup {
+  tier: string;
+  displayName: string;
+  description: string;
+  tagline: string;
+  products: TierProduct[];
+}
+
+interface TierProductsResponse {
+  hasTiers: boolean;
+  catalogId: string;
+  catalogName: string;
+  tiers: Record<string, Record<string, TierGroup>>;
+  tierConfig: Record<string, { displayName?: string; description?: string; tagline?: string }>;
+}
+
+const TIER_ICONS: Record<string, typeof Star> = {
+  good: Star,
+  better: Award,
+  best: Crown,
+};
+
+const TIER_CARD_STYLES: Record<string, { border: string; bg: string; glow: string; accent: string }> = {
+  good: {
+    border: "border-blue-500",
+    bg: "bg-blue-500/10",
+    glow: "bg-blue-500/20",
+    accent: "text-blue-400",
+  },
+  better: {
+    border: "border-amber-500",
+    bg: "bg-amber-500/10",
+    glow: "bg-amber-500/20",
+    accent: "text-amber-400",
+  },
+  best: {
+    border: "border-emerald-500",
+    bg: "bg-emerald-500/10",
+    glow: "bg-emerald-500/20",
+    accent: "text-emerald-400",
+  },
+};
+
+export function TierPickerStep({
+  selectedProduct,
+  onSelect,
+  context = "member",
+}: {
+  selectedProduct: AllowedProduct | null;
+  onSelect: (product: AllowedProduct) => void;
+  context?: WizardContextType;
+}) {
+  const [selectedTier, setSelectedTier] = useState<string | null>(null);
+
+  const sectionMap: Record<string, string> = { member: "member", public: "public", external: "external", platform: "platform", owner: "member" };
+  const sectionParam = sectionMap[context] || "member";
+  const { data: tierData, isLoading: loadingTiers } = useQuery<TierProductsResponse>({
+    queryKey: ["/api/members/tier-products", sectionParam],
+    queryFn: async () => {
+      const res = await fetch(`/api/members/tier-products?section=${sectionParam}`);
+      if (!res.ok) throw new Error("Failed to load tiers");
+      return res.json();
+    },
+    staleTime: 300000,
+  });
+
+  if (loadingTiers) {
+    return (
+      <div className="text-center py-8">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto text-slate-400" />
+        <p className="text-slate-400 mt-2">Loading options...</p>
+      </div>
+    );
+  }
+
+  const hasTiers = tierData?.hasTiers || false;
+
+  const allCategories = tierData?.tiers ? Object.keys(tierData.tiers) : [];
+  const firstCategory = allCategories[0] || "";
+  const categoryTiers = tierData?.tiers?.[firstCategory] || {};
+  const tierOrder = ["good", "better", "best"];
+  const availableTiers = tierOrder.filter((t) => categoryTiers[t]?.products?.length > 0);
+
+  if (!hasTiers) {
+    return (
+      <ProductPickerStep
+        selectedProduct={selectedProduct}
+        onSelect={onSelect}
+        context={context}
+      />
+    );
+  }
+
+  if (selectedTier && categoryTiers[selectedTier]) {
+    const tierProducts = categoryTiers[selectedTier].products;
+    return (
+      <div className="space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedTier(null)}
+            className="text-slate-300 border-slate-600"
+            data-testid="button-back-to-tiers"
+          >
+            Back to tiers
+          </Button>
+          <Badge className={`text-sm ${
+            selectedTier === "good" ? "bg-blue-600 text-white" :
+            selectedTier === "better" ? "bg-amber-500 text-white" :
+            "bg-emerald-600 text-white"
+          }`}>
+            {categoryTiers[selectedTier].displayName}
+          </Badge>
+        </div>
+        <p className="text-sm text-slate-400">{categoryTiers[selectedTier].description}</p>
+        <div className="max-h-[45vh] overflow-y-auto pr-1 space-y-1.5">
+          {tierProducts.map((tp) => {
+            const product: AllowedProduct = {
+              blueprintId: tp.blueprintId,
+              title: tp.title,
+              imageUrl: tp.imageUrl,
+              brand: tp.brand,
+              retailPrice: tp.retailPrice,
+              memberEarnings: tp.memberEarnings,
+            } as AllowedProduct;
+            const isSelected = selectedProduct?.blueprintId === tp.blueprintId;
+            return (
+              <button
+                key={tp.blueprintId}
+                onClick={() => onSelect(product)}
+                className={`w-full flex items-center gap-3 p-2 rounded-xl border-2 transition-all text-left ${
+                  isSelected
+                    ? "border-orange-500 bg-orange-500/15"
+                    : "border-slate-600 bg-slate-800/50 hover:border-slate-500"
+                }`}
+                data-testid={`button-tier-product-${tp.blueprintId}`}
+              >
+                {tp.imageUrl ? (
+                  <img
+                    src={tp.imageUrl}
+                    alt={tp.title}
+                    loading="lazy"
+                    className="w-14 h-14 rounded-lg object-cover bg-white flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                    <Package className="w-7 h-7 text-slate-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium text-sm truncate">{tp.title}</p>
+                  {context === "member" && tp.memberEarnings != null && (
+                    <p className="text-xs text-green-400">Earn ${tp.memberEarnings.toFixed(2)}</p>
+                  )}
+                  {context === "owner" && tp.retailPrice != null && (
+                    <p className="text-xs text-blue-400">${tp.retailPrice.toFixed(2)}</p>
+                  )}
+                </div>
+                {isSelected && <Check className="w-5 h-5 text-orange-500 flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-1">Choose Your Tier</h2>
+        <p className="text-slate-400 text-sm">From premium to boutique — pick your level</p>
+      </div>
+
+      <div className="space-y-3">
+        {availableTiers.map((tierKey) => {
+          const group = categoryTiers[tierKey];
+          const style = TIER_CARD_STYLES[tierKey];
+          const Icon = TIER_ICONS[tierKey];
+          return (
+            <button
+              key={tierKey}
+              onClick={() => setSelectedTier(tierKey)}
+              className={`w-full p-4 rounded-xl border-2 transition-all text-left relative overflow-visible ${style.border} ${style.bg} hover:scale-[1.01]`}
+              data-testid={`button-tier-${tierKey}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`rounded-full p-2 ${style.glow}`}>
+                  <Icon className={`w-6 h-6 ${style.accent}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`text-lg font-bold ${style.accent}`}>
+                    {group.displayName}
+                  </h3>
+                  {group.tagline && (
+                    <p className="text-sm text-slate-300 mt-0.5">{group.tagline}</p>
+                  )}
+                  {group.description && (
+                    <p className="text-xs text-slate-400 mt-1">{group.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {group.products.length} {group.products.length === 1 ? "product" : "products"}
+                    </Badge>
+                    {group.products.slice(0, 3).map((tp) => (
+                      tp.imageUrl && (
+                        <img
+                          key={tp.blueprintId}
+                          src={tp.imageUrl}
+                          alt=""
+                          className="w-8 h-8 rounded-md object-cover bg-white border border-slate-600"
+                          loading="lazy"
+                        />
+                      )
+                    ))}
+                    {group.products.length > 3 && (
+                      <span className="text-xs text-slate-500">+{group.products.length - 3} more</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </button>
           );
         })}
