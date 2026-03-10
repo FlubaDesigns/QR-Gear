@@ -1695,6 +1695,113 @@ export function registerMemberRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/members/tier-products", async (req: any, res) => {
+    try {
+      const section = (req.query.section as string) || "member";
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { fsGet, fsGetAll } = await import("../lib/firestore-crud");
+      const firestoreDb = getFirestoreDb();
+
+      const assignments = await fsGet("systemSettings", "catalog-assignments");
+      const defaults = await fsGet("systemSettings", "catalog-defaults");
+      const catalogId = assignments?.[section] || defaults?.defaultCatalogId || null;
+
+      if (!catalogId) {
+        return res.json({ hasTiers: false, catalogId: null, catalogName: "", tiers: {}, tierConfig: {} });
+      }
+
+      const catalog = await fsGet("catalogs", catalogId);
+      if (!catalog || !catalog.blankIds?.length) {
+        return res.json({ hasTiers: false, catalogId, catalogName: catalog?.name || "", tiers: {}, tierConfig: {} });
+      }
+
+      const blankTiers = catalog.blankTiers || {};
+      const tierConfig = catalog.tierConfig || {};
+      const hasTierAssignments = Object.values(blankTiers).some((t: any) => t && t !== "");
+      if (!hasTierAssignments) {
+        return res.json({ hasTiers: false, catalogId, catalogName: catalog.name, tiers: {}, tierConfig });
+      }
+
+      const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
+      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
+      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
+      const markupPercent = pricingSettings?.markupPercent ?? 25;
+      const markupFixed = pricingSettings?.markupFixed ?? 0;
+
+      const blueprintCache = new Map<string, any>();
+      const allBlueprints = await fsGetAll("printifyBlueprints");
+      for (const bp of allBlueprints) {
+        blueprintCache.set(String(bp.id), bp);
+      }
+
+      const tiers: Record<string, Record<string, any>> = {};
+      const category = "all";
+      tiers[category] = {};
+
+      for (const blankId of catalog.blankIds) {
+        const tierKey = blankTiers[String(blankId)] || "good";
+        if (!tiers[category][tierKey]) {
+          const cfg = tierConfig[tierKey] || {};
+          const defaultNames: Record<string, string> = { good: "Good", better: "Better", best: "Best" };
+          const defaultDescs: Record<string, string> = { good: "Quality essentials", better: "Premium picks", best: "Top-tier selection" };
+          tiers[category][tierKey] = {
+            tier: tierKey,
+            displayName: cfg.displayName || defaultNames[tierKey] || tierKey,
+            description: cfg.description || defaultDescs[tierKey] || "",
+            tagline: cfg.tagline || "",
+            products: [],
+          };
+        }
+
+        const bp = blueprintCache.get(String(blankId));
+        if (!bp) continue;
+
+        const baseCost = bp.minCost ? bp.minCost / 100 : bp.baseCost || 0;
+        const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
+        const profit = retailPrice - baseCost;
+        const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+
+        tiers[category][tierKey].products.push({
+          blueprintId: typeof bp.id === "string" ? parseInt(bp.id, 10) || bp.id : bp.id,
+          title: bp.title || bp.name || `Blueprint ${blankId}`,
+          imageUrl: bp.images?.[0] || bp.imageUrl || bp.image_url || "",
+          brand: bp.brand || "",
+          category: bp.category || "",
+          retailPrice,
+          memberEarnings,
+        });
+      }
+
+      res.json({ hasTiers: true, catalogId, catalogName: catalog.name, tiers, tierConfig });
+    } catch (error: any) {
+      console.error("[TierProducts] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/members/:memberId/library", async (req: any, res) => {
+    try {
+      const { memberId } = req.params;
+      const { publicUrl, storageUrl, assetType, mediaType, name, fileName } = req.body;
+      if (!publicUrl) return res.status(400).json({ error: "publicUrl is required" });
+      const { fsInsert } = await import("../lib/firestore-crud");
+      const asset = await fsInsert("memberLibrary", {
+        memberId,
+        publicUrl,
+        storageUrl: storageUrl || publicUrl,
+        assetType: assetType || "graphic",
+        mediaType: mediaType || "image",
+        name: name || "Untitled",
+        fileName: fileName || "untitled.png",
+        isActive: true,
+      });
+      res.json(asset);
+    } catch (error: any) {
+      console.error("[MemberLibrary] Save error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============== MEMBER LIBRARY SYSTEM (Firestore-based) ==============
   
   // Get Common Library (admin-curated assets available to all members) - from Firestore

@@ -3513,4 +3513,237 @@ export function registerAdminRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  app.get("/api/admin/catalog/printful", isAdmin, async (req: any, res) => {
+    try {
+      const products = await fsGetAll('printful_products', 'lastSyncedAt', 'desc');
+      const result = products.map((p: any) => ({
+        docId: p.id,
+        id: typeof p.id === 'string' ? parseInt(p.id, 10) || p.id : p.id,
+        title: p.title || "",
+        brand: p.brand || null,
+        model: p.model || null,
+        image: p.image || null,
+        variantCount: p.variantCount || 0,
+        category: p.typeName || p.type || "Other",
+        description: p.description || null,
+        type: p.typeName || p.type || null,
+      }));
+      res.json(result);
+    } catch (error: any) {
+      console.error("[Catalog/Printful] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/catalog/printful-mappings", isAdmin, async (req: any, res) => {
+    try {
+      const firestoreMappings = await fsGetAll("printful_mappings");
+      res.json({ firestoreMappings, hardcodedMappings: [] });
+    } catch (error: any) {
+      console.error("[Catalog/PrintfulMappings] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/catalogs", isAdmin, async (req: any, res) => {
+    try {
+      const catalogs = await fsGetAll("catalogs", "createdAt", "desc");
+      res.json({ catalogs });
+    } catch (error: any) {
+      console.error("[Catalogs] List error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/catalogs", isAdmin, async (req: any, res) => {
+    try {
+      const { name, description } = req.body;
+      if (!name?.trim()) return res.status(400).json({ error: "name is required" });
+      const catalog = await fsInsert("catalogs", {
+        name: name.trim(),
+        description: (description || "").trim(),
+        blankIds: [],
+        blankTiers: {},
+        tierConfig: {},
+        blankDescriptions: {},
+      });
+      res.json(catalog);
+    } catch (error: any) {
+      console.error("[Catalogs] Create error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/catalogs/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { name, description } = req.body;
+      const updates: any = {};
+      if (name !== undefined) updates.name = name.trim();
+      if (description !== undefined) updates.description = (description || "").trim();
+      const updated = await fsUpdate("catalogs", req.params.id, updates);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("[Catalogs] Update error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/catalogs/:id", isAdmin, async (req: any, res) => {
+    try {
+      await fsDelete("catalogs", req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[Catalogs] Delete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/catalogs/:id/duplicate", isAdmin, async (req: any, res) => {
+    try {
+      const source = await fsGet("catalogs", req.params.id);
+      if (!source) return res.status(404).json({ error: "Catalog not found" });
+      const duplicate = await fsInsert("catalogs", {
+        name: `${source.name} (Copy)`,
+        description: source.description || "",
+        blankIds: source.blankIds || [],
+        blankTiers: source.blankTiers || {},
+        tierConfig: source.tierConfig || {},
+        blankDescriptions: source.blankDescriptions || {},
+      });
+      res.json(duplicate);
+    } catch (error: any) {
+      console.error("[Catalogs] Duplicate error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/catalogs/:id/blanks", isAdmin, async (req: any, res) => {
+    try {
+      const { blankIds } = req.body;
+      if (!Array.isArray(blankIds)) return res.status(400).json({ error: "blankIds must be an array" });
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const existing = new Set(catalog.blankIds || []);
+      const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
+      const merged = [...(catalog.blankIds || []), ...newIds];
+      await fsUpdate("catalogs", req.params.id, { blankIds: merged });
+      res.json({ success: true, added: newIds.length, total: merged.length });
+    } catch (error: any) {
+      console.error("[Catalogs] Add blanks error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/catalogs/:id/blanks", isAdmin, async (req: any, res) => {
+    try {
+      const { blankIds } = req.body;
+      if (!Array.isArray(blankIds)) return res.status(400).json({ error: "blankIds must be an array" });
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const removeSet = new Set(blankIds.map(String));
+      const remaining = (catalog.blankIds || []).filter((id: string) => !removeSet.has(id));
+      const blankTiers = { ...(catalog.blankTiers || {}) };
+      const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
+      blankIds.forEach((id: string) => { delete blankTiers[String(id)]; delete blankDescriptions[String(id)]; });
+      await fsUpdate("catalogs", req.params.id, { blankIds: remaining, blankTiers, blankDescriptions });
+      res.json({ success: true, removed: blankIds.length, total: remaining.length });
+    } catch (error: any) {
+      console.error("[Catalogs] Remove blanks error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/admin/catalogs/:id/bulk-copy", isAdmin, async (req: any, res) => {
+    try {
+      const { targetCatalogId, blankIds } = req.body;
+      if (!targetCatalogId || !Array.isArray(blankIds)) return res.status(400).json({ error: "targetCatalogId and blankIds required" });
+      const target = await fsGet("catalogs", targetCatalogId);
+      if (!target) return res.status(404).json({ error: "Target catalog not found" });
+      const existing = new Set(target.blankIds || []);
+      const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
+      const merged = [...(target.blankIds || []), ...newIds];
+      await fsUpdate("catalogs", targetCatalogId, { blankIds: merged });
+      res.json({ success: true, added: newIds.length, total: merged.length });
+    } catch (error: any) {
+      console.error("[Catalogs] Bulk copy error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/catalogs/:id/blank-tier", isAdmin, async (req: any, res) => {
+    try {
+      const { blankId, tier } = req.body;
+      if (!blankId) return res.status(400).json({ error: "blankId is required" });
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const blankTiers = { ...(catalog.blankTiers || {}) };
+      if (tier) {
+        blankTiers[String(blankId)] = tier;
+      } else {
+        delete blankTiers[String(blankId)];
+      }
+      await fsUpdate("catalogs", req.params.id, { blankTiers });
+      res.json({ success: true, blankTiers });
+    } catch (error: any) {
+      console.error("[Catalogs] Set blank tier error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/catalog-defaults", isAdmin, async (req: any, res) => {
+    try {
+      const doc = await fsGet("systemSettings", "catalog-defaults");
+      res.json({ defaultCatalogId: doc?.defaultCatalogId || null });
+    } catch (error: any) {
+      console.error("[CatalogDefaults] Get error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/catalog-defaults", isAdmin, async (req: any, res) => {
+    try {
+      const { defaultCatalogId } = req.body;
+      const { fsUpsert } = await import("../lib/firestore-crud");
+      await fsUpsert("systemSettings", "catalog-defaults", { defaultCatalogId: defaultCatalogId || null });
+      res.json({ success: true, defaultCatalogId: defaultCatalogId || null });
+    } catch (error: any) {
+      console.error("[CatalogDefaults] Set error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/catalog-assignments", isAdmin, async (req: any, res) => {
+    try {
+      const doc = await fsGet("systemSettings", "catalog-assignments");
+      res.json({
+        member: doc?.member || null,
+        public: doc?.public || null,
+        external: doc?.external || null,
+        marketplace: doc?.marketplace || null,
+        platform: doc?.platform || null,
+      });
+    } catch (error: any) {
+      console.error("[CatalogAssignments] Get error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/catalog-assignments", isAdmin, async (req: any, res) => {
+    try {
+      const { member, public: pub, external, marketplace, platform } = req.body;
+      const { fsUpsert } = await import("../lib/firestore-crud");
+      const updates: any = {};
+      if (member !== undefined) updates.member = member;
+      if (pub !== undefined) updates.public = pub;
+      if (external !== undefined) updates.external = external;
+      if (marketplace !== undefined) updates.marketplace = marketplace;
+      if (platform !== undefined) updates.platform = platform;
+      await fsUpsert("systemSettings", "catalog-assignments", updates);
+      res.json({ success: true, ...updates });
+    } catch (error: any) {
+      console.error("[CatalogAssignments] Set error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 }

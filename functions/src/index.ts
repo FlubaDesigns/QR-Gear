@@ -9787,6 +9787,32 @@ app.get('/members/:memberId/library', async (req: Request, res: Response): Promi
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.post('/members/:memberId/library', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { memberId } = req.params;
+    const { publicUrl, storageUrl, assetType, mediaType, name, fileName } = req.body;
+    if (!publicUrl) { res.status(400).json({ error: 'publicUrl is required' }); return; }
+    const now = new Date().toISOString();
+    const ref = await db.collection('memberLibrary').add({
+      memberId,
+      publicUrl,
+      storageUrl: storageUrl || publicUrl,
+      assetType: assetType || 'graphic',
+      mediaType: mediaType || 'image',
+      name: name || 'Untitled',
+      fileName: fileName || 'untitled.png',
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    console.log(`[CF Member Library] Saved asset ${ref.id} for member ${memberId}`);
+    res.json({ id: ref.id, publicUrl, assetType: assetType || 'graphic', name: name || 'Untitled' });
+  } catch (error: any) {
+    console.error('[CF Member Library] Save error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/members/:memberId/library/upload', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
