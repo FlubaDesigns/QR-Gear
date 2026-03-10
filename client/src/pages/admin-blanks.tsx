@@ -608,6 +608,8 @@ export default function AdminBlanks() {
       brand: p.brand || undefined,
       model: p.model || undefined,
       imageUrl: p.image || undefined,
+      minPrice: (p as any).minPrice || undefined,
+      maxPrice: (p as any).maxPrice || undefined,
       fulfillmentProvider: 'printful',
     }));
   }, [printfulProducts]);

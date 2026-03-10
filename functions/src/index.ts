@@ -6285,15 +6285,37 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
             const pid = product.id;
             const existing = existingMap.get(pid);
             const category = normalizePrintfulCategory(product.type || '', product.title || '');
-            const productData = {
+
+            let minPrice: string | null = null;
+            let maxPrice: string | null = null;
+            try {
+              const detailResp = await fetch(`https://api.printful.com/products/${pid}`, { headers });
+              if (detailResp.ok) {
+                const detailData = await detailResp.json();
+                const variants = detailData.result?.variants || [];
+                if (variants.length > 0) {
+                  const prices = variants.map((v: any) => parseFloat(v.price)).filter((p: number) => !isNaN(p) && p > 0);
+                  if (prices.length > 0) {
+                    minPrice = Math.min(...prices).toFixed(2);
+                    maxPrice = Math.max(...prices).toFixed(2);
+                  }
+                }
+              }
+              await new Promise(r => setTimeout(r, 200));
+            } catch (priceErr: any) {
+              console.error(`[Printful Sync CF] Price fetch error for ${pid}:`, priceErr.message);
+            }
+
+            const productData: any = {
               id: pid, title: product.title, type: product.type, brand: product.brand || null,
               model: product.model || null, image: product.image || null,
               variantCount: product.variant_count || 0,
               category, description: product.description || null,
               isAvailable: true, lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
+            if (minPrice !== null) { productData.minPrice = minPrice; productData.maxPrice = maxPrice; }
 
-            const changed = !existing || existing.title !== product.title || existing.brand !== (product.brand || null) || existing.variantCount !== (product.variant_count || 0);
+            const changed = !existing || existing.title !== product.title || existing.brand !== (product.brand || null) || existing.variantCount !== (product.variant_count || 0) || !existing.minPrice;
             if (changed) {
               await db.collection('printfulCatalog').doc(String(pid)).set(productData, { merge: true });
               if (existing) { updated++; } else { added++; }
