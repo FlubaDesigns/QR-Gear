@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Box, Save, Loader2, Search, Filter, Flag, Globe, Layers, Check, X, Trash2,
-  Plus, Pencil, BookOpen, ArrowRight, Link2, Unlink, Copy, Star, ArrowRightLeft
+  Plus, Pencil, BookOpen, ArrowRight, Link2, Unlink, Copy, Star, ArrowRightLeft, ArrowLeftRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +95,26 @@ function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings): Produ
 
 type LocationFilter = "all" | "usa" | "other";
 type PageTab = "blanks" | "catalogs";
+type ProviderFilter = "printify" | "printful";
+
+interface PrintfulProduct {
+  docId: string;
+  id: number;
+  title: string;
+  brand: string | null;
+  model: string | null;
+  image: string | null;
+  variantCount: number;
+  category: string;
+  description: string | null;
+  type: string | null;
+}
+
+interface ProviderMapping {
+  printifyBlueprintId: number;
+  printfulProductId: number;
+  source?: string;
+}
 
 const SECTIONS = [
   { key: "member" as const, label: "Member", desc: "What members see in their wizards" },
@@ -495,8 +515,9 @@ export default function AdminBlanks() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
   const [defaultLoaded, setDefaultLoaded] = useState(false);
+  const [providerFilter, setProviderFilter] = useState<ProviderFilter>("printify");
 
-  const { data: categories = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
+  const { data: categories = [], isLoading: loadingPrintifyCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/printify/catalog", "blanks"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/printify/catalog");
@@ -504,6 +525,39 @@ export default function AdminBlanks() {
       return Array.isArray(d) ? d : [];
     },
   });
+
+  const { data: printfulProducts = [], isLoading: loadingPrintfulCatalog } = useQuery<PrintfulProduct[]>({
+    queryKey: ["/api/admin/catalog/printful"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/catalog/printful");
+      const d = await res.json();
+      return Array.isArray(d) ? d : [];
+    },
+  });
+
+  const { data: mappingsData } = useQuery<{ firestoreMappings: ProviderMapping[]; hardcodedMappings: ProviderMapping[] }>({
+    queryKey: ["/api/admin/catalog/printful-mappings"],
+  });
+
+  const mappedPrintifyIds = useMemo(() => {
+    const set = new Set<number>();
+    if (mappingsData) {
+      mappingsData.firestoreMappings.forEach(m => set.add(m.printifyBlueprintId));
+      mappingsData.hardcodedMappings.forEach(m => set.add(m.printifyBlueprintId));
+    }
+    return set;
+  }, [mappingsData]);
+
+  const mappedPrintfulIds = useMemo(() => {
+    const set = new Set<number>();
+    if (mappingsData) {
+      mappingsData.firestoreMappings.forEach(m => set.add(m.printfulProductId));
+      mappingsData.hardcodedMappings.forEach(m => set.add(m.printfulProductId));
+    }
+    return set;
+  }, [mappingsData]);
+
+  const loadingCatalog = providerFilter === "printify" ? loadingPrintifyCatalog : loadingPrintfulCatalog;
 
   const { data: catalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -532,19 +586,35 @@ export default function AdminBlanks() {
   const validSelectedCatalogId = activeCatalog ? selectedCatalogId : null;
   const catalogBlankSet = useMemo(() => new Set(activeCatalog?.blankIds?.map(String) || []), [activeCatalog]);
 
-  const allProducts = useMemo(() => {
+  const printifyProducts = useMemo(() => {
     const items: CatalogProduct[] = [];
     const seen = new Set<number>();
     for (const cat of categories) {
       for (const item of (cat.items || [])) {
         if (!seen.has(item.id)) {
           seen.add(item.id);
-          items.push(item);
+          items.push({ ...item, fulfillmentProvider: 'printify' });
         }
       }
     }
     return items;
   }, [categories]);
+
+  const printfulAsCatalogProducts = useMemo(() => {
+    return printfulProducts.map((p): CatalogProduct => ({
+      id: p.id,
+      title: p.title,
+      description: p.description || undefined,
+      brand: p.brand || undefined,
+      model: p.model || undefined,
+      imageUrl: p.image || undefined,
+      fulfillmentProvider: 'printful',
+    }));
+  }, [printfulProducts]);
+
+  const allProducts = useMemo(() => {
+    return providerFilter === "printful" ? printfulAsCatalogProducts : printifyProducts;
+  }, [providerFilter, printifyProducts, printfulAsCatalogProducts]);
 
   const productMap = useMemo(() => {
     const map = new Map<string, CatalogProduct>();
@@ -552,9 +622,22 @@ export default function AdminBlanks() {
     return map;
   }, [allProducts]);
 
+  const printfulCategories = useMemo(() => {
+    const catMap = new Map<string, CatalogProduct[]>();
+    printfulAsCatalogProducts.forEach(p => {
+      const pf = printfulProducts.find(pp => pp.id === p.id);
+      const cat = pf?.category || 'Other';
+      if (!catMap.has(cat)) catMap.set(cat, []);
+      catMap.get(cat)!.push(p);
+    });
+    return Array.from(catMap.entries()).map(([name, items]) => ({ name, items, count: items.length }));
+  }, [printfulAsCatalogProducts, printfulProducts]);
+
+  const activeCategories = providerFilter === "printful" ? printfulCategories : categories;
+
   const categoryNames = useMemo(() => {
-    return ["all", ...categories.map(c => c.name)];
-  }, [categories]);
+    return ["all", ...activeCategories.map(c => c.name)];
+  }, [activeCategories]);
 
   useEffect(() => {
     if (!defaultLoaded && defaultsData?.defaultCatalogId && catalogs.length > 0) {
@@ -601,22 +684,32 @@ export default function AdminBlanks() {
     onError: (err: any) => toast({ title: "Error setting tier", description: err.message, variant: "destructive" }),
   });
 
+  const getBlankKey = useCallback((id: string) => {
+    return providerFilter === "printful" ? `pf:${id}` : id;
+  }, [providerFilter]);
+
+  const isInCatalog = useCallback((id: string) => {
+    const key = getBlankKey(id);
+    return catalogBlankSet.has(key);
+  }, [getBlankKey, catalogBlankSet]);
+
   const toggleItem = useCallback((id: string) => {
     if (!validSelectedCatalogId) {
       toast({ title: "Select a catalog first", description: "Choose a catalog from the dropdown to add or remove blanks.", variant: "destructive" });
       return;
     }
-    if (catalogBlankSet.has(id)) {
-      removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
+    const key = getBlankKey(id);
+    if (catalogBlankSet.has(key)) {
+      removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
     } else {
-      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
+      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
     }
-  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, toast]);
+  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, toast, getBlankKey]);
 
   const filtered = useMemo(() => {
     let items = allProducts;
     if (categoryFilter !== "all") {
-      const cat = categories.find(c => c.name === categoryFilter);
+      const cat = activeCategories.find(c => c.name === categoryFilter);
       if (cat) {
         const catIds = new Set(cat.items.map(i => i.id));
         items = items.filter(p => catIds.has(p.id));
@@ -666,27 +759,53 @@ export default function AdminBlanks() {
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
       const selectItem = selectItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
-      const isSelected = catalogBlankSet.has(String(scrollItem.id));
-      const itemTier = blankTiers[String(scrollItem.id)] as "good" | "better" | "best" | undefined;
+      const selected = isInCatalog(String(scrollItem.id));
+      const blankKey = getBlankKey(String(scrollItem.id));
+      const itemTier = blankTiers[blankKey] as "good" | "better" | "best" | undefined;
+      const hasMappingBadge = providerFilter === "printify"
+        ? mappedPrintifyIds.has(Number(scrollItem.id))
+        : mappedPrintfulIds.has(Number(scrollItem.id));
       return (
-        <ProductSelectCardSkin
-          item={selectItem}
-          isSelected={isSelected}
-          onSelect={(id) => toggleItem(id)}
-          tier={itemTier || null}
-          onTierChange={handleTierChange}
-          showTierControls={!!validSelectedCatalogId}
-        />
+        <div className="relative">
+          <ProductSelectCardSkin
+            item={selectItem}
+            isSelected={selected}
+            onSelect={(id) => toggleItem(id)}
+            tier={itemTier || null}
+            onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
+            showTierControls={!!validSelectedCatalogId}
+          />
+          {hasMappingBadge && (
+            <div className="absolute top-2 right-2 z-10">
+              <Badge className="bg-violet-600 text-white text-[10px] px-1.5 py-0.5 gap-0.5">
+                <ArrowLeftRight className="h-3 w-3" />
+                M
+              </Badge>
+            </div>
+          )}
+        </div>
       );
     },
-    [selectItemMap, toggleItem, catalogBlankSet, blankTiers, handleTierChange, validSelectedCatalogId]
+    [selectItemMap, toggleItem, isInCatalog, blankTiers, handleTierChange, validSelectedCatalogId, providerFilter, mappedPrintifyIds, mappedPrintfulIds, getBlankKey]
   );
 
-  const catalogProducts = useMemo(() => {
+  const allProductMap = useMemo(() => {
+    const map = new Map<string, CatalogProduct>();
+    printifyProducts.forEach(p => map.set(String(p.id), p));
+    printfulAsCatalogProducts.forEach(p => map.set(`pf:${p.id}`, p));
+    return map;
+  }, [printifyProducts, printfulAsCatalogProducts]);
+
+  const catalogProductsWithKeys = useMemo(() => {
     return Array.from(catalogBlankSet)
-      .map(id => productMap.get(id))
-      .filter(Boolean) as CatalogProduct[];
-  }, [catalogBlankSet, productMap]);
+      .map(id => {
+        const product = allProductMap.get(id);
+        return product ? { product, catalogKey: id, isPrintful: id.startsWith('pf:') } : null;
+      })
+      .filter(Boolean) as { product: CatalogProduct; catalogKey: string; isPrintful: boolean }[];
+  }, [catalogBlankSet, allProductMap]);
+
+  const catalogProducts = useMemo(() => catalogProductsWithKeys.map(c => c.product), [catalogProductsWithKeys]);
 
   const handleOpenCatalog = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
@@ -717,6 +836,31 @@ export default function AdminBlanks() {
           <CatalogsTab onOpenCatalog={handleOpenCatalog} />
         ) : (
           <>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Provider:</span>
+              <Button
+                variant={providerFilter === "printify" ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setProviderFilter("printify"); setCategoryFilter("all"); setSearch(""); }}
+                data-testid="provider-printify"
+              >
+                Printify
+              </Button>
+              <Button
+                variant={providerFilter === "printful" ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setProviderFilter("printful"); setCategoryFilter("all"); setSearch(""); }}
+                data-testid="provider-printful"
+              >
+                Printful
+              </Button>
+              {providerFilter === "printful" && (
+                <Badge variant="secondary" className="text-xs">
+                  {printfulProducts.length} products synced
+                </Badge>
+              )}
+            </div>
+
             {catalogs.length > 0 && (
               <div className="space-y-2">
                 <p className="text-base font-medium text-muted-foreground">
@@ -756,14 +900,14 @@ export default function AdminBlanks() {
                   <p className="text-base text-muted-foreground">
                     Tap any blank below to add or remove it from this catalog.
                   </p>
-                  {catalogProducts.length > 0 && (
+                  {catalogProductsWithKeys.length > 0 && (
                     <ScrollArea className="w-full">
                       <div className="flex gap-2 pb-2">
-                        {catalogProducts.map(p => (
+                        {catalogProductsWithKeys.map(({ product: p, catalogKey, isPrintful }) => (
                           <div
-                            key={p.id}
+                            key={catalogKey}
                             className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
-                            data-testid={`catalog-thumb-${p.id}`}
+                            data-testid={`catalog-thumb-${catalogKey}`}
                           >
                             <div className="aspect-square flex items-center justify-center p-1">
                               {(p.imageUrl || p.image_url || p.thumbnailUrl) ? (
@@ -772,14 +916,19 @@ export default function AdminBlanks() {
                                 <Box className="h-10 w-10 text-muted-foreground" />
                               )}
                             </div>
-                            {blankTiers[String(p.id)] && (
+                            {isPrintful && (
+                              <div className="absolute bottom-8 right-1">
+                                <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
+                              </div>
+                            )}
+                            {blankTiers[catalogKey] && (
                               <div className="absolute top-1 left-1">
                                 <Badge className={`text-[10px] px-1 py-0 ${
-                                  blankTiers[String(p.id)] === 'good' ? 'bg-blue-600 text-white' :
-                                  blankTiers[String(p.id)] === 'better' ? 'bg-amber-500 text-white' :
+                                  blankTiers[catalogKey] === 'good' ? 'bg-blue-600 text-white' :
+                                  blankTiers[catalogKey] === 'better' ? 'bg-amber-500 text-white' :
                                   'bg-emerald-600 text-white'
                                 }`}>
-                                  {blankTiers[String(p.id)] === 'good' ? 'G' : blankTiers[String(p.id)] === 'better' ? 'B' : 'B+'}
+                                  {blankTiers[catalogKey] === 'good' ? 'G' : blankTiers[catalogKey] === 'better' ? 'B' : 'B+'}
                                 </Badge>
                               </div>
                             )}
@@ -789,8 +938,11 @@ export default function AdminBlanks() {
                             <button
                               className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                               style={{ visibility: "visible" }}
-                              onClick={() => toggleItem(String(p.id))}
-                              data-testid={`button-remove-catalog-${p.id}`}
+                              onClick={() => {
+                                if (!validSelectedCatalogId) return;
+                                removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [catalogKey] });
+                              }}
+                              data-testid={`button-remove-catalog-${catalogKey}`}
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -826,7 +978,7 @@ export default function AdminBlanks() {
                 >
                   {categoryNames.map(name => (
                     <option key={name} value={name}>
-                      {name === "all" ? `All Categories (${allProducts.length})` : `${name} (${categories.find(c => c.name === name)?.count || 0})`}
+                      {name === "all" ? `All Categories (${allProducts.length})` : `${name} (${activeCategories.find(c => c.name === name)?.count || 0})`}
                     </option>
                   ))}
                 </select>
@@ -870,7 +1022,9 @@ export default function AdminBlanks() {
               <Card className="p-8 text-center">
                 <p className="text-lg text-muted-foreground">
                   {allProducts.length === 0
-                    ? "No products in catalog yet. Sync your Printify catalog first from the Products page."
+                    ? (providerFilter === "printful"
+                      ? "No Printful products synced yet. Run a Printful catalog sync first."
+                      : "No products in catalog yet. Sync your Printify catalog first from the Products page.")
                     : "No products match your search or filters."}
                 </p>
               </Card>
