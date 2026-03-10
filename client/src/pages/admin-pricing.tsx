@@ -56,6 +56,7 @@ interface PricingSettings {
   markupFixed: number;
   additionalPlacementCost: number;
   textLineUpcharge: number;
+  centerGraphicUpcharge: number;
   memberProfitShare: number;
   hostingTiers: HostingTier[];
   brandLabelPricing: BrandLabelPricing;
@@ -403,6 +404,7 @@ export default function AdminPricing() {
   const [markupFixed, setMarkupFixed] = useState<string>("");
   const [additionalPlacementCost, setAdditionalPlacementCost] = useState<string>("");
   const [textLineUpcharge, setTextLineUpcharge] = useState<string>("");
+  const [centerGraphicUpcharge, setCenterGraphicUpcharge] = useState<string>("");
   const [memberProfitShare, setMemberProfitShare] = useState<string>("");
   const [hostingTiers, setHostingTiers] = useState<HostingTier[]>([]);
   const [brandLabelPricing, setBrandLabelPricing] = useState<BrandLabelPricing>({
@@ -419,6 +421,7 @@ export default function AdminPricing() {
     setMarkupFixed(String(settings.markupFixed));
     setAdditionalPlacementCost(String(settings.additionalPlacementCost));
     setTextLineUpcharge(String(settings.textLineUpcharge));
+    setCenterGraphicUpcharge(String(settings.centerGraphicUpcharge || 5));
     setMemberProfitShare(String((settings.memberProfitShare || 0.25) * 100));
     setHostingTiers(settings.hostingTiers || []);
     if (settings.brandLabelPricing) {
@@ -450,6 +453,7 @@ export default function AdminPricing() {
       markupFixed: parseFloat(markupFixed) || 0,
       additionalPlacementCost: parseFloat(additionalPlacementCost) || 0,
       textLineUpcharge: parseFloat(textLineUpcharge) || 0,
+      centerGraphicUpcharge: parseFloat(centerGraphicUpcharge) || 0,
       memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100,
       hostingTiers,
       brandLabelPricing,
@@ -581,15 +585,15 @@ export default function AdminPricing() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Type className="h-5 w-5" />
-                Text Upcharges
+                Content Upcharges
               </CardTitle>
               <CardDescription>
-                Additional cost for custom header/footer text
+                Additional cost for custom header/footer content and center graphics
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="text-upcharge">Text Line Upcharge ($)</Label>
+                <Label htmlFor="text-upcharge">Header / Footer Upcharge ($)</Label>
                 <Input
                   id="text-upcharge"
                   type="number"
@@ -603,7 +607,25 @@ export default function AdminPricing() {
                   data-testid="input-text-upcharge"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Charged per text line (header or footer) on each "full artwork" placement
+                  Charged per zone (header or footer) — applies to both text and uploaded images
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="center-graphic-upcharge">Center Graphic Upcharge ($)</Label>
+                <Input
+                  id="center-graphic-upcharge"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={centerGraphicUpcharge}
+                  onChange={(e) => setCenterGraphicUpcharge(e.target.value)}
+                  placeholder="5.00"
+                  className="min-h-[48px] text-lg max-w-xs"
+                  inputMode="decimal"
+                  data-testid="input-center-graphic-upcharge"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Charged when a full graphic image is uploaded to the center area (behind or replacing the QR code)
                 </p>
               </div>
             </CardContent>
@@ -846,7 +868,7 @@ export default function AdminPricing() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground mb-4">
-                Example: $15 base product, 1 extra placement, 1 text line, 1-year hosting, inside brand label
+                Example: $15 base product, 1 extra placement, 1 header/footer zone, 1 center graphic, 1-year hosting, inside brand label
               </p>
 
               <div className="flex gap-2 mb-4 flex-wrap">
@@ -869,8 +891,12 @@ export default function AdminPricing() {
                   <span className="font-medium">+${parseFloat(additionalPlacementCost || "4").toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
-                  <span>Text Line (1 x ${textLineUpcharge || 2}):</span>
+                  <span>Header/Footer Zone (1 x ${textLineUpcharge || 2}):</span>
                   <span className="font-medium">+${parseFloat(textLineUpcharge || "2").toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
+                  <span>Center Graphic (1 x ${centerGraphicUpcharge || 5}):</span>
+                  <span className="font-medium">+${parseFloat(centerGraphicUpcharge || "5").toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
                   <span>Hosting ({hostingTiers[0]?.name || "1 Year"}):</span>
@@ -884,7 +910,7 @@ export default function AdminPricing() {
                 <div className="border-t pt-2 mt-2">
                   {(() => {
                     const labelCost = brandLabelPricing.printifyInside;
-                    const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + (hostingTiers[0]?.price || 5) + labelCost;
+                    const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + parseFloat(centerGraphicUpcharge || "5") + (hostingTiers[0]?.price || 5) + labelCost;
                     const markupAmount = (subtotal * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0");
                     const customerPrice = subtotal + markupAmount;
                     return (
