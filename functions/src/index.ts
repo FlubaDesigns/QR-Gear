@@ -1408,7 +1408,7 @@ app.get('/health', (_req: Request, res: Response): void => {
 app.get('/members/allowed-products', async (req: Request, res: Response): Promise<void> => {
   try {
     const section = req.query.section as string | undefined;
-    const validSections = ['member', 'public', 'external', 'platform'];
+    const validSections = ['member', 'public', 'external', 'marketplace', 'platform'];
     if (section && !validSections.includes(section)) {
       res.status(400).json({ error: `Invalid section. Must be one of: ${validSections.join(', ')}` });
       return;
@@ -1420,17 +1420,16 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
     const markupPercent = pricingSettings?.markupPercent ?? 25;
     const markupFixed = pricingSettings?.markupFixed ?? 0;
 
+    const effectiveSection = section || 'member';
     let catalogBlankFilter: Set<string> | null = null;
-    if (section) {
-      const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
-      const catalogId = assignDoc.exists ? assignDoc.data()?.[section] : null;
-      if (catalogId) {
-        const catDoc = await db.collection('catalogs').doc(catalogId).get();
-        if (catDoc.exists) {
-          const blankIds = catDoc.data()?.blankIds || [];
-          catalogBlankFilter = new Set(blankIds.map(String));
-          console.log(`[Member Products CF] Filtering by catalog "${catDoc.data()?.name}" (${blankIds.length} blanks) for section "${section}"`);
-        }
+    const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
+    const catalogId = assignDoc.exists ? assignDoc.data()?.[effectiveSection] : null;
+    if (catalogId) {
+      const catDoc = await db.collection('catalogs').doc(catalogId).get();
+      if (catDoc.exists) {
+        const blankIds = catDoc.data()?.blankIds || [];
+        catalogBlankFilter = new Set(blankIds.map(String));
+        console.log(`[Member Products CF] Filtering by catalog "${catDoc.data()?.name}" (${blankIds.length} blanks) for section "${effectiveSection}"`);
       }
     }
 
@@ -9219,7 +9218,7 @@ app.delete('/admin/catalogs/:catalogId', requireAdmin, async (req: Request, res:
     const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
     if (assignDoc.exists) {
       const data = assignDoc.data() || {};
-      const sections = ['member', 'public', 'external', 'platform'];
+      const sections = ['member', 'public', 'external', 'marketplace', 'platform'];
       for (const section of sections) {
         if (data[section] === catalogId) {
           res.status(400).json({ error: `Cannot delete: catalog is assigned to "${section}" section. Unassign it first.` });
@@ -9266,6 +9265,69 @@ app.delete('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Reques
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.post('/admin/catalogs/:catalogId/duplicate', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const srcDoc = await db.collection('catalogs').doc(catalogId).get();
+    if (!srcDoc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
+    const src = srcDoc.data()!;
+    const newName = req.body.name || `${src.name} (Copy)`;
+    const doc = await db.collection('catalogs').add({
+      name: newName,
+      description: src.description || '',
+      blankIds: src.blankIds || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    console.log(`[Catalogs] Duplicated catalog "${src.name}" → "${newName}" (${doc.id}), ${(src.blankIds || []).length} blanks`);
+    res.json({ id: doc.id, name: newName, description: src.description || '', blankIds: src.blankIds || [], createdAt: new Date().toISOString() });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/admin/catalogs/:catalogId/bulk-copy', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const { targetCatalogId, blankIds } = req.body;
+    if (!targetCatalogId) { res.status(400).json({ error: 'targetCatalogId is required' }); return; }
+    if (!Array.isArray(blankIds) || blankIds.length === 0) { res.status(400).json({ error: 'blankIds must be a non-empty array' }); return; }
+    const srcDoc = await db.collection('catalogs').doc(catalogId).get();
+    if (!srcDoc.exists) { res.status(404).json({ error: 'Source catalog not found' }); return; }
+    const targetRef = db.collection('catalogs').doc(targetCatalogId);
+    const targetDoc = await targetRef.get();
+    if (!targetDoc.exists) { res.status(404).json({ error: 'Target catalog not found' }); return; }
+    const existing = (targetDoc.data()?.blankIds || []).map(String);
+    const merged = [...new Set([...existing, ...blankIds.map(String)])];
+    await targetRef.update({ blankIds: merged, updatedAt: new Date().toISOString() });
+    const added = merged.length - existing.length;
+    console.log(`[Catalogs] Bulk copied ${blankIds.length} blanks from ${catalogId} to ${targetCatalogId}. ${added} new, ${merged.length} total`);
+    res.json({ success: true, added, total: merged.length });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/admin/catalog-defaults', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doc = await db.collection('systemSettings').doc('catalog-defaults').get();
+    const data = doc.exists ? doc.data() : {};
+    res.json({ defaultCatalogId: data?.defaultCatalogId || null });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.put('/admin/catalog-defaults', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { defaultCatalogId } = req.body;
+    if (defaultCatalogId) {
+      const catDoc = await db.collection('catalogs').doc(defaultCatalogId).get();
+      if (!catDoc.exists) { res.status(400).json({ error: 'Catalog not found' }); return; }
+    }
+    await db.collection('systemSettings').doc('catalog-defaults').set(
+      { defaultCatalogId: defaultCatalogId || null, updatedAt: new Date().toISOString() },
+      { merge: true }
+    );
+    console.log(`[Catalogs] Set default catalog: ${defaultCatalogId || 'none'}`);
+    res.json({ success: true, defaultCatalogId: defaultCatalogId || null });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 app.get('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('systemSettings').doc('catalog-assignments').get();
@@ -9274,6 +9336,7 @@ app.get('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Re
       member: data?.member || null,
       public: data?.public || null,
       external: data?.external || null,
+      marketplace: data?.marketplace || null,
       platform: data?.platform || null,
     });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -9281,11 +9344,12 @@ app.get('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Re
 
 app.put('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { member, public: pub, external, platform } = req.body;
+    const { member, public: pub, external, marketplace, platform } = req.body;
     const updates: any = { updatedAt: new Date().toISOString() };
     if (member !== undefined) updates.member = member;
     if (pub !== undefined) updates.public = pub;
     if (external !== undefined) updates.external = external;
+    if (marketplace !== undefined) updates.marketplace = marketplace;
     if (platform !== undefined) updates.platform = platform;
     await db.collection('systemSettings').doc('catalog-assignments').set(updates, { merge: true });
     console.log(`[Catalogs] Updated section assignments:`, updates);
@@ -9296,7 +9360,7 @@ app.put('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Re
 app.get('/catalog-for-section/:section', async (req: Request, res: Response): Promise<void> => {
   try {
     const { section } = req.params;
-    const validSections = ['member', 'public', 'external', 'platform'];
+    const validSections = ['member', 'public', 'external', 'marketplace', 'platform'];
     if (!validSections.includes(section)) { res.status(400).json({ error: `Invalid section. Must be one of: ${validSections.join(', ')}` }); return; }
     const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
     const catalogId = assignDoc.exists ? assignDoc.data()?.[section] : null;
@@ -9335,7 +9399,7 @@ app.get('/admin/catalog-health', requireAdmin, async (req: Request, res: Respons
     });
 
     const assignments = assignDoc.exists ? assignDoc.data() : {};
-    const sections = ['member', 'public', 'external', 'platform'];
+    const sections = ['member', 'public', 'external', 'marketplace', 'platform'];
     const sectionStatus: Record<string, any> = {};
     for (const s of sections) {
       const catId = assignments?.[s] || null;

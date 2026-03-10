@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Box, Save, Loader2, Search, Filter, Flag, Globe, Layers, Check, X, Trash2,
-  Plus, Pencil, BookOpen, ArrowRight, Link2, Unlink
+  Plus, Pencil, BookOpen, ArrowRight, Link2, Unlink, Copy, Star, ArrowRightLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +59,7 @@ interface CatalogAssignments {
   member: string | null;
   public: string | null;
   external: string | null;
+  marketplace: string | null;
   platform: string | null;
 }
 
@@ -86,7 +87,8 @@ type PageTab = "blanks" | "catalogs";
 const SECTIONS = [
   { key: "member" as const, label: "Member", desc: "What members see in their wizards" },
   { key: "public" as const, label: "Public", desc: "What the storefront shows" },
-  { key: "external" as const, label: "External", desc: "For selling on eBay, Etsy, etc." },
+  { key: "external" as const, label: "External", desc: "For external partner sites" },
+  { key: "marketplace" as const, label: "Marketplace", desc: "For selling on eBay, Etsy, Amazon" },
   { key: "platform" as const, label: "Platform", desc: "Internal platform selection" },
 ];
 
@@ -99,6 +101,8 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [bulkCopySource, setBulkCopySource] = useState<string | null>(null);
+  const [bulkCopyTarget, setBulkCopyTarget] = useState<string>("");
 
   const { data: catalogsData, isLoading: loadingCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -164,6 +168,52 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (catalogId: string) => {
+      const res = await apiRequest("POST", `/api/admin/catalogs/${catalogId}/duplicate`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Catalog duplicated", description: data.name });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const { data: defaultsData } = useQuery<{ defaultCatalogId: string | null }>({
+    queryKey: ["/api/admin/catalog-defaults"],
+  });
+
+  const setDefaultMutation = useMutation({
+    mutationFn: async (catalogId: string | null) => {
+      const res = await apiRequest("PUT", "/api/admin/catalog-defaults", { defaultCatalogId: catalogId });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Default catalog updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalog-defaults"] });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const bulkCopyMutation = useMutation({
+    mutationFn: async ({ sourceId, targetId }: { sourceId: string; targetId: string }) => {
+      const source = catalogs.find(c => c.id === sourceId);
+      const blankIds = source?.blankIds || [];
+      const res = await apiRequest("POST", `/api/admin/catalogs/${sourceId}/bulk-copy`, { targetCatalogId: targetId, blankIds });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Blanks copied", description: `${data.added} new blanks added, ${data.total} total` });
+      setBulkCopySource(null);
+      setBulkCopyTarget("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const defaultCatalogId = defaultsData?.defaultCatalogId || null;
 
   return (
     <div className="space-y-6">
@@ -238,13 +288,18 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="space-y-2">
-                          <Button
-                            size="lg"
-                            onClick={() => onOpenCatalog(cat.id)}
-                            data-testid={`open-catalog-${cat.id}`}
-                          >
-                            <Layers className="h-5 w-5" /> {cat.name}
-                          </Button>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button
+                              size="lg"
+                              onClick={() => onOpenCatalog(cat.id)}
+                              data-testid={`open-catalog-${cat.id}`}
+                            >
+                              <Layers className="h-5 w-5" /> {cat.name}
+                            </Button>
+                            {defaultCatalogId === cat.id && (
+                              <Badge variant="default" className="text-sm"><Star className="h-3 w-3" /> Default</Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="secondary" className="text-sm">{cat.blankIds?.length || 0} blanks</Badge>
                             {assignedSections.map(s => (
@@ -255,7 +310,47 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
                           </div>
                           {cat.description && <p className="text-base text-muted-foreground">{cat.description}</p>}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {defaultCatalogId !== cat.id ? (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDefaultMutation.mutate(cat.id)}
+                              title="Set as default"
+                              data-testid={`default-catalog-${cat.id}`}
+                            >
+                              <Star className="h-5 w-5" />
+                            </Button>
+                          ) : (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDefaultMutation.mutate(null)}
+                              title="Remove as default"
+                              data-testid={`undefault-catalog-${cat.id}`}
+                            >
+                              <Star className="h-5 w-5 fill-current" />
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => duplicateMutation.mutate(cat.id)}
+                            disabled={duplicateMutation.isPending}
+                            title="Duplicate catalog"
+                            data-testid={`duplicate-catalog-${cat.id}`}
+                          >
+                            <Copy className="h-5 w-5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setBulkCopySource(bulkCopySource === cat.id ? null : cat.id)}
+                            title="Copy blanks to another catalog"
+                            data-testid={`bulk-copy-catalog-${cat.id}`}
+                          >
+                            <ArrowRightLeft className="h-5 w-5" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -278,6 +373,33 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
                           )}
                         </div>
                       </div>
+                      {bulkCopySource === cat.id && (
+                        <div className="p-3 border rounded-md bg-muted/50 space-y-2">
+                          <p className="text-base font-medium">Copy all blanks from "{cat.name}" to:</p>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <select
+                              value={bulkCopyTarget}
+                              onChange={e => setBulkCopyTarget(e.target.value)}
+                              className="text-base bg-background border rounded-md px-3 py-2"
+                              data-testid={`select-bulk-target-${cat.id}`}
+                            >
+                              <option value="">Select target catalog...</option>
+                              {catalogs.filter(c => c.id !== cat.id).map(c => (
+                                <option key={c.id} value={c.id}>{c.name} ({c.blankIds?.length || 0} blanks)</option>
+                              ))}
+                            </select>
+                            <Button
+                              onClick={() => bulkCopyTarget && bulkCopyMutation.mutate({ sourceId: cat.id, targetId: bulkCopyTarget })}
+                              disabled={!bulkCopyTarget || bulkCopyMutation.isPending}
+                              data-testid={`button-bulk-copy-${cat.id}`}
+                            >
+                              {bulkCopyMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Copy className="h-5 w-5" />}
+                              Copy
+                            </Button>
+                            <Button variant="outline" onClick={() => { setBulkCopySource(null); setBulkCopyTarget(""); }}>Cancel</Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -343,12 +465,11 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
 export default function AdminBlanks() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<PageTab>("blanks");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [hasChanges, setHasChanges] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
+  const [defaultLoaded, setDefaultLoaded] = useState(false);
 
   const { data: categories = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/printify/catalog", "blanks"],
@@ -359,16 +480,12 @@ export default function AdminBlanks() {
     },
   });
 
-  const { data: allowedData, isLoading: loadingAllowed } = useQuery({
-    queryKey: ["/api/members/allowed-products"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/members/allowed-products");
-      return res.json();
-    },
-  });
-
   const { data: catalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
+  });
+
+  const { data: defaultsData } = useQuery<{ defaultCatalogId: string | null }>({
+    queryKey: ["/api/admin/catalog-defaults"],
   });
 
   const catalogs = catalogsData?.catalogs || [];
@@ -401,42 +518,14 @@ export default function AdminBlanks() {
   }, [categories]);
 
   useEffect(() => {
-    if (allowedData?.products) {
-      setSelectedIds(new Set<string>(
-        allowedData.products.map((p: any) => String(p.blueprintId))
-      ));
-      setHasChanges(false);
+    if (!defaultLoaded && defaultsData?.defaultCatalogId && catalogs.length > 0) {
+      const exists = catalogs.find(c => c.id === defaultsData.defaultCatalogId);
+      if (exists) {
+        setSelectedCatalogId(defaultsData.defaultCatalogId);
+      }
+      setDefaultLoaded(true);
     }
-  }, [allowedData]);
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const products = Array.from(selectedIds).map(id => {
-        const item = productMap.get(id);
-        const imageUrl = item?.imageUrl || item?.image_url || item?.thumbnailUrl || "";
-        return {
-          blueprintId: Number(id),
-          title: item?.title || `Product ${id}`,
-          provider: item?.fulfillmentProvider || "printify",
-          imageUrl,
-          colors: (item?.availableColors || []).map(c => c.name),
-          sizes: item?.availableSizes || [],
-          printProviderId: item?.printProviderId || null,
-          addedAt: new Date().toISOString(),
-        };
-      });
-      const res = await apiRequest("POST", "/api/members/allowed-products", { products });
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Blanks saved", description: `${selectedIds.size} products available for members` });
-      setHasChanges(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/members/allowed-products"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    },
-  });
+  }, [defaultsData, catalogs, defaultLoaded]);
 
   const addBlanksMutation = useMutation({
     mutationFn: async ({ catalogId, blankIds }: { catalogId: string; blankIds: string[] }) => {
@@ -463,21 +552,16 @@ export default function AdminBlanks() {
   });
 
   const toggleItem = useCallback((id: string) => {
-    if (validSelectedCatalogId) {
-      if (catalogBlankSet.has(id)) {
-        removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
-      } else {
-        addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
-      }
-    } else {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
-        return next;
-      });
-      setHasChanges(true);
+    if (!validSelectedCatalogId) {
+      toast({ title: "Select a catalog first", description: "Choose a catalog from the dropdown to add or remove blanks.", variant: "destructive" });
+      return;
     }
-  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation]);
+    if (catalogBlankSet.has(id)) {
+      removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
+    } else {
+      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
+    }
+  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, toast]);
 
   const filtered = useMemo(() => {
     let items = allProducts;
@@ -500,20 +584,6 @@ export default function AdminBlanks() {
     }
     return items;
   }, [allProducts, categories, categoryFilter, locationFilter, search]);
-
-  const selectAllFiltered = () => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      filtered.forEach(item => next.add(String(item.id)));
-      return next;
-    });
-    setHasChanges(true);
-  };
-
-  const clearAll = () => {
-    setSelectedIds(new Set());
-    setHasChanges(true);
-  };
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, ProductSelectItem>();
@@ -539,9 +609,7 @@ export default function AdminBlanks() {
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
       const selectItem = selectItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
-      const isSelected = validSelectedCatalogId
-        ? catalogBlankSet.has(String(scrollItem.id))
-        : selectedIds.has(String(scrollItem.id));
+      const isSelected = catalogBlankSet.has(String(scrollItem.id));
       return (
         <ProductSelectCardSkin
           item={selectItem}
@@ -550,21 +618,19 @@ export default function AdminBlanks() {
         />
       );
     },
-    [selectItemMap, selectedIds, toggleItem, validSelectedCatalogId, catalogBlankSet]
+    [selectItemMap, toggleItem, catalogBlankSet]
   );
 
-  const selectedProducts = useMemo(() => {
-    return Array.from(selectedIds)
+  const catalogProducts = useMemo(() => {
+    return Array.from(catalogBlankSet)
       .map(id => productMap.get(id))
       .filter(Boolean) as CatalogProduct[];
-  }, [selectedIds, productMap]);
+  }, [catalogBlankSet, productMap]);
 
   const handleOpenCatalog = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
     setActiveTab("blanks");
   }, []);
-
-  const isLoading = loadingCatalog || loadingAllowed;
 
   return (
     <AdminShell title="Blanks" subtitle="Manage base products and catalogs" icon={Box}>
@@ -590,33 +656,11 @@ export default function AdminBlanks() {
           <CatalogsTab onOpenCatalog={handleOpenCatalog} />
         ) : (
           <>
-            {validSelectedCatalogId && activeCatalog && (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <Layers className="h-6 w-6 text-primary" />
-                      <span className="text-lg font-semibold">Editing: {activeCatalog.name}</span>
-                      <Badge variant="secondary" className="text-sm">{activeCatalog.blankIds?.length || 0} blanks</Badge>
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedCatalogId(null)}
-                      data-testid="button-clear-catalog"
-                    >
-                      <X className="h-5 w-5" /> Done
-                    </Button>
-                  </div>
-                  <p className="text-base text-muted-foreground">
-                    Tap any blank below to add or remove it from this catalog.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
-            {!validSelectedCatalogId && catalogs.length > 0 && (
+            {catalogs.length > 0 && (
               <div className="space-y-2">
-                <p className="text-base font-medium text-muted-foreground">Select a catalog to edit, or browse all blanks:</p>
+                <p className="text-base font-medium text-muted-foreground">
+                  {validSelectedCatalogId ? "Switch catalog:" : "Select a catalog to edit:"}
+                </p>
                 <select
                   value={selectedCatalogId || ""}
                   onChange={e => setSelectedCatalogId(e.target.value || null)}
@@ -631,62 +675,60 @@ export default function AdminBlanks() {
               </div>
             )}
 
-            {!validSelectedCatalogId && selectedProducts.length > 0 && (
-              <Card className="p-4 space-y-3">
-                <div className="flex items-center justify-between gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-primary" />
-                    <span className="text-base font-medium">{selectedProducts.length} Selected</span>
-                  </div>
-                  <div className="flex items-center gap-3">
+            {validSelectedCatalogId && activeCatalog && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <Layers className="h-6 w-6 text-primary" />
+                      <span className="text-lg font-semibold">{activeCatalog.name}</span>
+                      <Badge variant="secondary" className="text-sm">{activeCatalog.blankIds?.length || 0} blanks</Badge>
+                    </div>
                     <Button
                       variant="outline"
-                      onClick={clearAll}
-                      data-testid="button-clear-selected"
+                      onClick={() => setSelectedCatalogId(null)}
+                      data-testid="button-clear-catalog"
                     >
-                      <Trash2 className="h-4 w-4" /> Clear
-                    </Button>
-                    <Button
-                      onClick={() => saveMutation.mutate()}
-                      disabled={!hasChanges || saveMutation.isPending}
-                      data-testid="button-save-blanks-top"
-                    >
-                      {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                      Save
+                      <X className="h-5 w-5" /> Done
                     </Button>
                   </div>
-                </div>
-                <ScrollArea className="w-full">
-                  <div className="flex gap-2 pb-2">
-                    {selectedProducts.map(p => (
-                      <div
-                        key={p.id}
-                        className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
-                        data-testid={`selected-thumb-${p.id}`}
-                      >
-                        <div className="aspect-square flex items-center justify-center p-1">
-                          {(p.imageUrl || p.image_url || p.thumbnailUrl) ? (
-                            <img src={p.imageUrl || p.image_url || p.thumbnailUrl} alt={p.title} className="w-full h-full object-contain" loading="lazy" />
-                          ) : (
-                            <Box className="h-10 w-10 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div className="px-1.5 pb-1.5">
-                          <p className="text-xs leading-tight line-clamp-2 text-foreground">{p.title}</p>
-                        </div>
-                        <button
-                          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ visibility: "visible" }}
-                          onClick={() => toggleItem(String(p.id))}
-                          data-testid={`button-remove-${p.id}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
+                  <p className="text-base text-muted-foreground">
+                    Tap any blank below to add or remove it from this catalog.
+                  </p>
+                  {catalogProducts.length > 0 && (
+                    <ScrollArea className="w-full">
+                      <div className="flex gap-2 pb-2">
+                        {catalogProducts.map(p => (
+                          <div
+                            key={p.id}
+                            className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
+                            data-testid={`catalog-thumb-${p.id}`}
+                          >
+                            <div className="aspect-square flex items-center justify-center p-1">
+                              {(p.imageUrl || p.image_url || p.thumbnailUrl) ? (
+                                <img src={p.imageUrl || p.image_url || p.thumbnailUrl} alt={p.title} className="w-full h-full object-contain" loading="lazy" />
+                              ) : (
+                                <Box className="h-10 w-10 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="px-1.5 pb-1.5">
+                              <p className="text-xs leading-tight line-clamp-2 text-foreground">{p.title}</p>
+                            </div>
+                            <button
+                              className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ visibility: "visible" }}
+                              onClick={() => toggleItem(String(p.id))}
+                              data-testid={`button-remove-catalog-${p.id}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  )}
+                </CardContent>
               </Card>
             )}
 
@@ -735,34 +777,18 @@ export default function AdminBlanks() {
                 ))}
               </div>
 
-              {!validSelectedCatalogId && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="outline" onClick={selectAllFiltered} data-testid="button-select-all-blanks">
-                    Select All ({filtered.length})
-                  </Button>
-                  <Badge variant="secondary" className="text-sm">{selectedIds.size} selected</Badge>
-                  {hasChanges && (
-                    <Button
-                      onClick={() => saveMutation.mutate()}
-                      disabled={saveMutation.isPending}
-                      data-testid="button-save-blanks"
-                    >
-                      {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                      Save ({selectedIds.size})
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {validSelectedCatalogId && (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <Badge variant="secondary" className="text-sm py-1 px-3">{filtered.length} blanks shown</Badge>
+              <div className="flex items-center gap-3 flex-wrap">
+                <Badge variant="secondary" className="text-sm py-1 px-3">{filtered.length} blanks shown</Badge>
+                {validSelectedCatalogId && (
                   <Badge variant="default" className="text-sm py-1 px-3">{catalogBlankSet.size} in catalog</Badge>
-                </div>
-              )}
+                )}
+                {!validSelectedCatalogId && (
+                  <p className="text-sm text-muted-foreground">Select a catalog above to start adding blanks</p>
+                )}
+              </div>
             </div>
 
-            {isLoading ? (
+            {loadingCatalog ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-28 w-full rounded-md" />
