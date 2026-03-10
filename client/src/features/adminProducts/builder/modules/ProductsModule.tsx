@@ -34,7 +34,7 @@ interface AdminCatalog {
 }
 
 type LocationFilter = "all" | "usa" | "other";
-type DataMode = "all" | "favorites";
+type DataMode = "all" | "catalog" | "favorites";
 
 function detectGender(title: string): "mens" | "womens" | "unisex" {
   const lowerTitle = title.toLowerCase();
@@ -104,12 +104,53 @@ export function ProductsModule() {
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [dataMode, setDataMode] = useState<DataMode>("all");
-  const [catalogFilter, setCatalogFilter] = useState<string>("all");
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
   });
   const adminCatalogs = adminCatalogsData?.catalogs || [];
+
+  const activeCatalog = selectedCatalogId !== "all"
+    ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
+    : null;
+
+  const handleCatalogChange = useCallback((catalogId: string) => {
+    setSelectedCatalogId(catalogId);
+    if (catalogId !== "all") {
+      setDataMode("catalog");
+      selectProduct(null);
+    } else {
+      setDataMode("all");
+    }
+  }, [selectProduct]);
+
+  const { data: allCatalogProducts = [], isLoading: loadingAllProducts } = useQuery<CatalogProduct[]>({
+    queryKey: ["all-catalog-products", provider],
+    queryFn: async () => {
+      const headers = await api.getAuthHeaders();
+      let endpoint = "";
+      if (provider === "printify") endpoint = `${api.baseUrl}/printify/catalog`;
+      else if (provider === "printful") endpoint = `${api.baseUrl}/catalog/printful-products`;
+      if (!endpoint) return [];
+      const res = await fetch(endpoint, { headers });
+      if (!res.ok) return [];
+      const data = (await res.json()) as CatalogCategoryResponse[];
+      const items: CatalogProduct[] = [];
+      const seen = new Set<number>();
+      for (const cat of data) {
+        for (const item of (cat.items || [])) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            items.push(item);
+          }
+        }
+      }
+      return items;
+    },
+    enabled: dataMode === "catalog" && !!activeCatalog,
+    staleTime: 60000,
+  });
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
     setLocationFilter(loc);
@@ -195,11 +236,30 @@ export function ProductsModule() {
     [products]
   );
 
-  const activeCatalogBlankSet = useMemo(() => {
-    if (catalogFilter === "all") return null;
-    const cat = adminCatalogs.find(c => c.id === catalogFilter);
-    return cat ? new Set(cat.blankIds.map(String)) : null;
-  }, [catalogFilter, adminCatalogs]);
+  const catalogBlankSet = useMemo(() => {
+    if (!activeCatalog) return null;
+    return new Set(activeCatalog.blankIds.map(String));
+  }, [activeCatalog]);
+
+  const catalogModeProducts = useMemo(() => {
+    if (!catalogBlankSet) return [];
+    return allCatalogProducts.filter(p => catalogBlankSet.has(String(p.id)));
+  }, [allCatalogProducts, catalogBlankSet]);
+
+  const catalogModeWithGender = useMemo(() =>
+    catalogModeProducts.map(p => ({ ...p, gender: detectGender(p.title) })),
+    [catalogModeProducts]
+  );
+
+  const filteredCatalogProducts = useMemo(() => {
+    return catalogModeWithGender.filter(p => {
+      const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
+      const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) ||
+                           (state.originFilter.showOther && !p.madeInUSA);
+      const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
+      return passesSearch && passesOrigin && passesGender;
+    });
+  }, [catalogModeWithGender, search, state.originFilter, state.genderFilter]);
 
   const filteredProducts = useMemo(() => {
     return productsWithGender.filter(p => {
@@ -207,10 +267,9 @@ export function ProductsModule() {
                            (state.originFilter.showOther && !p.madeInUSA);
       const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
       const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
-      const passesCatalog = !activeCatalogBlankSet || activeCatalogBlankSet.has(String(p.id));
-      return passesOrigin && passesGender && passesSearch && passesCatalog;
+      return passesOrigin && passesGender && passesSearch;
     });
-  }, [productsWithGender, state.originFilter, state.genderFilter, search, activeCatalogBlankSet]);
+  }, [productsWithGender, state.originFilter, state.genderFilter, search]);
 
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
@@ -231,16 +290,18 @@ export function ProductsModule() {
 
   const selectedProductId = state.selectedProduct ? String(state.selectedProduct.id) : null;
 
+  const activeProducts = dataMode === "catalog" ? filteredCatalogProducts : filteredProducts;
+
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string } }>();
-    filteredProducts.forEach(p => {
+    activeProducts.forEach(p => {
       map.set(String(p.id), { selectItem: catalogToSelectItem(p), catalog: p });
     });
     return map;
-  }, [filteredProducts]);
+  }, [activeProducts]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
-    filteredProducts.map(p => ({
+    activeProducts.map(p => ({
       id: String(p.id),
       imageUrl: p.imageUrl || "",
       title: p.title,
@@ -251,7 +312,7 @@ export function ProductsModule() {
       madeInUSA: p.madeInUSA,
       hasMockupMapping: p.hasMockupMapping,
     })),
-    [filteredProducts]
+    [activeProducts]
   );
 
   const handleCardSelect = useCallback((id: string, _item: ProductSelectItem) => {
@@ -381,6 +442,23 @@ export function ProductsModule() {
     [shelfSelectItemMap, handleShelfPick, handleRemoveFromShelf, shelf.removeItem.isPending]
   );
 
+  const catalogUsaCount = catalogModeWithGender.filter(p => p.madeInUSA).length;
+  const catalogOtherCount = catalogModeWithGender.filter(p => !p.madeInUSA).length;
+
+  const catalogOriginFiltered = useMemo(() => {
+    return catalogModeWithGender.filter(p =>
+      (state.originFilter.showUSA && p.madeInUSA) ||
+      (state.originFilter.showOther && !p.madeInUSA)
+    );
+  }, [catalogModeWithGender, state.originFilter]);
+
+  const catalogGenderCounts = useMemo(() => ({
+    all: catalogOriginFiltered.length,
+    mens: catalogOriginFiltered.filter(p => p.gender === "mens").length,
+    womens: catalogOriginFiltered.filter(p => p.gender === "womens").length,
+    unisex: catalogOriginFiltered.filter(p => p.gender === "unisex").length,
+  }), [catalogOriginFiltered]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md" data-testid="active-provider-indicator">
@@ -388,39 +466,33 @@ export function ProductsModule() {
         <span className="text-sm font-medium capitalize">{provider}</span>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap" data-testid="data-mode-toggle">
-        <Badge
-          variant={dataMode === "all" ? "default" : "outline"}
-          className="cursor-pointer text-xs"
-          onClick={() => setDataMode("all")}
-          data-testid="toggle-all"
+      <div data-testid="module-catalog-select">
+        <div className="flex items-center gap-2 mb-2">
+          <BookOpen className="h-4 w-4 text-muted-foreground" />
+          <p className="text-sm font-medium">Product Source</p>
+        </div>
+        <select
+          value={selectedCatalogId}
+          onChange={e => handleCatalogChange(e.target.value)}
+          className="w-full text-sm bg-background border rounded-md px-3 py-2"
+          data-testid="select-catalog"
         >
-          <Layers className="w-3 h-3 mr-1" /> All
-        </Badge>
+          <option value="all">All Products (by category)</option>
+          {adminCatalogs.map(cat => (
+            <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0} blanks)</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap" data-testid="data-mode-toggle">
         <Badge
           variant={dataMode === "favorites" ? "default" : "outline"}
           className="cursor-pointer text-xs"
-          onClick={() => setDataMode("favorites")}
+          onClick={() => { setDataMode("favorites"); setSelectedCatalogId("all"); }}
           data-testid="toggle-favorites"
         >
           <Heart className="w-3 h-3 mr-1" /> Favorites ({shelf.items.length})
         </Badge>
-        {adminCatalogs.length > 0 && (
-          <div className="flex items-center gap-1 ml-auto">
-            <BookOpen className="h-3 w-3 text-muted-foreground" />
-            <select
-              value={catalogFilter}
-              onChange={e => setCatalogFilter(e.target.value)}
-              className="text-xs bg-background border rounded-md px-1.5 py-1"
-              data-testid="select-catalog-filter"
-            >
-              <option value="all">All Catalogs</option>
-              {adminCatalogs.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0})</option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {dataMode === "favorites" && (
@@ -438,7 +510,7 @@ export function ProductsModule() {
               </p>
               <Button
                 variant="outline"
-                onClick={() => setDataMode("all")}
+                onClick={() => handleCatalogChange("all")}
                 data-testid="button-go-to-catalog"
               >
                 Browse Catalog
@@ -454,6 +526,90 @@ export function ProductsModule() {
                 layout: "vertical",
                 gridHeight: "calc(100vh - 160px)",
                 renderItem: renderFavoriteCard,
+              }}
+            />
+          )}
+        </>
+      )}
+
+      {dataMode === "catalog" && activeCatalog && (
+        <>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+              data-testid="input-search-catalog"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter className="h-3 w-3 text-muted-foreground" />
+              <Badge
+                variant={locationFilter === "all" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("all")}
+                data-testid="filter-catalog-location-all"
+              >
+                <Globe className="w-3 h-3 mr-1" /> All ({catalogModeProducts.length})
+              </Badge>
+              <Badge
+                variant={locationFilter === "usa" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("usa")}
+                data-testid="filter-catalog-location-usa"
+              >
+                <Flag className="w-3 h-3 mr-1" /> USA ({catalogUsaCount})
+              </Badge>
+              <Badge
+                variant={locationFilter === "other" ? "default" : "outline"}
+                className="cursor-pointer text-xs"
+                onClick={() => applyLocationFilter("other")}
+                data-testid="filter-catalog-location-other"
+              >
+                Other ({catalogOtherCount})
+              </Badge>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(["all", "mens", "womens", "unisex"] as const).map((g) => (
+                <Badge
+                  key={g}
+                  variant={state.genderFilter === g ? "default" : "outline"}
+                  className="cursor-pointer text-xs capitalize"
+                  onClick={() => setGenderFilter(g)}
+                  data-testid={`filter-catalog-gender-${g}`}
+                >
+                  {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({catalogGenderCounts[g]})
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {loadingAllProducts ? (
+            <div className="flex gap-3 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
+              ))}
+            </div>
+          ) : filteredCatalogProducts.length === 0 ? (
+            <div className="p-6 text-center space-y-2 border rounded-md bg-muted/20">
+              <p className="text-sm text-muted-foreground">
+                No products match the current filters in this catalog.
+              </p>
+            </div>
+          ) : (
+            <SharedViewer
+              mode="scroll"
+              scrollProps={{
+                items: scrollItems,
+                selectedId: selectedProductId,
+                emptyMessage: "No products in this catalog.",
+                layout: "vertical",
+                gridHeight: "calc(100vh - 160px)",
+                renderItem: renderCatalogCard,
               }}
             />
           )}

@@ -569,7 +569,7 @@ export function TierPickerStep({
 
   const sectionMap: Record<string, string> = { member: "member", public: "public", external: "external", platform: "platform", owner: "member" };
   const sectionParam = sectionMap[context] || "member";
-  const { data: tierData, isLoading: loadingTiers } = useQuery<TierProductsResponse>({
+  const { data: tierData, isLoading: loadingTiers, isError: tierError } = useQuery<TierProductsResponse>({
     queryKey: ["/api/members/tier-products", sectionParam],
     queryFn: async () => {
       const res = await fetch(`/api/members/tier-products?section=${sectionParam}`);
@@ -577,6 +577,7 @@ export function TierPickerStep({
       return res.json();
     },
     staleTime: 300000,
+    retry: false,
   });
 
   if (loadingTiers) {
@@ -588,7 +589,7 @@ export function TierPickerStep({
     );
   }
 
-  const hasTiers = tierData?.hasTiers || false;
+  const hasTiers = (tierData?.hasTiers && !tierError) || false;
 
   const allCategories = tierData?.tiers ? Object.keys(tierData.tiers) : [];
   const firstCategory = allCategories[0] || "";
