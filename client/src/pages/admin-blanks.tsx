@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import {
@@ -104,32 +104,17 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const { data: catalogsData, isLoading: loadingCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/catalogs");
-      if (!res.ok) throw new Error("Failed to fetch catalogs");
-      return res.json();
-    },
   });
 
   const { data: assignments, isLoading: loadingAssignments } = useQuery<CatalogAssignments>({
     queryKey: ["/api/admin/catalog-assignments"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/catalog-assignments");
-      if (!res.ok) throw new Error("Failed to fetch assignments");
-      return res.json();
-    },
   });
 
   const catalogs = catalogsData?.catalogs || [];
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/admin/catalogs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() }),
-      });
-      if (!res.ok) throw new Error("Failed to create catalog");
+      const res = await apiRequest("POST", "/api/admin/catalogs", { name: newName.trim(), description: newDesc.trim() });
       return res.json();
     },
     onSuccess: (data) => {
@@ -144,12 +129,7 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, name, description }: { id: string; name: string; description: string }) => {
-      const res = await fetch(`/api/admin/catalogs/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description }),
-      });
-      if (!res.ok) throw new Error("Failed to update catalog");
+      const res = await apiRequest("PATCH", `/api/admin/catalogs/${id}`, { name, description });
       return res.json();
     },
     onSuccess: () => {
@@ -162,11 +142,7 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/catalogs/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to delete");
-      }
+      const res = await apiRequest("DELETE", `/api/admin/catalogs/${id}`);
       return res.json();
     },
     onSuccess: () => {
@@ -179,12 +155,7 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const addBlanksMutation = useMutation({
     mutationFn: async ({ catalogId, blankIds }: { catalogId: string; blankIds: string[] }) => {
-      const res = await fetch(`/api/admin/catalogs/${catalogId}/blanks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blankIds }),
-      });
-      if (!res.ok) throw new Error("Failed to add blanks");
+      const res = await apiRequest("POST", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds });
       return res.json();
     },
     onSuccess: (data) => {
@@ -196,12 +167,7 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const removeBlanksMutation = useMutation({
     mutationFn: async ({ catalogId, blankIds }: { catalogId: string; blankIds: string[] }) => {
-      const res = await fetch(`/api/admin/catalogs/${catalogId}/blanks`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blankIds }),
-      });
-      if (!res.ok) throw new Error("Failed to remove blanks");
+      const res = await apiRequest("DELETE", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds });
       return res.json();
     },
     onSuccess: (data) => {
@@ -213,12 +179,7 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const assignMutation = useMutation({
     mutationFn: async (updates: Partial<CatalogAssignments>) => {
-      const res = await fetch("/api/admin/catalog-assignments", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-      if (!res.ok) throw new Error("Failed to save assignments");
+      const res = await apiRequest("PUT", "/api/admin/catalog-assignments", updates);
       return res.json();
     },
     onSuccess: () => {
@@ -554,7 +515,7 @@ export default function AdminBlanks() {
   const { data: categories = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/printify/catalog", "blanks"],
     queryFn: async () => {
-      const res = await fetch("/api/printify/catalog");
+      const res = await apiRequest("GET", "/api/printify/catalog");
       const d = await res.json();
       return Array.isArray(d) ? d : [];
     },
@@ -563,7 +524,7 @@ export default function AdminBlanks() {
   const { data: allowedData, isLoading: loadingAllowed } = useQuery({
     queryKey: ["/api/members/allowed-products"],
     queryFn: async () => {
-      const res = await fetch("/api/members/allowed-products");
+      const res = await apiRequest("GET", "/api/members/allowed-products");
       return res.json();
     },
   });
@@ -617,12 +578,7 @@ export default function AdminBlanks() {
           addedAt: new Date().toISOString(),
         };
       });
-      const res = await fetch("/api/members/allowed-products", {
-        method: "POST",
-        body: JSON.stringify({ products }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Failed to save");
+      const res = await apiRequest("POST", "/api/members/allowed-products", { products });
       return res.json();
     },
     onSuccess: () => {

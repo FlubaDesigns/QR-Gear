@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
 import { ProductsProvider } from "@/features/adminProducts/ProductsContext";
 import { BuilderProvider, useBuilderContext } from "@/features/adminProducts/builder/BuilderContext";
@@ -31,7 +31,7 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
   const { data: details } = useQuery<BlueprintDetails>({
     queryKey: ["/api/printify/catalog", state.selectedProduct?.id],
     queryFn: async () => { 
-      const res = await fetch(`/api/printify/catalog/${state.selectedProduct?.id}`); 
+      const res = await apiRequest("GET", `/api/printify/catalog/${state.selectedProduct?.id}`); 
       return res.json(); 
     },
     enabled: !!state.selectedProduct?.id,
@@ -243,12 +243,12 @@ function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () =
 
   const { data: blueprints = [] } = useQuery<ProductBlueprint[]>({
     queryKey: ["/api/printify/local-blueprints"],
-    queryFn: async () => { const res = await fetch("/api/printify/local-blueprints"); const d = await res.json(); return d.blueprints || []; },
+    queryFn: async () => { const res = await apiRequest("GET", "/api/printify/local-blueprints"); const d = await res.json(); return d.blueprints || []; },
   });
 
   const { data: details, isLoading: loadingDetails } = useQuery<BlueprintDetails>({
     queryKey: ["/api/printify/catalog", selectedBlueprint],
-    queryFn: async () => { const res = await fetch(`/api/printify/catalog/${selectedBlueprint}`); return res.json(); },
+    queryFn: async () => { const res = await apiRequest("GET", `/api/printify/catalog/${selectedBlueprint}`); return res.json(); },
     enabled: !!selectedBlueprint,
   });
 
@@ -605,12 +605,12 @@ function MemberProductLibrary() {
 
   const { data: blueprints = [] } = useQuery<ProductBlueprint[]>({
     queryKey: ["/api/printify/local-blueprints"],
-    queryFn: async () => { const res = await fetch("/api/printify/local-blueprints"); const d = await res.json(); return d.blueprints || []; },
+    queryFn: async () => { const res = await apiRequest("GET", "/api/printify/local-blueprints"); const d = await res.json(); return d.blueprints || []; },
   });
 
   const { data: allowedData } = useQuery({
     queryKey: ["/api/members/allowed-products"],
-    queryFn: async () => { const res = await fetch("/api/members/allowed-products"); return res.json(); },
+    queryFn: async () => { const res = await apiRequest("GET", "/api/members/allowed-products"); return res.json(); },
   });
 
   useEffect(() => {
@@ -626,7 +626,7 @@ function MemberProductLibrary() {
         const bp = blueprints.find(b => b.id === blueprintId);
         return { blueprintId, title: bp?.title || `Product ${blueprintId}`, addedAt: new Date().toISOString() };
       });
-      const res = await fetch("/api/members/allowed-products", { method: "POST", body: JSON.stringify({ products }), headers: { "Content-Type": "application/json" } });
+      const res = await apiRequest("POST", "/api/members/allowed-products", { products });
       if (!res.ok) throw new Error("Failed to save");
       return res.json();
     },

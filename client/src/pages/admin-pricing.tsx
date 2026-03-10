@@ -432,12 +432,7 @@ export default function AdminPricing() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: PricingSettings) => {
-      const res = await fetch("/api/pricing-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to save settings");
+      const res = await apiRequest("POST", "/api/pricing-settings", data);
       return res.json();
     },
     onSuccess: () => {
@@ -464,11 +459,7 @@ export default function AdminPricing() {
   
   const syncPricingMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/pricing-settings/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) throw new Error("Failed to sync pricing");
+      const res = await apiRequest("POST", "/api/pricing-settings/sync");
       return res.json();
     },
     onSuccess: (data) => {

@@ -7,6 +7,7 @@ import {
 import AdminShell from "@/components/AdminShell";
 import { useAuth } from "@/hooks/useAuth";
 import { authFetch } from "@/features/adminAuth/authFetch";
+import { apiRequest } from "@/lib/queryClient";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,7 +240,7 @@ export default function TestDynamicsPage() {
     if (!selectedStore || !selectedChannel) return;
     try {
       setLoading("packets");
-      const res = await fetch(`/api/dynamics/packets?storeId=${selectedStore.id}&channelId=${selectedChannel}`);
+      const res = await apiRequest("GET", `/api/dynamics/packets?storeId=${selectedStore.id}&channelId=${selectedChannel}`);
       const data = await res.json();
       setPackets(data.packets || []);
     } catch (err: any) {
@@ -303,17 +304,13 @@ export default function TestDynamicsPage() {
 
     try {
       setLoading("creating");
-      const res = await fetch("/api/dynamics/instances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slots: slots.map(s => ({
-            slotId: s.slotId,
-            packetId: s.packetId,
-            durationSeconds: s.durationSeconds,
-            order: s.order,
-          })),
-        }),
+      const res = await apiRequest("POST", "/api/dynamics/instances", {
+        slots: slots.map(s => ({
+          slotId: s.slotId,
+          packetId: s.packetId,
+          durationSeconds: s.durationSeconds,
+          order: s.order,
+        })),
       });
       const data = await res.json();
       if (data.success) {
@@ -336,7 +333,7 @@ export default function TestDynamicsPage() {
 
     try {
       setLoading("preview");
-      const res = await fetch(`/api/dynamics/instances/${targetId}/preview`);
+      const res = await apiRequest("GET", `/api/dynamics/instances/${targetId}/preview`);
       const data = await res.json();
       if (data.success) {
         setPreview(data);
