@@ -299,6 +299,9 @@ export function CreateGraphicsModule() {
           backgroundColor: productColorHex || undefined,
           transparent: true,
           placement: primaryPlacement,
+          qrPositionX: state.content.qrPositionX,
+          qrPositionY: state.content.qrPositionY,
+          qrSizePercent: state.content.qrSizePercent,
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

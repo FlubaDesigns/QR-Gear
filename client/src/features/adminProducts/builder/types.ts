@@ -134,6 +134,9 @@ export interface ContentData {
   playMediaMimeType: string;    // video/mp4, image/gif, etc.
   playPermissionConfirmed: boolean;  // Required before saving
   // Compose-specific fields
+  qrPositionX: number;
+  qrPositionY: number;
+  qrSizePercent: number;
   composeItems: Array<{
     packetId: string;
     name: string;

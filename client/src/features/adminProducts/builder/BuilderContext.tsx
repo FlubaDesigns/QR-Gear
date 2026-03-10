@@ -54,6 +54,9 @@ const initialContent: ContentData = {
   playMediaPreview: "",
   playMediaMimeType: "",
   playPermissionConfirmed: false,
+  qrPositionX: 50,
+  qrPositionY: 50,
+  qrSizePercent: 50,
   // Compose-specific fields
   composeItems: [],
   composeMode: '',
