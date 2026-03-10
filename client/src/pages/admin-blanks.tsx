@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Box, Save, Loader2, Search, Filter, Flag, Globe, Layers, Check, X, Trash2,
@@ -9,9 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
+import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import {
+  ProductSelectCardSkin,
+  type ProductSelectItem,
+} from "@/features/shared/components/skins/ProductSelectCardSkin";
+import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
 interface CatalogProduct {
   id: number;
@@ -53,6 +60,24 @@ interface CatalogAssignments {
   public: string | null;
   external: string | null;
   platform: string | null;
+}
+
+function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
+  const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
+  const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
+  return {
+    id: String(p.id),
+    name: p.title || "",
+    price: minPrice,
+    cost: null,
+    manufacturer: p.brand || null,
+    madeInUSA: p.madeInUSA ?? false,
+    primaryImageUrl: imageUrl,
+    description: p.description || p.model || null,
+    colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
+    sizesAvailable: p.availableSizes || [],
+    defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,
+  };
 }
 
 type LocationFilter = "all" | "usa" | "other";
@@ -318,10 +343,12 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
 export default function AdminBlanks() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<PageTab>("blanks");
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [hasChanges, setHasChanges] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
 
   const { data: categories = [], isLoading: loadingCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/printify/catalog", "blanks"],
@@ -329,6 +356,14 @@ export default function AdminBlanks() {
       const res = await apiRequest("GET", "/api/printify/catalog");
       const d = await res.json();
       return Array.isArray(d) ? d : [];
+    },
+  });
+
+  const { data: allowedData, isLoading: loadingAllowed } = useQuery({
+    queryKey: ["/api/members/allowed-products"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/members/allowed-products");
+      return res.json();
     },
   });
 
@@ -365,6 +400,44 @@ export default function AdminBlanks() {
     return ["all", ...categories.map(c => c.name)];
   }, [categories]);
 
+  useEffect(() => {
+    if (allowedData?.products) {
+      setSelectedIds(new Set<string>(
+        allowedData.products.map((p: any) => String(p.blueprintId))
+      ));
+      setHasChanges(false);
+    }
+  }, [allowedData]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const products = Array.from(selectedIds).map(id => {
+        const item = productMap.get(id);
+        const imageUrl = item?.imageUrl || item?.image_url || item?.thumbnailUrl || "";
+        return {
+          blueprintId: Number(id),
+          title: item?.title || `Product ${id}`,
+          provider: item?.fulfillmentProvider || "printify",
+          imageUrl,
+          colors: (item?.availableColors || []).map(c => c.name),
+          sizes: item?.availableSizes || [],
+          printProviderId: item?.printProviderId || null,
+          addedAt: new Date().toISOString(),
+        };
+      });
+      const res = await apiRequest("POST", "/api/members/allowed-products", { products });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Blanks saved", description: `${selectedIds.size} products available for members` });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/members/allowed-products"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const addBlanksMutation = useMutation({
     mutationFn: async ({ catalogId, blankIds }: { catalogId: string; blankIds: string[] }) => {
       const res = await apiRequest("POST", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds });
@@ -389,12 +462,20 @@ export default function AdminBlanks() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const toggleBlankInCatalog = useCallback((productId: string) => {
-    if (!validSelectedCatalogId) return;
-    if (catalogBlankSet.has(productId)) {
-      removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [productId] });
+  const toggleItem = useCallback((id: string) => {
+    if (validSelectedCatalogId) {
+      if (catalogBlankSet.has(id)) {
+        removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
+      } else {
+        addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [id] });
+      }
     } else {
-      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [productId] });
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+      });
+      setHasChanges(true);
     }
   }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation]);
 
@@ -420,10 +501,70 @@ export default function AdminBlanks() {
     return items;
   }, [allProducts, categories, categoryFilter, locationFilter, search]);
 
+  const selectAllFiltered = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      filtered.forEach(item => next.add(String(item.id)));
+      return next;
+    });
+    setHasChanges(true);
+  };
+
+  const clearAll = () => {
+    setSelectedIds(new Set());
+    setHasChanges(true);
+  };
+
+  const selectItemMap = useMemo(() => {
+    const map = new Map<string, ProductSelectItem>();
+    filtered.forEach(p => map.set(String(p.id), catalogToSelectItem(p)));
+    return map;
+  }, [filtered]);
+
+  const scrollItems: ScrollViewItem[] = useMemo(() =>
+    filtered.map(p => ({
+      id: String(p.id),
+      imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || "",
+      title: p.title || "",
+      subtitle: p.brand,
+      minPrice: p.minPrice,
+      maxPrice: p.maxPrice,
+      colorCount: p.colorCount,
+      madeInUSA: p.madeInUSA,
+    })),
+    [filtered]
+  );
+
+  const renderCatalogCard = useCallback(
+    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
+      const selectItem = selectItemMap.get(String(scrollItem.id));
+      if (!selectItem) return null;
+      const isSelected = validSelectedCatalogId
+        ? catalogBlankSet.has(String(scrollItem.id))
+        : selectedIds.has(String(scrollItem.id));
+      return (
+        <ProductSelectCardSkin
+          item={selectItem}
+          isSelected={isSelected}
+          onSelect={(id) => toggleItem(id)}
+        />
+      );
+    },
+    [selectItemMap, selectedIds, toggleItem, validSelectedCatalogId, catalogBlankSet]
+  );
+
+  const selectedProducts = useMemo(() => {
+    return Array.from(selectedIds)
+      .map(id => productMap.get(id))
+      .filter(Boolean) as CatalogProduct[];
+  }, [selectedIds, productMap]);
+
   const handleOpenCatalog = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
     setActiveTab("blanks");
   }, []);
+
+  const isLoading = loadingCatalog || loadingAllowed;
 
   return (
     <AdminShell title="Blanks" subtitle="Manage base products and catalogs" icon={Box}>
@@ -448,10 +589,10 @@ export default function AdminBlanks() {
         {activeTab === "catalogs" ? (
           <CatalogsTab onOpenCatalog={handleOpenCatalog} />
         ) : (
-          <div className="space-y-5">
+          <>
             {validSelectedCatalogId && activeCatalog && (
               <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-4 space-y-2">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
                       <Layers className="h-6 w-6 text-primary" />
@@ -477,8 +618,8 @@ export default function AdminBlanks() {
               <div className="space-y-2">
                 <p className="text-base font-medium text-muted-foreground">Select a catalog to edit, or browse all blanks:</p>
                 <select
-                  value=""
-                  onChange={e => { if (e.target.value) setSelectedCatalogId(e.target.value); }}
+                  value={selectedCatalogId || ""}
+                  onChange={e => setSelectedCatalogId(e.target.value || null)}
                   className="text-base bg-background border rounded-md px-3 py-2.5 w-full"
                   data-testid="select-catalog-dropdown"
                 >
@@ -488,6 +629,65 @@ export default function AdminBlanks() {
                   ))}
                 </select>
               </div>
+            )}
+
+            {!validSelectedCatalogId && selectedProducts.length > 0 && (
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-5 w-5 text-primary" />
+                    <span className="text-base font-medium">{selectedProducts.length} Selected</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={clearAll}
+                      data-testid="button-clear-selected"
+                    >
+                      <Trash2 className="h-4 w-4" /> Clear
+                    </Button>
+                    <Button
+                      onClick={() => saveMutation.mutate()}
+                      disabled={!hasChanges || saveMutation.isPending}
+                      data-testid="button-save-blanks-top"
+                    >
+                      {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+                <ScrollArea className="w-full">
+                  <div className="flex gap-2 pb-2">
+                    {selectedProducts.map(p => (
+                      <div
+                        key={p.id}
+                        className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
+                        data-testid={`selected-thumb-${p.id}`}
+                      >
+                        <div className="aspect-square flex items-center justify-center p-1">
+                          {(p.imageUrl || p.image_url || p.thumbnailUrl) ? (
+                            <img src={p.imageUrl || p.image_url || p.thumbnailUrl} alt={p.title} className="w-full h-full object-contain" loading="lazy" />
+                          ) : (
+                            <Box className="h-10 w-10 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="px-1.5 pb-1.5">
+                          <p className="text-xs leading-tight line-clamp-2 text-foreground">{p.title}</p>
+                        </div>
+                        <button
+                          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ visibility: "visible" }}
+                          onClick={() => toggleItem(String(p.id))}
+                          data-testid={`button-remove-${p.id}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </Card>
             )}
 
             <div className="space-y-3">
@@ -502,52 +702,67 @@ export default function AdminBlanks() {
                 />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Filter className="h-5 w-5 text-muted-foreground shrink-0" />
-                  <select
-                    value={categoryFilter}
-                    onChange={e => setCategoryFilter(e.target.value)}
-                    className="text-base bg-background border rounded-md px-3 py-2"
-                    data-testid="select-category-filter"
-                  >
-                    {categoryNames.map(name => (
-                      <option key={name} value={name}>
-                        {name === "all" ? `All Categories (${allProducts.length})` : `${name} (${categories.find(c => c.name === name)?.count || 0})`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {([
-                    { value: "all" as LocationFilter, label: "All Locations", icon: null },
-                    { value: "usa" as LocationFilter, label: "USA Made", icon: Flag },
-                    { value: "other" as LocationFilter, label: "Global", icon: Globe },
-                  ]).map(f => (
-                    <Badge
-                      key={f.value}
-                      variant={locationFilter === f.value ? "default" : "outline"}
-                      className="cursor-pointer text-sm py-1.5 px-3"
-                      onClick={() => setLocationFilter(f.value)}
-                      data-testid={`filter-location-${f.value}`}
-                    >
-                      {f.icon && <f.icon className="w-4 h-4" />}
-                      {f.label}
-                    </Badge>
+              <div className="flex flex-wrap items-center gap-3">
+                <Filter className="h-5 w-5 text-muted-foreground shrink-0" />
+                <select
+                  value={categoryFilter}
+                  onChange={e => setCategoryFilter(e.target.value)}
+                  className="text-base bg-background border rounded-md px-3 py-2"
+                  data-testid="select-category-filter"
+                >
+                  {categoryNames.map(name => (
+                    <option key={name} value={name}>
+                      {name === "all" ? `All Categories (${allProducts.length})` : `${name} (${categories.find(c => c.name === name)?.count || 0})`}
+                    </option>
                   ))}
-                </div>
+                </select>
+
+                {([
+                  { value: "all" as LocationFilter, label: "All Locations", icon: null },
+                  { value: "usa" as LocationFilter, label: "USA Made", icon: Flag },
+                  { value: "other" as LocationFilter, label: "Global", icon: Globe },
+                ]).map(f => (
+                  <Badge
+                    key={f.value}
+                    variant={locationFilter === f.value ? "default" : "outline"}
+                    className="cursor-pointer text-sm py-1.5 px-3"
+                    onClick={() => setLocationFilter(f.value)}
+                    data-testid={`filter-location-${f.value}`}
+                  >
+                    {f.icon && <f.icon className="w-4 h-4" />}
+                    {f.label}
+                  </Badge>
+                ))}
               </div>
 
-              <div className="flex items-center gap-3 flex-wrap">
-                <Badge variant="secondary" className="text-sm py-1 px-3">{filtered.length} blanks shown</Badge>
-                {validSelectedCatalogId && (
+              {!validSelectedCatalogId && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button variant="outline" onClick={selectAllFiltered} data-testid="button-select-all-blanks">
+                    Select All ({filtered.length})
+                  </Button>
+                  <Badge variant="secondary" className="text-sm">{selectedIds.size} selected</Badge>
+                  {hasChanges && (
+                    <Button
+                      onClick={() => saveMutation.mutate()}
+                      disabled={saveMutation.isPending}
+                      data-testid="button-save-blanks"
+                    >
+                      {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                      Save ({selectedIds.size})
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {validSelectedCatalogId && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Badge variant="secondary" className="text-sm py-1 px-3">{filtered.length} blanks shown</Badge>
                   <Badge variant="default" className="text-sm py-1 px-3">{catalogBlankSet.size} in catalog</Badge>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
-            {loadingCatalog ? (
+            {isLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-28 w-full rounded-md" />
@@ -562,72 +777,19 @@ export default function AdminBlanks() {
                 </p>
               </Card>
             ) : (
-              <div className="space-y-3">
-                {filtered.map(p => {
-                  const img = p.imageUrl || p.image_url || p.thumbnailUrl;
-                  const isInCatalog = validSelectedCatalogId ? catalogBlankSet.has(String(p.id)) : false;
-
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        if (validSelectedCatalogId) {
-                          toggleBlankInCatalog(String(p.id));
-                        }
-                      }}
-                      disabled={!validSelectedCatalogId}
-                      className={`w-full rounded-md border p-4 text-left flex gap-4 items-center transition-colors ${
-                        isInCatalog
-                          ? "border-primary bg-primary/10"
-                          : validSelectedCatalogId
-                            ? "border-border hover-elevate"
-                            : "border-border opacity-80"
-                      }`}
-                      data-testid={`blank-item-${p.id}`}
-                    >
-                      <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-muted flex items-center justify-center">
-                        {img ? (
-                          <img src={img} alt={p.title} className="w-full h-full object-contain" loading="lazy" />
-                        ) : (
-                          <Box className="h-10 w-10 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-base font-medium leading-snug">{p.title}</p>
-                        {p.brand && <p className="text-sm text-muted-foreground">{p.brand}</p>}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {p.madeInUSA && (
-                            <Badge variant="outline" className="text-xs">
-                              <Flag className="h-3 w-3" /> USA
-                            </Badge>
-                          )}
-                          {p.minPrice && (
-                            <span className="text-sm text-muted-foreground">from ${p.minPrice}</span>
-                          )}
-                          {p.colorCount && p.colorCount > 0 && (
-                            <span className="text-sm text-muted-foreground">{p.colorCount} colors</span>
-                          )}
-                        </div>
-                      </div>
-                      {validSelectedCatalogId && (
-                        <div className="flex-shrink-0">
-                          {isInCatalog ? (
-                            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                              <Check className="h-6 w-6 text-primary-foreground" />
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-full border-2 border-muted-foreground/30 flex items-center justify-center">
-                              <Plus className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <SharedViewer
+                mode="scroll"
+                scrollProps={{
+                  items: scrollItems,
+                  selectedId: null,
+                  emptyMessage: "No products match the current filters.",
+                  layout: "vertical",
+                  gridHeight: "calc(100vh - 200px)",
+                  renderItem: renderCatalogCard,
+                }}
+              />
             )}
-          </div>
+          </>
         )}
       </div>
     </AdminShell>
