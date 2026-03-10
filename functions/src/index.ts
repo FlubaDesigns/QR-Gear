@@ -6260,19 +6260,138 @@ app.post('/admin/catalog/sync', requireAdmin, async (req: Request, res: Response
 app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     if (!printfulClient.isConfigured) { res.status(503).json({ error: "Printful API key not configured" }); return; }
-    res.json({ success: true, message: "Printful catalog sync started in background" });
+    const syncRef = await db.collection("catalogSyncs").add({
+      syncType: 'printful', status: 'running', productsCount: 0,
+      startedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.json({ syncId: syncRef.id, status: 'started', message: "Printful catalog sync started in background" });
     (async () => {
       try {
-        console.log('[Printful Sync CF] Starting sync...');
-        const categories = await printfulClient.getProduct(0).catch(() => null);
-        console.log('[Printful Sync CF] Sync initiated - use dev server for full sync');
+        console.log('[Printful Sync CF] Starting full catalog sync...');
+        const headers = { 'Authorization': `Bearer ${await getPrintfulApiKeyAsync()}`, 'Content-Type': 'application/json' };
+        const catResp = await fetch('https://api.printful.com/products', { headers });
+        if (!catResp.ok) throw new Error(`Printful catalog API error: ${catResp.status}`);
+        const catData = await catResp.json();
+        const products = catData.result || [];
+        console.log(`[Printful Sync CF] Found ${products.length} products`);
+
+        const existingSnap = await db.collection('printfulCatalog').get();
+        const existingMap = new Map<number, any>();
+        existingSnap.forEach(doc => existingMap.set(parseInt(doc.id), doc.data()));
+
+        let added = 0, updated = 0, skipped = 0;
+        for (const product of products) {
+          try {
+            const pid = product.id;
+            const existing = existingMap.get(pid);
+            const category = normalizePrintfulCategory(product.type || '', product.title || '');
+            const productData = {
+              id: pid, title: product.title, type: product.type, brand: product.brand || null,
+              model: product.model || null, image: product.image || null,
+              variantCount: product.variant_count || 0,
+              category, description: product.description || null,
+              isAvailable: true, lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+
+            const changed = !existing || existing.title !== product.title || existing.brand !== (product.brand || null) || existing.variantCount !== (product.variant_count || 0);
+            if (changed) {
+              await db.collection('printfulCatalog').doc(String(pid)).set(productData, { merge: true });
+              if (existing) { updated++; } else { added++; }
+            } else { skipped++; }
+            await new Promise(r => setTimeout(r, 30));
+          } catch (pErr: any) { console.error(`[Printful Sync CF] Error syncing product ${product.id}:`, pErr.message); }
+        }
+
+        const summary = { products: { added, updated, skipped, total: products.length } };
+        await syncRef.update({
+          status: 'completed', productsCount: added + updated,
+          completedAt: admin.firestore.FieldValue.serverTimestamp(),
+          summary: JSON.stringify(summary),
+        });
+        console.log(`[Printful Sync CF] Done:`, JSON.stringify(summary));
       } catch (syncError: any) {
         console.error('[Printful Sync CF] Error:', syncError.message);
+        await syncRef.update({ status: 'failed', errorMessage: syncError.message, completedAt: admin.firestore.FieldValue.serverTimestamp() });
       }
     })();
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get('/admin/catalog/printful', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const search = (req.query.search as string || '').toLowerCase();
+    const snapshot = await db.collection('printfulCatalog').get();
+    let products: any[] = [];
+    snapshot.forEach(doc => products.push({ docId: doc.id, ...doc.data() }));
+    if (search) {
+      products = products.filter(p =>
+        (p.title || '').toLowerCase().includes(search) ||
+        (p.brand || '').toLowerCase().includes(search) ||
+        (p.model || '').toLowerCase().includes(search) ||
+        (p.category || '').toLowerCase().includes(search)
+      );
+    }
+    res.json(products);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/admin/catalog/printful/:productId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const productId = parseInt(req.params.productId);
+    if (!printfulClient.isConfigured) { res.status(503).json({ error: "Printful API not configured" }); return; }
+    const productData = await printfulClient.getProduct(productId);
+    const printfileData = await printfulClient.getPrintfiles(productId).catch(() => null);
+    const placements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
+    const colors = new Set<string>();
+    const sizes = new Set<string>();
+    if (productData?.variants) {
+      for (const v of productData.variants) {
+        if (v.color) colors.add(v.color);
+        if (v.size) sizes.add(v.size);
+      }
+    }
+    res.json({
+      ...productData.product,
+      variants: productData.variants,
+      placements,
+      colors: Array.from(colors),
+      sizes: Array.from(sizes),
+    });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/admin/catalog/printful-mapping', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { printifyBlueprintId, printfulProductId, notes } = req.body;
+    if (!printifyBlueprintId || !printfulProductId) {
+      res.status(400).json({ error: "printifyBlueprintId and printfulProductId required" }); return;
+    }
+    const existingSnap = await db.collection('printify_printful_mapping')
+      .where('printifyBlueprintId', '==', printifyBlueprintId)
+      .where('isActive', '==', true).limit(1).get();
+    if (!existingSnap.empty) {
+      await existingSnap.docs[0].ref.update({ isActive: false, deactivatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    }
+    const mappingRef = await db.collection('printify_printful_mapping').add({
+      printifyBlueprintId, printfulProductId, isActive: true,
+      notes: notes || null, createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    res.json({ success: true, mappingId: mappingRef.id, message: `Mapped Printify #${printifyBlueprintId} → Printful #${printfulProductId}` });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/admin/catalog/printful-mappings', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const snap = await db.collection('printify_printful_mapping').where('isActive', '==', true).get();
+    const mappings: any[] = [];
+    snap.forEach(doc => mappings.push({ id: doc.id, ...doc.data() }));
+    const hardcoded = Object.entries(DEFAULT_BLUEPRINT_MAPPINGS).map(([bpId, pfId]) => ({
+      printifyBlueprintId: parseInt(bpId), printfulProductId: pfId, source: 'hardcoded'
+    }));
+    res.json({ firestoreMappings: mappings, hardcodedMappings: hardcoded });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 // ============ PRODUCTS PAGE: CATALOG PLACEMENTS ============
