@@ -88,6 +88,9 @@ export function AdvancedWizard() {
     composeInstanceId,
     contentRightsConfirmed,
     setContentRightsConfirmed,
+    qrPositionX, setQrPositionX,
+    qrPositionY, setQrPositionY,
+    qrSizePercent, setQrSizePercent,
     pricingSettings,
     placementEarningsBonus,
     textLineEarningsBonus,
@@ -415,6 +418,12 @@ export function AdvancedWizard() {
               selectedSize={selectedShirtSize}
               inputType={qrBasicInputType}
               content={qrBasicContent}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
+              onPositionXChange={setQrPositionX}
+              onPositionYChange={setQrPositionY}
+              onSizeChange={setQrSizePercent}
             />
           )}
           
@@ -655,6 +664,9 @@ export function AdvancedWizard() {
                 textLayoutChoice={textLayoutChoice}
                 selectedColor={selectedColor}
                 graphicSize={graphicSize}
+                qrPositionX={qrPositionX}
+                qrPositionY={qrPositionY}
+                qrSizePercent={qrSizePercent}
               />
               <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-placement-coords">
                 <div className="flex items-center gap-2 mb-2">
@@ -719,6 +731,9 @@ export function AdvancedWizard() {
               footerStyle={footerStyle}
               textLayoutChoice={textLayoutChoice}
               selectedPlacements={selectedPlacements}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
             />
           )}
           

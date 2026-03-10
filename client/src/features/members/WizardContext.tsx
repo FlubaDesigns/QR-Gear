@@ -100,6 +100,12 @@ export interface WizardContextType {
   setPlacementConfigs: React.Dispatch<React.SetStateAction<Record<string, PlacementConfig>>>;
   qrType: QRType;
   setQrType: React.Dispatch<React.SetStateAction<QRType>>;
+  qrPositionX: number;
+  setQrPositionX: React.Dispatch<React.SetStateAction<number>>;
+  qrPositionY: number;
+  setQrPositionY: React.Dispatch<React.SetStateAction<number>>;
+  qrSizePercent: number;
+  setQrSizePercent: React.Dispatch<React.SetStateAction<number>>;
   qrDestination: string;
   setQrDestination: React.Dispatch<React.SetStateAction<string>>;
   channelName: string;
@@ -402,6 +408,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementConfig>>({});
   const [qrType, setQrType] = useState<QRType>('');
+  const [qrPositionX, setQrPositionX] = useState<number>(50);
+  const [qrPositionY, setQrPositionY] = useState<number>(50);
+  const [qrSizePercent, setQrSizePercent] = useState<number>(50);
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -634,6 +643,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         composeItems: qrType === 'qr-compose' ? composeItems : null,
         composeMode: qrType === 'qr-compose' ? (composeMode || 'auto-rotate') : null,
         composeHostingTerm: qrType === 'qr-compose' ? (composeHostingTerm || null) : null,
+        qrPositionX,
+        qrPositionY,
+        qrSizePercent,
         textLines,
         textUpcharge,
         placementUpcharge,
@@ -1169,6 +1181,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
             'metadata.graphicSize': graphicSize,
             'metadata.placements': selectedPlacements,
             'metadata.perPlacementSizes': perPlacementSizes,
+            'metadata.qrPositionX': qrPositionX,
+            'metadata.qrPositionY': qrPositionY,
+            'metadata.qrSizePercent': qrSizePercent,
             status: 'draft',
           });
           console.log('[QR Basic] Updated packet with QR content:', currentPacketId);
@@ -1760,6 +1775,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     selectedProduct, setSelectedProduct,
     placementConfigs, setPlacementConfigs,
     qrType, setQrType,
+    qrPositionX, setQrPositionX,
+    qrPositionY, setQrPositionY,
+    qrSizePercent, setQrSizePercent,
     qrDestination, setQrDestination,
     channelName, setChannelName,
     isPublishing, setIsPublishing,

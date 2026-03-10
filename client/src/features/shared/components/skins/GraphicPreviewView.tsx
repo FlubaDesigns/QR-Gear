@@ -26,6 +26,9 @@ export interface GraphicPreviewViewProps {
   className?: string;
   qrContent?: string;
   placement?: string;
+  qrPositionX?: number;
+  qrPositionY?: number;
+  qrSizePercent?: number;
 }
 
 function toTextStyle(overlay?: TextOverlay): TextStyle | null {
@@ -54,6 +57,9 @@ export function GraphicPreviewView({
   className = "",
   qrContent,
   placement,
+  qrPositionX,
+  qrPositionY,
+  qrSizePercent,
 }: GraphicPreviewViewProps) {
   const aspectClass =
     aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-square";
@@ -69,6 +75,9 @@ export function GraphicPreviewView({
     backgroundColor,
     transparent: false,
     placement,
+    qrPositionX,
+    qrPositionY,
+    qrSizePercent,
     enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled),
     debounceMs: 300,
   });

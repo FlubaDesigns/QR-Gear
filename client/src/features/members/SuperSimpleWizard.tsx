@@ -458,6 +458,9 @@ export function SuperSimpleWizard() {
     descFont, setDescFont,
     contentRightsConfirmed,
     setContentRightsConfirmed,
+    qrPositionX, setQrPositionX,
+    qrPositionY, setQrPositionY,
+    qrSizePercent, setQrSizePercent,
     publishedPacketId,
   } = useWizardContext();
 
@@ -1063,6 +1066,12 @@ export function SuperSimpleWizard() {
                   selectedSize={selectedShirtSize}
                   inputType={qrBasicInputType}
                   content={qrBasicContent}
+                  qrPositionX={qrPositionX}
+                  qrPositionY={qrPositionY}
+                  qrSizePercent={qrSizePercent}
+                  onPositionXChange={setQrPositionX}
+                  onPositionYChange={setQrPositionY}
+                  onSizeChange={setQrSizePercent}
                 />
               )}
 
@@ -1224,6 +1233,9 @@ export function SuperSimpleWizard() {
                   textLayoutChoice={textLayoutChoice}
                   selectedColor={selectedColor}
                   graphicSize={graphicSize}
+                  qrPositionX={qrPositionX}
+                  qrPositionY={qrPositionY}
+                  qrSizePercent={qrSizePercent}
                 />
               )}
 
@@ -1236,6 +1248,9 @@ export function SuperSimpleWizard() {
                   footerStyle={footerStyle}
                   textLayoutChoice={textLayoutChoice}
                   selectedPlacements={selectedPlacements}
+                  qrPositionX={qrPositionX}
+                  qrPositionY={qrPositionY}
+                  qrSizePercent={qrSizePercent}
                 />
               )}
 

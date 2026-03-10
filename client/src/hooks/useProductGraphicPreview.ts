@@ -13,6 +13,9 @@ interface UseProductGraphicPreviewOptions {
   backgroundColor?: string;
   transparent?: boolean;
   placement?: string;
+  qrPositionX?: number;
+  qrPositionY?: number;
+  qrSizePercent?: number;
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -34,6 +37,9 @@ export function useProductGraphicPreview(
     backgroundColor,
     transparent = false,
     placement,
+    qrPositionX = 50,
+    qrPositionY = 50,
+    qrSizePercent = 50,
     enabled = true,
     debounceMs = 400,
   } = options;
@@ -79,6 +85,9 @@ export function useProductGraphicPreview(
           backgroundColor,
           transparent,
           placement,
+          qrPositionX,
+          qrPositionY,
+          qrSizePercent,
         };
 
         const result = await renderProductGraphic(renderOpts);
@@ -124,6 +133,9 @@ export function useProductGraphicPreview(
     backgroundColor,
     transparent,
     placement,
+    qrPositionX,
+    qrPositionY,
+    qrSizePercent,
     enabled,
     debounceMs,
   ]);

@@ -1,10 +1,12 @@
-import { QrCode, Link2, Type, Loader2, Check, ShoppingBag, Library } from "lucide-react";
+import { QrCode, Link2, Type, Loader2, Check, ShoppingBag, Library, Move, Maximize2 } from "lucide-react";
 import { PlaceholderPreview } from "@/features/shared/components/ZonePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import type { QRBasicInputType, QRBasicSaveOption, GraphicSize } from "./wizardTypes";
 import { SHIRT_COLORS, generateQRCodeUrl, getPrintAreaDims } from "./wizardTypes";
+import { useProductGraphicPreview } from "@/hooks/useProductGraphicPreview";
 
 function isValidUrl(urlString: string): boolean {
   if (!urlString.trim()) return false;
@@ -231,7 +233,13 @@ export function QRBasicMockupStep({
   selectedColor,
   selectedSize,
   inputType,
-  content
+  content,
+  qrPositionX,
+  qrPositionY,
+  qrSizePercent,
+  onPositionXChange,
+  onPositionYChange,
+  onSizeChange,
 }: {
   mockupUrl: string;
   isLoading: boolean;
@@ -239,14 +247,26 @@ export function QRBasicMockupStep({
   selectedSize: string;
   inputType: QRBasicInputType;
   content: string;
+  qrPositionX?: number;
+  qrPositionY?: number;
+  qrSizePercent?: number;
+  onPositionXChange?: (val: number) => void;
+  onPositionYChange?: (val: number) => void;
+  onSizeChange?: (val: number) => void;
 }) {
   const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
+  const showControls = onPositionXChange && onPositionYChange && onSizeChange;
+  const posX = qrPositionX ?? 50;
+  const posY = qrPositionY ?? 50;
+  const sizeVal = qrSizePercent ?? 50;
   
   return (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-white mb-2">Your QR Shirt Preview</h2>
-        <p className="text-slate-400">Here's how your shirt will look!</p>
+        <h2 className="text-lg font-bold text-white mb-1">Your QR Shirt Preview</h2>
+        <p className="text-slate-400 text-sm">
+          {showControls ? "Adjust position and size below" : "Here's how your shirt will look!"}
+        </p>
       </div>
       
       {isLoading ? (
@@ -261,7 +281,7 @@ export function QRBasicMockupStep({
             alt="Shirt mockup preview" 
             className="w-full rounded-xl shadow-lg border border-slate-700"
           />
-          <div className="mt-4 flex items-center justify-center gap-4 text-sm text-slate-400">
+          <div className="mt-3 flex items-center justify-center gap-4 text-sm text-slate-400">
             <span className="bg-slate-700 px-3 py-1 rounded-full">{colorName}</span>
             <span className="bg-slate-700 px-3 py-1 rounded-full">Size {selectedSize}</span>
           </div>
@@ -275,6 +295,73 @@ export function QRBasicMockupStep({
               {content.length > 50 ? content.substring(0, 50) + '...' : content}
             </span>
           </p>
+        </div>
+      )}
+
+      {showControls && (
+        <div className="space-y-3 px-2 pt-2 max-w-sm mx-auto text-left">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm text-slate-300 flex items-center gap-1.5">
+                <Move className="w-3.5 h-3.5" /> Left / Right
+              </Label>
+              <span className="text-xs text-slate-500" data-testid="text-qr-pos-x">{posX}%</span>
+            </div>
+            <Slider
+              value={[posX]}
+              onValueChange={([v]) => onPositionXChange(v)}
+              min={0}
+              max={100}
+              step={1}
+              data-testid="slider-qr-position-x"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm text-slate-300 flex items-center gap-1.5">
+                <Move className="w-3.5 h-3.5" /> Up / Down
+              </Label>
+              <span className="text-xs text-slate-500" data-testid="text-qr-pos-y">{posY}%</span>
+            </div>
+            <Slider
+              value={[posY]}
+              onValueChange={([v]) => onPositionYChange(v)}
+              min={0}
+              max={100}
+              step={1}
+              data-testid="slider-qr-position-y"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm text-slate-300 flex items-center gap-1.5">
+                <Maximize2 className="w-3.5 h-3.5" /> QR Size
+              </Label>
+              <span className="text-xs text-slate-500" data-testid="text-qr-size">{sizeVal}%</span>
+            </div>
+            <Slider
+              value={[sizeVal]}
+              onValueChange={([v]) => onSizeChange(v)}
+              min={20}
+              max={80}
+              step={1}
+              data-testid="slider-qr-size"
+            />
+          </div>
+
+          <div className="text-center pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { onPositionXChange(50); onPositionYChange(50); onSizeChange(50); }}
+              className="text-slate-300 border-slate-600"
+              data-testid="button-reset-qr-position"
+            >
+              Reset to Center
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -396,6 +483,145 @@ export function QRBasicConfirmStep({
         {isSaving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
         Done
       </Button>
+    </div>
+  );
+}
+
+export function QRPositionStep({
+  qrContent,
+  qrColor = "black",
+  qrPositionX,
+  qrPositionY,
+  qrSizePercent,
+  onPositionXChange,
+  onPositionYChange,
+  onSizeChange,
+  placement,
+  headerStyle,
+  footerStyle,
+  backgroundColor,
+}: {
+  qrContent: string;
+  qrColor?: "black" | "white";
+  qrPositionX: number;
+  qrPositionY: number;
+  qrSizePercent: number;
+  onPositionXChange: (val: number) => void;
+  onPositionYChange: (val: number) => void;
+  onSizeChange: (val: number) => void;
+  placement?: string;
+  headerStyle?: any;
+  footerStyle?: any;
+  backgroundColor?: string;
+}) {
+  const { dataUrl, isLoading } = useProductGraphicPreview({
+    qrContent: qrContent || "https://qrgear.app",
+    qrColor,
+    headerStyle: headerStyle?.enabled !== false ? headerStyle : null,
+    footerStyle: footerStyle?.enabled !== false ? footerStyle : null,
+    backgroundColor,
+    transparent: false,
+    placement,
+    qrPositionX,
+    qrPositionY,
+    qrSizePercent,
+    enabled: true,
+    debounceMs: 150,
+  });
+
+  return (
+    <div className="space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-white mb-1">Position Your QR Code</h2>
+        <p className="text-slate-400 text-sm">Drag the sliders to move and resize</p>
+      </div>
+
+      <div className="flex justify-center">
+        <div className="relative w-48 sm:w-56 aspect-[3/4] rounded-lg overflow-hidden border-2 border-slate-600 shadow-lg bg-slate-800">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+            </div>
+          )}
+          {dataUrl ? (
+            <img
+              src={dataUrl}
+              alt="QR position preview"
+              className="w-full h-full object-contain"
+              data-testid="img-qr-position-preview"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <QrCode className="w-12 h-12 text-slate-600" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4 px-1">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-slate-300 flex items-center gap-1.5">
+              <Move className="w-3.5 h-3.5" /> Left / Right
+            </Label>
+            <span className="text-xs text-slate-500" data-testid="text-qr-pos-x">{qrPositionX}%</span>
+          </div>
+          <Slider
+            value={[qrPositionX]}
+            onValueChange={([v]) => onPositionXChange(v)}
+            min={0}
+            max={100}
+            step={1}
+            data-testid="slider-qr-position-x"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-slate-300 flex items-center gap-1.5">
+              <Move className="w-3.5 h-3.5" /> Up / Down
+            </Label>
+            <span className="text-xs text-slate-500" data-testid="text-qr-pos-y">{qrPositionY}%</span>
+          </div>
+          <Slider
+            value={[qrPositionY]}
+            onValueChange={([v]) => onPositionYChange(v)}
+            min={0}
+            max={100}
+            step={1}
+            data-testid="slider-qr-position-y"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm text-slate-300 flex items-center gap-1.5">
+              <Maximize2 className="w-3.5 h-3.5" /> QR Size
+            </Label>
+            <span className="text-xs text-slate-500" data-testid="text-qr-size">{qrSizePercent}%</span>
+          </div>
+          <Slider
+            value={[qrSizePercent]}
+            onValueChange={([v]) => onSizeChange(v)}
+            min={20}
+            max={80}
+            step={1}
+            data-testid="slider-qr-size"
+          />
+        </div>
+
+        <div className="text-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { onPositionXChange(50); onPositionYChange(50); onSizeChange(50); }}
+            className="text-slate-300 border-slate-600"
+            data-testid="button-reset-qr-position"
+          >
+            Reset to Center
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

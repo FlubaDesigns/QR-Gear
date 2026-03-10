@@ -24,6 +24,9 @@ export interface RenderOptions {
   backgroundColor?: string;
   transparent?: boolean;
   placement?: string;
+  qrPositionX?: number;
+  qrPositionY?: number;
+  qrSizePercent?: number;
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -91,6 +94,9 @@ export async function renderProductGraphic(
     backgroundColor,
     transparent = true,
     placement,
+    qrPositionX = 50,
+    qrPositionY = 50,
+    qrSizePercent = 50,
   } = options;
 
   const dims = (placement && PLACEMENT_DIMENSIONS[placement]) || {
@@ -168,30 +174,42 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle, headerZoneTop, headerZoneHeight);
   }
 
-  const qrMarginY = qrZoneHeight * ZONE_LAYOUT.QR_MARGIN_PERCENT;
-  const qrAreaHeight = qrZoneHeight * ZONE_LAYOUT.QR_AREA_PERCENT;
+  const SAFE_MARGIN = 0.03;
+  const safeMarginX = W * SAFE_MARGIN;
+  const safeMarginY = H * SAFE_MARGIN;
+  const safeW = W - 2 * safeMarginX;
+  const safeH = H - 2 * safeMarginY;
+
+  const clampedSize = Math.max(20, Math.min(100, qrSizePercent));
+  const qrContentWidth = safeW * (clampedSize / 100);
+  const qrContentHeight = qrContentWidth;
+
+  const clampedX = Math.max(0, Math.min(100, qrPositionX));
+  const clampedY = Math.max(0, Math.min(100, qrPositionY));
+  const availableX = safeW - qrContentWidth;
+  const availableY = safeH - qrContentHeight;
+  const qrX = safeMarginX + (clampedX / 100) * availableX;
+  const qrY = safeMarginY + (clampedY / 100) * availableY;
+
   const bgPadding = 20;
   const bgRadius = 16;
-  const qrContentHeight = qrAreaHeight - bgPadding * 2;
-  const qrContentWidth = qrContentHeight;
+  const qrBgX = qrX - bgPadding;
+  const qrBgY2 = qrY - bgPadding;
   const qrBgWidth = qrContentWidth + bgPadding * 2;
-  const qrBgX = (W - qrBgWidth) / 2;
-  const qrBgY = qrZoneTop + qrMarginY;
-  const qrX = (W - qrContentWidth) / 2;
-  const qrY = qrBgY + bgPadding;
+  const qrBgHeight = qrContentHeight + bgPadding * 2;
 
   const qrLight = qrColor === "white" ? "#000000" : "#FFFFFF";
 
   if (!transparent) {
     ctx.fillStyle = qrLight;
     ctx.beginPath();
-    ctx.roundRect(qrBgX, qrBgY, qrBgWidth, qrAreaHeight, bgRadius);
+    ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
     ctx.fill();
   }
 
   try {
-    const qrSize = Math.round(qrContentWidth);
-    const qrUrl = generateQRCodeUrl(qrContent, qrSize, qrColor);
+    const qrImgSize = Math.round(qrContentWidth);
+    const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
     const qrImg = await loadImage(qrUrl);
     ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
   } catch (e) {

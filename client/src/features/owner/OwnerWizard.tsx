@@ -351,6 +351,9 @@ export function OwnerWizard() {
   const [qrBasicContent, setQrBasicContent] = useState('');
   const [qrBasicMockup, setQrBasicMockup] = useState('');
   const [isGeneratingBasicMockup, setIsGeneratingBasicMockup] = useState(false);
+  const [qrPositionX, setQrPositionX] = useState(50);
+  const [qrPositionY, setQrPositionY] = useState(50);
+  const [qrSizePercent, setQrSizePercent] = useState(50);
 
   const [qrPlusMockup, setQrPlusMockup] = useState('');
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
@@ -1293,6 +1296,9 @@ export function OwnerWizard() {
               textLayoutChoice={textLayoutChoice}
               selectedColor={selectedColor}
               graphicSize={graphicSize}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
             />
           )}
 
@@ -1305,6 +1311,9 @@ export function OwnerWizard() {
               footerStyle={footerStyle}
               textLayoutChoice={textLayoutChoice}
               selectedPlacements={selectedPlacements}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
             />
           )}
 
@@ -1366,6 +1375,12 @@ export function OwnerWizard() {
                   selectedSize={selectedShirtSize}
                   inputType={qrBasicInputType}
                   content={qrBasicContent}
+                  qrPositionX={qrPositionX}
+                  qrPositionY={qrPositionY}
+                  qrSizePercent={qrSizePercent}
+                  onPositionXChange={setQrPositionX}
+                  onPositionYChange={setQrPositionY}
+                  onSizeChange={setQrSizePercent}
                 />
               )}
               <OwnerCostSummary

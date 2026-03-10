@@ -588,7 +588,10 @@ export function PlacementConfigStep({
   footerStyle,
   textLayoutChoice,
   selectedColor,
-  graphicSize
+  graphicSize,
+  qrPositionX = 50,
+  qrPositionY = 50,
+  qrSizePercent = 50,
 }: {
   currentPlacement: PlacementOption;
   currentIndex: number;
@@ -600,6 +603,9 @@ export function PlacementConfigStep({
   textLayoutChoice: TextLayoutChoice;
   selectedColor: string;
   graphicSize: GraphicSize;
+  qrPositionX?: number;
+  qrPositionY?: number;
+  qrSizePercent?: number;
 }) {
   const placementLabel = getPlacementLabel(currentPlacement);
   const showHeader = graphicChoice === 'full' && (textLayoutChoice === 'header' || textLayoutChoice === 'both');
@@ -615,10 +621,19 @@ export function PlacementConfigStep({
   const graphicY = isPocket ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
 
   const hasText = (graphicChoice === 'full') && (textLayoutChoice === 'header' || textLayoutChoice === 'footer' || textLayoutChoice === 'both');
-  const qrScale = hasText ? 0.55 : 0.75;
-  const qrWidth = graphicDims.w * qrScale;
+  const sizeRatio = qrSizePercent / 100;
+  const maxQrScale = hasText ? 0.7 : 0.85;
+  const qrWidth = graphicDims.w * maxQrScale * sizeRatio;
   const qrHeight = qrWidth;
-  const qrY = hasText ? (graphicY - graphicDims.h * 0.05) - qrHeight / 2 : graphicY - qrHeight / 2;
+  const safeMargin = graphicDims.w * 0.03;
+  const areaLeft = graphicX - graphicDims.w / 2 + safeMargin;
+  const areaTop = graphicY - graphicDims.h / 2 + safeMargin;
+  const areaRight = graphicX + graphicDims.w / 2 - safeMargin;
+  const areaBottom = graphicY + graphicDims.h / 2 - safeMargin;
+  const qrCenterX = areaLeft + qrWidth / 2 + (areaRight - areaLeft - qrWidth) * (qrPositionX / 100);
+  const qrCenterY = areaTop + qrHeight / 2 + (areaBottom - areaTop - qrHeight) * (qrPositionY / 100);
+  const qrX = qrCenterX - qrWidth / 2;
+  const qrY = qrCenterY - qrHeight / 2;
   const headerZoneTop = graphicY - graphicDims.h / 2 + 2;
   const headerZoneBottom = qrY - 2;
   const footerZoneTop = qrY + qrHeight + 2;
@@ -685,7 +700,7 @@ export function PlacementConfigStep({
                 {line}
               </text>
             ))}
-            <g transform={`translate(${graphicX - qrWidth / 2}, ${qrY})`}>
+            <g transform={`translate(${qrX}, ${qrY})`}>
               <rect width={qrWidth} height={qrHeight} fill="white" rx="1" />
               <rect x={qrHeight * 0.08} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
               <rect x={qrWidth - qrHeight * 0.08 - qrHeight * 0.18} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />

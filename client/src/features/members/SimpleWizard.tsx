@@ -85,6 +85,9 @@ export function SimpleWizard() {
     composeInstanceId,
     contentRightsConfirmed,
     setContentRightsConfirmed,
+    qrPositionX, setQrPositionX,
+    qrPositionY, setQrPositionY,
+    qrSizePercent, setQrSizePercent,
     pricingSettings,
     placementEarningsBonus,
     textLineEarningsBonus,
@@ -385,6 +388,12 @@ export function SimpleWizard() {
               selectedSize={selectedShirtSize}
               inputType={qrBasicInputType}
               content={qrBasicContent}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
+              onPositionXChange={setQrPositionX}
+              onPositionYChange={setQrPositionY}
+              onSizeChange={setQrSizePercent}
             />
           )}
           
@@ -544,6 +553,9 @@ export function SimpleWizard() {
               textLayoutChoice={textLayoutChoice}
               selectedColor={selectedColor}
               graphicSize={graphicSize}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
             />
           )}
           
@@ -556,6 +568,9 @@ export function SimpleWizard() {
               footerStyle={footerStyle}
               textLayoutChoice={textLayoutChoice}
               selectedPlacements={selectedPlacements}
+              qrPositionX={qrPositionX}
+              qrPositionY={qrPositionY}
+              qrSizePercent={qrSizePercent}
             />
           )}
           
