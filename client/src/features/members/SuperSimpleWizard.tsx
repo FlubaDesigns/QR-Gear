@@ -461,6 +461,8 @@ export function SuperSimpleWizard() {
     qrPositionX, setQrPositionX,
     qrPositionY, setQrPositionY,
     qrSizePercent, setQrSizePercent,
+    areaImageUrl, setAreaImageUrl,
+    areaImageMode, setAreaImageMode,
     publishedPacketId,
   } = useWizardContext();
 
@@ -1072,6 +1074,10 @@ export function SuperSimpleWizard() {
                   onPositionXChange={setQrPositionX}
                   onPositionYChange={setQrPositionY}
                   onSizeChange={setQrSizePercent}
+                  areaImageUrl={areaImageUrl}
+                  areaImageMode={areaImageMode}
+                  onAreaImageUrlChange={setAreaImageUrl}
+                  onAreaImageModeChange={setAreaImageMode}
                 />
               )}
 
@@ -1251,6 +1257,8 @@ export function SuperSimpleWizard() {
                   qrPositionX={qrPositionX}
                   qrPositionY={qrPositionY}
                   qrSizePercent={qrSizePercent}
+                  areaImageUrl={areaImageUrl}
+                  areaImageMode={areaImageMode}
                 />
               )}
 

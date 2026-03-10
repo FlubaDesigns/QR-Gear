@@ -1,4 +1,4 @@
-import { QrCode, Link2, Type, Loader2, Check, ShoppingBag, Library, Move, Maximize2 } from "lucide-react";
+import { QrCode, Link2, Type, Loader2, Check, ShoppingBag, Library, Move, Maximize2, Upload, X, ImageIcon } from "lucide-react";
 import { PlaceholderPreview } from "@/features/shared/components/ZonePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import type { QRBasicInputType, QRBasicSaveOption, GraphicSize } from "./wizardTypes";
 import { SHIRT_COLORS, generateQRCodeUrl, getPrintAreaDims } from "./wizardTypes";
 import { useProductGraphicPreview } from "@/hooks/useProductGraphicPreview";
+import { useRef } from "react";
 
 function isValidUrl(urlString: string): boolean {
   if (!urlString.trim()) return false;
@@ -240,6 +241,10 @@ export function QRBasicMockupStep({
   onPositionXChange,
   onPositionYChange,
   onSizeChange,
+  areaImageUrl,
+  areaImageMode,
+  onAreaImageUrlChange,
+  onAreaImageModeChange,
 }: {
   mockupUrl: string;
   isLoading: boolean;
@@ -253,12 +258,30 @@ export function QRBasicMockupStep({
   onPositionXChange?: (val: number) => void;
   onPositionYChange?: (val: number) => void;
   onSizeChange?: (val: number) => void;
+  areaImageUrl?: string;
+  areaImageMode?: "replace-qr" | "behind-qr";
+  onAreaImageUrlChange?: (url: string) => void;
+  onAreaImageModeChange?: (mode: "replace-qr" | "behind-qr") => void;
 }) {
   const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
   const showControls = onPositionXChange && onPositionYChange && onSizeChange;
+  const showImageUpload = onAreaImageUrlChange && onAreaImageModeChange;
   const posX = qrPositionX ?? 50;
   const posY = qrPositionY ?? 50;
   const sizeVal = qrSizePercent ?? 50;
+  const areaFileRef = useRef<HTMLInputElement>(null);
+
+  const handleAreaImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onAreaImageUrlChange) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      onAreaImageUrlChange(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    if (areaFileRef.current) areaFileRef.current.value = "";
+  };
   
   return (
     <div className="text-center space-y-4">
@@ -362,6 +385,94 @@ export function QRBasicMockupStep({
               Reset to Center
             </Button>
           </div>
+        </div>
+      )}
+
+      {showImageUpload && (
+        <div className="space-y-3 px-2 pt-3 max-w-sm mx-auto text-left border-t border-slate-700">
+          <input
+            ref={areaFileRef}
+            type="file"
+            accept="image/*"
+            onChange={handleAreaImageUpload}
+            className="hidden"
+            data-testid="input-area-image-file"
+          />
+          <div className="flex items-center gap-2 mb-2">
+            <ImageIcon className="w-4 h-4 text-slate-400" />
+            <Label className="text-sm text-slate-300 font-medium">Center Image</Label>
+          </div>
+
+          {areaImageUrl ? (
+            <div className="space-y-3">
+              <div className="border border-slate-600 rounded-md p-2 bg-slate-800/50">
+                <img
+                  src={areaImageUrl}
+                  alt="Area image"
+                  className="w-full max-h-[100px] object-contain rounded"
+                  data-testid="img-area-preview"
+                />
+              </div>
+              <div className="flex gap-1 p-1 bg-slate-800 rounded-md" data-testid="toggle-area-image-mode">
+                <button
+                  type="button"
+                  onClick={() => onAreaImageModeChange("behind-qr")}
+                  className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
+                    (areaImageMode || "behind-qr") === "behind-qr"
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  data-testid="button-area-mode-behind"
+                >
+                  Behind QR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAreaImageModeChange("replace-qr")}
+                  className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
+                    areaImageMode === "replace-qr"
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  data-testid="button-area-mode-replace"
+                >
+                  Replace QR
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => areaFileRef.current?.click()}
+                  className="text-slate-300 border-slate-600"
+                  data-testid="button-replace-area-image"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Replace
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onAreaImageUrlChange("")}
+                  className="text-slate-300 border-slate-600"
+                  data-testid="button-remove-area-image"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => areaFileRef.current?.click()}
+              className="border-2 border-dashed border-slate-600 rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-800/50 transition-colors"
+              data-testid="dropzone-area-image"
+            >
+              <Upload className="h-6 w-6 text-slate-500" />
+              <p className="text-xs text-slate-400">Upload an image for the center area</p>
+              <p className="text-xs text-slate-500">Logo, graphic, or photo</p>
+            </div>
+          )}
         </div>
       )}
     </div>

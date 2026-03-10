@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { FontPicker } from "@/components/ui/font-picker";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X } from "lucide-react";
 import { TextStyleViewer } from "./TextStyleViewer";
 import { useFonts, loadGoogleFonts } from "@/hooks/use-fonts";
 
@@ -19,6 +20,8 @@ export interface TextStyleConfig {
   strokeWidth: number;
   verticalOffset: number;
   horizontalOffset: number;
+  mode?: "text" | "image";
+  imageUrl?: string;
 }
 
 export const FONT_FAMILIES = [
@@ -56,6 +59,8 @@ export const defaultTextStyle: TextStyleConfig = {
   strokeWidth: 0,
   verticalOffset: 10,
   horizontalOffset: 50,
+  mode: "text",
+  imageUrl: "",
 };
 
 interface TextStyleEditorProps {
@@ -96,7 +101,21 @@ export function TextStyleEditor({
     loadGoogleFonts(activeFonts);
   }, [activeFonts]);
 
-  const hasContent = style.enabled && style.text;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentMode = style.mode || "text";
+  const hasContent = style.enabled && (currentMode === "text" ? style.text : style.imageUrl);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      onChange({ imageUrl: reader.result as string, mode: "image" });
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   return (
     <div className="bg-background rounded-lg border overflow-hidden">
@@ -119,7 +138,7 @@ export function TextStyleEditor({
           </div>
           {hasContent && (
             <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex-shrink-0 max-w-[80px] truncate">
-              {style.text.substring(0, 15)}{style.text.length > 15 ? "..." : ""}
+              {currentMode === "image" ? "Image" : style.text.substring(0, 15)}{currentMode === "text" && style.text.length > 15 ? "..." : ""}
             </span>
           )}
         </div>
@@ -144,38 +163,123 @@ export function TextStyleEditor({
       
       {!isCollapsed && style.enabled && (
         <div className="space-y-4 p-4 pt-0">
-          {showPreview && (
-            <TextStyleViewer 
-              style={style} 
-              backgroundColor={previewBackgroundColor}
-              backgroundImage={previewBackgroundImage}
-            />
-          )}
-
-          <textarea
-            name={`${testIdPrefix}-text`}
-            id={`${testIdPrefix}-text-input`}
-            placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
-            value={style.text}
-            onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
-            maxLength={maxLength}
-            inputMode="text"
-            enterKeyHint="done"
-            autoComplete="on"
-            autoCorrect="on"
-            autoCapitalize="sentences"
-            spellCheck={true}
-            rows={2}
-            style={{ touchAction: 'manipulation' }}
-            className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            data-testid={`input-${testIdPrefix}-text`}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+            data-testid={`input-${testIdPrefix}-file`}
           />
 
-          <div 
-            className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
-            onClick={() => setControlsOpen(!controlsOpen)}
-            data-testid={`toggle-${testIdPrefix}-controls`}
-          >
+          <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid={`toggle-${testIdPrefix}-mode`}>
+            <button
+              type="button"
+              onClick={() => onChange({ mode: "text" })}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
+                currentMode === "text"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`button-${testIdPrefix}-mode-text`}
+            >
+              <Type className="h-4 w-4" />
+              Text
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ mode: "image" })}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
+                currentMode === "image"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`button-${testIdPrefix}-mode-image`}
+            >
+              <ImageIcon className="h-4 w-4" />
+              Image
+            </button>
+          </div>
+
+          {currentMode === "image" ? (
+            <div className="space-y-3">
+              {style.imageUrl ? (
+                <div className="relative">
+                  <div className="border rounded-md p-2 bg-muted/30">
+                    <img
+                      src={style.imageUrl}
+                      alt="Uploaded"
+                      className="w-full max-h-[150px] object-contain rounded"
+                      data-testid={`img-${testIdPrefix}-preview`}
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      data-testid={`button-${testIdPrefix}-replace-image`}
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      Replace
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onChange({ imageUrl: "", mode: "text" })}
+                      data-testid={`button-${testIdPrefix}-remove-image`}
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed rounded-md p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-muted/30 transition-colors"
+                  data-testid={`dropzone-${testIdPrefix}-upload`}
+                >
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Tap to upload an image</p>
+                  <p className="text-xs text-muted-foreground">PNG, JPG, SVG, or WebP</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {showPreview && (
+                <TextStyleViewer 
+                  style={style} 
+                  backgroundColor={previewBackgroundColor}
+                  backgroundImage={previewBackgroundImage}
+                />
+              )}
+
+              <textarea
+                name={`${testIdPrefix}-text`}
+                id={`${testIdPrefix}-text-input`}
+                placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
+                value={style.text}
+                onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
+                maxLength={maxLength}
+                inputMode="text"
+                enterKeyHint="done"
+                autoComplete="on"
+                autoCorrect="on"
+                autoCapitalize="sentences"
+                spellCheck={true}
+                rows={2}
+                style={{ touchAction: 'manipulation' }}
+                className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid={`input-${testIdPrefix}-text`}
+              />
+
+              <div 
+                className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
+                onClick={() => setControlsOpen(!controlsOpen)}
+                data-testid={`toggle-${testIdPrefix}-controls`}
+              >
             {controlsOpen ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
@@ -344,6 +448,8 @@ export function TextStyleEditor({
                 </div>
               )}
             </div>
+          )}
+            </>
           )}
         </div>
       )}

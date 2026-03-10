@@ -88,6 +88,8 @@ export function SimpleWizard() {
     qrPositionX, setQrPositionX,
     qrPositionY, setQrPositionY,
     qrSizePercent, setQrSizePercent,
+    areaImageUrl, setAreaImageUrl,
+    areaImageMode, setAreaImageMode,
     pricingSettings,
     placementEarningsBonus,
     textLineEarningsBonus,
@@ -394,6 +396,10 @@ export function SimpleWizard() {
               onPositionXChange={setQrPositionX}
               onPositionYChange={setQrPositionY}
               onSizeChange={setQrSizePercent}
+              areaImageUrl={areaImageUrl}
+              areaImageMode={areaImageMode}
+              onAreaImageUrlChange={setAreaImageUrl}
+              onAreaImageModeChange={setAreaImageMode}
             />
           )}
           
@@ -571,6 +577,8 @@ export function SimpleWizard() {
               qrPositionX={qrPositionX}
               qrPositionY={qrPositionY}
               qrSizePercent={qrSizePercent}
+              areaImageUrl={areaImageUrl}
+              areaImageMode={areaImageMode}
             />
           )}
           

@@ -354,6 +354,8 @@ export function OwnerWizard() {
   const [qrPositionX, setQrPositionX] = useState(50);
   const [qrPositionY, setQrPositionY] = useState(50);
   const [qrSizePercent, setQrSizePercent] = useState(50);
+  const [areaImageUrl, setAreaImageUrl] = useState('');
+  const [areaImageMode, setAreaImageMode] = useState<"replace-qr" | "behind-qr">("behind-qr");
 
   const [qrPlusMockup, setQrPlusMockup] = useState('');
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
@@ -1314,6 +1316,8 @@ export function OwnerWizard() {
               qrPositionX={qrPositionX}
               qrPositionY={qrPositionY}
               qrSizePercent={qrSizePercent}
+              areaImageUrl={areaImageUrl}
+              areaImageMode={areaImageMode}
             />
           )}
 
@@ -1381,6 +1385,10 @@ export function OwnerWizard() {
                   onPositionXChange={setQrPositionX}
                   onPositionYChange={setQrPositionY}
                   onSizeChange={setQrSizePercent}
+                  areaImageUrl={areaImageUrl}
+                  areaImageMode={areaImageMode}
+                  onAreaImageUrlChange={setAreaImageUrl}
+                  onAreaImageModeChange={setAreaImageMode}
                 />
               )}
               <OwnerCostSummary

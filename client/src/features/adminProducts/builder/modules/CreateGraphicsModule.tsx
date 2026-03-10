@@ -302,6 +302,8 @@ export function CreateGraphicsModule() {
           qrPositionX: state.content.qrPositionX,
           qrPositionY: state.content.qrPositionY,
           qrSizePercent: state.content.qrSizePercent,
+          areaImageUrl: state.content.areaImageUrl || undefined,
+          areaImageMode: state.content.areaImageMode || "behind-qr",
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

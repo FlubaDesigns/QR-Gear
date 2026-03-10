@@ -86,6 +86,8 @@ export function ShirtPreviewStep({
   qrPositionX = 50,
   qrPositionY = 50,
   qrSizePercent = 50,
+  areaImageUrl,
+  areaImageMode = "behind-qr",
 }: {
   selectedColor: string;
   graphicLocation: GraphicLocation;
@@ -97,6 +99,8 @@ export function ShirtPreviewStep({
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
+  areaImageUrl?: string;
+  areaImageMode?: "replace-qr" | "behind-qr";
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';

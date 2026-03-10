@@ -106,6 +106,10 @@ export interface WizardContextType {
   setQrPositionY: React.Dispatch<React.SetStateAction<number>>;
   qrSizePercent: number;
   setQrSizePercent: React.Dispatch<React.SetStateAction<number>>;
+  areaImageUrl: string;
+  setAreaImageUrl: React.Dispatch<React.SetStateAction<string>>;
+  areaImageMode: "replace-qr" | "behind-qr";
+  setAreaImageMode: React.Dispatch<React.SetStateAction<"replace-qr" | "behind-qr">>;
   qrDestination: string;
   setQrDestination: React.Dispatch<React.SetStateAction<string>>;
   channelName: string;
@@ -411,6 +415,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [qrPositionX, setQrPositionX] = useState<number>(50);
   const [qrPositionY, setQrPositionY] = useState<number>(50);
   const [qrSizePercent, setQrSizePercent] = useState<number>(50);
+  const [areaImageUrl, setAreaImageUrl] = useState<string>('');
+  const [areaImageMode, setAreaImageMode] = useState<"replace-qr" | "behind-qr">("behind-qr");
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -646,6 +652,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         qrPositionX,
         qrPositionY,
         qrSizePercent,
+        areaImageUrl: areaImageUrl || null,
+        areaImageMode,
         textLines,
         textUpcharge,
         placementUpcharge,
@@ -1184,6 +1192,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
             'metadata.qrPositionX': qrPositionX,
             'metadata.qrPositionY': qrPositionY,
             'metadata.qrSizePercent': qrSizePercent,
+            'metadata.areaImageUrl': areaImageUrl || null,
+            'metadata.areaImageMode': areaImageMode,
             status: 'draft',
           });
           console.log('[QR Basic] Updated packet with QR content:', currentPacketId);
@@ -1778,6 +1788,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     qrPositionX, setQrPositionX,
     qrPositionY, setQrPositionY,
     qrSizePercent, setQrSizePercent,
+    areaImageUrl, setAreaImageUrl,
+    areaImageMode, setAreaImageMode,
     qrDestination, setQrDestination,
     channelName, setChannelName,
     isPublishing, setIsPublishing,

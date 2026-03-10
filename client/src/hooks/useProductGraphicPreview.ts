@@ -16,6 +16,10 @@ interface UseProductGraphicPreviewOptions {
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
+  headerImageUrl?: string;
+  footerImageUrl?: string;
+  areaImageUrl?: string;
+  areaImageMode?: "replace-qr" | "behind-qr";
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -40,6 +44,10 @@ export function useProductGraphicPreview(
     qrPositionX = 50,
     qrPositionY = 50,
     qrSizePercent = 50,
+    headerImageUrl,
+    footerImageUrl,
+    areaImageUrl,
+    areaImageMode,
     enabled = true,
     debounceMs = 400,
   } = options;
@@ -60,8 +68,11 @@ export function useProductGraphicPreview(
     const hasText =
       (headerStyle?.enabled !== false && headerStyle?.text) ||
       (footerStyle?.enabled !== false && footerStyle?.text);
+    const hasImage = headerImageUrl || footerImageUrl || areaImageUrl ||
+      (headerStyle?.mode === "image" && headerStyle?.imageUrl) ||
+      (footerStyle?.mode === "image" && footerStyle?.imageUrl);
 
-    if (!qrContent && !hasText) {
+    if (!qrContent && !hasText && !hasImage) {
       setDataUrl(null);
       return;
     }
@@ -88,6 +99,10 @@ export function useProductGraphicPreview(
           qrPositionX,
           qrPositionY,
           qrSizePercent,
+          headerImageUrl,
+          footerImageUrl,
+          areaImageUrl,
+          areaImageMode,
         };
 
         const result = await renderProductGraphic(renderOpts);
@@ -121,6 +136,8 @@ export function useProductGraphicPreview(
     headerStyle?.strokeWidth,
     headerStyle?.verticalOffset,
     headerStyle?.horizontalOffset,
+    headerStyle?.mode,
+    headerStyle?.imageUrl,
     footerStyle?.text,
     footerStyle?.enabled,
     footerStyle?.fontSize,
@@ -130,12 +147,18 @@ export function useProductGraphicPreview(
     footerStyle?.strokeWidth,
     footerStyle?.verticalOffset,
     footerStyle?.horizontalOffset,
+    footerStyle?.mode,
+    footerStyle?.imageUrl,
     backgroundColor,
     transparent,
     placement,
     qrPositionX,
     qrPositionY,
     qrSizePercent,
+    headerImageUrl,
+    footerImageUrl,
+    areaImageUrl,
+    areaImageMode,
     enabled,
     debounceMs,
   ]);

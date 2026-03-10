@@ -57,6 +57,8 @@ const initialContent: ContentData = {
   qrPositionX: 50,
   qrPositionY: 50,
   qrSizePercent: 50,
+  areaImageUrl: '',
+  areaImageMode: 'behind-qr',
   // Compose-specific fields
   composeItems: [],
   composeMode: '',

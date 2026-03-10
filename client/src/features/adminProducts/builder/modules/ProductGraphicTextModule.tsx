@@ -1,4 +1,5 @@
-import { Type, Move, Maximize2 } from "lucide-react";
+import { useRef } from "react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -25,6 +26,20 @@ export function ProductGraphicTextModule() {
   const posX = state.content.qrPositionX ?? 50;
   const posY = state.content.qrPositionY ?? 50;
   const sizeVal = state.content.qrSizePercent ?? 50;
+  const adminAreaFileRef = useRef<HTMLInputElement>(null);
+  const adminAreaImageUrl = state.content.areaImageUrl || '';
+  const adminAreaImageMode = state.content.areaImageMode || 'behind-qr';
+
+  const handleAdminAreaImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setContent({ areaImageUrl: reader.result as string, areaImageMode: adminAreaImageMode });
+    };
+    reader.readAsDataURL(file);
+    if (adminAreaFileRef.current) adminAreaFileRef.current.value = "";
+  };
 
   return (
     <CollapsibleModule
@@ -135,9 +150,93 @@ export function ProductGraphicTextModule() {
               </Button>
             </div>
           </div>
+
+          <div className="pt-3 border-t space-y-3">
+            <input
+              ref={adminAreaFileRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAdminAreaImageUpload}
+              className="hidden"
+              data-testid="input-admin-area-image-file"
+            />
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Center Image</Label>
+            </div>
+
+            {adminAreaImageUrl ? (
+              <div className="space-y-2">
+                <div className="border rounded-md p-2 bg-muted/30">
+                  <img
+                    src={adminAreaImageUrl}
+                    alt="Area image"
+                    className="w-full max-h-[100px] object-contain rounded"
+                    data-testid="img-admin-area-preview"
+                  />
+                </div>
+                <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-admin-area-mode">
+                  <button
+                    type="button"
+                    onClick={() => setContent({ areaImageMode: "behind-qr" })}
+                    className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
+                      adminAreaImageMode === "behind-qr"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid="button-admin-area-mode-behind"
+                  >
+                    Behind QR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setContent({ areaImageMode: "replace-qr" })}
+                    className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
+                      adminAreaImageMode === "replace-qr"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid="button-admin-area-mode-replace"
+                  >
+                    Replace QR
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => adminAreaFileRef.current?.click()}
+                    data-testid="button-admin-replace-area-image"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    Replace
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setContent({ areaImageUrl: '' })}
+                    data-testid="button-admin-remove-area-image"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => adminAreaFileRef.current?.click()}
+                className="border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                data-testid="dropzone-admin-area-image"
+              >
+                <Upload className="h-6 w-6 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Upload an image for the center area</p>
+                <p className="text-xs text-muted-foreground/60">Logo, graphic, or photo</p>
+              </div>
+            )}
+          </div>
         </div>
         
-        {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled) && (
+        {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled || adminAreaImageUrl) && (
           <div className="mt-4 pt-4 border-t flex flex-col items-center">
             <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
             <GraphicPreviewView
@@ -149,6 +248,8 @@ export function ProductGraphicTextModule() {
               qrPositionX={posX}
               qrPositionY={posY}
               qrSizePercent={sizeVal}
+              areaImageUrl={adminAreaImageUrl}
+              areaImageMode={adminAreaImageMode}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
               This is how your product graphic will appear

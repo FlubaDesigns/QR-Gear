@@ -27,6 +27,10 @@ export interface RenderOptions {
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
+  headerImageUrl?: string;
+  footerImageUrl?: string;
+  areaImageUrl?: string;
+  areaImageMode?: "replace-qr" | "behind-qr";
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -97,6 +101,10 @@ export async function renderProductGraphic(
     qrPositionX = 50,
     qrPositionY = 50,
     qrSizePercent = 50,
+    headerImageUrl,
+    footerImageUrl,
+    areaImageUrl,
+    areaImageMode = "behind-qr",
   } = options;
 
   const dims = (placement && PLACEMENT_DIMENSIONS[placement]) || {
@@ -170,8 +178,46 @@ export async function renderProductGraphic(
     }
   };
 
-  if (headerStyle && headerStyle.enabled !== false && headerStyle.text) {
-    drawTextInZone(headerStyle, headerZoneTop, headerZoneHeight);
+  const drawImageInZone = async (
+    imgUrl: string,
+    zoneX: number,
+    zoneY: number,
+    zoneW: number,
+    zoneH: number,
+    padding: number = 0.05
+  ) => {
+    try {
+      const img = await loadImage(imgUrl);
+      const padX = zoneW * padding;
+      const padY = zoneH * padding;
+      const availW = zoneW - 2 * padX;
+      const availH = zoneH - 2 * padY;
+      const imgAspect = img.width / img.height;
+      const zoneAspect = availW / availH;
+      let drawW: number, drawH: number;
+      if (imgAspect > zoneAspect) {
+        drawW = availW;
+        drawH = availW / imgAspect;
+      } else {
+        drawH = availH;
+        drawW = availH * imgAspect;
+      }
+      const drawX = zoneX + padX + (availW - drawW) / 2;
+      const drawY = zoneY + padY + (availH - drawH) / 2;
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    } catch (e) {
+      console.warn("[productGraphicRenderer] Image load failed:", e);
+    }
+  };
+
+  const headerIsImage = headerStyle?.mode === "image" && headerStyle?.imageUrl;
+  const headerIsText = headerStyle && headerStyle.enabled !== false && headerStyle.text && headerStyle.mode !== "image";
+  const resolvedHeaderImageUrl = headerImageUrl || (headerIsImage ? headerStyle!.imageUrl : undefined);
+
+  if (resolvedHeaderImageUrl) {
+    await drawImageInZone(resolvedHeaderImageUrl, 0, headerZoneTop, W, headerZoneHeight);
+  } else if (headerIsText) {
+    drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
   const SAFE_MARGIN = 0.03;
@@ -200,24 +246,38 @@ export async function renderProductGraphic(
 
   const qrLight = qrColor === "white" ? "#000000" : "#FFFFFF";
 
-  if (!transparent) {
-    ctx.fillStyle = qrLight;
-    ctx.beginPath();
-    ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
-    ctx.fill();
+  if (areaImageUrl && areaImageMode === "replace-qr") {
+    await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03);
+  } else {
+    if (areaImageUrl && areaImageMode === "behind-qr") {
+      await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03);
+    }
+
+    if (!transparent) {
+      ctx.fillStyle = qrLight;
+      ctx.beginPath();
+      ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
+      ctx.fill();
+    }
+
+    try {
+      const qrImgSize = Math.round(qrContentWidth);
+      const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
+      const qrImg = await loadImage(qrUrl);
+      ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
+    } catch (e) {
+      console.warn("[productGraphicRenderer] QR load failed:", e);
+    }
   }
 
-  try {
-    const qrImgSize = Math.round(qrContentWidth);
-    const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
-    const qrImg = await loadImage(qrUrl);
-    ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
-  } catch (e) {
-    console.warn("[productGraphicRenderer] QR load failed:", e);
-  }
+  const footerIsImage = footerStyle?.mode === "image" && footerStyle?.imageUrl;
+  const footerIsText = footerStyle && footerStyle.enabled !== false && footerStyle.text && footerStyle.mode !== "image";
+  const resolvedFooterImageUrl = footerImageUrl || (footerIsImage ? footerStyle!.imageUrl : undefined);
 
-  if (footerStyle && footerStyle.enabled !== false && footerStyle.text) {
-    drawTextInZone(footerStyle, footerZoneTop, footerZoneHeight);
+  if (resolvedFooterImageUrl) {
+    await drawImageInZone(resolvedFooterImageUrl, 0, footerZoneTop, W, footerZoneHeight);
+  } else if (footerIsText) {
+    drawTextInZone(footerStyle!, footerZoneTop, footerZoneHeight);
   }
 
   return canvas.toDataURL("image/png");
