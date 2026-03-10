@@ -359,7 +359,7 @@ export default function AdminCategories() {
       <Button 
         variant="outline" 
         onClick={copyUserId}
-        className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 h-12 px-4"
+        className="font-mono text-xs h-12 px-4"
         data-testid="button-copy-user-id"
       >
         Copy ID

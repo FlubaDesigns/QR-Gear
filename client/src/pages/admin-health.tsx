@@ -172,7 +172,7 @@ export default function AdminHealth() {
           variant="outline"
           onClick={() => refetch()}
           disabled={isRefetching}
-          className="border-slate-600 text-slate-300 min-h-12"
+          className="min-h-12"
           data-testid="button-refresh"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />

@@ -465,7 +465,7 @@ export default function AdminOrchestration() {
         <Button
           onClick={() => refetchProducts()}
           variant="outline"
-          className="qr-touch-48 border-slate-600 text-slate-300 hover:bg-slate-800"
+          className="qr-touch-48"
           data-testid="button-refresh"
         >
           <RefreshCw className="h-5 w-5 mr-2" />

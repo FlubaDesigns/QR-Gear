@@ -164,12 +164,12 @@ export default function AdminDashboard() {
       icon={LayoutDashboard}
       actions={
         <>
-          <Button asChild variant="outline" size="icon" className="border-slate-600 text-slate-300 qr-touch-48 sm:hidden">
+          <Button asChild variant="outline" size="icon" className="qr-touch-48 sm:hidden">
             <Link href="/admin/health">
               <Activity className="h-5 w-5" />
             </Link>
           </Button>
-          <Button asChild variant="outline" className="border-slate-600 text-slate-300 qr-touch-48 hidden sm:flex">
+          <Button asChild variant="outline" className="qr-touch-48 hidden sm:flex">
             <Link href="/admin/health">
               <Activity className="h-4 w-4 mr-2" />
               System Health

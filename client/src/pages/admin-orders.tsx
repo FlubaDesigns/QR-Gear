@@ -444,7 +444,7 @@ export default function AdminOrdersPage() {
           variant="outline" 
           onClick={() => refetch()}
           disabled={isLoading}
-          className="border-slate-600 text-slate-300 qr-touch-48"
+          className="qr-touch-48"
           data-testid="button-refresh"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""} sm:mr-2`} />

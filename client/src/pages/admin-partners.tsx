@@ -213,7 +213,7 @@ export default function AdminPartners() {
             <Button 
               variant="outline" 
               onClick={copyUserId}
-              className="font-mono text-xs border-slate-600 text-slate-300 hover:bg-slate-800 qr-touch-48"
+              className="font-mono text-xs qr-touch-48"
               data-testid="button-copy-user-id"
             >
               Copy ID

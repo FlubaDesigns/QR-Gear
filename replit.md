@@ -7,6 +7,7 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Communication**: Simple, everyday language
 - **Accessibility**: User has CIDP (limited hand mobility) - agent must be fully autonomous
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
+- **BUTTON VISIBILITY RULE**: NEVER use black, dark slate, or low-contrast colors on buttons. ALL buttons must have clearly visible color (blue, green, orange, etc.) with strong contrast against their background. No dark-on-dark. No invisible borders. This applies to ALL button variants (outline, ghost, secondary, default). Defined once in the component, never overridden with inline dark classes.
 - **PRODUCTION-ONLY MODE**: The dev server is DISABLED. Do NOT start or use it. All work deploys directly to Firebase production. The `server/` directory exists only as build dependency — never run it.
 - **Firebase Deploy — Hosting** (frontend):
   ```bash

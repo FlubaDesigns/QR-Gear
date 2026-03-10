@@ -57,8 +57,8 @@
   /* Elevate utilities for Tailwind */
   --elevate-1: rgba(46, 169, 255, 0.08);
   --elevate-2: rgba(46, 169, 255, 0.15);
-  --button-outline: rgba(46, 169, 255, 0.18);
-  --badge-outline: rgba(46, 169, 255, 0.10);
+  --button-outline: rgba(46, 169, 255, 0.50);
+  --badge-outline: rgba(46, 169, 255, 0.25);
   --opaque-button-border-intensity: 9;
 
   /* Legacy aliases */
