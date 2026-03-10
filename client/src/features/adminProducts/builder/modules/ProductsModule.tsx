@@ -108,11 +108,6 @@ export function ProductsModule() {
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/catalogs");
-      if (!res.ok) return { catalogs: [] };
-      return res.json();
-    },
   });
   const adminCatalogs = adminCatalogsData?.catalogs || [];
 
