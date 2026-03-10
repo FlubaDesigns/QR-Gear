@@ -114,8 +114,11 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      console.log('[Catalogs] Creating catalog:', newName.trim());
       const res = await apiRequest("POST", "/api/admin/catalogs", { name: newName.trim(), description: newDesc.trim() });
-      return res.json();
+      const data = await res.json();
+      console.log('[Catalogs] Create response:', data);
+      return data;
     },
     onSuccess: (data) => {
       toast({ title: "Catalog created", description: data.name });
@@ -124,7 +127,10 @@ function CatalogsTab({ allProducts, productMap }: { allProducts: CatalogProduct[
       setShowCreate(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: any) => {
+      console.error('[Catalogs] Create failed:', err);
+      toast({ title: "Failed to create catalog", description: err.message || "Unknown error", variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
