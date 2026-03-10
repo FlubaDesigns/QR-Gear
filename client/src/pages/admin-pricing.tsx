@@ -882,29 +882,29 @@ export default function AdminPricing() {
               </div>
               
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
-                  <span>Base Product Cost:</span>
-                  <span className="font-bold">$15.00</span>
+                <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
+                  <span className="text-foreground">Base Product Cost:</span>
+                  <span className="font-bold text-foreground">$15.00</span>
                 </div>
-                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
-                  <span>Extra Placement (1 x ${additionalPlacementCost || 4}):</span>
-                  <span className="font-medium">+${parseFloat(additionalPlacementCost || "4").toFixed(2)}</span>
+                <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
+                  <span className="text-foreground">Extra Placement (1 x ${additionalPlacementCost || 4}):</span>
+                  <span className="font-medium text-foreground">+${parseFloat(additionalPlacementCost || "4").toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
-                  <span>Header/Footer Zone (1 x ${textLineUpcharge || 2}):</span>
-                  <span className="font-medium">+${parseFloat(textLineUpcharge || "2").toFixed(2)}</span>
+                <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
+                  <span className="text-foreground">Header/Footer Zone (1 x ${textLineUpcharge || 2}):</span>
+                  <span className="font-medium text-foreground">+${parseFloat(textLineUpcharge || "2").toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
-                  <span>Center Graphic (1 x ${centerGraphicUpcharge || 5}):</span>
-                  <span className="font-medium">+${parseFloat(centerGraphicUpcharge || "5").toFixed(2)}</span>
+                <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
+                  <span className="text-foreground">Center Graphic (1 x ${centerGraphicUpcharge || 5}):</span>
+                  <span className="font-medium text-foreground">+${parseFloat(centerGraphicUpcharge || "5").toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border">
-                  <span>Hosting ({hostingTiers[0]?.name || "1 Year"}):</span>
-                  <span className="font-medium">+${(hostingTiers[0]?.price || 5).toFixed(2)}</span>
+                <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
+                  <span className="text-foreground">Hosting ({hostingTiers[0]?.name || "1 Year"}):</span>
+                  <span className="font-medium text-foreground">+${(hostingTiers[0]?.price || 5).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between gap-2 p-2 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
-                  <span>Brand Label (inside):</span>
-                  <span className="font-medium">+${brandLabelPricing.printifyInside.toFixed(2)}</span>
+                  <span className="text-amber-900 dark:text-amber-200">Brand Label (inside):</span>
+                  <span className="font-medium text-amber-900 dark:text-amber-200">+${brandLabelPricing.printifyInside.toFixed(2)}</span>
                 </div>
                 
                 <div className="border-t pt-2 mt-2">
@@ -916,16 +916,16 @@ export default function AdminPricing() {
                     return (
                       <>
                         <div className="flex justify-between gap-2 p-2 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
-                          <span className="font-medium">Subtotal:</span>
-                          <span className="font-bold">${subtotal.toFixed(2)}</span>
+                          <span className="font-medium text-blue-900 dark:text-blue-200">Subtotal:</span>
+                          <span className="font-bold text-blue-900 dark:text-blue-200">${subtotal.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between gap-2 p-2 bg-white dark:bg-gray-900 rounded-md border mt-2">
-                          <span>Your Markup ({markupPercent || 0}% + ${markupFixed || 0}):</span>
-                          <span className="font-medium">+${markupAmount.toFixed(2)}</span>
+                        <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border mt-2">
+                          <span className="text-foreground">Your Markup ({markupPercent || 0}% + ${markupFixed || 0}):</span>
+                          <span className="font-medium text-foreground">+${markupAmount.toFixed(2)}</span>
                         </div>
                         <div className="border-t-2 pt-2 mt-2">
                           <div className="flex justify-between gap-2 p-3 bg-green-100 dark:bg-green-950 rounded-md border-2 border-green-300 dark:border-green-700">
-                            <span className="font-bold text-lg">Customer Price:</span>
+                            <span className="font-bold text-lg text-green-900 dark:text-green-300">Customer Price:</span>
                             <span className="font-bold text-lg text-green-700 dark:text-green-400">
                               ${customerPrice.toFixed(2)}
                             </span>
