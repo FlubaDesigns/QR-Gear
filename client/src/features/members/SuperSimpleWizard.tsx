@@ -399,6 +399,7 @@ export function SuperSimpleWizard() {
     libraryChoice, setLibraryChoice,
     currentPlacementIndex,
     placementGraphicChoice, setPlacementGraphicChoice,
+    perPlacementConfigs,
     currentPlacement,
     qrBasicInputType, setQrBasicInputType,
     qrBasicContent, setQrBasicContent,
@@ -1259,6 +1260,7 @@ export function SuperSimpleWizard() {
                   qrSizePercent={qrSizePercent}
                   areaImageUrl={areaImageUrl}
                   areaImageMode={areaImageMode}
+                  perPlacementConfigs={perPlacementConfigs}
                 />
               )}
 

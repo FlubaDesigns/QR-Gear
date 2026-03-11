@@ -19,6 +19,7 @@ import {
   type PlacementOption,
   type GraphicLocation,
   type TextLayoutChoice,
+  type PlacementGraphicChoice,
   type ProductItem,
   QR_TYPES,
   SHIRT_COLORS,
@@ -88,6 +89,7 @@ export function ShirtPreviewStep({
   qrSizePercent = 50,
   areaImageUrl,
   areaImageMode = "behind-qr",
+  perPlacementConfigs = {},
 }: {
   selectedColor: string;
   graphicLocation: GraphicLocation;
@@ -101,10 +103,9 @@ export function ShirtPreviewStep({
   qrSizePercent?: number;
   areaImageUrl?: string;
   areaImageMode?: "replace-qr" | "behind-qr";
+  perPlacementConfigs?: Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; size: GraphicSize }>;
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
-  const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
-  const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
   
   const hasFrontPlacement = selectedPlacements.some(p => isFrontPlacement(p) || isPocketPlacement(p));
   const hasBackPlacement = selectedPlacements.some(p => isBackPlacement(p));
@@ -115,40 +116,56 @@ export function ShirtPreviewStep({
   const isLeftChest = graphicLocation === 'left-chest';
   const graphicX = isLeftChest ? GRAPHIC_CENTER.pocket.x : GRAPHIC_CENTER.front.x;
   const graphicY = isLeftChest ? GRAPHIC_CENTER.pocket.y : GRAPHIC_CENTER.front.y;
-  
-  const hasText = textLayoutChoice === 'header' || textLayoutChoice === 'footer' || textLayoutChoice === 'both';
-  const sizeRatio = qrSizePercent / 100;
-  const maxQrScale = hasText ? 0.7 : 0.85;
-  const qrWidth = graphicDims.w * maxQrScale * sizeRatio;
-  const qrHeight = qrWidth;
-  const safeMargin = graphicDims.w * 0.03;
-  const areaLeft = graphicX - graphicDims.w / 2 + safeMargin;
-  const areaTop = graphicY - graphicDims.h / 2 + safeMargin;
-  const areaRight = graphicX + graphicDims.w / 2 - safeMargin;
-  const areaBottom = graphicY + graphicDims.h / 2 - safeMargin;
-  const qrCenterX = areaLeft + qrWidth / 2 + (areaRight - areaLeft - qrWidth) * (qrPositionX / 100);
-  const qrCenterY = areaTop + qrHeight / 2 + (areaBottom - areaTop - qrHeight) * (qrPositionY / 100);
-  const qrX = qrCenterX - qrWidth / 2;
-  const qrY = qrCenterY - qrHeight / 2;
-  const headerZoneTop = graphicY - graphicDims.h / 2 + 2;
-  const headerZoneBottom = qrY - 2;
-  const footerZoneTop = qrY + qrHeight + 2;
-  const footerZoneBottom = graphicY + graphicDims.h / 2 - 2;
 
-  const headerAutoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', graphicDims.w);
-  const footerAutoText = calculateAutoTextSize(footerStyle.text || '', footerStyle.fontSize || '18px', graphicDims.w);
+  const getPlacementGraphicChoice = (view: 'front' | 'back'): PlacementGraphicChoice => {
+    const matchingPlacement = selectedPlacements.find(p =>
+      view === 'back' ? isBackPlacement(p) : (isFrontPlacement(p) || isPocketPlacement(p))
+    );
+    if (matchingPlacement && perPlacementConfigs[matchingPlacement]) {
+      return perPlacementConfigs[matchingPlacement].graphicChoice;
+    }
+    return 'full';
+  };
 
-  const headerVOffset = headerStyle.verticalOffset ?? 50;
-  const headerHOffset = headerStyle.horizontalOffset ?? 50;
-  const headerTextY = Math.max(headerZoneTop + headerAutoText.fontSize * 0.8, Math.min(headerZoneBottom - (headerAutoText.lines.length > 1 ? headerAutoText.fontSize : 0), headerZoneTop + ((headerZoneBottom - headerZoneTop) * (headerVOffset / 100))));
-  const headerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (headerHOffset / 100));
-
-  const footerVOffset = footerStyle.verticalOffset ?? 50;
-  const footerHOffset = footerStyle.horizontalOffset ?? 50;
-  const footerTextY = Math.max(footerZoneTop + footerAutoText.fontSize * 0.8, Math.min(footerZoneBottom - (footerAutoText.lines.length > 1 ? footerAutoText.fontSize : 0), footerZoneTop + ((footerZoneBottom - footerZoneTop) * (footerVOffset / 100))));
-  const footerTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (footerHOffset / 100));
+  const computeViewLayout = (viewGraphicChoice: PlacementGraphicChoice) => {
+    const viewIsQrOnly = viewGraphicChoice === 'qr-only';
+    const viewShowHeader = !viewIsQrOnly && (textLayoutChoice === 'header' || textLayoutChoice === 'both');
+    const viewShowFooter = !viewIsQrOnly && (textLayoutChoice === 'footer' || textLayoutChoice === 'both');
+    const viewHasText = !viewIsQrOnly && (textLayoutChoice === 'header' || textLayoutChoice === 'footer' || textLayoutChoice === 'both');
+    const sizeRatio = qrSizePercent / 100;
+    const maxQrScale = viewHasText ? 0.7 : 0.85;
+    const vQrWidth = graphicDims.w * maxQrScale * sizeRatio;
+    const vQrHeight = vQrWidth;
+    const safeMargin = graphicDims.w * 0.03;
+    const areaLeft = graphicX - graphicDims.w / 2 + safeMargin;
+    const areaTop = graphicY - graphicDims.h / 2 + safeMargin;
+    const areaRight = graphicX + graphicDims.w / 2 - safeMargin;
+    const areaBottom = graphicY + graphicDims.h / 2 - safeMargin;
+    const qrCX = areaLeft + vQrWidth / 2 + (areaRight - areaLeft - vQrWidth) * (qrPositionX / 100);
+    const qrCY = areaTop + vQrHeight / 2 + (areaBottom - areaTop - vQrHeight) * (qrPositionY / 100);
+    const vQrX = qrCX - vQrWidth / 2;
+    const vQrY = qrCY - vQrHeight / 2;
+    const hdrZoneTop = graphicY - graphicDims.h / 2 + 2;
+    const hdrZoneBottom = vQrY - 2;
+    const ftrZoneTop = vQrY + vQrHeight + 2;
+    const ftrZoneBottom = graphicY + graphicDims.h / 2 - 2;
+    const hdrAutoText = calculateAutoTextSize(headerStyle.text || '', headerStyle.fontSize || '18px', graphicDims.w);
+    const ftrAutoText = calculateAutoTextSize(footerStyle.text || '', footerStyle.fontSize || '18px', graphicDims.w);
+    const hdrVOff = headerStyle.verticalOffset ?? 50;
+    const hdrHOff = headerStyle.horizontalOffset ?? 50;
+    const hdrTextY = Math.max(hdrZoneTop + hdrAutoText.fontSize * 0.8, Math.min(hdrZoneBottom - (hdrAutoText.lines.length > 1 ? hdrAutoText.fontSize : 0), hdrZoneTop + ((hdrZoneBottom - hdrZoneTop) * (hdrVOff / 100))));
+    const hdrTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (hdrHOff / 100));
+    const ftrVOff = footerStyle.verticalOffset ?? 50;
+    const ftrHOff = footerStyle.horizontalOffset ?? 50;
+    const ftrTextY = Math.max(ftrZoneTop + ftrAutoText.fontSize * 0.8, Math.min(ftrZoneBottom - (ftrAutoText.lines.length > 1 ? ftrAutoText.fontSize : 0), ftrZoneTop + ((ftrZoneBottom - ftrZoneTop) * (ftrVOff / 100))));
+    const ftrTextX = (graphicX - graphicDims.w / 2) + (graphicDims.w * (ftrHOff / 100));
+    return { viewShowHeader, viewShowFooter, vQrWidth, vQrHeight, vQrX, vQrY, hdrAutoText, ftrAutoText, hdrTextX, hdrTextY, ftrTextX, ftrTextY };
+  };
 
   const ShirtFrontBackView = ({ view }: { view: 'front' | 'back' }) => {
+    const viewChoice = getPlacementGraphicChoice(view);
+    const layout = computeViewLayout(viewChoice);
+    const { viewShowHeader, viewShowFooter, vQrWidth, vQrHeight, vQrX, vQrY, hdrAutoText, ftrAutoText, hdrTextX, hdrTextY, ftrTextX, ftrTextY } = layout;
     const areaX = graphicX - graphicDims.w / 2;
     const areaY = graphicY - graphicDims.h / 2;
     const pocketZoom = isLeftChest && view === 'front';
@@ -177,35 +194,35 @@ export function ShirtPreviewStep({
         rx="1"
       />
       
-      {showHeader && headerAutoText.lines.map((line, i) => (
+      {viewShowHeader && hdrAutoText.lines.map((line, i) => (
         <text
           key={`hdr-${i}`}
-          x={headerTextX}
-          y={headerTextY + i * (headerAutoText.fontSize + 1)}
+          x={hdrTextX}
+          y={hdrTextY + i * (hdrAutoText.fontSize + 1)}
           textAnchor="middle"
           fill={headerStyle.color || '#fff'}
-          fontSize={headerAutoText.fontSize}
+          fontSize={hdrAutoText.fontSize}
           fontFamily={headerStyle.fontFamily || 'Arial'}
           fontWeight="bold"
         >
           {line}
         </text>
       ))}
-      <g transform={`translate(${qrX}, ${qrY})`}>
-        <rect width={qrWidth} height={qrHeight} fill="white" rx="1" />
-        <rect x={qrHeight * 0.08} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-        <rect x={qrWidth - qrHeight * 0.08 - qrHeight * 0.18} y={qrHeight * 0.08} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-        <rect x={qrHeight * 0.08} y={qrHeight - qrHeight * 0.08 - qrHeight * 0.18} width={qrHeight * 0.18} height={qrHeight * 0.18} fill="#333" />
-        <rect x={qrWidth / 2 - qrHeight * 0.12} y={qrHeight * 0.38} width={qrHeight * 0.24} height={qrHeight * 0.24} fill="#333" />
+      <g transform={`translate(${vQrX}, ${vQrY})`}>
+        <rect width={vQrWidth} height={vQrHeight} fill="white" rx="1" />
+        <rect x={vQrHeight * 0.08} y={vQrHeight * 0.08} width={vQrHeight * 0.18} height={vQrHeight * 0.18} fill="#333" />
+        <rect x={vQrWidth - vQrHeight * 0.08 - vQrHeight * 0.18} y={vQrHeight * 0.08} width={vQrHeight * 0.18} height={vQrHeight * 0.18} fill="#333" />
+        <rect x={vQrHeight * 0.08} y={vQrHeight - vQrHeight * 0.08 - vQrHeight * 0.18} width={vQrHeight * 0.18} height={vQrHeight * 0.18} fill="#333" />
+        <rect x={vQrWidth / 2 - vQrHeight * 0.12} y={vQrHeight * 0.38} width={vQrHeight * 0.24} height={vQrHeight * 0.24} fill="#333" />
       </g>
-      {showFooter && footerAutoText.lines.map((line, i) => (
+      {viewShowFooter && ftrAutoText.lines.map((line, i) => (
         <text
           key={`ftr-${i}`}
-          x={footerTextX}
-          y={footerTextY + i * (footerAutoText.fontSize + 1)}
+          x={ftrTextX}
+          y={ftrTextY + i * (ftrAutoText.fontSize + 1)}
           textAnchor="middle"
           fill={footerStyle.color || '#fff'}
-          fontSize={footerAutoText.fontSize}
+          fontSize={ftrAutoText.fontSize}
           fontFamily={footerStyle.fontFamily || 'Arial'}
           fontWeight="bold"
         >
