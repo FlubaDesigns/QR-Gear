@@ -6,15 +6,11 @@ import {
   Filter,
   Flag,
   Globe,
-  BookmarkPlus,
-  BookmarkMinus,
-  Heart,
   BookOpen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import {
@@ -23,7 +19,6 @@ import {
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
-import { useBuildShelf, type ShelfItem } from "../hooks/useBuildShelf";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
 
@@ -34,7 +29,7 @@ interface AdminCatalog {
 }
 
 type LocationFilter = "all" | "usa" | "other";
-type DataMode = "all" | "catalog" | "favorites";
+type DataMode = "all" | "catalog";
 
 function detectGender(title: string): "mens" | "womens" | "unisex" {
   const lowerTitle = title.toLowerCase();
@@ -88,6 +83,11 @@ function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
   };
 }
 
+function parseBlankId(blankId: string): { provider: string; id: string } {
+  if (blankId.startsWith("pf:")) return { provider: "printful", id: blankId.slice(3) };
+  return { provider: "printify", id: blankId };
+}
+
 interface CatalogCategoryResponse {
   name: string;
   items: CatalogProduct[];
@@ -97,7 +97,6 @@ interface CatalogCategoryResponse {
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
-  const shelf = useBuildShelf();
 
   const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
 
@@ -115,6 +114,26 @@ export function ProductsModule() {
     ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
     : null;
 
+  const catalogProviders = useMemo(() => {
+    if (!activeCatalog) return new Set<string>();
+    const providers = new Set<string>();
+    for (const blankId of activeCatalog.blankIds) {
+      providers.add(parseBlankId(blankId).provider);
+    }
+    return providers;
+  }, [activeCatalog]);
+
+  const catalogBlanksByProvider = useMemo(() => {
+    if (!activeCatalog) return new Map<string, Set<string>>();
+    const map = new Map<string, Set<string>>();
+    for (const blankId of activeCatalog.blankIds) {
+      const { provider: prov, id } = parseBlankId(blankId);
+      if (!map.has(prov)) map.set(prov, new Set());
+      map.get(prov)!.add(id);
+    }
+    return map;
+  }, [activeCatalog]);
+
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
     if (catalogId !== "all") {
@@ -125,14 +144,35 @@ export function ProductsModule() {
     }
   }, [selectProduct]);
 
-  const { data: allCatalogProducts = [], isLoading: loadingAllProducts } = useQuery<CatalogProduct[]>({
-    queryKey: ["all-catalog-products", provider],
+  const { data: printfulCatalogProducts = [], isLoading: loadingPrintful } = useQuery<CatalogProduct[]>({
+    queryKey: ["all-catalog-products", "printful"],
     queryFn: async () => {
       const headers = await api.getAuthHeaders();
-      let endpoint = "";
-      if (provider === "printify") endpoint = `${api.baseUrl}/printify/catalog`;
-      else if (provider === "printful") endpoint = `${api.baseUrl}/catalog/printful-products`;
-      if (!endpoint) return [];
+      const endpoint = `${api.baseUrl}/catalog/printful-products`;
+      const res = await fetch(endpoint, { headers });
+      if (!res.ok) return [];
+      const data = (await res.json()) as CatalogCategoryResponse[];
+      const items: CatalogProduct[] = [];
+      const seen = new Set<number>();
+      for (const cat of data) {
+        for (const item of (cat.items || [])) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            items.push({ ...item, fulfillmentProvider: 'printful' as any });
+          }
+        }
+      }
+      return items;
+    },
+    enabled: dataMode === "catalog" && catalogProviders.has("printful"),
+    staleTime: 60000,
+  });
+
+  const { data: printifyCatalogProducts = [], isLoading: loadingPrintify } = useQuery<CatalogProduct[]>({
+    queryKey: ["all-catalog-products", "printify"],
+    queryFn: async () => {
+      const headers = await api.getAuthHeaders();
+      const endpoint = `${api.baseUrl}/printify/catalog`;
       const res = await fetch(endpoint, { headers });
       if (!res.ok) return [];
       const data = (await res.json()) as CatalogCategoryResponse[];
@@ -148,9 +188,28 @@ export function ProductsModule() {
       }
       return items;
     },
-    enabled: dataMode === "catalog" && !!activeCatalog,
+    enabled: dataMode === "catalog" && catalogProviders.has("printify"),
     staleTime: 60000,
   });
+
+  const loadingCatalogProducts = loadingPrintful || loadingPrintify;
+
+  const catalogModeProducts = useMemo(() => {
+    const results: CatalogProduct[] = [];
+    const printfulIds = catalogBlanksByProvider.get("printful");
+    const printifyIds = catalogBlanksByProvider.get("printify");
+    if (printfulIds) {
+      for (const p of printfulCatalogProducts) {
+        if (printfulIds.has(String(p.id))) results.push(p);
+      }
+    }
+    if (printifyIds) {
+      for (const p of printifyCatalogProducts) {
+        if (printifyIds.has(String(p.id))) results.push(p);
+      }
+    }
+    return results;
+  }, [printfulCatalogProducts, printifyCatalogProducts, catalogBlanksByProvider]);
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
     setLocationFilter(loc);
@@ -160,10 +219,15 @@ export function ProductsModule() {
   }, [setOriginFilter]);
 
   const prevProviderRef = useRef(provider);
+  const internalProviderSwitch = useRef(false);
   useEffect(() => {
     if (prevProviderRef.current !== provider) {
-      setCategory(null);
-      selectProduct(null);
+      if (internalProviderSwitch.current) {
+        internalProviderSwitch.current = false;
+      } else {
+        setCategory(null);
+        selectProduct(null);
+      }
       prevProviderRef.current = provider;
     }
   }, [provider, setCategory, selectProduct]);
@@ -236,31 +300,6 @@ export function ProductsModule() {
     [products]
   );
 
-  const catalogBlankSet = useMemo(() => {
-    if (!activeCatalog) return null;
-    return new Set(activeCatalog.blankIds.map(String));
-  }, [activeCatalog]);
-
-  const catalogModeProducts = useMemo(() => {
-    if (!catalogBlankSet) return [];
-    return allCatalogProducts.filter(p => catalogBlankSet.has(String(p.id)));
-  }, [allCatalogProducts, catalogBlankSet]);
-
-  const catalogModeWithGender = useMemo(() =>
-    catalogModeProducts.map(p => ({ ...p, gender: detectGender(p.title) })),
-    [catalogModeProducts]
-  );
-
-  const filteredCatalogProducts = useMemo(() => {
-    return catalogModeWithGender.filter(p => {
-      const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
-      const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) ||
-                           (state.originFilter.showOther && !p.madeInUSA);
-      const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
-      return passesSearch && passesOrigin && passesGender;
-    });
-  }, [catalogModeWithGender, search, state.originFilter, state.genderFilter]);
-
   const filteredProducts = useMemo(() => {
     return productsWithGender.filter(p => {
       const passesOrigin = (state.originFilter.showUSA && p.madeInUSA) ||
@@ -290,12 +329,13 @@ export function ProductsModule() {
 
   const selectedProductId = state.selectedProduct ? String(state.selectedProduct.id) : null;
 
-  const activeProducts = dataMode === "catalog" ? filteredCatalogProducts : filteredProducts;
+  const activeProducts = dataMode === "catalog" ? catalogModeProducts : filteredProducts;
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string } }>();
     activeProducts.forEach(p => {
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p), catalog: p });
+      const withGender = { ...p, gender: detectGender(p.title) };
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p), catalog: withGender });
     });
     return map;
   }, [activeProducts]);
@@ -317,147 +357,30 @@ export function ProductsModule() {
 
   const handleCardSelect = useCallback((id: string, _item: ProductSelectItem) => {
     const entry = selectItemMap.get(id);
-    if (entry) selectProduct(entry.catalog);
-  }, [selectItemMap, selectProduct]);
-
-  const handleAddToShelf = useCallback((catalogProduct: CatalogProduct) => {
-    shelf.addItem.mutate({
-      providerId: provider,
-      catalogId: String(catalogProduct.id),
-      catalog: catalogProduct,
-      groupIds: [],
-    });
-  }, [provider, shelf.addItem]);
-
-  const handleRemoveFromShelf = useCallback((shelfItem: ShelfItem) => {
-    shelf.removeItem.mutate(shelfItem.id);
-  }, [shelf.removeItem]);
-
-  const filteredShelfItems = shelf.items;
-
-  const shelfSelectItemMap = useMemo(() => {
-    const map = new Map<string, { selectItem: ProductSelectItem; shelfItem: ShelfItem; catalogWithProvider: CatalogProduct }>();
-    filteredShelfItems.forEach(it => {
-      const catalogWithProvider: any = {
-        ...it.catalog,
-        fulfillmentProvider: it.providerId as "printify" | "printful",
-      };
-      map.set(it.shelfKey, {
-        selectItem: catalogToSelectItem(it.catalog),
-        shelfItem: it,
-        catalogWithProvider,
-      });
-    });
-    return map;
-  }, [filteredShelfItems]);
-
-  const shelfScrollItems: ScrollViewItem[] = useMemo(() =>
-    filteredShelfItems.map(it => ({
-      id: it.shelfKey,
-      imageUrl: it.catalog.imageUrl || "",
-      title: it.catalog.title,
-      subtitle: it.catalog.brand,
-      minPrice: it.catalog.minPrice,
-      maxPrice: it.catalog.maxPrice,
-      colorCount: it.catalog.colorCount,
-      madeInUSA: it.catalog.madeInUSA,
-      hasMockupMapping: (it.catalog as any).hasMockupMapping,
-    })),
-    [filteredShelfItems]
-  );
-
-
-  const handleShelfPick = useCallback((shelfKey: string) => {
-    const entry = shelfSelectItemMap.get(shelfKey);
-    if (!entry) return;
-    if (entry.shelfItem.providerId !== provider) {
-      setSelectedProviders([entry.shelfItem.providerId]);
-      setTimeout(() => selectProduct(entry.catalogWithProvider), 0);
-    } else {
-      selectProduct(entry.catalogWithProvider);
+    if (entry) {
+      const catalogProduct = entry.catalog as any;
+      if (catalogProduct.fulfillmentProvider && catalogProduct.fulfillmentProvider !== provider) {
+        internalProviderSwitch.current = true;
+        setSelectedProviders([catalogProduct.fulfillmentProvider]);
+      }
+      selectProduct(entry.catalog);
     }
-  }, [provider, setSelectedProviders, selectProduct, shelfSelectItemMap]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders]);
 
-  const renderCatalogCard = useCallback(
+  const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
       const entry = selectItemMap.get(String(scrollItem.id));
       if (!entry) return null;
-      const onShelf = shelf.isOnShelf(provider, String(scrollItem.id));
       return (
-        <div className="space-y-1">
-          <ProductSelectCardSkin
-            item={entry.selectItem}
-            isSelected={selectedProductId === String(scrollItem.id)}
-            onSelect={handleCardSelect}
-          />
-          <Button
-            variant={onShelf ? "secondary" : "outline"}
-            className="w-full text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onShelf) handleRemoveFromShelf(onShelf);
-              else handleAddToShelf(entry.catalog);
-            }}
-            disabled={shelf.addItem.isPending || shelf.removeItem.isPending}
-            data-testid={`button-favorite-toggle-${scrollItem.id}`}
-          >
-            {onShelf ? (
-              <><BookmarkMinus className="h-3 w-3 mr-1" /> Favorited</>
-            ) : (
-              <><BookmarkPlus className="h-3 w-3 mr-1" /> Add to Favorites</>
-            )}
-          </Button>
-        </div>
+        <ProductSelectCardSkin
+          item={entry.selectItem}
+          isSelected={selectedProductId === String(scrollItem.id)}
+          onSelect={handleCardSelect}
+        />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, shelf, provider, handleAddToShelf, handleRemoveFromShelf]
+    [selectItemMap, selectedProductId, handleCardSelect]
   );
-
-  const renderFavoriteCard = useCallback(
-    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
-      const entry = shelfSelectItemMap.get(String(scrollItem.id));
-      if (!entry) return null;
-      return (
-        <div className="space-y-1" data-testid={`favorite-item-${scrollItem.id}`}>
-          <ProductSelectCardSkin
-            item={entry.selectItem}
-            isSelected={false}
-            onSelect={() => handleShelfPick(String(scrollItem.id))}
-          />
-          <Button
-            variant="outline"
-            className="w-full text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRemoveFromShelf(entry.shelfItem);
-            }}
-            disabled={shelf.removeItem.isPending}
-            data-testid={`button-favorite-remove-${scrollItem.id}`}
-          >
-            <BookmarkMinus className="h-3 w-3 mr-1" /> Remove Favorite
-          </Button>
-        </div>
-      );
-    },
-    [shelfSelectItemMap, handleShelfPick, handleRemoveFromShelf, shelf.removeItem.isPending]
-  );
-
-  const catalogUsaCount = catalogModeWithGender.filter(p => p.madeInUSA).length;
-  const catalogOtherCount = catalogModeWithGender.filter(p => !p.madeInUSA).length;
-
-  const catalogOriginFiltered = useMemo(() => {
-    return catalogModeWithGender.filter(p =>
-      (state.originFilter.showUSA && p.madeInUSA) ||
-      (state.originFilter.showOther && !p.madeInUSA)
-    );
-  }, [catalogModeWithGender, state.originFilter]);
-
-  const catalogGenderCounts = useMemo(() => ({
-    all: catalogOriginFiltered.length,
-    mens: catalogOriginFiltered.filter(p => p.gender === "mens").length,
-    womens: catalogOriginFiltered.filter(p => p.gender === "womens").length,
-    unisex: catalogOriginFiltered.filter(p => p.gender === "unisex").length,
-  }), [catalogOriginFiltered]);
 
   return (
     <div className="space-y-4">
@@ -484,120 +407,18 @@ export function ProductsModule() {
         </select>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap" data-testid="data-mode-toggle">
-        <Badge
-          variant={dataMode === "favorites" ? "default" : "outline"}
-          className="cursor-pointer text-xs"
-          onClick={() => { setDataMode("favorites"); setSelectedCatalogId("all"); }}
-          data-testid="toggle-favorites"
-        >
-          <Heart className="w-3 h-3 mr-1" /> Favorites ({shelf.items.length})
-        </Badge>
-      </div>
-
-      {dataMode === "favorites" && (
-        <>
-          {shelf.itemsLoading ? (
-            <div className="flex gap-3 overflow-hidden">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
-              ))}
-            </div>
-          ) : shelfScrollItems.length === 0 ? (
-            <div className="p-6 text-center space-y-2 border rounded-md bg-muted/20">
-              <p className="text-sm text-muted-foreground">
-                No favorites yet. Browse the catalog and add products you like.
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => handleCatalogChange("all")}
-                data-testid="button-go-to-catalog"
-              >
-                Browse Catalog
-              </Button>
-            </div>
-          ) : (
-            <SharedViewer
-              mode="scroll"
-              scrollProps={{
-                items: shelfScrollItems,
-                selectedId: selectedProductId,
-                emptyMessage: "No favorites yet.",
-                layout: "vertical",
-                gridHeight: "calc(100vh - 160px)",
-                renderItem: renderFavoriteCard,
-              }}
-            />
-          )}
-        </>
-      )}
-
       {dataMode === "catalog" && activeCatalog && (
         <>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
-              data-testid="input-search-catalog"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Filter className="h-3 w-3 text-muted-foreground" />
-              <Badge
-                variant={locationFilter === "all" ? "default" : "outline"}
-                className="cursor-pointer text-xs"
-                onClick={() => applyLocationFilter("all")}
-                data-testid="filter-catalog-location-all"
-              >
-                <Globe className="w-3 h-3 mr-1" /> All ({catalogModeProducts.length})
-              </Badge>
-              <Badge
-                variant={locationFilter === "usa" ? "default" : "outline"}
-                className="cursor-pointer text-xs"
-                onClick={() => applyLocationFilter("usa")}
-                data-testid="filter-catalog-location-usa"
-              >
-                <Flag className="w-3 h-3 mr-1" /> USA ({catalogUsaCount})
-              </Badge>
-              <Badge
-                variant={locationFilter === "other" ? "default" : "outline"}
-                className="cursor-pointer text-xs"
-                onClick={() => applyLocationFilter("other")}
-                data-testid="filter-catalog-location-other"
-              >
-                Other ({catalogOtherCount})
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {(["all", "mens", "womens", "unisex"] as const).map((g) => (
-                <Badge
-                  key={g}
-                  variant={state.genderFilter === g ? "default" : "outline"}
-                  className="cursor-pointer text-xs capitalize"
-                  onClick={() => setGenderFilter(g)}
-                  data-testid={`filter-catalog-gender-${g}`}
-                >
-                  {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({catalogGenderCounts[g]})
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {loadingAllProducts ? (
+          {loadingCatalogProducts ? (
             <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
               ))}
             </div>
-          ) : filteredCatalogProducts.length === 0 ? (
+          ) : catalogModeProducts.length === 0 ? (
             <div className="p-6 text-center space-y-2 border rounded-md bg-muted/20">
               <p className="text-sm text-muted-foreground">
-                No products match the current filters in this catalog.
+                No products found in this catalog.
               </p>
             </div>
           ) : (
@@ -609,7 +430,7 @@ export function ProductsModule() {
                 emptyMessage: "No products in this catalog.",
                 layout: "vertical",
                 gridHeight: "calc(100vh - 160px)",
-                renderItem: renderCatalogCard,
+                renderItem: renderProductCard,
               }}
             />
           )}
@@ -710,7 +531,7 @@ export function ProductsModule() {
                     emptyMessage: "No products match the current filters.",
                     layout: "vertical",
                     gridHeight: "calc(100vh - 160px)",
-                    renderItem: renderCatalogCard,
+                    renderItem: renderProductCard,
                   }}
                 />
               )}
