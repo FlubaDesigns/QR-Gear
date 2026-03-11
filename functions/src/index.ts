@@ -1,5 +1,5 @@
 // Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-strip-undef-packets-v2';
+const _BUILD_ID = '20260311-sanitize-style-data-urls-v3';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
@@ -5894,6 +5894,20 @@ function stripUndef(obj: any): any {
   return clean;
 }
 
+function sanitizeStyleForFirestore(style: any): any {
+  if (!style || typeof style !== 'object') return style;
+  const sanitized = { ...style };
+  for (const [k, v] of Object.entries(sanitized)) {
+    if (typeof v === 'string' && v.length > 500000) {
+      sanitized[k] = '';
+    }
+    if (typeof v === 'string' && v.startsWith('data:')) {
+      sanitized[k] = '';
+    }
+  }
+  return stripUndef(sanitized);
+}
+
 // ============ PRODUCTS PAGE: PACKETS CRUD ============
 
 app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -5926,7 +5940,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
       landingPageTitle: landingPageTitle || null, landingPageDescription: landingPageDescription || null,
       landingPageBackgroundUrl: landingPageBackgroundUrl || null,
       landingPageSlug: landingPageSlug || null,
-      headerStyle: stripUndef(headerStyle) || null, footerStyle: stripUndef(footerStyle) || null,
+      headerStyle: sanitizeStyleForFirestore(headerStyle) || null, footerStyle: sanitizeStyleForFirestore(footerStyle) || null,
       roleType: roleType || null, storeId: storeId || null,
       storeName: storeName || null, channelId: channelId || null,
       channelName: channelName || null, fulfillmentProvider: fulfillmentProvider || 'printify',
@@ -6060,7 +6074,10 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     const docRef = db.collection("productPackets").doc(packetId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-    await docRef.update({ ...stripUndef(updates), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    const cleanUpdates = stripUndef(updates);
+    if (cleanUpdates.headerStyle) cleanUpdates.headerStyle = sanitizeStyleForFirestore(cleanUpdates.headerStyle);
+    if (cleanUpdates.footerStyle) cleanUpdates.footerStyle = sanitizeStyleForFirestore(cleanUpdates.footerStyle);
+    await docRef.update({ ...cleanUpdates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     console.log(`[Packets PATCH] Updated packet ${packetId}:`, Object.keys(updates));
     res.json({ success: true, packetId, message: "Packet updated" });
   } catch (error: any) {
@@ -7701,7 +7718,7 @@ app.post('/members/:memberId/products', async (req: Request, res: Response): Pro
         selectedShirtSize: selectedShirtSize || null, selectedPlacements: selectedPlacements || null,
         perPlacementConfigs: perPlacementConfigs || null, perPlacementSizes: perPlacementSizes || null,
         graphicSize: graphicSize || null, textLayoutChoice: textLayoutChoice || null,
-        headerStyle: stripUndef(headerStyle) || null, footerStyle: stripUndef(footerStyle) || null,
+        headerStyle: sanitizeStyleForFirestore(headerStyle) || null, footerStyle: sanitizeStyleForFirestore(footerStyle) || null,
         qrType: qrType || packetType, qrDestination: qrDestination || null,
         qrGraphic: body.qrGraphic || null, productGraphic: body.productGraphic || null,
         urlGraphic: body.background || null, originalUrlGraphic: body.originalUrlGraphic || null,
@@ -7859,7 +7876,10 @@ app.patch('/members/:memberId/packets/:packetId', async (req: Request, res: Resp
     const doc = await db.collection('memberPackets').doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
-    await db.collection('memberPackets').doc(packetId).update({ ...stripUndef(updates), updatedAt: new Date().toISOString() });
+    const memberClean = stripUndef(updates);
+    if (memberClean.headerStyle) memberClean.headerStyle = sanitizeStyleForFirestore(memberClean.headerStyle);
+    if (memberClean.footerStyle) memberClean.footerStyle = sanitizeStyleForFirestore(memberClean.footerStyle);
+    await db.collection('memberPackets').doc(packetId).update({ ...memberClean, updatedAt: new Date().toISOString() });
     res.json({ success: true, packetId });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -8542,6 +8562,8 @@ app.post('/public/packets', async (req: Request, res: Response): Promise<void> =
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const packetData = stripUndef({ status: 'building', ...req.body, createdAt: now.toISOString(), updatedAt: now.toISOString(), expiresAt: expiresAt.toISOString() });
+    if (packetData.headerStyle) packetData.headerStyle = sanitizeStyleForFirestore(packetData.headerStyle);
+    if (packetData.footerStyle) packetData.footerStyle = sanitizeStyleForFirestore(packetData.footerStyle);
     const docRef = await db.collection('temp_packets').add(packetData);
     res.json({ success: true, tempPacketId: docRef.id, expiresAt: expiresAt.toISOString() });
   } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
@@ -8554,7 +8576,10 @@ app.patch('/public/packets/:tempPacketId', async (req: Request, res: Response): 
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ success: false, error: "Temp packet not found" }); return; }
     if (doc.data()?.status === 'completed') { res.status(400).json({ success: false, error: "Packet already completed" }); return; }
-    await docRef.update(stripUndef({ ...req.body, updatedAt: new Date().toISOString() }));
+    const tempClean = stripUndef({ ...req.body, updatedAt: new Date().toISOString() });
+    if (tempClean.headerStyle) tempClean.headerStyle = sanitizeStyleForFirestore(tempClean.headerStyle);
+    if (tempClean.footerStyle) tempClean.footerStyle = sanitizeStyleForFirestore(tempClean.footerStyle);
+    await docRef.update(tempClean);
     res.json({ success: true, tempPacketId });
   } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
 });
@@ -11771,8 +11796,12 @@ app.post('/qr/scan', async (req: Request, res: Response): Promise<void> => {
 app.post('/packets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const now = admin.firestore.FieldValue.serverTimestamp();
-    const packetData = { ...req.body, createdAt: now, updatedAt: now };
+    const packetData = stripUndef({ ...req.body, createdAt: now, updatedAt: now });
     delete packetData.mockupJobsQueued;
+    if (packetData.headerStyle) packetData.headerStyle = sanitizeStyleForFirestore(packetData.headerStyle);
+    if (packetData.footerStyle) packetData.footerStyle = sanitizeStyleForFirestore(packetData.footerStyle);
+    if (packetData.titleStyle) packetData.titleStyle = sanitizeStyleForFirestore(packetData.titleStyle);
+    if (packetData.descriptionStyle) packetData.descriptionStyle = sanitizeStyleForFirestore(packetData.descriptionStyle);
     const ref = await db.collection('productPackets').add(packetData);
     res.json({ success: true, packetId: ref.id, mockupJobsQueued: 0, message: 'Product packet created' });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
