@@ -433,6 +433,7 @@ export function OwnerWizard() {
           printProviderId: product.printProviderId,
           productTitle: product.title,
           retailPrice: product.retailPrice,
+          fulfillmentProvider: product.fulfillmentProvider || 'printify',
         }),
       });
       const data = await res.json();
@@ -485,6 +486,7 @@ export function OwnerWizard() {
           footerStyle: footerStyle,
           textLayoutChoice: textLayoutChoice,
           qrColor: (colorInfo?.textColor === '#FFFFFF') ? 'white' : 'black',
+          fulfillmentProvider: selectedProductType.fulfillmentProvider || 'printify',
         }),
       });
       const data = await res.json();
