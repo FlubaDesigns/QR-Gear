@@ -37,8 +37,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-03-11T16:00:00Z - tier-products returns colors/sizes for lightbox
-const _BUILD_ID = '20260311-lightbox-v1';
+// Build timestamp: 2026-03-11T17:00:00Z - allowed-products returns descriptions from catalog
+const _BUILD_ID = '20260311-lightbox-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
@@ -1173,6 +1173,7 @@ app.get('/members/allowed-products', async (req, res) => {
         const markupFixed = pricingSettings?.markupFixed ?? 0;
         const effectiveSection = section || 'member';
         let catalogBlankFilter = null;
+        let catalogBlankDescriptions = {};
         const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
         const catalogId = assignDoc.exists ? assignDoc.data()?.[effectiveSection] : null;
         if (catalogId) {
@@ -1180,6 +1181,7 @@ app.get('/members/allowed-products', async (req, res) => {
             if (catDoc.exists) {
                 const blankIds = catDoc.data()?.blankIds || [];
                 catalogBlankFilter = new Set(blankIds.map(String));
+                catalogBlankDescriptions = catDoc.data()?.blankDescriptions || {};
                 console.log(`[Member Products CF] Filtering by catalog "${catDoc.data()?.name}" (${blankIds.length} blanks) for section "${effectiveSection}"`);
             }
         }
@@ -1245,6 +1247,9 @@ app.get('/members/allowed-products', async (req, res) => {
                         return { ...pl, id: nId };
                     });
                 }
+                const fulfillmentProvider = p.fulfillmentProvider || 'printify';
+                const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
+                const description = catalogBlankDescriptions[blankKey] || p.description || '';
                 return {
                     ...p,
                     blueprintId,
@@ -1256,6 +1261,7 @@ app.get('/members/allowed-products', async (req, res) => {
                     profit,
                     memberEarnings,
                     placements,
+                    description,
                 };
             }));
         };

@@ -1,5 +1,5 @@
-// Build timestamp: 2026-03-11T16:00:00Z - tier-products returns colors/sizes for lightbox
-const _BUILD_ID = '20260311-lightbox-v1';
+// Build timestamp: 2026-03-11T17:00:00Z - allowed-products returns descriptions from catalog
+const _BUILD_ID = '20260311-lightbox-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
@@ -1443,6 +1443,7 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
 
     const effectiveSection = section || 'member';
     let catalogBlankFilter: Set<string> | null = null;
+    let catalogBlankDescriptions: Record<string, string> = {};
     const assignDoc = await db.collection('systemSettings').doc('catalog-assignments').get();
     const catalogId = assignDoc.exists ? assignDoc.data()?.[effectiveSection] : null;
     if (catalogId) {
@@ -1450,6 +1451,7 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
       if (catDoc.exists) {
         const blankIds = catDoc.data()?.blankIds || [];
         catalogBlankFilter = new Set(blankIds.map(String));
+        catalogBlankDescriptions = catDoc.data()?.blankDescriptions || {};
         console.log(`[Member Products CF] Filtering by catalog "${catDoc.data()?.name}" (${blankIds.length} blanks) for section "${effectiveSection}"`);
       }
     }
@@ -1518,6 +1520,10 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
           });
         }
 
+        const fulfillmentProvider = p.fulfillmentProvider || 'printify';
+        const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
+        const description = catalogBlankDescriptions[blankKey] || p.description || '';
+
         return {
           ...p,
           blueprintId,
@@ -1529,6 +1535,7 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
           profit,
           memberEarnings,
           placements,
+          description,
         };
       }));
     };

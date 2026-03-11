@@ -164,7 +164,7 @@ export function ProductPickerStep({
             <div className="flex-1 min-w-0">
               <p className="text-white font-medium text-sm truncate">{product.title}</p>
               {product.retailPrice != null && (
-                <p className="text-base font-bold text-white">${product.retailPrice.toFixed(2)}</p>
+                <p className="text-base font-bold text-emerald-400">${product.retailPrice.toFixed(2)}</p>
               )}
               {context === 'member' && product.memberEarnings != null && (
                 <p className="text-xs text-green-400">Earn ${product.memberEarnings.toFixed(2)}</p>
@@ -208,7 +208,7 @@ export function ProductPickerStep({
 
               <div className="flex flex-wrap gap-2 items-center">
                 {zoomedImage.product.retailPrice != null && (
-                  <span className="text-2xl font-bold text-white">${zoomedImage.product.retailPrice.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-emerald-400">${zoomedImage.product.retailPrice.toFixed(2)}</span>
                 )}
                 {context === 'member' && zoomedImage.product.memberEarnings != null && (
                   <Badge variant="secondary" className="bg-green-500/15 text-green-400 border-green-500/30">
@@ -798,7 +798,7 @@ export function TierPickerStep({
 
                 <div className="flex flex-wrap gap-2 items-center">
                   {previewProduct.tp.retailPrice != null && (
-                    <span className="text-2xl font-bold text-white">${previewProduct.tp.retailPrice.toFixed(2)}</span>
+                    <span className="text-2xl font-bold text-emerald-400">${previewProduct.tp.retailPrice.toFixed(2)}</span>
                   )}
                   {context === "member" && previewProduct.tp.memberEarnings != null && (
                     <Badge variant="secondary" className="bg-green-500/15 text-green-400 border-green-500/30">
