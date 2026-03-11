@@ -37,8 +37,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-shop-sizes-v5';
+// Build timestamp: 2026-03-11T16:00:00Z - tier-products returns colors/sizes for lightbox
+const _BUILD_ID = '20260311-lightbox-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
@@ -10085,6 +10085,14 @@ app.get('/members/tier-products', async (req, res) => {
             const retailPrice = Math.ceil((cost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
             const memberEarnings = Math.round((retailPrice - cost) * 25) / 100;
             const numericId = blankKey.startsWith('pf:') ? parseInt(blankKey.replace('pf:', '')) : parseInt(blankKey);
+            let availableColors = [];
+            let availableSizes = [];
+            if (bp._source === 'printify') {
+                const numId = parseInt(blankKey);
+                const prov = providersByBlueprint.get(numId);
+                availableColors = (prov?.availableColors || []).map((c) => ({ name: c.name || c, hex: c.hex || '' }));
+                availableSizes = (prov?.availableSizes || []).map((s) => typeof s === 'string' ? s : s.title || String(s));
+            }
             categoryTierMap[category][tier].push({
                 blueprintId: numericId,
                 title: bp.title,
@@ -10095,6 +10103,8 @@ app.get('/members/tier-products', async (req, res) => {
                 retailPrice,
                 memberEarnings,
                 fulfillmentProvider: bp._source === 'printful' ? 'printful' : 'printify',
+                availableColors,
+                availableSizes,
             });
         }
         const defaultNames = {
