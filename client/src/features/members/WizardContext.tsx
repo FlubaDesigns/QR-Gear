@@ -1072,6 +1072,25 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (!packetId) {
       toast({ title: 'Packet creation failed', description: 'Could not initialize your product. Please try again.', variant: 'destructive' });
     }
+
+    if (!product.placements || product.placements.length === 0) {
+      const prov = product.fulfillmentProvider || 'printify';
+      const params = new URLSearchParams({ provider: prov });
+      if (prov === 'printify') {
+        if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
+        if (product.printProviderId) params.set('printProviderId', String(product.printProviderId));
+      } else {
+        params.set('productId', String(product.blueprintId));
+      }
+      fetch(`/api/public/catalog/placements?${params}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.placements && data.placements.length > 0) {
+            setSelectedProductType(prev => prev ? { ...prev, placements: data.placements } : prev);
+          }
+        })
+        .catch(err => console.warn('[WizardContext] Failed to fetch placements:', err));
+    }
   };
 
   useEffect(() => {

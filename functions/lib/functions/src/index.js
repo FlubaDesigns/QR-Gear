@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
 // Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-qrsize-v2';
+const _BUILD_ID = '20260311-public-placements';
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
 const express_1 = __importDefault(require("express"));
@@ -5937,6 +5937,71 @@ app.get('/admin/catalog/placements', requireAdmin, async (req, res) => {
     }
     catch (error) {
         console.error("Placement fetch error:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+app.get('/public/catalog/placements', async (req, res) => {
+    try {
+        const provider = req.query.provider;
+        const blueprintId = req.query.blueprintId ? parseInt(req.query.blueprintId) : null;
+        const printProviderId = req.query.printProviderId ? parseInt(req.query.printProviderId) : null;
+        const productId = req.query.productId ? parseInt(req.query.productId) : null;
+        if (provider === 'printify') {
+            if (!blueprintId || !printProviderId) {
+                res.status(400).json({ error: "blueprintId and printProviderId required for Printify" });
+                return;
+            }
+            if (!printifyClient.isConfigured) {
+                res.status(503).json({ error: "Printify API not configured" });
+                return;
+            }
+            try {
+                const variantData = await printifyClient.getVariants(blueprintId, printProviderId);
+                const placementSet = new Set();
+                if (variantData?.variants) {
+                    for (const v of variantData.variants) {
+                        if (v.placeholders) {
+                            for (const ph of v.placeholders) {
+                                placementSet.add(ph.position || ph.placeholder);
+                            }
+                        }
+                    }
+                }
+                if (placementSet.size === 0)
+                    placementSet.add('front');
+                const normalized = normalizePlacements('printify', Array.from(placementSet));
+                const mapped = normalized.map(p => ({
+                    id: p, type: p, title: p.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), additionalPrice: 0,
+                }));
+                res.json({ placements: mapped, source: 'printify-api' });
+            }
+            catch (err) {
+                res.json({ placements: [{ id: 'front', type: 'front', title: 'Front', additionalPrice: 0 }], source: 'default-fallback' });
+            }
+            return;
+        }
+        if (provider === 'printful') {
+            if (!productId) {
+                res.status(400).json({ error: "productId required for Printful" });
+                return;
+            }
+            const printfileInfo = await printfulClient.getPrintfiles(productId);
+            const rawPlacements = printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : [];
+            const printPlacements = rawPlacements.filter(p => !isEmbroideryPlacement(p));
+            const grouped = groupPlacementsByLocation('printful', printPlacements);
+            const mapped = grouped.map(g => ({
+                id: g.internal, type: g.internal,
+                title: g.internal.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                additionalPrice: 0,
+                methods: g.methods.map(m => ({ method: m.method, providerName: m.providerName })),
+            }));
+            res.json({ placements: mapped, source: 'printful-api' });
+            return;
+        }
+        res.status(400).json({ error: "provider must be 'printify' or 'printful'" });
+    }
+    catch (error) {
+        console.error("Public placement fetch error:", error.message);
         res.status(500).json({ error: error.message });
     }
 });

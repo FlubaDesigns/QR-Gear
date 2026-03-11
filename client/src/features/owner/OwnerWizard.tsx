@@ -552,6 +552,25 @@ export function OwnerWizard() {
     setCostPulse(true);
     setTimeout(() => setCostPulse(false), 600);
     createTempPacket(product);
+
+    if (!product.placements || product.placements.length === 0) {
+      const provider = product.fulfillmentProvider || 'printify';
+      const params = new URLSearchParams({ provider });
+      if (provider === 'printify') {
+        if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
+        if (product.printProviderId) params.set('printProviderId', String(product.printProviderId));
+      } else {
+        params.set('productId', String(product.blueprintId));
+      }
+      fetch(`/api/public/catalog/placements?${params}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.placements && data.placements.length > 0) {
+            setSelectedProductType(prev => prev ? { ...prev, placements: data.placements } : prev);
+          }
+        })
+        .catch(err => console.warn('[OwnerWizard] Failed to fetch placements:', err));
+    }
   };
 
   const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
