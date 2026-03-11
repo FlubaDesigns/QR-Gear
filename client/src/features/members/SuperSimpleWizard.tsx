@@ -1359,9 +1359,10 @@ export function SuperSimpleWizard() {
                         setProductGraphic(qrApiUrl);
                       }
 
-                      if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+                      const isPrintfulPlus = selectedProductType?.fulfillmentProvider === 'printful';
+                      if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintfulPlus) && selectedColor) {
                         const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
-                        console.log('[QR Plus] Generating mockup with graphicSize:', graphicSize, '\u2192 effectiveQrSize:', effectiveQrSize);
+                        console.log('[QR Plus] Generating mockup with graphicSize:', graphicSize, '\u2192 effectiveQrSize:', effectiveQrSize, 'provider:', isPrintfulPlus ? 'printful' : 'printify');
 
                         const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic
                           ? productGraphicResult.productGraphic
@@ -1369,11 +1370,12 @@ export function SuperSimpleWizard() {
 
                         const mockupResult = await api.generateMockup({
                           blueprintId: selectedProductType.blueprintId,
-                          printProviderId: selectedProductType.printProviderId,
+                          printProviderId: selectedProductType.printProviderId || 99,
                           colorName: selectedColor,
                           artworkUrl: artworkForMockup,
                           placement: 'front',
                           qrSize: effectiveQrSize,
+                          fulfillmentProvider: isPrintfulPlus ? 'printful' : 'printify',
                         });
 
                         console.log('[QR Plus] Mockup API Response:', JSON.stringify(mockupResult, null, 2));

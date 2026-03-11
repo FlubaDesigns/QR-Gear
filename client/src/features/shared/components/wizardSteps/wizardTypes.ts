@@ -110,6 +110,7 @@ export interface AllowedProduct {
   profit?: number;
   memberEarnings?: number;
   hasUSAProvider?: boolean;
+  fulfillmentProvider?: 'printify' | 'printful';
   placements?: { id: string; title: string; widthPx?: number; heightPx?: number; widthInches?: string; heightInches?: string }[];
   availableColors?: Array<{ name: string; hex: string }>;
   availableSizes?: string[];

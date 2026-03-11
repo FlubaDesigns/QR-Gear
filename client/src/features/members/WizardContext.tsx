@@ -1119,17 +1119,19 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         setProductGraphic(qrApiUrl);
       }
 
-      if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+      const isPrintful = selectedProductType?.fulfillmentProvider === 'printful';
+      if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintful) && selectedColor) {
         const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
-        console.log(`[${type}] Generating mockup with graphicSize:`, graphicSize, '→ effectiveQrSize:', effectiveQrSize);
+        console.log(`[${type}] Generating mockup with graphicSize:`, graphicSize, '→ effectiveQrSize:', effectiveQrSize, 'provider:', isPrintful ? 'printful' : 'printify');
 
         const mockupResult = await api.generateMockup({
           blueprintId: selectedProductType.blueprintId,
-          printProviderId: selectedProductType.printProviderId,
+          printProviderId: selectedProductType.printProviderId || 99,
           colorName: selectedColor,
           artworkUrl: artworkForMockup,
           placement: 'front',
           qrSize: effectiveQrSize,
+          fulfillmentProvider: isPrintful ? 'printful' : 'printify',
         });
 
         const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
@@ -1199,16 +1201,18 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
           console.log('[QR Basic] Updated packet with QR content:', currentPacketId);
         }
 
-        if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+        const isPrintfulBasic = selectedProductType?.fulfillmentProvider === 'printful';
+        if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintfulBasic) && selectedColor) {
           const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
-          console.log('[QR Basic] Generating mockup with graphicSize:', graphicSize, '→ effectiveQrSize:', effectiveQrSize);
+          console.log('[QR Basic] Generating mockup with graphicSize:', graphicSize, '→ effectiveQrSize:', effectiveQrSize, 'provider:', isPrintfulBasic ? 'printful' : 'printify');
           const mockupResult = await api.generateMockup({
             blueprintId: selectedProductType.blueprintId,
-            printProviderId: selectedProductType.printProviderId,
+            printProviderId: selectedProductType.printProviderId || 99,
             colorName: selectedColor,
             artworkUrl: qrApiUrl,
             placement: 'front',
             qrSize: effectiveQrSize,
+            fulfillmentProvider: isPrintfulBasic ? 'printful' : 'printify',
           });
 
           const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;

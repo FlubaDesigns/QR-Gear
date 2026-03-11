@@ -9953,6 +9953,7 @@ app.get('/members/tier-products', async (req, res) => {
                 cost,
                 retailPrice,
                 memberEarnings,
+                fulfillmentProvider: bp._source === 'printful' ? 'printful' : 'printify',
             });
         }
         const defaultNames = {

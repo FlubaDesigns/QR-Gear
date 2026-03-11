@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package } from "lucide-react";
+import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package, Sparkles, CheckCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
@@ -44,6 +44,73 @@ function AdminQuickAccess() {
         Store Builder
       </Link>
     </div>
+  );
+}
+
+function BecomeMember() {
+  const benefits = [
+    { text: "Design your own QR products and earn on every sale", icon: DollarSign },
+    { text: "Access the full product builder with guided wizard", icon: Wand2 },
+    { text: "Your own member studio to manage designs and orders", icon: Palette },
+    { text: "No upfront costs — products are made when they sell", icon: CheckCircle },
+  ];
+
+  return (
+    <section className="home-section">
+      <div className="container">
+        <Card className="glass-card overflow-visible">
+          <CardContent className="p-8 md:p-12">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8">
+              <div className="flex-1 space-y-5">
+                <div>
+                  <Badge variant="secondary" className="mb-3">
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Free to Join
+                  </Badge>
+                  <h2 className="text-2xl md:text-3xl font-bold text-foreground">
+                    Become a Member
+                  </h2>
+                  <p className="text-muted-foreground mt-2 text-base md:text-lg max-w-xl">
+                    Turn your ideas into real products. As a QR Gear member, you design custom 
+                    merchandise with built-in QR codes and earn money every time someone buys your creation. 
+                    No inventory, no risk.
+                  </p>
+                </div>
+
+                <ul className="space-y-3">
+                  {benefits.map((b, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <div className="rounded-full p-1.5 bg-primary/10 mt-0.5 flex-shrink-0">
+                        <b.icon className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="text-sm text-foreground">{b.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="flex flex-col gap-3 w-full lg:w-auto lg:min-w-[200px]">
+                <Link href="/members">
+                  <Button className="w-full" data-testid="button-become-member">
+                    <Users className="w-4 h-4 mr-2" />
+                    Join Now
+                  </Button>
+                </Link>
+                <Link href="/earn">
+                  <Button variant="outline" className="w-full" data-testid="button-learn-earning">
+                    Learn How You Earn
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <p className="text-xs text-muted-foreground text-center mt-1">
+                  Sign up in seconds. Start building immediately.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </section>
   );
 }
 
@@ -174,6 +241,7 @@ export default function Home() {
         <div className="hidden md:block">
           <HowItWorks />
         </div>
+        <BecomeMember />
         <FeaturedStores />
         <div className="hidden md:block">
           {hasProducts ? <FeaturedProducts /> : <NoProductsYet />}

@@ -639,6 +639,7 @@ export function TierPickerStep({
               brand: tp.brand,
               retailPrice: tp.retailPrice,
               memberEarnings: tp.memberEarnings,
+              fulfillmentProvider: tp.fulfillmentProvider || 'printify',
             } as AllowedProduct;
             const isSelected = selectedProduct?.blueprintId === tp.blueprintId;
             return (

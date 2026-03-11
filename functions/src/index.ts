@@ -9685,6 +9685,7 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
         cost,
         retailPrice,
         memberEarnings,
+        fulfillmentProvider: bp._source === 'printful' ? 'printful' : 'printify',
       });
     }
 

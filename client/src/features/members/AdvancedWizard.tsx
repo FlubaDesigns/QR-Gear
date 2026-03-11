@@ -813,7 +813,8 @@ export function AdvancedWizard() {
                     setProductGraphic(qrApiUrl);
                   }
                   
-                  if (selectedProductType?.blueprintId && selectedProductType?.printProviderId && selectedColor) {
+                  const isPrintfulAdv = selectedProductType?.fulfillmentProvider === 'printful';
+                  if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintfulAdv) && selectedColor) {
                     const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
                     
                     const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic 
@@ -822,11 +823,12 @@ export function AdvancedWizard() {
                     
                     const mockupResult = await api.generateMockup({
                       blueprintId: selectedProductType.blueprintId,
-                      printProviderId: selectedProductType.printProviderId,
+                      printProviderId: selectedProductType.printProviderId || 99,
                       colorName: selectedColor,
                       artworkUrl: artworkForMockup,
                       placement: 'front',
                       qrSize: effectiveQrSize,
+                      fulfillmentProvider: isPrintfulAdv ? 'printful' : 'printify',
                     });
                     
                     const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
