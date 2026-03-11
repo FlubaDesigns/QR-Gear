@@ -1,5 +1,5 @@
-// Build timestamp: 2026-03-11T17:00:00Z - allowed-products returns descriptions from catalog
-const _BUILD_ID = '20260311-lightbox-v2';
+// Build timestamp: 2026-03-11T19:00:00Z - fix: use model as description fallback for Printful products
+const _BUILD_ID = '20260311-lightbox-v4';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
@@ -9756,7 +9756,7 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
           productLookup.set(`pf:${pfId}`, {
             title: d.title || '',
             brand: d.brand || '',
-            description: d.description || '',
+            description: d.description || d.model || '',
             images: d.image ? [d.image] : [],
             primaryImageUrl: d.image || null,
             minPrice: d.minPrice ? parseFloat(d.minPrice) : null,
@@ -9815,10 +9815,12 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
         availableColors = (prov?.availableColors || []).map((c: any) => ({ name: c.name || c, hex: c.hex || '' }));
         availableSizes = (prov?.availableSizes || []).map((s: any) => typeof s === 'string' ? s : s.title || String(s));
       }
+      const customDesc = blankDescriptions[blankKey] || bp.description || '';
+      const fallbackDesc = customDesc || (bp.brand ? `${bp.title} by ${bp.brand}. Premium quality print-on-demand ${category.toLowerCase()}.` : '');
       categoryTierMap[category][tier].push({
         blueprintId: numericId,
         title: bp.title,
-        description: blankDescriptions[blankKey] || bp.description || '',
+        description: fallbackDesc,
         brand: bp.brand,
         imageUrl: bp.images?.[0] || bp.primaryImageUrl || null,
         cost,
