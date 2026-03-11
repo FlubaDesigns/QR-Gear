@@ -1,5 +1,6 @@
 // Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-public-placements';
+const _BUILD_ID = '20260311-strip-undef-packets-v2';
+console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -5882,6 +5883,17 @@ app.post('/admin/pricing-settings', requireAdmin, async (req: Request, res: Resp
   }
 });
 
+function stripUndef(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj !== 'object' || obj instanceof Date) return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndef);
+  const clean: Record<string, any> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) clean[k] = stripUndef(v);
+  }
+  return clean;
+}
+
 // ============ PRODUCTS PAGE: PACKETS CRUD ============
 
 app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -5901,7 +5913,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
     const packetData: Record<string, any> = {
       qrOnlyUrl: qrOnlyUrl || null, compositeUrl: compositeUrl || null,
       qrContent: qrContent || null, headerText: headerText || null, footerText: footerText || null,
-      pricing: pricing || null, productId: productId || null, productName: productName || null,
+      pricing: stripUndef(pricing) || null, productId: productId || null, productName: productName || null,
       productDescription: productDescription || null, productImageUrl: productImageUrl || null,
       blueprintId: blueprintId || null, printProviderId: printProviderId || null,
       manufacturer: manufacturer || null, madeInUSA: madeInUSA || false,
@@ -5909,12 +5921,12 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
       defaultColorHex: defaultColorHex || null, defaultPlacement: defaultPlacement || null,
       qrProductState: qrProductState || null, placements: placements || [],
       availablePlacements: availablePlacements || [], sizes: sizes || [],
-      colors: colors || [], basePrice: basePrice || null, customerPrice: customerPrice || null,
-      mockupsByColor: mockupsByColor || null,
+      colors: stripUndef(colors) || [], basePrice: basePrice || null, customerPrice: customerPrice || null,
+      mockupsByColor: stripUndef(mockupsByColor) || null,
       landingPageTitle: landingPageTitle || null, landingPageDescription: landingPageDescription || null,
       landingPageBackgroundUrl: landingPageBackgroundUrl || null,
       landingPageSlug: landingPageSlug || null,
-      headerStyle: headerStyle || null, footerStyle: footerStyle || null,
+      headerStyle: stripUndef(headerStyle) || null, footerStyle: stripUndef(footerStyle) || null,
       roleType: roleType || null, storeId: storeId || null,
       storeName: storeName || null, channelId: channelId || null,
       channelName: channelName || null, fulfillmentProvider: fulfillmentProvider || 'printify',
@@ -7689,7 +7701,7 @@ app.post('/members/:memberId/products', async (req: Request, res: Response): Pro
         selectedShirtSize: selectedShirtSize || null, selectedPlacements: selectedPlacements || null,
         perPlacementConfigs: perPlacementConfigs || null, perPlacementSizes: perPlacementSizes || null,
         graphicSize: graphicSize || null, textLayoutChoice: textLayoutChoice || null,
-        headerStyle: headerStyle || null, footerStyle: footerStyle || null,
+        headerStyle: stripUndef(headerStyle) || null, footerStyle: stripUndef(footerStyle) || null,
         qrType: qrType || packetType, qrDestination: qrDestination || null,
         qrGraphic: body.qrGraphic || null, productGraphic: body.productGraphic || null,
         urlGraphic: body.background || null, originalUrlGraphic: body.originalUrlGraphic || null,
@@ -8529,7 +8541,7 @@ app.post('/public/packets', async (req: Request, res: Response): Promise<void> =
   try {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const packetData = { status: 'building', ...req.body, createdAt: now.toISOString(), updatedAt: now.toISOString(), expiresAt: expiresAt.toISOString() };
+    const packetData = stripUndef({ status: 'building', ...req.body, createdAt: now.toISOString(), updatedAt: now.toISOString(), expiresAt: expiresAt.toISOString() });
     const docRef = await db.collection('temp_packets').add(packetData);
     res.json({ success: true, tempPacketId: docRef.id, expiresAt: expiresAt.toISOString() });
   } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
@@ -8542,7 +8554,7 @@ app.patch('/public/packets/:tempPacketId', async (req: Request, res: Response): 
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ success: false, error: "Temp packet not found" }); return; }
     if (doc.data()?.status === 'completed') { res.status(400).json({ success: false, error: "Packet already completed" }); return; }
-    await docRef.update({ ...req.body, updatedAt: new Date().toISOString() });
+    await docRef.update(stripUndef({ ...req.body, updatedAt: new Date().toISOString() }));
     res.json({ success: true, tempPacketId });
   } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
 });
