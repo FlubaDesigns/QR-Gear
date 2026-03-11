@@ -1,4 +1,5 @@
-// Build timestamp: 2026-03-07T22:00:00Z - Added catalog management system with section assignments
+// Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
+const _BUILD_ID = '20260311-qrsize-v2';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import express, { Request, Response, NextFunction } from 'express';
@@ -1069,6 +1070,8 @@ interface MockupRequest {
   fulfillmentProvider?: 'printify' | 'printful';
   placement?: string;
   printMethod?: PrintMethod;
+  qrSize?: 'small' | 'medium' | 'large';
+  hasCompositeGraphic?: boolean;
 }
 
 interface MockupResult {
@@ -1185,7 +1188,8 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   
   const crypto = require('crypto');
   const artworkHash = crypto.createHash('md5').update(artworkUrl).digest('hex').substring(0, 12);
-  const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${artworkHash}`;
+  const sizeSuffix = request.hasCompositeGraphic ? 'comp' : (request.qrSize || 'medium');
+  const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${artworkHash}_${sizeSuffix}`;
   const cacheDoc = await db.collection('mockup_cache').doc(cacheKey).get();
   
   if (cacheDoc.exists) {
@@ -1271,16 +1275,32 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   const placement = toProviderPlacement('printful', canonicalPlacement, availPlacements, request.printMethod);
   const dims = getDimensionsForPlacement(placement);
   
+  let artWidth = dims.width;
+  let artHeight = dims.height;
+  let artTop = 0;
+  let artLeft = 0;
+
+  if (!request.hasCompositeGraphic) {
+    const sizeScales: Record<string, number> = { small: 0.30, medium: 0.45, large: 0.60 };
+    const scale = sizeScales[request.qrSize || 'medium'] || 0.45;
+    const artSize = Math.round(Math.min(dims.width, dims.height) * scale);
+    artWidth = artSize;
+    artHeight = artSize;
+    artLeft = Math.round((dims.width - artSize) / 2);
+    artTop = Math.round((dims.height - artSize) / 2 * 0.7);
+    console.log(`[Mockup] QR-only artwork scaled: qrSize=${request.qrSize || 'medium'}, scale=${scale}, artSize=${artSize}, top=${artTop}, left=${artLeft}`);
+  }
+
   const mockupFiles: Array<{ placement: string; image_url: string; position?: any }> = [{
     placement: placement, 
     image_url: artworkUrl,
     position: {
       area_width: dims.width,
       area_height: dims.height,
-      width: dims.width,
-      height: dims.height,
-      top: 0,
-      left: 0
+      width: artWidth,
+      height: artHeight,
+      top: artTop,
+      left: artLeft
     }
   }];
 
@@ -2762,6 +2782,7 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
         colorHex: colorHex || undefined,
         artworkUrl,
         artworkVariant,
+        hasCompositeGraphic: true,
       });
       
       // Update product with new mockup
@@ -2881,6 +2902,7 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
         colorHex,
         artworkUrl,
         artworkVariant: artworkVariant as 'black' | 'white',
+        hasCompositeGraphic: true,
       });
       
       res.json({
@@ -3513,6 +3535,7 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Req
           colorHex: colorInfo.hex,
           artworkUrl,
           artworkVariant,
+          hasCompositeGraphic: true,
         });
         
         // Save with full key: color_size_placement (e.g., "Black_medium_front")
@@ -5183,6 +5206,8 @@ async function processQueueInBackground(): Promise<void> {
         fulfillmentProvider: effectiveProvider as 'printify' | 'printful',
         placement: job.placement || 'front',
         printMethod: job.printMethod,
+        qrSize: job.qrSize as 'small' | 'medium' | 'large' || 'medium',
+        hasCompositeGraphic: true,
       });
 
       // Store in template if template-based
@@ -6878,6 +6903,7 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
           artworkUrl: template.artworkUrl,
           artworkVariant: template.artworkVariant || "black",
           fulfillmentProvider: template.fulfillmentProvider || job.fulfillmentProvider || "printify",
+          hasCompositeGraphic: true,
         });
         if ((mockupResult as any).error) throw new Error((mockupResult as any).error);
         const colorKey = job.colorName.replace(/\s+/g, "_").toLowerCase();
@@ -6945,6 +6971,7 @@ app.post('/admin/mockup/priority', requireAdmin, async (req: Request, res: Respo
       artworkUrl,
       artworkVariant: "black",
       fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
+      hasCompositeGraphic: true,
     });
     console.log(`[Priority Mockup CF] Generated: ${(result as any).mockupUrl}`);
     res.json({
@@ -9142,6 +9169,8 @@ app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Resp
       colorName, colorHex, artworkUrl, artworkVariant: 'black',
       fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
       placement: placement || 'front',
+      qrSize: qrSize as 'small' | 'medium' | 'large',
+      hasCompositeGraphic: true,
     });
     console.log(`[CF Member Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
     res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
@@ -9258,12 +9287,15 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
       artworkUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(qrContent)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
       console.log(`[CF PublicMockup] Using raw QR artwork: ${artworkUrl}`);
     }
+    const hasComposite = !!(textLayoutChoice && textLayoutChoice !== '' && (headerStyle?.text || footerStyle?.text));
     const result = await generateMockupFromPrintful({
       blueprintId: parseInt(blueprintId), printProviderId: parseInt(printProviderId) || 99,
       colorName, colorHex: colorHex || '#000000', artworkUrl,
       artworkVariant: qrColor === 'white' ? 'white' : 'black',
       fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
       placement,
+      qrSize: qrSize as 'small' | 'medium' | 'large',
+      hasCompositeGraphic: hasComposite,
     });
     console.log(`[CF PublicMockup] Mockup generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
     if (tempPacketId) {
@@ -10823,6 +10855,7 @@ app.post('/mockup/priority', requireAuth, async (req: Request, res: Response): P
       colorName, colorHex, artworkUrl, artworkVariant: 'black',
       fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
       placement: placement || 'front',
+      hasCompositeGraphic: true,
     });
     console.log(`[CF Priority Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
     res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
