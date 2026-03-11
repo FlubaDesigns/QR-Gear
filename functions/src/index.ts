@@ -9601,28 +9601,51 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
     const hasTiers = Object.keys(blankTiers).length > 0;
     if (!hasTiers) { res.json({ hasTiers: false, catalogId, catalogName: catData.name, tiers: {}, tierConfig }); return; }
 
-    const bpSnapshot = await db.collection("printify_blueprints").get();
-    const blueprints = new Map<number, any>();
-    bpSnapshot.docs.forEach(doc => {
-      const d = doc.data();
-      blueprints.set(d.id || parseInt(doc.id), d);
-    });
+    const printifyBlanks = (catData.blankIds || []).filter((id: string) => !String(id).startsWith('pf:'));
+    const printfulBlanks = (catData.blankIds || []).filter((id: string) => String(id).startsWith('pf:'));
+    const printfulNumericIds = printfulBlanks.map((id: string) => parseInt(String(id).replace('pf:', '')));
 
-    let providersByBlueprint = new Map<number, any>();
-    const provSnapshot = await db.collection("printify_providers").get();
-    let allProviders = provSnapshot.docs.map(doc => doc.data());
-    if (allProviders.length === 0) {
-      const ppSnapshot = await db.collection("printifyPrintProviders").get();
-      allProviders = ppSnapshot.docs.map(doc => {
+    const productLookup = new Map<string, any>();
+
+    if (printifyBlanks.length > 0) {
+      const bpSnapshot = await db.collection("printifyBlueprints").get();
+      bpSnapshot.docs.forEach(doc => {
         const d = doc.data();
-        return { blueprintId: d.blueprintId, providerId: d.providerId, minCost: d.minCost || 0, maxCost: d.maxCost || 0, availableColors: d.availableColors || [], availableSizes: d.availableSizes || [] };
+        const bpId = d.id || parseInt(doc.id);
+        if (!isNaN(bpId)) productLookup.set(String(bpId), { ...d, _source: 'printify' });
       });
     }
-    for (const prov of allProviders) {
-      const existing = providersByBlueprint.get(prov.blueprintId);
-      if (!existing || (prov.availableColors || []).length > (existing.availableColors || []).length) {
-        providersByBlueprint.set(prov.blueprintId, prov);
-      }
+
+    if (printfulBlanks.length > 0) {
+      const pfSnapshot = await db.collection("printful_products").get();
+      pfSnapshot.docs.forEach(doc => {
+        const d = doc.data();
+        const pfId = d.id || parseInt(doc.id);
+        if (!isNaN(pfId)) {
+          productLookup.set(`pf:${pfId}`, {
+            title: d.title || '',
+            brand: d.brand || '',
+            description: d.description || '',
+            images: d.image ? [d.image] : [],
+            primaryImageUrl: d.image || null,
+            minPrice: d.minPrice ? parseFloat(d.minPrice) : null,
+            _source: 'printful',
+          });
+        }
+      });
+    }
+
+    let providersByBlueprint = new Map<number, any>();
+    if (printifyBlanks.length > 0) {
+      const ppSnapshot = await db.collection("printifyPrintProviders").get();
+      ppSnapshot.docs.forEach(doc => {
+        const d = doc.data();
+        const prov = { blueprintId: d.blueprintId, providerId: d.providerId, minCost: d.minCost || 0, maxCost: d.maxCost || 0, availableColors: d.availableColors || [], availableSizes: d.availableSizes || [] };
+        const existing = providersByBlueprint.get(prov.blueprintId);
+        if (!existing || (prov.availableColors || []).length > (existing.availableColors || []).length) {
+          providersByBlueprint.set(prov.blueprintId, prov);
+        }
+      });
     }
 
     const pricingDoc = await db.collection('testSettings').doc('pricing').get();
@@ -9632,29 +9655,36 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
 
     const categoryTierMap: Record<string, Record<string, any[]>> = {};
     for (const blankId of (catData.blankIds || [])) {
-      const tier = blankTiers[String(blankId)];
+      const blankKey = String(blankId);
+      const tier = blankTiers[blankKey];
       if (!tier || !['good', 'better', 'best'].includes(tier)) continue;
-      const bpId = parseInt(blankId);
-      const bp = blueprints.get(bpId);
+      const bp = productLookup.get(blankKey);
       if (!bp) continue;
       const category = cfCategorizeProduct(bp.title);
       if (!categoryTierMap[category]) categoryTierMap[category] = {};
       if (!categoryTierMap[category][tier]) categoryTierMap[category][tier] = [];
-      const prov = providersByBlueprint.get(bpId);
-      const cost = prov?.minCost ? prov.minCost / 100 : 0;
+
+      let cost = 0;
+      if (bp._source === 'printify') {
+        const numId = parseInt(blankKey);
+        const prov = providersByBlueprint.get(numId);
+        cost = prov?.minCost ? prov.minCost / 100 : 0;
+      } else {
+        cost = bp.minPrice || 0;
+      }
       const retailPrice = Math.ceil((cost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
       const memberEarnings = Math.round((retailPrice - cost) * 25) / 100;
+
+      const numericId = blankKey.startsWith('pf:') ? parseInt(blankKey.replace('pf:', '')) : parseInt(blankKey);
       categoryTierMap[category][tier].push({
-        blueprintId: bpId,
+        blueprintId: numericId,
         title: bp.title,
-        description: blankDescriptions[String(bpId)] || bp.description || '',
+        description: blankDescriptions[blankKey] || bp.description || '',
         brand: bp.brand,
         imageUrl: bp.images?.[0] || bp.primaryImageUrl || null,
         cost,
         retailPrice,
         memberEarnings,
-        colors: (prov?.availableColors || []).length,
-        sizes: (prov?.availableSizes || []).length,
       });
     }
 
@@ -12982,4 +13012,4 @@ export const api = onRequest(
 // Force deploy: 2026-03-05-v2 - fixed /printify/catalog to read from printifyBlueprints+printifyProviders with categories
 // Deploy timestamp: 1772900000
 // Build: 1772924431
-// force deploy 1773125804
+// force deploy 1773126500 - fix tier-products to handle pf: prefixed Printful blanks
