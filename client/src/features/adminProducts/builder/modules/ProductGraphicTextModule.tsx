@@ -29,6 +29,9 @@ export function ProductGraphicTextModule() {
   const adminAreaFileRef = useRef<HTMLInputElement>(null);
   const adminAreaImageUrl = state.content.areaImageUrl || '';
   const adminAreaImageMode = state.content.areaImageMode || 'behind-qr';
+  const areaOffX = state.content.areaImageOffsetX ?? 50;
+  const areaOffY = state.content.areaImageOffsetY ?? 50;
+  const areaSc = state.content.areaImageScale ?? 100;
 
   const handleAdminAreaImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -40,6 +43,10 @@ export function ProductGraphicTextModule() {
     reader.readAsDataURL(file);
     if (adminAreaFileRef.current) adminAreaFileRef.current.value = "";
   };
+
+  const hasHeaderContent = (state.content.headerStyle as TextStyleConfig)?.enabled;
+  const hasFooterContent = (state.content.footerStyle as TextStyleConfig)?.enabled;
+  const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl;
 
   return (
     <CollapsibleModule
@@ -68,6 +75,30 @@ export function ProductGraphicTextModule() {
           showPositionControls={true}
           previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
         />
+
+        {showPreview && (
+          <div className="flex flex-col items-center py-2">
+            <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
+            <GraphicPreviewView
+              backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+              headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
+              footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
+              showQRCode={true}
+              aspectRatio="portrait"
+              qrPositionX={posX}
+              qrPositionY={posY}
+              qrSizePercent={sizeVal}
+              areaImageUrl={adminAreaImageUrl}
+              areaImageMode={adminAreaImageMode}
+              areaImageOffsetX={areaOffX}
+              areaImageOffsetY={areaOffY}
+              areaImageScale={areaSc}
+            />
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              This is how your product graphic will appear
+            </p>
+          </div>
+        )}
         
         <TextStyleEditor
           label="Bottom Text"
@@ -214,12 +245,63 @@ export function ProductGraphicTextModule() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setContent({ areaImageUrl: '' })}
+                    onClick={() => setContent({ areaImageUrl: '', areaImageOffsetX: 50, areaImageOffsetY: 50, areaImageScale: 100 })}
                     data-testid="button-admin-remove-area-image"
                   >
                     <X className="h-4 w-4 mr-1" />
                     Remove
                   </Button>
+                </div>
+                <div className="pt-2 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground">Image Position & Size</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm flex items-center gap-1.5">
+                        <Move className="w-3.5 h-3.5" /> Left / Right
+                      </Label>
+                      <span className="text-xs text-muted-foreground" data-testid="text-admin-area-pos-x">{areaOffX}%</span>
+                    </div>
+                    <Slider
+                      value={[areaOffX]}
+                      onValueChange={([v]) => setContent({ areaImageOffsetX: v })}
+                      min={0}
+                      max={100}
+                      step={1}
+                      data-testid="slider-admin-area-offset-x"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm flex items-center gap-1.5">
+                        <Move className="w-3.5 h-3.5" /> Up / Down
+                      </Label>
+                      <span className="text-xs text-muted-foreground" data-testid="text-admin-area-pos-y">{areaOffY}%</span>
+                    </div>
+                    <Slider
+                      value={[areaOffY]}
+                      onValueChange={([v]) => setContent({ areaImageOffsetY: v })}
+                      min={0}
+                      max={100}
+                      step={1}
+                      data-testid="slider-admin-area-offset-y"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm flex items-center gap-1.5">
+                        <Maximize2 className="w-3.5 h-3.5" /> Size
+                      </Label>
+                      <span className="text-xs text-muted-foreground" data-testid="text-admin-area-scale">{areaSc}%</span>
+                    </div>
+                    <Slider
+                      value={[areaSc]}
+                      onValueChange={([v]) => setContent({ areaImageScale: v })}
+                      min={20}
+                      max={200}
+                      step={1}
+                      data-testid="slider-admin-area-scale"
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -235,27 +317,6 @@ export function ProductGraphicTextModule() {
             )}
           </div>
         </div>
-        
-        {((state.content.headerStyle as TextStyleConfig)?.enabled || (state.content.footerStyle as TextStyleConfig)?.enabled || adminAreaImageUrl) && (
-          <div className="mt-4 pt-4 border-t flex flex-col items-center">
-            <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
-            <GraphicPreviewView
-              backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-              headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
-              footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
-              showQRCode={true}
-              aspectRatio="portrait"
-              qrPositionX={posX}
-              qrPositionY={posY}
-              qrSizePercent={sizeVal}
-              areaImageUrl={adminAreaImageUrl}
-              areaImageMode={adminAreaImageMode}
-            />
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              This is how your product graphic will appear
-            </p>
-          </div>
-        )}
       </div>
     </CollapsibleModule>
   );

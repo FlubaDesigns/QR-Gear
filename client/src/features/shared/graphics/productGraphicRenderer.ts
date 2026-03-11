@@ -14,6 +14,11 @@ export interface TextStyle {
   verticalOffset?: number;
   horizontalOffset?: number;
   warpPreset?: string;
+  mode?: "text" | "image";
+  imageUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
 }
 
 export interface RenderOptions {
@@ -31,6 +36,9 @@ export interface RenderOptions {
   footerImageUrl?: string;
   areaImageUrl?: string;
   areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageOffsetX?: number;
+  areaImageOffsetY?: number;
+  areaImageScale?: number;
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -184,7 +192,10 @@ export async function renderProductGraphic(
     zoneY: number,
     zoneW: number,
     zoneH: number,
-    padding: number = 0.05
+    padding: number = 0.05,
+    offsetX: number = 50,
+    offsetY: number = 50,
+    scale: number = 100
   ) => {
     try {
       const img = await loadImage(imgUrl);
@@ -194,16 +205,21 @@ export async function renderProductGraphic(
       const availH = zoneH - 2 * padY;
       const imgAspect = img.width / img.height;
       const zoneAspect = availW / availH;
-      let drawW: number, drawH: number;
+      let baseW: number, baseH: number;
       if (imgAspect > zoneAspect) {
-        drawW = availW;
-        drawH = availW / imgAspect;
+        baseW = availW;
+        baseH = availW / imgAspect;
       } else {
-        drawH = availH;
-        drawW = availH * imgAspect;
+        baseH = availH;
+        baseW = availH * imgAspect;
       }
-      const drawX = zoneX + padX + (availW - drawW) / 2;
-      const drawY = zoneY + padY + (availH - drawH) / 2;
+      const scaleFactor = scale / 100;
+      const drawW = baseW * scaleFactor;
+      const drawH = baseH * scaleFactor;
+      const clampedX = Math.max(0, Math.min(100, offsetX));
+      const clampedY = Math.max(0, Math.min(100, offsetY));
+      const drawX = zoneX + padX + (clampedX / 100) * (availW - drawW);
+      const drawY = zoneY + padY + (clampedY / 100) * (availH - drawH);
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
     } catch (e) {
       console.warn("[productGraphicRenderer] Image load failed:", e);
@@ -215,7 +231,8 @@ export async function renderProductGraphic(
   const resolvedHeaderImageUrl = headerImageUrl || (headerIsImage ? headerStyle!.imageUrl : undefined);
 
   if (resolvedHeaderImageUrl) {
-    await drawImageInZone(resolvedHeaderImageUrl, 0, headerZoneTop, W, headerZoneHeight);
+    await drawImageInZone(resolvedHeaderImageUrl, 0, headerZoneTop, W, headerZoneHeight, 0.05,
+      headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100);
   } else if (headerIsText) {
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
@@ -246,11 +263,15 @@ export async function renderProductGraphic(
 
   const qrLight = qrColor === "white" ? "#000000" : "#FFFFFF";
 
+  const areaOffX = options.areaImageOffsetX ?? 50;
+  const areaOffY = options.areaImageOffsetY ?? 50;
+  const areaSc = options.areaImageScale ?? 100;
+
   if (areaImageUrl && areaImageMode === "replace-qr") {
-    await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03);
+    await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
   } else {
     if (areaImageUrl && areaImageMode === "behind-qr") {
-      await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03);
+      await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
     }
 
     if (!transparent) {
@@ -275,7 +296,8 @@ export async function renderProductGraphic(
   const resolvedFooterImageUrl = footerImageUrl || (footerIsImage ? footerStyle!.imageUrl : undefined);
 
   if (resolvedFooterImageUrl) {
-    await drawImageInZone(resolvedFooterImageUrl, 0, footerZoneTop, W, footerZoneHeight);
+    await drawImageInZone(resolvedFooterImageUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
+      footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100);
   } else if (footerIsText) {
     drawTextInZone(footerStyle!, footerZoneTop, footerZoneHeight);
   }

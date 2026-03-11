@@ -213,6 +213,7 @@ export function LibraryBackgroundPicker({
               DetailSkin={CroppedImageDetailSkin}
               actions={{ onSelect: handleSelectCropped }}
               gridColumns="grid-cols-3"
+              selectedId={selectedId}
             />
           )}
         </div>

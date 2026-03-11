@@ -53,6 +53,7 @@ export interface SkinProps {
 
 export interface CardSkinProps extends SkinProps {
   onClick?: () => void;
+  isSelected?: boolean;
 }
 
 export interface DetailSkinProps extends SkinProps {

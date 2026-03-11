@@ -22,6 +22,9 @@ export interface TextStyleConfig {
   horizontalOffset: number;
   mode?: "text" | "image";
   imageUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
 }
 
 export const FONT_FAMILIES = [
@@ -61,6 +64,9 @@ export const defaultTextStyle: TextStyleConfig = {
   horizontalOffset: 50,
   mode: "text",
   imageUrl: "",
+  imageOffsetX: 50,
+  imageOffsetY: 50,
+  imageScale: 100,
 };
 
 interface TextStyleEditorProps {
@@ -233,6 +239,62 @@ export function TextStyleEditor({
                       Remove
                     </Button>
                   </div>
+                  {showPositionControls && (
+                    <div className="pt-3 border-t border-border/50 space-y-4">
+                      <p className="text-sm font-medium text-muted-foreground">Image Position & Size</p>
+                      <div>
+                        <Label className="text-sm mb-1.5 block text-muted-foreground">
+                          Left / Right: {style.imageOffsetX ?? 50}%
+                        </Label>
+                        <div className="min-h-[48px] flex items-center py-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={style.imageOffsetX ?? 50}
+                            onChange={(e) => onChange({ imageOffsetX: Number(e.target.value) })}
+                            className="w-full h-6 accent-primary cursor-pointer"
+                            style={{ touchAction: 'none' }}
+                            data-testid={`slider-${testIdPrefix}-image-offset-x`}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm mb-1.5 block text-muted-foreground">
+                          Up / Down: {style.imageOffsetY ?? 50}%
+                        </Label>
+                        <div className="min-h-[48px] flex items-center py-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={style.imageOffsetY ?? 50}
+                            onChange={(e) => onChange({ imageOffsetY: Number(e.target.value) })}
+                            className="w-full h-6 accent-primary cursor-pointer"
+                            style={{ touchAction: 'none' }}
+                            data-testid={`slider-${testIdPrefix}-image-offset-y`}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm mb-1.5 block text-muted-foreground">
+                          Size: {style.imageScale ?? 100}%
+                        </Label>
+                        <div className="min-h-[48px] flex items-center py-2">
+                          <input
+                            type="range"
+                            min="20"
+                            max="200"
+                            value={style.imageScale ?? 100}
+                            onChange={(e) => onChange({ imageScale: Number(e.target.value) })}
+                            className="w-full h-6 accent-primary cursor-pointer"
+                            style={{ touchAction: 'none' }}
+                            data-testid={`slider-${testIdPrefix}-image-scale`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div

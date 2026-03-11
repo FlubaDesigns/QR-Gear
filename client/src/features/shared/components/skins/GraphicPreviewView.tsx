@@ -14,6 +14,11 @@ interface TextOverlay {
   strokeWidth?: number;
   verticalOffset?: number;
   horizontalOffset?: number;
+  mode?: "text" | "image";
+  imageUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
 }
 
 export interface GraphicPreviewViewProps {
@@ -31,10 +36,15 @@ export interface GraphicPreviewViewProps {
   qrSizePercent?: number;
   areaImageUrl?: string;
   areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageOffsetX?: number;
+  areaImageOffsetY?: number;
+  areaImageScale?: number;
 }
 
 function toTextStyle(overlay?: TextOverlay): TextStyle | null {
-  if (!overlay || !overlay.enabled || !overlay.text) return null;
+  if (!overlay || !overlay.enabled) return null;
+  const isImage = overlay.mode === "image" && overlay.imageUrl;
+  if (!isImage && !overlay.text) return null;
   return {
     text: overlay.text,
     enabled: overlay.enabled,
@@ -46,6 +56,11 @@ function toTextStyle(overlay?: TextOverlay): TextStyle | null {
     strokeWidth: overlay.strokeWidth,
     verticalOffset: overlay.verticalOffset,
     horizontalOffset: overlay.horizontalOffset,
+    mode: overlay.mode,
+    imageUrl: overlay.imageUrl,
+    imageOffsetX: overlay.imageOffsetX,
+    imageOffsetY: overlay.imageOffsetY,
+    imageScale: overlay.imageScale,
   };
 }
 
@@ -64,6 +79,9 @@ export function GraphicPreviewView({
   qrSizePercent,
   areaImageUrl,
   areaImageMode,
+  areaImageOffsetX,
+  areaImageOffsetY,
+  areaImageScale,
 }: GraphicPreviewViewProps) {
   const aspectClass =
     aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-square";
@@ -84,6 +102,9 @@ export function GraphicPreviewView({
     qrSizePercent,
     areaImageUrl,
     areaImageMode,
+    areaImageOffsetX,
+    areaImageOffsetY,
+    areaImageScale,
     enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl,
     debounceMs: 300,
   });

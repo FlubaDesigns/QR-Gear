@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Image, Check } from "lucide-react";
 import type { CardSkinProps, DetailSkinProps } from "./types";
 
-export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) {
+export function CroppedImageCardSkin({ item, onClick, actions, isSelected }: CardSkinProps) {
   const handleClick = () => {
     if (actions?.onSelect) {
       actions.onSelect(item.id);
@@ -18,9 +18,11 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
     actions?.onDelete?.(item.id);
   };
 
+  const selected = isSelected || item.isUsed;
+
   return (
     <Card 
-      className={`overflow-hidden cursor-pointer hover-elevate transition-all ${item.isUsed ? 'ring-2 ring-primary' : ''}`}
+      className={`overflow-hidden cursor-pointer hover-elevate transition-all ${selected ? 'ring-2 ring-primary' : ''}`}
       onClick={handleClick}
       data-testid={`card-cropped-${item.id}`}
     >
@@ -37,7 +39,7 @@ export function CroppedImageCardSkin({ item, onClick, actions }: CardSkinProps) 
             <Image className="h-12 w-12" />
           </div>
         )}
-        {item.isUsed && (
+        {selected && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
             <Check className="h-8 w-8 text-primary" />
           </div>

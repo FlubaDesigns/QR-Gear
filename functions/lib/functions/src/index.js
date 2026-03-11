@@ -5412,7 +5412,7 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req, res) => {
             res.status(404).json({ error: "Packet not found" });
             return;
         }
-        await docRef.update({ ...updates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        await docRef.update({ ...stripUndef(updates), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         console.log(`[Packets PATCH] Updated packet ${packetId}:`, Object.keys(updates));
         res.json({ success: true, packetId, message: "Packet updated" });
     }
@@ -5552,7 +5552,7 @@ app.patch('/admin/store-product-links/:linkId', requireAdmin, async (req, res) =
             res.status(404).json({ error: "Link not found" });
             return;
         }
-        await docRef.update({ ...updates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+        await docRef.update({ ...stripUndef(updates), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
         console.log(`[Store Links PATCH] Updated link ${linkId}:`, Object.keys(updates));
         res.json({ success: true, linkId, message: "Link updated" });
     }
@@ -7591,7 +7591,7 @@ app.patch('/members/:memberId/packets/:packetId', async (req, res) => {
             res.status(403).json({ error: "Not authorized" });
             return;
         }
-        await db.collection('memberPackets').doc(packetId).update({ ...updates, updatedAt: new Date().toISOString() });
+        await db.collection('memberPackets').doc(packetId).update({ ...stripUndef(updates), updatedAt: new Date().toISOString() });
         res.json({ success: true, packetId });
     }
     catch (error) {
@@ -13845,7 +13845,7 @@ app.patch('/admin/partner-stores/:storeId/products/:productId', requireAdmin, as
             res.status(404).json({ error: "Partner store product not found" });
             return;
         }
-        await snap.docs[0].ref.update({ ...updates, updatedAt: new Date().toISOString() });
+        await snap.docs[0].ref.update({ ...stripUndef(updates), updatedAt: new Date().toISOString() });
         const updated = { id: snap.docs[0].id, ...snap.docs[0].data(), ...updates };
         res.json(updated);
     }

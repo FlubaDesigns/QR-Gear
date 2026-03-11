@@ -20,6 +20,9 @@ interface UseProductGraphicPreviewOptions {
   footerImageUrl?: string;
   areaImageUrl?: string;
   areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageOffsetX?: number;
+  areaImageOffsetY?: number;
+  areaImageScale?: number;
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -48,6 +51,9 @@ export function useProductGraphicPreview(
     footerImageUrl,
     areaImageUrl,
     areaImageMode,
+    areaImageOffsetX,
+    areaImageOffsetY,
+    areaImageScale,
     enabled = true,
     debounceMs = 400,
   } = options;
@@ -103,6 +109,9 @@ export function useProductGraphicPreview(
           footerImageUrl,
           areaImageUrl,
           areaImageMode,
+          areaImageOffsetX,
+          areaImageOffsetY,
+          areaImageScale,
         };
 
         const result = await renderProductGraphic(renderOpts);
@@ -138,6 +147,9 @@ export function useProductGraphicPreview(
     headerStyle?.horizontalOffset,
     headerStyle?.mode,
     headerStyle?.imageUrl,
+    headerStyle?.imageOffsetX,
+    headerStyle?.imageOffsetY,
+    headerStyle?.imageScale,
     footerStyle?.text,
     footerStyle?.enabled,
     footerStyle?.fontSize,
@@ -149,6 +161,9 @@ export function useProductGraphicPreview(
     footerStyle?.horizontalOffset,
     footerStyle?.mode,
     footerStyle?.imageUrl,
+    footerStyle?.imageOffsetX,
+    footerStyle?.imageOffsetY,
+    footerStyle?.imageScale,
     backgroundColor,
     transparent,
     placement,
@@ -159,6 +174,9 @@ export function useProductGraphicPreview(
     footerImageUrl,
     areaImageUrl,
     areaImageMode,
+    areaImageOffsetX,
+    areaImageOffsetY,
+    areaImageScale,
     enabled,
     debounceMs,
   ]);

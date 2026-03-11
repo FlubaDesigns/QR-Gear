@@ -16,6 +16,7 @@ interface SkinGridViewerProps {
   actions: SkinActions;
   isActionPending?: boolean;
   gridColumns?: string;
+  selectedId?: string | null;
   confirmAction?: {
     type: "archive" | "delete";
     title: string;
@@ -30,6 +31,7 @@ export function SkinGridViewer({
   actions,
   isActionPending = false,
   gridColumns = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+  selectedId,
   confirmAction,
 }: SkinGridViewerProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -105,6 +107,7 @@ export function SkinGridViewer({
             item={item}
             actions={actions}
             onClick={() => setSelectedIndex(index)}
+            isSelected={selectedId === item.id}
           />
         ))}
       </div>
