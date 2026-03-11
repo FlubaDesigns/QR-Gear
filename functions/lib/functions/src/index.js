@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
 // Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-sanitize-style-data-urls-v3';
+const _BUILD_ID = '20260311-shop-sizes-v5';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
@@ -13475,13 +13475,19 @@ app.get('/store/:storeType/:storeName', async (req, res) => {
                     storeData = { id: storeDoc.id, ...storeDoc.data() };
                 }
             }
-            let linksQuery = db.collection('storeProductLinks')
+            const channelName = channelData.name || storeName;
+            let linksSnapshot = (await db.collection('storeProductLinks')
                 .where('storeId', '==', storeId)
-                .where('channel', '==', storeName);
-            if (segment) {
-                linksQuery = linksQuery.where('collection', '==', segment);
+                .where('channel', '==', channelName).get());
+            if (linksSnapshot.empty && channelName !== storeName) {
+                linksSnapshot = await db.collection('storeProductLinks')
+                    .where('storeId', '==', storeId)
+                    .where('channel', '==', storeName).get();
             }
-            const linksSnapshot = await linksQuery.get();
+            if (segment) {
+                const filteredDocs = linksSnapshot.docs.filter((doc) => doc.data().collection === segment);
+                linksSnapshot = { ...linksSnapshot, docs: filteredDocs, empty: filteredDocs.length === 0, size: filteredDocs.length };
+            }
             const productsRaw = linksSnapshot.docs.map((doc) => {
                 const d = doc.data();
                 return {
@@ -13495,6 +13501,7 @@ app.get('/store/:storeType/:storeName', async (req, res) => {
                     qrProductType: d.qrProductState || 'qr-basics',
                     qrCodeUrl: d.qrOnlyUrl || null,
                     selectedColors: d.enabledColors || [],
+                    availableSizes: d.enabledSizes || [],
                     defaultColor: d.defaultColor || null,
                     mockupsByColor: null,
                     packetId: d.packetId || null,
@@ -13566,6 +13573,7 @@ app.get('/store/:storeType/:storeName', async (req, res) => {
                 qrProductType: d.qrProductState || 'qr-basics',
                 qrCodeUrl: d.qrOnlyUrl || null,
                 selectedColors: d.enabledColors || [],
+                availableSizes: d.enabledSizes || [],
                 defaultColor: d.defaultColor || null,
                 mockupsByColor: null,
                 packetId: d.packetId || null,

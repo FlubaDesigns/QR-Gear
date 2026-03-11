@@ -13,9 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 interface PartnerStore {
   id: string;
   name: string;
-  isInternal: boolean;
+  isInternal?: boolean;
   isActive: boolean;
-  availableSegments: string[];
+  availableSegments?: string[];
+  roleType?: string;
 }
 
 export function StorePickerModule() {
@@ -26,7 +27,7 @@ export function StorePickerModule() {
   const [newStoreName, setNewStoreName] = useState("");
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
-    queryKey: [`${apiBase}/partner-stores`],
+    queryKey: [`${apiBase}/stores`],
   });
 
   const createStoreMutation = useMutation({
@@ -44,7 +45,7 @@ export function StorePickerModule() {
       return res.json();
     },
     onSuccess: (newStore) => {
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
+      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
       setCurrentStore({
         id: newStore.id,
         name: newStore.name,
@@ -116,10 +117,10 @@ export function StorePickerModule() {
                   >
                     <Store className="h-3 w-3" />
                     <span>{store.name}</span>
-                    {store.isInternal && (
+                    {(store.isInternal || store.roleType === 'internal') && (
                       <Shield className="h-3 w-3 text-primary" />
                     )}
-                    {store.availableSegments?.length > 0 && (
+                    {store.availableSegments && store.availableSegments.length > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         {store.availableSegments.length}
                       </Badge>

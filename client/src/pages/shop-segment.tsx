@@ -1,14 +1,11 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, Check } from "lucide-react";
+import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, ShoppingCart } from "lucide-react";
 import ProductImageGallery from "@/components/ProductImageGallery";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { nexusFetchProfiled, NexusProfiles } from "@/lib/nexusFetchProfiled";
-import { useToast } from "@/hooks/use-toast";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 
 interface MockupsByColor {
@@ -30,6 +27,7 @@ interface StoreProduct {
   qrProductType: string;
   qrCodeUrl?: string | null;
   selectedColors?: string[] | null;
+  availableSizes?: string[] | null;
   defaultColor?: string | null;
   mockupsByColor?: MockupsByColor | null;
   price?: number | null;
@@ -83,60 +81,15 @@ interface StoreResponse {
   products: StoreProduct[];
 }
 
-// Product card with QR overlay and color swatches
-function StoreProductCard({ product, storeType, storeName }: { product: StoreProduct; storeType: string; storeName: string }) {
+function StoreProductCard({ product }: { product: StoreProduct }) {
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.defaultColor || null
   );
-  const [selectedQrSize, setSelectedQrSize] = useState<"small" | "medium" | "large">("medium");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const { toast } = useToast();
-  
-  const qrSizeOptions = [
-    { value: "small" as const, label: "S", description: "25%" },
-    { value: "medium" as const, label: "M", description: "45%" },
-    { value: "large" as const, label: "L", description: "65%" },
-  ];
 
   const availableColors = product.selectedColors || 
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
+  const availableSizes = product.availableSizes || [];
 
-  // Mockup generation mutation
-  const generateMockup = useMutation({
-    mutationFn: async ({ color, qrSize }: { color: string; qrSize: string }) => {
-      const res = await nexusFetchProfiled("/api/storefront/generate-mockup", {
-        source: "printful:mockup:single",
-        profile: NexusProfiles.PRINTFUL_SINGLE,
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id, color, qrSize }),
-      });
-      return res.json();
-    },
-    onMutate: () => {
-      setIsGenerating(true);
-    },
-    onSuccess: (data) => {
-      setIsGenerating(false);
-      toast({
-        title: "Mockup generated!",
-        description: `${selectedColor} mockup is now available.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/store", storeType, storeName] });
-    },
-    onError: (error: any) => {
-      setIsGenerating(false);
-      toast({
-        title: "Mockup generation failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  const hasMockupForCurrentSelection = selectedColor && product.mockupsByColor?.[selectedColor]?.front;
-
-  // Build gallery images using shared utility
   const galleryImages = useMemo(() => {
     return buildMockupGalleryImages(product, selectedColor);
   }, [product, selectedColor]);
@@ -146,11 +99,11 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
 
   return (
     <Card 
-      className="hover-elevate cursor-pointer h-full flex flex-col overflow-hidden"
+      className="hover-elevate cursor-pointer h-full flex flex-col overflow-visible"
       data-testid={`card-product-${product.id}`}
     >
       <div 
-        className="aspect-square relative bg-muted"
+        className="aspect-square relative bg-muted rounded-t-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {galleryImages.length > 0 ? (
@@ -162,7 +115,6 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
             <QrCode className="h-16 w-16 text-muted-foreground/50" />
           </div>
         )}
-        {/* QR Code overlay - show when no mockups available */}
         {!hasMockups && product.qrCodeUrl && (
           <img
             src={product.qrCodeUrl}
@@ -188,110 +140,87 @@ function StoreProductCard({ product, storeType, storeName }: { product: StorePro
         )}
       </div>
       
-      {/* Color swatches - clean, no stars */}
-      {availableColors.length > 0 && (
-        <div className="px-3 py-2 border-t">
-          <div className="flex flex-wrap gap-1.5">
-            {availableColors.slice(0, 12).map((color) => {
-              const isSelected = selectedColor === color;
-              const hasMockupForColor = product.mockupsByColor?.[color]?.front;
-              
-              return (
-                <button
-                  key={color}
-                  className={`w-7 h-7 rounded-full border-2 transition-all relative ${
-                    isSelected 
-                      ? 'border-primary ring-2 ring-primary/30' 
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                  style={{ backgroundColor: getColorHex(color) }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSelectedColor(color);
-                  }}
-                  title={color}
-                  data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  {hasMockupForColor && (
-                    <Check className="h-3 w-3 absolute -top-1 -right-1 text-green-500 bg-white rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-            {availableColors.length > 12 && (
-              <span className="text-xs text-muted-foreground self-center ml-1">
-                +{availableColors.length - 12}
+      <CardContent className="flex-1 p-4 flex flex-col gap-3">
+        <div>
+          <h3 className="font-semibold text-lg line-clamp-2" data-testid={`text-product-name-${product.id}`}>
+            {product.name}
+          </h3>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            {product.price != null && product.price > 0 && (
+              <span className="text-xl font-bold text-foreground" data-testid={`text-price-${product.id}`}>
+                ${product.price.toFixed(2)}
               </span>
             )}
-          </div>
-          
-          {/* QR Size selector */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-muted-foreground">QR Size:</span>
-            <div className="flex gap-1">
-              {qrSizeOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  className={`px-2 py-1 text-xs rounded border transition-all min-h-[32px] ${
-                    selectedQrSize === opt.value
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-border hover:border-primary/50'
-                  }`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedQrSize(opt.value);
-                  }}
-                  data-testid={`qr-size-${opt.value}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            
-            {/* Generate button */}
-            <Button
-              size="sm"
-              className="ml-auto h-8"
-              disabled={!selectedColor || isGenerating || !!hasMockupForCurrentSelection}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (selectedColor) {
-                  generateMockup.mutate({ color: selectedColor, qrSize: selectedQrSize });
-                }
-              }}
-              data-testid="button-generate-mockup"
-            >
-              {isGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : hasMockupForCurrentSelection ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                "Generate"
-              )}
-            </Button>
+            {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
+              <Badge 
+                className={`text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
+                data-testid={`badge-product-type-${product.id}`}
+              >
+                {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
+              </Badge>
+            )}
           </div>
         </div>
-      )}
-      
-      <CardContent className="flex-1 p-4">
-        <h3 className="font-semibold text-lg line-clamp-2" data-testid={`text-product-name-${product.id}`}>
-          {product.name}
-        </h3>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {product.price != null && product.price > 0 && (
-            <span className="text-lg font-bold text-foreground" data-testid={`text-price-${product.id}`}>
-              ${product.price.toFixed(2)}
+
+        {availableColors.length > 0 && (
+          <div>
+            <span className="text-xs text-muted-foreground mb-1 block">
+              {selectedColor || "Select color"}
             </span>
-          )}
-          {product.qrProductType && QR_PRODUCT_TYPE_LABELS[product.qrProductType] && (
-            <Badge 
-              className={`text-xs text-white ${QR_PRODUCT_TYPE_LABELS[product.qrProductType].color}`}
-              data-testid={`badge-product-type-${product.id}`}
-            >
-              {QR_PRODUCT_TYPE_LABELS[product.qrProductType].label}
-            </Badge>
-          )}
+            <div className="flex flex-wrap gap-1.5">
+              {availableColors.slice(0, 10).map((color) => {
+                const isSelected = selectedColor === color;
+                return (
+                  <button
+                    key={color}
+                    className={`w-6 h-6 rounded-full border-2 transition-all ${
+                      isSelected 
+                        ? 'border-primary ring-2 ring-primary/30' 
+                        : 'border-border'
+                    }`}
+                    style={{ backgroundColor: getColorHex(color) }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedColor(color);
+                    }}
+                    title={color}
+                    data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
+                  />
+                );
+              })}
+              {availableColors.length > 10 && (
+                <span className="text-xs text-muted-foreground self-center ml-1">
+                  +{availableColors.length - 10} more
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {availableSizes.length > 0 && (
+          <div>
+            <span className="text-xs text-muted-foreground mb-1 block">Sizes</span>
+            <div className="flex flex-wrap gap-1">
+              {availableSizes.map((size) => (
+                <Badge key={size} variant="outline" className="text-xs" data-testid={`badge-size-${size.toLowerCase()}`}>
+                  {size}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-auto pt-2">
+          <Button
+            className="w-full gap-2"
+            data-testid={`button-shop-${product.id}`}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {product.price != null && product.price > 0
+              ? `Shop — $${product.price.toFixed(2)}`
+              : "View Product"}
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -411,7 +340,7 @@ export default function ShopSegmentPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {data?.products.map((product) => (
             <Link key={product.id} href={`/shop/product/${product.id}`}>
-              <StoreProductCard product={product} storeType={storeType} storeName={storeName} />
+              <StoreProductCard product={product} />
             </Link>
           ))}
         </div>

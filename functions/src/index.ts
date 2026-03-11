@@ -1,5 +1,5 @@
 // Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-sanitize-style-data-urls-v3';
+const _BUILD_ID = '20260311-shop-sizes-v5';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
@@ -12392,13 +12392,19 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         }
       }
 
-      let linksQuery: any = db.collection('storeProductLinks')
+      const channelName = channelData.name || storeName;
+      let linksSnapshot = (await db.collection('storeProductLinks')
         .where('storeId', '==', storeId)
-        .where('channel', '==', storeName);
-      if (segment) {
-        linksQuery = linksQuery.where('collection', '==', segment);
+        .where('channel', '==', channelName).get());
+      if (linksSnapshot.empty && channelName !== storeName) {
+        linksSnapshot = await db.collection('storeProductLinks')
+          .where('storeId', '==', storeId)
+          .where('channel', '==', storeName).get();
       }
-      const linksSnapshot = await linksQuery.get();
+      if (segment) {
+        const filteredDocs = linksSnapshot.docs.filter((doc: any) => doc.data().collection === segment);
+        linksSnapshot = { ...linksSnapshot, docs: filteredDocs, empty: filteredDocs.length === 0, size: filteredDocs.length } as any;
+      }
 
       const productsRaw = linksSnapshot.docs.map((doc: any) => {
         const d = doc.data();
@@ -12413,6 +12419,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           qrProductType: d.qrProductState || 'qr-basics',
           qrCodeUrl: d.qrOnlyUrl || null,
           selectedColors: d.enabledColors || [],
+          availableSizes: d.enabledSizes || [],
           defaultColor: d.defaultColor || null,
           mockupsByColor: null,
           packetId: d.packetId || null,
@@ -12482,6 +12489,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         qrProductType: d.qrProductState || 'qr-basics',
         qrCodeUrl: d.qrOnlyUrl || null,
         selectedColors: d.enabledColors || [],
+        availableSizes: d.enabledSizes || [],
         defaultColor: d.defaultColor || null,
         mockupsByColor: null,
         packetId: d.packetId || null,
