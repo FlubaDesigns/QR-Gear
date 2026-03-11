@@ -116,6 +116,8 @@ export interface AllowedProduct {
   availableSizes?: string[];
   colors?: string[];
   sizes?: string[];
+  description?: string;
+  customDescription?: string;
 }
 
 export function getProductTypeLabel(productTitle: string): string {

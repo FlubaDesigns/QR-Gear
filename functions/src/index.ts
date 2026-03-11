@@ -1,5 +1,5 @@
-// Build timestamp: 2026-03-11T14:00:00Z - QR sizing fix: scale artwork based on qrSize instead of full-bleed
-const _BUILD_ID = '20260311-shop-sizes-v5';
+// Build timestamp: 2026-03-11T16:00:00Z - tier-products returns colors/sizes for lightbox
+const _BUILD_ID = '20260311-lightbox-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
@@ -9800,6 +9800,14 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
       const memberEarnings = Math.round((retailPrice - cost) * 25) / 100;
 
       const numericId = blankKey.startsWith('pf:') ? parseInt(blankKey.replace('pf:', '')) : parseInt(blankKey);
+      let availableColors: any[] = [];
+      let availableSizes: string[] = [];
+      if (bp._source === 'printify') {
+        const numId = parseInt(blankKey);
+        const prov = providersByBlueprint.get(numId);
+        availableColors = (prov?.availableColors || []).map((c: any) => ({ name: c.name || c, hex: c.hex || '' }));
+        availableSizes = (prov?.availableSizes || []).map((s: any) => typeof s === 'string' ? s : s.title || String(s));
+      }
       categoryTierMap[category][tier].push({
         blueprintId: numericId,
         title: bp.title,
@@ -9810,6 +9818,8 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
         retailPrice,
         memberEarnings,
         fulfillmentProvider: bp._source === 'printful' ? 'printful' : 'printify',
+        availableColors,
+        availableSizes,
       });
     }
 

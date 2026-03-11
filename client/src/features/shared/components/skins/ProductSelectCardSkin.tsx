@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import UsaFlag from "@/components/UsaFlag";
 import {
   Check,
@@ -17,6 +18,9 @@ import {
   X,
   Info,
   Eye,
+  Pencil,
+  Save,
+  Loader2,
 } from "lucide-react";
 
 export interface ProductSelectItem {
@@ -42,6 +46,9 @@ export interface ProductSelectCardSkinProps {
   tier?: TierValue;
   onTierChange?: (id: string, tier: TierValue) => void;
   showTierControls?: boolean;
+  onDescriptionSave?: (id: string, description: string) => Promise<void>;
+  descriptionSaving?: boolean;
+  editableDescription?: boolean;
 }
 
 function PreviewModal({
@@ -50,13 +57,28 @@ function PreviewModal({
   onOpenChange,
   onSelect,
   defaultColorEntry,
+  onDescriptionSave,
+  descriptionSaving,
+  editableDescription,
 }: {
   item: ProductSelectItem;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: () => void;
   defaultColorEntry: { name: string; hex?: string } | null;
+  onDescriptionSave?: (id: string, description: string) => Promise<void>;
+  descriptionSaving?: boolean;
+  editableDescription?: boolean;
 }) {
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [draftDesc, setDraftDesc] = useState(item.description || "");
+
+  const handleSaveDesc = async () => {
+    if (!onDescriptionSave) return;
+    await onDescriptionSave(item.id, draftDesc);
+    setEditingDesc(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -111,17 +133,21 @@ function PreviewModal({
                   {item.name}
                 </h3>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {item.price != null && <span className="text-xl font-bold">${item.price.toFixed(2)}</span>}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {item.price != null && (
+                    <span className="text-2xl font-bold" data-testid={`text-preview-price-${item.id}`}>
+                      ${item.price.toFixed(2)}
+                    </span>
+                  )}
                   {item.cost != null && (
                     <span className="text-sm text-muted-foreground">
                       Cost: ${item.cost.toFixed(2)}
                     </span>
                   )}
                   {item.price != null && item.cost != null && (
-                    <span className="text-sm font-semibold text-green-600">
+                    <Badge variant="secondary" className="bg-green-500/15 text-green-600 text-sm">
                       +${(item.price - item.cost).toFixed(2)} profit
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -147,7 +173,61 @@ function PreviewModal({
                   </div>
                 )}
 
-                {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+                {editableDescription && onDescriptionSave ? (
+                  <div className="space-y-2" data-testid={`desc-edit-area-${item.id}`}>
+                    {editingDesc ? (
+                      <>
+                        <Textarea
+                          value={draftDesc}
+                          onChange={(e) => setDraftDesc(e.target.value)}
+                          className="text-sm min-h-[80px]"
+                          placeholder="Enter a custom description for this product..."
+                          data-testid={`textarea-desc-${item.id}`}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleSaveDesc}
+                            disabled={descriptionSaving}
+                            data-testid={`button-save-desc-${item.id}`}
+                          >
+                            {descriptionSaving ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4" />
+                            )}
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setEditingDesc(false); setDraftDesc(item.description || ""); }}
+                            data-testid={`button-cancel-desc-${item.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div
+                        className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
+                        onClick={() => { setDraftDesc(item.description || ""); setEditingDesc(true); }}
+                        data-testid={`button-edit-desc-${item.id}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <Pencil className="w-3.5 h-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                          {item.description ? (
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">Tap to add a custom description...</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  item.description && <p className="text-sm text-muted-foreground">{item.description}</p>
+                )}
               </div>
 
               {(item.colorsAvailable.length > 0 || item.sizesAvailable.length > 0) && (
@@ -220,7 +300,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription }: ProductSelectCardSkinProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -300,7 +380,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
 
           <div className="flex items-baseline gap-2 flex-wrap">
             {item.price != null && (
-              <span className="text-base font-bold" data-testid={`text-price-${item.id}`}>
+              <span className="text-lg font-bold" data-testid={`text-price-${item.id}`}>
                 ${item.price.toFixed(2)}
               </span>
             )}
@@ -449,6 +529,9 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onOpenChange={setPreviewOpen}
         onSelect={() => onSelect(item.id, item)}
         defaultColorEntry={defaultColorEntry}
+        onDescriptionSave={onDescriptionSave}
+        descriptionSaving={descriptionSaving}
+        editableDescription={editableDescription}
       />
     </>
   );

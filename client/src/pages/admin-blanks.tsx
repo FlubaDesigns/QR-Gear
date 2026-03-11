@@ -72,7 +72,7 @@ interface PricingSettings {
   memberProfitShare: number;
 }
 
-function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings): ProductSelectItem {
+function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings, customDescription?: string): ProductSelectItem {
   const cost = p.minPrice ? parseFloat(p.minPrice) : null;
   const retailPrice = cost !== null
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
@@ -86,7 +86,7 @@ function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings): Produ
     manufacturer: p.brand || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
-    description: p.description || p.model || null,
+    description: customDescription ?? p.description ?? p.model ?? null,
     colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || [],
     defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,
@@ -686,9 +686,30 @@ export default function AdminBlanks() {
     onError: (err: any) => toast({ title: "Error setting tier", description: err.message, variant: "destructive" }),
   });
 
+  const saveDescriptionMutation = useMutation({
+    mutationFn: async ({ catalogId, blankId, description }: { catalogId: string; blankId: string; description: string }) => {
+      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-description`, { blankId, description });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Description saved" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error saving description", description: err.message, variant: "destructive" }),
+  });
+
   const getBlankKey = useCallback((id: string) => {
     return providerFilter === "printful" ? `pf:${id}` : id;
   }, [providerFilter]);
+
+  const handleDescriptionSave = useCallback(async (id: string, description: string) => {
+    if (!validSelectedCatalogId) {
+      toast({ title: "Select a catalog first", variant: "destructive" });
+      return;
+    }
+    const blankKey = getBlankKey(id);
+    await saveDescriptionMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, description });
+  }, [validSelectedCatalogId, getBlankKey, saveDescriptionMutation, toast]);
 
   const isInCatalog = useCallback((id: string) => {
     const key = getBlankKey(id);
@@ -730,11 +751,17 @@ export default function AdminBlanks() {
     return items;
   }, [allProducts, categories, categoryFilter, locationFilter, search]);
 
+  const blankDescriptions = activeCatalog?.blankDescriptions || {};
+
   const selectItemMap = useMemo(() => {
     const map = new Map<string, ProductSelectItem>();
-    filtered.forEach(p => map.set(String(p.id), catalogToSelectItem(p, pricing)));
+    filtered.forEach(p => {
+      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
+      const customDesc = blankDescriptions[blankKey];
+      map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
+    });
     return map;
-  }, [filtered, pricing]);
+  }, [filtered, pricing, blankDescriptions]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     filtered.map(p => ({
@@ -776,6 +803,9 @@ export default function AdminBlanks() {
             tier={itemTier || null}
             onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
             showTierControls={!!validSelectedCatalogId}
+            editableDescription={!!validSelectedCatalogId}
+            onDescriptionSave={handleDescriptionSave}
+            descriptionSaving={saveDescriptionMutation.isPending}
           />
           {hasMappingBadge && (
             <div className="absolute top-2 right-2 z-10">
@@ -788,7 +818,7 @@ export default function AdminBlanks() {
         </div>
       );
     },
-    [selectItemMap, toggleItem, isInCatalog, blankTiers, handleTierChange, validSelectedCatalogId, providerFilter, mappedPrintifyIds, mappedPrintfulIds, getBlankKey]
+    [selectItemMap, toggleItem, isInCatalog, blankTiers, handleTierChange, validSelectedCatalogId, providerFilter, mappedPrintifyIds, mappedPrintfulIds, getBlankKey, handleDescriptionSave, saveDescriptionMutation.isPending]
   );
 
   const allProductMap = useMemo(() => {
