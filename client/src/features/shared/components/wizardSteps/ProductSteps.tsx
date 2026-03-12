@@ -285,8 +285,8 @@ export function ProductPickerStep({
                   )}
                 </div>
               ) : (
-                zoomedImage.product.description && (
-                  <p className="text-sm text-slate-300">{zoomedImage.product.description}</p>
+                (zoomedImage.product.description || zoomedImage.product.originalDescription) && (
+                  <p className="text-sm text-slate-300">{zoomedImage.product.description || zoomedImage.product.originalDescription}</p>
                 )
               )}
 
@@ -820,70 +820,64 @@ export function TierPickerStep({
                   )}
                 </div>
 
-                {context === "member" ? (
-                  <div className="space-y-2">
-                    {editingMemberDesc ? (
-                      <>
-                        <Textarea
-                          value={memberDescDraft}
-                          onChange={(e) => setMemberDescDraft(e.target.value)}
-                          className="text-sm min-h-[80px] bg-slate-800 border-slate-600 text-white"
-                          placeholder="Customize the product description..."
-                          data-testid="textarea-member-desc"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 text-white"
-                            onClick={() => {
-                              if (previewProduct) {
-                                setPreviewProduct({
-                                  ...previewProduct,
-                                  product: { ...previewProduct.product, customDescription: memberDescDraft },
-                                });
-                              }
-                              setEditingMemberDesc(false);
-                            }}
-                            data-testid="button-save-member-desc"
-                          >
-                            Done
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-slate-300 border-slate-600"
-                            onClick={() => setEditingMemberDesc(false)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <div
-                        className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
-                        onClick={() => {
-                          const cascaded = previewProduct.product.customDescription || previewProduct.tp.description || previewProduct.tp.adminDescription || previewProduct.tp.originalDescription || "";
-                          setMemberDescDraft(cascaded);
-                          setEditingMemberDesc(true);
-                        }}
-                        data-testid="button-edit-member-desc"
-                      >
-                        <div className="flex items-start gap-2">
-                          <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                          {(previewProduct.product.customDescription || previewProduct.tp.description) ? (
-                            <p className="text-sm text-slate-300">{previewProduct.product.customDescription || previewProduct.tp.description}</p>
-                          ) : (
-                            <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
-                          )}
-                        </div>
+                <div className="space-y-2">
+                  {editingMemberDesc ? (
+                    <>
+                      <Textarea
+                        value={memberDescDraft}
+                        onChange={(e) => setMemberDescDraft(e.target.value)}
+                        className="text-sm min-h-[80px] bg-slate-800 border-slate-600 text-white"
+                        placeholder="Customize the product description..."
+                        data-testid="textarea-member-desc"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 text-white"
+                          onClick={() => {
+                            if (previewProduct) {
+                              setPreviewProduct({
+                                ...previewProduct,
+                                product: { ...previewProduct.product, customDescription: memberDescDraft },
+                              });
+                            }
+                            setEditingMemberDesc(false);
+                          }}
+                          data-testid="button-save-member-desc"
+                        >
+                          Done
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-slate-300 border-slate-600"
+                          onClick={() => setEditingMemberDesc(false)}
+                        >
+                          Cancel
+                        </Button>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  previewProduct.tp.description && (
-                    <p className="text-sm text-slate-300">{previewProduct.tp.description}</p>
-                  )
-                )}
+                    </>
+                  ) : (
+                    <div
+                      className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
+                      onClick={() => {
+                        const cascaded = previewProduct.product.customDescription || previewProduct.tp.description || previewProduct.tp.adminDescription || previewProduct.tp.originalDescription || "";
+                        setMemberDescDraft(cascaded);
+                        setEditingMemberDesc(true);
+                      }}
+                      data-testid="button-edit-member-desc"
+                    >
+                      <div className="flex items-start gap-2">
+                        <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
+                        {(previewProduct.product.customDescription || previewProduct.tp.description) ? (
+                          <p className="text-sm text-slate-300">{previewProduct.product.customDescription || previewProduct.tp.description}</p>
+                        ) : (
+                          <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {previewProduct.tp.brand && (
                   <p className="text-xs text-slate-400">{previewProduct.tp.brand}</p>
