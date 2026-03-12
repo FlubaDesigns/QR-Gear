@@ -8,8 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import {
   Plus,
   Trash2,
@@ -18,51 +21,23 @@ import {
   RefreshCw,
   Loader2,
   ExternalLink,
-  Upload,
   CheckCircle,
   AlertCircle,
-  ChevronDown,
-  ChevronUp,
   Package,
+  Layers,
+  Link2,
+  ListChecks,
+  ScrollText,
+  Pencil,
+  Play,
+  Clock,
+  XCircle,
+  Info,
+  AlertTriangle,
 } from "lucide-react";
 import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
 
 type MarketplacePlatform = "etsy" | "ebay" | "amazon";
-
-interface MarketplaceConfig {
-  platform: MarketplacePlatform;
-  shopName: string;
-  shopId: string;
-  feePercent: number;
-  syncEnabled: boolean;
-  apiKeyConfigured: boolean;
-  lastSyncAt: string | null;
-}
-
-interface MarketplaceStore {
-  id: string;
-  name: string;
-  roleType: string;
-  isActive: boolean;
-  channelCount: number;
-  marketplaceConfig?: MarketplaceConfig;
-}
-
-interface MarketplaceListing {
-  id: string;
-  storeId: string;
-  productId: string;
-  title: string;
-  marketplaceListingId: string | null;
-  status: "pending" | "draft" | "listed" | "syncing" | "error" | "delisted";
-  listingUrl: string | null;
-  price: number | null;
-  sku: string | null;
-  platform: string;
-  lastSyncAt: string | null;
-  errorMessage: string | null;
-  mockupUrl: string | null;
-}
 
 const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string }> = {
   etsy: { name: "Etsy", icon: SiEtsy, color: "text-orange-500" },
@@ -70,535 +45,965 @@ const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof Si
   amazon: { name: "Amazon", icon: SiAmazon, color: "text-yellow-500" },
 };
 
-const STATUS_BADGES: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  pending: { label: "Pending", variant: "secondary" },
-  draft: { label: "Draft", variant: "secondary" },
-  listed: { label: "Listed", variant: "default" },
-  syncing: { label: "Syncing", variant: "outline" },
-  error: { label: "Error", variant: "destructive" },
-  delisted: { label: "Delisted", variant: "secondary" },
-};
+const SECTION_TABS: AdminTab[] = [
+  { id: "accounts", label: "Accounts", icon: Settings },
+  { id: "surfaces", label: "Surfaces", icon: Layers },
+  { id: "listings", label: "Listings", icon: Link2 },
+  { id: "jobs", label: "Jobs", icon: ListChecks },
+  { id: "logs", label: "Logs", icon: ScrollText },
+];
 
 export default function AdminMarketplaces() {
+  const [activeTab, setActiveTab] = useState("accounts");
+
+  return (
+    <AdminShell
+      title="Publishing"
+      subtitle="Multi-channel marketplace management"
+      icon={ShoppingBag}
+      tabs={SECTION_TABS}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    >
+      {activeTab === "accounts" && <AccountsSection />}
+      {activeTab === "surfaces" && <SurfacesSection />}
+      {activeTab === "listings" && <ListingsSection />}
+      {activeTab === "jobs" && <JobsSection />}
+      {activeTab === "logs" && <LogsSection />}
+    </AdminShell>
+  );
+}
+
+// ============ ACCOUNTS SECTION ============
+
+interface MarketplaceAccount {
+  id: string;
+  platform: MarketplacePlatform;
+  accountName: string;
+  shopId: string;
+  shopName: string;
+  isActive: boolean;
+  feePercent: number;
+  apiKeyConfigured: boolean;
+  healthStatus?: "healthy" | "unhealthy" | "unknown";
+  healthError?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function AccountsSection() {
   const { toast } = useToast();
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [expandedStore, setExpandedStore] = useState<string | null>(null);
-  const [showConfigDialog, setShowConfigDialog] = useState(false);
-  const [editingStore, setEditingStore] = useState<MarketplaceStore | null>(null);
-
-  const [newStoreName, setNewStoreName] = useState("");
-  const [newPlatform, setNewPlatform] = useState<MarketplacePlatform>("etsy");
-
-  const [configForm, setConfigForm] = useState({
-    shopName: "",
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    platform: "etsy" as MarketplacePlatform,
+    accountName: "",
     shopId: "",
+    shopName: "",
     feePercent: "0",
-    syncEnabled: false,
   });
 
-  const { data: stores = [], isLoading } = useQuery<MarketplaceStore[]>({
-    queryKey: ["/api/admin/marketplace/stores"],
+  const { data: accounts = [], isLoading } = useQuery<MarketplaceAccount[]>({
+    queryKey: ["/api/admin/surfaces/accounts"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; platform: MarketplacePlatform }) => {
-      const res = await apiRequest("POST", "/api/admin/stores", {
-        name: data.name,
-        roleType: "marketplace",
-        platform: data.platform,
+    mutationFn: async (data: typeof form) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces/accounts", {
+        ...data,
+        feePercent: parseFloat(data.feePercent) || 0,
       });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/marketplace/stores"] });
-      setShowAddDialog(false);
-      setNewStoreName("");
-      setNewPlatform("etsy");
-      toast({ title: "Marketplace store created" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      setShowAdd(false);
+      resetForm();
+      toast({ title: "Account created" });
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const updateConfigMutation = useMutation({
-    mutationFn: async ({ storeId, config }: { storeId: string; config: Partial<MarketplaceConfig> }) => {
-      const res = await apiRequest("PUT", `/api/admin/marketplace/stores/${storeId}/config`, config);
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const res = await apiRequest("PATCH", `/api/admin/surfaces/accounts/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/marketplace/stores"] });
-      setShowConfigDialog(false);
-      setEditingStore(null);
-      toast({ title: "Marketplace config updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      setEditingId(null);
+      resetForm();
+      toast({ title: "Account updated" });
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (storeId: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/stores/${storeId}`, {});
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/surfaces/accounts/${id}`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/marketplace/stores"] });
-      toast({ title: "Marketplace store deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      toast({ title: "Account deleted" });
     },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const toggleActiveMutation = useMutation({
-    mutationFn: async ({ storeId, isActive }: { storeId: string; isActive: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/admin/stores/${storeId}`, { isActive });
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/surfaces/accounts/${id}`, { isActive });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/marketplace/stores"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] }),
   });
 
-  const openConfigDialog = (store: MarketplaceStore) => {
-    setEditingStore(store);
-    setConfigForm({
-      shopName: store.marketplaceConfig?.shopName || "",
-      shopId: store.marketplaceConfig?.shopId || "",
-      feePercent: String(store.marketplaceConfig?.feePercent || 0),
-      syncEnabled: store.marketplaceConfig?.syncEnabled || false,
-    });
-    setShowConfigDialog(true);
-  };
+  const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "", feePercent: "0" });
 
-  const handleSaveConfig = () => {
-    if (!editingStore) return;
-    updateConfigMutation.mutate({
-      storeId: editingStore.id,
-      config: {
-        shopName: configForm.shopName,
-        shopId: configForm.shopId,
-        feePercent: parseFloat(configForm.feePercent) || 0,
-        syncEnabled: configForm.syncEnabled,
-      },
+  const openEdit = (acct: MarketplaceAccount) => {
+    setEditingId(acct.id);
+    setForm({
+      platform: acct.platform,
+      accountName: acct.accountName,
+      shopId: acct.shopId,
+      shopName: acct.shopName,
+      feePercent: String(acct.feePercent || 0),
     });
   };
 
-  const handleCreateStore = () => {
-    if (!newStoreName.trim()) {
-      toast({ title: "Store name is required", variant: "destructive" });
-      return;
+  const handleSave = () => {
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: { ...form, feePercent: parseFloat(form.feePercent) || 0 } });
+    } else {
+      if (!form.accountName.trim()) { toast({ title: "Account name required", variant: "destructive" }); return; }
+      createMutation.mutate(form);
     }
-    createMutation.mutate({ name: newStoreName.trim(), platform: newPlatform });
   };
 
-  const addButton = (
-    <Button onClick={() => setShowAddDialog(true)} data-testid="button-add-marketplace">
-      <Plus className="h-4 w-4 mr-2" />
-      Add Marketplace
-    </Button>
-  );
+  const isDialogOpen = showAdd || editingId !== null;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <AdminShell
-      title="Marketplaces"
-      subtitle="Sell on Etsy, eBay, Amazon and more"
-      icon={ShoppingBag}
-      actions={addButton}
-    >
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold" data-testid="text-accounts-title">Marketplace Accounts</h2>
+          <p className="text-sm text-muted-foreground">Connected marketplace seller accounts</p>
+        </div>
+        <Button onClick={() => { resetForm(); setShowAdd(true); }} data-testid="button-add-account">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Account
+        </Button>
+      </div>
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : stores.length === 0 ? (
+      ) : accounts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground/30" />
+            <Settings className="h-16 w-16 text-muted-foreground/30" />
             <div className="text-center">
-              <h3 className="text-lg font-semibold" data-testid="text-empty-title">No Marketplaces Connected</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Connect your Etsy, eBay, or Amazon shop to start listing products.
-              </p>
+              <h3 className="text-lg font-semibold" data-testid="text-empty-accounts">No Accounts</h3>
+              <p className="text-sm text-muted-foreground mt-1">Connect your first marketplace seller account to start publishing.</p>
             </div>
-            <Button onClick={() => setShowAddDialog(true)} data-testid="button-add-first-marketplace">
+            <Button onClick={() => { resetForm(); setShowAdd(true); }} data-testid="button-add-first-account">
               <Plus className="h-4 w-4 mr-2" />
-              Connect Your First Marketplace
+              Add Account
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {stores.map((store) => {
-            const config = store.marketplaceConfig;
-            const platform = config?.platform || "etsy";
-            const platformInfo = PLATFORM_INFO[platform];
-            const PlatformIcon = platformInfo?.icon;
-            const isExpanded = expandedStore === store.id;
-
+        <div className="space-y-3">
+          {accounts.map((acct) => {
+            const info = PLATFORM_INFO[acct.platform];
+            const PIcon = info?.icon;
             return (
-              <Card key={store.id} data-testid={`card-marketplace-${store.id}`}>
-                <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-3">
+              <Card key={acct.id} data-testid={`card-account-${acct.id}`}>
+                <CardContent className="flex items-center justify-between gap-4 py-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    {PlatformIcon && (
-                      <div className={`flex-shrink-0 ${platformInfo.color}`}>
-                        <PlatformIcon className="h-6 w-6" />
-                      </div>
-                    )}
+                    {PIcon && <PIcon className={`h-6 w-6 flex-shrink-0 ${info.color}`} />}
                     <div className="min-w-0">
-                      <CardTitle className="text-base truncate" data-testid={`text-store-name-${store.id}`}>
-                        {store.name}
-                      </CardTitle>
+                      <p className="font-medium truncate" data-testid={`text-account-name-${acct.id}`}>{acct.accountName}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {platformInfo?.name || platform}
-                        </Badge>
-                        {config?.apiKeyConfigured ? (
-                          <Badge variant="default" className="text-xs">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            API Connected
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            API Not Configured
-                          </Badge>
+                        <Badge variant="outline" className="text-xs">{info?.name || acct.platform}</Badge>
+                        {acct.shopName && <span className="text-xs text-muted-foreground">{acct.shopName}</span>}
+                        {acct.healthStatus === "healthy" && (
+                          <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Healthy</Badge>
                         )}
-                        {config?.shopName && (
-                          <span className="text-xs text-muted-foreground">
-                            Shop: {config.shopName}
-                          </span>
+                        {acct.healthStatus === "unhealthy" && (
+                          <Badge variant="destructive" className="text-xs"><AlertCircle className="h-3 w-3 mr-1" />Unhealthy</Badge>
+                        )}
+                        {acct.feePercent > 0 && (
+                          <span className="text-xs text-muted-foreground">{acct.feePercent}% fee</span>
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Switch
-                      checked={store.isActive}
-                      onCheckedChange={(checked) =>
-                        toggleActiveMutation.mutate({ storeId: store.id, isActive: checked })
-                      }
-                      data-testid={`switch-active-${store.id}`}
+                      checked={acct.isActive}
+                      onCheckedChange={(checked) => toggleMutation.mutate({ id: acct.id, isActive: checked })}
+                      data-testid={`switch-account-active-${acct.id}`}
                     />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openConfigDialog(store)}
-                      data-testid={`button-config-${store.id}`}
-                    >
-                      <Settings className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(acct)} data-testid={`button-edit-account-${acct.id}`}>
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => {
-                        if (confirm(`Delete marketplace "${store.name}"? This cannot be undone.`)) {
-                          deleteMutation.mutate(store.id);
-                        }
-                      }}
-                      data-testid={`button-delete-${store.id}`}
+                      onClick={() => { if (confirm(`Delete account "${acct.accountName}"?`)) deleteMutation.mutate(acct.id); }}
+                      data-testid={`button-delete-account-${acct.id}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setExpandedStore(isExpanded ? null : store.id)}
-                      data-testid={`button-expand-${store.id}`}
-                    >
-                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
                   </div>
-                </CardHeader>
-
-                {isExpanded && (
-                  <CardContent className="pt-0">
-                    <MarketplaceListings storeId={store.id} platform={platform} />
-                  </CardContent>
-                )}
+                </CardContent>
               </Card>
             );
           })}
         </div>
       )}
 
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setShowAdd(false); setEditingId(null); resetForm(); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Marketplace</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Account" : "Add Marketplace Account"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="store-name">Store Name</Label>
-              <Input
-                id="store-name"
-                placeholder="e.g. My Etsy Shop"
-                value={newStoreName}
-                onChange={(e) => setNewStoreName(e.target.value)}
-                data-testid="input-store-name"
-              />
-            </div>
             <div className="space-y-2">
               <Label>Platform</Label>
               <div className="grid grid-cols-3 gap-3">
-                {(Object.entries(PLATFORM_INFO) as [MarketplacePlatform, typeof PLATFORM_INFO["etsy"]][]).map(
-                  ([key, info]) => {
-                    const Icon = info.icon;
-                    return (
-                      <Button
-                        key={key}
-                        variant={newPlatform === key ? "default" : "outline"}
-                        className="flex flex-col items-center gap-2 h-auto py-4"
-                        onClick={() => setNewPlatform(key)}
-                        data-testid={`button-platform-${key}`}
-                      >
-                        <Icon className={`h-6 w-6 ${newPlatform !== key ? info.color : ""}`} />
-                        <span className="text-sm">{info.name}</span>
-                      </Button>
-                    );
-                  }
-                )}
+                {(Object.entries(PLATFORM_INFO) as [MarketplacePlatform, typeof PLATFORM_INFO["etsy"]][]).map(([key, info]) => {
+                  const Icon = info.icon;
+                  return (
+                    <Button
+                      key={key}
+                      variant={form.platform === key ? "default" : "outline"}
+                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      onClick={() => setForm({ ...form, platform: key })}
+                      data-testid={`button-platform-${key}`}
+                    >
+                      <Icon className={`h-6 w-6 ${form.platform !== key ? info.color : ""}`} />
+                      <span className="text-sm">{info.name}</span>
+                    </Button>
+                  );
+                })}
               </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)} data-testid="button-cancel-add">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateStore}
-              disabled={createMutation.isPending}
-              data-testid="button-confirm-add"
-            >
-              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Marketplace Store
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Configure {editingStore?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="shop-name">Shop Name / ID</Label>
-              <Input
-                id="shop-name"
-                placeholder="Your shop name on the marketplace"
-                value={configForm.shopName}
-                onChange={(e) => setConfigForm({ ...configForm, shopName: e.target.value })}
-                data-testid="input-shop-name"
-              />
+              <Label htmlFor="acct-name">Account Name</Label>
+              <Input id="acct-name" placeholder="e.g. My Etsy Shop" value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} data-testid="input-account-name" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="shop-id">Shop / Seller ID</Label>
-              <Input
-                id="shop-id"
-                placeholder="Marketplace-assigned shop or seller ID"
-                value={configForm.shopId}
-                onChange={(e) => setConfigForm({ ...configForm, shopId: e.target.value })}
-                data-testid="input-shop-id"
-              />
+              <Input id="shop-id" placeholder="Platform-assigned ID" value={form.shopId} onChange={(e) => setForm({ ...form, shopId: e.target.value })} data-testid="input-shop-id" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fee-percent">Marketplace Fee %</Label>
-              <Input
-                id="fee-percent"
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                placeholder="e.g. 6.5 for Etsy"
-                value={configForm.feePercent}
-                onChange={(e) => setConfigForm({ ...configForm, feePercent: e.target.value })}
-                data-testid="input-fee-percent"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used to calculate listing price to maintain your target margin
-              </p>
+              <Label htmlFor="shop-name">Shop Name</Label>
+              <Input id="shop-name" placeholder="Your shop name on the marketplace" value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })} data-testid="input-shop-name" />
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <Label>Auto-Sync Inventory</Label>
-                <p className="text-xs text-muted-foreground">
-                  Automatically sync product availability with marketplace
-                </p>
-              </div>
-              <Switch
-                checked={configForm.syncEnabled}
-                onCheckedChange={(checked) => setConfigForm({ ...configForm, syncEnabled: checked })}
-                data-testid="switch-sync-enabled"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="fee-pct">Marketplace Fee %</Label>
+              <Input id="fee-pct" type="number" min="0" max="100" step="0.1" value={form.feePercent} onChange={(e) => setForm({ ...form, feePercent: e.target.value })} data-testid="input-fee-percent" />
             </div>
-            <Card className="bg-muted/50">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <AlertCircle className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-muted-foreground">
-                    API keys are managed in Settings. Once configured, the API status will update automatically.
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfigDialog(false)} data-testid="button-cancel-config">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveConfig}
-              disabled={updateConfigMutation.isPending}
-              data-testid="button-save-config"
-            >
-              {updateConfigMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Save Config
+            <Button variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }} data-testid="button-cancel-account">Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-account">
+              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {editingId ? "Save Changes" : "Create Account"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminShell>
+    </div>
   );
 }
 
-function MarketplaceListings({ storeId, platform }: { storeId: string; platform: MarketplacePlatform }) {
-  const { toast } = useToast();
+// ============ SURFACES SECTION ============
 
-  const { data: listings = [], isLoading } = useQuery<MarketplaceListing[]>({
-    queryKey: [`/api/admin/marketplace/stores/${storeId}/listings`],
+interface SurfaceData {
+  id: string;
+  masterProductId: string;
+  title: string;
+  description: string;
+  tags: string[];
+  images: string[];
+  retailPrice: number;
+  compareAtPrice?: number;
+  sku: string;
+  enabledPlatforms: MarketplacePlatform[];
+  status: string;
+  readinessErrors: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+function SurfacesSection() {
+  const { toast } = useToast();
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({
+    masterProductId: "",
+    title: "",
+    description: "",
+    tags: "",
+    retailPrice: "",
+    sku: "",
+    enabledPlatforms: [] as MarketplacePlatform[],
   });
 
-  const pushMutation = useMutation({
-    mutationFn: async (listingId: string) => {
-      const res = await apiRequest("POST", `/api/admin/marketplace/stores/${storeId}/listings/${listingId}/push`, {});
+  const { data: surfaces = [], isLoading } = useQuery<SurfaceData[]>({
+    queryKey: ["/api/admin/surfaces"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof form) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces", {
+        masterProductId: data.masterProductId,
+        title: data.title,
+        description: data.description,
+        tags: data.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        retailPrice: parseFloat(data.retailPrice) || 0,
+        sku: data.sku,
+        enabledPlatforms: data.enabledPlatforms,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      setShowAdd(false);
+      setForm({ masterProductId: "", title: "", description: "", tags: "", retailPrice: "", sku: "", enabledPlatforms: [] });
+      toast({ title: "Surface created" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const checkReadinessMutation = useMutation({
+    mutationFn: async (surfaceId: string) => {
+      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/check-readiness`, {});
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/admin/marketplace/stores/${storeId}/listings`] });
-      toast({ title: data.message || "Listing pushed" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      if (data.ready) {
+        toast({ title: "Surface is ready for publishing" });
+      } else {
+        toast({ title: "Surface not ready", description: data.errors.join(", "), variant: "destructive" });
+      }
     },
-    onError: (error: Error) => {
-      toast({ title: "Push failed", description: error.message, variant: "destructive" });
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/surfaces/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      toast({ title: "Surface deleted" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const togglePlatform = (p: MarketplacePlatform) => {
+    setForm((f) => ({
+      ...f,
+      enabledPlatforms: f.enabledPlatforms.includes(p)
+        ? f.enabledPlatforms.filter((x) => x !== p)
+        : [...f.enabledPlatforms, p],
+    }));
+  };
+
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case "ready": return <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Ready</Badge>;
+      case "published": return <Badge variant="default" className="text-xs"><ExternalLink className="h-3 w-3 mr-1" />Published</Badge>;
+      case "archived": return <Badge variant="secondary" className="text-xs">Archived</Badge>;
+      default: return <Badge variant="secondary" className="text-xs">Draft</Badge>;
+    }
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold" data-testid="text-surfaces-title">Surfaces</h2>
+          <p className="text-sm text-muted-foreground">Marketplace-ready product configurations</p>
+        </div>
+        <Button onClick={() => setShowAdd(true)} data-testid="button-add-surface">
+          <Plus className="h-4 w-4 mr-2" />
+          Create Surface
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : surfaces.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <Layers className="h-16 w-16 text-muted-foreground/30" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold" data-testid="text-empty-surfaces">No Surfaces</h3>
+              <p className="text-sm text-muted-foreground mt-1">Create a surface to prepare a product for marketplace publishing.</p>
+            </div>
+            <Button onClick={() => setShowAdd(true)} data-testid="button-add-first-surface">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Surface
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {surfaces.map((surface) => (
+            <Card key={surface.id} data-testid={`card-surface-${surface.id}`}>
+              <CardContent className="py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium truncate" data-testid={`text-surface-title-${surface.id}`}>
+                        {surface.title || "Untitled Surface"}
+                      </p>
+                      {statusBadge(surface.status)}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                      {surface.sku && <span className="text-xs text-muted-foreground font-mono">SKU: {surface.sku}</span>}
+                      {surface.retailPrice > 0 && <span className="text-xs text-muted-foreground">${surface.retailPrice.toFixed(2)}</span>}
+                      {surface.enabledPlatforms?.map((p) => {
+                        const info = PLATFORM_INFO[p];
+                        const PIcon = info?.icon;
+                        return PIcon ? <PIcon key={p} className={`h-4 w-4 ${info.color}`} /> : null;
+                      })}
+                    </div>
+                    {surface.readinessErrors?.length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {surface.readinessErrors.map((e, i) => (
+                          <p key={i} className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 flex-shrink-0" />{e}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => checkReadinessMutation.mutate(surface.id)}
+                      disabled={checkReadinessMutation.isPending}
+                      data-testid={`button-check-readiness-${surface.id}`}
+                    >
+                      {checkReadinessMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                      Check
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { if (confirm(`Delete surface "${surface.title || surface.id}"?`)) deleteMutation.mutate(surface.id); }}
+                      data-testid={`button-delete-surface-${surface.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Create Surface</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="s-mpid">Master Product ID</Label>
+              <Input id="s-mpid" placeholder="Firestore product ID" value={form.masterProductId} onChange={(e) => setForm({ ...form, masterProductId: e.target.value })} data-testid="input-surface-product-id" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="s-title">Listing Title</Label>
+              <Input id="s-title" placeholder="Marketplace listing title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="input-surface-title" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="s-desc">Description</Label>
+              <Textarea id="s-desc" placeholder="Product description for the marketplace" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="input-surface-description" rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="s-price">Retail Price</Label>
+                <Input id="s-price" type="number" min="0" step="0.01" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} data-testid="input-surface-price" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="s-sku">SKU</Label>
+                <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} data-testid="input-surface-sku" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="s-tags">Tags (comma-separated)</Label>
+              <Input id="s-tags" placeholder="qr code, custom, apparel" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} data-testid="input-surface-tags" />
+            </div>
+            <div className="space-y-2">
+              <Label>Target Platforms</Label>
+              <div className="flex gap-2">
+                {(Object.entries(PLATFORM_INFO) as [MarketplacePlatform, typeof PLATFORM_INFO["etsy"]][]).map(([key, info]) => {
+                  const Icon = info.icon;
+                  const selected = form.enabledPlatforms.includes(key);
+                  return (
+                    <Button
+                      key={key}
+                      variant={selected ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => togglePlatform(key)}
+                      className="gap-1.5"
+                      data-testid={`button-toggle-platform-${key}`}
+                    >
+                      <Icon className={`h-4 w-4 ${!selected ? info.color : ""}`} />
+                      {info.name}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdd(false)} data-testid="button-cancel-surface">Cancel</Button>
+            <Button onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending} data-testid="button-save-surface">
+              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create Surface
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ LISTINGS SECTION ============
+
+interface ListingData {
+  id: string;
+  surfaceId: string;
+  accountId: string;
+  platform: MarketplacePlatform;
+  externalListingId?: string;
+  externalUrl?: string;
+  status: string;
+  title: string;
+  price: number;
+  lastSyncAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function ListingsSection() {
+  const { toast } = useToast();
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ surfaceId: "", accountId: "" });
+
+  const { data: listings = [], isLoading } = useQuery<ListingData[]>({
+    queryKey: ["/api/admin/surfaces/listings"],
+  });
+
+  const { data: surfaces = [] } = useQuery<SurfaceData[]>({
+    queryKey: ["/api/admin/surfaces"],
+  });
+
+  const { data: accounts = [] } = useQuery<MarketplaceAccount[]>({
+    queryKey: ["/api/admin/surfaces/accounts"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { surfaceId: string; accountId: string }) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces/listings", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      setShowAdd(false);
+      setAddForm({ surfaceId: "", accountId: "" });
+      toast({ title: "Listing created" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async (listingId: string) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces/jobs", { listingId, action: "create" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
+      toast({ title: "Publish job queued" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/surfaces/listings/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      toast({ title: "Listing removed" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const listingStatusBadge = (status: string) => {
+    switch (status) {
+      case "active": return <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+      case "syncing": return <Badge variant="outline" className="text-xs"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Syncing</Badge>;
+      case "error": return <Badge variant="destructive" className="text-xs"><AlertCircle className="h-3 w-3 mr-1" />Error</Badge>;
+      case "paused": return <Badge variant="secondary" className="text-xs">Paused</Badge>;
+      case "delisted": return <Badge variant="secondary" className="text-xs">Delisted</Badge>;
+      case "draft": return <Badge variant="secondary" className="text-xs">Draft</Badge>;
+      default: return <Badge variant="secondary" className="text-xs">Pending</Badge>;
+    }
+  };
+
+  const getSurfaceTitle = (id: string) => surfaces.find((s) => s.id === id)?.title || id;
+  const getAccountName = (id: string) => accounts.find((a) => a.id === id)?.accountName || id;
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold" data-testid="text-listings-title">Marketplace Listings</h2>
+          <p className="text-sm text-muted-foreground">Surface-to-account connections</p>
+        </div>
+        <Button onClick={() => setShowAdd(true)} data-testid="button-add-listing" disabled={surfaces.length === 0 || accounts.length === 0}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Listing
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : listings.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <Link2 className="h-16 w-16 text-muted-foreground/30" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold" data-testid="text-empty-listings">No Listings</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {surfaces.length === 0
+                  ? "Create a surface first, then connect it to an account."
+                  : accounts.length === 0
+                  ? "Add a marketplace account first, then create a listing."
+                  : "Link a surface to a marketplace account to create a listing."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {listings.map((listing) => {
+            const info = PLATFORM_INFO[listing.platform];
+            const PIcon = info?.icon;
+            return (
+              <Card key={listing.id} data-testid={`card-listing-${listing.id}`}>
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {PIcon && <PIcon className={`h-4 w-4 flex-shrink-0 ${info.color}`} />}
+                        <p className="font-medium truncate" data-testid={`text-listing-title-${listing.id}`}>
+                          {listing.title || getSurfaceTitle(listing.surfaceId)}
+                        </p>
+                        {listingStatusBadge(listing.status)}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                        <span>Surface: {getSurfaceTitle(listing.surfaceId)}</span>
+                        <span>Account: {getAccountName(listing.accountId)}</span>
+                        {listing.price > 0 && <span>${listing.price.toFixed(2)}</span>}
+                        {listing.externalListingId && <span className="font-mono">#{listing.externalListingId}</span>}
+                      </div>
+                      {listing.errorMessage && (
+                        <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 flex-shrink-0" />{listing.errorMessage}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {listing.externalUrl && (
+                        <Button variant="ghost" size="icon" asChild data-testid={`button-view-external-${listing.id}`}>
+                          <a href={listing.externalUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
+                        </Button>
+                      )}
+                      {listing.status === "pending" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => publishMutation.mutate(listing.id)}
+                          disabled={publishMutation.isPending}
+                          data-testid={`button-publish-${listing.id}`}
+                        >
+                          <Play className="h-3 w-3 mr-1" />
+                          Publish
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { if (confirm("Remove this listing?")) deleteMutation.mutate(listing.id); }}
+                        data-testid={`button-delete-listing-${listing.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Create Listing</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Surface</Label>
+              <Select value={addForm.surfaceId} onValueChange={(v) => setAddForm({ ...addForm, surfaceId: v })}>
+                <SelectTrigger data-testid="select-listing-surface"><SelectValue placeholder="Select a surface" /></SelectTrigger>
+                <SelectContent>
+                  {surfaces.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.title || s.id}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Account</Label>
+              <Select value={addForm.accountId} onValueChange={(v) => setAddForm({ ...addForm, accountId: v })}>
+                <SelectTrigger data-testid="select-listing-account"><SelectValue placeholder="Select an account" /></SelectTrigger>
+                <SelectContent>
+                  {accounts.map((a) => {
+                    const info = PLATFORM_INFO[a.platform];
+                    return <SelectItem key={a.id} value={a.id}>{info?.name} - {a.accountName}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdd(false)} data-testid="button-cancel-listing">Cancel</Button>
+            <Button
+              onClick={() => createMutation.mutate(addForm)}
+              disabled={createMutation.isPending || !addForm.surfaceId || !addForm.accountId}
+              data-testid="button-save-listing"
+            >
+              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Create Listing
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ JOBS SECTION ============
+
+interface SyncJobData {
+  id: string;
+  listingId: string;
+  surfaceId: string;
+  accountId: string;
+  platform: MarketplacePlatform;
+  action: string;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  lastAttemptAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function JobsSection() {
+  const { data: jobs = [], isLoading } = useQuery<SyncJobData[]>({
+    queryKey: ["/api/admin/surfaces/jobs"],
+  });
+
+  const jobStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed": return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "failed": return <XCircle className="h-4 w-4 text-destructive" />;
+      case "running": return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+      case "cancelled": return <XCircle className="h-4 w-4 text-muted-foreground" />;
+      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const jobStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed": return <Badge variant="default" className="text-xs">Completed</Badge>;
+      case "failed": return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+      case "running": return <Badge variant="outline" className="text-xs">Running</Badge>;
+      case "cancelled": return <Badge variant="secondary" className="text-xs">Cancelled</Badge>;
+      default: return <Badge variant="secondary" className="text-xs">Queued</Badge>;
+    }
+  };
+
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold" data-testid="text-jobs-title">Sync Jobs</h2>
+        <p className="text-sm text-muted-foreground">Publishing pipeline execution history</p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : jobs.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <ListChecks className="h-16 w-16 text-muted-foreground/30" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold" data-testid="text-empty-jobs">No Jobs</h3>
+              <p className="text-sm text-muted-foreground mt-1">Jobs appear here when listings are published or synced.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {jobs.map((job) => {
+            const info = PLATFORM_INFO[job.platform];
+            const PIcon = info?.icon;
+            return (
+              <Card key={job.id} data-testid={`card-job-${job.id}`}>
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {jobStatusIcon(job.status)}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {PIcon && <PIcon className={`h-3.5 w-3.5 ${info.color}`} />}
+                          <span className="text-sm font-medium capitalize">{job.action.replace("_", " ")}</span>
+                          {jobStatusBadge(job.status)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                          <span>{formatDate(job.createdAt)}</span>
+                          <span>Attempts: {job.attempts}/{job.maxAttempts}</span>
+                        </div>
+                        {job.errorMessage && (
+                          <p className="text-xs text-destructive mt-1">{job.errorMessage}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ LOGS SECTION ============
+
+interface SyncLogData {
+  id: string;
+  jobId: string;
+  listingId: string;
+  accountId: string;
+  platform: MarketplacePlatform;
+  level: string;
+  message: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+}
+
+function LogsSection() {
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+
+  const { data: logs = [], isLoading } = useQuery<SyncLogData[]>({
+    queryKey: ["/api/admin/surfaces/logs", levelFilter !== "all" ? levelFilter : undefined].filter(Boolean),
+    queryFn: async () => {
+      const params = levelFilter !== "all" ? `?level=${levelFilter}` : "";
+      const res = await fetch(`/api/admin/surfaces/logs${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch logs");
+      return res.json();
     },
   });
 
-  const platformInfo = PLATFORM_INFO[platform];
+  const levelIcon = (level: string) => {
+    switch (level) {
+      case "error": return <XCircle className="h-4 w-4 text-destructive flex-shrink-0" />;
+      case "warn": return <AlertTriangle className="h-4 w-4 text-yellow-500 flex-shrink-0" />;
+      default: return <Info className="h-4 w-4 text-blue-500 flex-shrink-0" />;
+    }
+  };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (listings.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 gap-3 text-center border-t">
-        <Package className="h-10 w-10 text-muted-foreground/30" />
-        <div>
-          <p className="text-sm font-medium">No products assigned</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Assign products to this marketplace from the Store Builder, then push them as listings.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  };
 
   return (
-    <div className="border-t pt-4">
-      <div className="flex items-center justify-between gap-4 mb-3">
-        <h4 className="text-sm font-medium">
-          Product Listings ({listings.length})
-        </h4>
-        <Button variant="outline" size="sm" data-testid="button-refresh-listings">
-          <RefreshCw className="h-3 w-3 mr-1" />
-          Sync All
-        </Button>
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold" data-testid="text-logs-title">Sync Logs</h2>
+          <p className="text-sm text-muted-foreground">Detailed log entries from sync operations</p>
+        </div>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-32" data-testid="select-log-level"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Levels</SelectItem>
+            <SelectItem value="info">Info</SelectItem>
+            <SelectItem value="warn">Warn</SelectItem>
+            <SelectItem value="error">Error</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div className="space-y-2">
-        {listings.map((listing) => {
-          const statusInfo = STATUS_BADGES[listing.status] || STATUS_BADGES.draft;
-          return (
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : logs.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <ScrollText className="h-16 w-16 text-muted-foreground/30" />
+            <div className="text-center">
+              <h3 className="text-lg font-semibold" data-testid="text-empty-logs">No Logs</h3>
+              <p className="text-sm text-muted-foreground mt-1">Log entries appear when sync jobs execute.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-1">
+          {logs.map((log) => (
             <div
-              key={listing.id}
-              className="flex items-center justify-between gap-3 p-3 rounded-md border bg-card"
-              data-testid={`listing-${listing.id}`}
+              key={log.id}
+              className="flex items-start gap-3 p-3 rounded-md border bg-card text-sm"
+              data-testid={`log-entry-${log.id}`}
             >
-              <div className="flex items-center gap-3 min-w-0">
-                {listing.mockupUrl ? (
-                  <img
-                    src={listing.mockupUrl}
-                    alt={listing.title || listing.productId}
-                    className="h-10 w-10 rounded object-cover flex-shrink-0"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                    <Package className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" data-testid={`text-listing-name-${listing.id}`}>
-                    {listing.title || listing.productId}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                    <Badge variant={statusInfo.variant} className="text-xs">
-                      {statusInfo.label}
-                    </Badge>
-                    {listing.price != null && listing.price > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        ${listing.price.toFixed(2)}
-                      </span>
-                    )}
-                    {listing.marketplaceListingId && (
-                      <span className="text-xs text-muted-foreground font-mono">
-                        #{listing.marketplaceListingId}
-                      </span>
-                    )}
-                  </div>
-                  {listing.errorMessage && (
-                    <p className="text-xs text-destructive mt-1">{listing.errorMessage}</p>
+              {levelIcon(log.level)}
+              <div className="min-w-0 flex-1">
+                <p className="break-words">{log.message}</p>
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
+                  <span>{formatDate(log.createdAt)}</span>
+                  {log.platform && (
+                    <Badge variant="outline" className="text-xs">{PLATFORM_INFO[log.platform]?.name || log.platform}</Badge>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {listing.listingUrl && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    asChild
-                    data-testid={`button-view-listing-${listing.id}`}
-                  >
-                    <a href={listing.listingUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => pushMutation.mutate(listing.id)}
-                  disabled={pushMutation.isPending}
-                  data-testid={`button-push-${listing.id}`}
-                >
-                  {pushMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Upload className="h-3 w-3 mr-1" />
-                  )}
-                  Push to {platformInfo?.name || "Marketplace"}
-                </Button>
-              </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -26,7 +26,8 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
   rm /tmp/firebase-sa.json
   ```
 - **MODULAR API CODEBASE**: The Cloud Function entry point is `functions/src/index.ts` (~94 lines of wiring). All logic lives in modular files:
-  - `functions/src/constants.ts` — Centralized platform constants: `MOSAICS_COLLECTION`, `MOSAIC_TEMPLATES_COLLECTION`, `PLATFORM_STORE_ID`, `LEGACY_STORE_ID`
+  - `functions/src/constants.ts` — Centralized platform constants: `MOSAICS_COLLECTION`, `MOSAIC_TEMPLATES_COLLECTION`, `PLATFORM_STORE_ID`, `LEGACY_STORE_ID`, plus Surfaces system collections (`SURFACES_COLLECTION`, `SURFACE_VARIANTS_COLLECTION`, `MARKETPLACE_ACCOUNTS_COLLECTION`, `MARKETPLACE_LISTINGS_COLLECTION`, `MARKETPLACE_SYNC_JOBS_COLLECTION`, `MARKETPLACE_SYNC_LOGS_COLLECTION`) and type aliases
+  - `shared/surfaces.ts` — Canonical types for the multi-channel publishing system: Surface, SurfaceVariant, MarketplaceAccount, MarketplaceListing, MarketplaceSyncJob, MarketplaceSyncLog, plus `checkSurfaceReadiness()` validator
   - `functions/src/core.ts` — Firebase init, db, storage, types, placement maps, normalization fns, doc helpers, color helpers
   - `functions/src/middleware.ts` — CORS, verifyAuth, requireAuth, requireAdmin, ADMIN_USER_IDS
   - `functions/src/services/` — email.ts, pricing.ts, storage-helpers.ts, printful.ts, printify.ts, mockup-generator.ts, composite-image.ts

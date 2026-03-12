@@ -12,9 +12,25 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+import {
+  SURFACES_COLLECTION,
+  SURFACE_VARIANTS_COLLECTION,
+  MARKETPLACE_ACCOUNTS_COLLECTION,
+  MARKETPLACE_LISTINGS_COLLECTION,
+  MARKETPLACE_SYNC_JOBS_COLLECTION,
+  MARKETPLACE_SYNC_LOGS_COLLECTION,
+  MARKETPLACE_PLATFORMS,
+} from '../constants';
+
+const VALID_PLATFORMS = new Set<string>(MARKETPLACE_PLATFORMS);
+const VALID_SURFACE_STATUSES = new Set<string>(['draft', 'ready', 'published', 'archived']);
+const VALID_LISTING_STATUSES = new Set<string>(['pending', 'draft', 'active', 'syncing', 'error', 'paused', 'delisted']);
+const VALID_JOB_STATUSES = new Set<string>(['queued', 'running', 'completed', 'failed', 'cancelled']);
+const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_inventory', 'full_sync']);
+const VALID_LOG_LEVELS = new Set<string>(['info', 'warn', 'error']);
 
   export function register(app: express.Express): void {
-  // ============ MARKETPLACE ENDPOINTS ============
+  // ============ LEGACY MARKETPLACE ENDPOINTS (kept for backward compat) ============
 
 app.get('/admin/marketplace/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -145,5 +161,489 @@ app.patch('/admin/stores/:storeId', requireAdmin, async (req: Request, res: Resp
 });
 
 
+// ============ CANONICAL SURFACES SYSTEM ============
+
+// --- Marketplace Accounts ---
+
+app.get('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const snapshot = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).get();
+    const accounts = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    accounts.sort((a: any, b: any) => (a.accountName || '').localeCompare(b.accountName || ''));
+    res.json(accounts);
+  } catch (error: any) {
+    console.error('[Surfaces] GET accounts error:', error);
+    res.status(500).json({ error: error.message });
   }
-  
+});
+
+app.post('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { platform, accountName, shopId, shopName, feePercent } = req.body;
+    if (!platform || !accountName) {
+      res.status(400).json({ error: 'platform and accountName are required' }); return;
+    }
+    if (!VALID_PLATFORMS.has(platform)) {
+      res.status(400).json({ error: `Invalid platform. Must be one of: ${MARKETPLACE_PLATFORMS.join(', ')}` }); return;
+    }
+    const now = new Date().toISOString();
+    const data = {
+      platform,
+      accountName: accountName.trim(),
+      shopId: shopId || '',
+      shopName: shopName || '',
+      isActive: true,
+      feePercent: typeof feePercent === 'number' ? feePercent : parseFloat(feePercent) || 0,
+      apiKeyConfigured: false,
+      healthStatus: 'unknown',
+      createdAt: now,
+      updatedAt: now,
+    };
+    const docRef = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).add(data);
+    res.json({ id: docRef.id, ...data });
+  } catch (error: any) {
+    console.error('[Surfaces] POST account error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/admin/surfaces/accounts/:accountId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { accountId } = req.params;
+    const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
+    const updates: Record<string, any> = {};
+    const allowed = ['accountName', 'shopId', 'shopName', 'isActive', 'feePercent', 'platform'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (updates.feePercent !== undefined) {
+      updates.feePercent = typeof updates.feePercent === 'number' ? updates.feePercent : parseFloat(updates.feePercent) || 0;
+    }
+    if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
+    updates.updatedAt = new Date().toISOString();
+    await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).update(updates);
+    res.json({ id: accountId, ...doc.data(), ...updates });
+  } catch (error: any) {
+    console.error('[Surfaces] PATCH account error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/admin/surfaces/accounts/:accountId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { accountId } = req.params;
+    const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
+    const listingsSnap = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).where('accountId', '==', accountId).limit(1).get();
+    if (!listingsSnap.empty) {
+      res.status(400).json({ error: 'Cannot delete account with active listings. Remove listings first.' }); return;
+    }
+    await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).delete();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Surfaces] DELETE account error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Surfaces ---
+
+app.get('/admin/surfaces', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const snapshot = await db.collection(SURFACES_COLLECTION).get();
+    const surfaces = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    surfaces.sort((a: any, b: any) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    res.json(surfaces);
+  } catch (error: any) {
+    console.error('[Surfaces] GET surfaces error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const doc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
+    const variants = variantsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    res.json({ ...doc.data(), id: doc.id, variants });
+  } catch (error: any) {
+    console.error('[Surfaces] GET surface error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { masterProductId, title, description, tags, images, retailPrice, compareAtPrice, sku, enabledPlatforms } = req.body;
+    if (!masterProductId) { res.status(400).json({ error: 'masterProductId is required' }); return; }
+    const now = new Date().toISOString();
+    const data = {
+      masterProductId,
+      title: title || '',
+      description: description || '',
+      tags: Array.isArray(tags) ? tags : [],
+      images: Array.isArray(images) ? images : [],
+      retailPrice: typeof retailPrice === 'number' ? retailPrice : parseFloat(retailPrice) || 0,
+      compareAtPrice: compareAtPrice != null ? (typeof compareAtPrice === 'number' ? compareAtPrice : parseFloat(compareAtPrice) || undefined) : undefined,
+      sku: sku || '',
+      enabledPlatforms: Array.isArray(enabledPlatforms) ? enabledPlatforms : [],
+      status: 'draft',
+      readinessErrors: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const docRef = await db.collection(SURFACES_COLLECTION).add(data);
+    res.json({ id: docRef.id, ...data });
+  } catch (error: any) {
+    console.error('[Surfaces] POST surface error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const doc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const updates: Record<string, any> = {};
+    const allowed = ['title', 'description', 'tags', 'images', 'retailPrice', 'compareAtPrice', 'sku', 'enabledPlatforms', 'status'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (updates.retailPrice !== undefined) {
+      updates.retailPrice = typeof updates.retailPrice === 'number' ? updates.retailPrice : parseFloat(updates.retailPrice) || 0;
+    }
+    if (updates.status !== undefined && !VALID_SURFACE_STATUSES.has(updates.status)) {
+      res.status(400).json({ error: `Invalid status. Must be one of: ${[...VALID_SURFACE_STATUSES].join(', ')}` }); return;
+    }
+    if (updates.enabledPlatforms !== undefined) {
+      if (!Array.isArray(updates.enabledPlatforms) || updates.enabledPlatforms.some((p: string) => !VALID_PLATFORMS.has(p))) {
+        res.status(400).json({ error: `Invalid enabledPlatforms. Each must be one of: ${MARKETPLACE_PLATFORMS.join(', ')}` }); return;
+      }
+    }
+    if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
+    updates.updatedAt = new Date().toISOString();
+    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updates);
+    res.json({ id: surfaceId, ...doc.data(), ...updates });
+  } catch (error: any) {
+    console.error('[Surfaces] PATCH surface error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const doc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const listingsSnap = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).where('surfaceId', '==', surfaceId).limit(1).get();
+    if (!listingsSnap.empty) {
+      res.status(400).json({ error: 'Cannot delete surface with active listings. Remove listings first.' }); return;
+    }
+    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
+    const batch = db.batch();
+    variantsSnap.docs.forEach((d: any) => batch.delete(d.ref));
+    batch.delete(db.collection(SURFACES_COLLECTION).doc(surfaceId));
+    await batch.commit();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Surfaces] DELETE surface error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const doc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const surface = doc.data() as any;
+    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
+    const variants = variantsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    const errors: string[] = [];
+    if (!surface.title || surface.title.trim().length === 0) errors.push('Title is required');
+    if (!surface.description || surface.description.trim().length === 0) errors.push('Description is required');
+    if (!surface.images || surface.images.length === 0) errors.push('At least one image is required');
+    if (surface.retailPrice == null || surface.retailPrice <= 0) errors.push('Retail price must be greater than zero');
+    if (!surface.sku || surface.sku.trim().length === 0) errors.push('SKU is required');
+    const enabledVariants = variants.filter((v: any) => v.enabled);
+    if (enabledVariants.length === 0) errors.push('At least one enabled variant is required');
+    const variantSkus: string[] = [];
+    for (const v of enabledVariants) {
+      if (!v.sku || v.sku.trim().length === 0) {
+        errors.push(`Variant ${v.size}/${v.color} is missing a SKU`);
+      } else {
+        variantSkus.push(v.sku);
+      }
+    }
+    const uniqueSkus = new Set(variantSkus);
+    if (variantSkus.length !== uniqueSkus.size) errors.push('All variant SKUs must be unique');
+    if (!surface.enabledPlatforms || surface.enabledPlatforms.length === 0) errors.push('At least one marketplace platform must be enabled');
+    const newStatus = errors.length === 0 ? 'ready' : 'draft';
+    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
+    res.json({ ready: errors.length === 0, errors, status: newStatus });
+  } catch (error: any) {
+    console.error('[Surfaces] POST check-readiness error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Surface Variants ---
+
+app.get('/admin/surfaces/:surfaceId/variants', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const snapshot = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
+    const variants = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    res.json(variants);
+  } catch (error: any) {
+    console.error('[Surfaces] GET variants error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/:surfaceId/variants', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!surfaceDoc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const { size, color, colorHex, sku, priceOverride, enabled, inventoryQuantity } = req.body;
+    if (!size || !color) { res.status(400).json({ error: 'size and color are required' }); return; }
+    const now = new Date().toISOString();
+    const data = {
+      surfaceId,
+      size,
+      color,
+      colorHex: colorHex || undefined,
+      sku: sku || '',
+      priceOverride: priceOverride != null ? (typeof priceOverride === 'number' ? priceOverride : parseFloat(priceOverride) || undefined) : undefined,
+      enabled: enabled !== false,
+      inventoryQuantity: typeof inventoryQuantity === 'number' ? inventoryQuantity : 999,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const docRef = await db.collection(SURFACE_VARIANTS_COLLECTION).add(data);
+    res.json({ id: docRef.id, ...data });
+  } catch (error: any) {
+    console.error('[Surfaces] POST variant error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/admin/surfaces/variants/:variantId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { variantId } = req.params;
+    const doc = await db.collection(SURFACE_VARIANTS_COLLECTION).doc(variantId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Variant not found' }); return; }
+    const updates: Record<string, any> = {};
+    const allowed = ['size', 'color', 'colorHex', 'sku', 'priceOverride', 'enabled', 'inventoryQuantity'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
+    updates.updatedAt = new Date().toISOString();
+    await db.collection(SURFACE_VARIANTS_COLLECTION).doc(variantId).update(updates);
+    res.json({ id: variantId, ...doc.data(), ...updates });
+  } catch (error: any) {
+    console.error('[Surfaces] PATCH variant error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/admin/surfaces/variants/:variantId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { variantId } = req.params;
+    const doc = await db.collection(SURFACE_VARIANTS_COLLECTION).doc(variantId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Variant not found' }); return; }
+    await db.collection(SURFACE_VARIANTS_COLLECTION).doc(variantId).delete();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Surfaces] DELETE variant error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Marketplace Listings (canonical) ---
+
+app.get('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId, accountId, status } = req.query;
+    let query: any = db.collection(MARKETPLACE_LISTINGS_COLLECTION);
+    if (surfaceId) query = query.where('surfaceId', '==', surfaceId);
+    if (accountId) query = query.where('accountId', '==', accountId);
+    if (status) query = query.where('status', '==', status);
+    const snapshot = await query.get();
+    const listings = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    listings.sort((a: any, b: any) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    res.json(listings);
+  } catch (error: any) {
+    console.error('[Surfaces] GET listings error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId, accountId } = req.body;
+    if (!surfaceId || !accountId) { res.status(400).json({ error: 'surfaceId and accountId are required' }); return; }
+    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!surfaceDoc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+    if (!accountDoc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
+    const surface = surfaceDoc.data() as any;
+    const account = accountDoc.data() as any;
+    const existingSnap = await db.collection(MARKETPLACE_LISTINGS_COLLECTION)
+      .where('surfaceId', '==', surfaceId)
+      .where('accountId', '==', accountId)
+      .limit(1).get();
+    if (!existingSnap.empty) {
+      res.status(400).json({ error: 'A listing already exists for this surface on this account' }); return;
+    }
+    const now = new Date().toISOString();
+    const data = {
+      surfaceId,
+      accountId,
+      platform: account.platform,
+      status: 'pending',
+      title: surface.title || '',
+      price: surface.retailPrice || 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const docRef = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).add(data);
+    res.json({ id: docRef.id, ...data });
+  } catch (error: any) {
+    console.error('[Surfaces] POST listing error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/admin/surfaces/listings/:listingId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { listingId } = req.params;
+    const doc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
+    await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).delete();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Surfaces] DELETE listing error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Sync Jobs ---
+
+app.get('/admin/surfaces/jobs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status, listingId } = req.query;
+    let query: any = db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION);
+    if (status) query = query.where('status', '==', status);
+    if (listingId) query = query.where('listingId', '==', listingId);
+    const snapshot = await query.get();
+    const jobs = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    jobs.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    res.json(jobs);
+  } catch (error: any) {
+    console.error('[Surfaces] GET jobs error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/jobs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { listingId, action } = req.body;
+    if (!listingId || !action) { res.status(400).json({ error: 'listingId and action are required' }); return; }
+    if (!VALID_JOB_ACTIONS.has(action)) { res.status(400).json({ error: `Invalid action. Must be one of: ${[...VALID_JOB_ACTIONS].join(', ')}` }); return; }
+    const listingDoc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
+    if (!listingDoc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
+    const listing = listingDoc.data() as any;
+    const now = new Date().toISOString();
+    const data = {
+      listingId,
+      surfaceId: listing.surfaceId,
+      accountId: listing.accountId,
+      platform: listing.platform,
+      action,
+      status: 'queued',
+      attempts: 0,
+      maxAttempts: 3,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const docRef = await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).add(data);
+    await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).update({ status: 'syncing', lastSyncJobId: docRef.id, updatedAt: now });
+    res.json({ id: docRef.id, ...data });
+  } catch (error: any) {
+    console.error('[Surfaces] POST job error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/admin/surfaces/jobs/:jobId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    const doc = await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Job not found' }); return; }
+    const updates: Record<string, any> = {};
+    const allowed = ['status', 'attempts', 'lastAttemptAt', 'completedAt', 'errorMessage', 'result'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
+    updates.updatedAt = new Date().toISOString();
+    await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId).update(updates);
+    res.json({ id: jobId, ...doc.data(), ...updates });
+  } catch (error: any) {
+    console.error('[Surfaces] PATCH job error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Sync Logs ---
+
+app.get('/admin/surfaces/logs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId, listingId, level } = req.query;
+    let query: any = db.collection(MARKETPLACE_SYNC_LOGS_COLLECTION);
+    if (jobId) query = query.where('jobId', '==', jobId);
+    if (listingId) query = query.where('listingId', '==', listingId);
+    if (level) query = query.where('level', '==', level);
+    const snapshot = await query.get();
+    const logs = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    logs.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    res.json(logs);
+  } catch (error: any) {
+    console.error('[Surfaces] GET logs error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/logs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId, listingId, accountId, platform, level, message, details } = req.body;
+    if (!jobId || !message) { res.status(400).json({ error: 'jobId and message are required' }); return; }
+    const resolvedLevel = level && VALID_LOG_LEVELS.has(level) ? level : 'info';
+    const now = new Date().toISOString();
+    const data = {
+      jobId,
+      listingId: listingId || '',
+      accountId: accountId || '',
+      platform: platform && VALID_PLATFORMS.has(platform) ? platform : undefined,
+      level: resolvedLevel,
+      message,
+      details: details || undefined,
+      createdAt: now,
+    };
+    const docRef = await db.collection(MARKETPLACE_SYNC_LOGS_COLLECTION).add(data);
+    res.json({ id: docRef.id, ...data });
+  } catch (error: any) {
+    console.error('[Surfaces] POST log error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+  }
