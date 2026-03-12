@@ -53,7 +53,7 @@ export function verifyKCToken(token: string): WidgetContext {
       return { valid: false, error: 'Missing required token fields' };
     }
     
-    if (decoded.storeId !== 'kingdom_connects') {
+    if (decoded.storeId !== KC_PARTNER_ISSUER) {
       return { valid: false, error: 'Invalid store identifier' };
     }
     
@@ -70,7 +70,7 @@ export function verifyKCToken(token: string): WidgetContext {
   }
 }
 
-export async function getChannelItems(channelId: string, storeId: string = 'kingdom_connects') {
+export async function getChannelItems(channelId: string, storeId: string = KC_PARTNER_ISSUER) {
   const { getFirestoreDb } = await import('./firebase-admin');
   const db = getFirestoreDb();
   

@@ -361,7 +361,7 @@ export function normalizeWidgetPayload(payload: WidgetTokenPayload): NormalizedW
   
   const storeId = storeOwner
     ? `${storeOwner.ownerType}:${storeOwner.ownerId}`
-    : 'kingdom_connects';
+    : PLATFORM_ISSUER;
   
   return {
     channelId,
