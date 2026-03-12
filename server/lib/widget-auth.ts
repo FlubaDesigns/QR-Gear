@@ -12,10 +12,13 @@ function getDevFallbackSecret(): string {
 
 /**
  * Platform issuer/audience for widget JWT tokens.
- * Value remains 'kingdom_connects' for backward compat with existing tokens.
- * Future: migrate to 'qrgear' issuer once all external integrations update.
+ * New tokens are signed with 'qrgear'. Verification accepts both
+ * 'qrgear' and legacy 'kingdom_connects' for backward compat.
+ * Once all external integrations update, remove LEGACY_ISSUER.
  */
-const PLATFORM_ISSUER = 'kingdom_connects';
+const PLATFORM_ISSUER = 'qrgear';
+const LEGACY_ISSUER = 'kingdom_connects';
+const VALID_ISSUERS = [PLATFORM_ISSUER, LEGACY_ISSUER];
 const QR_GEAR_AUDIENCE = 'qrgear_widget';
 
 interface JWTKeys {
@@ -259,8 +262,7 @@ export function verifyWidgetToken(token: string): WidgetTokenPayload | null {
     
     const verified = jwt.verify(token, secret) as WidgetTokenPayload;
     
-    // Validate KC canonical contract fields if present
-    if (verified.iss && verified.iss !== PLATFORM_ISSUER) {
+    if (verified.iss && !VALID_ISSUERS.includes(verified.iss)) {
       console.error("[WidgetAuth] Invalid issuer:", verified.iss);
       return null;
     }

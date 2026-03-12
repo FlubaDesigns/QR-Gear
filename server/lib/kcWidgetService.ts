@@ -28,9 +28,12 @@ export interface WidgetContext {
 }
 
 /**
- * Kingdom Connects partner integration service.
- * This service validates tokens FROM the KC platform specifically.
- * The 'kingdom_connects' values are the partner's identity — not a platform default.
+ * Kingdom Connects — external partner integration service.
+ * This service validates tokens issued BY the KC partner platform.
+ * 'kingdom_connects' is KC's own partner identity (store type: partner).
+ * This is NOT a platform default — it is the specific identifier for
+ * the Kingdom Connects partner integration. Do not change this value
+ * unless KC updates their token issuance.
  */
 const KC_PARTNER_ISSUER = 'kingdom_connects';
 const QR_GEAR_AUDIENCE = 'qrgear_widget';

@@ -118,6 +118,12 @@ export const TriggerRegistry: Record<TriggerName, TriggerContract> = {
 // SITE-SPECIFIC TRIGGER ENABLEMENT
 // ============================================================================
 
+/**
+ * Site identifiers for multi-tenant email.
+ * 'qrgear' = the QR Gear platform itself.
+ * 'kingdom_connects' = KC partner site (external partner, not a platform alias).
+ * 'default' = fallback for unrecognized sites.
+ */
 export type SiteId = "qrgear" | "kingdom_connects" | "default";
 
 /**

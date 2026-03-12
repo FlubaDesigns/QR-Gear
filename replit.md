@@ -189,10 +189,11 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 - `site_programs` → `MOSAICS_COLLECTION` constant — all code uses named constant, Firestore collection name unchanged (data migration needed)
 - `dynamicsCollections` → `MOSAIC_TEMPLATES_COLLECTION` constant — COMPLETED, raw string only appears inside the constant definition
 - `program_series` → `mosaic_series` — FULLY REMOVED. ViewType is `'channel_products' | 'mosaic_series' | 'create_product'` only.
-- `DEFAULT_STORE_ID` → `PLATFORM_STORE_ID` — COMPLETED. Exported from `channelItemsService.ts`, all callers pass storeId explicitly. No hidden defaults.
-- `KC_ISSUER` → `PLATFORM_ISSUER` — COMPLETED in `widget-auth.ts`. Value unchanged for token backward compat.
-- `KC_ISSUER` → `KC_PARTNER_ISSUER` — COMPLETED in `kcWidgetService.ts` (partner-specific, not a platform default).
-- All bare `'kingdom_connects'` string literals in `server/` replaced with named constants.
+- `DEFAULT_STORE_ID` → `PLATFORM_STORE_ID` — COMPLETED. Value changed from `'kingdom_connects'` to `'qr-gear'`. `LEGACY_STORE_ID = 'kingdom_connects'` exported for backward-compat queries. New writes use `'qr-gear'`. Firestore data migration pending.
+- `KC_ISSUER` → `PLATFORM_ISSUER` — COMPLETED in `widget-auth.ts`. Value changed from `'kingdom_connects'` to `'qrgear'`. Verification accepts both via `VALID_ISSUERS` array. New tokens signed as `'qrgear'`.
+- `KC_ISSUER` → `KC_PARTNER_ISSUER` — COMPLETED in `kcWidgetService.ts`. Value stays `'kingdom_connects'` — this is KC's partner identity, not a platform default. Documented clearly.
+- `kingdom_connects` in `shared/nexusmail/contracts.ts` — Stays as a `SiteId` value. KC is a legitimate external partner with its own email triggers. Documented with inline comment.
+- All bare `'kingdom_connects'` string literals in `server/` replaced with named constants. No raw `'kingdom_connects'` remains except inside constant definitions and partner-specific code.
 
 ### Security Hardening (COMPLETED)
 - `server/printify-token.txt` — DELETED (was plaintext API token). Printify key now env-only via `PRINTIFY_API_KEY`
