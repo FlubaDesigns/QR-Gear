@@ -754,37 +754,6 @@ export function SuperSimpleWizard() {
     setProductGraphic('');
   };
 
-  if (!user) {
-    return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
-          <p className="text-xs text-emerald-400 flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            First Product Builder
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setViewMode('index')}
-            className="text-white/50 hover:text-white"
-            aria-label="Close wizard"
-            data-testid="super-simple-close-unauth"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="p-4 pt-1 text-white/80">
-          <p className="text-lg font-semibold text-white mb-2">Sign in required</p>
-          <p className="text-sm text-white/70 mb-4">
-            The tutorial needs your account so we can save your progress.
-          </p>
-          <Button className="bg-emerald-600" onClick={() => setViewMode('index')} data-testid="super-simple-back-to-home">
-            Back to Home
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (checkingTutorial) {
     return (
@@ -923,7 +892,7 @@ export function SuperSimpleWizard() {
 
           {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
             <>
-              {simpleStep === 'channel' && (
+              {simpleStep === 'channel' && user?.id && (
                 <ChannelStep
                   selectedChannel={selectedChannel}
                   onSelect={setSelectedChannel}
@@ -933,6 +902,32 @@ export function SuperSimpleWizard() {
                   newChannelName={newChannelName}
                   setNewChannelName={setNewChannelName}
                 />
+              )}
+              {simpleStep === 'channel' && !user?.id && (
+                <div className="animate-in fade-in slide-in-from-right-5 duration-300">
+                  <div className="text-center mb-6">
+                    <h2 className="text-lg font-bold text-white mb-2">Choose Your Channel</h2>
+                    <p className="text-sm text-white/60">Channels organize your products</p>
+                  </div>
+                  <div className="space-y-3">
+                    <div
+                      className="p-3 rounded-lg border border-emerald-500/50 bg-emerald-500/10 cursor-pointer"
+                      onClick={() => setSelectedChannel({ id: 'temp-channel', name: newChannelName || 'My Products' })}
+                      data-testid="channel-temp-default"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                          <Store className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium text-sm">{newChannelName || 'My Products'}</p>
+                          <p className="text-white/50 text-xs">Your first channel</p>
+                        </div>
+                        {selectedChannel && <Check className="w-4 h-4 text-emerald-400 ml-auto" />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {simpleStep === 'product' && (

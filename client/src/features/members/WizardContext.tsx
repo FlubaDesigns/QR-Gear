@@ -582,7 +582,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const handleSimplePublish = async () => {
     if (!user?.id) {
-      toast({ title: 'Login required', description: 'You must be logged in to publish.', variant: 'destructive' });
+      localStorage.setItem('login_return_path', '/members?wizard=super-simple');
+      toast({ title: 'Sign in to publish', description: 'Create a free account to save and publish your product.', variant: 'destructive' });
+      window.location.href = '/login';
       return;
     }
     if (!selectedChannel) {

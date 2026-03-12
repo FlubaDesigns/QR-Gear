@@ -948,20 +948,6 @@ function MembersSandboxContent() {
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-        <Card className="bg-slate-800/50 border-slate-700 max-w-md">
-          <CardContent className="p-6 text-center">
-            <Users className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-white mb-2">Sign In Required</h1>
-            <p className="text-slate-400">Please sign in to access the Members Sandbox</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <WizardProvider>
       <MembersSandboxInner />
@@ -978,6 +964,7 @@ function MembersSandboxInner() {
     showUnlockPrompt, setShowUnlockPrompt,
     setSelectedColor, setQrType, setSelectedPlacements, setGraphicSize,
   } = useWizardContext();
+  const { isAuthenticated } = useAuth();
 
   const userId = user?.id || '';
   const [, setLocation] = useLocation();
@@ -1011,11 +998,11 @@ function MembersSandboxInner() {
   const onboardingComplete = localComplete || serverComplete;
 
   useEffect(() => {
-    if (userId && serverChecked && !onboardingComplete) {
+    if (isAuthenticated && userId && serverChecked && !onboardingComplete) {
       const params = window.location.search;
       setLocation(`/member${params}`);
     }
-  }, [userId, onboardingComplete, serverChecked, setLocation]);
+  }, [isAuthenticated, userId, onboardingComplete, serverChecked, setLocation]);
 
   const params = new URLSearchParams(window.location.search);
   const tempPacketIdFromUrl = params.get('tempPacketId') || localStorage.getItem('pending_temp_packet_id');
@@ -1054,7 +1041,14 @@ function MembersSandboxInner() {
     }
   }, [onboardingComplete, tempPacketIdFromUrl, userId]);
 
-  if (!onboardingComplete) {
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setWizardTier('super-simple');
+      setViewMode('wizard');
+    }
+  }, [isAuthenticated]);
+
+  if (isAuthenticated && !onboardingComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
@@ -1067,7 +1061,7 @@ function MembersSandboxInner() {
       <SEO title="Members Sandbox" description="Build and sell your products" />
       
       <div className="container py-4 max-w-5xl mx-auto px-4">
-        {viewMode !== 'wizard' && (
+        {viewMode !== 'wizard' && isAuthenticated && (
         <div className="flex gap-2 flex-wrap mb-4">
               <Button
                 variant={viewMode === 'index' ? 'default' : 'ghost'}

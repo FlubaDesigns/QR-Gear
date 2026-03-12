@@ -115,7 +115,7 @@ function Router() {
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
-      <Route path="/members">{() => <ProtectedRoute requireAdmin={false}><Members /></ProtectedRoute>}</Route>
+      <Route path="/members" component={Members} />
       <Route path="/member">{() => <ProtectedRoute requireAdmin={false}><Member /></ProtectedRoute>}</Route>
       <Route path="/admin">{() => <AdminRoute><Admin /></AdminRoute>}</Route>
       <Route path="/admin/products">{() => <AdminRoute><AdminProducts /></AdminRoute>}</Route>
