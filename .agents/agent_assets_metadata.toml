@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "VvjPq9Vo5UHfXlSuYHRTX"
+uri = "file://qrgear-backup.zip"
+type = "unspecified"
+title = "QR Gear Full Source Backup"
