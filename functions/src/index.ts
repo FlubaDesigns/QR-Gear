@@ -1522,7 +1522,8 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
 
         const fulfillmentProvider = p.fulfillmentProvider || 'printify';
         const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
-        const originalDescription = p.description || '';
+        const rawDesc = p.description || '';
+        const originalDescription = rawDesc;
         const adminDescription = catalogBlankDescriptions[blankKey] || '';
         const productTitle = p.title || p.name || 'Untitled Product';
         const description = adminDescription || originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
@@ -9744,7 +9745,7 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
     const productLookup = new Map<string, any>();
 
     if (printifyBlanks.length > 0) {
-      const bpSnapshot = await db.collection("printifyBlueprints").get();
+      const bpSnapshot = await db.collection("printify_blueprints").get();
       bpSnapshot.docs.forEach(doc => {
         const d = doc.data();
         const bpId = d.id || parseInt(doc.id);
@@ -9820,7 +9821,8 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
         availableColors = (prov?.availableColors || []).map((c: any) => ({ name: c.name || c, hex: c.hex || '' }));
         availableSizes = (prov?.availableSizes || []).map((s: any) => typeof s === 'string' ? s : s.title || String(s));
       }
-      const originalDescription = bp.description || '';
+      const rawDesc = bp.description || '';
+      const originalDescription = rawDesc;
       const adminDescription = blankDescriptions[blankKey] || '';
       const description = adminDescription || originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
       categoryTierMap[category][tier].push({
