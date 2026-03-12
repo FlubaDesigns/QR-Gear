@@ -104,6 +104,12 @@ const adminSections = [
     href: "/admin/marketplaces",
   },
   {
+    title: "External Sites",
+    description: "Embedded stores, builders, placements, affiliate payouts",
+    icon: Globe,
+    href: "/admin/external-sites",
+  },
+  {
     title: "System Health",
     description: "Monitor provider status and system health",
     icon: Activity,

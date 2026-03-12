@@ -307,7 +307,7 @@ function register(app) {
     });
     app.post('/admin/surfaces', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { masterProductId, title, description, tags, images, retailPrice, compareAtPrice, sku, enabledPlatforms } = req.body;
+            const { masterProductId, title, subtitle, description, bulletPoints, tags, keywords, images, mockupImages, retailPrice, compareAtPrice, currency, sku, defaultSkuPrefix, enabledPlatforms, storeId, channelId, collectionId, productId, artifactId, mosaicId, supportsEmbedStore, supportsEmbedProduct, supportsEmbedBuilder, supportsEtsy, supportsEbay, supportsAmazon } = req.body;
             if (!masterProductId) {
                 res.status(400).json({ error: 'masterProductId is required' });
                 return;
@@ -316,15 +316,34 @@ function register(app) {
             const data = {
                 masterProductId,
                 title: title || '',
+                subtitle: subtitle || '',
                 description: description || '',
+                bulletPoints: Array.isArray(bulletPoints) ? bulletPoints : [],
                 tags: Array.isArray(tags) ? tags : [],
+                keywords: Array.isArray(keywords) ? keywords : [],
                 images: Array.isArray(images) ? images : [],
+                mockupImages: Array.isArray(mockupImages) ? mockupImages : [],
                 retailPrice: typeof retailPrice === 'number' ? retailPrice : parseFloat(retailPrice) || 0,
                 compareAtPrice: compareAtPrice != null ? (typeof compareAtPrice === 'number' ? compareAtPrice : parseFloat(compareAtPrice) || undefined) : undefined,
+                currency: currency || 'USD',
                 sku: sku || '',
+                defaultSkuPrefix: defaultSkuPrefix || '',
                 enabledPlatforms: Array.isArray(enabledPlatforms) ? enabledPlatforms : [],
+                storeId: storeId || '',
+                channelId: channelId || '',
+                collectionId: collectionId || '',
+                productId: productId || '',
+                artifactId: artifactId || '',
+                mosaicId: mosaicId || '',
+                supportsEmbedStore: supportsEmbedStore === true,
+                supportsEmbedProduct: supportsEmbedProduct === true,
+                supportsEmbedBuilder: supportsEmbedBuilder === true,
+                supportsEtsy: supportsEtsy === true,
+                supportsEbay: supportsEbay === true,
+                supportsAmazon: supportsAmazon === true,
                 status: 'draft',
                 readinessErrors: [],
+                isActive: true,
                 createdAt: now,
                 updatedAt: now,
             };
@@ -345,7 +364,7 @@ function register(app) {
                 return;
             }
             const updates = {};
-            const allowed = ['title', 'description', 'tags', 'images', 'retailPrice', 'compareAtPrice', 'sku', 'enabledPlatforms', 'status'];
+            const allowed = ['title', 'subtitle', 'description', 'bulletPoints', 'tags', 'keywords', 'images', 'mockupImages', 'retailPrice', 'compareAtPrice', 'currency', 'sku', 'defaultSkuPrefix', 'enabledPlatforms', 'status', 'storeId', 'channelId', 'collectionId', 'productId', 'artifactId', 'mosaicId', 'supportsEmbedStore', 'supportsEmbedProduct', 'supportsEmbedBuilder', 'supportsEtsy', 'supportsEbay', 'supportsAmazon', 'isActive'];
             for (const key of allowed) {
                 if (req.body[key] !== undefined)
                     updates[key] = req.body[key];
@@ -438,8 +457,11 @@ function register(app) {
             const uniqueSkus = new Set(variantSkus);
             if (variantSkus.length !== uniqueSkus.size)
                 errors.push('All variant SKUs must be unique');
-            if (!surface.enabledPlatforms || surface.enabledPlatforms.length === 0)
-                errors.push('At least one marketplace platform must be enabled');
+            const hasAnyChannel = (surface.enabledPlatforms && surface.enabledPlatforms.length > 0)
+                || surface.supportsEmbedStore || surface.supportsEmbedProduct || surface.supportsEmbedBuilder
+                || surface.supportsEtsy || surface.supportsEbay || surface.supportsAmazon;
+            if (!hasAnyChannel)
+                errors.push('At least one selling channel must be enabled (marketplace or embed)');
             const newStatus = errors.length === 0 ? 'ready' : 'draft';
             await core_1.db.collection(constants_1.SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
             res.json({ ready: errors.length === 0, errors, status: newStatus });
@@ -470,7 +492,7 @@ function register(app) {
                 res.status(404).json({ error: 'Surface not found' });
                 return;
             }
-            const { size, color, colorHex, sku, priceOverride, enabled, inventoryQuantity } = req.body;
+            const { size, color, colorHex, sku, priceOverride, enabled, inventoryQuantity, productVariantId, titleSuffix, option1Name, option1Value, option2Name, option2Value, option3Name, option3Value, availability, marketplaceOverrides } = req.body;
             if (!size || !color) {
                 res.status(400).json({ error: 'size and color are required' });
                 return;
@@ -485,6 +507,16 @@ function register(app) {
                 priceOverride: priceOverride != null ? (typeof priceOverride === 'number' ? priceOverride : parseFloat(priceOverride) || undefined) : undefined,
                 enabled: enabled !== false,
                 inventoryQuantity: typeof inventoryQuantity === 'number' ? inventoryQuantity : 999,
+                productVariantId: productVariantId || '',
+                titleSuffix: titleSuffix || '',
+                option1Name: option1Name || '',
+                option1Value: option1Value || '',
+                option2Name: option2Name || '',
+                option2Value: option2Value || '',
+                option3Name: option3Name || '',
+                option3Value: option3Value || '',
+                availability: availability || 'in_stock',
+                marketplaceOverrides: marketplaceOverrides || {},
                 createdAt: now,
                 updatedAt: now,
             };
@@ -505,7 +537,7 @@ function register(app) {
                 return;
             }
             const updates = {};
-            const allowed = ['size', 'color', 'colorHex', 'sku', 'priceOverride', 'enabled', 'inventoryQuantity'];
+            const allowed = ['size', 'color', 'colorHex', 'sku', 'priceOverride', 'enabled', 'inventoryQuantity', 'productVariantId', 'titleSuffix', 'option1Name', 'option1Value', 'option2Name', 'option2Value', 'option3Name', 'option3Value', 'availability', 'marketplaceOverrides'];
             for (const key of allowed) {
                 if (req.body[key] !== undefined)
                     updates[key] = req.body[key];

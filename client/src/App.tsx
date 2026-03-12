@@ -82,6 +82,7 @@ import AdminStoreLibrary from "@/pages/admin-store-library";
 import AdminARDemo from "@/pages/admin-ar-demo";
 import AdminBlanks from "@/pages/admin-blanks";
 import AdminMarketplaces from "@/pages/admin-marketplaces";
+import AdminExternalSites from "@/pages/admin-external-sites";
 import AdminDynamics from "@/pages/admin-dynamics";
 import FontManagement from "@/pages/admin-fonts";
 import Members from "@/features/members/MembersPage";
@@ -164,6 +165,7 @@ function Router() {
       <Route path="/admin/dynamics">{() => <AdminRoute><AdminDynamics /></AdminRoute>}</Route>
       <Route path="/admin/blanks">{() => <AdminRoute><AdminBlanks /></AdminRoute>}</Route>
       <Route path="/admin/marketplaces">{() => <AdminRoute><AdminMarketplaces /></AdminRoute>}</Route>
+      <Route path="/admin/external-sites">{() => <AdminRoute><AdminExternalSites /></AdminRoute>}</Route>
       <Route path="/admin/store-builder">{() => <AdminRoute><AdminStoreBuilder /></AdminRoute>}</Route>
       <Route path="/admin/store-library">{() => <AdminRoute><AdminStoreLibrary /></AdminRoute>}</Route>
       <Route path="/admin/ar-demo">{() => <AdminRoute><AdminARDemo /></AdminRoute>}</Route>

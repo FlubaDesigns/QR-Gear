@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260312-modular-v1';
+const _BUILD_ID = '20260312-external-sites-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -36,6 +36,7 @@ import { register as registerMemberFiles } from './routes/member-files';
 import { register as registerStoreFiles } from './routes/store-files';
 import { register as registerSeo } from './routes/seo';
 import { register as registerMarketplace } from './routes/marketplace';
+import { register as registerExternalSites } from './routes/external-sites';
 import { register as registerCoreRoutes } from './routes/core-routes';
 
 const app = express();
@@ -77,6 +78,7 @@ registerMemberFiles(app);
 registerStoreFiles(app);
 registerSeo(app);
 registerMarketplace(app);
+registerExternalSites(app);
 registerCoreRoutes(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {

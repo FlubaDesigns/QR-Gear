@@ -22,11 +22,40 @@ export const MARKETPLACE_LISTINGS_COLLECTION = 'marketplaceListings';
 export const MARKETPLACE_SYNC_JOBS_COLLECTION = 'marketplaceSyncJobs';
 export const MARKETPLACE_SYNC_LOGS_COLLECTION = 'marketplaceSyncLogs';
 
+export const BUILDER_HOSTS_COLLECTION = 'builderHosts';
+export const BUILDER_PROFILES_COLLECTION = 'builderProfiles';
+export const BUILDER_PLACEMENTS_COLLECTION = 'builderPlacements';
+export const BUILDER_SESSIONS_COLLECTION = 'builderSessions';
+export const BUILDER_DRAFTS_COLLECTION = 'builderDrafts';
+export const PRICING_POLICIES_COLLECTION = 'pricingPolicies';
+export const REVENUE_SPLITS_COLLECTION = 'revenueSplits';
+export const EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION = 'embeddedOrderAttributions';
+export const AFFILIATE_PAYOUT_LEDGER_COLLECTION = 'affiliatePayoutLedger';
+
 export type MarketplacePlatform = 'etsy' | 'ebay' | 'amazon';
-export type SurfaceStatus = 'draft' | 'ready' | 'published' | 'archived';
+export type SurfaceStatus = 'draft' | 'ready' | 'published' | 'archived' | 'blocked';
 export type ListingStatus = 'pending' | 'draft' | 'active' | 'syncing' | 'error' | 'paused' | 'delisted';
 export type SyncJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type SyncJobAction = 'create' | 'update' | 'delete' | 'sync_inventory' | 'full_sync';
 export type SyncLogLevel = 'info' | 'warn' | 'error';
 
+export type BuilderHostStatus = 'active' | 'paused' | 'disabled';
+export type BuilderProfileStatus = 'active' | 'draft' | 'archived';
+export type BuilderPlacementStatus = 'active' | 'paused' | 'disabled';
+export type EmbedMode = 'store' | 'product' | 'builder';
+export type BuilderSessionStatus = 'active' | 'completed' | 'abandoned' | 'expired';
+export type BuilderDraftStatus = 'draft' | 'converted' | 'abandoned';
+export type PricingPolicyStatus = 'active' | 'draft' | 'archived';
+export type RevenueSplitStatus = 'active' | 'draft' | 'archived';
+export type BaseCostMode = 'snapshot' | 'live-cost' | 'variant-cost';
+export type MarginType = 'fixed' | 'percent';
+export type AffiliateBasis = 'gross_profit';
+export type RoundingMode = 'none' | 'round' | 'ceil' | 'floor';
+export type PayoutStatus = 'pending' | 'approved' | 'paid' | 'reversed';
+
 export const MARKETPLACE_PLATFORMS: MarketplacePlatform[] = ['etsy', 'ebay', 'amazon'];
+export const EMBED_MODES: EmbedMode[] = ['store', 'product', 'builder'];
+export const BUILDER_HOST_STATUSES: BuilderHostStatus[] = ['active', 'paused', 'disabled'];
+export const BUILDER_PROFILE_STATUSES: BuilderProfileStatus[] = ['active', 'draft', 'archived'];
+export const BUILDER_PLACEMENT_STATUSES: BuilderPlacementStatus[] = ['active', 'paused', 'disabled'];
+export const PAYOUT_STATUSES: PayoutStatus[] = ['pending', 'approved', 'paid', 'reversed'];

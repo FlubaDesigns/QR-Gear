@@ -328,15 +328,34 @@ interface SurfaceData {
   id: string;
   masterProductId: string;
   title: string;
+  subtitle?: string;
   description: string;
+  bulletPoints?: string[];
   tags: string[];
+  keywords?: string[];
   images: string[];
+  mockupImages?: string[];
   retailPrice: number;
   compareAtPrice?: number;
+  currency?: string;
   sku: string;
+  defaultSkuPrefix?: string;
   enabledPlatforms: MarketplacePlatform[];
+  storeId?: string;
+  channelId?: string;
+  collectionId?: string;
+  productId?: string;
+  artifactId?: string;
+  mosaicId?: string;
+  supportsEmbedStore?: boolean;
+  supportsEmbedProduct?: boolean;
+  supportsEmbedBuilder?: boolean;
+  supportsEtsy?: boolean;
+  supportsEbay?: boolean;
+  supportsAmazon?: boolean;
   status: string;
   readinessErrors: string[];
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -347,12 +366,28 @@ function SurfacesSection() {
   const [form, setForm] = useState({
     masterProductId: "",
     title: "",
+    subtitle: "",
     description: "",
+    bulletPoints: "",
     tags: "",
+    keywords: "",
     retailPrice: "",
+    compareAtPrice: "",
     sku: "",
+    storeId: "",
+    channelId: "",
+    collectionId: "",
+    supportsEmbedStore: false,
+    supportsEmbedProduct: false,
+    supportsEmbedBuilder: false,
     enabledPlatforms: [] as MarketplacePlatform[],
   });
+  const defaultForm = {
+    masterProductId: "", title: "", subtitle: "", description: "", bulletPoints: "", tags: "", keywords: "",
+    retailPrice: "", compareAtPrice: "", sku: "", storeId: "", channelId: "", collectionId: "",
+    supportsEmbedStore: false, supportsEmbedProduct: false, supportsEmbedBuilder: false,
+    enabledPlatforms: [] as MarketplacePlatform[],
+  };
 
   const { data: surfaces = [], isLoading } = useQuery<SurfaceData[]>({
     queryKey: ["/api/admin/surfaces"],
@@ -363,10 +398,20 @@ function SurfacesSection() {
       const res = await apiRequest("POST", "/api/admin/surfaces", {
         masterProductId: data.masterProductId,
         title: data.title,
+        subtitle: data.subtitle,
         description: data.description,
+        bulletPoints: data.bulletPoints.split("\n").map((t) => t.trim()).filter(Boolean),
         tags: data.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        keywords: data.keywords.split(",").map((t) => t.trim()).filter(Boolean),
         retailPrice: parseFloat(data.retailPrice) || 0,
+        compareAtPrice: data.compareAtPrice ? parseFloat(data.compareAtPrice) : undefined,
         sku: data.sku,
+        storeId: data.storeId || undefined,
+        channelId: data.channelId || undefined,
+        collectionId: data.collectionId || undefined,
+        supportsEmbedStore: data.supportsEmbedStore,
+        supportsEmbedProduct: data.supportsEmbedProduct,
+        supportsEmbedBuilder: data.supportsEmbedBuilder,
         enabledPlatforms: data.enabledPlatforms,
       });
       return res.json();
@@ -374,7 +419,7 @@ function SurfacesSection() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
       setShowAdd(false);
-      setForm({ masterProductId: "", title: "", description: "", tags: "", retailPrice: "", sku: "", enabledPlatforms: [] });
+      setForm(defaultForm);
       toast({ title: "Surface created" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -477,6 +522,13 @@ function SurfacesSection() {
                         return PIcon ? <PIcon key={p} className={`h-4 w-4 ${info.color}`} /> : null;
                       })}
                     </div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      {surface.supportsEmbedStore && <Badge variant="secondary" className="text-xs">Embed Store</Badge>}
+                      {surface.supportsEmbedProduct && <Badge variant="secondary" className="text-xs">Embed Product</Badge>}
+                      {surface.supportsEmbedBuilder && <Badge variant="secondary" className="text-xs">Embed Builder</Badge>}
+                      {surface.storeId && <span className="text-xs text-muted-foreground">Store: {surface.storeId.slice(0, 8)}</span>}
+                      {surface.channelId && <span className="text-xs text-muted-foreground">Ch: {surface.channelId.slice(0, 8)}</span>}
+                    </div>
                     {surface.readinessErrors?.length > 0 && (
                       <div className="mt-2 space-y-0.5">
                         {surface.readinessErrors.map((e, i) => (
@@ -515,7 +567,7 @@ function SurfacesSection() {
       )}
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Create Surface</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -527,8 +579,16 @@ function SurfacesSection() {
               <Input id="s-title" placeholder="Marketplace listing title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="input-surface-title" />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="s-subtitle">Subtitle</Label>
+              <Input id="s-subtitle" placeholder="Optional subtitle" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} data-testid="input-surface-subtitle" />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="s-desc">Description</Label>
               <Textarea id="s-desc" placeholder="Product description for the marketplace" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="input-surface-description" rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="s-bullets">Bullet Points (one per line)</Label>
+              <Textarea id="s-bullets" placeholder="Key feature 1&#10;Key feature 2" value={form.bulletPoints} onChange={(e) => setForm({ ...form, bulletPoints: e.target.value })} data-testid="input-surface-bullets" rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -536,17 +596,62 @@ function SurfacesSection() {
                 <Input id="s-price" type="number" min="0" step="0.01" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} data-testid="input-surface-price" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="s-sku">SKU</Label>
-                <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} data-testid="input-surface-sku" />
+                <Label htmlFor="s-compare">Compare At Price</Label>
+                <Input id="s-compare" type="number" min="0" step="0.01" placeholder="Optional" value={form.compareAtPrice} onChange={(e) => setForm({ ...form, compareAtPrice: e.target.value })} data-testid="input-surface-compare-price" />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="s-sku">SKU</Label>
+              <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} data-testid="input-surface-sku" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-tags">Tags (comma-separated)</Label>
               <Input id="s-tags" placeholder="qr code, custom, apparel" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} data-testid="input-surface-tags" />
             </div>
             <div className="space-y-2">
-              <Label>Target Platforms</Label>
-              <div className="flex gap-2">
+              <Label htmlFor="s-keywords">Keywords (comma-separated)</Label>
+              <Input id="s-keywords" placeholder="qr, custom, personalized" value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} data-testid="input-surface-keywords" />
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-3">Linked Resources</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="s-store" className="text-xs">Store ID</Label>
+                  <Input id="s-store" placeholder="Optional" value={form.storeId} onChange={(e) => setForm({ ...form, storeId: e.target.value })} data-testid="input-surface-store-id" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-channel" className="text-xs">Channel ID</Label>
+                  <Input id="s-channel" placeholder="Optional" value={form.channelId} onChange={(e) => setForm({ ...form, channelId: e.target.value })} data-testid="input-surface-channel-id" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-collection" className="text-xs">Collection ID</Label>
+                  <Input id="s-collection" placeholder="Optional" value={form.collectionId} onChange={(e) => setForm({ ...form, collectionId: e.target.value })} data-testid="input-surface-collection-id" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-3">Embed Support</p>
+              <div className="flex flex-wrap gap-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-embed-store">
+                  <input type="checkbox" className="rounded" checked={form.supportsEmbedStore} onChange={(e) => setForm({ ...form, supportsEmbedStore: e.target.checked })} />
+                  Mini Store
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-embed-product">
+                  <input type="checkbox" className="rounded" checked={form.supportsEmbedProduct} onChange={(e) => setForm({ ...form, supportsEmbedProduct: e.target.checked })} />
+                  Mini Product
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-embed-builder">
+                  <input type="checkbox" className="rounded" checked={form.supportsEmbedBuilder} onChange={(e) => setForm({ ...form, supportsEmbedBuilder: e.target.checked })} />
+                  Mini Builder
+                </label>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-3">Target Platforms</p>
+              <div className="flex flex-wrap gap-2">
                 {(Object.entries(PLATFORM_INFO) as [MarketplacePlatform, typeof PLATFORM_INFO["etsy"]][]).map(([key, info]) => {
                   const Icon = info.icon;
                   const selected = form.enabledPlatforms.includes(key);
