@@ -1,0 +1,472 @@
+==================================================
+STEP 4 — WIZARD SURFACE SPLIT
+==================================================
+
+Purpose:
+Rebuild the wizard UI around the official viewer system so the wizard stops acting like its own custom viewer engine.
+
+The wizard must be split into clear surfaces:
+
+1. Tier Picker
+2. Product Picker
+3. Product Detail Modal
+
+The wizard itself should become:
+- flow controller
+- step controller
+- packet updater
+
+The wizard should NOT remain:
+- product card renderer
+- detail modal renderer
+- description authority layer
+- alternate viewer system
+
+
+==================================================
+CORE RULE
+==================================================
+
+The wizard is not a viewer.
+
+The wizard is a flow/controller shell that uses the official viewer system.
+
+That means:
+
+Wizard
+  controls:
+  - step order
+  - selected tier
+  - selected product
+  - packet create/update
+  - mode (member / owner / public)
+
+Viewer
+  mounts:
+  - one view
+  - one skin
+
+View
+  controls:
+  - layout only
+
+Skin
+  controls:
+  - visible controls
+  - visible interaction surface
+
+The wizard must not render ad hoc card systems or ad hoc detail systems outside the canon viewer structure.
+
+
+==================================================
+THE 3 WIZARD SURFACES
+==================================================
+
+1. Tier Picker
+2. Product Picker
+3. Product Detail Modal
+
+
+--------------------------------------------------
+1. TIER PICKER
+--------------------------------------------------
+
+Purpose:
+Allow the user to choose a tier such as:
+
+- Good
+- Better
+- Best
+
+This is a collection of tier options.
+
+Recommended canon view:
+- ScrollVerticalView on phone by default
+- ScrollGridView only if tiers are intentionally presented as tiles
+
+Recommended skin:
+- TierCardSkin
+
+TierCardSkin may display:
+- tier name
+- short summary
+- price range if needed
+- thumbnail or visual marker if needed
+- tap/select affordance
+
+TierCardSkin may NOT:
+- decide which catalog is loaded
+- decide what “Good / Better / Best” means in business logic
+- load products directly
+- decide save targets
+
+Controller responsibility:
+- map selected tier to the correct product/catalog set
+- pass tier items to the viewer
+- handle the selection action
+
+Plain English:
+The tier picker is just a selector surface.
+It should not become a product data engine.
+
+
+--------------------------------------------------
+2. PRODUCT PICKER
+--------------------------------------------------
+
+Purpose:
+Show the products available for the currently selected tier.
+
+This is the product browsing surface inside the wizard.
+
+Recommended canon view:
+- ScrollVerticalView when product cards are list-style and phone-first
+- ScrollGridView when product cards are tile-style and compact enough for grid browsing
+
+The correct choice depends on the density and readability of the product cards.
+
+Recommended skin:
+- WizardProductCardSkin
+
+WizardProductCardSkin may display:
+- product image
+- title
+- price
+- colors summary
+- sizes summary
+- short description preview
+- select/open affordance
+
+WizardProductCardSkin may NOT:
+- decide product identity
+- decide fulfillment provider
+- decide description authority
+- decide packet save targets
+
+Controller responsibility:
+- supply normalized wizard product items
+- determine which products belong to the selected tier
+- determine whether this wizard is member / owner / public mode
+- pass explicit selection/open handlers
+
+Plain English:
+The product picker is just the browse/select surface.
+It should not have to rebuild products from scraps of data.
+
+
+--------------------------------------------------
+3. PRODUCT DETAIL MODAL
+--------------------------------------------------
+
+Purpose:
+Show a richer product detail workspace after the user taps a product.
+
+This is where:
+- full description is shown
+- colors/sizes are shown
+- read-only or editable behavior is enforced
+- packet-level member edits happen if allowed
+
+Recommended canon view:
+- ModalView
+
+Recommended skins:
+- MemberProductDetailSkin
+- ReadOnlyProductDetailSkin
+
+MemberProductDetailSkin is for member wizard mode.
+ReadOnlyProductDetailSkin is for owner/public wizard modes.
+
+MemberProductDetailSkin may display:
+- full image
+- title
+- retail price
+- colors
+- sizes
+- provider/admin/current description context if needed
+- editable member packet description field
+- save/apply button
+
+ReadOnlyProductDetailSkin may display:
+- full image
+- title
+- retail price
+- colors
+- sizes
+- effective public/admin description
+- no edit controls
+
+MemberProductDetailSkin may NOT:
+- overwrite adminCatalogDescription
+- overwrite providerDescription
+- decide description authority rules
+- decide packet save target on its own
+
+ReadOnlyProductDetailSkin may NOT:
+- expose edit controls
+- write any description field
+- create member overrides
+
+Controller responsibility:
+- pass the correct normalized product item
+- pass the correct mode
+- pass save handlers only when allowed
+- ensure member save writes only to memberPacketDescription
+- ensure owner/public flows are read-only
+
+Plain English:
+The modal is the workspace.
+Cards launch it.
+The modal does not invent its own business rules.
+
+
+==================================================
+MODE SPLIT
+==================================================
+
+The wizard system must explicitly support mode-based behavior.
+
+Three modes matter:
+
+1. Member Wizard Mode
+2. Owner Wizard Mode
+3. Public Wizard Mode
+
+
+--------------------------------------------------
+1. MEMBER WIZARD MODE
+--------------------------------------------------
+
+Allowed:
+- select tier
+- select product
+- open detail modal
+- edit memberPacketDescription only
+- save packet-level override only
+
+Not allowed:
+- edit adminCatalogDescription
+- edit providerDescription
+- change global catalog truth
+
+Description display priority:
+memberPacketDescription
+→ adminCatalogDescription
+→ providerDescription
+
+Editable field:
+memberPacketDescription only
+
+
+--------------------------------------------------
+2. OWNER WIZARD MODE
+--------------------------------------------------
+
+Allowed:
+- select tier
+- select product
+- open detail modal
+- read description
+
+Not allowed:
+- edit descriptions
+- create packet-level overrides unless explicitly designed later
+
+Description display priority:
+adminCatalogDescription
+→ providerDescription
+
+This mode is read-only.
+
+
+--------------------------------------------------
+3. PUBLIC WIZARD MODE
+--------------------------------------------------
+
+Allowed:
+- browse
+- select
+- read description
+
+Not allowed:
+- edit descriptions
+- create packet-level overrides
+
+Description display priority:
+adminCatalogDescription
+→ providerDescription
+
+This mode is read-only.
+
+
+==================================================
+WIZARD DATA FLOW
+==================================================
+
+The wizard flow should work like this:
+
+1. Controller loads tiers
+2. Tier picker viewer renders tier items
+3. User selects tier
+4. Controller loads products for that tier
+5. Product picker viewer renders product items
+6. User selects product
+7. ModalView opens with the correct detail skin
+8. Member mode may save packet-level description only
+9. Packet is updated with the configured product instance
+
+
+==================================================
+REQUIRED VIEWER COMPOSITION
+==================================================
+
+The wizard must compose the official viewer system like this:
+
+Tier step:
+SharedViewer
+  + ScrollVerticalView or ScrollGridView
+  + TierCardSkin
+
+Product step:
+SharedViewer
+  + ScrollVerticalView or ScrollGridView
+  + WizardProductCardSkin
+
+Detail step:
+SharedViewer
+  + ModalView
+  + MemberProductDetailSkin
+    OR
+  + ReadOnlyProductDetailSkin
+
+
+==================================================
+WHAT THE WIZARD MUST STOP DOING
+==================================================
+
+The wizard must stop:
+
+- rendering custom ad hoc product cards inline
+- rendering custom ad hoc tier cards inline
+- rendering its own custom lightbox logic outside the viewer canon
+- reconstructing product identity in UI code
+- reconstructing description authority in UI code
+- mixing step flow logic with card rendering logic
+- acting like a second viewer engine
+
+The wizard should control flow, not architecture.
+
+
+==================================================
+SKIN RESPONSIBILITIES
+==================================================
+
+TierCardSkin
+- shows tier visuals and selection affordance
+
+WizardProductCardSkin
+- shows product visuals and selection affordance
+
+MemberProductDetailSkin
+- shows detailed product info and editable packet description field
+
+ReadOnlyProductDetailSkin
+- shows detailed product info in read-only form
+
+All skins may render controls.
+No skin may define business truth.
+
+
+==================================================
+VIEW RESPONSIBILITIES
+==================================================
+
+ScrollVerticalView
+- stacked list arrangement
+
+ScrollGridView
+- tiled card arrangement with vertical scrolling
+
+ModalView
+- detail/lightbox/fullscreen framing
+
+Views do not control:
+- truth
+- save authority
+- role behavior
+- provider logic
+
+
+==================================================
+CONTROLLER RESPONSIBILITIES
+==================================================
+
+Wizard controller must handle:
+- mode
+- tier selection
+- product selection
+- packet creation/update
+- normalized product data
+- description resolution
+- fulfillment references
+- save permissions
+
+Controllers pass data and handlers down.
+They do not let skins guess.
+
+
+==================================================
+PACKET RULE
+==================================================
+
+When the member wizard saves product detail changes, only packet-level fields may be changed.
+
+Allowed packet-level description write:
+memberPacketDescription
+
+Not allowed:
+providerDescription
+adminCatalogDescription
+
+Packet should continue storing:
+- canonicalBlankKey
+- fulfillmentProvider
+- providerProductId
+- description snapshots
+- selected options
+- price/earnings snapshot
+
+
+==================================================
+SUMMARY
+==================================================
+
+The wizard must be split into 3 official surfaces:
+
+1. Tier Picker
+2. Product Picker
+3. Product Detail Modal
+
+The wizard becomes:
+- flow
+- state
+- packet logic
+
+The viewer system becomes:
+- the rendering engine
+
+The views become:
+- layout only
+
+The skins become:
+- visible controls only
+
+Member mode may edit only packet-level description.
+Owner/public modes are read-only.
+
+This is the official wizard architecture.
+Build this and remove wizard-side ad hoc viewer behavior.
+
+==================================================
+END OF STEP 4 CANON
+==================================================

@@ -5,6 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Package, Check, DollarSign, X, Ruler, Palette, ShoppingBag, Crown, Star, Award, Pencil } from "lucide-react";
 import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } from "./wizardTypes";
+import { ScrollVerticalView } from "../views/ScrollVerticalView";
+import { TierCardSkin, type TierItem } from "../skins/TierCardSkin";
+import { WizardProductCardSkin, type WizardProductItem } from "../skins/WizardProductCardSkin";
+import { MemberProductDetailSkin } from "../skins/MemberProductDetailSkin";
+import { ReadOnlyProductDetailSkin } from "../skins/ReadOnlyProductDetailSkin";
+import type { WizardMode } from "@shared/wizardProduct";
 
 export type WizardContextType = 'member' | 'owner' | 'public' | 'external' | 'platform';
 
@@ -52,6 +58,27 @@ export function getProductFriendlyName(title?: string | null): string {
   return 'product';
 }
 
+function toWizardMode(context: WizardContextType): WizardMode {
+  if (context === 'owner') return 'owner';
+  if (context === 'public' || context === 'external' || context === 'platform') return 'public';
+  return 'member';
+}
+
+function toWizardProductItem(product: AllowedProduct): WizardProductItem {
+  return {
+    id: String(product.blueprintId),
+    blueprintId: product.blueprintId,
+    title: product.title,
+    imageUrl: product.imageUrl || '',
+    description: product.description,
+    retailPrice: product.retailPrice,
+    memberEarnings: product.memberEarnings,
+    brand: product.brand || undefined,
+    colorCount: product.availableColors?.length,
+    sizeCount: product.availableSizes?.length,
+  };
+}
+
 export function ProductPickerStep({
   selectedProduct,
   onSelect,
@@ -61,9 +88,8 @@ export function ProductPickerStep({
   onSelect: (product: AllowedProduct) => void;
   context?: WizardContextType;
 }) {
-  const [zoomedImage, setZoomedImage] = useState<{ url: string; title: string; product: AllowedProduct } | null>(null);
-  const [editingPickerDesc, setEditingPickerDesc] = useState(false);
-  const [pickerDescDraft, setPickerDescDraft] = useState("");
+  const [detailProduct, setDetailProduct] = useState<AllowedProduct | null>(null);
+  const mode = toWizardMode(context);
   const sectionMap: Record<string, string> = { member: 'member', public: 'public', external: 'external', platform: 'platform' };
   const sectionParam = sectionMap[context || ''] ? `?section=${sectionMap[context || '']}` : '';
   const {
@@ -124,233 +150,53 @@ export function ProductPickerStep({
       </div>
     );
   }
-  
+
+  const productItems: WizardProductItem[] = products.map(toWizardProductItem);
+  const productLookup = new Map(products.map(p => [String(p.blueprintId), p]));
+
   return (
     <div className="space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center">
         <h2 className="text-base font-bold text-white mb-0.5">Pick Your Product</h2>
         <p className="text-slate-400 text-xs">Tap image to zoom</p>
       </div>
-      
-      <div className="max-h-[45vh] overflow-y-auto pr-1 space-y-1.5">
-        {products.map((product) => (
-          <button
-            key={product.blueprintId}
-            onClick={() => onSelect(product)}
-            className={`w-full flex items-center gap-3 p-2 rounded-xl border-2 transition-all text-left ${
-              selectedProduct?.blueprintId === product.blueprintId
-                ? 'border-orange-500 bg-orange-500/15'
-                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-            }`}
-            data-testid={`button-product-${product.blueprintId}`}
-          >
-            {product.imageUrl ? (
-              <img 
-                src={product.imageUrl} 
-                alt={product.title}
-                loading="lazy"
-                className="w-14 h-14 rounded-lg object-cover bg-white flex-shrink-0 cursor-zoom-in"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setZoomedImage({ url: product.imageUrl!, title: product.title, product });
-                }}
-                data-testid={`img-product-${product.blueprintId}`}
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-                <Package className="w-7 h-7 text-slate-500" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium text-sm truncate">{product.title}</p>
-              {product.description && (
-                <p className="text-xs text-slate-400 line-clamp-2">{product.description}</p>
-              )}
-              {product.retailPrice != null && (
-                <p className="text-base font-bold text-emerald-400">${product.retailPrice.toFixed(2)}</p>
-              )}
-              {context === 'member' && product.memberEarnings != null && (
-                <p className="text-xs text-green-400">Earn ${product.memberEarnings.toFixed(2)}</p>
-              )}
-            </div>
-            {selectedProduct?.blueprintId === product.blueprintId && (
-              <Check className="w-5 h-5 text-orange-500 flex-shrink-0" />
-            )}
-          </button>
-        ))}
-      </div>
 
-      {zoomedImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => { setZoomedImage(null); setEditingPickerDesc(false); setPickerDescDraft(""); }}
-          data-testid="overlay-product-zoom"
-        >
-          <div 
-            className="relative w-[90vw] max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl animate-in zoom-in-90 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => { setZoomedImage(null); setEditingPickerDesc(false); setPickerDescDraft(""); }}
-              className="absolute top-3 right-3 z-10 bg-black/50 rounded-full p-1.5"
-              data-testid="button-close-lightbox"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
+      <ScrollVerticalView
+        items={productItems}
+        height="45vh"
+        maxItemWidth="100%"
+        footer={null}
+        renderItem={(item) => (
+          <WizardProductCardSkin
+            item={item}
+            isSelected={selectedProduct?.blueprintId === item.blueprintId}
+            mode={mode}
+            onSelect={() => {
+              const full = productLookup.get(String(item.blueprintId));
+              if (full) onSelect(full);
+            }}
+            onOpenDetail={() => {
+              const full = productLookup.get(String(item.blueprintId));
+              if (full) setDetailProduct(full);
+            }}
+          />
+        )}
+      />
 
-            <div className="bg-white rounded-t-2xl p-4 flex items-center justify-center min-h-[200px]">
-              <img
-                src={zoomedImage.url}
-                alt={zoomedImage.title}
-                className="max-h-[40vh] w-auto object-contain"
-              />
-            </div>
-
-            <div className="p-4 space-y-3">
-              <h3 className="text-lg font-bold text-white">{zoomedImage.title}</h3>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                {zoomedImage.product.retailPrice != null && (
-                  <span className="text-2xl font-bold text-emerald-400">${zoomedImage.product.retailPrice.toFixed(2)}</span>
-                )}
-                {context === 'member' && zoomedImage.product.memberEarnings != null && (
-                  <Badge variant="secondary" className="bg-green-500/15 text-green-400 border-green-500/30">
-                    <DollarSign className="w-3 h-3 mr-1" />
-                    Earn ${zoomedImage.product.memberEarnings.toFixed(2)}
-                  </Badge>
-                )}
-              </div>
-
-              {zoomedImage.product.brand && (
-                <p className="text-xs text-slate-400">{zoomedImage.product.brand}</p>
-              )}
-
-              {context === 'member' ? (
-                <div className="space-y-2">
-                  {editingPickerDesc ? (
-                    <>
-                      <Textarea
-                        value={pickerDescDraft}
-                        onChange={(e) => setPickerDescDraft(e.target.value)}
-                        className="text-sm min-h-[80px] bg-slate-800 border-slate-600 text-white"
-                        placeholder="Customize the product description..."
-                        data-testid="textarea-picker-member-desc"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-600 text-white"
-                          onClick={() => {
-                            if (zoomedImage) {
-                              setZoomedImage({
-                                ...zoomedImage,
-                                product: { ...zoomedImage.product, customDescription: pickerDescDraft, memberPacketDescription: pickerDescDraft },
-                              });
-                            }
-                            setEditingPickerDesc(false);
-                          }}
-                          data-testid="button-save-picker-member-desc"
-                        >
-                          Done
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-slate-300 border-slate-600"
-                          onClick={() => setEditingPickerDesc(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <div
-                      className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
-                      onClick={() => {
-                        const cascaded = zoomedImage.product.memberPacketDescription || zoomedImage.product.customDescription || zoomedImage.product.adminCatalogDescription || zoomedImage.product.adminDescription || zoomedImage.product.providerDescription || zoomedImage.product.description || zoomedImage.product.originalDescription || "";
-                        setPickerDescDraft(cascaded);
-                        setEditingPickerDesc(true);
-                      }}
-                      data-testid="button-edit-picker-member-desc"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                        {(zoomedImage.product.memberPacketDescription || zoomedImage.product.customDescription || zoomedImage.product.description) ? (
-                          <p className="text-sm text-slate-300">{zoomedImage.product.memberPacketDescription || zoomedImage.product.customDescription || zoomedImage.product.description}</p>
-                        ) : (
-                          <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-300">{zoomedImage.product.effectiveDescription || zoomedImage.product.adminCatalogDescription || zoomedImage.product.description || zoomedImage.product.providerDescription || zoomedImage.product.originalDescription || 'No description available'}</p>
-              )}
-
-              {(() => {
-                const colorList = zoomedImage.product.availableColors || [];
-                return colorList.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-slate-400 flex items-center gap-1">
-                      <Palette className="w-3 h-3" />
-                      {colorList.length} colors
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {colorList.map((c, i) => (
-                        <div
-                          key={i}
-                          className="w-5 h-5 rounded-full border border-slate-600"
-                          style={{ backgroundColor: c.hex || "#888" }}
-                          title={c.name}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-
-              {(() => {
-                const sizeList = zoomedImage.product.sizes || zoomedImage.product.availableSizes || [];
-                return sizeList.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-slate-400 flex items-center gap-1">
-                      <Ruler className="w-3 h-3" />
-                      Sizes
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {sizeList.map((s: string) => (
-                        <Badge key={s} variant="outline" className="text-xs text-slate-300 border-slate-600">
-                          {s}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-
-              {zoomedImage.product.placements && zoomedImage.product.placements.length > 0 && (
-                <p className="text-xs text-slate-400">
-                  Print areas: {zoomedImage.product.placements.map((pl: any) => pl.title || pl.id).join(', ')}
-                </p>
-              )}
-
-              <Button
-                onClick={() => {
-                  const productToSelect = { ...zoomedImage.product };
-                  onSelect(productToSelect);
-                  setZoomedImage(null);
-                  setEditingPickerDesc(false);
-                }}
-                className="w-full bg-green-600 text-white min-h-12 text-base"
-                data-testid="button-zoom-select"
-              >
-                <Check className="w-4 h-4 mr-2" />
-                Select This Product
-              </Button>
-            </div>
-          </div>
-        </div>
+      {detailProduct && (
+        mode === 'member' ? (
+          <MemberProductDetailSkin
+            product={detailProduct}
+            onSelect={(p) => { onSelect(p); setDetailProduct(null); }}
+            onClose={() => setDetailProduct(null)}
+          />
+        ) : (
+          <ReadOnlyProductDetailSkin
+            product={detailProduct}
+            onSelect={(p) => { onSelect(p); setDetailProduct(null); }}
+            onClose={() => setDetailProduct(null)}
+          />
+        )
       )}
     </div>
   );
@@ -580,12 +426,16 @@ export function SizePickerStep({
 
 interface TierProduct {
   blueprintId: number;
+  printProviderId?: number;
+  providerProductId?: number;
+  canonicalBlankKey?: string;
   title: string;
   imageUrl: string;
   brand?: string;
   category?: string;
   retailPrice?: number;
   memberEarnings?: number;
+  memberPacketDescription?: string | null;
   description?: string;
   providerDescription?: string | null;
   adminCatalogDescription?: string | null;
@@ -614,32 +464,30 @@ interface TierProductsResponse {
   tierConfig: Record<string, { displayName?: string; description?: string; tagline?: string }>;
 }
 
-const TIER_ICONS: Record<string, typeof Star> = {
-  good: Star,
-  better: Award,
-  best: Crown,
-};
-
-const TIER_CARD_STYLES: Record<string, { border: string; bg: string; glow: string; accent: string }> = {
-  good: {
-    border: "border-blue-500",
-    bg: "bg-blue-500/10",
-    glow: "bg-blue-500/20",
-    accent: "text-blue-400",
-  },
-  better: {
-    border: "border-amber-500",
-    bg: "bg-amber-500/10",
-    glow: "bg-amber-500/20",
-    accent: "text-amber-400",
-  },
-  best: {
-    border: "border-emerald-500",
-    bg: "bg-emerald-500/10",
-    glow: "bg-emerald-500/20",
-    accent: "text-emerald-400",
-  },
-};
+function tierProductToAllowedProduct(tp: TierProduct): AllowedProduct {
+  return {
+    blueprintId: tp.blueprintId,
+    printProviderId: tp.printProviderId,
+    providerProductId: tp.providerProductId || tp.printProviderId || tp.blueprintId,
+    canonicalBlankKey: tp.canonicalBlankKey,
+    title: tp.title,
+    imageUrl: tp.imageUrl,
+    brand: tp.brand,
+    retailPrice: tp.retailPrice,
+    memberEarnings: tp.memberEarnings,
+    baseCost: tp.cost,
+    fulfillmentProvider: (tp.fulfillmentProvider as 'printify' | 'printful') || 'printify',
+    availableColors: tp.availableColors?.map(c => ({ name: c.name, hex: c.hex || '' })),
+    availableSizes: tp.availableSizes,
+    description: tp.description,
+    providerDescription: tp.providerDescription || tp.originalDescription || null,
+    adminCatalogDescription: tp.adminCatalogDescription || tp.adminDescription || null,
+    memberPacketDescription: tp.memberPacketDescription || null,
+    effectiveDescription: tp.effectiveDescription || null,
+    originalDescription: tp.originalDescription,
+    adminDescription: tp.adminDescription,
+  } as AllowedProduct;
+}
 
 export function TierPickerStep({
   selectedProduct,
@@ -651,9 +499,8 @@ export function TierPickerStep({
   context?: WizardContextType;
 }) {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
-  const [previewProduct, setPreviewProduct] = useState<{ tp: TierProduct; product: AllowedProduct } | null>(null);
-  const [editingMemberDesc, setEditingMemberDesc] = useState(false);
-  const [memberDescDraft, setMemberDescDraft] = useState("");
+  const [detailProduct, setDetailProduct] = useState<AllowedProduct | null>(null);
+  const mode = toWizardMode(context);
 
   const sectionMap: Record<string, string> = { member: "member", public: "public", external: "external", platform: "platform", owner: "member" };
   const sectionParam = sectionMap[context] || "member";
@@ -697,6 +544,9 @@ export function TierPickerStep({
 
   if (selectedTier && categoryTiers[selectedTier]) {
     const tierProducts = categoryTiers[selectedTier].products;
+    const productItems: WizardProductItem[] = tierProducts.map(tp => toWizardProductItem(tierProductToAllowedProduct(tp)));
+    const productLookup = new Map(tierProducts.map(tp => [String(tp.blueprintId), tierProductToAllowedProduct(tp)]));
+
     return (
       <div className="space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
         <div className="flex items-center gap-2">
@@ -718,251 +568,60 @@ export function TierPickerStep({
           </Badge>
         </div>
         <p className="text-sm text-slate-400">{categoryTiers[selectedTier].description}</p>
-        <div className="max-h-[45vh] overflow-y-auto pr-1 space-y-1.5">
-          {tierProducts.map((tp) => {
-            const product: AllowedProduct = {
-              blueprintId: tp.blueprintId,
-              title: tp.title,
-              imageUrl: tp.imageUrl,
-              brand: tp.brand,
-              retailPrice: tp.retailPrice,
-              memberEarnings: tp.memberEarnings,
-              fulfillmentProvider: (tp.fulfillmentProvider as 'printify' | 'printful') || 'printify',
-              availableColors: tp.availableColors?.map(c => ({ name: c.name, hex: c.hex || '' })),
-              availableSizes: tp.availableSizes,
-              description: tp.description,
-              originalDescription: tp.originalDescription,
-              adminDescription: tp.adminDescription,
-            } as AllowedProduct;
-            const isSelected = selectedProduct?.blueprintId === tp.blueprintId;
-            return (
-              <button
-                key={tp.blueprintId}
-                onClick={() => setPreviewProduct({ tp, product })}
-                className={`w-full flex items-center gap-3 p-2 rounded-xl border-2 transition-all text-left ${
-                  isSelected
-                    ? "border-orange-500 bg-orange-500/15"
-                    : "border-slate-600 bg-slate-800/50 hover:border-slate-500"
-                }`}
-                data-testid={`button-tier-product-${tp.blueprintId}`}
-              >
-                {tp.imageUrl ? (
-                  <img
-                    src={tp.imageUrl}
-                    alt={tp.title}
-                    loading="lazy"
-                    className="w-14 h-14 rounded-lg object-cover bg-white flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
-                    <Package className="w-7 h-7 text-slate-500" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm truncate">{tp.title}</p>
-                  {tp.description && (
-                    <p className="text-xs text-slate-400 line-clamp-2">{tp.description}</p>
-                  )}
-                  {tp.retailPrice != null && (
-                    <p className="text-base font-bold text-white">${tp.retailPrice.toFixed(2)}</p>
-                  )}
-                  {context === "member" && tp.memberEarnings != null && (
-                    <p className="text-xs text-green-400">Earn ${tp.memberEarnings.toFixed(2)}</p>
-                  )}
-                </div>
-                {isSelected && <Check className="w-5 h-5 text-orange-500 flex-shrink-0" />}
-              </button>
-            );
-          })}
-        </div>
 
-        {previewProduct && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={() => { setPreviewProduct(null); setEditingMemberDesc(false); setMemberDescDraft(""); }}
-            data-testid="overlay-tier-product-preview"
-          >
-            <div
-              className="relative w-[90vw] max-w-md max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl animate-in zoom-in-90 duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => { setPreviewProduct(null); setEditingMemberDesc(false); setMemberDescDraft(""); }}
-                className="absolute top-3 right-3 z-10 bg-black/50 rounded-full p-1.5"
-                data-testid="button-close-tier-lightbox"
-              >
-                <X className="w-5 h-5 text-white" />
-              </button>
+        <ScrollVerticalView
+          items={productItems}
+          height="45vh"
+          maxItemWidth="100%"
+          footer={null}
+          renderItem={(item) => (
+            <WizardProductCardSkin
+              item={item}
+              isSelected={selectedProduct?.blueprintId === item.blueprintId}
+              mode={mode}
+              onSelect={() => {
+                const full = productLookup.get(String(item.blueprintId));
+                if (full) setDetailProduct(full);
+              }}
+              onOpenDetail={() => {
+                const full = productLookup.get(String(item.blueprintId));
+                if (full) setDetailProduct(full);
+              }}
+            />
+          )}
+        />
 
-              <div className="bg-white rounded-t-2xl p-4 flex items-center justify-center min-h-[200px]">
-                {previewProduct.tp.imageUrl ? (
-                  <img
-                    src={previewProduct.tp.imageUrl}
-                    alt={previewProduct.tp.title}
-                    className="max-h-[40vh] w-auto object-contain"
-                  />
-                ) : (
-                  <Package className="w-16 h-16 text-slate-400" />
-                )}
-              </div>
-
-              <div className="p-4 space-y-3">
-                <h3 className="text-lg font-bold text-white">{previewProduct.tp.title}</h3>
-
-                <div className="flex flex-wrap gap-2 items-center">
-                  {previewProduct.tp.retailPrice != null && (
-                    <span className="text-2xl font-bold text-emerald-400">${previewProduct.tp.retailPrice.toFixed(2)}</span>
-                  )}
-                  {context === "member" && previewProduct.tp.memberEarnings != null && (
-                    <Badge variant="secondary" className="bg-green-500/15 text-green-400 border-green-500/30">
-                      <DollarSign className="w-3 h-3 mr-1" />
-                      Earn ${previewProduct.tp.memberEarnings.toFixed(2)}
-                    </Badge>
-                  )}
-                </div>
-
-                {context === "member" ? (
-                  <div className="space-y-2">
-                    {editingMemberDesc ? (
-                      <>
-                        <Textarea
-                          value={memberDescDraft}
-                          onChange={(e) => setMemberDescDraft(e.target.value)}
-                          className="text-sm min-h-[80px] bg-slate-800 border-slate-600 text-white"
-                          placeholder="Customize the product description..."
-                          data-testid="textarea-member-desc"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 text-white"
-                            onClick={() => {
-                              if (previewProduct) {
-                                setPreviewProduct({
-                                  ...previewProduct,
-                                  product: { ...previewProduct.product, customDescription: memberDescDraft, memberPacketDescription: memberDescDraft },
-                                });
-                              }
-                              setEditingMemberDesc(false);
-                            }}
-                            data-testid="button-save-member-desc"
-                          >
-                            Done
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-slate-300 border-slate-600"
-                            onClick={() => setEditingMemberDesc(false)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <div
-                        className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
-                        onClick={() => {
-                          const cascaded = previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || previewProduct.tp.adminCatalogDescription || previewProduct.tp.description || previewProduct.tp.adminDescription || previewProduct.tp.providerDescription || previewProduct.tp.originalDescription || "";
-                          setMemberDescDraft(cascaded);
-                          setEditingMemberDesc(true);
-                        }}
-                        data-testid="button-edit-member-desc"
-                      >
-                        <div className="flex items-start gap-2">
-                          <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                          {(previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || previewProduct.tp.description) ? (
-                            <p className="text-sm text-slate-300">{previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || previewProduct.tp.description}</p>
-                          ) : (
-                            <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-300">{previewProduct.tp.description || previewProduct.tp.originalDescription || 'No description available'}</p>
-                )}
-
-                {previewProduct.tp.brand && (
-                  <p className="text-xs text-slate-400">{previewProduct.tp.brand}</p>
-                )}
-
-                {(() => {
-                  const colorList = previewProduct.tp.availableColors || previewProduct.product.availableColors || [];
-                  return colorList.length > 0 ? (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <Palette className="w-3 h-3" />
-                        {colorList.length} colors
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {colorList.map((c, i) => (
-                          <div
-                            key={i}
-                            className="w-5 h-5 rounded-full border border-slate-600"
-                            style={{ backgroundColor: c.hex || "#888" }}
-                            title={c.name}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-
-                {(() => {
-                  const sizeList = previewProduct.tp.availableSizes || previewProduct.product.availableSizes || [];
-                  return sizeList.length > 0 ? (
-                    <div className="space-y-1.5">
-                      <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <Ruler className="w-3 h-3" />
-                        Sizes
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {sizeList.map((s: string) => (
-                          <Badge key={s} variant="outline" className="text-xs text-slate-300 border-slate-600">
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-
-                <Button
-                  onClick={() => {
-                    const productToSelect = { ...previewProduct.product };
-                    if (previewProduct.product.memberPacketDescription || previewProduct.product.customDescription) {
-                      productToSelect.memberPacketDescription = previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || null;
-                      productToSelect.customDescription = previewProduct.product.customDescription;
-                    }
-                    if (!productToSelect.description && previewProduct.tp.description) {
-                      productToSelect.description = previewProduct.tp.description;
-                    }
-                    if (!productToSelect.originalDescription && previewProduct.tp.originalDescription) {
-                      productToSelect.originalDescription = previewProduct.tp.originalDescription;
-                    }
-                    if (!productToSelect.adminDescription && previewProduct.tp.adminDescription) {
-                      productToSelect.adminDescription = previewProduct.tp.adminDescription;
-                    }
-                    onSelect(productToSelect);
-                    setPreviewProduct(null);
-                    setEditingMemberDesc(false);
-                    setMemberDescDraft("");
-                  }}
-                  className="w-full bg-green-600 text-white min-h-12 text-base"
-                  data-testid="button-tier-lightbox-select"
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Select This Product
-                </Button>
-              </div>
-            </div>
-          </div>
+        {detailProduct && (
+          mode === 'member' ? (
+            <MemberProductDetailSkin
+              product={detailProduct}
+              onSelect={(p) => { onSelect(p); setDetailProduct(null); }}
+              onClose={() => setDetailProduct(null)}
+            />
+          ) : (
+            <ReadOnlyProductDetailSkin
+              product={detailProduct}
+              onSelect={(p) => { onSelect(p); setDetailProduct(null); }}
+              onClose={() => setDetailProduct(null)}
+            />
+          )
         )}
       </div>
     );
   }
+
+  const tierItems: TierItem[] = availableTiers.map(tierKey => {
+    const group = categoryTiers[tierKey];
+    return {
+      id: tierKey,
+      tierKey,
+      displayName: group.displayName,
+      tagline: group.tagline,
+      description: group.description,
+      productCount: group.products.length,
+      previewImages: group.products.filter(tp => tp.imageUrl).slice(0, 3).map(tp => tp.imageUrl),
+    };
+  });
 
   return (
     <div className="space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
@@ -971,57 +630,18 @@ export function TierPickerStep({
         <p className="text-slate-400 text-sm">From premium to boutique — pick your level</p>
       </div>
 
-      <div className="space-y-3">
-        {availableTiers.map((tierKey) => {
-          const group = categoryTiers[tierKey];
-          const style = TIER_CARD_STYLES[tierKey];
-          const Icon = TIER_ICONS[tierKey];
-          return (
-            <button
-              key={tierKey}
-              onClick={() => setSelectedTier(tierKey)}
-              className={`w-full p-4 rounded-xl border-2 transition-all text-left relative overflow-visible ${style.border} ${style.bg} hover:scale-[1.01]`}
-              data-testid={`button-tier-${tierKey}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`rounded-full p-2 ${style.glow}`}>
-                  <Icon className={`w-6 h-6 ${style.accent}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className={`text-lg font-bold ${style.accent}`}>
-                    {group.displayName}
-                  </h3>
-                  {group.tagline && (
-                    <p className="text-sm text-slate-300 mt-0.5">{group.tagline}</p>
-                  )}
-                  {group.description && (
-                    <p className="text-xs text-slate-400 mt-1">{group.description}</p>
-                  )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {group.products.length} {group.products.length === 1 ? "product" : "products"}
-                    </Badge>
-                    {group.products.slice(0, 3).map((tp) => (
-                      tp.imageUrl && (
-                        <img
-                          key={tp.blueprintId}
-                          src={tp.imageUrl}
-                          alt=""
-                          className="w-8 h-8 rounded-md object-cover bg-white border border-slate-600"
-                          loading="lazy"
-                        />
-                      )
-                    ))}
-                    {group.products.length > 3 && (
-                      <span className="text-xs text-slate-500">+{group.products.length - 3} more</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <ScrollVerticalView
+        items={tierItems}
+        height="auto"
+        maxItemWidth="100%"
+        footer={null}
+        renderItem={(item) => (
+          <TierCardSkin
+            item={item}
+            onSelect={(key) => setSelectedTier(key)}
+          />
+        )}
+      />
     </div>
   );
 }

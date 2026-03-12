@@ -414,3 +414,164 @@ API (functions/src/index.ts) — supplies providerDescription, adminCatalogDescr
 ==================================================
 END OF STEP 2 CANON
 ==================================================
+
+
+==================================================
+STEP 3 — WIZARD PRODUCT DATA CONTRACT
+==================================================
+
+Purpose:
+Define a single canonical WizardProduct shape that every wizard flow uses.
+Before any wizard UI touches product data, it passes through normalizeWizardProduct()
+which produces the canonical shape. Packet creation uses wizardProductToPacketBoundProduct()
+so all packets carry the same normalized fields.
+
+Canonical File: shared/wizardProduct.ts
+
+WizardProduct Interface — Required Fields:
+  canonicalBlankKey    — string, derived from provider + blueprintId (e.g. "123" or "pf:456")
+  title                — string
+  imageUrl             — string
+  fulfillmentProvider  — 'printify' | 'printful'
+  providerProductId    — number
+
+  providerDescription        — string (from fulfillment provider)
+  adminCatalogDescription    — string (from admin catalog)
+  memberPacketDescription    — string (from member customization)
+  effectiveDescription       — string (resolved via description layer cascade)
+
+  retailPrice          — number
+  memberEarnings       — number
+  baseCost             — number
+
+  availableColors      — Array<{ name: string; hex: string }>
+  availableSizes       — string[]
+
+  isEditableInMemberWizard   — boolean (true when mode='member')
+  isReadOnlyInOwnerWizard    — boolean (true when mode='owner')
+  isReadOnlyInPublicWizard   — boolean (true when mode='public')
+
+WizardProduct Interface — Optional Fields:
+  brand, placements, hasUSAProvider, variantMap,
+  selectedColor, selectedSize, priceSnapshot, earningsSnapshot,
+  providerDescriptionSnapshot, adminCatalogDescriptionSnapshot,
+  effectivePublicDescription, blueprintId, printProviderId
+
+Canonical Functions:
+  normalizeWizardProduct(input, mode)         — builds WizardProduct from any API data shape
+  wizardProductToPacketBoundProduct(wp)        — converts WizardProduct to packet boundProduct record
+  updateWizardProductMemberDescription(wp, d)  — returns new WizardProduct with updated member description
+
+deriveCanonicalBlankKey():
+  - If input has canonicalBlankKey, use it
+  - If fulfillmentProvider is 'printful', prefix with "pf:"
+  - Otherwise use the blueprintId/providerProductId as string
+
+WizardMode: 'member' | 'owner' | 'public'
+  - Controls description resolution (member sees full cascade, public sees admin+provider only)
+  - Controls editability flags
+
+Integration Points:
+  wizardTypes.ts — re-exports WizardProduct, WizardMode, normalizeWizardProduct,
+                   wizardProductToPacketBoundProduct, updateWizardProductMemberDescription
+  WizardContext.tsx — uses normalizeWizardProduct + wizardProductToPacketBoundProduct
+                      for both createPacketForProduct and publish flows
+  ProductSteps.tsx — carries all 4 description layer fields when selecting a product
+  AllowedProduct — extended with canonicalBlankKey, providerProductId
+
+Rule: No wizard consumer may construct boundProduct manually.
+      All packet creation MUST go through wizardProductToPacketBoundProduct().
+
+==================================================
+END OF STEP 3 CANON
+==================================================
+
+
+==================================================
+STEP 4 — WIZARD SURFACE SPLIT
+==================================================
+
+Purpose:
+Rebuild the wizard UI around the official viewer system.
+The wizard is a flow/controller shell that uses the canon viewer system.
+It is NOT a viewer engine — it does not render ad hoc cards or modals.
+
+Three Wizard Surfaces:
+
+1. TIER PICKER
+   View: ScrollVerticalView
+   Skin: TierCardSkin (client/src/features/shared/components/skins/TierCardSkin.tsx)
+   Data: TierItem { id, tierKey, displayName, tagline, description, productCount, previewImages }
+   Controller: maps selected tier to product set, passes items to viewer
+
+2. PRODUCT PICKER
+   View: ScrollVerticalView
+   Skin: WizardProductCardSkin (client/src/features/shared/components/skins/WizardProductCardSkin.tsx)
+   Data: WizardProductItem { id, blueprintId, title, imageUrl, description, retailPrice, memberEarnings }
+   Controller: supplies normalized product items, determines tier membership, passes handlers
+
+3. PRODUCT DETAIL MODAL
+   Skins:
+   - MemberProductDetailSkin (member mode — editable memberPacketDescription)
+   - ReadOnlyProductDetailSkin (owner/public mode — read only)
+   Both in client/src/features/shared/components/skins/
+   Controller: passes normalized product + mode + save handlers
+
+Mode Split:
+  member  → TierCardSkin + WizardProductCardSkin + MemberProductDetailSkin
+  owner   → TierCardSkin + WizardProductCardSkin + ReadOnlyProductDetailSkin
+  public  → TierCardSkin + WizardProductCardSkin + ReadOnlyProductDetailSkin
+
+Wizard Controls:
+  - step order
+  - selected tier
+  - selected product
+  - packet create/update
+  - mode (member / owner / public)
+
+Wizard Does NOT:
+  - render ad hoc product cards
+  - render ad hoc tier cards
+  - render custom lightbox logic outside viewer canon
+  - reconstruct product identity in UI code
+  - reconstruct description authority in UI code
+
+Skin Rules:
+  - TierCardSkin: shows tier visuals + selection affordance
+  - WizardProductCardSkin: shows product visuals + selection affordance
+  - MemberProductDetailSkin: shows detail + editable memberPacketDescription only
+  - ReadOnlyProductDetailSkin: shows detail in read-only form
+  - No skin defines business truth
+
+Packet Rule:
+  - Member wizard saves only memberPacketDescription
+  - providerDescription and adminCatalogDescription are never writable from wizard
+  - Packets carry: canonicalBlankKey, fulfillmentProvider, providerProductId,
+    description snapshots, selected options, price/earnings snapshot
+
+Data Flow:
+  1. Controller loads tiers
+  2. TierCardSkin renders tier items via ScrollVerticalView
+  3. User selects tier
+  4. Controller loads products for tier
+  5. WizardProductCardSkin renders product items via ScrollVerticalView
+  6. User taps product → detail modal opens
+  7. MemberProductDetailSkin or ReadOnlyProductDetailSkin renders
+  8. Member may edit memberPacketDescription only
+  9. Packet updated with configured product instance
+
+Helper Functions:
+  toWizardMode(context)           — maps WizardContextType to WizardMode
+  toWizardProductItem(product)    — maps AllowedProduct to WizardProductItem
+  tierProductToAllowedProduct(tp) — maps TierProduct to AllowedProduct with all identity fields
+
+Files Changed:
+  ProductSteps.tsx — refactored TierPickerStep + ProductPickerStep to use viewer skins
+  TierCardSkin.tsx — new canonical skin
+  WizardProductCardSkin.tsx — new canonical skin
+  MemberProductDetailSkin.tsx — new canonical skin
+  ReadOnlyProductDetailSkin.tsx — new canonical skin
+
+==================================================
+END OF STEP 4 CANON
+==================================================

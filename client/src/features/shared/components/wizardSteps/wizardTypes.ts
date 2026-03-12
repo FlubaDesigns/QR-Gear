@@ -101,6 +101,8 @@ export interface ProductItem {
 export interface AllowedProduct {
   blueprintId: number;
   printProviderId?: number;
+  canonicalBlankKey?: string;
+  providerProductId?: number;
   title: string;
   imageUrl?: string | null;
   brand?: string | null;
@@ -125,6 +127,9 @@ export interface AllowedProduct {
   adminDescription?: string;
   customDescription?: string;
 }
+
+export type { WizardProduct, WizardMode } from '@shared/wizardProduct';
+export { normalizeWizardProduct, wizardProductToPacketBoundProduct, updateWizardProductMemberDescription } from '@shared/wizardProduct';
 
 export function getProductTypeLabel(productTitle: string): string {
   const t = productTitle.toLowerCase();
