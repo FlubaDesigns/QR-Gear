@@ -135,6 +135,39 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
 6. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
 7. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
 
+## Canonical Domain Model (NEW)
+
+The system follows a canonical domain hierarchy defined in `shared/domainModel.ts`:
+
+```
+Store → Channel → Collection → Artifact
+                                   ↓
+                            QR Dynamics stitches
+                            artifacts into a Mosaic
+```
+
+- **StoreRecord** — Top-level brand surface (e.g. `qr-gear`)
+- **ChannelRecord** — Thematic feed inside a store (e.g. `usa250`, `faith`)
+- **CollectionRecord** — Curated grouping inside a channel (e.g. `signature-series`)
+- **ArtifactRecord** — Individual content item or QR-linked object
+- **MosaicRecord** — Stitched interactive experience from artifacts (via QR Dynamics)
+
+### Domain Mappers (`server/lib/domain-mappers.ts`)
+Normalize legacy Firestore records into canonical domain objects. Functions: `channelItemToArtifact()`, `firestoreDocToStore()`, `firestoreDocToChannel()`, `firestoreDocToCollection()`, `legacyProgramToMosaic()`.
+
+### Name Translation (In Progress)
+- `collectionTag` → `collectionId` (dual-write: both fields written, reads prefer `collectionId`)
+- `site_programs` → `mosaics` (future)
+- `dynamicContentSets` → `mosaicTemplates` (future)
+- `program_series` → `mosaic_series` (future)
+- Hardcoded `STORE_ID = 'kingdom_connects'` replaced with `DEFAULT_STORE_ID` + explicit `storeId` parameter
+
+### Security Hardening (COMPLETED)
+- `server/printify-token.txt` — DELETED (was plaintext API token). Printify key now env-only via `PRINTIFY_API_KEY`
+- `server/lib/printify.ts` — Removed file-based token fallback, env-only
+- `server/lib/widget-auth.ts` — Throws in production if no `WIDGET_JWT_KEYS` or `WIDGET_JWT_SECRET` configured (no dev fallback in prod)
+- License: README says Proprietary (package.json says MIT due to template — actual license is Proprietary)
+
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
 - **Printful**: Product mockup generation.

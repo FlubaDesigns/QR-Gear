@@ -1,6 +1,6 @@
 import { getFirestoreDb } from './firebase-admin';
 
-const STORE_ID = 'kingdom_connects';
+const DEFAULT_STORE_ID = 'kingdom_connects';
 
 export interface ChannelItem {
   itemId: string;
@@ -14,6 +14,8 @@ export interface ChannelItem {
   price?: number;
   isActive: boolean;
   sortOrder: number;
+  collectionId?: string;
+  /** @deprecated Use collectionId */
   collectionTag?: string;
   shareImageSquareUrl?: string;
   shareImageLinkUrl?: string;
@@ -24,12 +26,15 @@ export interface ChannelItem {
 }
 
 export interface ChannelItemInput {
+  storeId?: string;
   channelId: string;
   packetId: string;
   title: string;
   description?: string;
   previewImageUrl?: string;
   price?: number;
+  collectionId?: string;
+  /** @deprecated Use collectionId */
   collectionTag?: string;
   sortOrder?: number;
   shareImageSquareUrl?: string;
@@ -62,7 +67,7 @@ export async function getChannelItems(options: {
   includeInactive?: boolean;
 }): Promise<ChannelItem[]> {
   const db = getFirestoreDb();
-  const { storeId = STORE_ID, channelId, limit = 12, includeInactive = false } = options;
+  const { storeId = DEFAULT_STORE_ID, channelId, limit = 12, includeInactive = false } = options;
   
   let query = db.collection('channel_items')
     .where('storeId', '==', storeId)
@@ -79,6 +84,7 @@ export async function getChannelItems(options: {
   
   return snapshot.docs.map(doc => {
     const data = doc.data();
+    const coll = data.collectionId || data.collectionTag;
     return {
       itemId: doc.id,
       storeId: data.storeId,
@@ -91,7 +97,8 @@ export async function getChannelItems(options: {
       price: data.price,
       isActive: data.isActive,
       sortOrder: data.sortOrder || 0,
-      collectionTag: data.collectionTag,
+      collectionId: coll,
+      collectionTag: coll,
       shareImageSquareUrl: data.shareImageSquareUrl,
       shareImageLinkUrl: data.shareImageLinkUrl,
       shareImageStoryUrl: data.shareImageStoryUrl,
@@ -111,6 +118,7 @@ export async function getChannelItem(itemId: string): Promise<ChannelItem | null
   }
   
   const data = doc.data()!;
+  const coll = data.collectionId || data.collectionTag;
   return {
     itemId: doc.id,
     storeId: data.storeId,
@@ -123,7 +131,8 @@ export async function getChannelItem(itemId: string): Promise<ChannelItem | null
     price: data.price,
     isActive: data.isActive,
     sortOrder: data.sortOrder || 0,
-    collectionTag: data.collectionTag,
+    collectionId: coll,
+    collectionTag: coll,
     shareImageSquareUrl: data.shareImageSquareUrl,
     shareImageLinkUrl: data.shareImageLinkUrl,
     shareImageStoryUrl: data.shareImageStoryUrl,
@@ -136,9 +145,11 @@ export async function getChannelItem(itemId: string): Promise<ChannelItem | null
 export async function upsertChannelItem(input: ChannelItemInput): Promise<ChannelItem> {
   const db = getFirestoreDb();
   const now = new Date();
+  const storeId = input.storeId || DEFAULT_STORE_ID;
+  const collectionValue = input.collectionId || input.collectionTag || null;
   
   const existingQuery = await db.collection('channel_items')
-    .where('storeId', '==', STORE_ID)
+    .where('storeId', '==', storeId)
     .where('channelId', '==', input.channelId)
     .where('packetId', '==', input.packetId)
     .limit(1)
@@ -157,7 +168,8 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
       previewImageUrl: input.previewImageUrl || null,
       shareUrl,
       price: input.price || null,
-      collectionTag: input.collectionTag || null,
+      collectionId: collectionValue,
+      collectionTag: collectionValue,
       sortOrder: input.sortOrder ?? existingData.sortOrder ?? 0,
       shareCaption,
       isActive: true,
@@ -172,7 +184,7 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     
     return {
       itemId: existingDoc.id,
-      storeId: STORE_ID,
+      storeId,
       channelId: input.channelId,
       packetId: input.packetId,
       title: input.title,
@@ -182,7 +194,8 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
       price: input.price,
       isActive: true,
       sortOrder: input.sortOrder ?? existingData.sortOrder ?? 0,
-      collectionTag: input.collectionTag,
+      collectionId: collectionValue || undefined,
+      collectionTag: collectionValue || undefined,
       shareImageSquareUrl: input.shareImageSquareUrl || existingData.shareImageSquareUrl,
       shareImageLinkUrl: input.shareImageLinkUrl || existingData.shareImageLinkUrl,
       shareImageStoryUrl: input.shareImageStoryUrl || existingData.shareImageStoryUrl,
@@ -193,7 +206,7 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
   }
   
   const countSnapshot = await db.collection('channel_items')
-    .where('storeId', '==', STORE_ID)
+    .where('storeId', '==', storeId)
     .where('channelId', '==', input.channelId)
     .count()
     .get();
@@ -201,7 +214,7 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
   const shareCaption = input.shareCaption || generateShareCaption(input.title, input.description, shareUrl);
   
   const newData: Record<string, any> = {
-    storeId: STORE_ID,
+    storeId,
     channelId: input.channelId,
     packetId: input.packetId,
     title: input.title,
@@ -212,7 +225,8 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     price: input.price || null,
     isActive: true,
     sortOrder: input.sortOrder ?? existingCount,
-    collectionTag: input.collectionTag || null,
+    collectionId: collectionValue,
+    collectionTag: collectionValue,
     createdAt: now,
     updatedAt: now,
   };
@@ -225,7 +239,7 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
   
   return {
     itemId: docRef.id,
-    storeId: STORE_ID,
+    storeId,
     channelId: input.channelId,
     packetId: input.packetId,
     title: input.title,
@@ -235,7 +249,8 @@ export async function upsertChannelItem(input: ChannelItemInput): Promise<Channe
     price: input.price,
     isActive: true,
     sortOrder: newData.sortOrder as number,
-    collectionTag: input.collectionTag,
+    collectionId: collectionValue || undefined,
+    collectionTag: collectionValue || undefined,
     shareImageSquareUrl: input.shareImageSquareUrl,
     shareImageLinkUrl: input.shareImageLinkUrl,
     shareImageStoryUrl: input.shareImageStoryUrl,

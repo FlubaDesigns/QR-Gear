@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
@@ -94,19 +92,9 @@ interface CreateOrderRequest {
 
 class PrintifyClient {
   private getApiKey(): string {
-    // Try env vars first (check both PRINTIFY_API_KEY and PRINTIFY_API_KEY_2), then fallback to file
-    let key = (process.env.PRINTIFY_API_KEY || process.env.PRINTIFY_API_KEY_2 || '').trim().replace(/\s+/g, '');
-    
-    // If env var looks like it has garbage, try file
-    if (!key || !key.startsWith('eyJ')) {
-      try {
-        const tokenPath = path.join(process.cwd(), 'server', 'printify-token.txt');
-        if (fs.existsSync(tokenPath)) {
-          key = fs.readFileSync(tokenPath, 'utf-8').trim().replace(/\s+/g, '');
-        }
-      } catch (e) {
-        // ignore
-      }
+    const key = (process.env.PRINTIFY_API_KEY || process.env.PRINTIFY_API_KEY_2 || '').trim().replace(/\s+/g, '');
+    if (!key) {
+      console.error('[PrintifyClient] No PRINTIFY_API_KEY found in environment');
     }
     return key;
   }

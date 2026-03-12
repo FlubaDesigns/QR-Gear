@@ -4,8 +4,14 @@ import { z } from "zod";
 // ============ JWT KEY ROTATION SYSTEM ============
 // Keys are stored in env as JSON: WIDGET_JWT_KEYS='{"v1":"secret1","v2":"secret2"}'
 // Active key for signing: WIDGET_JWT_ACTIVE_KID
-const DEFAULT_DEV_SECRET = "dev-secret-change-in-production";
-const JWT_EXPIRY = "10m"; // Short-lived tokens for security
+const JWT_EXPIRY = "10m";
+
+function getDevFallbackSecret(): string {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[WidgetAuth] Missing WIDGET_JWT_KEYS or WIDGET_JWT_SECRET in production — refusing to use dev fallback');
+  }
+  return "dev-secret-change-in-production";
+}
 
 // KC Canonical Contract issuer/audience
 const KC_ISSUER = 'kingdom_connects';
@@ -18,14 +24,13 @@ interface JWTKeys {
 function getJWTKeys(): JWTKeys {
   const keysEnv = process.env.WIDGET_JWT_KEYS;
   if (!keysEnv) {
-    // Dev fallback - single key
-    return { v1: process.env.WIDGET_JWT_SECRET || DEFAULT_DEV_SECRET };
+    return { v1: process.env.WIDGET_JWT_SECRET || getDevFallbackSecret() };
   }
   try {
     return JSON.parse(keysEnv);
   } catch (e) {
     console.error("[WidgetAuth] Failed to parse WIDGET_JWT_KEYS, using fallback");
-    return { v1: process.env.WIDGET_JWT_SECRET || DEFAULT_DEV_SECRET };
+    return { v1: process.env.WIDGET_JWT_SECRET || getDevFallbackSecret() };
   }
 }
 
