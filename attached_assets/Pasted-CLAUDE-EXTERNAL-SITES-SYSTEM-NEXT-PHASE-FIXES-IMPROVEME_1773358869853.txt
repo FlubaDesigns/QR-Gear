@@ -1,0 +1,482 @@
+CLAUDE — EXTERNAL SITES SYSTEM NEXT-PHASE FIXES / IMPROVEMENTS
+READ replit.md FIRST
+==============================================================
+
+CONTEXT
+-------
+Ghost reviewed the latest external-sites build in the new ZIP.
+This subsystem is now real and worth continuing.
+
+What is already good:
+- canonical domain model exists in shared/surfaces.ts
+- admin page exists: client/src/pages/admin-external-sites.tsx
+- backend route exists: functions/src/routes/external-sites.ts
+- pricing snapshot math exists
+- public placement/surface/session endpoints exist
+
+What is NOT complete yet:
+- no full cart / buy flow verified
+- affiliateUserId is not fully resolved in runtime session flow
+- no confirmed order-time EmbeddedOrderAttribution write
+- no confirmed order-time AffiliatePayoutLedger write
+- domain validation for embeds appears incomplete
+- surface readiness does not appear fully enforced in public runtime
+- no verified universal embed script/runtime yet
+- BuilderProfile permissions exist canonically but are not yet proven through a live embedded UI
+
+This brief is ONLY about fixing and improving the external-sites subsystem.
+
+
+================================================================
+TOP PRIORITIES
+================================================================
+
+1. Resolve affiliate identity at session creation
+2. Add session → cart and session → buy endpoints
+3. Write EmbeddedOrderAttribution at order creation
+4. Write AffiliatePayoutLedgerEntry at order creation
+5. Enforce allowedDomains / host / placement validation
+6. Enforce Surface readiness before external use
+7. Build the universal embed runtime
+8. Make BuilderProfile permissions actually drive the embedded UI
+
+
+================================================================
+1. FIX AFFILIATE IDENTITY RESOLUTION
+================================================================
+
+Problem:
+The external session flow still appears to create sessions with affiliateUserId blank or unresolved.
+
+This is a core business problem because the whole model depends on:
+“25% of profit goes to the user ID / affiliate / host”
+
+Required fix:
+When creating a BuilderSession, resolve affiliate identity from canonical ownership.
+
+Preferred resolution order:
+1. explicit affiliate user attached to placement
+2. affiliate owner attached to host
+3. fallback owner attached to store/host policy if explicitly allowed
+4. otherwise reject affiliate-enabled session creation
+
+Do NOT leave affiliateUserId blank if revenue sharing is enabled.
+
+Required behavior:
+- if placement has revenue split enabled, affiliateUserId must resolve
+- if it cannot resolve, session should either:
+  - fail with clear error
+  - or proceed with no-affiliate mode only if policy explicitly allows it
+
+Add clear runtime checks for:
+- builderHostId
+- builderPlacementId
+- affiliateUserId
+- pricingPolicyId
+- revenueSplitId
+
+
+================================================================
+2. ADD SESSION → CART ENDPOINT
+================================================================
+
+Problem:
+The subsystem currently supports placement load, surface load, session creation, draft save, and pricing compute.
+It does NOT yet appear to support a real “add configured item to cart” path.
+
+Add endpoint:
+
+POST /public/embed/session/:sessionId/cart
+
+Purpose:
+Turn a configured embedded builder/store session into a real cart item.
+
+Payload should include:
+- selected product / surface
+- selected variant
+- design selections
+- QR selections
+- quantity
+- preview/config snapshot
+
+Required behavior:
+- validate session
+- validate placement
+- validate host
+- validate surface readiness
+- validate selected variant
+- compute pricing snapshot
+- attach attribution context
+- create cart line item with immutable pricing + attribution snapshot
+
+Cart item must preserve:
+- builderHostId
+- builderPlacementId
+- builderProfileId
+- affiliateUserId
+- surfaceId
+- pricingPolicyId
+- revenueSplitId
+- pricing snapshot
+- configuration snapshot
+
+
+================================================================
+3. ADD SESSION → BUY ENDPOINT
+================================================================
+
+Problem:
+No fully verified direct buy flow yet.
+
+Add endpoint:
+
+POST /public/embed/session/:sessionId/buy
+
+Purpose:
+Support a direct embedded buy-now path when allowed by BuilderProfile.
+
+Required behavior:
+- same validation as cart flow
+- create checkout-ready order/cart context
+- preserve all attribution and pricing line items
+- route into canonical checkout/order pipeline
+
+If your platform already has canonical cart/checkout services:
+- reuse them
+- do not create a second checkout logic path
+
+
+================================================================
+4. WRITE EmbeddedOrderAttribution AT ORDER TIME
+================================================================
+
+Problem:
+The models exist, but the real write path from external session to actual order attribution is not yet proven end to end.
+
+At order creation, create a real EmbeddedOrderAttribution record.
+
+Required fields:
+- orderId
+- orderItemId
+- builderHostId
+- builderPlacementId
+- builderProfileId
+- affiliateUserId
+- surfaceId
+- pricingPolicyId
+- revenueSplitId
+- baseSalePrice
+- displaySalePrice
+- productCost
+- providerCost
+- platformFeeAmount
+- shippingCostBurden
+- discountBurden
+- grossProfitAmount
+- affiliatePercent
+- affiliateBasis
+- affiliateAmount
+- netPlatformProfitAmount
+- currency
+- immutable snapshot
+
+Important:
+This must be written from the order-time pricing snapshot, not recomputed loosely later.
+
+
+================================================================
+5. WRITE AffiliatePayoutLedgerEntry AT ORDER TIME
+================================================================
+
+Problem:
+The payout model exists canonically, but the runtime does not yet appear to write real ledger entries from actual orders.
+
+At order creation, create AffiliatePayoutLedgerEntry for each attributed order item.
+
+Required fields:
+- affiliateUserId
+- builderHostId
+- builderPlacementId
+- orderId
+- orderItemId
+- affiliateAmount
+- currency
+- status = pending
+- periodKey
+- createdAt
+
+Important:
+Do NOT defer payout basis creation to reporting.
+Ledger rows must be created when the order becomes real.
+
+
+================================================================
+6. ENFORCE DOMAIN / HOST / PLACEMENT VALIDATION
+================================================================
+
+Problem:
+allowedDomains exists on BuilderHost, but public runtime enforcement is not yet proven strongly enough.
+
+Add strict validation to all public embed/session/cart/buy routes:
+
+Required checks:
+- placement exists
+- host exists
+- profile exists
+- surface exists
+- all are active
+- requested mode matches placement embedMode
+- request origin or supplied domain matches allowedDomains policy
+- placement belongs to host
+- profile belongs to host/store as expected
+- pricingPolicy belongs to placement/host/store as expected
+- revenueSplit belongs to placement/host/store as expected
+
+If validation fails:
+- reject with explicit error
+- do not silently continue
+
+
+================================================================
+7. ENFORCE SURFACE READINESS FOR EXTERNAL USE
+================================================================
+
+Problem:
+shared/surfaces.ts includes readiness logic, but public runtime does not yet appear to strictly enforce it.
+
+Before allowing:
+- placement load
+- session creation
+- cart add
+- buy now
+
+verify:
+- surface status is usable
+- readinessScore/readinessIssues pass required threshold
+- required images exist
+- required variants exist
+- required pricing exists
+- required embed mode is supported
+- surface is not blocked/archived
+
+If not ready:
+- reject with a clear readiness error
+
+Do NOT allow externally unusable surfaces to proceed just because placement exists.
+
+
+================================================================
+8. BUILD UNIVERSAL EMBED RUNTIME
+================================================================
+
+Problem:
+The backend/public API exists, but there is not yet a verified universal external embed renderer.
+
+Build a public script/runtime, for example:
+- embed/site.js
+or
+- public/embed.js
+
+It should support:
+
+Mode: store
+- render mini store grid
+
+Mode: product
+- render single product page
+
+Mode: builder
+- render restricted mini builder
+
+Suggested embed markup:
+
+<script src="https://qrgear.com/embed/site.js"></script>
+<div
+  data-qrgear-embed="true"
+  data-builder-placement="placement_123"
+  data-mode="builder">
+</div>
+
+Runtime behavior:
+1. load placement bootstrap payload
+2. validate host/domain
+3. load profile/surface/pricing context
+4. start session if needed
+5. render proper mode UI
+6. support preview
+7. support cart / buy
+
+Important:
+This runtime must obey BuilderProfile permissions.
+
+
+================================================================
+9. MAKE BuilderProfile PERMISSIONS REAL IN UI
+================================================================
+
+Problem:
+BuilderProfile is modeled well, but the external runtime is not yet proven to actually enforce it.
+
+The embedded builder UI must conditionally expose controls based on profile permissions such as:
+- allowHeaderText
+- allowHeaderImage
+- allowFooterText
+- allowFooterImage
+- allowCenterGraphic
+- allowQrModeSwitch
+- allowUpload
+- allowAssetLibrary
+- allowProductChange
+- allowVariantChange
+- allowSaveDraft
+- allowBuyNow
+
+Required behavior:
+- hidden means hidden
+- blocked means blocked
+- do not just show disabled controls everywhere
+- only expose what the profile allows
+
+This is what turns the external builder from a generic builder into a restricted safe builder.
+
+
+================================================================
+10. REUSE EXISTING BUILDER / PRODUCT LOGIC, BUT DO NOT EXPOSE ADMIN
+================================================================
+
+Important implementation rule:
+Do NOT expose the full admin product builder externally.
+
+Instead:
+- reuse canonical builder state model
+- reuse rendering/preview logic where safe
+- reuse pricing logic
+- reuse cart/order logic
+
+But the embedded runtime should be a restricted shell, not admin UI.
+
+
+================================================================
+11. COMPLETE THE PRICING FLOW END TO END
+================================================================
+
+Problem:
+computePricingSnapshot(...) exists, which is good, but it still needs to be wired end to end into real commerce.
+
+Required:
+Use computePricingSnapshot at:
+- cart add
+- buy now
+- order item creation
+
+Pricing snapshot must include:
+- sale price
+- product cost
+- provider cost
+- platform fee
+- shipping burden
+- discount burden
+- gross profit
+- affiliatePercent
+- affiliateBasis
+- affiliateAmount
+- netPlatformProfitAmount
+
+Critical rule:
+affiliateAmount must be computed and frozen at order time.
+
+
+================================================================
+12. ADD REPORTING READINESS
+================================================================
+
+Once order attribution and payout ledger writes are real, make the admin external-sites area useful.
+
+Admin sections already exist conceptually:
+- Hosts
+- Profiles
+- Placements
+- Pricing
+- Revenue
+- Attribution
+- Payouts
+
+Improve them by showing:
+- sessions per placement
+- conversions per placement
+- attributed revenue
+- gross profit
+- affiliate earnings
+- pending payouts
+- paid payouts
+
+This can be phase-2 reporting once the transaction pipeline is real.
+
+
+================================================================
+13. SUGGESTED BUILD ORDER
+================================================================
+
+PHASE A — Runtime correctness
+1. resolve affiliateUserId at session creation
+2. enforce host/domain/placement validation
+3. enforce Surface readiness
+4. add session → cart endpoint
+5. add session → buy endpoint
+
+PHASE B — Commerce truth
+6. write EmbeddedOrderAttribution at order time
+7. write AffiliatePayoutLedgerEntry at order time
+8. make sure pricing snapshots are immutable and reused
+
+PHASE C — Productization
+9. build universal embed runtime/script
+10. make BuilderProfile permissions actually drive the embedded UI
+11. support store/product/builder embed modes cleanly
+
+PHASE D — Reporting / admin hardening
+12. improve Revenue / Attribution / Payouts views
+13. add failed-session / invalid-placement diagnostics
+14. add conversion metrics per placement
+
+
+================================================================
+14. TESTS TO ADD IMMEDIATELY
+================================================================
+
+Add tests for:
+1. affiliate user resolution at session creation
+2. allowedDomains validation
+3. placement/host/profile linkage validation
+4. Surface readiness enforcement
+5. pricing snapshot math
+6. affiliateAmount = 25% of gross profit
+7. cart item attribution preservation
+8. order-time EmbeddedOrderAttribution writes
+9. order-time AffiliatePayoutLedgerEntry writes
+
+
+================================================================
+BOTTOM LINE
+================================================================
+
+The external-sites subsystem is now real enough to keep building directly.
+
+What it already has:
+- correct nouns
+- admin management surface
+- public bootstrap endpoints
+- pricing math foundation
+
+What it still needs before it is truly operational:
+- real affiliate identity resolution
+- real cart / buy flow
+- real order attribution writes
+- real payout ledger writes
+- strict domain validation
+- strict Surface readiness enforcement
+- actual universal embed runtime
+- proven BuilderProfile-driven UI behavior
+
+Best summary:
+The external-sites system has crossed from concept into implementation, but it still needs the full transaction pipeline and runtime enforcement before it becomes truly operational.

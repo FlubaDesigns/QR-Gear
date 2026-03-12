@@ -13,12 +13,16 @@ import {
   EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION,
   AFFILIATE_PAYOUT_LEDGER_COLLECTION,
   SURFACES_COLLECTION,
+  SURFACE_VARIANTS_COLLECTION,
   EMBED_MODES,
   BUILDER_HOST_STATUSES,
   BUILDER_PROFILE_STATUSES,
   BUILDER_PLACEMENT_STATUSES,
   PAYOUT_STATUSES,
 } from '../constants';
+import { computePricingSnapshot, checkSurfaceReadiness } from '../../../shared/surfaces';
+import type { PricingSnapshot } from '../../../shared/surfaces';
+import Stripe from 'stripe';
 
 interface BuilderPermissionScope {
   allowHeaderText: boolean;
@@ -50,34 +54,143 @@ const DEFAULT_BUILDER_PERMISSIONS: BuilderPermissionScope = {
   allowBuyNow: true,
 };
 
-function computePricingSnapshot(input: { salePrice: number; productCost: number; providerCost?: number; platformFeeAmount?: number; shippingCostBurden?: number; discountBurden?: number; affiliatePercent?: number; currency?: string }) {
-  const salePrice = input.salePrice;
-  const productCost = input.productCost;
-  const providerCost = input.providerCost || 0;
-  const platformFeeAmount = input.platformFeeAmount || 0;
-  const shippingCostBurden = input.shippingCostBurden || 0;
-  const discountBurden = input.discountBurden || 0;
-  const affiliatePercent = input.affiliatePercent || 25;
-  const grossProfitAmount = salePrice - productCost - providerCost - platformFeeAmount - shippingCostBurden - discountBurden;
-  const affiliateAmount = grossProfitAmount > 0 ? Math.round(grossProfitAmount * (affiliatePercent / 100) * 100) / 100 : 0;
-  const netPlatformProfitAmount = grossProfitAmount - affiliateAmount;
-  return {
-    baseSalePrice: salePrice,
-    displaySalePrice: salePrice,
-    productCost,
-    providerCost,
-    platformFeeAmount,
-    shippingCostBurden,
-    discountBurden,
-    grossProfitAmount: Math.round(grossProfitAmount * 100) / 100,
-    affiliatePercent,
-    affiliateBasis: 'gross_profit' as const,
-    affiliateAmount,
-    netPlatformProfitAmount: Math.round(netPlatformProfitAmount * 100) / 100,
-    currency: input.currency || 'USD',
-    pricingSnapshotVersion: '1.0',
-    createdAt: new Date().toISOString(),
-  };
+function extractRequestDomain(req: Request): string | null {
+  const origin = req.headers.origin;
+  if (origin) {
+    try { return new URL(origin).hostname; } catch { /* ignore */ }
+  }
+  const referer = req.headers.referer;
+  if (referer) {
+    try { return new URL(referer).hostname; } catch { /* ignore */ }
+  }
+  const supplied = req.query.domain as string || req.body?.domain;
+  if (supplied && typeof supplied === 'string') return supplied;
+  return null;
+}
+
+function isDomainAllowed(requestDomain: string | null, allowedDomains: string[]): boolean {
+  if (!allowedDomains || allowedDomains.length === 0) return true;
+  if (!requestDomain) return false;
+  const norm = requestDomain.toLowerCase().replace(/^www\./, '');
+  return allowedDomains.some(d => {
+    const allowed = d.toLowerCase().replace(/^www\./, '');
+    if (allowed.startsWith('*.')) {
+      const suffix = allowed.slice(2);
+      return norm === suffix || norm.endsWith('.' + suffix);
+    }
+    return norm === allowed;
+  });
+}
+
+interface EmbedValidationResult {
+  valid: boolean;
+  error?: string;
+  placement?: any;
+  host?: any;
+  profile?: any;
+  surface?: any;
+  variants?: any[];
+  pricingPolicy?: any;
+  revenueSplit?: any;
+  affiliateUserId?: string;
+}
+
+async function validateEmbedContext(
+  placementId: string,
+  req: Request,
+  opts: { requireSurface?: boolean; requireReadiness?: boolean } = {}
+): Promise<EmbedValidationResult> {
+  const placementDoc = await db.collection(BUILDER_PLACEMENTS_COLLECTION).doc(placementId).get();
+  if (!placementDoc.exists) return { valid: false, error: 'Placement not found' };
+  const placement = { id: placementDoc.id, ...placementDoc.data() } as any;
+  if (placement.status !== 'active') return { valid: false, error: 'Placement is not active' };
+
+  const hostDoc = await db.collection(BUILDER_HOSTS_COLLECTION).doc(placement.builderHostId).get();
+  if (!hostDoc.exists) return { valid: false, error: 'Host not found' };
+  const host = { id: hostDoc.id, ...hostDoc.data() } as any;
+  if (host.status !== 'active') return { valid: false, error: 'Host is not active' };
+
+  const requestDomain = extractRequestDomain(req);
+  if (!isDomainAllowed(requestDomain, host.allowedDomains || [])) {
+    return { valid: false, error: `Domain '${requestDomain || 'unknown'}' is not allowed for this host` };
+  }
+
+  let profile: any = null;
+  const profileId = placement.builderProfileId || host.defaultBuilderProfileId;
+  if (profileId) {
+    const profileDoc = await db.collection(BUILDER_PROFILES_COLLECTION).doc(profileId).get();
+    if (profileDoc.exists) {
+      profile = { id: profileDoc.id, ...profileDoc.data() };
+      if (profile.status !== 'active') return { valid: false, error: 'Profile is not active' };
+    }
+  }
+
+  let surface: any = null;
+  let variants: any[] = [];
+  if (placement.surfaceId) {
+    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(placement.surfaceId).get();
+    if (surfaceDoc.exists) {
+      surface = { id: surfaceDoc.id, ...surfaceDoc.data() };
+      if (surface.status === 'archived' || surface.status === 'blocked') {
+        return { valid: false, error: 'Surface is not available' };
+      }
+    }
+  }
+  if (opts.requireSurface && !surface) return { valid: false, error: 'Placement has no surface configured' };
+
+  if (surface && opts.requireReadiness) {
+    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION)
+      .where('surfaceId', '==', surface.id).get();
+    variants = variantsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    const readiness = checkSurfaceReadiness(surface, variants);
+    if (!readiness.ready) {
+      return { valid: false, error: `Surface not ready: ${readiness.errors.join(', ')}` };
+    }
+  }
+
+  let pricingPolicy: any = null;
+  const policyId = placement.pricingPolicyId || host.defaultPricingPolicyId;
+  if (policyId) {
+    const policyDoc = await db.collection(PRICING_POLICIES_COLLECTION).doc(policyId).get();
+    if (policyDoc.exists) pricingPolicy = { id: policyDoc.id, ...policyDoc.data() };
+  }
+
+  let revenueSplit: any = null;
+  const splitId = placement.revenueSplitId || host.defaultRevenueSplitId;
+  if (splitId) {
+    const splitDoc = await db.collection(REVENUE_SPLITS_COLLECTION).doc(splitId).get();
+    if (splitDoc.exists) revenueSplit = { id: splitDoc.id, ...splitDoc.data() };
+  }
+
+  let affiliateUserId = '';
+  if (placement.affiliateUserId) {
+    affiliateUserId = placement.affiliateUserId;
+  } else if (host.ownerUserId) {
+    affiliateUserId = host.ownerUserId;
+  }
+  if (revenueSplit && revenueSplit.affiliatePercent > 0 && !affiliateUserId) {
+    if (revenueSplit.requireAffiliate !== false) {
+      return { valid: false, error: 'Revenue sharing is enabled but no affiliate user could be resolved' };
+    }
+  }
+
+  return { valid: true, placement, host, profile, surface, variants, pricingPolicy, revenueSplit, affiliateUserId };
+}
+
+function buildPricingFromContext(surface: any, pricingPolicy: any, revenueSplit: any): PricingSnapshot {
+  const salePrice = surface?.retailPrice || 0;
+  const productCost = surface?.baseCost || 0;
+  const affiliatePercent = revenueSplit?.affiliatePercent ?? 25;
+  const platformFeeAmount = pricingPolicy?.platformFeeAmount || 0;
+  return computePricingSnapshot({
+    salePrice, productCost, platformFeeAmount, affiliatePercent,
+    currency: pricingPolicy?.currency || 'USD',
+  });
+}
+
+function getPeriodKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const VALID_HOST_STATUSES = new Set<string>(BUILDER_HOST_STATUSES);
@@ -608,49 +721,24 @@ app.patch('/admin/external/payouts/:payoutId', requireAdmin, async (req: Request
 app.get('/public/embed/placement/:placementId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { placementId } = req.params;
-    const placementDoc = await db.collection(BUILDER_PLACEMENTS_COLLECTION).doc(placementId).get();
-    if (!placementDoc.exists) { res.status(404).json({ error: 'Placement not found' }); return; }
-    const placement = placementDoc.data() as any;
-    if (placement.status !== 'active') { res.status(403).json({ error: 'Placement is not active' }); return; }
-
-    const hostDoc = await db.collection(BUILDER_HOSTS_COLLECTION).doc(placement.builderHostId).get();
-    const host = hostDoc.exists ? hostDoc.data() : null;
-    if (host && host.status !== 'active') { res.status(403).json({ error: 'Host is not active' }); return; }
-
-    let profile = null;
-    if (placement.builderProfileId) {
-      const profileDoc = await db.collection(BUILDER_PROFILES_COLLECTION).doc(placement.builderProfileId).get();
-      if (profileDoc.exists) profile = { id: profileDoc.id, ...profileDoc.data() };
+    const ctx = await validateEmbedContext(placementId, req);
+    if (!ctx.valid) {
+      const code = ctx.error?.includes('not found') ? 404 : 403;
+      res.status(code).json({ error: ctx.error });
+      return;
     }
 
-    let surface = null;
-    if (placement.surfaceId) {
-      const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(placement.surfaceId).get();
-      if (surfaceDoc.exists) surface = { id: surfaceDoc.id, ...surfaceDoc.data() };
-    }
-
-    let pricingPolicy = null;
-    const policyId = placement.pricingPolicyId || (host && host.defaultPricingPolicyId);
-    if (policyId) {
-      const policyDoc = await db.collection(PRICING_POLICIES_COLLECTION).doc(policyId).get();
-      if (policyDoc.exists) pricingPolicy = { id: policyDoc.id, ...policyDoc.data() };
-    }
-
-    let revenueSplit = null;
-    const splitId = placement.revenueSplitId || (host && host.defaultRevenueSplitId);
-    if (splitId) {
-      const splitDoc = await db.collection(REVENUE_SPLITS_COLLECTION).doc(splitId).get();
-      if (splitDoc.exists) revenueSplit = { id: splitDoc.id, ...splitDoc.data() };
-    }
+    const permissions = ctx.profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
 
     res.json({
-      placement: { id: placementDoc.id, ...placement },
-      host: host ? { id: hostDoc.id, ...host } : null,
-      profile,
-      surface,
-      pricingPolicy,
-      revenueSplit,
-      embedMode: placement.embedMode,
+      placement: ctx.placement,
+      host: ctx.host ? { id: ctx.host.id, name: ctx.host.name, storeId: ctx.host.storeId } : null,
+      profile: ctx.profile ? { id: ctx.profile.id, name: ctx.profile.name, permissions, theme: ctx.profile.theme || null } : null,
+      surface: ctx.surface,
+      pricingPolicy: ctx.pricingPolicy ? { id: ctx.pricingPolicy.id, name: ctx.pricingPolicy.name, currency: ctx.pricingPolicy.currency || 'USD' } : null,
+      revenueSplit: ctx.revenueSplit ? { id: ctx.revenueSplit.id, affiliatePercent: ctx.revenueSplit.affiliatePercent } : null,
+      affiliateUserId: ctx.affiliateUserId || null,
+      embedMode: ctx.placement.embedMode,
     });
   } catch (error: any) {
     console.error('[ExternalSites] GET public placement error:', error);
@@ -667,8 +755,15 @@ app.get('/public/embed/surface/:surfaceId', async (req: Request, res: Response):
     if (surface.status === 'archived' || surface.status === 'blocked') {
       res.status(403).json({ error: 'Surface is not available' }); return;
     }
-    const variantsSnap = await db.collection('surfaceVariants').where('surfaceId', '==', surfaceId).get();
+    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
     const variants = variantsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })).filter((v: any) => v.enabled);
+
+    const readiness = checkSurfaceReadiness(surface, variants);
+    if (!readiness.ready) {
+      res.status(422).json({ error: 'Surface is not ready for external use', readinessErrors: readiness.errors, readinessScore: readiness.score });
+      return;
+    }
+
     res.json({ id: surfaceDoc.id, ...surface, variants });
   } catch (error: any) {
     console.error('[ExternalSites] GET public surface error:', error);
@@ -678,30 +773,48 @@ app.get('/public/embed/surface/:surfaceId', async (req: Request, res: Response):
 
 app.post('/public/embed/session', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { builderPlacementId, visitorId } = req.body;
+    const { builderPlacementId, visitorId, embedMode } = req.body;
     if (!builderPlacementId) { res.status(400).json({ error: 'builderPlacementId is required' }); return; }
-    const placementDoc = await db.collection(BUILDER_PLACEMENTS_COLLECTION).doc(builderPlacementId).get();
-    if (!placementDoc.exists) { res.status(404).json({ error: 'Placement not found' }); return; }
-    const placement = placementDoc.data() as any;
-    if (placement.status !== 'active') { res.status(403).json({ error: 'Placement is not active' }); return; }
+
+    const ctx = await validateEmbedContext(builderPlacementId, req, { requireSurface: true, requireReadiness: true });
+    if (!ctx.valid) {
+      const code = ctx.error?.includes('not found') ? 404 : ctx.error?.includes('not ready') ? 422 : 403;
+      res.status(code).json({ error: ctx.error });
+      return;
+    }
+
+    if (embedMode && embedMode !== ctx.placement.embedMode) {
+      res.status(400).json({ error: `Requested mode '${embedMode}' does not match placement mode '${ctx.placement.embedMode}'` });
+      return;
+    }
+
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const pricingSnapshot = ctx.surface && ctx.pricingPolicy
+      ? buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit)
+      : null;
+
     const sessionData = {
       builderPlacementId,
-      builderProfileId: placement.builderProfileId || '',
-      builderHostId: placement.builderHostId,
-      affiliateUserId: '',
-      surfaceId: placement.surfaceId || '',
+      builderProfileId: ctx.profile?.id || '',
+      builderHostId: ctx.host.id,
+      affiliateUserId: ctx.affiliateUserId || '',
+      surfaceId: ctx.surface?.id || '',
+      pricingPolicyId: ctx.pricingPolicy?.id || '',
+      revenueSplitId: ctx.revenueSplit?.id || '',
       visitorId: visitorId || '',
       anonToken: Math.random().toString(36).substring(2) + Date.now().toString(36),
       status: 'active',
+      embedMode: ctx.placement.embedMode,
       currentSelections: {},
       previewState: {},
+      pricingSnapshot,
       startedAt: now,
       lastSeenAt: now,
       expiresAt,
     };
     const docRef = await db.collection(BUILDER_SESSIONS_COLLECTION).add(sessionData);
+    console.log(`[ExternalSites] Session created: ${docRef.id}, placement=${builderPlacementId}, affiliate=${ctx.affiliateUserId || 'none'}`);
     res.json({ id: docRef.id, ...sessionData });
   } catch (error: any) {
     console.error('[ExternalSites] POST public session error:', error);
@@ -716,6 +829,16 @@ app.post('/public/embed/session/:sessionId/draft', async (req: Request, res: Res
     if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found' }); return; }
     const session = sessionDoc.data() as any;
     if (session.status !== 'active') { res.status(403).json({ error: 'Session is not active' }); return; }
+
+    const ctx = await validateEmbedContext(session.builderPlacementId, req);
+    if (!ctx.valid) { res.status(403).json({ error: ctx.error }); return; }
+
+    const profile = ctx.profile;
+    const permissions = profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
+    if (!permissions.allowSaveDraft) {
+      res.status(403).json({ error: 'Saving drafts is not allowed by the current profile' }); return;
+    }
+
     const { draftPayload } = req.body;
     const now = new Date().toISOString();
     const draftData = {
@@ -735,6 +858,195 @@ app.post('/public/embed/session/:sessionId/draft', async (req: Request, res: Res
     res.json({ id: docRef.id, ...draftData });
   } catch (error: any) {
     console.error('[ExternalSites] POST public draft error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/public/embed/session/:sessionId/cart', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { sessionId } = req.params;
+    const sessionDoc = await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).get();
+    if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found' }); return; }
+    const session = sessionDoc.data() as any;
+    if (session.status !== 'active') { res.status(403).json({ error: 'Session is not active' }); return; }
+
+    const ctx = await validateEmbedContext(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
+    if (!ctx.valid) { res.status(403).json({ error: ctx.error }); return; }
+
+    const { surfaceId, variantId, quantity, designSelections, qrSelections, previewSnapshot } = req.body;
+    const effectiveSurfaceId = surfaceId || session.surfaceId;
+    if (!effectiveSurfaceId) { res.status(400).json({ error: 'surfaceId is required' }); return; }
+    if (!quantity || quantity < 1) { res.status(400).json({ error: 'quantity must be at least 1' }); return; }
+
+    let selectedVariant = null;
+    if (variantId) {
+      const variantDoc = await db.collection(SURFACE_VARIANTS_COLLECTION).doc(variantId).get();
+      if (!variantDoc.exists) { res.status(404).json({ error: 'Variant not found' }); return; }
+      selectedVariant = { id: variantDoc.id, ...variantDoc.data() };
+      if (!(selectedVariant as any).enabled) { res.status(400).json({ error: 'Selected variant is not available' }); return; }
+    }
+
+    const pricingSnapshot = buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
+
+    const now = new Date().toISOString();
+    const cartItemData = {
+      sessionId,
+      builderPlacementId: session.builderPlacementId,
+      builderHostId: session.builderHostId,
+      builderProfileId: session.builderProfileId || '',
+      affiliateUserId: ctx.affiliateUserId || '',
+      surfaceId: effectiveSurfaceId,
+      variantId: variantId || null,
+      variant: selectedVariant,
+      pricingPolicyId: ctx.pricingPolicy?.id || '',
+      revenueSplitId: ctx.revenueSplit?.id || '',
+      quantity,
+      designSelections: designSelections || {},
+      qrSelections: qrSelections || {},
+      previewSnapshot: previewSnapshot || null,
+      pricingSnapshot,
+      status: 'pending',
+      createdAt: now,
+    };
+
+    const cartRef = await db.collection('embedCartItems').add(cartItemData);
+    await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
+      lastSeenAt: now,
+      status: 'cart_added',
+    });
+
+    console.log(`[ExternalSites] Cart item created: ${cartRef.id}, session=${sessionId}, surface=${effectiveSurfaceId}`);
+    res.json({ id: cartRef.id, ...cartItemData });
+  } catch (error: any) {
+    console.error('[ExternalSites] POST session cart error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { sessionId } = req.params;
+    const sessionDoc = await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).get();
+    if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found' }); return; }
+    const session = sessionDoc.data() as any;
+    if (session.status !== 'active' && session.status !== 'cart_added') {
+      res.status(403).json({ error: 'Session is not in a buyable state' }); return;
+    }
+
+    const ctx = await validateEmbedContext(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
+    if (!ctx.valid) { res.status(403).json({ error: ctx.error }); return; }
+
+    const profile = ctx.profile;
+    const permissions = profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
+    if (!permissions.allowBuyNow) {
+      res.status(403).json({ error: 'Direct purchase is not allowed by the current profile' }); return;
+    }
+
+    const { surfaceId, variantId, quantity, designSelections, qrSelections, previewSnapshot, successUrl, cancelUrl } = req.body;
+    const effectiveSurfaceId = surfaceId || session.surfaceId;
+    if (!effectiveSurfaceId) { res.status(400).json({ error: 'surfaceId is required' }); return; }
+
+    const pricingSnapshot = buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
+    const unitPrice = pricingSnapshot.displaySalePrice;
+    const qty = quantity || 1;
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey) { res.status(503).json({ error: 'Payment not configured' }); return; }
+    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
+
+    const productTitle = ctx.surface?.title || 'QR Gear Product';
+    const productImage = ctx.surface?.images?.[0] || null;
+    const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
+
+    const checkoutSession = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: pricingSnapshot.currency.toLowerCase(),
+          product_data: {
+            name: productTitle,
+            images: productImage ? [productImage] : [],
+          },
+          unit_amount: Math.round(unitPrice * 100),
+        },
+        quantity: qty,
+      }],
+      mode: 'payment',
+      shipping_address_collection: {
+        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
+      },
+      success_url: successUrl || `${baseUrl}/embed/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl || `${baseUrl}/embed/cancel`,
+      metadata: {
+        source: 'external_embed',
+        embedSessionId: sessionId,
+        builderPlacementId: session.builderPlacementId,
+        builderHostId: session.builderHostId,
+        affiliateUserId: ctx.affiliateUserId || '',
+        surfaceId: effectiveSurfaceId,
+        variantId: variantId || '',
+        pricingPolicyId: ctx.pricingPolicy?.id || '',
+        revenueSplitId: ctx.revenueSplit?.id || '',
+      },
+      customer_creation: 'if_required',
+    });
+
+    const now = new Date().toISOString();
+    const orderItemId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+    const attributionData = {
+      orderId: checkoutSession.id,
+      orderItemId,
+      builderHostId: session.builderHostId,
+      builderPlacementId: session.builderPlacementId,
+      builderProfileId: session.builderProfileId || '',
+      affiliateUserId: ctx.affiliateUserId || '',
+      surfaceId: effectiveSurfaceId,
+      variantId: variantId || null,
+      pricingPolicyId: ctx.pricingPolicy?.id || '',
+      revenueSplitId: ctx.revenueSplit?.id || '',
+      ...pricingSnapshot,
+      quantity: qty,
+      designSelections: designSelections || {},
+      qrSelections: qrSelections || {},
+      previewSnapshot: previewSnapshot || null,
+      stripeCheckoutSessionId: checkoutSession.id,
+      status: 'pending_payment',
+      createdAt: now,
+    };
+    await db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION).add(attributionData);
+
+    if (ctx.affiliateUserId && pricingSnapshot.affiliateAmount > 0) {
+      const payoutEntry = {
+        affiliateUserId: ctx.affiliateUserId,
+        builderHostId: session.builderHostId,
+        builderPlacementId: session.builderPlacementId,
+        orderId: checkoutSession.id,
+        orderItemId,
+        affiliateAmount: pricingSnapshot.affiliateAmount * qty,
+        currency: pricingSnapshot.currency,
+        status: 'pending',
+        periodKey: getPeriodKey(),
+        createdAt: now,
+      };
+      await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).add(payoutEntry);
+    }
+
+    await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
+      lastSeenAt: now,
+      status: 'checkout_started',
+      stripeCheckoutSessionId: checkoutSession.id,
+    });
+
+    console.log(`[ExternalSites] Buy checkout created: stripe=${checkoutSession.id}, session=${sessionId}, affiliate=${ctx.affiliateUserId || 'none'}, amount=$${unitPrice * qty}`);
+    res.json({
+      checkoutUrl: checkoutSession.url,
+      stripeSessionId: checkoutSession.id,
+      pricingSnapshot,
+      total: unitPrice * qty,
+    });
+  } catch (error: any) {
+    console.error('[ExternalSites] POST session buy error:', error);
     res.status(500).json({ error: error.message });
   }
 });
