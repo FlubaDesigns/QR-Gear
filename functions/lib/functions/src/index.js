@@ -1251,7 +1251,8 @@ app.get('/members/allowed-products', async (req, res) => {
                 const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
                 const originalDescription = p.description || '';
                 const adminDescription = catalogBlankDescriptions[blankKey] || '';
-                const description = adminDescription || originalDescription;
+                const productTitle = p.title || p.name || 'Untitled Product';
+                const description = adminDescription || originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
                 return {
                     ...p,
                     blueprintId,
@@ -10105,7 +10106,7 @@ app.get('/members/tier-products', async (req, res) => {
             }
             const originalDescription = bp.description || '';
             const adminDescription = blankDescriptions[blankKey] || '';
-            const description = adminDescription || originalDescription || (bp.brand ? `${bp.title} by ${bp.brand}. Premium quality print-on-demand ${category.toLowerCase()}.` : '');
+            const description = adminDescription || originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
             categoryTierMap[category][tier].push({
                 blueprintId: numericId,
                 title: bp.title,
