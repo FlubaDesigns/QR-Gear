@@ -17,11 +17,11 @@ export function MemberProductDetailSkin({ product, onSelect, onClose }: MemberPr
   const [draft, setDraft] = useState("");
   const [localProduct, setLocalProduct] = useState(product);
 
-  const currentDesc = localProduct.memberPacketDescription || localProduct.customDescription || "";
+  const currentDesc = localProduct.memberPacketDescription || "";
   const cascadedDesc = resolveDescription({
-    providerDescription: localProduct.providerDescription || localProduct.originalDescription,
-    adminCatalogDescription: localProduct.adminCatalogDescription || localProduct.adminDescription,
-    memberPacketDescription: localProduct.memberPacketDescription || localProduct.customDescription,
+    providerDescription: localProduct.providerDescription || null,
+    adminCatalogDescription: localProduct.adminCatalogDescription || null,
+    memberPacketDescription: localProduct.memberPacketDescription || null,
   });
 
   const colorList = localProduct.availableColors || [];

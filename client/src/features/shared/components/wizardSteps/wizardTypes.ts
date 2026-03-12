@@ -123,9 +123,6 @@ export interface AllowedProduct {
   adminCatalogDescription?: string | null;
   memberPacketDescription?: string | null;
   effectiveDescription?: string | null;
-  originalDescription?: string;
-  adminDescription?: string;
-  customDescription?: string;
 }
 
 export type { WizardProduct, WizardMode } from '@shared/wizardProduct';

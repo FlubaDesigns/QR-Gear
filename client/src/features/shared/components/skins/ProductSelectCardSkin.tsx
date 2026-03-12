@@ -34,7 +34,7 @@ export interface ProductSelectItem {
   description: string | null;
   providerDescription?: string | null;
   adminCatalogDescription?: string | null;
-  originalDescription?: string | null;
+  providerDescriptionRaw?: string | null;
   colorsAvailable: Array<{ name: string; hex?: string }>;
   sizesAvailable: string[];
   defaultColor: string | null;
@@ -187,11 +187,11 @@ function PreviewModal({
                           placeholder="Enter a custom description for this product..."
                           data-testid={`textarea-desc-${item.id}`}
                         />
-                        {(item.providerDescription || item.originalDescription) && (item.providerDescription || item.originalDescription) !== draftDesc && (
+                        {(item.providerDescription || item.providerDescriptionRaw) && (item.providerDescription || item.providerDescriptionRaw) !== draftDesc && (
                           <button
                             type="button"
                             className="text-xs text-blue-400 hover:text-blue-300 underline"
-                            onClick={() => setDraftDesc(item.providerDescription || item.originalDescription || "")}
+                            onClick={() => setDraftDesc(item.providerDescription || item.providerDescriptionRaw || "")}
                             data-testid={`button-reset-to-provider-${item.id}`}
                           >
                             Reset to provider description
@@ -224,7 +224,7 @@ function PreviewModal({
                     ) : (
                       <div
                         className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
-                        onClick={() => { setDraftDesc(item.description || item.originalDescription || ""); setEditingDesc(true); }}
+                        onClick={() => { setDraftDesc(item.description || item.providerDescription || ""); setEditingDesc(true); }}
                         data-testid={`button-edit-desc-${item.id}`}
                       >
                         <div className="flex items-start gap-2">

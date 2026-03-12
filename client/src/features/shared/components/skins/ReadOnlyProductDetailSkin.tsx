@@ -12,8 +12,8 @@ export interface ReadOnlyProductDetailSkinProps {
 
 export function ReadOnlyProductDetailSkin({ product, onSelect, onClose }: ReadOnlyProductDetailSkinProps) {
   const description = resolvePublicDescription({
-    adminCatalogDescription: product.adminCatalogDescription || product.adminDescription,
-    providerDescription: product.providerDescription || product.originalDescription || product.description,
+    adminCatalogDescription: product.adminCatalogDescription || null,
+    providerDescription: product.providerDescription || product.description || null,
   }) || product.effectiveDescription || product.description || "No description available";
 
   const colorList = product.availableColors || [];

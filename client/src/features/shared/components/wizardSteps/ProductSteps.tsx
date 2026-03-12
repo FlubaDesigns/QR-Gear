@@ -440,8 +440,6 @@ interface TierProduct {
   providerDescription?: string | null;
   adminCatalogDescription?: string | null;
   effectiveDescription?: string | null;
-  originalDescription?: string;
-  adminDescription?: string;
   fulfillmentProvider?: string;
   cost?: number;
   availableColors?: Array<{ name: string; hex?: string }>;
@@ -480,13 +478,11 @@ function tierProductToAllowedProduct(tp: TierProduct): AllowedProduct {
     availableColors: tp.availableColors?.map(c => ({ name: c.name, hex: c.hex || '' })),
     availableSizes: tp.availableSizes,
     description: tp.description,
-    providerDescription: tp.providerDescription || tp.originalDescription || null,
-    adminCatalogDescription: tp.adminCatalogDescription || tp.adminDescription || null,
+    providerDescription: tp.providerDescription || null,
+    adminCatalogDescription: tp.adminCatalogDescription || null,
     memberPacketDescription: tp.memberPacketDescription || null,
     effectiveDescription: tp.effectiveDescription || null,
-    originalDescription: tp.originalDescription,
-    adminDescription: tp.adminDescription,
-  } as AllowedProduct;
+  };
 }
 
 export function TierPickerStep({
