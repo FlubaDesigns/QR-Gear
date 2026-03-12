@@ -137,7 +137,15 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
 8. **ALWAYS** use `collectionId` (not `collectionTag`) for new code — `collectionTag` is deprecated
 9. **ALWAYS** use domain vocabulary: Store/Channel/Collection/Artifact/Mosaic — not legacy names
 10. **NEVER** store API tokens in plaintext files — use environment variables only
-11. **ALWAYS** deploy to production (hosting + functions) and verify after every change
+11. **ALWAYS** deploy to production after every change — this means:
+    - `npm run build` → `firebase deploy --only hosting`
+    - `cd functions && npm run build && cd ..` → `firebase deploy --only functions`
+    - Verify homepage returns 200: `curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/`
+    - Verify shop returns 200: `curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/shop`
+    - Verify Cloud Functions health: `curl -s https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/api/health`
+    - Verify dynamics endpoint: `curl -s https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/api/dynamics/packets?storeId=kingdom_connects`
+    - Rebuild the zip: `downloads/QR_Gear_Full_Website.zip`
+    - **Every session ends with deploy + verify. No exceptions.**
 
 ## Canonical Domain Model (NEW)
 
