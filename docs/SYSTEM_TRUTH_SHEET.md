@@ -62,7 +62,7 @@ Store → Channel → Collection → Artifact
 | `dynamicsCollections`    | `MosaicTemplate`       | Alias constant, Firestore name unchanged |
 | `site_programs`          | `mosaics`              | Alias layer via mosaicService.ts |
 | `DEFAULT_STORE_ID`       | `PLATFORM_STORE_ID`    | Exported constant, no hidden default |
-| `KC_ISSUER`              | `PLATFORM_ISSUER`      | Renamed, value unchanged for compat |
+| `KC_ISSUER`              | `PLATFORM_ISSUER`      | Value changed to `qrgear`; dual-issuer verification via `VALID_ISSUERS` |
 | `originalDescription`    | `providerDescription`  | Purged from client code         |
 | `adminDescription`       | `adminCatalogDescription` | Purged from client code      |
 | `customDescription`      | `memberPacketDescription` | Purged from client code      |
@@ -74,10 +74,12 @@ Store → Channel → Collection → Artifact
 
 | Constant              | Value                | Location                        |
 |-----------------------|----------------------|---------------------------------|
-| `PLATFORM_STORE_ID`   | `kingdom_connects`   | `server/lib/channelItemsService.ts` |
-| `PLATFORM_ISSUER`     | `kingdom_connects`   | `server/lib/widget-auth.ts`     |
+| `PLATFORM_STORE_ID`   | `qr-gear`            | `server/lib/channelItemsService.ts` |
+| `LEGACY_STORE_ID`     | `kingdom_connects`   | `server/lib/channelItemsService.ts` (backward-compat reads) |
+| `PLATFORM_ISSUER`     | `qrgear`             | `server/lib/widget-auth.ts`     |
+| `VALID_ISSUERS`       | `['qrgear', 'kingdom_connects']` | `server/lib/widget-auth.ts` (dual-issuer verification) |
 | `QR_GEAR_AUDIENCE`    | `qrgear_widget`      | `server/lib/widget-auth.ts`     |
-| `KC_PARTNER_ISSUER`   | `kingdom_connects`   | `server/lib/kcWidgetService.ts` (partner-specific) |
+| `KC_PARTNER_ISSUER`   | `kingdom_connects`   | `server/lib/kcWidgetService.ts` (KC's partner identity) |
 
 ---
 

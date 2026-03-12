@@ -29,7 +29,7 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
   - `functions/src/core.ts` — Firebase init, db, storage, types, placement maps, normalization fns, doc helpers, color helpers
   - `functions/src/middleware.ts` — CORS, verifyAuth, requireAuth, requireAdmin, ADMIN_USER_IDS
   - `functions/src/services/` — email.ts, pricing.ts, storage-helpers.ts, printful.ts, printify.ts, mockup-generator.ts, composite-image.ts
-  - `functions/src/routes/` — 20+ route files, each exporting `register(app)`: admin-misc.ts, admin-products.ts, admin-stores.ts, admin-orders.ts, admin-library.ts, admin-settings.ts, members.ts, public.ts, auth.ts, widget.ts, partner.ts, dynamics.ts, products-page.ts, claims.ts, stripe-webhooks.ts, gifts.ts, checkout.ts, orchestration.ts, mockup-routes.ts, seo.ts, marketplace.ts, brain.ts, file-routes.ts, core-routes.ts, tiers.ts
+  - `functions/src/routes/` — 33 route files, each exporting `register(app)`: admin-misc.ts, admin-orders.ts, admin-products.ts, admin-settings.ts, admin-stores.ts, auth.ts, brain.ts, catalog.ts, categories.ts, checkout.ts, claims.ts, core-routes.ts, designs.ts, dynamics.ts, file-routes.ts, gifts.ts, images.ts, marketplace.ts, member-files.ts, members.ts, mockup-routes.ts, orchestration.ts, packets.ts, partner.ts, products-page.ts, public-stores.ts, public.ts, referral.ts, seo.ts, store-files.ts, stripe-webhooks.ts, tiers.ts, widget.ts
   - The `server/` directory code is NOT used at runtime. All API route changes go into the modular files above.
 - **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → Firebase Hosting rewrites `/api/*` to Cloud Function → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, `/members/*`, etc.
 - **Session Rules**:
@@ -64,7 +64,8 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Admin Library Module**: Provides a modular, tenant-aware interface for managing backgrounds, templates, and images.
 - **Shared Utilities Pattern**: Employs a Viewer/View/Skin architecture for UI component reusability. **See ARCHITECTURE_VIEWER.md for the binding, authoritative canon.** One viewer system only. Domain→Controller→Viewer→View→Skin. Viewer is dumb. View is layout only. Skin is visible controls. Controller owns authority. Domain owns truth. Phone-first mandatory. All UI card/grid/modal experiences must use this single system — no alternate viewer families, no forks. **Canon View Set (5 only):** SingleView, ScrollGridView, ScrollVerticalView, ScrollHorizontalView, ModalView. Page layouts are composition of these views, never new view types. Site fit rule: the entire site fits into these five views with different controllers and skins.
 - **Wizard Step Engines**: Modular components defining steps for product creation, graphic placement, QR setup, and publishing.
-- **Modular Wizard Architecture**: Refactored `MembersPage.tsx` for shared state management and multiple wizard flows (e.g., `SuperSimpleWizard.tsx`, `AdvancedWizard.tsx`).
+- **Modular Wizard Architecture**: Refactored `MembersPage.tsx` for shared state management and four wizard tiers: SuperSimple (tutorial cards), Simple (standard guided), Advanced (unlocks after 1st publish — full control with Quick Start, font slider, offsets), Studio (unlocks after 2nd publish — streamlined Quick Publish). Unlock tracking via `localStorage` key `publish_count_{userId}`.
+- **Guest-First Wizard Flow**: Unauthenticated users can design products through the entire SuperSimple wizard. Sign-in gate triggers at preview-to-mockup transition (not at publish). Post-auth creates real channel from temp-channel, uploads pending video file, then advances to mockup with real credentials. Closing without sign-in shows explanatory card with "Back to Creator" button.
 - **Public Wizard**: A public-facing conversion funnel for unauthenticated users to create custom QR products, integrated with Stripe checkout.
 - **Authentication**: Exclusively uses Firebase Authentication.
 - **Unified Rendering Architecture**: Uses a single "image of truth" pattern with canvas renderers and React hooks for debounced rendering and live preview of product graphics.
@@ -150,7 +151,7 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
     - Verify homepage returns 200: `curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/`
     - Verify shop returns 200: `curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/shop`
     - Verify Cloud Functions health: `curl -s https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/api/health`
-    - Verify dynamics endpoint: `curl -s https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/api/dynamics/packets?storeId=kingdom_connects`
+    - Verify dynamics endpoint: `curl -s https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/api/dynamics/packets?storeId=qr-gear` (also check `storeId=kingdom_connects` for legacy data)
     - Rebuild the zip: `downloads/QR_Gear_Full_Website.zip`
     - **Every session ends with deploy + verify. No exceptions.**
 

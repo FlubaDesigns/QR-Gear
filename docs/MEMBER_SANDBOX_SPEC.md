@@ -1,7 +1,32 @@
 # Member Sandbox Specification
 
+**Last updated**: March 2026
+
 ## Overview
-The Member Sandbox (`/test-members`) is a simplified product builder where authenticated members can create and sell products using admin-unlocked templates with **25% profit share**.
+The Member area (`/members`) is a product builder where members can create and sell QR-enhanced merchandise with **25% profit share**. Supports both authenticated and unauthenticated (guest-first) flows.
+
+## Wizard Tiers (Progressive Unlock)
+
+| Tier | Unlock Requirement | Experience |
+|------|-------------------|------------|
+| **SuperSimple** | Available immediately | Card-based tutorial with "Blackboard" explainer cards |
+| **Simple** | Available immediately | Standard step-by-step guided flow |
+| **Advanced** | After 1st publish | Full control: Quick Start resume, font size slider, vertical offset, placement coordinates |
+| **Studio** | After 2nd publish | Streamlined "Quick Publish" for experienced creators |
+
+Unlock tracking uses `localStorage` key `publish_count_{userId}`. Unlock banners display in `MembersPage.tsx`.
+
+## Guest-First (Unauthenticated) Flow
+
+Users can launch the SuperSimple wizard without logging in and design their entire product:
+- Select product, color, size
+- Choose QR type and configure content (upload video, enter URL, pick background)
+
+The **sign-in gate** triggers at the preview-to-mockup transition (not at publish time), maximizing sunk-cost investment before requesting credentials.
+
+**Post-auth**: System creates real channel from temp-channel, uploads pending video file, then advances to mockup generation with real credentials.
+
+**If user closes without signing in**: An explanatory card appears explaining that an account is needed to save work, generate mockups, and access the dashboard. A "Back to Creator" button returns to the wizard.
 
 ## Module Stack (Composable Architecture)
 
@@ -9,70 +34,29 @@ Each QR type builds on the previous, adding modules:
 
 | QR Type | Modules Used |
 |---------|--------------|
-| **QR Basic** | URL only (no extras) |
-| **QR Plus** | TextStyleEditor (header/footer) |
+| **QR Basic** | URL or text only (no extras) |
+| **QR Plus** | TextStyleEditor (header/footer styled landing page) |
 | **QR Canvas** | TextStyleEditor + BackgroundModule + Text overlay |
-| **QR Play** | TextStyleEditor + VideoModule |
+| **QR Play** | VideoModule (upload or URL) |
+| **QR Compose** | Hosting tier selection + domain configuration |
 
-**TextStyleEditor** is the common module - introduced at Plus, reused in Canvas and Play.
+**TextStyleEditor** is the common module — introduced at Plus, reused in Canvas.
 
 ## Wizard Flow
 
-### Step 1: Product Picker
-**Purpose**: Select a product from the Common Library
+See `docs/WIZARD_FLOW.md` for the complete step-by-step breakdown by QR type.
 
-**Card Skin Requirements**:
-- Thumbnail image of product
-- Product title
-- Earnings badge at bottom (e.g. "$2" profit)
-
-**Lightbox (on click)**:
-- Large product image
-- Upcharge info (size/color premiums)
-- "Select" button
-
-**On Select**:
-1. Product instance saved to member's Personal Library (for reuse)
-2. Wizard advances to Step 2
-
-### Step 2: QR Type Selection ("Pick Your Poison")
-Choose QR experience type:
-
-- **QR Basic** (Blue) - Simple URL redirect
-- **QR Plus** (Purple) - Styled landing page with header/footer
-- **QR Canvas** (Emerald) - Image background landing page
-- **QR Play** (Rose) - Video landing page
-
-### Step 3: Customize
-Different modules render based on QR type:
-
-**QR Basic**: 
-- URL input only
-
-**QR Plus**:
-- URL input
-- TextStyleEditor (header/footer text)
-
-**QR Canvas**:
-- URL input
-- TextStyleEditor (header/footer)
-- BackgroundModule with BackgroundLibraryPicker
-- Text overlay on background (TextStyleEditor again)
-
-**QR Play**:
-- URL input
-- TextStyleEditor (header/footer)
-- VideoModule (upload or URL)
-
-### Step 4: Preview
-- GraphicPreviewView showing product + QR graphic
-- QR type badge
-- Edit button to go back
-
-### Step 5: Publish
-- Channel selection (My Channels)
-- Publish button
-- Product saved to member's personal library
+### Summary
+1. **Channel** — Choose or create a storefront
+2. **Product** — Select base product (via TierPickerStep: Good/Better/Best or flat list)
+3. **Product Congrats** — Display potential earnings
+4. **Color/Size** — Pick variant
+5. **QR Type** — Choose: Basic, Plus, Canvas, Play, or Compose
+6. **Placement/Graphic Size** — Configure placement and graphic dimensions
+7. **Generate** — Header/Footer fork (Yes → QR Plus/Canvas text steps; No → QR Basic)
+8. **QR-Specific Content** — Type-specific steps (URL input, video upload, background selection, etc.)
+9. **Preview** — Preview landing page or mockup
+10. **Publish/Confirm** — Final save + ShareKitHandoff (Dashboard / Create Another)
 
 ## Two-Tier Library System
 
@@ -85,6 +69,16 @@ Different modules render based on QR type:
 - Firestore: `memberLibrary` collection
 - Member's own uploads and saved product instances
 - Scoped by `memberId`
+
+## Good/Better/Best Tier System
+
+Products in catalogs can be tagged with tiers. `TierPickerStep` replaces `ProductPickerStep` in all wizards — shows tier cards when tiers exist, falls back to flat product list when no tiers configured.
+
+| Tier | Color | Icon |
+|------|-------|------|
+| Good | Blue | Star |
+| Better | Amber | Award |
+| Best | Emerald | Crown |
 
 ## Pricing Model
 
@@ -106,42 +100,30 @@ Profit: $8
 Member earns: $2 (25% of profit)
 ```
 
-### Card Display for Members
-Show members their potential earnings on each product card:
-```
-Product: $10 base
-+ Your graphic: $4
-= Retail: $14
-🎉 You earn: $1.00
-```
-
-## Server Requirements by QR Type
-
-| QR Type | Server Required? | Notes |
-|---------|------------------|-------|
-| **QR Basic** | No | Simple URL redirect |
-| **QR Plus** | No | Simple URL redirect with styling |
-| **QR Canvas** | Yes | Server-side landing page with image |
-| **QR Play** | Yes | Server-side landing page with video |
-
-## Earnings Calculation
+## Earnings
 - Members get **25% profit share** on sales
-- Displayed on each product card as earnings badge
-- Example: Product sells for $24, cost is $16, profit = $8, member gets $2
+- Displayed on product cards as earnings badge
+- Recorded in `member_earnings` Firestore collection
 
 ## Landing Page URLs
 - QR Canvas and QR Play build URLs under `/m/member/[slug]`
 - Stateless, time-based resolution for QR Dynamics
 
 ## API Endpoints
-- `GET /api/members/allowed-products` - Products from common library
-- `GET /api/common-library` - Common library assets
-- `GET/POST /api/members/:memberId/personal-library` - Personal library CRUD
-- `GET/POST /api/members/:memberId/channels` - Member channels
-- `GET /api/members/:memberId/earnings` - Earnings dashboard
+- `GET /api/members/allowed-products` — Products from catalog (defaults to `member` section)
+- `GET /api/members/tier-products?section=member` — Products grouped by category and tier
+- `GET /api/common-library` — Common library assets
+- `GET/POST /api/members/:memberId/personal-library` — Personal library CRUD
+- `GET/POST /api/members/:memberId/channels` — Member channels
+- `GET /api/members/:memberId/earnings` — Earnings dashboard
 
-## Design Patterns
-- Use **SkinGridViewer** for all grids
-- Use **CardSkin/DetailSkin** pattern for items
-- Use **SkinActions.onSelect** for selection callbacks
-- Build once, compose as needed
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `client/src/features/members/MembersPage.tsx` | Tier routing + unlock banners + unauthenticated card |
+| `client/src/features/members/SuperSimpleWizard.tsx` | SuperSimple wizard UI + sign-in gate |
+| `client/src/features/members/WizardContext.tsx` | Shared wizard state + packet save logic |
+| `client/src/features/shared/components/wizardSteps/wizardTypes.ts` | Step ID definitions + sequences |
+| `client/src/features/shared/components/wizardSteps/ProductSteps.tsx` | TierPickerStep + product cards |
+| `client/src/features/shared/components/wizardSteps/PlaySteps.tsx` | QR Play step components |
