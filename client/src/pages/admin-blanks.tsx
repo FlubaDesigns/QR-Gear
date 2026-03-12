@@ -755,14 +755,18 @@ export default function AdminBlanks() {
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, ProductSelectItem>();
-    const productsToMap = validSelectedCatalogId ? catalogProducts : filtered;
-    productsToMap.forEach(p => {
+    filtered.forEach(p => {
+      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
+      const customDesc = blankDescriptions[blankKey];
+      map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
+    });
+    catalogProducts.forEach(p => {
       const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
       const customDesc = blankDescriptions[blankKey];
       map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
     });
     return map;
-  }, [validSelectedCatalogId, catalogProducts, filtered, pricing, blankDescriptions]);
+  }, [filtered, catalogProducts, pricing, blankDescriptions]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     filtered.map(p => ({
