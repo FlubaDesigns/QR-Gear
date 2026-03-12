@@ -154,7 +154,8 @@ app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, 
       if (collection) collectionsSet.add(collection);
     });
 
-    const explicitSnapshot = await db.collection('dynamicsCollections')
+    const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
+    const explicitSnapshot = await db.collection(MOSAIC_TEMPLATES_COLLECTION)
       .where('storeId', '==', storeId)
       .where('channelId', '==', channelId)
       .get();

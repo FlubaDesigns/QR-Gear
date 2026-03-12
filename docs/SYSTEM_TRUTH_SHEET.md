@@ -50,9 +50,6 @@ Store → Channel → Collection → Artifact
 - `sessions` — Active sessions
 - Relational commerce data (orders, carts, payment-linked records)
 
-### Dual-Write
-- `collectionId` + `collectionTag` — Both written for backward compat, reads prefer `collectionId`
-
 ---
 
 ## Official Legacy Translation Map
@@ -60,8 +57,8 @@ Store → Channel → Collection → Artifact
 | Legacy Name              | Canonical Name         | Status                          |
 |--------------------------|------------------------|---------------------------------|
 | `program`                | `Mosaic`               | Alias layer complete            |
-| `program_series`         | `mosaic_series`        | Both accepted in ViewType       |
-| `collectionTag`          | `collectionId`         | Dual-write, reads prefer new    |
+| `program_series`         | `mosaic_series`        | Fully removed, only `mosaic_series` exists |
+| `collectionTag`          | `collectionId`         | Fully removed, no dual-write or fallback |
 | `dynamicsCollections`    | `MosaicTemplate`       | Alias constant, Firestore name unchanged |
 | `site_programs`          | `mosaics`              | Alias layer via mosaicService.ts |
 | `DEFAULT_STORE_ID`       | `PLATFORM_STORE_ID`    | Exported constant, no hidden default |
@@ -87,7 +84,7 @@ Store → Channel → Collection → Artifact
 ## Security Rules
 
 1. No plaintext API tokens — environment variables only (`PRINTIFY_API_KEY`, `WIDGET_JWT_KEYS`)
-2. Widget auth refuses dev fallback in production (`NODE_ENV === 'production'` → hard fail)
+2. Widget auth always requires `WIDGET_JWT_KEYS` or `WIDGET_JWT_SECRET` — no dev fallback in any environment
 3. JWT key rotation via `WIDGET_JWT_KEYS` JSON + `WIDGET_JWT_ACTIVE_KID`
 4. All admin endpoints require `isAdmin` middleware on `/api/admin/*`
 5. Public endpoints on `/api/public/*` — no authentication required

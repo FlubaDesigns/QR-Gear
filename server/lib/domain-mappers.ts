@@ -10,7 +10,7 @@ import type { ChannelItem } from './channelItemsService';
 export function channelItemToArtifact(item: ChannelItem): ArtifactRecord {
   return {
     artifactId: item.itemId,
-    collectionId: item.collectionId || item.collectionTag,
+    collectionId: item.collectionId,
     channelId: item.channelId,
     storeId: item.storeId,
     title: item.title,
@@ -74,7 +74,7 @@ export function firestoreDocToCollection(id: string, data: Record<string, any>):
 export function legacyProgramToMosaic(id: string, data: Record<string, any>): MosaicRecord {
   return {
     mosaicId: id,
-    collectionId: data.collectionId || data.collectionTag,
+    collectionId: data.collectionId,
     channelId: data.channelId || '',
     storeId: data.storeId || '',
     title: data.title || data.name || '',

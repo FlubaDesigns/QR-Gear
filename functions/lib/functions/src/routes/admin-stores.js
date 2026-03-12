@@ -151,7 +151,8 @@ function register(app) {
                 if (collection)
                     collectionsSet.add(collection);
             });
-            const explicitSnapshot = await core_1.db.collection('dynamicsCollections')
+            const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
+            const explicitSnapshot = await core_1.db.collection(MOSAIC_TEMPLATES_COLLECTION)
                 .where('storeId', '==', storeId)
                 .where('channelId', '==', channelId)
                 .get();

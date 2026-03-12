@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
-const JWT_SECRET = process.env.WIDGET_JWT_SECRET || "dev-secret-change-in-production";
+const JWT_SECRET = process.env.WIDGET_JWT_SECRET || "REMOVED-CONFIGURE-ENV-VARS";
 const JWT_EXPIRY = "1h";
 
 export interface WidgetTokenPayload {

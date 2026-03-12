@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import Stripe from 'stripe';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
+
+const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -233,7 +235,7 @@ app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, 
     const linksSnapshot = await db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).get();
     const collectionsSet = new Set<string>();
     linksSnapshot.docs.forEach(doc => { const c = doc.data().collection; if (c) collectionsSet.add(c); });
-    const explicitSnapshot = await db.collection("dynamicsCollections").where("storeId", "==", storeId).where("channelId", "==", channelId).get();
+    const explicitSnapshot = await db.collection(MOSAIC_TEMPLATES_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
     explicitSnapshot.docs.forEach(doc => { const n = doc.data().name; if (n) collectionsSet.add(n); });
     const collections = Array.from(collectionsSet).sort();
     res.json({ success: true, collections, count: collections.length });
@@ -245,7 +247,7 @@ app.post('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin,
     const { storeId, channelId } = req.params;
     const { name } = req.body;
     if (!name) { res.status(400).json({ error: "name is required" }); return; }
-    const docRef = await db.collection("dynamicsCollections").add({ storeId, channelId, name, createdAt: new Date(), updatedAt: new Date() });
+    const docRef = await db.collection(MOSAIC_TEMPLATES_COLLECTION).add({ storeId, channelId, name, createdAt: new Date(), updatedAt: new Date() });
     res.json({ success: true, collectionId: docRef.id, name });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });

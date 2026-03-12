@@ -139,7 +139,7 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
 5. **ALWAYS** use `canonicalBlankKey` for product identity, never reconstruct from raw IDs
 6. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
 7. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
-8. **ALWAYS** use `collectionId` (not `collectionTag`) for new code — `collectionTag` is deprecated
+8. **ALWAYS** use `collectionId` — `collectionTag` has been fully removed
 9. **ALWAYS** use domain vocabulary: Store/Channel/Collection/Artifact/Mosaic — not legacy names
 10. **NEVER** store API tokens in plaintext files — use environment variables only
 11. **ALWAYS** deploy to production after every change — this means:
@@ -183,10 +183,10 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 `server/lib/mosaicService.ts` re-exports `programService.ts` functions with canonical mosaic vocabulary: `createMosaic`, `getMosaic`, `getMosaicsByStore`, etc. `programService.ts` remains untouched for backward compat.
 
 ### Name Translation (COMPLETED)
-- `collectionTag` → `collectionId` — COMPLETED across all server routes and client code (dual-write: both fields written, reads prefer `collectionId`)
+- `collectionTag` → `collectionId` — FULLY REMOVED. No dual-write, no fallback reads. Only `collectionId` exists.
 - `site_programs` → `mosaics` — alias layer complete (`mosaicService.ts`), Firestore collection name unchanged
-- `dynamicsCollections` → `MOSAIC_TEMPLATES_COLLECTION` constant in `dynamics-content.routes.ts` — COMPLETED, no raw string references remain
-- `program_series` → `mosaic_series` — COMPLETED. ViewType union now includes both for backward compat. Widget routes, client SiteContext/SiteWidget all accept `mosaic_series`.
+- `dynamicsCollections` → `MOSAIC_TEMPLATES_COLLECTION` constant — COMPLETED, raw string only appears inside the constant definition
+- `program_series` → `mosaic_series` — FULLY REMOVED. ViewType is `'channel_products' | 'mosaic_series' | 'create_product'` only.
 - `DEFAULT_STORE_ID` → `PLATFORM_STORE_ID` — COMPLETED. Exported from `channelItemsService.ts`, all callers pass storeId explicitly. No hidden defaults.
 - `KC_ISSUER` → `PLATFORM_ISSUER` — COMPLETED in `widget-auth.ts`. Value unchanged for token backward compat.
 - `KC_ISSUER` → `KC_PARTNER_ISSUER` — COMPLETED in `kcWidgetService.ts` (partner-specific, not a platform default).
@@ -195,14 +195,14 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 ### Security Hardening (COMPLETED)
 - `server/printify-token.txt` — DELETED (was plaintext API token). Printify key now env-only via `PRINTIFY_API_KEY`
 - `server/lib/printify.ts` — Removed file-based token fallback, env-only
-- `server/lib/widget-auth.ts` — Throws in production if no `WIDGET_JWT_KEYS` or `WIDGET_JWT_SECRET` configured (no dev fallback in prod)
+- `server/lib/widget-auth.ts` — Always throws if no `WIDGET_JWT_KEYS` or `WIDGET_JWT_SECRET` configured (no dev fallback in any environment)
 - License: README says Proprietary, `package.json` says `UNLICENSED` (npm convention for proprietary) — MATCHED
 
 ### Test Coverage (NEW)
 - `shared/__tests__/qrDynamicsResolver.test.ts` — 13 tests covering slot resolution, cycle wrap, boundary conditions, time remaining, negative elapsed
 - `shared/__tests__/blankKeys.test.ts` — 15 tests covering canonical key derivation, provider detection, prefix handling
 - `shared/__tests__/descriptionLayers.test.ts` — 11 tests covering three-level cascade, public resolution, snapshot builder
-- `shared/__tests__/domainMappers.test.ts` — 14 tests covering all 5 domain mapper functions, collectionId/Tag fallback, legacy field handling
+- `shared/__tests__/domainMappers.test.ts` — 14 tests covering all 5 domain mapper functions, collectionId mapping, legacy field handling
 - `shared/qrDynamicsResolver.ts` — Pure extracted resolver function (no Firestore dependency) for testability
 - Run with: `npx vitest run --config vite.config.ts --root . shared/__tests__/`
 

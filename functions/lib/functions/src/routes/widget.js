@@ -177,14 +177,70 @@ function register(app) {
                 { type: 'qrgear:publish_success', description: 'Product published' },
             ] });
     });
-    app.get('/widget/programs/:programId', async (req, res) => {
+    app.get('/widget/mosaics/:mosaicId', async (req, res) => {
         try {
-            const doc = await core_1.db.collection('programs').doc(req.params.programId).get();
+            const doc = await core_1.db.collection('site_programs').doc(req.params.mosaicId).get();
             if (!doc.exists) {
-                res.status(404).json({ ok: false, error: "Program not found" });
+                res.status(404).json({ ok: false, error: "Mosaic not found" });
                 return;
             }
-            res.json({ ok: true, program: { id: doc.id, ...doc.data() } });
+            res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
+        }
+        catch (e) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+    app.get('/widget/mosaics/:mosaicId/moments', async (req, res) => {
+        try {
+            const doc = await core_1.db.collection('site_programs').doc(req.params.mosaicId).get();
+            if (!doc.exists) {
+                res.status(404).json({ ok: false, error: "Mosaic not found" });
+                return;
+            }
+            const entries = doc.data()?.entries || [];
+            const moments = entries.sort((a, b) => a.day - b.day);
+            res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() }, moments });
+        }
+        catch (e) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+    app.post('/widget/mosaics', async (req, res) => {
+        try {
+            const ref = await core_1.db.collection('site_programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
+            const doc = await ref.get();
+            res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
+        }
+        catch (e) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+    app.patch('/widget/mosaics/:mosaicId', async (req, res) => {
+        try {
+            await core_1.db.collection('site_programs').doc(req.params.mosaicId).update(req.body);
+            res.json({ ok: true });
+        }
+        catch (e) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+    app.get('/widget/stores/:storeId/mosaics', async (req, res) => {
+        try {
+            const snap = await core_1.db.collection('site_programs').where('storeId', '==', req.params.storeId).get();
+            res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })), programs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+        }
+        catch (e) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+    app.get('/widget/programs/:programId', async (req, res) => {
+        try {
+            const doc = await core_1.db.collection('site_programs').doc(req.params.programId).get();
+            if (!doc.exists) {
+                res.status(404).json({ ok: false, error: "Mosaic not found" });
+                return;
+            }
+            res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
         }
         catch (e) {
             res.status(500).json({ ok: false, error: e.message });
@@ -192,13 +248,14 @@ function register(app) {
     });
     app.get('/widget/programs/:programId/moments', async (req, res) => {
         try {
-            const doc = await core_1.db.collection('programs').doc(req.params.programId).get();
+            const doc = await core_1.db.collection('site_programs').doc(req.params.programId).get();
             if (!doc.exists) {
-                res.status(404).json({ ok: false, error: "Program not found" });
+                res.status(404).json({ ok: false, error: "Mosaic not found" });
                 return;
             }
-            const moments = await core_1.db.collection('program_moments').where('programId', '==', req.params.programId).orderBy('dayNumber').get();
-            res.json({ ok: true, program: { id: doc.id, ...doc.data() }, moments: moments.docs.map(d => ({ id: d.id, ...d.data() })) });
+            const entries = doc.data()?.entries || [];
+            const moments = entries.sort((a, b) => a.day - b.day);
+            res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() }, moments });
         }
         catch (e) {
             res.status(500).json({ ok: false, error: e.message });
@@ -206,9 +263,9 @@ function register(app) {
     });
     app.post('/widget/programs', async (req, res) => {
         try {
-            const ref = await core_1.db.collection('programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
+            const ref = await core_1.db.collection('site_programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
             const doc = await ref.get();
-            res.json({ ok: true, program: { id: doc.id, ...doc.data() } });
+            res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
         }
         catch (e) {
             res.status(500).json({ ok: false, error: e.message });
@@ -216,7 +273,7 @@ function register(app) {
     });
     app.patch('/widget/programs/:programId', async (req, res) => {
         try {
-            await core_1.db.collection('programs').doc(req.params.programId).update(req.body);
+            await core_1.db.collection('site_programs').doc(req.params.programId).update(req.body);
             res.json({ ok: true });
         }
         catch (e) {
@@ -225,8 +282,8 @@ function register(app) {
     });
     app.get('/widget/stores/:storeId/programs', async (req, res) => {
         try {
-            const snap = await core_1.db.collection('programs').where('storeId', '==', req.params.storeId).get();
-            res.json({ ok: true, programs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+            const snap = await core_1.db.collection('site_programs').where('storeId', '==', req.params.storeId).get();
+            res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })), programs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
         }
         catch (e) {
             res.status(500).json({ ok: false, error: e.message });

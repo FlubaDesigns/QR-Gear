@@ -28,9 +28,9 @@ function ItemCard({ item, onShare, onView }: {
             <Package className="w-12 h-12" />
           </div>
         )}
-        {(item.collectionId || item.collectionTag) && (
+        {item.collectionId && (
           <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground px-2 py-0.5 rounded-md text-xs">
-            {item.collectionId || item.collectionTag}
+            {item.collectionId}
           </div>
         )}
       </div>

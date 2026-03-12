@@ -54,7 +54,7 @@ These are the ONLY Firestore collections that should be used. Do NOT create new 
 | Collection | Purpose | Used By |
 |---|---|---|
 | `qr_dynamics_instances` | QR compose/dynamics instances | CF + Dev |
-| `dynamicsCollections` | QR dynamics collections | CF + Dev |
+| `dynamicsCollections` | Mosaic template records (accessed via `MOSAIC_TEMPLATES_COLLECTION` constant) | CF + Dev |
 | `dynamicsCollectionItems` | Items within dynamics collections | Dev |
 | `dynamicsChannelContent` | Channel content for dynamics | Dev |
 | `qrDynamicsSurfaces` | QR surface type definitions | Dev |

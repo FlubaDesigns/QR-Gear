@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { nexusFetch } from "@/lib/nexusFetch";
 
-export type ViewType = 'channel_products' | 'program_series' | 'mosaic_series' | 'create_product';
+export type ViewType = 'channel_products' | 'mosaic_series' | 'create_product';
 
 export interface ChannelItem {
   itemId: string;
@@ -13,8 +13,6 @@ export interface ChannelItem {
   shareUrl: string;
   price?: number;
   collectionId?: string;
-  /** @deprecated Use collectionId */
-  collectionTag?: string;
   shareImageSquareUrl?: string;
   shareCaption?: string;
 }

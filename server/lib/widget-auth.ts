@@ -7,10 +7,7 @@ import { z } from "zod";
 const JWT_EXPIRY = "10m";
 
 function getDevFallbackSecret(): string {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('[WidgetAuth] Missing WIDGET_JWT_KEYS or WIDGET_JWT_SECRET in production — refusing to use dev fallback');
-  }
-  return "dev-secret-change-in-production";
+  throw new Error('[WidgetAuth] Missing WIDGET_JWT_KEYS or WIDGET_JWT_SECRET — configure environment variables before using widget auth');
 }
 
 /**
@@ -59,7 +56,7 @@ function getKeyByKid(kid: string): string | null {
   return keys[kid] || null;
 }
 
-export type ViewType = 'channel_products' | 'program_series' | 'mosaic_series' | 'create_product';
+export type ViewType = 'channel_products' | 'mosaic_series' | 'create_product';
 
 export interface StoreOwner {
   ownerType: string;
@@ -125,7 +122,7 @@ export const mintTokenInputSchema = z.object({
   mode: z.enum(['public', 'admin']).optional().default('public'),
   returnUrl: z.string().url().optional(),
   theme: z.string().optional(),
-  viewType: z.enum(['channel_products', 'program_series', 'mosaic_series', 'create_product']).optional().default('channel_products'),
+  viewType: z.enum(['channel_products', 'mosaic_series', 'create_product']).optional().default('channel_products'),
   storeOwner: z.object({
     ownerType: z.string().min(1),
     ownerId: z.string().min(1),
@@ -154,7 +151,7 @@ export const widgetTokenSchema = z.object({
   mode: z.enum(['public', 'admin']).optional(),
   theme: z.string().optional(),
   returnUrl: z.string().url().optional(),
-  viewType: z.enum(['channel_products', 'program_series', 'mosaic_series', 'create_product']).optional(),
+  viewType: z.enum(['channel_products', 'mosaic_series', 'create_product']).optional(),
   storeOwner: z.object({
     ownerType: z.string(),
     ownerId: z.string(),

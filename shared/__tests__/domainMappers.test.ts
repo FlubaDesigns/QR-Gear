@@ -23,7 +23,6 @@ describe('domain-mappers', () => {
         isActive: true,
         sortOrder: 0,
         collectionId: 'col-1',
-        collectionTag: 'col-1',
         createdAt: new Date('2025-01-01'),
         updatedAt: new Date('2025-06-01'),
       };
@@ -37,26 +36,25 @@ describe('domain-mappers', () => {
       expect(artifact.collectionId).toBe('col-1');
     });
 
-    it('prefers collectionId over collectionTag', () => {
+    it('uses collectionId directly', () => {
       const item = {
         itemId: 'i2', storeId: 's', channelId: 'c', packetId: 'p',
         title: 'T', shareUrl: '/p/p', isActive: true, sortOrder: 0,
-        collectionId: 'new-id', collectionTag: 'old-tag',
+        collectionId: 'my-collection',
         createdAt: new Date(), updatedAt: new Date(),
       };
       const artifact = channelItemToArtifact(item);
-      expect(artifact.collectionId).toBe('new-id');
+      expect(artifact.collectionId).toBe('my-collection');
     });
 
-    it('falls back to collectionTag when collectionId is undefined', () => {
+    it('returns undefined collectionId when not provided', () => {
       const item = {
         itemId: 'i3', storeId: 's', channelId: 'c', packetId: 'p',
         title: 'T', shareUrl: '/p/p', isActive: true, sortOrder: 0,
-        collectionTag: 'old-tag',
         createdAt: new Date(), updatedAt: new Date(),
       };
       const artifact = channelItemToArtifact(item);
-      expect(artifact.collectionId).toBe('old-tag');
+      expect(artifact.collectionId).toBeUndefined();
     });
   });
 
@@ -126,7 +124,6 @@ describe('domain-mappers', () => {
         storeId: 'store-1',
         channelId: 'ch-1',
         collectionId: 'col-new',
-        collectionTag: 'col-old',
         title: 'My Mosaic',
         description: 'A mosaic',
         coverImageUrl: 'https://example.com/mosaic.png',
@@ -139,16 +136,16 @@ describe('domain-mappers', () => {
       expect(mosaic.artifactIds).toEqual(['a1', 'a2']);
     });
 
-    it('prefers collectionId over collectionTag', () => {
+    it('uses collectionId directly', () => {
       const m = legacyProgramToMosaic('p1', {
-        collectionId: 'new', collectionTag: 'old',
+        collectionId: 'my-col',
       });
-      expect(m.collectionId).toBe('new');
+      expect(m.collectionId).toBe('my-col');
     });
 
-    it('falls back to collectionTag', () => {
-      const m = legacyProgramToMosaic('p1', { collectionTag: 'old' });
-      expect(m.collectionId).toBe('old');
+    it('returns undefined collectionId when not provided', () => {
+      const m = legacyProgramToMosaic('p1', {});
+      expect(m.collectionId).toBeUndefined();
     });
 
     it('falls back to itemIds for artifactIds', () => {

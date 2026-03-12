@@ -56,7 +56,6 @@ export function SiteWidget() {
     switch (session.viewType) {
       case 'channel_products':
         return <ChannelProductsView />;
-      case 'program_series':
       case 'mosaic_series':
         return <ProgramSeriesView />;
       case 'create_product':
