@@ -182,7 +182,7 @@ app.get('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promis
   try {
     const doc = await db.collection('site_programs').doc(req.params.mosaicId).get();
     if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
-    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
+    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -192,7 +192,7 @@ app.get('/widget/mosaics/:mosaicId/moments', async (req: Request, res: Response)
     if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
     const entries = doc.data()?.entries || [];
     const moments = entries.sort((a: any, b: any) => a.day - b.day);
-    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() }, moments });
+    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, moments });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -200,7 +200,7 @@ app.post('/widget/mosaics', async (req: Request, res: Response): Promise<void> =
   try {
     const ref = await db.collection('site_programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
     const doc = await ref.get();
-    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
+    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -214,47 +214,7 @@ app.patch('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Prom
 app.get('/widget/stores/:storeId/mosaics', async (req: Request, res: Response): Promise<void> => {
   try {
     const snap = await db.collection('site_programs').where('storeId', '==', req.params.storeId).get();
-    res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })), programs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/widget/programs/:programId', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('site_programs').doc(req.params.programId).get();
-    if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
-    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
-  } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/widget/programs/:programId/moments', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('site_programs').doc(req.params.programId).get();
-    if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
-    const entries = doc.data()?.entries || [];
-    const moments = entries.sort((a: any, b: any) => a.day - b.day);
-    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() }, moments });
-  } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.post('/widget/programs', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const ref = await db.collection('site_programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
-    const doc = await ref.get();
-    res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, program: { id: doc.id, ...doc.data() } });
-  } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.patch('/widget/programs/:programId', async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('site_programs').doc(req.params.programId).update(req.body);
-    res.json({ ok: true });
-  } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
-app.get('/widget/stores/:storeId/programs', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snap = await db.collection('site_programs').where('storeId', '==', req.params.storeId).get();
-    res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })), programs: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

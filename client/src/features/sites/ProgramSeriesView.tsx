@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Play, Calendar, ChevronDown, ChevronUp, Image, Video, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useSiteContext, notifyParent, type ProgramMoment } from "./SiteContext";
+import { useSiteContext, notifyParent, type MosaicMoment } from "./SiteContext";
 
 function MomentCard({ moment, isActive, onClick }: {
-  moment: ProgramMoment;
+  moment: MosaicMoment;
   isActive: boolean;
   onClick: () => void;
 }) {
@@ -36,7 +36,7 @@ function MomentCard({ moment, isActive, onClick }: {
   );
 }
 
-function MomentDetail({ moment }: { moment: ProgramMoment }) {
+function MomentDetail({ moment }: { moment: MosaicMoment }) {
   return (
     <Card className="overflow-hidden" data-testid={`detail-moment-day-${moment.day}`}>
       {moment.imageUrl && (
@@ -72,27 +72,27 @@ export function ProgramSeriesView() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showTimeline, setShowTimeline] = useState(true);
 
-  if (!session || !session.program) {
+  if (!session || !session.mosaic) {
     return (
       <div className="text-center py-12">
         <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-        <p className="text-muted-foreground">Program not found</p>
+        <p className="text-muted-foreground">Mosaic not found</p>
       </div>
     );
   }
 
-  const { program, moments, display } = session;
+  const { mosaic, moments, display } = session;
   const selectedMoment = moments.find(m => m.day === selectedDay);
 
   const handleStart = () => {
     if (moments.length > 0) {
       setSelectedDay(moments[0].day);
-      notifyParent('program_started', { programId: program.programId });
+      notifyParent('mosaic_started', { mosaicId: mosaic.mosaicId });
     }
   };
 
   return (
-    <div data-testid="program-series-view">
+    <div data-testid="mosaic-series-view">
       <div className="mb-4">
         {display.entityLogoUrl && (
           <div className="flex items-center gap-3 mb-3">
@@ -105,27 +105,27 @@ export function ProgramSeriesView() {
           </div>
         )}
 
-        {program.coverImageUrl && !selectedMoment && (
+        {mosaic.coverImageUrl && !selectedMoment && (
           <div className="aspect-video rounded-md overflow-hidden mb-4 bg-muted">
-            <img src={program.coverImageUrl} alt={program.title} className="w-full h-full object-cover" />
+            <img src={mosaic.coverImageUrl} alt={mosaic.title} className="w-full h-full object-cover" />
           </div>
         )}
 
-        <h2 className="text-xl font-bold" data-testid="text-program-title">{program.title}</h2>
-        {program.description && (
-          <p className="text-sm text-muted-foreground mt-1">{program.description}</p>
+        <h2 className="text-xl font-bold" data-testid="text-mosaic-title">{mosaic.title}</h2>
+        {mosaic.description && (
+          <p className="text-sm text-muted-foreground mt-1">{mosaic.description}</p>
         )}
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           <Badge variant="secondary">
             <Calendar className="w-3 h-3 mr-1" />
-            {program.totalDays} days
+            {mosaic.totalDays} days
           </Badge>
-          <Badge variant="outline">{program.scheduleType === 'day-sequence' ? 'Daily Sequence' : program.scheduleType}</Badge>
+          <Badge variant="outline">{mosaic.scheduleType === 'day-sequence' ? 'Daily Sequence' : mosaic.scheduleType}</Badge>
         </div>
       </div>
 
       {!selectedMoment && (
-        <Button onClick={handleStart} className="w-full mb-4" data-testid="button-start-program">
+        <Button onClick={handleStart} className="w-full mb-4" data-testid="button-start-mosaic">
           <Play className="w-4 h-4 mr-2" />
           Start Series
         </Button>
@@ -146,7 +146,7 @@ export function ProgramSeriesView() {
                 Previous Day
               </Button>
             )}
-            {selectedDay && selectedDay < program.totalDays && (
+            {selectedDay && selectedDay < mosaic.totalDays && (
               <Button
                 size="sm"
                 className="flex-1"

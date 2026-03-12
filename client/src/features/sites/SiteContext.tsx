@@ -17,7 +17,7 @@ export interface ChannelItem {
   shareCaption?: string;
 }
 
-export interface ProgramMoment {
+export interface MosaicMoment {
   day: number;
   packetId?: string;
   title: string;
@@ -28,8 +28,8 @@ export interface ProgramMoment {
   bodyText?: string;
 }
 
-export interface ProgramData {
-  programId: string;
+export interface MosaicData {
+  mosaicId: string;
   title: string;
   description?: string;
   coverImageUrl?: string;
@@ -48,10 +48,10 @@ export interface SiteSession {
   entityType: string;
   entityId: string;
   storeOwner?: { ownerType: string; ownerId: string };
-  programId?: string;
-  program?: ProgramData;
+  mosaicId?: string;
+  mosaic?: MosaicData;
   items: ChannelItem[];
-  moments: ProgramMoment[];
+  moments: MosaicMoment[];
   display: {
     entityName?: string;
     entityLogoUrl?: string;

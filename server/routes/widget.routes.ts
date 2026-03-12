@@ -37,7 +37,7 @@ export function registerWidgetRoutes(app: Express): void {
 
       let items: any[] = [];
       let moments: any[] = [];
-      let programData: any = null;
+      let mosaicData: any = null;
 
       if (viewType === 'channel_products' || viewType === 'create_product') {
         const { getChannelItems } = await import("../lib/channelItemsService");
@@ -57,19 +57,22 @@ export function registerWidgetRoutes(app: Express): void {
       }
 
       if (viewType === 'mosaic_series' && programId) {
-        const { getProgramMoments } = await import("../lib/programService");
-        const result = await getProgramMoments(programId);
-        if (result) {
-          programData = {
-            programId: result.program.programId,
-            title: result.program.title,
-            description: result.program.description,
-            coverImageUrl: result.program.coverImageUrl,
-            scheduleType: result.program.scheduleType,
-            totalDays: result.program.totalDays,
-            status: result.program.status,
+        const { getMosaic, getMosaicMoments } = await import("../lib/mosaicService");
+        const mosaic = await getMosaic(programId);
+        if (mosaic) {
+          mosaicData = {
+            mosaicId: mosaic.programId,
+            title: mosaic.title,
+            description: mosaic.description,
+            coverImageUrl: mosaic.coverImageUrl,
+            scheduleType: mosaic.scheduleType,
+            totalDays: mosaic.totalDays,
+            status: mosaic.status,
           };
-          moments = result.moments;
+          const result = await getMosaicMoments(programId);
+          if (result) {
+            moments = result.moments;
+          }
         }
       }
       
@@ -84,8 +87,8 @@ export function registerWidgetRoutes(app: Express): void {
         entityType,
         entityId,
         storeOwner: storeOwner || undefined,
-        programId: programId || undefined,
-        program: programData || undefined,
+        mosaicId: programId || undefined,
+        mosaic: mosaicData || undefined,
         items,
         moments,
         display: {
@@ -240,7 +243,7 @@ export function registerWidgetRoutes(app: Express): void {
     });
   });
 
-  app.post("/api/widget/programs", widgetCorsMiddleware, async (req, res) => {
+  app.post("/api/widget/mosaics", widgetCorsMiddleware, async (req, res) => {
     try {
       const token = req.headers['x-widget-token'] as string;
       if (!token) return res.status(401).json({ ok: false, error: "Widget token required" });
@@ -255,8 +258,8 @@ export function registerWidgetRoutes(app: Express): void {
         return res.status(403).json({ ok: false, error: "No create/manage permission" });
       }
 
-      const { createProgram } = await import("../lib/programService");
-      const program = await createProgram({
+      const { createMosaic } = await import("../lib/mosaicService");
+      const mosaic = await createMosaic({
         storeId: normalized.storeId,
         channelId: req.body.channelId || normalized.channelId,
         title: req.body.title,
@@ -266,38 +269,38 @@ export function registerWidgetRoutes(app: Express): void {
         entries: req.body.entries,
       });
 
-      res.json({ ok: true, program });
+      res.json({ ok: true, mosaic });
     } catch (error: any) {
-      console.error("[Widget] Create program error:", error);
+      console.error("[Widget] Create mosaic error:", error);
       res.status(500).json({ ok: false, error: error.message });
     }
   });
 
-  app.get("/api/widget/programs/:programId", widgetCorsMiddleware, async (req, res) => {
+  app.get("/api/widget/mosaics/:mosaicId", widgetCorsMiddleware, async (req, res) => {
     try {
-      const { getProgram } = await import("../lib/programService");
-      const program = await getProgram(req.params.programId);
-      if (!program) return res.status(404).json({ ok: false, error: "Program not found" });
-      res.json({ ok: true, program });
+      const { getMosaic } = await import("../lib/mosaicService");
+      const mosaic = await getMosaic(req.params.mosaicId);
+      if (!mosaic) return res.status(404).json({ ok: false, error: "Mosaic not found" });
+      res.json({ ok: true, mosaic });
     } catch (error: any) {
-      console.error("[Widget] Get program error:", error);
+      console.error("[Widget] Get mosaic error:", error);
       res.status(500).json({ ok: false, error: error.message });
     }
   });
 
-  app.get("/api/widget/programs/:programId/moments", widgetCorsMiddleware, async (req, res) => {
+  app.get("/api/widget/mosaics/:mosaicId/moments", widgetCorsMiddleware, async (req, res) => {
     try {
-      const { getProgramMoments } = await import("../lib/programService");
-      const result = await getProgramMoments(req.params.programId);
-      if (!result) return res.status(404).json({ ok: false, error: "Program not found" });
-      res.json({ ok: true, program: result.program, moments: result.moments });
+      const { getMosaicMoments } = await import("../lib/mosaicService");
+      const result = await getMosaicMoments(req.params.mosaicId);
+      if (!result) return res.status(404).json({ ok: false, error: "Mosaic not found" });
+      res.json({ ok: true, mosaic: result.program, moments: result.moments });
     } catch (error: any) {
-      console.error("[Widget] Get program moments error:", error);
+      console.error("[Widget] Get mosaic moments error:", error);
       res.status(500).json({ ok: false, error: error.message });
     }
   });
 
-  app.patch("/api/widget/programs/:programId", widgetCorsMiddleware, async (req, res) => {
+  app.patch("/api/widget/mosaics/:mosaicId", widgetCorsMiddleware, async (req, res) => {
     try {
       const token = req.headers['x-widget-token'] as string;
       if (!token) return res.status(401).json({ ok: false, error: "Widget token required" });
@@ -312,23 +315,23 @@ export function registerWidgetRoutes(app: Express): void {
         return res.status(403).json({ ok: false, error: "No manage permission" });
       }
 
-      const { updateProgram } = await import("../lib/programService");
-      const success = await updateProgram(req.params.programId, req.body);
+      const { updateMosaic } = await import("../lib/mosaicService");
+      const success = await updateMosaic(req.params.mosaicId, req.body);
       if (!success) return res.status(500).json({ ok: false, error: "Update failed" });
       res.json({ ok: true });
     } catch (error: any) {
-      console.error("[Widget] Update program error:", error);
+      console.error("[Widget] Update mosaic error:", error);
       res.status(500).json({ ok: false, error: error.message });
     }
   });
 
-  app.get("/api/widget/stores/:storeId/programs", widgetCorsMiddleware, async (req, res) => {
+  app.get("/api/widget/stores/:storeId/mosaics", widgetCorsMiddleware, async (req, res) => {
     try {
-      const { getProgramsByStore } = await import("../lib/programService");
-      const programs = await getProgramsByStore(req.params.storeId);
-      res.json({ ok: true, programs });
+      const { getMosaicsByStore } = await import("../lib/mosaicService");
+      const mosaics = await getMosaicsByStore(req.params.storeId);
+      res.json({ ok: true, mosaics });
     } catch (error: any) {
-      console.error("[Widget] List programs error:", error);
+      console.error("[Widget] List mosaics error:", error);
       res.status(500).json({ ok: false, error: error.message });
     }
   });
