@@ -15,9 +15,13 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import {
-  ProductSelectCardSkin,
-  type ProductSelectItem,
-} from "@/features/shared/components/skins/ProductSelectCardSkin";
+  AdminSourceBlankSkin,
+  type SourceBlankItem as ProductSelectItem,
+} from "@/features/shared/components/skins/AdminSourceBlankSkin";
+import {
+  AdminCatalogBlankSkin,
+  type CatalogBlankItem,
+} from "@/features/shared/components/skins/AdminCatalogBlankSkin";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getCanonicalBlankKey, safeBlankId, isProviderPrintful, getProviderFromKey } from "@shared/blankKeys";
 
@@ -834,7 +838,7 @@ export default function AdminBlanks() {
         : mappedPrintfulIds.has(Number(scrollItem.id));
       return (
         <div className="relative">
-          <ProductSelectCardSkin
+          <AdminSourceBlankSkin
             item={selectItem}
             isSelected={selected}
             onSelect={() => toggleItem(String(scrollItem.id), product)}
@@ -956,49 +960,23 @@ export default function AdminBlanks() {
                     <ScrollArea className="w-full">
                       <div className="flex gap-2 pb-2">
                         {catalogProductsWithKeys.map(({ product: p, catalogKey, isPrintful }) => (
-                          <div
+                          <AdminCatalogBlankSkin
                             key={catalogKey}
-                            className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
-                            data-testid={`catalog-thumb-${catalogKey}`}
-                          >
-                            <div className="aspect-square flex items-center justify-center p-1">
-                              {(p.imageUrl || p.image_url || p.thumbnailUrl) ? (
-                                <img src={p.imageUrl || p.image_url || p.thumbnailUrl} alt={p.title} className="w-full h-full object-contain" loading="lazy" />
-                              ) : (
-                                <Box className="h-10 w-10 text-muted-foreground" />
-                              )}
-                            </div>
-                            {isPrintful && (
-                              <div className="absolute bottom-8 right-1">
-                                <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
-                              </div>
-                            )}
-                            {blankTiers[catalogKey] && (
-                              <div className="absolute top-1 left-1">
-                                <Badge className={`text-[10px] px-1 py-0 ${
-                                  blankTiers[catalogKey] === 'good' ? 'bg-blue-600 text-white' :
-                                  blankTiers[catalogKey] === 'better' ? 'bg-amber-500 text-white' :
-                                  'bg-emerald-600 text-white'
-                                }`}>
-                                  {blankTiers[catalogKey] === 'good' ? 'G' : blankTiers[catalogKey] === 'better' ? 'B' : 'B+'}
-                                </Badge>
-                              </div>
-                            )}
-                            <div className="px-1.5 pb-1.5">
-                              <p className="text-xs leading-tight line-clamp-2 text-foreground">{p.title}</p>
-                            </div>
-                            <button
-                              className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                              style={{ visibility: "visible" }}
-                              onClick={() => {
-                                if (!validSelectedCatalogId) return;
-                                removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [catalogKey] });
-                              }}
-                              data-testid={`button-remove-catalog-${catalogKey}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
+                            item={{
+                              id: String(p.id),
+                              catalogKey,
+                              title: p.title,
+                              imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || null,
+                              tier: (blankTiers[catalogKey] as "good" | "better" | "best") || null,
+                              isPrintful,
+                              hasMockupMapping: false,
+                            }}
+                            onRemove={(key) => {
+                              if (!validSelectedCatalogId) return;
+                              removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
+                            }}
+                            removing={removeBlanksMutation.isPending}
+                          />
                         ))}
                       </div>
                       <ScrollBar orientation="horizontal" />

@@ -1,0 +1,483 @@
+==================================================
+STEP 6 — CONTROLLER LAYER CANON
+==================================================
+
+Purpose:
+Define the controller layer so that truth, permissions, save targets, and action meaning stay OUT of viewer/view/skin components.
+
+The controller layer is the authority bridge between:
+- domain truth
+- API/data loading
+- packets/catalog/store state
+- viewer/view/skin rendering
+
+Without this layer, business logic leaks into pages, skins, and wizard components.
+
+==================================================
+CORE RULE
+==================================================
+
+Domain defines truth.
+Controller enforces and prepares truth.
+Viewer mounts.
+View arranges.
+Skin renders controls.
+
+The controller layer is responsible for:
+- loading data
+- normalizing data
+- resolving modes
+- resolving permissions
+- resolving effective descriptions
+- choosing save targets
+- preparing viewer items
+- passing explicit handlers to the UI
+
+The controller layer is NOT responsible for:
+- rendering layout
+- rendering skins
+- inventing domain truth
+- acting like a database model
+- becoming a random dump of UI code
+
+==================================================
+WHAT THE CONTROLLER OWNS
+==================================================
+
+The controller owns:
+
+1. Data loading
+2. Data normalization
+3. Role/mode resolution
+4. Permission resolution
+5. Description resolution
+6. Save target resolution
+7. Fulfillment/provider resolution
+8. Packet/catalog/store action routing
+9. Viewer item preparation
+10. Explicit action handler creation
+
+==================================================
+1. DATA LOADING
+==================================================
+
+The controller loads the data needed by a page/flow.
+
+Examples:
+- blanks for admin-blanks
+- products for a tier
+- library assets for a library tab
+- packet items for packet summary
+- store products for storefront
+
+The controller should call APIs/services and collect raw data.
+
+The viewer/view/skin must never be responsible for loading raw business data.
+
+==================================================
+2. DATA NORMALIZATION
+==================================================
+
+The controller converts raw provider/database/API data into normalized UI-ready objects.
+
+Examples:
+- convert Printify/Printful raw products into normalized product objects
+- convert library items into normalized asset objects
+- convert packet items into normalized packet item objects
+
+The controller must prepare one consistent shape before the UI sees the data.
+
+The UI must not reconstruct product meaning from partial or scattered fields.
+
+==================================================
+3. ROLE / MODE RESOLUTION
+==================================================
+
+The controller decides which mode is active.
+
+Examples:
+- admin mode
+- member wizard mode
+- owner wizard mode
+- public read-only mode
+- store browsing mode
+
+The skin must not infer mode from vibes or from missing props.
+The controller must pass mode explicitly.
+
+==================================================
+4. PERMISSION RESOLUTION
+==================================================
+
+The controller decides what the current user is allowed to do.
+
+Examples:
+- can edit adminCatalogDescription
+- can edit memberPacketDescription
+- can remove from catalog
+- can add to packet
+- read-only only
+
+The skin may show or hide controls based on props passed down.
+The skin may not invent permission rules.
+
+==================================================
+5. DESCRIPTION RESOLUTION
+==================================================
+
+The controller resolves which descriptions exist and which one is effective.
+
+Description layers:
+- providerDescription
+- adminCatalogDescription
+- memberPacketDescription
+- effectiveDescription
+
+Examples:
+Member wizard:
+  effectiveDescription =
+    memberPacketDescription ?? adminCatalogDescription ?? providerDescription
+
+Owner/public wizard:
+  effectiveDescription =
+    adminCatalogDescription ?? providerDescription
+
+The viewer and skin must not resolve description priority themselves.
+
+==================================================
+6. SAVE TARGET RESOLUTION
+==================================================
+
+The controller decides where an action writes.
+
+Examples:
+- admin blank description save → catalog
+- member description save → packet
+- public flow → no write
+- remove from catalog → catalog
+- select product → packet or local flow state depending on context
+
+This is one of the most important controller jobs.
+
+The UI may fire:
+- onSaveDescription
+- onRemove
+- onSelect
+- onApply
+- onUse
+
+But the controller decides what those actions actually do.
+
+==================================================
+7. FULFILLMENT / PROVIDER RESOLUTION
+==================================================
+
+The controller resolves fulfillment/provider data for UI consumption and packet/order actions.
+
+Examples:
+- canonicalBlankKey
+- fulfillmentProvider
+- providerProductId
+- available provider mappings
+- selected provider for packet instance
+
+The viewer and skin must never guess provider logic.
+
+==================================================
+8. PACKET / CATALOG / STORE ACTION ROUTING
+==================================================
+
+The controller decides whether a given action affects:
+- catalog
+- packet
+- store state
+- local wizard state
+- no persistent data at all
+
+Examples:
+Admin blank edit:
+  save to catalog.blankDescriptions[canonicalBlankKey]
+
+Member wizard edit:
+  save to packet.memberPacketDescription
+
+Public owner wizard:
+  read-only, no save target
+
+Store product open:
+  local UI state only or detail route open
+
+==================================================
+9. VIEWER ITEM PREPARATION
+==================================================
+
+The controller prepares the exact item shape that the viewer receives.
+
+Examples:
+- Tier item
+- Product item
+- Library item
+- Packet item
+- Store item
+
+Prepared items should already contain:
+- stable identity
+- display fields
+- mode flags
+- permission flags
+- effective description
+- selected state if needed
+- explicit action handlers or action config
+
+The viewer receives prepared items.
+It does not prepare them.
+
+==================================================
+10. EXPLICIT ACTION HANDLER CREATION
+==================================================
+
+The controller creates and passes explicit actions to skins and viewers.
+
+Examples:
+- onOpenDetails(item)
+- onSaveDescription(item, value)
+- onRemoveFromCatalog(item)
+- onAddToCatalog(item)
+- onSelectProduct(item)
+- onApplyAsset(item)
+
+These handlers must already know the proper target and rules.
+
+The skin may call the handler.
+The skin may not decide what the handler should do.
+
+==================================================
+WHAT THE CONTROLLER MUST PREVENT
+==================================================
+
+The controller must prevent these anti-patterns:
+
+- skins deciding save targets
+- viewers resolving provider identity
+- views deciding permission logic
+- pages rebuilding products ad hoc
+- wizards becoming product-mapping engines
+- duplicate business logic across modules
+- different pages using different identity rules for the same item
+
+==================================================
+RECOMMENDED CONTROLLER FAMILIES
+==================================================
+
+The site should use controller families by feature/context.
+
+Examples:
+
+1. AdminBlanksController
+2. WizardController
+3. ProductsController
+4. LibraryController
+5. MembersLibraryController
+6. StoreController
+7. PacketController
+
+These may be implemented as:
+- hooks
+- controller modules
+- service/controller pairs
+- feature-specific adapters
+
+But the responsibility split must remain the same.
+
+==================================================
+1. AdminBlanksController
+==================================================
+
+Responsible for:
+- loading source blanks
+- loading catalog blanks
+- normalizing blank items
+- resolving canonicalBlankKey
+- resolving providerDescription and adminCatalogDescription
+- deciding add/remove actions
+- deciding global description save target
+- preparing top catalog items and bottom source items
+- opening detail modal data
+
+Must NOT:
+- render cards
+- render modal UI
+- let skins infer provider logic
+
+==================================================
+2. WizardController
+==================================================
+
+Responsible for:
+- loading tiers
+- loading products for selected tier
+- normalizing wizard product objects
+- resolving wizard mode (member/owner/public)
+- resolving effective description
+- resolving editable vs read-only state
+- creating/updating packets
+- saving memberPacketDescription only when allowed
+- opening detail modal state
+
+Must NOT:
+- render tier cards
+- render product cards
+- render modal UI
+- let the wizard rebuild raw product data
+
+==================================================
+3. ProductsController
+==================================================
+
+Responsible for:
+- admin product browser/chooser data
+- normalized product chooser items
+- product selection actions
+- packet/configuration related routing where applicable
+
+==================================================
+4. LibraryController
+==================================================
+
+Responsible for:
+- loading library assets
+- normalizing library items
+- preparing admin library asset items
+- handling preview/open/apply actions
+- handling context-specific filters if needed
+
+==================================================
+5. MembersLibraryController
+==================================================
+
+Responsible for:
+- loading member-safe library items
+- preparing member library cards
+- deciding apply/use/open handlers
+- enforcing member permissions
+
+==================================================
+6. StoreController
+==================================================
+
+Responsible for:
+- loading public store products
+- normalizing store items
+- opening public product detail
+- enforcing read-only rules
+- no edit permissions
+
+==================================================
+7. PacketController
+==================================================
+
+Responsible for:
+- packet item loading
+- packet item normalization
+- packet item updates
+- configured item summaries
+- packet-level action routing
+
+==================================================
+CANON DATA FLOW
+==================================================
+
+The correct flow is:
+
+Domain truth
+  ↓
+Controller loads raw data
+  ↓
+Controller normalizes data
+  ↓
+Controller resolves mode/permissions/descriptions/actions
+  ↓
+Controller prepares viewer items
+  ↓
+Viewer mounts view + skin
+  ↓
+Skin calls explicit handlers
+  ↓
+Controller routes action to correct target
+  ↓
+Services/API/store/database persist changes
+
+==================================================
+HOW THIS APPLIES TO ADMIN-BLANKS
+==================================================
+
+AdminBlanksController should:
+- load source/provider blanks
+- load active catalog blanks
+- map each item to canonicalBlankKey
+- resolve providerDescription
+- resolve adminCatalogDescription
+- build top strip items for ScrollHorizontalView
+- build bottom source items for ScrollVerticalView or ScrollGridView
+- pass explicit handlers:
+  - onAddToCatalog
+  - onRemoveFromCatalog
+  - onOpenDetails
+  - onSaveAdminDescription
+
+The skins should never decide what those actions mean.
+
+==================================================
+HOW THIS APPLIES TO WIZARDS
+==================================================
+
+WizardController should:
+- load tiers
+- load normalized products
+- decide if this is member, owner, or public mode
+- resolve effectiveDescription correctly
+- pass read-only or editable flags
+- pass packet-safe save handlers only when allowed
+- update packet using canonicalBlankKey + fulfillmentProvider + providerProductId
+
+The wizard surfaces then become:
+- Tier Picker
+- Product Picker
+- Product Detail Modal
+
+All powered by the official viewer system.
+
+==================================================
+HOW THIS APPLIES TO LIBRARY / STORE
+==================================================
+
+Library and store controllers should:
+- prepare normalized card items
+- prepare detail modal items
+- pass explicit open/use/apply handlers
+- enforce role-specific permissions
+- keep viewers and skins dumb
+
+==================================================
+FINAL RULE
+==================================================
+
+Pages should not carry business logic.
+Skins should not carry business logic.
+Wizards should not carry product-mapping logic.
+Viewers should not carry business logic.
+
+Controllers are the authority layer for UI behavior.
+
+If something answers:
+- what this action means
+- where this write goes
+- whether this role can do this
+- which description wins
+- which provider fulfills this item
+
+then it belongs in the controller layer, not in viewer/view/skin.
+
+==================================================
+END OF STEP 6 CANON
+==================================================

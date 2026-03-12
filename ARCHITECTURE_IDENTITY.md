@@ -575,3 +575,214 @@ Files Changed:
 ==================================================
 END OF STEP 4 CANON
 ==================================================
+
+
+==================================================
+STEP 5 — SKIN SYSTEM CANON
+==================================================
+
+Purpose:
+Define the official skin system for the site so UI controls, visible actions,
+and item presentation remain consistent across products, libraries, wizards,
+packets, and store flows.
+
+==================================================
+CORE RULE
+==================================================
+
+Viewer mounts.
+View arranges.
+Skin renders controls.
+Controller decides authority.
+Domain defines truth.
+
+A skin is the visible interaction layer placed on top of a view.
+
+A skin may render:
+- title, image, subtitle, price, colors, sizes, badges, buttons
+- edit pencils, save/remove/select/use/apply/open actions
+- overlays, visible role-specific affordances
+
+A skin may NOT decide:
+- business truth, provider identity, canonical key rules
+- save targets, role authority, packet-vs-catalog rules
+- description-layer priority, fulfillment routing
+- permission logic, action meaning
+
+==================================================
+SIZE RULE
+==================================================
+
+Skins may support size variants: compact, standard, expanded, fullscreen.
+Size changes presentation only. Size does not create a new skin family.
+
+==================================================
+OFFICIAL SKIN FAMILIES
+==================================================
+
+1. Tier skins
+2. Product card skins
+3. Library asset card skins
+4. Packet / configured item skins
+5. Detail / modal skins
+
+==================================================
+1. TIER SKINS
+==================================================
+
+TierCardSkin
+- Renders tier selection items (Good / Better / Best)
+- Used in wizard tier picker surfaces
+- File: TierCardSkin.tsx
+
+==================================================
+2. PRODUCT CARD SKINS
+==================================================
+
+AdminCatalogBlankSkin
+- Renders products already in the active admin catalog (catalog strip)
+- Used in admin-blanks top/catalog strip
+- File: AdminCatalogBlankSkin.tsx
+
+AdminSourceBlankSkin
+- Renders source/provider blanks available to add to catalog
+- Re-exports ProductSelectCardSkin with canonical name
+- Used in admin-blanks bottom/source area
+- File: AdminSourceBlankSkin.tsx
+
+WizardProductCardSkin
+- Renders product choices inside wizard product picker flows
+- Used in member/owner/public wizard
+- File: WizardProductCardSkin.tsx
+
+StoreProductCardSkin
+- Renders public store browsing cards
+- Used in public store product grids/rails
+- File: StoreProductCardSkin.tsx
+
+ProductChooserCardSkin
+- Renders product cards in builder/admin chooser contexts
+- Used in products harness, chooser modules, catalog pickers
+- File: ProductChooserCardSkin.tsx
+
+==================================================
+3. LIBRARY ASSET CARD SKINS
+==================================================
+
+AdminLibraryAssetSkin
+- Renders admin-side graphics, templates, backgrounds, cropped images, source images
+- Used in admin library tabs
+- File: AdminLibraryAssetSkin.tsx
+
+MemberLibraryItemSkin
+- Renders member library items
+- Used in members library, member browsing surfaces
+- File: MemberLibraryItemSkin.tsx
+
+StoreLibraryItemSkin
+- Renders store-library items in store-library contexts
+- Used in store library harness
+- File: StoreLibraryItemSkin.tsx
+
+==================================================
+4. PACKET / CONFIGURED ITEM SKINS
+==================================================
+
+PacketItemSkin
+- Renders products/assets already part of a packet/configured set
+- Used in packet summary surfaces, configured product displays
+- File: PacketItemSkin.tsx
+
+==================================================
+5. DETAIL / MODAL SKINS
+==================================================
+
+AdminBlankDetailSkin
+- Full detail/editor skin for admin blank management
+- Editable adminCatalogDescription, provider description read-only
+- Uses resolvePublicDescription from description layers
+- Used in admin-blanks modal
+- File: AdminBlankDetailSkin.tsx
+
+MemberProductDetailSkin
+- Full detail/editor skin for member wizard mode
+- Editable memberPacketDescription only
+- Used in member wizard modal
+- File: MemberProductDetailSkin.tsx
+
+ReadOnlyProductDetailSkin
+- Read-only product detail skin for owner/public flows
+- No edit controls
+- Used in owner/public wizard modal, public/store read-only detail
+- File: ReadOnlyProductDetailSkin.tsx
+
+LibraryAssetDetailSkin
+- Detail/preview skin for library assets
+- Used in graphics/template/background/image preview flows
+- File: LibraryAssetDetailSkin.tsx
+
+MediaDetailSkin
+- Media-focused detail skin for image/media viewing
+- Used in lightbox/media preview experiences
+- File: MediaDetailSkin.tsx
+
+==================================================
+SITE-WIDE MAPPING
+==================================================
+
+admin-blanks.tsx:
+  AdminCatalogBlankSkin (catalog strip)
+  AdminSourceBlankSkin (source/provider blanks)
+  AdminBlankDetailSkin (detail modal)
+
+Wizard surfaces:
+  TierCardSkin
+  WizardProductCardSkin
+  MemberProductDetailSkin
+  ReadOnlyProductDetailSkin
+
+Store pages:
+  StoreProductCardSkin
+  ReadOnlyProductDetailSkin
+
+Products harness / chooser:
+  ProductChooserCardSkin
+  PacketItemSkin
+  ReadOnlyProductDetailSkin
+
+Admin library tabs:
+  AdminLibraryAssetSkin
+  LibraryAssetDetailSkin
+  MediaDetailSkin
+
+Members library:
+  MemberLibraryItemSkin
+  LibraryAssetDetailSkin
+
+Store library:
+  StoreLibraryItemSkin
+  LibraryAssetDetailSkin
+
+==================================================
+FILES CREATED / MODIFIED IN STEP 5
+==================================================
+
+Created:
+  AdminCatalogBlankSkin.tsx — catalog strip card skin
+  AdminSourceBlankSkin.tsx — canonical re-export of ProductSelectCardSkin
+  StoreProductCardSkin.tsx — public store card skin
+  ProductChooserCardSkin.tsx — admin chooser card skin
+  AdminLibraryAssetSkin.tsx — generic admin library card skin
+  MemberLibraryItemSkin.tsx — member library card skin
+  StoreLibraryItemSkin.tsx — store library card skin
+  PacketItemSkin.tsx — packet/configured item card skin
+  AdminBlankDetailSkin.tsx — admin blank detail/editor skin
+  LibraryAssetDetailSkin.tsx — generic library detail skin
+  MediaDetailSkin.tsx — media lightbox detail skin
+
+Modified:
+  admin-blanks.tsx — wired AdminCatalogBlankSkin + AdminSourceBlankSkin
+
+==================================================
+END OF STEP 5 CANON
+==================================================
