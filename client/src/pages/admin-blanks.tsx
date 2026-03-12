@@ -935,35 +935,37 @@ export default function AdminBlanks() {
                 </Card>
 
                 {catalogProductsWithKeys.length > 0 && (
-                  <ScrollArea className="h-[calc(100vh-200px)]">
-                    <div className="space-y-3 pr-4">
-                      {catalogProductsWithKeys.map(({ product: p, catalogKey, isPrintful }) => {
-                        const selectItem = selectItemMap.get(String(p.id));
-                        if (!selectItem) return null;
-                        return (
-                          <div key={catalogKey} className="relative">
-                            <ProductSelectCardSkin
-                              item={selectItem}
-                              isSelected={false}
-                              onSelect={(id) => toggleItem(id)}
-                              tier={blankTiers[catalogKey] as "good" | "better" | "best" | undefined || null}
-                              onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
-                              showTierControls={!!validSelectedCatalogId}
-                              editableDescription={!!validSelectedCatalogId}
-                              onDescriptionSave={handleDescriptionSave}
-                              descriptionSaving={saveDescriptionMutation.isPending}
-                            />
-                            {isPrintful && (
-                              <div className="absolute top-2 right-2 z-10">
-                                <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <ScrollBar />
-                  </ScrollArea>
+                  <div className="flex-1 overflow-hidden">
+                    <ScrollArea className="w-full h-full">
+                      <div className="space-y-3 pr-4">
+                        {catalogProductsWithKeys.map(({ product: p, catalogKey, isPrintful }) => {
+                          const selectItem = selectItemMap.get(String(p.id));
+                          if (!selectItem) return null;
+                          return (
+                            <div key={catalogKey} className="relative">
+                              <ProductSelectCardSkin
+                                item={selectItem}
+                                isSelected={false}
+                                onSelect={(id) => toggleItem(id)}
+                                tier={blankTiers[catalogKey] as "good" | "better" | "best" | undefined || null}
+                                onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
+                                showTierControls={!!validSelectedCatalogId}
+                                editableDescription={!!validSelectedCatalogId}
+                                onDescriptionSave={handleDescriptionSave}
+                                descriptionSaving={saveDescriptionMutation.isPending}
+                              />
+                              {isPrintful && (
+                                <div className="absolute top-2 right-2 z-10">
+                                  <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <ScrollBar />
+                    </ScrollArea>
+                  </div>
                 )}
               </>
             ) : (
