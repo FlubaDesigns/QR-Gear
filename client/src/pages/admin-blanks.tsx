@@ -13,7 +13,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
-import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import {
   ProductSelectCardSkin,
   type ProductSelectItem,
@@ -817,7 +817,7 @@ export default function AdminBlanks() {
   }, [validSelectedCatalogId, setBlankTierMutation]);
 
   const renderCatalogCard = useCallback(
-    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
+    (scrollItem: ScrollViewItem) => {
       const selectItem = selectItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
       const product = allProductMap.get(String(scrollItem.id)) || allProductMap.get(`pf:${scrollItem.id}`);
@@ -1071,25 +1071,21 @@ export default function AdminBlanks() {
                   <p className="text-lg text-muted-foreground">No items in this catalog.</p>
                 </Card>
               ) : (
-                <SharedViewer
-                  mode="scroll"
-                  scrollProps={{
-                    items: catalogProductsWithKeys.map(c => ({
-                      id: String(c.product.id),
-                      imageUrl: c.product.imageUrl || c.product.image_url || c.product.thumbnailUrl || "",
-                      title: c.product.title || "",
-                      subtitle: c.product.brand,
-                      minPrice: c.product.minPrice,
-                      maxPrice: c.product.maxPrice,
-                      colorCount: c.product.colorCount,
-                      madeInUSA: c.product.madeInUSA,
-                    })),
-                    selectedId: null,
-                    emptyMessage: "No items in catalog.",
-                    layout: "grid",
-                    gridHeight: "calc(100vh - 200px)",
-                    renderItem: renderCatalogCard,
-                  }}
+                <ScrollGridView
+                  items={catalogProductsWithKeys.map(c => ({
+                    id: String(c.product.id),
+                    imageUrl: c.product.imageUrl || c.product.image_url || c.product.thumbnailUrl || "",
+                    title: c.product.title || "",
+                    subtitle: c.product.brand,
+                    minPrice: c.product.minPrice,
+                    maxPrice: c.product.maxPrice,
+                    colorCount: c.product.colorCount,
+                    madeInUSA: c.product.madeInUSA,
+                  }))}
+                  renderItem={(item) => renderCatalogCard(item as ScrollViewItem)}
+                  height="calc(100vh - 200px)"
+                  emptyMessage="No items in catalog."
+                  footer={null}
                 />
               )
             ) : loadingCatalog ? (
@@ -1109,16 +1105,12 @@ export default function AdminBlanks() {
                 </p>
               </Card>
             ) : (
-              <SharedViewer
-                mode="scroll"
-                scrollProps={{
-                  items: scrollItems,
-                  selectedId: null,
-                  emptyMessage: "No products match the current filters.",
-                  layout: "grid",
-                  gridHeight: "calc(100vh - 200px)",
-                  renderItem: renderCatalogCard,
-                }}
+              <ScrollGridView
+                items={scrollItems}
+                renderItem={(item) => renderCatalogCard(item as ScrollViewItem)}
+                height="calc(100vh - 200px)"
+                emptyMessage="No products match the current filters."
+                footer={null}
               />
             )}
           </>

@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers, Loader2 } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
-import { SharedViewer } from "./SharedViewer";
+import { ScrollVerticalView } from "./views/ScrollVerticalView";
+import { ProductSkin } from "./ProductSkin";
 import type { ScrollViewItem } from "./views/index";
 
 export interface CatalogProduct {
@@ -223,17 +224,39 @@ export function ProductCatalogPicker({
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <SharedViewer
-            mode="scroll"
-            scrollProps={{
-              items: scrollItems,
-              selectedId: selectedProductId ? String(selectedProductId) : undefined,
-              onSelect: handleItemTap,
-              aspectRatio: "square",
-              emptyMessage: "No products match filters.",
-              layout: "vertical",
-              gridHeight,
+          <ScrollVerticalView
+            items={scrollItems}
+            height={gridHeight}
+            emptyMessage="No products match filters."
+            renderItem={(item) => {
+              const scrollItem = item as ScrollViewItem;
+              const isSelected = selectedProductId != null && String(selectedProductId) === scrollItem.id;
+              const priceRange = scrollItem.minPrice && scrollItem.maxPrice
+                ? { min: parseFloat(scrollItem.minPrice), max: parseFloat(scrollItem.maxPrice) }
+                : scrollItem.minPrice
+                  ? { min: parseFloat(scrollItem.minPrice), max: parseFloat(scrollItem.minPrice) }
+                  : undefined;
+              return (
+                <ProductSkin
+                  id={scrollItem.id}
+                  title={scrollItem.title}
+                  brand={scrollItem.subtitle}
+                  image={scrollItem.imageUrl}
+                  priceRange={priceRange}
+                  madeInUSA={scrollItem.madeInUSA}
+                  colors={scrollItem.colorCount}
+                  sizes={scrollItem.sizes}
+                  description={scrollItem.description}
+                  onClick={() => handleItemTap(scrollItem)}
+                  className={isSelected ? "ring-2 ring-primary ring-offset-2" : ""}
+                />
+              );
             }}
+            footer={
+              <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+                {scrollItems.length} products available
+              </p>
+            }
           />
         )
       )}

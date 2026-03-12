@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { ScrollVerticalView } from "@/features/shared/components/views/ScrollVerticalView";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import {
   ProductSelectCardSkin,
@@ -368,7 +368,7 @@ export function ProductsModule() {
   }, [selectItemMap, selectProduct, provider, setSelectedProviders]);
 
   const renderProductCard = useCallback(
-    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
+    (scrollItem: ScrollViewItem) => {
       const entry = selectItemMap.get(String(scrollItem.id));
       if (!entry) return null;
       return (
@@ -422,16 +422,16 @@ export function ProductsModule() {
               </p>
             </div>
           ) : (
-            <SharedViewer
-              mode="scroll"
-              scrollProps={{
-                items: scrollItems,
-                selectedId: selectedProductId,
-                emptyMessage: "No products in this catalog.",
-                layout: "vertical",
-                gridHeight: "calc(100vh - 160px)",
-                renderItem: renderProductCard,
-              }}
+            <ScrollVerticalView
+              items={scrollItems}
+              renderItem={(item) => renderProductCard(item as ScrollViewItem)}
+              height="calc(100vh - 160px)"
+              emptyMessage="No products in this catalog."
+              footer={
+                <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+                  {scrollItems.length} products available
+                </p>
+              }
             />
           )}
         </>
@@ -523,16 +523,16 @@ export function ProductsModule() {
                   ))}
                 </div>
               ) : (
-                <SharedViewer
-                  mode="scroll"
-                  scrollProps={{
-                    items: scrollItems,
-                    selectedId: selectedProductId,
-                    emptyMessage: "No products match the current filters.",
-                    layout: "vertical",
-                    gridHeight: "calc(100vh - 160px)",
-                    renderItem: renderProductCard,
-                  }}
+                <ScrollVerticalView
+                  items={scrollItems}
+                  renderItem={(item) => renderProductCard(item as ScrollViewItem)}
+                  height="calc(100vh - 160px)"
+                  emptyMessage="No products match the current filters."
+                  footer={
+                    <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+                      {scrollItems.length} products available
+                    </p>
+                  }
                 />
               )}
             </>

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Package, Search, Filter, Flag, Globe } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { ScrollVerticalView } from "@/features/shared/components/views/ScrollVerticalView";
 import { ProductSelectCardSkin, type ProductSelectItem } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import type { Product } from "../shared/types";
@@ -185,22 +185,23 @@ export function CatalogListModule({ products }: CatalogListModuleProps) {
           </Badge>
         </div>
 
-        <SharedViewer
-          mode="scroll"
-          scrollProps={{
-            items: scrollItems,
-            layout: "vertical",
-            renderItem: (scrollItem, _isSelected, onSelect) => {
-              const selectItem = scrollItemToSelectItem(scrollItem);
-              return (
-                <ProductSelectCardSkin
-                  item={selectItem}
-                  isSelected={false}
-                  onSelect={() => onSelect()}
-                />
-              );
-            },
+        <ScrollVerticalView
+          items={scrollItems}
+          renderItem={(scrollItem) => {
+            const selectItem = scrollItemToSelectItem(scrollItem as ScrollViewItem);
+            return (
+              <ProductSelectCardSkin
+                item={selectItem}
+                isSelected={false}
+                onSelect={() => {}}
+              />
+            );
           }}
+          footer={
+            <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+              {scrollItems.length} products
+            </p>
+          }
         />
       </div>
     </CollapsibleModule>

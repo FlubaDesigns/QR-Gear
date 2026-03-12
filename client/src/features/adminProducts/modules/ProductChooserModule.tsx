@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Package, Search, Filter, Flag, Globe } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { SharedViewer } from "@/features/shared/components/SharedViewer";
+import { ScrollVerticalView } from "@/features/shared/components/views/ScrollVerticalView";
 import {
   ProductSelectCardSkin,
   type ProductSelectItem,
@@ -160,7 +160,7 @@ export function ProductChooserModule({
   const disabledCount = products.length - enabledCount;
 
   const renderCard = useCallback(
-    (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
+    (scrollItem: ScrollViewItem) => {
       const selectItem = selectItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
       return (
@@ -249,16 +249,16 @@ export function ProductChooserModule({
           </Badge>
         </div>
 
-        <SharedViewer
-          mode="scroll"
-          scrollProps={{
-            items: scrollViewItems,
-            selectedId: selectedId,
-            layout: "vertical",
-            gridHeight: "calc(100vh - 160px)",
-            emptyMessage: "No products match your filters",
-            renderItem: renderCard,
-          }}
+        <ScrollVerticalView
+          items={scrollViewItems}
+          renderItem={(item) => renderCard(item as ScrollViewItem)}
+          height="calc(100vh - 160px)"
+          emptyMessage="No products match your filters"
+          footer={
+            <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+              {scrollViewItems.length} products available
+            </p>
+          }
         />
       </div>
     </CollapsibleModule>

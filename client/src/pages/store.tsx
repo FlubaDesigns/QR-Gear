@@ -3,7 +3,6 @@ import { DollarSign, Image, Layers, Package, QrCode, Store, Settings2, Loader2, 
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 import { ProductConfigSkin } from "@/features/shared/components/ProductConfigSkin";
-import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +62,7 @@ function ProductConfigDemo() {
         </Button>
       </div>
 
-      <SharedViewer mode="grid" className="w-full">
+      <div className="w-full">
         <div className="space-y-4" data-testid="product-config-list">
           {products.map((product) => (
             <ProductConfigSkin
@@ -92,7 +91,7 @@ function ProductConfigDemo() {
             </div>
           )}
         </div>
-      </SharedViewer>
+      </div>
     </div>
   );
 }
