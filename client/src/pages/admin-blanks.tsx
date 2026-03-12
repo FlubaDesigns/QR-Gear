@@ -935,55 +935,35 @@ export default function AdminBlanks() {
                 </Card>
 
                 {catalogProductsWithKeys.length > 0 && (
-                  <div className="space-y-3">
-                    <SharedViewer
-                      mode="scroll"
-                      scrollProps={{
-                        items: catalogProductsWithKeys.map(({ product: p, catalogKey }) => ({
-                          id: catalogKey,
-                          imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || "",
-                          title: p.title || "",
-                          subtitle: p.brand,
-                          minPrice: p.minPrice,
-                          maxPrice: p.maxPrice,
-                          colorCount: p.colorCount,
-                          madeInUSA: p.madeInUSA,
-                        })),
-                        selectedId: null,
-                        emptyMessage: "No items in this catalog.",
-                        layout: "vertical",
-                        gridHeight: "calc(100vh - 200px)",
-                        renderItem: (scrollItem) => {
-                          const catalogKey = scrollItem.id;
-                          const found = catalogProductsWithKeys.find(x => x.catalogKey === catalogKey);
-                          if (!found) return null;
-                          const { product: p, isPrintful } = found;
-                          const selectItem = selectItemMap.get(String(p.id));
-                          if (!selectItem) return null;
-                          return (
-                            <div className="relative">
-                              <ProductSelectCardSkin
-                                item={selectItem}
-                                isSelected={false}
-                                onSelect={(id) => toggleItem(id)}
-                                tier={blankTiers[catalogKey] as "good" | "better" | "best" | undefined || null}
-                                onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
-                                showTierControls={!!validSelectedCatalogId}
-                                editableDescription={!!validSelectedCatalogId}
-                                onDescriptionSave={handleDescriptionSave}
-                                descriptionSaving={saveDescriptionMutation.isPending}
-                              />
-                              {isPrintful && (
-                                <div className="absolute top-2 right-2 z-10">
-                                  <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        },
-                      }}
-                    />
-                  </div>
+                  <ScrollArea className="h-[calc(100vh-200px)]">
+                    <div className="space-y-3 pr-4">
+                      {catalogProductsWithKeys.map(({ product: p, catalogKey, isPrintful }) => {
+                        const selectItem = selectItemMap.get(String(p.id));
+                        if (!selectItem) return null;
+                        return (
+                          <div key={catalogKey} className="relative">
+                            <ProductSelectCardSkin
+                              item={selectItem}
+                              isSelected={false}
+                              onSelect={(id) => toggleItem(id)}
+                              tier={blankTiers[catalogKey] as "good" | "better" | "best" | undefined || null}
+                              onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
+                              showTierControls={!!validSelectedCatalogId}
+                              editableDescription={!!validSelectedCatalogId}
+                              onDescriptionSave={handleDescriptionSave}
+                              descriptionSaving={saveDescriptionMutation.isPending}
+                            />
+                            {isPrintful && (
+                              <div className="absolute top-2 right-2 z-10">
+                                <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <ScrollBar />
+                  </ScrollArea>
                 )}
               </>
             ) : (
