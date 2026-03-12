@@ -1249,11 +1249,11 @@ app.get('/members/allowed-products', async (req, res) => {
                 }
                 const fulfillmentProvider = p.fulfillmentProvider || 'printify';
                 const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
-                const rawDesc = p.description || '';
-                const originalDescription = rawDesc;
+                const printifyDesc = p.description || '';
                 const adminDescription = catalogBlankDescriptions[blankKey] || '';
+                const originalDescription = adminDescription || printifyDesc;
                 const productTitle = p.title || p.name || 'Untitled Product';
-                const description = adminDescription || originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
+                const description = originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
                 return {
                     ...p,
                     blueprintId,
@@ -10105,10 +10105,10 @@ app.get('/members/tier-products', async (req, res) => {
                 availableColors = (prov?.availableColors || []).map((c) => ({ name: c.name || c, hex: c.hex || '' }));
                 availableSizes = (prov?.availableSizes || []).map((s) => typeof s === 'string' ? s : s.title || String(s));
             }
-            const rawDesc = bp.description || '';
-            const originalDescription = rawDesc;
+            const printifyDesc = bp.description || '';
             const adminDescription = blankDescriptions[blankKey] || '';
-            const description = adminDescription || originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
+            const originalDescription = adminDescription || printifyDesc;
+            const description = originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
             categoryTierMap[category][tier].push({
                 blueprintId: numericId,
                 title: bp.title,
@@ -14547,4 +14547,5 @@ exports.api = (0, https_1.onRequest)({
 // Deploy timestamp: 1772900000
 // Build: 1772924431
 // force deploy 1773126500 - fix tier-products to handle pf: prefixed Printful blanks
+// force deploy 1773480000 - blankDescriptions as cascade base for descriptions
 //# sourceMappingURL=index.js.map
