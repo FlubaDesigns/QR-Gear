@@ -19,6 +19,7 @@ import {
   type ProductSelectItem,
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+import { getCanonicalBlankKey, safeBlankId, isProviderPrintful, getProviderFromKey } from "@shared/blankKeys";
 
 interface CatalogProduct {
   id: number;
@@ -584,7 +585,7 @@ export default function AdminBlanks() {
   const catalogs = catalogsData?.catalogs || [];
   const activeCatalog = selectedCatalogId ? catalogs.find(c => c.id === selectedCatalogId) : null;
   const validSelectedCatalogId = activeCatalog ? selectedCatalogId : null;
-  const catalogBlankSet = useMemo(() => new Set(activeCatalog?.blankIds?.map(String) || []), [activeCatalog]);
+  const catalogBlankSet = useMemo(() => new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id))), [activeCatalog]);
 
   const printifyProducts = useMemo(() => {
     const items: CatalogProduct[] = [];
@@ -698,37 +699,6 @@ export default function AdminBlanks() {
     onError: (err: any) => toast({ title: "Error saving description", description: err.message, variant: "destructive" }),
   });
 
-  const getBlankKey = useCallback((id: string) => {
-    return providerFilter === "printful" ? `pf:${id}` : id;
-  }, [providerFilter]);
-
-  const handleDescriptionSave = useCallback(async (id: string, description: string) => {
-    if (!validSelectedCatalogId) {
-      toast({ title: "Select a catalog first", variant: "destructive" });
-      return;
-    }
-    const blankKey = getBlankKey(id);
-    await saveDescriptionMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, description });
-  }, [validSelectedCatalogId, getBlankKey, saveDescriptionMutation, toast]);
-
-  const isInCatalog = useCallback((id: string) => {
-    const key = getBlankKey(id);
-    return catalogBlankSet.has(key);
-  }, [getBlankKey, catalogBlankSet]);
-
-  const toggleItem = useCallback((id: string) => {
-    if (!validSelectedCatalogId) {
-      toast({ title: "Select a catalog first", description: "Choose a catalog from the dropdown to add or remove blanks.", variant: "destructive" });
-      return;
-    }
-    const key = getBlankKey(id);
-    if (catalogBlankSet.has(key)) {
-      removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
-    } else {
-      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
-    }
-  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, toast, getBlankKey]);
-
   const filtered = useMemo(() => {
     let items = allProducts;
     if (categoryFilter !== "all") {
@@ -763,23 +733,62 @@ export default function AdminBlanks() {
   const catalogProductsWithKeys = useMemo(() => {
     return Array.from(catalogBlankSet)
       .map(id => {
-        const product = allProductMap.get(id);
-        return product ? { product, catalogKey: id, isPrintful: id.startsWith('pf:') } : null;
+        const safe = safeBlankId(id);
+        const product = allProductMap.get(safe);
+        return product ? { product, catalogKey: safe, isPrintful: isProviderPrintful(safe) } : null;
       })
       .filter(Boolean) as { product: CatalogProduct; catalogKey: string; isPrintful: boolean }[];
   }, [catalogBlankSet, allProductMap]);
 
   const catalogProducts = useMemo(() => catalogProductsWithKeys.map(c => c.product), [catalogProductsWithKeys]);
 
+  const getBlankKey = useCallback((id: string, product?: CatalogProduct) => {
+    if (product) {
+      return getCanonicalBlankKey(product);
+    }
+    const found = allProductMap.get(id) || allProductMap.get(`pf:${id}`);
+    if (found) {
+      return getCanonicalBlankKey(found);
+    }
+    return id;
+  }, [allProductMap]);
+
+  const handleDescriptionSave = useCallback(async (id: string, description: string, canonicalKey?: string) => {
+    if (!validSelectedCatalogId) {
+      toast({ title: "Select a catalog first", variant: "destructive" });
+      return;
+    }
+    const blankKey = canonicalKey || getBlankKey(id);
+    await saveDescriptionMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, description });
+  }, [validSelectedCatalogId, getBlankKey, saveDescriptionMutation, toast]);
+
+  const isInCatalog = useCallback((id: string, product?: CatalogProduct) => {
+    const key = getBlankKey(id, product);
+    return catalogBlankSet.has(key);
+  }, [getBlankKey, catalogBlankSet]);
+
+  const toggleItem = useCallback((id: string, product?: CatalogProduct) => {
+    if (!validSelectedCatalogId) {
+      toast({ title: "Select a catalog first", description: "Choose a catalog from the dropdown to add or remove blanks.", variant: "destructive" });
+      return;
+    }
+    const key = getBlankKey(id, product);
+    if (catalogBlankSet.has(key)) {
+      removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
+    } else {
+      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
+    }
+  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, toast, getBlankKey]);
+
   const selectItemMap = useMemo(() => {
     const map = new Map<string, ProductSelectItem>();
     filtered.forEach(p => {
-      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
+      const blankKey = getCanonicalBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
       map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
     });
     catalogProducts.forEach(p => {
-      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
+      const blankKey = getCanonicalBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
       map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
     });
@@ -811,8 +820,9 @@ export default function AdminBlanks() {
     (scrollItem: ScrollViewItem, _isSelected: boolean, _onSelect: () => void) => {
       const selectItem = selectItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
-      const selected = isInCatalog(String(scrollItem.id));
-      const blankKey = getBlankKey(String(scrollItem.id));
+      const product = allProductMap.get(String(scrollItem.id)) || allProductMap.get(`pf:${scrollItem.id}`);
+      const blankKey = product ? getCanonicalBlankKey(product) : String(scrollItem.id);
+      const selected = catalogBlankSet.has(blankKey);
       const itemTier = blankTiers[blankKey] as "good" | "better" | "best" | undefined;
       const hasMappingBadge = providerFilter === "printify"
         ? mappedPrintifyIds.has(Number(scrollItem.id))
@@ -822,12 +832,12 @@ export default function AdminBlanks() {
           <ProductSelectCardSkin
             item={selectItem}
             isSelected={selected}
-            onSelect={(id) => toggleItem(id)}
+            onSelect={() => toggleItem(String(scrollItem.id), product)}
             tier={itemTier || null}
-            onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
+            onTierChange={(_blankId, tier) => handleTierChange(blankKey, tier)}
             showTierControls={!!validSelectedCatalogId}
             editableDescription={!!validSelectedCatalogId}
-            onDescriptionSave={handleDescriptionSave}
+            onDescriptionSave={(id, desc) => handleDescriptionSave(id, desc, blankKey)}
             descriptionSaving={saveDescriptionMutation.isPending}
           />
           {hasMappingBadge && (
@@ -841,7 +851,7 @@ export default function AdminBlanks() {
         </div>
       );
     },
-    [selectItemMap, toggleItem, isInCatalog, blankTiers, handleTierChange, validSelectedCatalogId, providerFilter, mappedPrintifyIds, mappedPrintfulIds, getBlankKey, handleDescriptionSave, saveDescriptionMutation.isPending]
+    [selectItemMap, allProductMap, catalogBlankSet, toggleItem, blankTiers, handleTierChange, validSelectedCatalogId, providerFilter, mappedPrintifyIds, mappedPrintfulIds, handleDescriptionSave, saveDescriptionMutation.isPending]
   );
 
   const handleOpenCatalog = useCallback((catalogId: string) => {
@@ -1076,7 +1086,7 @@ export default function AdminBlanks() {
                     })),
                     selectedId: null,
                     emptyMessage: "No items in catalog.",
-                    layout: "vertical",
+                    layout: "grid",
                     gridHeight: "calc(100vh - 200px)",
                     renderItem: renderCatalogCard,
                   }}
@@ -1105,7 +1115,7 @@ export default function AdminBlanks() {
                   items: scrollItems,
                   selectedId: null,
                   emptyMessage: "No products match the current filters.",
-                  layout: "vertical",
+                  layout: "grid",
                   gridHeight: "calc(100vh - 200px)",
                   renderItem: renderCatalogCard,
                 }}

@@ -37,8 +37,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-// Build timestamp: 2026-03-11T19:00:00Z - fix: use model as description fallback for Printful products
-const _BUILD_ID = '20260311-lightbox-v4';
+// Build timestamp: 2026-03-12T12:00:00Z - fix: canonical blank keys, description cascade, grid layout
+const _BUILD_ID = '20260312-blanks-v5';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const admin = __importStar(require("firebase-admin"));
@@ -1259,6 +1259,8 @@ app.get('/members/allowed-products', async (req, res) => {
                     ...p,
                     blueprintId,
                     printProviderId,
+                    canonicalBlankKey: blankKey,
+                    provider: fulfillmentProvider,
                     title: p.title || p.name || 'Untitled Product',
                     imageUrl,
                     baseCost,
@@ -1267,6 +1269,9 @@ app.get('/members/allowed-products', async (req, res) => {
                     memberEarnings,
                     placements,
                     description,
+                    providerDescription: originalDescription,
+                    adminCatalogDescription: adminDescription || null,
+                    effectiveDescription: description,
                     originalDescription,
                     adminDescription,
                 };
@@ -1278,7 +1283,7 @@ app.get('/members/allowed-products', async (req, res) => {
         if (memberProducts.length > 0) {
             let products = await enrichProducts(memberProducts);
             if (catalogBlankFilter) {
-                products = products.filter((p) => catalogBlankFilter.has(String(p.blueprintId)));
+                products = products.filter((p) => catalogBlankFilter.has(p.canonicalBlankKey || String(p.blueprintId)));
                 console.log(`[Member Products CF] Catalog filter applied: ${products.length} products remain from ${memberProducts.length}`);
             }
             console.log(`[Member Products CF] Using curated member-products doc with ${products.length} products`);
@@ -1308,7 +1313,7 @@ app.get('/members/allowed-products', async (req, res) => {
         }).filter(p => !!p.blueprintId);
         let products = await enrichProducts(catalogProducts);
         if (catalogBlankFilter) {
-            products = products.filter((p) => catalogBlankFilter.has(String(p.blueprintId)));
+            products = products.filter((p) => catalogBlankFilter.has(p.canonicalBlankKey || String(p.blueprintId)));
             console.log(`[Member Products CF] Catalog filter applied (fallback): ${products.length} products remain`);
         }
         console.log(`[Member Products CF] member-products empty/missing. Falling back to /products catalog with ${products.length} products`);
@@ -10124,10 +10129,16 @@ app.get('/members/tier-products', async (req, res) => {
             const originalDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
             const adminDescription = blankDescriptions[blankKey] || '';
             const description = adminDescription || originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
+            const provider = bp._source === 'printful' ? 'printful' : 'printify';
             categoryTierMap[category][tier].push({
                 blueprintId: numericId,
+                canonicalBlankKey: blankKey,
+                provider,
                 title: bp.title,
                 description,
+                providerDescription: originalDescription,
+                adminCatalogDescription: adminDescription || null,
+                effectiveDescription: description,
                 originalDescription,
                 adminDescription,
                 brand: bp.brand,
@@ -10135,9 +10146,11 @@ app.get('/members/tier-products', async (req, res) => {
                 cost,
                 retailPrice,
                 memberEarnings,
-                fulfillmentProvider: bp._source === 'printful' ? 'printful' : 'printify',
+                fulfillmentProvider: provider,
                 availableColors,
                 availableSizes,
+                colors: availableColors,
+                sizes: availableSizes,
             });
         }
         const defaultNames = {

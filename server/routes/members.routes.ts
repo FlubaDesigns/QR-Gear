@@ -1519,6 +1519,16 @@ export function registerMemberRoutes(app: Express): void {
       
       const data = doc.data();
       const storedProducts = data?.products || [];
+
+      const { fsGet } = await import("../lib/firestore-crud");
+      const assignments = await fsGet("systemSettings", "catalog-assignments");
+      const defaults = await fsGet("systemSettings", "catalog-defaults");
+      const catalogId = assignments?.["member"] || defaults?.defaultCatalogId || null;
+      let catalogBlankDescriptions: Record<string, string> = {};
+      if (catalogId) {
+        const catalog = await fsGet("catalogs", catalogId);
+        catalogBlankDescriptions = catalog?.blankDescriptions || {};
+      }
       
       const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
       const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
@@ -1640,6 +1650,14 @@ export function registerMemberRoutes(app: Express): void {
           ];
         }
         
+        const isPf = p.fulfillmentProvider === 'printful' || String(p.blueprintId ?? '').startsWith('pf:');
+        const canonicalBlankKey = isPf
+          ? (String(p.blueprintId ?? '').startsWith('pf:') ? String(p.blueprintId) : `pf:${p.blueprintId}`)
+          : String(p.blueprintId ?? '');
+        const providerDescription = p.originalDescription || p.description || null;
+        const adminCatalogDescription = catalogBlankDescriptions[canonicalBlankKey] || null;
+        const effectiveDescription = adminCatalogDescription ?? providerDescription ?? null;
+
         return {
           ...p,
           imageUrl,
@@ -1649,6 +1667,11 @@ export function registerMemberRoutes(app: Express): void {
           profit,
           memberEarnings,
           placements,
+          canonicalBlankKey,
+          provider: isPf ? 'printful' : 'printify',
+          providerDescription,
+          adminCatalogDescription,
+          effectiveDescription,
         };
       }));
       
@@ -1734,12 +1757,25 @@ export function registerMemberRoutes(app: Express): void {
         blueprintCache.set(String(bp.id), bp);
       }
 
+      const printfulCache = new Map<string, any>();
+      const allPrintful = await fsGetAll("printfulProducts");
+      for (const pf of allPrintful) {
+        printfulCache.set(String(pf.id), pf);
+      }
+
+      const blankDescriptions = catalog.blankDescriptions || {};
       const tiers: Record<string, Record<string, any>> = {};
       const category = "all";
       tiers[category] = {};
 
       for (const blankId of catalog.blankIds) {
-        const tierKey = blankTiers[String(blankId)] || "good";
+        const safeId = String(blankId ?? '');
+        const isPrintful = safeId.startsWith('pf:');
+        const rawId = isPrintful ? safeId.slice(3) : safeId;
+        const canonicalKey = safeId;
+        const provider = isPrintful ? 'printful' : 'printify';
+
+        const tierKey = blankTiers[canonicalKey] || "good";
         if (!tiers[category][tierKey]) {
           const cfg = tierConfig[tierKey] || {};
           const defaultNames: Record<string, string> = { good: "Good", better: "Better", best: "Best" };
@@ -1753,7 +1789,12 @@ export function registerMemberRoutes(app: Express): void {
           };
         }
 
-        const bp = blueprintCache.get(String(blankId));
+        let bp: any = null;
+        if (isPrintful) {
+          bp = printfulCache.get(rawId);
+        } else {
+          bp = blueprintCache.get(rawId);
+        }
         if (!bp) continue;
 
         const baseCost = bp.minCost ? bp.minCost / 100 : bp.baseCost || 0;
@@ -1761,14 +1802,28 @@ export function registerMemberRoutes(app: Express): void {
         const profit = retailPrice - baseCost;
         const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
 
+        const providerDescription = bp.description || bp.model || null;
+        const adminCatalogDescription = blankDescriptions[canonicalKey] || null;
+        const effectiveDescription = adminCatalogDescription ?? providerDescription ?? null;
+
+        const colors = bp.colors || bp.availableColors || [];
+        const sizes = bp.sizes || bp.availableSizes || [];
+
         tiers[category][tierKey].products.push({
           blueprintId: typeof bp.id === "string" ? parseInt(bp.id, 10) || bp.id : bp.id,
-          title: bp.title || bp.name || `Blueprint ${blankId}`,
+          canonicalBlankKey: canonicalKey,
+          provider,
+          title: bp.title || bp.name || `Product ${rawId}`,
           imageUrl: bp.images?.[0] || bp.imageUrl || bp.image_url || "",
           brand: bp.brand || "",
           category: bp.category || "",
           retailPrice,
           memberEarnings,
+          providerDescription,
+          adminCatalogDescription,
+          effectiveDescription,
+          colors,
+          sizes,
         });
       }
 
