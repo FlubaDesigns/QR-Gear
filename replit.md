@@ -25,7 +25,12 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
   firebase deploy --only functions --project qrgear-c1ffd
   rm /tmp/firebase-sa.json
   ```
-- **SINGLE API CODEBASE**: The Cloud Function (`functions/src/index.ts`) is the ONLY production API. The `server/` directory code is NOT used at runtime. All API route changes go directly into `functions/src/index.ts`.
+- **MODULAR API CODEBASE**: The Cloud Function entry point is `functions/src/index.ts` (~70 lines of wiring). All logic lives in modular files:
+  - `functions/src/core.ts` — Firebase init, db, storage, types, placement maps, normalization fns, doc helpers, color helpers
+  - `functions/src/middleware.ts` — CORS, verifyAuth, requireAuth, requireAdmin, ADMIN_USER_IDS
+  - `functions/src/services/` — email.ts, pricing.ts, storage-helpers.ts, printful.ts, printify.ts, mockup-generator.ts, composite-image.ts
+  - `functions/src/routes/` — 20+ route files, each exporting `register(app)`: admin-misc.ts, admin-products.ts, admin-stores.ts, admin-orders.ts, admin-library.ts, admin-settings.ts, members.ts, public.ts, auth.ts, widget.ts, partner.ts, dynamics.ts, products-page.ts, claims.ts, stripe-webhooks.ts, gifts.ts, checkout.ts, orchestration.ts, mockup-routes.ts, seo.ts, marketplace.ts, brain.ts, file-routes.ts, core-routes.ts, tiers.ts
+  - The `server/` directory code is NOT used at runtime. All API route changes go into the modular files above.
 - **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → Firebase Hosting rewrites `/api/*` to Cloud Function → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, `/members/*`, etc.
 - **Session Rules**:
     - Handle voice-to-text transcription errors
