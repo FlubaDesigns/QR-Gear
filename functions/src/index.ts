@@ -1465,10 +1465,10 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
         const blueprintId = Number(p.blueprintId || p.blueprint_id || 0) || null;
         const printProviderId = Number(p.printProviderId || p.print_provider_id || 0) || null;
 
-        if ((!imageUrl || String(imageUrl).includes('/api/files/')) && blueprintId) {
+        if (blueprintId) {
           try {
             if (!blueprintCache.has(blueprintId)) {
-              const bpDoc = await db.collection('printifyBlueprints').doc(String(blueprintId)).get();
+              const bpDoc = await db.collection('printify_blueprints').doc(String(blueprintId)).get();
               if (bpDoc.exists) blueprintCache.set(blueprintId, bpDoc.data());
             }
             const bpData = blueprintCache.get(blueprintId);
@@ -1478,7 +1478,7 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
                 bpData.imageUrl ||
                 bpData.image_url ||
                 null;
-              if (bpImage) imageUrl = bpImage;
+              if ((!imageUrl || String(imageUrl).includes('/api/files/')) && bpImage) imageUrl = bpImage;
             }
           } catch (e: any) {
             console.log(`[Member Products CF] Blueprint image lookup failed for ${blueprintId}: ${e.message}`);
@@ -1522,11 +1522,12 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
 
         const fulfillmentProvider = p.fulfillmentProvider || 'printify';
         const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
-        const printifyDesc = p.description || '';
+        const bpData = blueprintId ? blueprintCache.get(blueprintId) : null;
+        const rawRichDesc = bpData?.richDescription || bpData?.description || p.description || '';
+        const originalDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         const adminDescription = catalogBlankDescriptions[blankKey] || '';
-        const originalDescription = adminDescription || printifyDesc;
         const productTitle = p.title || p.name || 'Untitled Product';
-        const description = originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
+        const description = adminDescription || originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
 
         return {
           ...p,
@@ -6295,9 +6296,22 @@ app.post('/admin/catalog/sync', requireAdmin, async (req: Request, res: Response
             const existing = existingBpMap.get(bp.id);
             const existingData = existing?.data();
             const changed = !existingData || existingData.title !== bp.title || existingData.brand !== (bp.brand || null) || existingData.model !== (bp.model || null);
-            if (changed) {
+            if (changed || !existingData?.richDescription) {
+              let richDescription = existingData?.richDescription || null;
+              if (!richDescription) {
+                try {
+                  const details = await printifyClient.getBlueprintDetails(bp.id);
+                  if (details && details.description) {
+                    richDescription = details.description;
+                  }
+                  await new Promise(r => setTimeout(r, 200));
+                } catch (detailErr: any) {
+                  console.warn(`[SmartSync CF] Could not fetch details for bp ${bp.id}: ${detailErr.message}`);
+                }
+              }
               await db.collection("printify_blueprints").doc(String(bp.id)).set({
                 id: bp.id, title: bp.title, description: bp.description || null,
+                richDescription: richDescription || null,
                 brand: bp.brand || null, model: bp.model || null,
                 images: bp.images || null, primaryImageUrl: bp.images?.[0] || null,
                 lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -6677,7 +6691,7 @@ app.get('/admin/printify/catalog', requireAdmin, async (req: Request, res: Respo
     const bpSnapshot = await db.collection("printify_blueprints").get();
     const allPrintifyBlueprints = bpSnapshot.docs.map(doc => {
       const d = doc.data();
-      return { id: d.id || parseInt(doc.id), title: d.title, description: d.description || '', brand: d.brand, model: d.model, images: d.images || [] };
+      return { id: d.id || parseInt(doc.id), title: d.title, description: d.description || '', richDescription: d.richDescription || '', brand: d.brand, model: d.model, images: d.images || [] };
     });
 
     const provSnapshot = await db.collection("printify_providers").get();
@@ -6722,7 +6736,7 @@ app.get('/admin/printify/catalog', requireAdmin, async (req: Request, res: Respo
         const modelLower = (bp.model || '').trim().toLowerCase();
         const matchedPrintful = modelLower ? allPrintfulRows.find((pf: any) => ((pf as any).model || '').trim().toLowerCase() === modelLower) : null;
         const provData = providersByBlueprint.get(bp.id);
-        const rawDesc = bp.description || '';
+        const rawDesc = bp.richDescription || bp.description || '';
         const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         categories[category].push({
           id: bp.id, title: bp.title, description: cleanDesc, brand: bp.brand, model: bp.model,
@@ -9821,10 +9835,10 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
         availableColors = (prov?.availableColors || []).map((c: any) => ({ name: c.name || c, hex: c.hex || '' }));
         availableSizes = (prov?.availableSizes || []).map((s: any) => typeof s === 'string' ? s : s.title || String(s));
       }
-      const printifyDesc = bp.description || '';
+      const rawRichDesc = bp.richDescription || bp.description || '';
+      const originalDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const adminDescription = blankDescriptions[blankKey] || '';
-      const originalDescription = adminDescription || printifyDesc;
-      const description = originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
+      const description = adminDescription || originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
       categoryTierMap[category][tier].push({
         blueprintId: numericId,
         title: bp.title,
@@ -13181,3 +13195,4 @@ export const api = onRequest(
 // Build: 1772924431
 // force deploy 1773126500 - fix tier-products to handle pf: prefixed Printful blanks
 // force deploy 1773480000 - blankDescriptions as cascade base for descriptions
+// force deploy 1773481000 - richDescription from getBlueprintDetails, proper cascade Printify->Admin->Member
