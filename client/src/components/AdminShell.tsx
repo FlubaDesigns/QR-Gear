@@ -1,8 +1,9 @@
 import { type ReactNode } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import AdminSectionTabs, { type AdminTab } from "@/components/admin/AdminSectionTabs";
 
 interface AdminShellProps {
   title: string;
@@ -14,6 +15,10 @@ interface AdminShellProps {
   children: ReactNode;
   maxWidth?: string;
   noPadding?: boolean;
+  tabs?: AdminTab[];
+  activeTab?: string;
+  onTabChange?: (tabId: string) => void;
+  stickyBar?: ReactNode;
 }
 
 export default function AdminShell({
@@ -21,11 +26,14 @@ export default function AdminShell({
   subtitle,
   icon: Icon,
   backHref = "/admin",
-  backLabel,
   actions,
   children,
   maxWidth,
   noPadding = false,
+  tabs,
+  activeTab,
+  onTabChange,
+  stickyBar,
 }: AdminShellProps) {
   const [, navigate] = useLocation();
 
@@ -65,12 +73,32 @@ export default function AdminShell({
         </div>
       </div>
 
+      {tabs && activeTab && (
+        <AdminSectionTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={onTabChange}
+          className="sticky top-0 z-40"
+        />
+      )}
+
       <main
         className={noPadding ? "" : "qr-admin-main"}
         style={maxWidth ? { maxWidth } : undefined}
       >
         {children}
       </main>
+
+      {stickyBar && (
+        <>
+          <div className="h-16" />
+          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3">
+            <div className="mx-auto max-w-[640px] flex items-center justify-end gap-3">
+              {stickyBar}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

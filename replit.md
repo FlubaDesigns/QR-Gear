@@ -48,6 +48,14 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 ### UI/UX Decisions
 The storefront features lifestyle mockups and displays admin-configured retail pricing. The Admin Library Module offers a modular, multi-tenant interface.
 
+### Admin Interface Architecture
+- **Shared components** in `client/src/components/admin/`: `AdminSectionTabs` (horizontal scrollable tab bar), `AdminSectionCard` (card wrapper with title/icon/actions), `StickyActionBar` (fixed bottom bar), `PreviewDrawer` (dialog-based preview), `MobileCardList` (card-based list), `AdminBottomNav` (fixed bottom navigation for mobile)
+- **AdminShell** (`client/src/components/AdminShell.tsx`): Shared layout shell with top bar (back, title, actions), optional section tabs, and optional sticky bar. Used by all admin pages.
+- **Mobile-first design**: All touch targets min 44px, section tabs replace wizard flows (users jump freely between sections), card-based layouts for orders/products/stores
+- **Bottom navigation** (mobile only): Products, Collections, Channels, Orders, Store — shown on primary admin pages via `AdminBottomNav`
+- **Admin pages restructured**: `admin-products.tsx` (Builder + Tools tabs), `admin-store-builder.tsx` (Channels + Stores + Library tabs), `admin-store-library.tsx` (AdminShell wrapper), `admin-orders.tsx` (All/Pending/Production/Shipped tabs with stat cards + filters)
+- **CSS classes**: Admin styles use `.qr-admin-*` classes in `client/src/styles/layout.css`. Button pattern: `qr-btn qr-btn--primary qr-btn--touch qr-btn--full`
+
 ### Technical Implementations
 - **Storefront Purchase Path**: Complete buy flow from store listing → product detail page (`/shop/product/:linkId`) → add-to-cart → checkout. Backend `GET /store/product/:linkId` returns full product detail with calculated price. `POST /store/product/:linkId/add-to-cart` resolves canonical productId and price server-side before writing to cart. Store listings include computed prices. Both guest (localStorage) and authenticated (server) cart paths supported.
 - **Pricing System**: Supports complex, configurable pricing structures including markups and additional costs.

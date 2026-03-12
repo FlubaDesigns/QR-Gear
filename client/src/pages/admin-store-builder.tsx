@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Store, Package, DollarSign, QrCode, Layers, Image, ChevronDown, ChevronUp, Check, Save, Loader2, Plus, Trash2, Users, X } from "lucide-react";
+import { Store, Package, Check, Save, Loader2, Plus, Trash2, Users, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +14,20 @@ import { ProductsModule } from "@/features/adminProducts/builder/modules/Product
 import { useProductsContext } from "@/features/adminProducts/ProductsContext";
 import AdminShell from "@/components/AdminShell";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import type { AdminTab } from "@/components/admin/AdminSectionTabs";
+import AdminSectionCard from "@/components/admin/AdminSectionCard";
+import AdminBottomNav from "@/components/admin/AdminBottomNav";
 
 interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
 interface ProductBlueprint { id: number; title: string; }
 interface BlueprintDetails { id: string; colors: Array<{ name: string; hex?: string }>; sizes: string[]; }
 interface BareProduct { blueprintId: number; title: string; colors: string[]; sizes: string[]; addedAt: string; imageUrl?: string; }
+
+const storeTabs: AdminTab[] = [
+  { id: "channels", label: "Channels", icon: Store },
+  { id: "stores", label: "Stores", icon: Users },
+  { id: "library", label: "Library", icon: Package },
+];
 
 function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { store: StoreData; onClose: () => void; onProductAdded: (product: BareProduct) => void }) {
   const { toast } = useToast();
@@ -63,24 +71,24 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium text-lg">Add Products to: {store.name}</h3>
-        <Button size="icon" variant="ghost" onClick={onClose}><X className="h-4 w-4" /></Button>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-medium text-base truncate">Add Products to: {store.name}</h3>
+        <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-close-fulfillment"><X className="h-4 w-4" /></Button>
       </div>
 
-{/* Simple provider toggle */}
-      <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg">
+      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg flex-wrap">
         <span className="text-sm text-muted-foreground">Provider:</span>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {providers.filter(p => p.role === "fulfillment").map(p => (
             <button
               key={p.id}
               onClick={() => setSelectedProviders([p.id])}
-              className={`px-3 py-1.5 rounded text-sm transition-all ${
+              className={`px-3 py-1.5 rounded text-sm transition-all min-h-[44px] ${
                 selectedProviders.includes(p.id) 
                   ? "bg-primary text-primary-foreground" 
                   : "bg-muted hover:bg-muted/80"
               }`}
+              data-testid={`provider-${p.id}`}
             >
               {p.name}
             </button>
@@ -96,18 +104,18 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
             {state.selectedProduct.imageUrl && (
               <img src={state.selectedProduct.imageUrl} alt="" className="w-16 h-16 object-cover rounded" />
             )}
-            <div>
-              <p className="font-medium">{state.selectedProduct.title}</p>
-              <p className="text-sm text-muted-foreground">{state.selectedProduct.brand}</p>
+            <div className="min-w-0">
+              <p className="font-medium truncate">{state.selectedProduct.title}</p>
+              <p className="text-sm text-muted-foreground truncate">{state.selectedProduct.brand}</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <p className="text-sm font-medium">Colors ({selectedColors.size})</p>
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set())}>None</Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedColors(new Set())}>None</Button>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -115,20 +123,21 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
                 <button
                   key={c.name}
                   onClick={() => toggleColor(c.name)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
+                  className={`w-11 h-11 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
                   style={{ backgroundColor: c.hex || "#ccc" }}
                   title={c.name}
+                  data-testid={`color-inner-${c.name}`}
                 />
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <p className="text-sm font-medium">Sizes ({selectedSizes.size})</p>
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set())}>None</Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedSizes(new Set())}>None</Button>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -136,7 +145,8 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
                 <button
                   key={size}
                   onClick={() => toggleSize(size)}
-                  className={`px-3 py-1 rounded border text-sm transition-all ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
+                  className={`px-3 py-2 rounded border text-sm transition-all min-h-[44px] ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
+                  data-testid={`size-inner-${size}`}
                 >
                   {size}
                 </button>
@@ -148,6 +158,7 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
             className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
             onClick={handleAdd}
             disabled={selectedColors.size === 0 || selectedSizes.size === 0}
+            data-testid="button-add-to-store"
           >
             <Plus className="h-5 w-5" />
             Add to Store
@@ -206,29 +217,29 @@ function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose
   return (
     <ProductsProvider>
       <BuilderProvider>
-        <div className="glass-card space-y-4">
+        <AdminSectionCard title={`Products in ${store.name}`} icon={Package}>
           <BareProductsFulfillmentInner store={store} onClose={onClose} onProductAdded={handleProductAdded} />
           
           {addedProducts.length > 0 && (
-            <div className="border-t pt-4 space-y-2">
+            <div className="border-t pt-4 mt-4 space-y-2">
               <p className="text-sm font-medium">In Store ({addedProducts.length})</p>
               {addedProducts.map(p => (
-                <div key={p.blueprintId} className="flex items-center justify-between p-2 rounded bg-green-500/10 border">
-                  <div className="flex items-center gap-2">
-                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 object-cover rounded" />}
-                    <div className="text-sm">
-                      <p className="font-medium">{p.title}</p>
+                <div key={p.blueprintId} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-green-500/10 border">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 object-cover rounded flex-shrink-0" />}
+                    <div className="text-sm min-w-0">
+                      <p className="font-medium truncate">{p.title}</p>
                       <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)}>
+                  <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </AdminSectionCard>
       </BuilderProvider>
     </ProductsProvider>
   );
@@ -327,105 +338,105 @@ function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () =
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-accent/5 space-y-4" onKeyDown={handleKeyDown}>
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium">Add Products to: {store.name}</h3>
-        <button className="text-sm text-muted-foreground hover:text-foreground" onClick={onClose} data-testid="btn-close-picker">Close</button>
-      </div>
-
-      <Select value={selectedBlueprint?.toString() || ""} onValueChange={v => setSelectedBlueprint(parseInt(v))}>
-        <SelectTrigger data-testid="select-blueprint"><SelectValue placeholder="Select a product..." /></SelectTrigger>
-        <SelectContent>
-          {blueprints.map(bp => (
-            <SelectItem key={bp.id} value={bp.id.toString()}>{bp.title}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {selectedBlueprint && loadingDetails && <p className="text-sm text-muted-foreground">Loading options...</p>}
-
-      {selectedBlueprint && details && (
-        <>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Colors ({selectedColors.size})</p>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedColors(new Set())}>None</Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {details.colors.map(c => (
-                <button
-                  key={c.name}
-                  onClick={() => toggleColor(c.name)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
-                  style={{ backgroundColor: c.hex || "#ccc" }}
-                  title={c.name}
-                  data-testid={`color-${c.name}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Sizes ({selectedSizes.size})</p>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
-                <Button size="sm" variant="ghost" className="text-xs h-6 px-2" onClick={() => setSelectedSizes(new Set())}>None</Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {details.sizes.map(size => (
-                <button
-                  key={size}
-                  onClick={() => toggleSize(size)}
-                  className={`px-3 py-1 rounded border text-sm transition-all ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
-                  data-testid={`size-${size}`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button 
-            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
-            onClick={handleAdd}
-            disabled={selectedColors.size === 0 || selectedSizes.size === 0 || saveMutation.isPending}
-            data-testid="btn-add-product"
-          >
-            {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-            Add to Store
-          </button>
-        </>
-      )}
-
-      {addedProducts.length > 0 && (
-        <div className="border-t pt-4 space-y-2">
-          <p className="text-sm font-medium">In Store ({addedProducts.length})</p>
-          {addedProducts.map(p => (
-            <div key={p.blueprintId} className="flex items-center justify-between p-2 rounded bg-green-500/10 border">
-              <div className="text-sm">
-                <p className="font-medium">{p.title}</p>
-                <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
-              </div>
-              <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)} data-testid={`btn-remove-${p.blueprintId}`}>
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-          ))}
+    <AdminSectionCard title={`Add Products: ${store.name}`} icon={Package}>
+      <div className="space-y-4" onKeyDown={handleKeyDown}>
+        <div className="flex items-center justify-end">
+          <Button variant="ghost" size="sm" onClick={onClose} data-testid="button-close-picker">Close</Button>
         </div>
-      )}
-    </div>
+
+        <Select value={selectedBlueprint?.toString() || ""} onValueChange={v => setSelectedBlueprint(parseInt(v))}>
+          <SelectTrigger className="min-h-[48px]" data-testid="select-blueprint"><SelectValue placeholder="Select a product..." /></SelectTrigger>
+          <SelectContent>
+            {blueprints.map(bp => (
+              <SelectItem key={bp.id} value={bp.id.toString()}>{bp.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedBlueprint && loadingDetails && <p className="text-sm text-muted-foreground">Loading options...</p>}
+
+        {selectedBlueprint && details && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-sm font-medium">Colors ({selectedColors.size})</p>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedColors(new Set())}>None</Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {details.colors.map(c => (
+                  <button
+                    key={c.name}
+                    onClick={() => toggleColor(c.name)}
+                    className={`w-11 h-11 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
+                    style={{ backgroundColor: c.hex || "#ccc" }}
+                    title={c.name}
+                    data-testid={`color-${c.name}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-sm font-medium">Sizes ({selectedSizes.size})</p>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedSizes(new Set())}>None</Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {details.sizes.map(size => (
+                  <button
+                    key={size}
+                    onClick={() => toggleSize(size)}
+                    className={`px-3 py-2 rounded border text-sm transition-all min-h-[44px] ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
+                    data-testid={`size-${size}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button 
+              className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
+              onClick={handleAdd}
+              disabled={selectedColors.size === 0 || selectedSizes.size === 0 || saveMutation.isPending}
+              data-testid="button-add-product"
+            >
+              {saveMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+              Add to Store
+            </button>
+          </>
+        )}
+
+        {addedProducts.length > 0 && (
+          <div className="border-t pt-4 space-y-2">
+            <p className="text-sm font-medium">In Store ({addedProducts.length})</p>
+            {addedProducts.map(p => (
+              <div key={p.blueprintId} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-green-500/10 border">
+                <div className="text-sm min-w-0">
+                  <p className="font-medium truncate">{p.title}</p>
+                  <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </AdminSectionCard>
   );
 }
 
 function StoreManager() {
   const { toast } = useToast();
   const { apiBase, getAuthHeaders } = useAdminAuth();
-  const [expanded, setExpanded] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreType, setNewStoreType] = useState<string>("member");
@@ -477,129 +488,130 @@ function StoreManager() {
   const otherStores = stores.filter(s => s.roleType !== "member");
 
   return (
-    <div className="glass-card mt-4">
-      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between text-left" data-testid="btn-toggle-stores">
-        <span className="glass-title text-base flex items-center gap-2"><Users className="h-4 w-4 text-purple-400" /> Manage Stores</span>
-        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      {expanded && (
-        <div className="mt-4 space-y-4">
-          {!showCreateForm ? (
-            <button 
-              className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" 
-              onClick={() => setShowCreateForm(true)}
-              data-testid="btn-show-create-form"
-            >
-              <Plus className="h-5 w-5" />
-              Add New Store
-            </button>
-          ) : (
-            <div className="p-4 border rounded-lg bg-accent/5 space-y-3">
-              <h3 className="font-medium text-sm">Create New Store</h3>
-              <Input 
-                placeholder="Store name" 
-                value={newStoreName} 
-                onChange={e => setNewStoreName(e.target.value)} 
-                autoFocus
-                data-testid="input-store-name" 
-              />
-              <Select value={newStoreType} onValueChange={setNewStoreType}>
-                <SelectTrigger data-testid="select-store-type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member Store</SelectItem>
-                  <SelectItem value="internal">Internal Store</SelectItem>
-                  <SelectItem value="external">External Store</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex gap-2">
-                <button 
-                  className="qr-btn qr-btn--primary qr-btn--touch flex-1" 
-                  onClick={() => createMutation.mutate()} 
-                  disabled={!newStoreName.trim() || createMutation.isPending} 
-                  data-testid="btn-create-store"
-                >
-                  {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-                  Save Store
-                </button>
-                <button 
-                  className="qr-btn qr-btn--outline qr-btn--touch" 
-                  onClick={() => { setShowCreateForm(false); setNewStoreName(""); }}
-                  data-testid="btn-cancel-create"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {editingStore && (
-            <BareProductsFulfillment store={editingStore} onClose={() => setEditingStore(null)} />
-          )}
-
-          {isLoading ? <p className="text-sm text-muted-foreground">Loading stores...</p> : (
-            <div className="space-y-3">
-              {memberStores.length > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Member Stores ({memberStores.length})</p>
-                  <div className="space-y-2">
-                    {memberStores.map(s => (
-                      <div key={s.id} className="p-3 rounded border bg-green-500/10 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{s.name}</span>
-                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                        <button 
-                          className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
-                          onClick={() => setEditingStore(s)}
-                          data-testid={`btn-add-products-${s.id}`}
-                        >
-                          <Package className="h-4 w-4" />
-                          Add Products
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {otherStores.length > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Other Stores ({otherStores.length})</p>
-                  <div className="space-y-2">
-                    {otherStores.map(s => (
-                      <div key={s.id} className="p-3 rounded border space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
-                          <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`btn-delete-${s.id}`}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                        <button 
-                          className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
-                          onClick={() => setEditingStore(s)}
-                          data-testid={`btn-add-products-${s.id}`}
-                        >
-                          <Package className="h-4 w-4" />
-                          Add Products
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {stores.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No stores created yet</p>}
-            </div>
-          )}
-        </div>
+    <div className="space-y-4">
+      {editingStore && (
+        <BareProductsFulfillment store={editingStore} onClose={() => setEditingStore(null)} />
       )}
+
+      <AdminSectionCard
+        title="Manage Stores"
+        icon={Users}
+        actions={
+          !showCreateForm ? (
+            <Button size="sm" onClick={() => setShowCreateForm(true)} data-testid="button-show-create">
+              <Plus className="h-4 w-4 mr-1" /> New Store
+            </Button>
+          ) : undefined
+        }
+      >
+        {showCreateForm && (
+          <div className="p-4 border rounded-lg bg-accent/5 space-y-3 mb-4">
+            <h3 className="font-medium text-sm">Create New Store</h3>
+            <Input 
+              placeholder="Store name" 
+              value={newStoreName} 
+              onChange={e => setNewStoreName(e.target.value)} 
+              autoFocus
+              className="min-h-[48px]"
+              data-testid="input-store-name" 
+            />
+            <Select value={newStoreType} onValueChange={setNewStoreType}>
+              <SelectTrigger className="min-h-[48px]" data-testid="select-store-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="member">Member Store</SelectItem>
+                <SelectItem value="internal">Internal Store</SelectItem>
+                <SelectItem value="external">External Store</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <button 
+                className="qr-btn qr-btn--primary qr-btn--touch flex-1" 
+                onClick={() => createMutation.mutate()} 
+                disabled={!newStoreName.trim() || createMutation.isPending} 
+                data-testid="button-create-store"
+              >
+                {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
+                Save Store
+              </button>
+              <button 
+                className="qr-btn qr-btn--outline qr-btn--touch" 
+                onClick={() => { setShowCreateForm(false); setNewStoreName(""); }}
+                data-testid="button-cancel-create"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {memberStores.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Member Stores ({memberStores.length})</p>
+                <div className="space-y-2">
+                  {memberStores.map(s => (
+                    <div key={s.id} className="p-3 rounded-lg border bg-green-500/10 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium truncate">{s.name}</span>
+                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <button 
+                        className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
+                        onClick={() => setEditingStore(s)}
+                        data-testid={`button-add-products-${s.id}`}
+                      >
+                        <Package className="h-4 w-4" />
+                        Add Products
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {otherStores.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Other Stores ({otherStores.length})</p>
+                <div className="space-y-2">
+                  {otherStores.map(s => (
+                    <div key={s.id} className="p-3 rounded-lg border space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm truncate">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
+                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                      <button 
+                        className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
+                        onClick={() => setEditingStore(s)}
+                        data-testid={`button-add-products-${s.id}`}
+                      >
+                        <Package className="h-4 w-4" />
+                        Add Products
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {stores.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">No stores created yet</p>
+            )}
+          </div>
+        )}
+      </AdminSectionCard>
     </div>
   );
 }
 
 function MemberProductLibrary() {
   const { toast } = useToast();
-  const [expanded, setExpanded] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -643,78 +655,58 @@ function MemberProductLibrary() {
   };
 
   return (
-    <div className="glass-card mt-4">
-      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between text-left" data-testid="btn-toggle-member-library">
-        <span className="glass-title text-base flex items-center gap-2"><Package className="h-4 w-4 text-green-400" /> Member Product Library</span>
-        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-      {expanded && (
-        <div className="mt-4 space-y-3">
-          <p className="text-sm text-muted-foreground">Select products all members can use in their sandboxes:</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-            {blueprints.map(bp => (
-              <label key={bp.id} className="flex items-center gap-2 p-2 rounded border cursor-pointer hover:bg-accent/10">
-                <Checkbox checked={selectedProducts.has(bp.id)} onCheckedChange={() => toggleProduct(bp.id)} />
-                <span className="text-xs truncate">{bp.title}</span>
-              </label>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!hasChanges || saveMutation.isPending} data-testid="btn-save-member-library">
-              {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save ({selectedProducts.size})
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set(blueprints.map(b => b.id))); setHasChanges(true); }} data-testid="btn-select-all">Select All</Button>
-            <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set()); setHasChanges(true); }} data-testid="btn-clear-all">Clear</Button>
-          </div>
+    <AdminSectionCard
+      title="Member Product Library"
+      icon={Package}
+      description="Select products all members can use in their sandboxes"
+      actions={
+        <div className="flex gap-1 flex-wrap">
+          <Button size="sm" onClick={() => saveMutation.mutate()} disabled={!hasChanges || saveMutation.isPending} data-testid="button-save-member-library">
+            {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save ({selectedProducts.size})
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set(blueprints.map(b => b.id))); setHasChanges(true); }} data-testid="button-select-all">All</Button>
+          <Button size="sm" variant="outline" onClick={() => { setSelectedProducts(new Set()); setHasChanges(true); }} data-testid="button-clear-all">Clear</Button>
         </div>
-      )}
-    </div>
+      }
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto">
+        {blueprints.map(bp => (
+          <label key={bp.id} className="flex items-center gap-2 p-3 rounded-lg border cursor-pointer hover-elevate min-h-[48px]" data-testid={`label-product-${bp.id}`}>
+            <Checkbox checked={selectedProducts.has(bp.id)} onCheckedChange={() => toggleProduct(bp.id)} />
+            <span className="text-sm truncate">{bp.title}</span>
+          </label>
+        ))}
+      </div>
+    </AdminSectionCard>
   );
 }
 
 export default function AdminStoreBuilderPage() {
-  return (
-    <AdminShell
-      title="Store Builder"
-      icon={Store}
-    >
-      <div className="flex flex-col gap-3 mb-6">
-        <Link href="/admin/products" className="block">
-          <button className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full" data-testid="link-products">
-            <Package className="h-5 w-5" />
-            Products
-          </button>
-        </Link>
-        <Link href="/admin/pricing" className="block">
-          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-pricing">
-            <DollarSign className="h-5 w-5" />
-            Pricing
-          </button>
-        </Link>
-        <Link href="/admin/library?tab=graphics" className="block">
-          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-graphics-library">
-            <QrCode className="h-5 w-5" />
-            Graphics
-          </button>
-        </Link>
-        <Link href="/admin/library?tab=templates" className="block">
-          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-templates-library">
-            <Layers className="h-5 w-5" />
-            Templates
-          </button>
-        </Link>
-        <Link href="/admin/library" className="block">
-          <button className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full" data-testid="link-full-library">
-            <Image className="h-5 w-5" />
-            Library
-          </button>
-        </Link>
-      </div>
+  const [activeTab, setActiveTab] = useState("channels");
 
-      <StoreManager />
-      <MemberProductLibrary />
-      <StoreBuilderHarness />
-    </AdminShell>
+  return (
+    <>
+      <AdminShell
+        title="Store Builder"
+        icon={Store}
+        tabs={storeTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      >
+        {activeTab === "channels" && (
+          <StoreBuilderHarness />
+        )}
+
+        {activeTab === "stores" && (
+          <StoreManager />
+        )}
+
+        {activeTab === "library" && (
+          <MemberProductLibrary />
+        )}
+      </AdminShell>
+      <AdminBottomNav />
+    </>
   );
 }

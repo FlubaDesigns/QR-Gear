@@ -3,10 +3,9 @@ import AdminShell from "@/components/AdminShell";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select, 
   SelectContent, 
@@ -19,7 +18,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -33,12 +31,12 @@ import {
   Search, 
   RefreshCw,
   ExternalLink,
-  DollarSign,
   ShoppingBag,
-  AlertTriangle,
   Filter
 } from "lucide-react";
 import type { OrderUnified } from "@shared/schema";
+import type { AdminTab } from "@/components/admin/AdminSectionTabs";
+import AdminBottomNav from "@/components/admin/AdminBottomNav";
 
 type OrderStatus = "pending" | "routed" | "in_production" | "shipped" | "delivered" | "cancelled";
 
@@ -88,6 +86,13 @@ const PROVIDER_CONFIG: Record<string, { label: string; color: string }> = {
   printful: { label: "Printful", color: "bg-blue-500/10 text-blue-600" },
   apliiq: { label: "Apliiq", color: "bg-purple-500/10 text-purple-600" },
 };
+
+const orderTabs: AdminTab[] = [
+  { id: "all", label: "All", icon: ShoppingBag },
+  { id: "pending", label: "Pending", icon: Clock },
+  { id: "production", label: "Production", icon: Package },
+  { id: "shipped", label: "Shipped", icon: Truck },
+];
 
 function StatusBadge({ status }: { status: OrderStatus }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -168,7 +173,7 @@ function OrderCard({ order, onViewDetails }: { order: OrderUnified; onViewDetail
         {order.trackingNumber && (
           <div className="mt-3 pt-3 border-t flex items-center gap-2 text-sm">
             <Truck className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">{order.trackingNumber}</span>
+            <span className="text-muted-foreground truncate">{order.trackingNumber}</span>
           </div>
         )}
       </CardContent>
@@ -208,8 +213,8 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-lg w-[95vw] max-h-[85vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-4 pb-2 border-b">
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Order #{order.externalOrderId || order.id.substring(0, 8)}</span>
             <StatusBadge status={order.status as OrderStatus} />
@@ -217,7 +222,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
         </DialogHeader>
 
         <ScrollArea className="flex-1">
-          <div className="space-y-6 pr-4">
+          <div className="space-y-4 p-4">
             <div className="flex flex-wrap gap-2">
               <ChannelBadge channel={order.sourceChannel} />
               <ProviderBadge provider={order.routedProvider} />
@@ -231,7 +236,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
             <Separator />
 
             <div>
-              <h4 className="font-medium mb-2">Customer</h4>
+              <h4 className="font-medium text-sm mb-2">Customer</h4>
               <div className="text-sm space-y-1">
                 <p className="font-medium">{order.customerName || "Guest"}</p>
                 <p className="text-muted-foreground">{order.customerEmail || "No email"}</p>
@@ -240,7 +245,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
 
             {shippingAddress && (
               <div>
-                <h4 className="font-medium mb-2">Shipping Address</h4>
+                <h4 className="font-medium text-sm mb-2">Shipping Address</h4>
                 <div className="text-sm text-muted-foreground">
                   <p>{shippingAddress.name}</p>
                   <p>{shippingAddress.address1}</p>
@@ -254,15 +259,15 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
             <Separator />
 
             <div>
-              <h4 className="font-medium mb-2">Items</h4>
+              <h4 className="font-medium text-sm mb-2">Items</h4>
               <div className="space-y-2">
                 {items.map((item, i) => (
-                  <div key={i} className="flex justify-between items-center text-sm p-2 rounded bg-muted/50">
-                    <div>
-                      <span className="font-medium">{item.productTitle || item.masterProductId}</span>
-                      <span className="text-muted-foreground ml-2">({item.variantSku})</span>
+                  <div key={i} className="flex justify-between items-center text-sm p-3 rounded-lg bg-muted/50">
+                    <div className="min-w-0 mr-2">
+                      <span className="font-medium truncate block">{item.productTitle || item.masterProductId}</span>
+                      <span className="text-muted-foreground text-xs">{item.variantSku}</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       <span>x{item.quantity}</span>
                       <span className="ml-2 font-medium">${item.price.toFixed(2)}</span>
                     </div>
@@ -274,7 +279,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
             <Separator />
 
             <div>
-              <h4 className="font-medium mb-2">Order Total</h4>
+              <h4 className="font-medium text-sm mb-2">Order Total</h4>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
@@ -316,7 +321,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
               <>
                 <Separator />
                 <div>
-                  <h4 className="font-medium mb-2">Tracking</h4>
+                  <h4 className="font-medium text-sm mb-2">Tracking</h4>
                   <div className="flex items-center gap-2">
                     <Truck className="w-4 h-4" />
                     <span className="font-mono text-sm">{order.trackingNumber}</span>
@@ -339,17 +344,17 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
               <>
                 <Separator />
                 <div>
-                  <h4 className="font-medium mb-2">Status History</h4>
+                  <h4 className="font-medium text-sm mb-2">Status History</h4>
                   <div className="space-y-2">
                     {statusHistory.map((entry, i) => (
                       <div key={i} className="flex items-start gap-2 text-sm">
-                        <div className="w-2 h-2 rounded-full bg-primary mt-2" />
-                        <div>
+                        <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0" />
+                        <div className="min-w-0">
                           <span className="font-medium">{entry.status}</span>
-                          <span className="text-muted-foreground ml-2">
+                          <span className="text-muted-foreground ml-2 text-xs">
                             {new Date(entry.timestamp).toLocaleString()}
                           </span>
-                          {entry.note && <p className="text-muted-foreground">{entry.note}</p>}
+                          {entry.note && <p className="text-muted-foreground text-xs">{entry.note}</p>}
                         </div>
                       </div>
                     ))}
@@ -361,27 +366,25 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
             <Separator />
 
             <div>
-              <h4 className="font-medium mb-2">Actions</h4>
-              <div className="flex flex-wrap gap-2">
-                <Select
-                  onValueChange={(status) => {
-                    updateStatusMutation.mutate({ orderId: order.id, status });
-                  }}
-                  disabled={updateStatusMutation.isPending}
-                >
-                  <SelectTrigger className="min-h-12 w-[200px]" data-testid="select-status">
-                    <SelectValue placeholder="Update Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="routed">Routed</SelectItem>
-                    <SelectItem value="in_production">In Production</SelectItem>
-                    <SelectItem value="shipped">Shipped</SelectItem>
-                    <SelectItem value="delivered">Delivered</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <h4 className="font-medium text-sm mb-2">Actions</h4>
+              <Select
+                onValueChange={(status) => {
+                  updateStatusMutation.mutate({ orderId: order.id, status });
+                }}
+                disabled={updateStatusMutation.isPending}
+              >
+                <SelectTrigger className="min-h-[48px] w-full" data-testid="select-status">
+                  <SelectValue placeholder="Update Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="routed">Routed</SelectItem>
+                  <SelectItem value="in_production">In Production</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </ScrollArea>
@@ -390,11 +393,33 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
   );
 }
 
+function OrderList({ orders, onViewDetails }: { orders: OrderUnified[]; onViewDetails: (order: OrderUnified) => void }) {
+  if (orders.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <ShoppingBag className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+        <p className="text-sm text-muted-foreground">No orders found</p>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {orders.map((order) => (
+        <OrderCard 
+          key={order.id} 
+          order={order} 
+          onViewDetails={() => onViewDetails(order)}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
-  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<OrderUnified | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -417,11 +442,11 @@ export default function AdminOrdersPage() {
     return true;
   });
 
-  const ordersByStatus = {
+  const ordersByTab: Record<string, OrderUnified[]> = {
+    all: filteredOrders,
     pending: filteredOrders.filter(o => o.status === "pending"),
-    in_production: filteredOrders.filter(o => o.status === "routed" || o.status === "in_production"),
+    production: filteredOrders.filter(o => o.status === "routed" || o.status === "in_production"),
     shipped: filteredOrders.filter(o => o.status === "shipped"),
-    completed: filteredOrders.filter(o => o.status === "delivered" || o.status === "cancelled"),
   };
 
   const stats = {
@@ -433,80 +458,89 @@ export default function AdminOrdersPage() {
     profit: orders.reduce((acc, o) => acc + (o.profit ? parseFloat(o.profit) : 0), 0),
   };
 
+  const handleViewDetails = (order: OrderUnified) => {
+    setSelectedOrder(order);
+    setDetailsOpen(true);
+  };
+
   return (
-    <AdminShell
-      title="Orders"
-      subtitle="Manage all orders"
-      icon={Truck}
-      backHref="/admin/dashboard"
-      actions={
-        <Button 
-          variant="outline" 
-          onClick={() => refetch()}
-          disabled={isLoading}
-          className="qr-touch-48"
-          data-testid="button-refresh"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""} sm:mr-2`} />
-          <span className="hidden sm:inline">Refresh</span>
-        </Button>
-      }
-    >
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <>
+      <AdminShell
+        title="Orders"
+        subtitle={`${stats.total} total`}
+        icon={Truck}
+        backHref="/admin/dashboard"
+        tabs={orderTabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        actions={
+          <Button 
+            variant="outline" 
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="qr-touch-48"
+            data-testid="button-refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""} sm:mr-2`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
           <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold" data-testid="text-stat-total">{stats.total}</div>
-              <div className="text-xs text-muted-foreground">Total Orders</div>
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold" data-testid="text-stat-total">{stats.total}</div>
+              <div className="text-[10px] text-muted-foreground">Total</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-500">{stats.pending}</div>
-              <div className="text-xs text-muted-foreground">Pending</div>
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
+              <div className="text-[10px] text-muted-foreground">Pending</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-purple-500">{stats.inProduction}</div>
-              <div className="text-xs text-muted-foreground">In Production</div>
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold text-purple-500">{stats.inProduction}</div>
+              <div className="text-[10px] text-muted-foreground">Production</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-cyan-500">{stats.shipped}</div>
-              <div className="text-xs text-muted-foreground">Shipped</div>
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold text-cyan-500">{stats.shipped}</div>
+              <div className="text-[10px] text-muted-foreground">Shipped</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold text-green-500">${stats.revenue.toFixed(0)}</div>
-              <div className="text-xs text-muted-foreground">Revenue</div>
+            <CardContent className="p-3 text-center">
+              <div className="text-xl font-bold text-green-500">${stats.revenue.toFixed(0)}</div>
+              <div className="text-[10px] text-muted-foreground">Revenue</div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 text-center">
-              <div className={`text-2xl font-bold ${stats.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
+            <CardContent className="p-3 text-center">
+              <div className={`text-xl font-bold ${stats.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
                 ${stats.profit.toFixed(0)}
               </div>
-              <div className="text-xs text-muted-foreground">Profit</div>
+              <div className="text-[10px] text-muted-foreground">Profit</div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="flex flex-wrap gap-4">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search orders..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="min-h-12 pl-10"
+              className="min-h-[48px] pl-10"
               data-testid="input-search"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="min-h-12 w-[160px]" data-testid="select-status-filter">
-              <Filter className="w-4 h-4 mr-2" />
+            <SelectTrigger className="min-h-[48px] w-[140px]" data-testid="select-status-filter">
+              <Filter className="w-4 h-4 mr-1" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -520,7 +554,7 @@ export default function AdminOrdersPage() {
             </SelectContent>
           </Select>
           <Select value={channelFilter} onValueChange={setChannelFilter}>
-            <SelectTrigger className="min-h-12 w-[160px]" data-testid="select-channel-filter">
+            <SelectTrigger className="min-h-[48px] w-[140px]" data-testid="select-channel-filter">
               <SelectValue placeholder="Channel" />
             </SelectTrigger>
             <SelectContent>
@@ -533,104 +567,18 @@ export default function AdminOrdersPage() {
           </Select>
         </div>
 
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 h-auto">
-            <TabsTrigger value="all" className="!min-h-[48px] gap-2 data-[state=active]:bg-accent">
-              All
-              <Badge variant="secondary" className="ml-1">{filteredOrders.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="!min-h-[48px] gap-2 data-[state=active]:bg-accent">
-              <Clock className="w-4 h-4" />
-              Pending
-              <Badge variant="secondary" className="ml-1">{ordersByStatus.pending.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="production" className="!min-h-[48px] gap-2 data-[state=active]:bg-accent">
-              <Package className="w-4 h-4" />
-              Production
-              <Badge variant="secondary" className="ml-1">{ordersByStatus.in_production.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="shipped" className="!min-h-[48px] gap-2 data-[state=active]:bg-accent">
-              <Truck className="w-4 h-4" />
-              Shipped
-              <Badge variant="secondary" className="ml-1">{ordersByStatus.shipped.length}</Badge>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="all" className="mt-4">
-            {filteredOrders.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <ShoppingBag className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No orders found</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredOrders.map((order) => (
-                  <OrderCard 
-                    key={order.id} 
-                    order={order} 
-                    onViewDetails={() => {
-                      setSelectedOrder(order);
-                      setDetailsOpen(true);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="pending" className="mt-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ordersByStatus.pending.map((order) => (
-                <OrderCard 
-                  key={order.id} 
-                  order={order}
-                  onViewDetails={() => {
-                    setSelectedOrder(order);
-                    setDetailsOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="production" className="mt-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ordersByStatus.in_production.map((order) => (
-                <OrderCard 
-                  key={order.id} 
-                  order={order}
-                  onViewDetails={() => {
-                    setSelectedOrder(order);
-                    setDetailsOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="shipped" className="mt-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {ordersByStatus.shipped.map((order) => (
-                <OrderCard 
-                  key={order.id} 
-                  order={order}
-                  onViewDetails={() => {
-                    setSelectedOrder(order);
-                    setDetailsOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          </TabsContent>
-        </Tabs>
+        <OrderList 
+          orders={ordersByTab[activeTab] || []} 
+          onViewDetails={handleViewDetails} 
+        />
 
         <OrderDetailsDialog 
           order={selectedOrder}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
         />
-    </AdminShell>
+      </AdminShell>
+      <AdminBottomNav />
+    </>
   );
 }
