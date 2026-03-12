@@ -49,7 +49,11 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **QR Artwork Selection**: Automatically selects black or white QR codes based on background luminance.
 - **Product Catalogs**: Synchronizes Printify and Printful catalogs locally and with Firestore, performing smart diff-based updates.
 - **Catalog Management System**: Everything runs through catalogs. Admin creates named catalogs (curated subsets of blanks), assigns them to 5 sections (Member, Public, External, Marketplace, Platform), and controls which blanks are available where. Old "allowed products" system replaced by catalog assignments. Default catalog auto-loads on page open (stored in `systemSettings/catalog-defaults`). Managed from the Blanks page (`admin-blanks.tsx`). Data stored in `catalogs`, `systemSettings/catalog-assignments`, and `systemSettings/catalog-defaults` Firestore collections. Features: duplicate catalog, bulk copy blanks between catalogs, set default catalog, thumbnail viewport strip showing catalog contents. The `GET /members/allowed-products` endpoint defaults to `member` section catalog when no `?section=` param provided. `GET /admin/catalog-health` provides diagnostic overview. Product queries use 5-minute staleTime caching. Product images use lazy loading.
-- **Cascading Product Descriptions**: Three-level description cascade: Printify original → Admin override (saved in `blankDescriptions` on catalog doc) → Member customization (saved in packet's `boundProduct.customDescription`). Backend endpoints (`/members/allowed-products`, `/members/tier-products`) return `description`, `originalDescription`, and `adminDescription` fields. Admin blanks editor pre-fills with Printify original and offers "Reset to Printify original" button. Member wizard lightboxes pre-fill with the cascading value and persist `customDescription` to the packet. **Owners see descriptions read-only — only admin and members can edit.** Descriptions display on product cards in all wizards (tier and flat list).
+- **Cascading Product Descriptions (Canonical)**: Three-level description cascade using canonical field names:
+  1. `providerDescription` — Exact source from Printify/Printful (formerly `originalDescription`)
+  2. `adminCatalogDescription` — Admin override saved in `catalog.blankDescriptions[canonicalBlankKey]` (formerly `adminDescription`)
+  3. `memberPacketDescription` — Member-only override saved in packet's `boundProduct` (formerly `customDescription`)
+  Resolution: `memberPacketDescription ?? adminCatalogDescription ?? providerDescription ?? fallback`. Implemented in `shared/descriptionLayers.ts` via `resolveDescription()` and `resolvePublicDescription()`. The normalizer `shared/wizardProduct.ts:normalizeWizardProduct()` accepts old field names as INPUT for Firestore backward compat but outputs canonical names only. **No client code uses old field names** — `originalDescription`, `adminDescription`, and `customDescription` are fully purged from `client/src/`. Backend endpoints still return both old and new names for transition safety. **Owners see descriptions read-only — only admin and members can edit.** Descriptions display on product cards in all wizards (tier and flat list).
 - **Good/Better/Best Tier System**: Products in catalogs can be tagged with tiers (Good, Better, Best). Stored as `blankTiers: { blankId: "good"|"better"|"best" }` on catalog docs. Admin tags blanks via tier buttons on product cards in admin Blanks page. Tier display config (`tierConfig`) lets admin customize display names, descriptions, and taglines per tier. Backend endpoints: `PUT /admin/catalogs/:id/blank-tier`, `PUT /admin/catalogs/:id/tier-config`, `GET /members/tier-products?section=member` (returns products grouped by category and tier). `TierPickerStep` component (in `ProductSteps.tsx`) replaces `ProductPickerStep` in all wizards — shows Good/Better/Best tier cards when tiers exist, falls back to flat product list when no tiers configured. Colors: Good=blue, Better=amber, Best=emerald. Icons: Good=Star, Better=Award, Best=Crown. Tier badges appear on product cards and catalog thumbnail strip.
 - **Data Storage**: Exclusively uses Firebase/Firestore for all data persistence and Firebase Storage for all file assets.
 - **Admin Library Module**: Provides a modular, tenant-aware interface for managing backgrounds, templates, and images.
@@ -88,6 +92,48 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Unified Admin Authorization**: All admin endpoints use `/api/admin/` with `isAdmin` middleware; public endpoints use `/api/public/` without authentication.
 - **Downloadable Assets**: Stored in the ROOT `downloads/` folder for direct user access.
 - **Fluba Brain Harness**: A universal harness (`client/src/lib/flubaBrainClient.ts`) connects to an AI governance gateway, using a separate Firebase app instance for communication.
+
+## Canonical Architecture — Six Steps (COMPLETE)
+
+All six canonical architecture steps are built, deployed, and adopted. Read `ARCHITECTURE_VIEWER.md` and `ARCHITECTURE_IDENTITY.md` for the full binding canon.
+
+### Step 1: Canonical Blank Identity (`shared/blankKeys.ts`)
+Every product blank has a single canonical key: Printify `"71"`, Printful `"pf:71"`. `getCanonicalBlankKey()` is the only way to derive keys. No raw `blueprintId` reconstruction.
+
+### Step 2: Description Layers (`shared/descriptionLayers.ts`)
+Three canonical field names only: `providerDescription`, `adminCatalogDescription`, `memberPacketDescription`. Old names (`originalDescription`, `adminDescription`, `customDescription`) are **purged from all client code**. The normalizer in `shared/wizardProduct.ts` accepts old names as INPUT for Firestore backward compat. `resolveDescription()` and `resolvePublicDescription()` are the only resolution functions.
+
+### Step 3: Wizard Product Contract (`shared/wizardProduct.ts`)
+`normalizeWizardProduct(input, mode)` is the single normalizer for all product objects flowing through wizards. Outputs `WizardProduct` shape with canonical fields. `wizardProductToPacketBoundProduct()` converts for Firestore save. Already used in `WizardContext.tsx` at packet build time (lines 531, 610).
+
+### Step 4: Wizard Surface Split
+Wizard steps are modular components in `client/src/features/shared/components/wizardSteps/`. Three surfaces: IMAGE (Canvas), VIDEO (Play), DOCUMENT (future). `ProductSteps.tsx` uses canon skins (`WizardProductCardSkin`, `MemberProductDetailSkin`, `ReadOnlyProductDetailSkin`, `TierCardSkin`) and canon views (`ScrollVerticalView`).
+
+### Step 5: Skin System (43 skin files)
+All skins in `client/src/features/shared/components/skins/`. Skins render visible controls only — they do NOT decide business truth, save targets, or permissions. They receive declared handlers and visible state from controllers.
+
+### Step 6: Controller Layer (6 controller hooks)
+- `useAdminBlanksController` — WIRED into `admin-blanks.tsx` (page uses controller for all data/actions)
+- `useWizardController` — Built, provides `normalizeForViewer()`, `resolveProductDescription()`, mode/permission state
+- `useStoreController` — Built, provides normalized `StoreProductItem[]` from `/api/products`
+- `useLibraryController` — Built, provides normalized `AdminLibraryAssetItem[]` with tab-aware type resolution
+- `useMembersLibraryController` — Built, provides member library normalization
+- `usePacketController` — Built, provides packet item normalization
+
+### Controller Adoption Status
+- `admin-blanks.tsx` — FULLY WIRED to `useAdminBlanksController`
+- Store pages (`shop-segment.tsx`, `shop-product.tsx`) — Use their own domain-specific data flows; generic `useStoreController` available but not force-wired (these pages have cart/mockup/segment logic that doesn't fit the generic controller)
+- Library tabs (`GraphicsTab`, `TemplatesTab`, etc.) — Already follow canon pattern (ScrollGridView + domain skins + ModalView) with their own data flows; `useLibraryController` available for generic asset tabs
+- Wizard pages — `WizardContext.tsx` uses `normalizeWizardProduct` directly at packet build time; `useWizardController` available for future viewer-pattern adoption
+
+### CANON RULES FOR FUTURE AGENTS
+1. **NEVER** add `originalDescription`, `adminDescription`, or `customDescription` to client code
+2. **NEVER** create a second viewer system — use SharedViewer with canon views and skins
+3. **NEVER** put business logic in viewers, views, or skins — controllers own authority
+4. **NEVER** invent new view types — compose from the 5 canon views
+5. **ALWAYS** use `canonicalBlankKey` for product identity, never reconstruct from raw IDs
+6. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
+7. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
 
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
