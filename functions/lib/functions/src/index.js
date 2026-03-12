@@ -10082,29 +10082,6 @@ app.get('/members/tier-products', async (req, res) => {
                 }
             });
         }
-        // Fetch rich descriptions from Printify API for blueprints missing them, cache to Firestore
-        if (printifyBlanks.length > 0 && printifyClient.isConfigured) {
-            const missingRichDesc = printifyBlanks.filter((id) => {
-                const bp = productLookup.get(String(id));
-                return bp && !bp.richDescription;
-            });
-            for (const blankId of missingRichDesc) {
-                try {
-                    const numId = parseInt(String(blankId));
-                    const details = await printifyClient.getBlueprintDetails(numId);
-                    if (details && details.description) {
-                        const bp = productLookup.get(String(blankId));
-                        if (bp)
-                            bp.richDescription = details.description;
-                        await db.collection('printify_blueprints').doc(String(numId)).set({ richDescription: details.description }, { merge: true });
-                    }
-                    await new Promise(r => setTimeout(r, 200));
-                }
-                catch (e) {
-                    console.warn(`[tier-products] Failed to fetch richDescription for ${blankId}: ${e.message}`);
-                }
-            }
-        }
         const pricingDoc = await db.collection('testSettings').doc('pricing').get();
         const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
         const markupPercent = pricingSettings?.markupPercent ?? 25;
@@ -14587,5 +14564,5 @@ exports.api = (0, https_1.onRequest)({
 // force deploy 1773126500 - fix tier-products to handle pf: prefixed Printful blanks
 // force deploy 1773480000 - blankDescriptions as cascade base for descriptions
 // force deploy 1773481000 - richDescription from getBlueprintDetails, proper cascade Printify->Admin->Member
-// force deploy 1773482000 - live-fetch richDescription from Printify API in tier-products when missing
+// force deploy 1773483000 - remove runtime Printify fetch from tier-products, rely on SmartSync
 //# sourceMappingURL=index.js.map
