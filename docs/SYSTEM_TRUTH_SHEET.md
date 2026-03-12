@@ -98,6 +98,14 @@ Store → Channel → Collection → Artifact
 
 ---
 
+## Canon Documents
+
+| Document                              | Purpose                                    |
+|---------------------------------------|--------------------------------------------|
+| `docs/CANON_COLLECTION_MOSAIC.md`     | Permanent rule: Collection = grouping, Mosaic = stitching |
+
+---
+
 ## Key Architecture Files
 
 | File                              | Purpose                                    |

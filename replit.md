@@ -140,9 +140,11 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
 6. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
 7. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
 8. **ALWAYS** use `collectionId` — `collectionTag` has been fully removed
-9. **ALWAYS** use domain vocabulary: Store/Channel/Collection/Artifact/Mosaic — not legacy names
-10. **NEVER** store API tokens in plaintext files — use environment variables only
-11. **ALWAYS** deploy to production after every change — this means:
+9. **ALWAYS** use domain vocabulary: Store/Channel/Collection/Artifact/Mosaic — not legacy names (see `docs/CANON_COLLECTION_MOSAIC.md`)
+10. **NEVER** use any grouping mechanism other than `Collection` — no programs, tags, or ad-hoc grouping (Canon Rule 1)
+11. **NEVER** use any stitching mechanism other than `Mosaic` + QR Dynamics (Canon Rule 2)
+12. **NEVER** store API tokens in plaintext files — use environment variables only
+13. **ALWAYS** deploy to production after every change — this means:
     - `npm run build` → `firebase deploy --only hosting`
     - `cd functions && npm run build && cd ..` → `firebase deploy --only functions`
     - Verify homepage returns 200: `curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/`
