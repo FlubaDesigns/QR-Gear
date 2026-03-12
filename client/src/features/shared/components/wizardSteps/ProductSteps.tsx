@@ -163,6 +163,9 @@ export function ProductPickerStep({
             )}
             <div className="flex-1 min-w-0">
               <p className="text-white font-medium text-sm truncate">{product.title}</p>
+              {product.description && (
+                <p className="text-xs text-slate-400 line-clamp-2">{product.description}</p>
+              )}
               {product.retailPrice != null && (
                 <p className="text-base font-bold text-emerald-400">${product.retailPrice.toFixed(2)}</p>
               )}
@@ -756,6 +759,9 @@ export function TierPickerStep({
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium text-sm truncate">{tp.title}</p>
+                  {tp.description && (
+                    <p className="text-xs text-slate-400 line-clamp-2">{tp.description}</p>
+                  )}
                   {tp.retailPrice != null && (
                     <p className="text-base font-bold text-white">${tp.retailPrice.toFixed(2)}</p>
                   )}
