@@ -3691,6 +3691,26 @@ export function registerAdminRoutes(app: Express): void {
     }
   });
 
+  app.put("/api/admin/catalogs/:id/blank-description", isAdmin, async (req: any, res) => {
+    try {
+      const { blankId, description } = req.body;
+      if (!blankId) return res.status(400).json({ error: "blankId is required" });
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
+      if (description) {
+        blankDescriptions[String(blankId)] = description;
+      } else {
+        delete blankDescriptions[String(blankId)];
+      }
+      await fsUpdate("catalogs", req.params.id, { blankDescriptions });
+      res.json({ success: true, blankDescriptions });
+    } catch (error: any) {
+      console.error("[Catalogs] Set blank description error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/admin/catalog-defaults", isAdmin, async (req: any, res) => {
     try {
       const doc = await fsGet("systemSettings", "catalog-defaults");
