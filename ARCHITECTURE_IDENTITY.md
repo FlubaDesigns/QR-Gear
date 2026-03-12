@@ -786,3 +786,94 @@ Modified:
 ==================================================
 END OF STEP 5 CANON
 ==================================================
+
+
+==================================================
+STEP 6 — CONTROLLER LAYER CANON
+==================================================
+
+Purpose:
+Extract all business logic (data loading, normalization, mode/permission
+resolution, action handler creation) from pages into dedicated controller
+hooks. Pages own only UI state (activeTab, modals) and rendering callbacks.
+Skins render only — zero logic.
+
+Rule:
+  Controller → data loading, normalization, canonical key resolution,
+               action handlers, permission/mode flags
+  Page       → UI state (tabs, modals), rendering callbacks that call skins
+  Skin       → pure render, receives normalized props
+
+==================================================
+CONTROLLER HOOKS CREATED
+==================================================
+
+1. useAdminBlanksController
+   File: client/src/features/adminProducts/controllers/useAdminBlanksController.ts
+   Owns: catalog/product queries, printify/printful normalization, filtered/scroll
+         items, catalog strip items (CatalogBlankItem[]), source item map,
+         tier/description save mutations, toggle/add/remove handlers,
+         mapping badge resolution, blank key resolution, pricing
+   Page: admin-blanks.tsx destructures controller; keeps activeTab + renderCatalogCard
+
+2. useWizardController
+   File: client/src/features/members/controllers/useWizardController.ts
+   Owns: wraps WizardContext, adds mode resolution, product normalization,
+         description resolution via descriptionLayers, permission flags,
+         detail modal state management
+
+3. useStoreController
+   File: client/src/features/store/controllers/useStoreController.ts
+   Owns: store product loading, normalization to StoreProductCardSkin items,
+         read-only enforcement, detail modal, category filtering
+
+4. useLibraryController
+   File: client/src/features/adminLibrary/controllers/useLibraryController.ts
+   Owns: admin library asset loading, normalization to AdminLibraryAssetSkin
+         items, CRUD action routing (create/edit/delete), search/filter
+
+5. useMembersLibraryController
+   File: client/src/features/members/controllers/useMembersLibraryController.ts
+   Owns: member library item loading, normalization to MemberLibraryItemSkin
+         items, permission enforcement, detail modal
+
+6. usePacketController
+   File: client/src/features/shared/controllers/usePacketController.ts
+   Owns: packet item loading from order/wizard context, normalization to
+         PacketItemSkin items, action routing (view detail, reorder)
+
+==================================================
+WIRING STATUS
+==================================================
+
+admin-blanks.tsx:
+  - Fully wired to useAdminBlanksController
+  - ~350 lines of inline business logic replaced with controller hook
+  - Page keeps: activeTab state, renderCatalogCard callback, handleOpenCatalog
+  - Rendering uses: catalogItems, scrollItems, sourceItemMap, blankTiers,
+    onToggleItem, onSaveDescription, onTierChange, resolveBlankKey,
+    getItemMappingBadge, allProductMap, catalogBlankSet,
+    totalProductCount, filteredCount, categoryCounts
+
+Remaining pages (wizard, store, library, packets):
+  - Controller hooks created and ready for wiring
+  - Pages still use inline logic — wiring deferred to future steps
+
+==================================================
+FILES TOUCHED IN STEP 6
+==================================================
+
+Created:
+  client/src/features/adminProducts/controllers/useAdminBlanksController.ts
+  client/src/features/members/controllers/useWizardController.ts
+  client/src/features/store/controllers/useStoreController.ts
+  client/src/features/adminLibrary/controllers/useLibraryController.ts
+  client/src/features/members/controllers/useMembersLibraryController.ts
+  client/src/features/shared/controllers/usePacketController.ts
+
+Modified:
+  client/src/pages/admin-blanks.tsx — replaced inline logic with useAdminBlanksController
+
+==================================================
+END OF STEP 6 CANON
+==================================================
