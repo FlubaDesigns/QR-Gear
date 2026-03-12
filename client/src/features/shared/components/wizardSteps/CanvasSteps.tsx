@@ -260,6 +260,22 @@ export function SimpleBackgroundStep({
       clearInterval(progressInterval);
       setUploadProgress(95);
 
+      if (!memberId) {
+        setUploadProgress(100);
+        const tempAsset = {
+          id: `temp-${Date.now()}`,
+          publicUrl: imageData,
+          name: file.name,
+          width: 0,
+          height: 0,
+          isCropped: false,
+        };
+        setSelectedAsset(tempAsset as any);
+        onBackgroundSelected(imageData, imageData, false);
+        onComplete();
+        return;
+      }
+
       const token = await auth.currentUser?.getIdToken();
       const headers: HeadersInit = token 
         ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } 

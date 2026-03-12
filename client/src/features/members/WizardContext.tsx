@@ -283,6 +283,10 @@ export interface WizardContextType {
   handleProductSelect: (product: AllowedProduct) => Promise<void>;
   generateProductMockupForType: (type: string, setMockup: (url: string) => void) => Promise<void>;
   handleSimplePublish: () => Promise<void>;
+  pendingVideoFile: File | null;
+  setPendingVideoFile: React.Dispatch<React.SetStateAction<File | null>>;
+  showSignInToPublish: boolean;
+  setShowSignInToPublish: React.Dispatch<React.SetStateAction<boolean>>;
 
   handleSimpleNext: () => Promise<void>;
   handleSimpleBack: () => void;
@@ -422,6 +426,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
+  const [showSignInToPublish, setShowSignInToPublish] = useState(false);
 
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
@@ -582,9 +588,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const handleSimplePublish = async () => {
     if (!user?.id) {
-      localStorage.setItem('login_return_path', '/members?wizard=super-simple');
-      toast({ title: 'Sign in to publish', description: 'Create a free account to save and publish your product.', variant: 'destructive' });
-      window.location.href = '/login';
+      setShowSignInToPublish(true);
       return;
     }
     if (!selectedChannel) {
@@ -593,8 +597,44 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     }
 
     setIsPublishing(true);
+    let resolvedVideoUrl = playVideoUrl;
     try {
       const authHeaders = await getMemberAuthHeaders();
+
+      let resolvedChannelId = selectedChannel.id;
+      if (selectedChannel.id === 'temp-channel') {
+        const channelRes = await fetch(`/api/members/${user.id}/channels`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ name: selectedChannel.name || 'My Products' }),
+        });
+        if (channelRes.ok) {
+          const channelData = await channelRes.json();
+          resolvedChannelId = channelData.id || channelData.channelId;
+          setSelectedChannel({ id: resolvedChannelId, name: selectedChannel.name || 'My Products' });
+        } else {
+          throw new Error('Failed to create channel');
+        }
+      }
+
+      if (pendingVideoFile && playVideoUrl?.startsWith('blob:')) {
+        const formData = new FormData();
+        formData.append('file', pendingVideoFile);
+        formData.append('storeType', 'member');
+        const uploadRes = await fetch(`/api/members/${user.id}/videos/upload`, {
+          method: 'POST',
+          headers: { ...authHeaders },
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          if (uploadData.url) {
+            resolvedVideoUrl = uploadData.url;
+            setPlayVideoUrl(resolvedVideoUrl);
+          }
+        }
+        setPendingVideoFile(null);
+      }
 
       const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
       const textUpcharge = textLines * (pricingSettings?.textLineUpcharge || 2);
@@ -605,7 +645,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         packetType: qrType,
         title: simpleTitle,
         description: simpleDescription,
-        channelId: selectedChannel.id,
+        channelId: resolvedChannelId,
         storeId: user.id,
         status: 'published',
         boundProduct: selectedProductType
@@ -628,7 +668,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         productGraphic: productGraphic || null,
         background: urlGraphic || null,
         originalUrlGraphic: originalUrlGraphic || null,
-        videoUrl: qrType === 'qr-play' ? (playVideoUrl || videoUrl) : null,
+        videoUrl: qrType === 'qr-play' ? (resolvedVideoUrl || videoUrl) : null,
         qrBasicInputType: qrType === 'qr-basic' ? (qrBasicInputType || null) : null,
         qrBasicContent: qrType === 'qr-basic' ? (qrBasicContent || null) : null,
         qrBasicMockup: qrType === 'qr-basic' ? (qrBasicMockup || null) : null,
@@ -884,13 +924,30 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
     setVideoUploadError(null);
     setVideoUploadSuccess(false);
+
+    if (!user?.id) {
+      try {
+        setIsUploadingVideo(true);
+        setVideoUploadProgress(0);
+        const blobUrl = URL.createObjectURL(file);
+        setPendingVideoFile(file);
+        setVideoUploadProgress(100);
+        setPlayVideoUrl(blobUrl);
+        setVideoUploadSuccess(true);
+      } catch (err) {
+        setVideoUploadError('Failed to load video. Please try again.');
+      } finally {
+        setIsUploadingVideo(false);
+      }
+      return;
+    }
+
     setIsUploadingVideo(true);
     setVideoUploadProgress(0);
 
     try {
       const authHeaders = await getMemberAuthHeaders();
-      const memberId = user?.id;
-      if (!memberId) throw new Error('Not signed in');
+      const memberId = user.id;
 
       const mimeType = file.type || 'video/mp4';
 
@@ -1901,6 +1958,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     handleProductSelect,
     generateProductMockupForType,
     handleSimplePublish,
+    pendingVideoFile, setPendingVideoFile,
+    showSignInToPublish, setShowSignInToPublish,
 
     handleSimpleNext,
     handleSimpleBack,
