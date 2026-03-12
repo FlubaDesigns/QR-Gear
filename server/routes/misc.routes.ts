@@ -391,7 +391,7 @@ ${allPages.map(page => `  <url>
           title: "Welcome QR Card",
           description: "Custom welcome card with your brand",
           previewImageUrl: "https://firebasestorage.googleapis.com/v0/b/qrgear-c1ffd.firebasestorage.app/o/demo%2Fwelcome-card.png?alt=media",
-          collectionId: "Official",
+          collectionId: "official-collection",
         },
         {
           storeId: PLATFORM_STORE_ID,
@@ -400,7 +400,7 @@ ${allPages.map(page => `  <url>
           title: "Event Promo",
           description: "Promote your upcoming events",
           previewImageUrl: "https://firebasestorage.googleapis.com/v0/b/qrgear-c1ffd.firebasestorage.app/o/demo%2Fevent-promo.png?alt=media",
-          collectionId: "Events",
+          collectionId: "events-collection",
         },
         {
           storeId: PLATFORM_STORE_ID,

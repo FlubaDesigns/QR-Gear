@@ -112,7 +112,7 @@ Store → Channel → Collection → Artifact
 |-----------------------------------|--------------------------------------------|
 | `shared/domainModel.ts`           | Canonical domain interfaces                |
 | `server/lib/domain-mappers.ts`    | Legacy Firestore → canonical normalization |
-| `server/lib/mosaicService.ts`     | Mosaic alias over programService           |
+| `server/lib/mosaicService.ts`     | Mosaic CRUD (primary implementation)       |
 | `server/lib/channelItemsService.ts` | Channel item CRUD (explicit storeId)     |
 | `server/lib/widget-auth.ts`       | Widget JWT system                          |
 | `server/lib/kcWidgetService.ts`   | Kingdom Connects partner integration       |

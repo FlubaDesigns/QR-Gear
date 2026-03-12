@@ -14,6 +14,8 @@ import { printfulClient } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 
+  const MOSAICS_COLLECTION = 'site_programs';
+
   export function register(app: express.Express): void {
   // ============ WIDGET API ============
 
@@ -122,7 +124,11 @@ app.get('/widget/items', async (req: Request, res: Response): Promise<void> => {
     }
     
     const channelId = req.query.channelId as string;
-    const storeId = req.query.storeId as string || 'kingdom_connects';
+    const storeId = req.query.storeId as string;
+    if (!storeId) {
+      res.status(400).json({ error: 'storeId is required' });
+      return;
+    }
     
     if (!channelId) {
       res.status(400).json({ error: 'channelId is required' });
@@ -180,7 +186,7 @@ app.get('/widget/events', async (req: Request, res: Response): Promise<void> => 
 
 app.get('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('site_programs').doc(req.params.mosaicId).get();
+    const doc = await db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).get();
     if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
     res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
@@ -188,7 +194,7 @@ app.get('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promis
 
 app.get('/widget/mosaics/:mosaicId/moments', async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('site_programs').doc(req.params.mosaicId).get();
+    const doc = await db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).get();
     if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
     const entries = doc.data()?.entries || [];
     const moments = entries.sort((a: any, b: any) => a.day - b.day);
@@ -198,7 +204,7 @@ app.get('/widget/mosaics/:mosaicId/moments', async (req: Request, res: Response)
 
 app.post('/widget/mosaics', async (req: Request, res: Response): Promise<void> => {
   try {
-    const ref = await db.collection('site_programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
+    const ref = await db.collection(MOSAICS_COLLECTION).add({ ...req.body, createdAt: new Date(), status: 'draft' });
     const doc = await ref.get();
     res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
@@ -206,14 +212,14 @@ app.post('/widget/mosaics', async (req: Request, res: Response): Promise<void> =
 
 app.patch('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('site_programs').doc(req.params.mosaicId).update(req.body);
+    await db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).update(req.body);
     res.json({ ok: true });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 app.get('/widget/stores/:storeId/mosaics', async (req: Request, res: Response): Promise<void> => {
   try {
-    const snap = await db.collection('site_programs').where('storeId', '==', req.params.storeId).get();
+    const snap = await db.collection(MOSAICS_COLLECTION).where('storeId', '==', req.params.storeId).get();
     res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });

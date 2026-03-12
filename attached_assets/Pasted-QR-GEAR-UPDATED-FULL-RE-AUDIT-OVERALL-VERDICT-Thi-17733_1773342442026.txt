@@ -1,0 +1,356 @@
+QR GEAR — UPDATED FULL RE-AUDIT
+===============================
+
+OVERALL VERDICT
+---------------
+This version is significantly cleaner than the previous one.
+
+Major improvements verified:
+- Canon docs now exist
+- domain model is explicit
+- collectionTag is removed from live code
+- program_series is removed from live code
+- widget view types now use mosaic_series
+- DEFAULT_STORE_ID issue is removed
+- Cloud Functions monolith was broken apart
+- targeted tests were added
+
+However, the platform is still in a transitional state.
+
+Main remaining issue:
+The codebase still has partial legacy persistence and naming carryover:
+- site_programs still exists as the storage collection name
+- dynamicsCollections still exists as a legacy Firestore collection name
+- some partner/widget naming still carries kingdom_connects context
+- collection IDs are sometimes still used like display labels instead of canonical IDs
+- multi-tenant cleanliness is improved but not fully mature
+
+
+---------------------------------------------------------------------
+1. WHAT IMPROVED
+----------------
+
+A. Canon and truth-sheet documentation now exist
+Verified:
+- docs/CANON_COLLECTION_MOSAIC.md
+- docs/SYSTEM_TRUTH_SHEET.md
+
+This is a major upgrade from the prior audit.
+The repo now has an explicit architectural rule:
+- Collection = structural grouping
+- Mosaic = stitched experience
+
+B. Domain model is formalized
+Verified:
+- shared/domainModel.ts
+
+This is good system architecture.
+The repo now has explicit types for:
+- StoreRecord
+- ChannelRecord
+- CollectionRecord
+- ArtifactRecord
+- MosaicRecord
+- MosaicTemplateRecord
+
+C. collectionTag appears removed from live code
+Search results show collectionTag only in docs/replit notes, not in active server/client/functions code.
+
+That is a real cleanup improvement.
+
+D. program_series appears removed from live code
+Search results show program_series only in docs/replit notes, not in active runtime code.
+
+Live widget types now use:
+- channel_products
+- mosaic_series
+- create_product
+
+That is exactly the right direction.
+
+E. Hardcoded DEFAULT_STORE_ID issue is gone
+The old DEFAULT_STORE_ID problem from the prior audit appears fixed.
+
+F. Tests improved
+Verified tests now include:
+- shared/__tests__/qrDynamicsResolver.test.ts
+- shared/__tests__/blankKeys.test.ts
+- shared/__tests__/descriptionLayers.test.ts
+- shared/__tests__/domainMappers.test.ts
+- client/src/features/adminProducts/builder/__tests__/nullGuards.test.ts
+
+This is still not exhaustive coverage, but it is a meaningful improvement.
+
+G. Cloud Functions monolith was split
+functions/src/index.ts is now small.
+Route logic has been moved into files under:
+- functions/src/routes/
+
+That is a major maintainability improvement.
+
+
+---------------------------------------------------------------------
+2. WHAT IS STILL NOT FULLY COMPLETE
+-----------------------------------
+
+A. Legacy persistence model still exists
+Verified:
+- server/lib/programService.ts
+- collection name still = site_programs
+
+Also found in:
+- functions/src/routes/widget.ts
+
+Meaning:
+Mosaic is conceptually established, but the actual backing persistence still relies on the legacy site_programs storage name.
+
+This is not fatal, but the migration is not fully complete.
+
+B. dynamicsCollections still exists as a legacy Firestore collection name
+Verified:
+- server/routes/dynamics-content.routes.ts
+- functions/src/routes/dynamics.ts
+- functions/src/routes/admin-stores.ts
+
+These files use:
+- const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections'
+
+Meaning:
+The alias pattern is cleaner than before, but the actual Firestore collection name remains legacy.
+
+Again: not fatal, but not fully canon-clean.
+
+C. kingdom_connects naming still leaks into platform internals
+Verified:
+- server/lib/channelItemsService.ts → PLATFORM_STORE_ID = 'kingdom_connects'
+- server/lib/widget-auth.ts → PLATFORM_ISSUER = 'kingdom_connects'
+- server/lib/kcWidgetService.ts → KC_PARTNER_ISSUER = 'kingdom_connects'
+
+Meaning:
+The code has renamed the identifiers, which is good, but the actual values still point to the older KC context.
+This may be intentional for backward compatibility, but it still means platform language and runtime identity are not fully neutral.
+
+D. Some collection IDs appear to be used like labels
+Examples found:
+- server/routes/misc.routes.ts
+  collectionId: "Official"
+  collectionId: "Events"
+
+Meaning:
+Some “collectionId” values still look like human-readable labels rather than canonical durable IDs/slugs.
+That can still create integrity and migration pain later.
+
+E. Old service name still exists
+Verified:
+- server/lib/programService.ts
+
+Even though mosaicService exists conceptually, the repo still carries the old core service file name.
+That keeps the legacy dialect alive in the codebase.
+
+F. Firestore model is cleaner, but still mixed
+The repo now clearly uses collectionId broadly, which is good.
+But there are still multiple collection/item storage patterns:
+
+Examples:
+- collection_items
+- dynamicsCollectionItems
+- site_programs
+- dynamicsCollections
+
+Meaning:
+The system is better normalized than before, but not yet reduced to a fully consolidated canonical Firestore naming model.
+
+
+---------------------------------------------------------------------
+3. CURRENT ARCHITECTURAL HEALTH
+-------------------------------
+
+Current product model now appears to be:
+
+Store
+→ Channel
+→ Collection
+→ Artifact
+
+QR Dynamics
+→ Mosaic
+
+That is the right architecture.
+
+The repo is much closer to actually following that model than it was before.
+
+What remains is mostly:
+- persistence cleanup
+- legacy storage naming cleanup
+- partner/issuer neutralization
+- better collection identity discipline
+
+
+---------------------------------------------------------------------
+4. SECURITY / HYGIENE STATUS
+----------------------------
+
+A. Better than before
+widget-auth now uses:
+- PLATFORM_ISSUER
+- mosaic_series
+- production checks
+
+This is cleaner than the old state.
+
+B. No obvious old dev-secret fallback string found
+The previous exact fallback string:
+- dev-secret-change-in-production
+
+was not found in this upload.
+
+That is an improvement.
+
+C. Remaining caution
+Even though the naming is improved, the runtime values still use kingdom_connects in a few places.
+That is more of a platform-identity hygiene issue than a direct security bug, but it still matters.
+
+
+---------------------------------------------------------------------
+5. MULTI-TENANCY STATUS
+-----------------------
+
+Improved, but not fully mature.
+
+Good:
+- DEFAULT_STORE_ID issue appears resolved
+- explicit store/channel/collection model is now documented and typed
+
+Still concerning:
+- PLATFORM_STORE_ID value still equals kingdom_connects
+- partner/widget logic still assumes KC naming in some places
+- some code paths still suggest the platform grew out of a KC-first context
+
+Blunt read:
+The architecture wants to be multi-tenant, and it is more honest about that now.
+But it is still not fully neutral at the runtime identity layer.
+
+
+---------------------------------------------------------------------
+6. ROUTES / FUNCTIONS STATUS
+----------------------------
+
+Much better than before.
+
+Good:
+- functions/src/index.ts is no longer a giant monolith
+- route files are broken out under functions/src/routes
+- main server routes remain modular
+
+Still not fully finished:
+- there are still overlapping collection/item route patterns in multiple areas
+- old and new Firestore naming models coexist
+
+So this is now a maintainability issue, not an emergency issue.
+
+
+---------------------------------------------------------------------
+7. TESTING STATUS
+-----------------
+
+Better, but still not enough for carefree refactors.
+
+Improvements verified:
+- resolver tests
+- mapper tests
+- shared utility tests
+
+Still missing high-confidence protection around:
+- widget token behavior end-to-end
+- collection CRUD / membership flows end-to-end
+- store isolation behavior
+- route-level contract tests
+- mosaic persistence migration behavior
+
+Blunt score:
+Previously weak.
+Now respectable foundation, but still not broad enough.
+
+
+---------------------------------------------------------------------
+8. DOCUMENTATION STATUS
+-----------------------
+
+This area improved significantly.
+
+Good:
+- canon doc exists
+- system truth sheet exists
+- QR dynamics spec exists
+- data model docs exist
+
+Remaining issue:
+There is no single sign that all code has completed the migration the docs describe.
+The docs are now ahead of some persistence details.
+
+That is a much better problem to have than the reverse, but it is still a gap.
+
+
+---------------------------------------------------------------------
+9. BIGGEST REMAINING PROBLEMS
+-----------------------------
+
+1. site_programs is still the real storage collection for mosaics
+2. dynamicsCollections is still the real storage collection name for templates
+3. kingdom_connects still leaks into platform constants/issuer values
+4. some collectionId values still look like labels instead of canonical IDs
+5. programService still exists as a live legacy service name
+6. Firestore naming is cleaner but still not fully canonicalized
+
+
+---------------------------------------------------------------------
+10. BIGGEST VERIFIED WINS
+-------------------------
+
+1. collectionTag removed from live code
+2. program_series removed from live code
+3. widget types now use mosaic_series
+4. DEFAULT_STORE_ID issue resolved
+5. Canon docs added
+6. Truth-sheet added
+7. tests improved
+8. Cloud Functions monolith split
+
+
+---------------------------------------------------------------------
+11. UPDATED SCORECARD
+---------------------
+
+Product concept: 8.8/10
+Architecture: 8/10
+Documentation: 8/10
+Naming consistency: 7/10
+Security hygiene: 7.2/10
+Scaling cleanliness: 7/10
+Testing: 5.5/10
+Maintainability: 7.5/10
+
+Overall:
+7.6 to 8.0 / 10 depending on how much backward-compat legacy you intentionally allow
+
+
+---------------------------------------------------------------------
+12. FINAL CONCLUSION
+--------------------
+
+This is no longer the same repo shape as the earlier audit.
+It is meaningfully improved.
+
+The platform now has a believable canon and is much closer to enforcing it.
+
+But the migration is not fully done.
+
+The remaining work is no longer “figure out the architecture.”
+The remaining work is:
+- finish canonical persistence naming
+- eliminate legacy Firestore collection names where practical
+- neutralize KC-specific runtime identity where appropriate
+- tighten collection identity discipline
+- broaden tests
+
+That is a much healthier place to be.

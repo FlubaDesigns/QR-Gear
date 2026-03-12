@@ -18,7 +18,7 @@ const journeySteps = [
     description: "Our guided wizard walks you through every step. Pick your product, choose a color, select a size, and add your custom QR code. No design skills needed. No software to learn. If you can tap a button, you can make a product.",
     details: [
       "Choose from premium t-shirts across Good, Better, and Best quality tiers",
-      "Pick your color \u2014 Black, White, Navy, Red, Forest Green, or Gray",
+      "Pick your color — Black, White, Navy, Red, Forest Green, or Gray",
       "Add a scannable QR code that links to anything you want",
       "Customize with header and footer text in your choice of fonts and styles",
       "See a real product mockup before you publish",
@@ -37,7 +37,7 @@ const journeySteps = [
       "Browse your full design history anytime from your dashboard",
       "Reuse designs across different products and placements",
       "Upload your own images and backgrounds to the library",
-      "Your creative work is always yours \u2014 accessible whenever you need it",
+      "Your creative work is always yours — accessible whenever you need it",
     ],
   },
   {
@@ -52,7 +52,7 @@ const journeySteps = [
       "Products go live in the store the moment you hit publish",
       "Built-in share tools generate social media\u2013ready images and captions",
       "Share via Instagram, Facebook, X, TikTok, or any platform",
-      "No inventory to manage \u2014 products are printed when they sell",
+      "No inventory to manage — products are printed when they sell",
       "We handle payment processing, printing, and delivery",
     ],
   },
@@ -63,7 +63,7 @@ const journeySteps = [
     accent: "from-green-500/20 to-green-900/10",
     border: "border-green-500/30",
     headline: "Every sale puts money in your pocket.",
-    description: "You earn a share of every sale, every time someone buys a product you designed. There is no cap on what you can earn. The more you create and share, the more you make. Design one product or a hundred \u2014 each one is a new stream of income.",
+    description: "You earn a share of every sale, every time someone buys a product you designed. There is no cap on what you can earn. The more you create and share, the more you make. Design one product or a hundred — each one is a new stream of income.",
     details: [
       "Earn a percentage of every sale automatically",
       "No limit on how many products you can create",
@@ -128,7 +128,7 @@ const faqs = [
   },
   {
     q: "Do I need any design experience?",
-    a: "Not at all. The guided wizard handles everything. You make choices \u2014 pick a product, choose a color, type your text \u2014 and we build the product for you. If you can use a phone, you can create a product.",
+    a: "Not at all. The guided wizard handles everything. You make choices — pick a product, choose a color, type your text — and we build the product for you. If you can use a phone, you can create a product.",
   },
   {
     q: "Who handles printing and shipping?",
@@ -140,7 +140,7 @@ const faqs = [
   },
   {
     q: "What happens when someone scans the QR code?",
-    a: "They are taken to whatever destination you set up \u2014 a website, a video, a social media page, a playlist, or any URL. You control where the QR code points.",
+    a: "They are taken to whatever destination you set up — a website, a video, a social media page, a playlist, or any URL. You control where the QR code points.",
   },
   {
     q: "Can I change my product after publishing?",
@@ -206,7 +206,7 @@ export default function EarnPage() {
                 <Button asChild className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-lg px-8 min-h-12 w-full sm:w-auto" data-testid="button-earn-join-hero">
                   <Link href="/members">
                     <Crown className="w-5 h-5 mr-2" />
-                    Join Free \u2014 Start Creating
+                    Join Free — Start Creating
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="text-lg px-8 min-h-12 border-slate-600 w-full sm:w-auto" data-testid="button-earn-learn-more">
@@ -397,7 +397,7 @@ export default function EarnPage() {
               {[
                 { icon: Shield, title: "Zero Risk", desc: "Nothing to buy upfront. Products are made only when someone orders. You never invest a dime in inventory.", color: "text-green-400" },
                 { icon: Zap, title: "Instant Setup", desc: "Sign up in seconds. Create your first product in minutes. Be live in the store before your coffee gets cold.", color: "text-amber-400" },
-                { icon: Package, title: "We Handle Fulfillment", desc: "Printing, packaging, shipping, returns \u2014 all handled. You create and promote. We take care of everything else.", color: "text-blue-400" },
+                { icon: Package, title: "We Handle Fulfillment", desc: "Printing, packaging, shipping, returns — all handled. You create and promote. We take care of everything else.", color: "text-blue-400" },
                 { icon: TrendingUp, title: "Passive Income", desc: "Design it once, earn from it forever. Every product you publish is an asset that keeps paying you as long as it sells.", color: "text-purple-400" },
               ].map((item) => (
                 <div key={item.title} className="rounded-xl p-5 bg-slate-800/50 border border-slate-700 space-y-3" data-testid={`card-why-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
@@ -489,7 +489,7 @@ export default function EarnPage() {
                 <Button asChild className="bg-amber-500 hover:bg-amber-600 text-black font-bold text-lg px-8 min-h-12 w-full sm:w-auto" data-testid="button-earn-join-bottom">
                   <Link href="/members">
                     <Crown className="w-5 h-5 mr-2" />
-                    Become a Member \u2014 It's Free
+                    Become a Member — It's Free
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="text-lg px-8 min-h-12 border-slate-600 w-full sm:w-auto" data-testid="button-earn-build-bottom">

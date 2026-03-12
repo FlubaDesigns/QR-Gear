@@ -181,12 +181,12 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 - `dynamics-content.routes.ts` — Channel Content + Collection Items + Collections + Surfaces
 - `dynamics-v2.routes.ts` — QR Dynamics V2 instances, preview, resolver, scan-to-reveal
 
-### Mosaic Service Alias (COMPLETED — Week 2)
-`server/lib/mosaicService.ts` re-exports `programService.ts` functions with canonical mosaic vocabulary: `createMosaic`, `getMosaic`, `getMosaicsByStore`, etc. `programService.ts` remains untouched for backward compat.
+### Mosaic Service (COMPLETED)
+`server/lib/mosaicService.ts` is the primary mosaic CRUD implementation with canonical vocabulary: `createMosaic`, `getMosaic`, `getMosaicsByStore`, etc. Legacy `programService.ts` has been removed.
 
 ### Name Translation (COMPLETED)
 - `collectionTag` → `collectionId` — FULLY REMOVED. No dual-write, no fallback reads. Only `collectionId` exists.
-- `site_programs` → `mosaics` — alias layer complete (`mosaicService.ts`), Firestore collection name unchanged
+- `site_programs` → `MOSAICS_COLLECTION` constant — all code uses named constant, Firestore collection name unchanged (data migration needed)
 - `dynamicsCollections` → `MOSAIC_TEMPLATES_COLLECTION` constant — COMPLETED, raw string only appears inside the constant definition
 - `program_series` → `mosaic_series` — FULLY REMOVED. ViewType is `'channel_products' | 'mosaic_series' | 'create_product'` only.
 - `DEFAULT_STORE_ID` → `PLATFORM_STORE_ID` — COMPLETED. Exported from `channelItemsService.ts`, all callers pass storeId explicitly. No hidden defaults.

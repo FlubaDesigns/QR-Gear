@@ -51,22 +51,22 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
     icon: <Store className="w-8 h-8" />,
     title: "First Up: Channels",
     lines: [
-      { text: "A channel is your personal storefront \u2014 like having your own little shop inside QR Gear." },
+      { text: "A channel is your personal storefront — like having your own little shop inside QR Gear." },
       { text: "You can create channels for different themes, events, or brands.", highlight: true },
       { text: "All of your products live inside a channel. Customers browse your channel to see what you've made." },
       { text: "Think: \"Summer Promo,\" \"Tech Events,\" or just \"My Cool Stuff.\"" },
     ],
-    tip: "You can have as many channels as you want. Start with one \u2014 you can always add more later.",
+    tip: "You can have as many channels as you want. Start with one — you can always add more later.",
   },
   'bb-pricing': {
     icon: <DollarSign className="w-8 h-8" />,
     title: "Let's Talk Earnings",
     lines: [
-      { text: "On the next page, you'll pick a product. Each one shows an earnings amount \u2014 that's your starting number." },
+      { text: "On the next page, you'll pick a product. Each one shows an earnings amount — that's your starting number." },
       { text: "That number only goes up from here.", highlight: true },
-      { text: "1. Pick a bigger size \u2014 your earnings go up." },
-      { text: "2. Add text or graphics \u2014 your earnings go up." },
-      { text: "3. Choose a premium QR type \u2014 your earnings go up." },
+      { text: "1. Pick a bigger size — your earnings go up." },
+      { text: "2. Add text or graphics — your earnings go up." },
+      { text: "3. Choose a premium QR type — your earnings go up." },
       { text: "We handle manufacturing and shipping. You just design and collect." },
     ],
     tip: "Think of the product price as your starting line. Every customization is a bonus.",
@@ -77,7 +77,7 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
     lines: [
       { text: "Pick a color for your product mockup." },
       { text: "This is what shoppers see when browsing your store." },
-      { text: "Don't overthink it \u2014 customers pick their own color at checkout.", highlight: true },
+      { text: "Don't overthink it — customers pick their own color at checkout.", highlight: true },
       { text: "All colors, same price. No gotchas." },
     ],
   },
@@ -90,7 +90,7 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
       { text: "Which means... bigger sizes = bigger earnings for you.", highlight: true },
       { text: "Pick any size for your mockup. Customers choose theirs at checkout." },
     ],
-    tip: "Watch the +$ bonus on each size button \u2014 that's your extra earnings.",
+    tip: "Watch the +$ bonus on each size button — that's your extra earnings.",
   },
   'bb-qr-intro': {
     icon: <QrCode className="w-8 h-8" />,
@@ -99,7 +99,7 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
       { text: "This is what makes QR Gear different from everything else." },
       { text: "There are four QR types, and each one adds more to the experience." },
       { text: "We're going to walk through each one so you can pick the right fit.", highlight: true },
-      { text: "You can off-ramp at any point \u2014 or keep going to see what's next." },
+      { text: "You can off-ramp at any point — or keep going to see what's next." },
     ],
     tip: "No pressure. You can always upgrade your QR type later.",
   },
@@ -110,7 +110,7 @@ const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
       { text: "After this tutorial, you'll jump into the real builder." },
       { text: "The builder lets you customize everything in detail." },
       { text: "Upload images, add text, preview your product live.", highlight: true },
-      { text: "Don't worry \u2014 you can always edit before publishing." },
+      { text: "Don't worry — you can always edit before publishing." },
     ],
     tip: "Think of this tutorial as your warm-up lap. The race starts next.",
   },
@@ -213,7 +213,7 @@ const QR_TYPE_CARDS: Record<string, {
     title: "QR Basic",
     lines: [
       { text: "The simplest option. A clean QR code that links anywhere you want." },
-      { text: "No internet connection needed to scan \u2014 the destination is baked right into the code." },
+      { text: "No internet connection needed to scan — the destination is baked right into the code." },
       { text: "Perfect for linking to a website, menu, social profile, or contact info.", highlight: true },
       { text: "It's free of platform fees and works forever. Simple, reliable, done." },
     ],
@@ -227,7 +227,7 @@ const QR_TYPE_CARDS: Record<string, {
     title: "QR Plus",
     lines: [
       { text: "Everything in Basic, plus custom header and footer text printed right on the product." },
-      { text: "Like QR Basic, the content is baked right into the code \u2014 no server needed.", highlight: true },
+      { text: "Like QR Basic, the content is baked right into the code — no server needed.", highlight: true },
       { text: "Add a tagline above, a call-to-action below. Make your merchandise say something." },
       { text: "People see your message before they even scan. That's powerful." },
     ],
@@ -241,7 +241,7 @@ const QR_TYPE_CARDS: Record<string, {
     title: "QR Canvas",
     lines: [
       { text: "Now we're cooking. When someone scans, they see a full-screen image moment." },
-      { text: "Upload a photo, design, or artwork \u2014 it becomes the landing experience.", highlight: true },
+      { text: "Upload a photo, design, or artwork — it becomes the landing experience.", highlight: true },
       { text: "Think product launches, event flyers, portfolio pieces, or promotional images." },
       { text: "Your QR code becomes a window into something visual and memorable." },
     ],
@@ -255,7 +255,7 @@ const QR_TYPE_CARDS: Record<string, {
     title: "QR Play",
     lines: [
       { text: "The showstopper. When someone scans, they watch a video." },
-      { text: "Upload your own video or link one \u2014 it plays right on the landing page.", highlight: true },
+      { text: "Upload your own video or link one — it plays right on the landing page.", highlight: true },
       { text: "Perfect for tutorials, behind-the-scenes, music videos, product demos, or personal messages." },
       { text: "Imagine handing someone a t-shirt that plays a video. That's QR Play." },
     ],
@@ -589,7 +589,7 @@ export function SuperSimpleWizard() {
           title: "Nice Work!",
           lines: [
             { text: selectedChannel
-              ? `You picked "${selectedChannel.name}" \u2014 great choice!`
+              ? `You picked "${selectedChannel.name}" — great choice!`
               : "You've got your channel set up!" },
             { text: "That's the first step in building your digital storefront.", highlight: true },
             { text: "Everything you create will live in this channel. Customers can browse it like a mini shop." },
@@ -603,10 +603,10 @@ export function SuperSimpleWizard() {
           title: "Great Pick!",
           lines: [
             { text: selectedProductType
-              ? `You chose the ${selectedProductType.title} \u2014 solid choice!`
+              ? `You chose the ${selectedProductType.title} — solid choice!`
               : "You've got your product locked in!" },
             { text: "Now you've got something real to work with.", highlight: true },
-            { text: "Next we'll tailor it and make it uniquely yours \u2014 colors, size, and your own QR experience." },
+            { text: "Next we'll tailor it and make it uniquely yours — colors, size, and your own QR experience." },
             { text: "This is where your product starts to come alive." },
           ],
           tip: "Every choice you make from here adds your personal touch. Let's make it yours.",
@@ -621,7 +621,7 @@ export function SuperSimpleWizard() {
               ? `Nice color choice! That's going to look great on your mockup.`
               : "Color is set!" },
             { text: `Your earnings so far: $${base.toFixed(2)} per sale`, highlight: true },
-            { text: "Good news \u2014 color is free. It doesn't change the price at all." },
+            { text: "Good news — color is free. It doesn't change the price at all." },
             { text: "But the next step will. Let's talk about size and how it bumps your earnings up." },
           ],
           tip: "That $" + base.toFixed(2) + " is just the floor. It's about to go higher.",
@@ -642,7 +642,7 @@ export function SuperSimpleWizard() {
             { text: `Base earnings: $${base.toFixed(2)}` },
             { text: sizeBonus > 0
               ? `+ Size upgrade (${selectedShirtSize}): +$${sizeBonus.toFixed(2)}`
-              : `Size (${selectedShirtSize}): no extra cost \u2014 same earnings` },
+              : `Size (${selectedShirtSize}): no extra cost — same earnings` },
             { text: `= New total: $${newTotal.toFixed(2)} per sale`, highlight: true },
             { text: "See how that works? Every choice can add to your earnings." },
             { text: "Next up: your QR type. Some of those add even more value." },
@@ -669,37 +669,37 @@ export function SuperSimpleWizard() {
 
     const getLines = () => {
       const shared = [
-        { text: `You picked ${typeLabel} \u2014 great choice!` },
+        { text: `You picked ${typeLabel} — great choice!` },
         { text: `Your earnings per sale: $${currentTotal.toFixed(2)}`, highlight: true as boolean },
       ];
 
       if (isBasic) {
         return [
           ...shared,
-          { text: "QR Basic is simple and powerful. The QR code bakes your content right in \u2014 no server, no platform, no ongoing costs." },
+          { text: "QR Basic is simple and powerful. The QR code bakes your content right in — no server, no platform, no ongoing costs." },
           { text: "Someone scans it, they get your link, text, or contact info instantly. Done." },
-          { text: "Want to level up later? QR Canvas and QR Play connect to a living platform where you can change what the QR shows \u2014 even after the shirt is printed." },
+          { text: "Want to level up later? QR Canvas and QR Play connect to a living platform where you can change what the QR shows — even after the shirt is printed." },
         ];
       }
 
       if (isPlus) {
         return [
           ...shared,
-          { text: "QR Plus adds your custom header and footer text around the QR code \u2014 it makes the design pop and tells people what to expect when they scan." },
+          { text: "QR Plus adds your custom header and footer text around the QR code — it makes the design pop and tells people what to expect when they scan." },
           { text: "Like Basic, the QR content is baked in. No server needed, no ongoing costs." },
-          { text: "Ready for the next level? QR Canvas and QR Play connect to a living platform \u2014 you can update what the QR shows anytime, even after the shirt ships." },
+          { text: "Ready for the next level? QR Canvas and QR Play connect to a living platform — you can update what the QR shows anytime, even after the shirt ships." },
         ];
       }
 
       return [
         ...shared,
-        { text: "When you save this, you're creating a \"moment\" \u2014 a unique experience tied to your QR code." },
+        { text: "When you save this, you're creating a \"moment\" — a unique experience tied to your QR code." },
         { text: qrType === 'qr-canvas'
           ? "Your image becomes a living page anyone can see when they scan."
           : "Your video becomes a living page anyone can watch when they scan."
         },
         { text: "Here's the exciting part: save 2 or more moments and you unlock QR Compose.", highlight: true as boolean },
-        { text: "QR Compose lets you build a rotating playlist \u2014 one QR code, many experiences. Imagine your shirt showing something different every time someone scans it." },
+        { text: "QR Compose lets you build a rotating playlist — one QR code, many experiences. Imagine your shirt showing something different every time someone scans it." },
       ];
     };
 

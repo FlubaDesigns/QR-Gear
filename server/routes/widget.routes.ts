@@ -61,7 +61,7 @@ export function registerWidgetRoutes(app: Express): void {
         const mosaic = await getMosaic(programId);
         if (mosaic) {
           mosaicData = {
-            mosaicId: mosaic.programId,
+            mosaicId: mosaic.mosaicId,
             title: mosaic.title,
             description: mosaic.description,
             coverImageUrl: mosaic.coverImageUrl,
@@ -236,7 +236,7 @@ export function registerWidgetRoutes(app: Express): void {
         { type: "qrgear:share_copied", description: "Share URL copied to clipboard", data: { url: "string" } },
         { type: "qrgear:create_start", description: "Admin started create flow", data: { channelId: "string" } },
         { type: "qrgear:publish_success", description: "Product published successfully", data: { productId: "string", channelId: "string" } },
-        { type: "qrgear:program_started", description: "User started a program/series", data: { programId: "string" } },
+        { type: "qrgear:mosaic_started", description: "User started a mosaic series", data: { mosaicId: "string" } },
         { type: "qrgear:checkout_start", description: "User started checkout" },
         { type: "qrgear:checkout_complete", description: "User completed checkout" },
       ]
@@ -293,7 +293,7 @@ export function registerWidgetRoutes(app: Express): void {
       const { getMosaicMoments } = await import("../lib/mosaicService");
       const result = await getMosaicMoments(req.params.mosaicId);
       if (!result) return res.status(404).json({ ok: false, error: "Mosaic not found" });
-      res.json({ ok: true, mosaic: result.program, moments: result.moments });
+      res.json({ ok: true, mosaic: result.mosaic, moments: result.moments });
     } catch (error: any) {
       console.error("[Widget] Get mosaic moments error:", error);
       res.status(500).json({ ok: false, error: error.message });

@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const jwt = __importStar(require("jsonwebtoken"));
 const core_1 = require("../core");
+const MOSAICS_COLLECTION = 'site_programs';
 function register(app) {
     // ============ WIDGET API ============
     function signWidgetToken(payload) {
@@ -128,7 +129,11 @@ function register(app) {
                 return;
             }
             const channelId = req.query.channelId;
-            const storeId = req.query.storeId || 'kingdom_connects';
+            const storeId = req.query.storeId;
+            if (!storeId) {
+                res.status(400).json({ error: 'storeId is required' });
+                return;
+            }
             if (!channelId) {
                 res.status(400).json({ error: 'channelId is required' });
                 return;
@@ -179,7 +184,7 @@ function register(app) {
     });
     app.get('/widget/mosaics/:mosaicId', async (req, res) => {
         try {
-            const doc = await core_1.db.collection('site_programs').doc(req.params.mosaicId).get();
+            const doc = await core_1.db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).get();
             if (!doc.exists) {
                 res.status(404).json({ ok: false, error: "Mosaic not found" });
                 return;
@@ -192,7 +197,7 @@ function register(app) {
     });
     app.get('/widget/mosaics/:mosaicId/moments', async (req, res) => {
         try {
-            const doc = await core_1.db.collection('site_programs').doc(req.params.mosaicId).get();
+            const doc = await core_1.db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).get();
             if (!doc.exists) {
                 res.status(404).json({ ok: false, error: "Mosaic not found" });
                 return;
@@ -207,7 +212,7 @@ function register(app) {
     });
     app.post('/widget/mosaics', async (req, res) => {
         try {
-            const ref = await core_1.db.collection('site_programs').add({ ...req.body, createdAt: new Date(), status: 'draft' });
+            const ref = await core_1.db.collection(MOSAICS_COLLECTION).add({ ...req.body, createdAt: new Date(), status: 'draft' });
             const doc = await ref.get();
             res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
         }
@@ -217,7 +222,7 @@ function register(app) {
     });
     app.patch('/widget/mosaics/:mosaicId', async (req, res) => {
         try {
-            await core_1.db.collection('site_programs').doc(req.params.mosaicId).update(req.body);
+            await core_1.db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).update(req.body);
             res.json({ ok: true });
         }
         catch (e) {
@@ -226,7 +231,7 @@ function register(app) {
     });
     app.get('/widget/stores/:storeId/mosaics', async (req, res) => {
         try {
-            const snap = await core_1.db.collection('site_programs').where('storeId', '==', req.params.storeId).get();
+            const snap = await core_1.db.collection(MOSAICS_COLLECTION).where('storeId', '==', req.params.storeId).get();
             res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
         }
         catch (e) {
