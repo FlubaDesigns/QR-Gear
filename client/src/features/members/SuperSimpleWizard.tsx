@@ -1066,14 +1066,14 @@ export function SuperSimpleWizard() {
 
           {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && (
             <>
-              {showSignInToPublish ? (
+              {showSignInToPublish && (
                 <WizardSignInGate
                   onSuccess={() => {}}
                   onCancel={() => setShowSignInToPublish(false)}
                 />
-              ) : (<>
+              )}
 
-              {simpleStep === 'channel' && user?.id && (
+              {!showSignInToPublish && simpleStep === 'channel' && user?.id && (
                 <ChannelStep
                   selectedChannel={selectedChannel}
                   onSelect={setSelectedChannel}
@@ -1696,7 +1696,7 @@ export function SuperSimpleWizard() {
                 />
               )}
 
-              {simpleStep === 'url-publish' && (
+              {!showSignInToPublish && simpleStep === 'url-publish' && (
                 <SimplePublishStep
                   isPublishing={isPublishing}
                   onPublish={handleSimplePublish}
@@ -1779,7 +1779,7 @@ export function SuperSimpleWizard() {
                 />
               )}
 
-              {simpleStep === 'play-publish' && (
+              {!showSignInToPublish && simpleStep === 'play-publish' && (
                 <PlayPublishStep
                   videoUrl={playVideoUrl}
                   isPublishing={isPublishing}
@@ -1898,7 +1898,7 @@ export function SuperSimpleWizard() {
                 />
               )}
 
-              {simpleStep === 'compose-publish' && (
+              {!showSignInToPublish && simpleStep === 'compose-publish' && (
                 <ComposePublishStep
                   isPublishing={isPublishing}
                   itemCount={composeItems.length}
@@ -1921,7 +1921,7 @@ export function SuperSimpleWizard() {
                   )}
                 </div>
               )}
-            </>)}
+            </>
           )}
         </div>
 
