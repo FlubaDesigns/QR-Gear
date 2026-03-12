@@ -1,0 +1,221 @@
+==================================================
+STEP 2 — DESCRIPTION LAYER SYSTEM
+==================================================
+
+Purpose:
+Create a consistent, predictable description system across:
+
+- catalog
+- blanks
+- viewer
+- wizard
+- packet
+- store
+- fulfillment
+
+Descriptions must be separated into clear layers so edits never overwrite the wrong source.
+
+This prevents:
+- provider descriptions being lost
+- admin descriptions being overwritten
+- member edits leaking into the catalog
+- viewers showing the wrong text
+- packets losing their configured descriptions
+
+
+==================================================
+DESCRIPTION LAYERS
+==================================================
+
+The system has three editable layers and one computed layer.
+
+providerDescription
+adminCatalogDescription
+memberPacketDescription
+effectiveDescription
+
+
+--------------------------------------------------
+1. providerDescription
+--------------------------------------------------
+
+Source:
+Printful / Printify
+
+Properties:
+
+- Raw description from the fulfillment provider
+- Never edited by users
+- Always preserved as the original source text
+- Used as the fallback if no overrides exist
+
+
+--------------------------------------------------
+2. adminCatalogDescription
+--------------------------------------------------
+
+Source:
+Admin interface (blanks page / catalog tools)
+
+Properties:
+
+- Global override for the product
+- Applies to all viewers and public pages
+- Stored at the catalog level
+- Can be edited only by admin
+
+Admin can:
+- replace provider description
+- shorten description
+- rewrite description
+- add marketing copy
+
+
+--------------------------------------------------
+3. memberPacketDescription
+--------------------------------------------------
+
+Source:
+Member wizard editing
+
+Properties:
+
+- Exists only inside a packet
+- Applies only to that specific packet instance
+- Does not change the catalog description
+- Does not change the provider description
+
+Member can only edit this field.
+
+It is stored inside the packet so that each packet can have a unique description.
+
+
+==================================================
+DESCRIPTION RESOLUTION
+==================================================
+
+The system calculates the description shown to the user using the following priority:
+
+memberPacketDescription
+    overrides
+adminCatalogDescription
+    overrides
+providerDescription
+
+
+Example:
+
+if memberPacketDescription exists
+    use memberPacketDescription
+
+else if adminCatalogDescription exists
+    use adminCatalogDescription
+
+else
+    use providerDescription
+
+
+The resolved result becomes:
+
+effectiveDescription
+
+
+==================================================
+PUBLIC / OWNER WIZARD RULE
+==================================================
+
+Owner-facing and public-facing wizards must be read-only.
+
+They do NOT edit descriptions.
+
+They only display the admin-approved description.
+
+The viewer for these flows should receive:
+
+effectivePublicDescription
+
+Where:
+
+effectivePublicDescription =
+    adminCatalogDescription
+    OR
+    providerDescription
+
+
+Public and owner flows must NEVER write:
+
+providerDescription
+adminCatalogDescription
+memberPacketDescription
+
+
+==================================================
+EDIT PERMISSIONS
+==================================================
+
+Provider descriptions:
+    Editable by: nobody
+
+Admin catalog descriptions:
+    Editable by: admin only
+
+Member packet descriptions:
+    Editable by: member wizard only
+
+Owner/public wizard:
+    Read-only
+
+
+==================================================
+PACKET STORAGE RULE
+==================================================
+
+Packets may store description snapshots to preserve the configured product state.
+
+A packet item may include:
+
+providerDescriptionSnapshot
+adminCatalogDescriptionSnapshot
+memberPacketDescription
+effectiveDescription
+
+
+This ensures that packets remain stable even if the catalog description changes later.
+
+
+==================================================
+VIEWER RULE
+==================================================
+
+The viewer system must not resolve description logic.
+
+The controller must supply:
+
+providerDescription
+adminCatalogDescription
+memberPacketDescription
+effectiveDescription
+
+The viewer simply displays the effective description.
+
+
+==================================================
+SUMMARY
+==================================================
+
+Provider supplies base description.
+
+Admin sets the global catalog description.
+
+Members may override only their own packet instance.
+
+Owner/public wizard only displays the approved description.
+
+Viewers never decide description authority.
+
+Controllers resolve description layers before rendering.
+
+
+==================================================
+END OF STEP 2 CANON
+==================================================

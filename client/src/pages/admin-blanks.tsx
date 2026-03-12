@@ -73,12 +73,14 @@ interface PricingSettings {
   memberProfitShare: number;
 }
 
-function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings, customDescription?: string): ProductSelectItem {
+function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings, adminCatalogDesc?: string): ProductSelectItem {
   const cost = p.minPrice ? parseFloat(p.minPrice) : null;
   const retailPrice = cost !== null
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
+  const providerDesc = p.description || p.model || null;
+  const effectiveDesc = adminCatalogDesc || providerDesc;
   return {
     id: String(p.id),
     name: p.title || "",
@@ -87,7 +89,10 @@ function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings, custom
     manufacturer: p.brand || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
-    description: customDescription ?? p.description ?? p.model ?? null,
+    description: effectiveDesc,
+    providerDescription: providerDesc,
+    adminCatalogDescription: adminCatalogDesc || null,
+    originalDescription: providerDesc,
     colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || [],
     defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,

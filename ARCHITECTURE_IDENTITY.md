@@ -288,3 +288,129 @@ Order performs fulfillment.
 ==================================================
 END OF STEP 1 CANON
 ==================================================
+
+==================================================
+STEP 2 — DESCRIPTION LAYER SYSTEM
+==================================================
+
+Purpose:
+Create a consistent, predictable description system across:
+
+- catalog
+- blanks
+- viewer
+- wizard
+- packet
+- store
+- fulfillment
+
+Descriptions must be separated into clear layers so edits never overwrite the wrong source.
+
+
+==================================================
+DESCRIPTION LAYERS
+==================================================
+
+The system has three editable layers and one computed layer.
+
+providerDescription
+adminCatalogDescription
+memberPacketDescription
+effectiveDescription
+
+
+--------------------------------------------------
+1. providerDescription
+--------------------------------------------------
+
+Source: Printful / Printify
+- Raw description from the fulfillment provider
+- Never edited by users
+- Always preserved as the original source text
+- Used as the fallback if no overrides exist
+
+
+--------------------------------------------------
+2. adminCatalogDescription
+--------------------------------------------------
+
+Source: Admin interface (blanks page / catalog tools)
+- Global override for the product
+- Applies to all viewers and public pages
+- Stored at the catalog level
+- Can be edited only by admin
+
+
+--------------------------------------------------
+3. memberPacketDescription
+--------------------------------------------------
+
+Source: Member wizard editing
+- Exists only inside a packet
+- Applies only to that specific packet instance
+- Does not change the catalog or provider description
+- Member can only edit this field
+
+
+==================================================
+DESCRIPTION RESOLUTION
+==================================================
+
+memberPacketDescription
+    overrides
+adminCatalogDescription
+    overrides
+providerDescription
+
+The resolved result becomes: effectiveDescription
+
+
+==================================================
+EDIT PERMISSIONS
+==================================================
+
+Provider descriptions: Editable by: nobody
+Admin catalog descriptions: Editable by: admin only
+Member packet descriptions: Editable by: member wizard only
+Owner/public wizard: Read-only
+
+
+==================================================
+PACKET STORAGE RULE
+==================================================
+
+Packets store description snapshots:
+
+providerDescription (snapshot)
+adminCatalogDescription (snapshot)
+memberPacketDescription
+effectiveDescription
+
+
+==================================================
+VIEWER RULE
+==================================================
+
+The viewer system must not resolve description logic.
+Controllers resolve description layers before rendering.
+The viewer simply displays the effective description.
+
+
+==================================================
+IMPLEMENTATION STATUS
+==================================================
+
+shared/descriptionLayers.ts — resolveDescription, resolvePublicDescription, buildDescriptionSnapshot
+ScrollViewItem — carries all 4 description layer fields
+ProductSelectItem — carries providerDescription, adminCatalogDescription
+ProductSkin — accepts effectiveDescription, uses it for display
+admin-blanks.tsx — maps provider/admin layers into ProductSelectItem
+ProductSelectCardSkin — "Reset to provider description" button
+WizardContext.tsx — packets carry all 4 layers + snapshots
+ProductSteps.tsx — cascade uses canonical layer names
+API (functions/src/index.ts) — supplies providerDescription, adminCatalogDescription, effectiveDescription
+
+
+==================================================
+END OF STEP 2 CANON
+==================================================

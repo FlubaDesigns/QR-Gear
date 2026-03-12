@@ -117,6 +117,10 @@ export interface AllowedProduct {
   colors?: string[];
   sizes?: string[];
   description?: string;
+  providerDescription?: string | null;
+  adminCatalogDescription?: string | null;
+  memberPacketDescription?: string | null;
+  effectiveDescription?: string | null;
   originalDescription?: string;
   adminDescription?: string;
   customDescription?: string;

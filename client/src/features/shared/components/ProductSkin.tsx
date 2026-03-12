@@ -16,6 +16,9 @@ export interface ProductSkinProps {
   colors?: number | string[];
   sizes?: string[];
   description?: string;
+  providerDescription?: string | null;
+  adminCatalogDescription?: string | null;
+  effectiveDescription?: string | null;
   onClick?: () => void;
   className?: string;
 }
@@ -31,9 +34,13 @@ export function ProductSkin({
   colors,
   sizes,
   description,
+  providerDescription,
+  adminCatalogDescription,
+  effectiveDescription,
   onClick,
   className = "",
 }: ProductSkinProps) {
+  const displayDescription = effectiveDescription || description || null;
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const colorCount = Array.isArray(colors) ? colors.length : colors;
@@ -123,9 +130,9 @@ export function ProductSkin({
             )}
           </div>
 
-          {description && (
+          {displayDescription && (
             <div className="text-sm font-medium text-green-500" data-testid={`text-product-earnings-${id}`}>
-              {description}
+              {displayDescription}
             </div>
           )}
         </CardContent>

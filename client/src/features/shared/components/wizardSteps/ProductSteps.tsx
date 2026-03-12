@@ -244,7 +244,7 @@ export function ProductPickerStep({
                             if (zoomedImage) {
                               setZoomedImage({
                                 ...zoomedImage,
-                                product: { ...zoomedImage.product, customDescription: pickerDescDraft },
+                                product: { ...zoomedImage.product, customDescription: pickerDescDraft, memberPacketDescription: pickerDescDraft },
                               });
                             }
                             setEditingPickerDesc(false);
@@ -267,7 +267,7 @@ export function ProductPickerStep({
                     <div
                       className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
                       onClick={() => {
-                        const cascaded = zoomedImage.product.customDescription || zoomedImage.product.description || zoomedImage.product.adminDescription || zoomedImage.product.originalDescription || "";
+                        const cascaded = zoomedImage.product.memberPacketDescription || zoomedImage.product.customDescription || zoomedImage.product.adminCatalogDescription || zoomedImage.product.adminDescription || zoomedImage.product.providerDescription || zoomedImage.product.description || zoomedImage.product.originalDescription || "";
                         setPickerDescDraft(cascaded);
                         setEditingPickerDesc(true);
                       }}
@@ -275,8 +275,8 @@ export function ProductPickerStep({
                     >
                       <div className="flex items-start gap-2">
                         <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                        {(zoomedImage.product.customDescription || zoomedImage.product.description) ? (
-                          <p className="text-sm text-slate-300">{zoomedImage.product.customDescription || zoomedImage.product.description}</p>
+                        {(zoomedImage.product.memberPacketDescription || zoomedImage.product.customDescription || zoomedImage.product.description) ? (
+                          <p className="text-sm text-slate-300">{zoomedImage.product.memberPacketDescription || zoomedImage.product.customDescription || zoomedImage.product.description}</p>
                         ) : (
                           <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
                         )}
@@ -285,7 +285,7 @@ export function ProductPickerStep({
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-slate-300">{zoomedImage.product.description || zoomedImage.product.originalDescription || 'No description available'}</p>
+                <p className="text-sm text-slate-300">{zoomedImage.product.effectiveDescription || zoomedImage.product.adminCatalogDescription || zoomedImage.product.description || zoomedImage.product.providerDescription || zoomedImage.product.originalDescription || 'No description available'}</p>
               )}
 
               {(() => {
@@ -587,6 +587,9 @@ interface TierProduct {
   retailPrice?: number;
   memberEarnings?: number;
   description?: string;
+  providerDescription?: string | null;
+  adminCatalogDescription?: string | null;
+  effectiveDescription?: string | null;
   originalDescription?: string;
   adminDescription?: string;
   fulfillmentProvider?: string;
@@ -837,7 +840,7 @@ export function TierPickerStep({
                               if (previewProduct) {
                                 setPreviewProduct({
                                   ...previewProduct,
-                                  product: { ...previewProduct.product, customDescription: memberDescDraft },
+                                  product: { ...previewProduct.product, customDescription: memberDescDraft, memberPacketDescription: memberDescDraft },
                                 });
                               }
                               setEditingMemberDesc(false);
@@ -860,7 +863,7 @@ export function TierPickerStep({
                       <div
                         className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
                         onClick={() => {
-                          const cascaded = previewProduct.product.customDescription || previewProduct.tp.description || previewProduct.tp.adminDescription || previewProduct.tp.originalDescription || "";
+                          const cascaded = previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || previewProduct.tp.adminCatalogDescription || previewProduct.tp.description || previewProduct.tp.adminDescription || previewProduct.tp.providerDescription || previewProduct.tp.originalDescription || "";
                           setMemberDescDraft(cascaded);
                           setEditingMemberDesc(true);
                         }}
@@ -868,8 +871,8 @@ export function TierPickerStep({
                       >
                         <div className="flex items-start gap-2">
                           <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                          {(previewProduct.product.customDescription || previewProduct.tp.description) ? (
-                            <p className="text-sm text-slate-300">{previewProduct.product.customDescription || previewProduct.tp.description}</p>
+                          {(previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || previewProduct.tp.description) ? (
+                            <p className="text-sm text-slate-300">{previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || previewProduct.tp.description}</p>
                           ) : (
                             <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
                           )}
@@ -929,7 +932,8 @@ export function TierPickerStep({
                 <Button
                   onClick={() => {
                     const productToSelect = { ...previewProduct.product };
-                    if (previewProduct.product.customDescription) {
+                    if (previewProduct.product.memberPacketDescription || previewProduct.product.customDescription) {
+                      productToSelect.memberPacketDescription = previewProduct.product.memberPacketDescription || previewProduct.product.customDescription || null;
                       productToSelect.customDescription = previewProduct.product.customDescription;
                     }
                     if (!productToSelect.description && previewProduct.tp.description) {

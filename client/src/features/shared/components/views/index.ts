@@ -16,6 +16,10 @@ export interface ScrollViewItem {
   madeInUSA?: boolean;
   sizes?: string[];
   description?: string;
+  providerDescription?: string | null;
+  adminCatalogDescription?: string | null;
+  memberPacketDescription?: string | null;
+  effectiveDescription?: string | null;
   hasMockupMapping?: boolean;
   metadata?: Record<string, any>;
 }
