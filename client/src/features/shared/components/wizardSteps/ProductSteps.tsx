@@ -67,6 +67,7 @@ function toWizardMode(context: WizardContextType): WizardMode {
 function toWizardProductItem(product: AllowedProduct): WizardProductItem {
   return {
     id: String(product.blueprintId),
+    canonicalBlankKey: product.canonicalBlankKey || String(product.blueprintId),
     blueprintId: product.blueprintId,
     title: product.title,
     imageUrl: product.imageUrl || '',
@@ -152,7 +153,7 @@ export function ProductPickerStep({
   }
 
   const productItems: WizardProductItem[] = products.map(toWizardProductItem);
-  const productLookup = new Map(products.map(p => [String(p.blueprintId), p]));
+  const productLookup = new Map(products.map(p => [p.canonicalBlankKey || String(p.blueprintId), p]));
 
   return (
     <div className="space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">
@@ -169,14 +170,14 @@ export function ProductPickerStep({
         renderItem={(item) => (
           <WizardProductCardSkin
             item={item}
-            isSelected={selectedProduct?.blueprintId === item.blueprintId}
+            isSelected={(selectedProduct?.canonicalBlankKey || String(selectedProduct?.blueprintId)) === item.canonicalBlankKey}
             mode={mode}
             onSelect={() => {
-              const full = productLookup.get(String(item.blueprintId));
+              const full = productLookup.get(item.canonicalBlankKey);
               if (full) onSelect(full);
             }}
             onOpenDetail={() => {
-              const full = productLookup.get(String(item.blueprintId));
+              const full = productLookup.get(item.canonicalBlankKey);
               if (full) setDetailProduct(full);
             }}
           />
@@ -541,7 +542,7 @@ export function TierPickerStep({
   if (selectedTier && categoryTiers[selectedTier]) {
     const tierProducts = categoryTiers[selectedTier].products;
     const productItems: WizardProductItem[] = tierProducts.map(tp => toWizardProductItem(tierProductToAllowedProduct(tp)));
-    const productLookup = new Map(tierProducts.map(tp => [String(tp.blueprintId), tierProductToAllowedProduct(tp)]));
+    const productLookup = new Map(tierProducts.map(tp => [tp.canonicalBlankKey || String(tp.blueprintId), tierProductToAllowedProduct(tp)]));
 
     return (
       <div className="space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
@@ -573,14 +574,14 @@ export function TierPickerStep({
           renderItem={(item) => (
             <WizardProductCardSkin
               item={item}
-              isSelected={selectedProduct?.blueprintId === item.blueprintId}
+              isSelected={(selectedProduct?.canonicalBlankKey || String(selectedProduct?.blueprintId)) === item.canonicalBlankKey}
               mode={mode}
               onSelect={() => {
-                const full = productLookup.get(String(item.blueprintId));
+                const full = productLookup.get(item.canonicalBlankKey);
                 if (full) setDetailProduct(full);
               }}
               onOpenDetail={() => {
-                const full = productLookup.get(String(item.blueprintId));
+                const full = productLookup.get(item.canonicalBlankKey);
                 if (full) setDetailProduct(full);
               }}
             />

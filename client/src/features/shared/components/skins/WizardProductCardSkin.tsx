@@ -4,6 +4,8 @@ import type { WizardMode } from "@shared/wizardProduct";
 
 export interface WizardProductItem {
   id: string | number;
+  canonicalBlankKey: string;
+  /** @deprecated Use canonicalBlankKey */
   blueprintId: number;
   title: string;
   imageUrl: string;
@@ -38,7 +40,7 @@ export function WizardProductCardSkin({
           ? "border-orange-500 bg-orange-500/15"
           : "border-slate-600 bg-slate-800/50 hover:border-slate-500"
       }`}
-      data-testid={`button-product-${item.blueprintId}`}
+      data-testid={`button-product-${item.canonicalBlankKey}`}
     >
       {item.imageUrl ? (
         <img
@@ -50,7 +52,7 @@ export function WizardProductCardSkin({
             e.stopPropagation();
             onOpenDetail(item);
           }}
-          data-testid={`img-product-${item.blueprintId}`}
+          data-testid={`img-product-${item.canonicalBlankKey}`}
         />
       ) : (
         <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">

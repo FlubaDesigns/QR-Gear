@@ -2,6 +2,8 @@ import type { GalleryImage } from "../views/index";
 
 // Universal Product Packet - syncs across all stores when pricing updates
 export interface ProductPacket {
+  canonicalBlankKey: string;
+  /** @deprecated Use canonicalBlankKey */
   blueprintId: number;
   title: string;
   imageUrl?: string | null;

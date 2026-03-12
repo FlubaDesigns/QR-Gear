@@ -134,6 +134,10 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
 5. **ALWAYS** use `canonicalBlankKey` for product identity, never reconstruct from raw IDs
 6. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
 7. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
+8. **ALWAYS** use `collectionId` (not `collectionTag`) for new code — `collectionTag` is deprecated
+9. **ALWAYS** use domain vocabulary: Store/Channel/Collection/Artifact/Mosaic — not legacy names
+10. **NEVER** store API tokens in plaintext files — use environment variables only
+11. **ALWAYS** deploy to production (hosting + functions) and verify after every change
 
 ## Canonical Domain Model (NEW)
 

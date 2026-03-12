@@ -3,6 +3,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useMemberAuth } from "./MemberAuthContext";
 
 export interface AllowedProduct {
+  canonicalBlankKey?: string;
   blueprintId: number;
   printProviderId: number | null;
   title: string;
