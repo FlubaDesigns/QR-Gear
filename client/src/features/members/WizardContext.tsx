@@ -1350,7 +1350,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     }
     if (simpleStep === 'play-preview') {
       if (!user?.id) {
-        setSimpleStep('play-publish');
+        setShowSignInToPublish(true);
         return;
       }
       setIsGeneratingPlayMockup(true);
@@ -1377,7 +1377,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
     if (simpleStep === 'url-preview') {
       if (!user?.id) {
-        setSimpleStep('url-publish');
+        setShowSignInToPublish(true);
         return;
       }
       setIsGeneratingCanvasMockup(true);
@@ -1429,7 +1429,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (simpleStep === 'compose-hosting') {
       if (!composeHostingTerm) return;
       if (!user?.id) {
-        setSimpleStep('compose-preview');
+        setShowSignInToPublish(true);
         return;
       }
       setIsGeneratingComposeMockup(true);

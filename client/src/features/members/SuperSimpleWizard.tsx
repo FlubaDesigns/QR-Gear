@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, Wand2, Eye, EyeOff
 } from "lucide-react";
 import { signInWithEmail, signInWithGoogle, signUpWithEmail } from "@/lib/firebase";
+import { useMemberAuth } from "@/features/members/MemberAuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
@@ -625,8 +626,10 @@ export function SuperSimpleWizard() {
     areaImageMode, setAreaImageMode,
     publishedPacketId,
     showSignInToPublish, setShowSignInToPublish,
+    pendingVideoFile, setPendingVideoFile,
   } = useWizardContext();
 
+  const { getAuthHeaders: getMemberAuthHeaders } = useMemberAuth();
   const queryClient = useQueryClient();
   const autoPublishTriggered = useRef(false);
 
@@ -634,7 +637,47 @@ export function SuperSimpleWizard() {
     if (showSignInToPublish && user?.id && !autoPublishTriggered.current) {
       autoPublishTriggered.current = true;
       setShowSignInToPublish(false);
-      handleSimplePublish();
+
+      (async () => {
+        try {
+          const authHeaders = await getMemberAuthHeaders();
+
+          if (selectedChannel?.id === 'temp-channel') {
+            const channelRes = await fetch(`/api/members/${user.id}/channels`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeaders },
+              body: JSON.stringify({ name: selectedChannel.name || 'My Products' }),
+            });
+            if (channelRes.ok) {
+              const channelData = await channelRes.json();
+              const realId = channelData.id || channelData.channelId;
+              setSelectedChannel({ id: realId, name: selectedChannel.name || 'My Products' });
+            }
+          }
+
+          if (pendingVideoFile && playVideoUrl?.startsWith('blob:')) {
+            const formData = new FormData();
+            formData.append('file', pendingVideoFile);
+            formData.append('storeType', 'member');
+            const uploadRes = await fetch(`/api/members/${user.id}/videos/upload`, {
+              method: 'POST',
+              headers: { ...authHeaders },
+              body: formData,
+            });
+            if (uploadRes.ok) {
+              const uploadData = await uploadRes.json();
+              if (uploadData.url) {
+                setPlayVideoUrl(uploadData.url);
+              }
+            }
+            setPendingVideoFile(null);
+          }
+        } catch (err) {
+          console.error('[Wizard] Post-auth setup error:', err);
+        }
+
+        handleSimpleNext();
+      })();
     }
     if (!showSignInToPublish) {
       autoPublishTriggered.current = false;
