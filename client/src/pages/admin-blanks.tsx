@@ -913,166 +913,164 @@ export default function AdminBlanks() {
               </div>
             )}
 
-            {validSelectedCatalogId && activeCatalog && (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <Layers className="h-6 w-6 text-primary" />
-                      <span className="text-lg font-semibold">{activeCatalog.name}</span>
-                      <Badge variant="secondary" className="text-sm">{activeCatalog.blankIds?.length || 0} blanks</Badge>
+            {validSelectedCatalogId && activeCatalog ? (
+              <>
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <Layers className="h-6 w-6 text-primary" />
+                        <span className="text-lg font-semibold">{activeCatalog.name}</span>
+                        <Badge variant="secondary" className="text-sm">{activeCatalog.blankIds?.length || 0} blanks</Badge>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedCatalogId(null)}
+                        data-testid="button-clear-catalog"
+                      >
+                        <X className="h-5 w-5" /> Done
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSelectedCatalogId(null)}
-                      data-testid="button-clear-catalog"
-                    >
-                      <X className="h-5 w-5" /> Done
-                    </Button>
-                  </div>
-                  <p className="text-base text-muted-foreground">
-                    Tap any blank below to add or remove it from this catalog.
-                  </p>
-                  {catalogProductsWithKeys.length > 0 && (
-                    <ScrollArea className="w-full">
-                      <div className="flex gap-2 pb-2">
-                        {catalogProductsWithKeys.map(({ product: p, catalogKey, isPrintful }) => (
-                          <div
-                            key={catalogKey}
-                            className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
-                            data-testid={`catalog-thumb-${catalogKey}`}
-                          >
-                            <div className="aspect-square flex items-center justify-center p-1">
-                              {(p.imageUrl || p.image_url || p.thumbnailUrl) ? (
-                                <img src={p.imageUrl || p.image_url || p.thumbnailUrl} alt={p.title} className="w-full h-full object-contain" loading="lazy" />
-                              ) : (
-                                <Box className="h-10 w-10 text-muted-foreground" />
+                  </CardContent>
+                </Card>
+
+                {catalogProductsWithKeys.length > 0 && (
+                  <div className="space-y-3">
+                    <SharedViewer
+                      mode="scroll"
+                      scrollProps={{
+                        items: catalogProductsWithKeys.map(({ product: p, catalogKey }) => ({
+                          id: catalogKey,
+                          imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || "",
+                          title: p.title || "",
+                          subtitle: p.brand,
+                          minPrice: p.minPrice,
+                          maxPrice: p.maxPrice,
+                          colorCount: p.colorCount,
+                          madeInUSA: p.madeInUSA,
+                        })),
+                        selectedId: null,
+                        emptyMessage: "No items in this catalog.",
+                        layout: "vertical",
+                        gridHeight: "calc(100vh - 200px)",
+                        renderItem: (scrollItem) => {
+                          const catalogKey = scrollItem.id;
+                          const found = catalogProductsWithKeys.find(x => x.catalogKey === catalogKey);
+                          if (!found) return null;
+                          const { product: p, isPrintful } = found;
+                          const selectItem = selectItemMap.get(String(p.id));
+                          if (!selectItem) return null;
+                          return (
+                            <div className="relative">
+                              <ProductSelectCardSkin
+                                item={selectItem}
+                                isSelected={false}
+                                onSelect={(id) => toggleItem(id)}
+                                tier={blankTiers[catalogKey] as "good" | "better" | "best" | undefined || null}
+                                onTierChange={(blankId, tier) => handleTierChange(getBlankKey(blankId), tier)}
+                                showTierControls={!!validSelectedCatalogId}
+                                editableDescription={!!validSelectedCatalogId}
+                                onDescriptionSave={handleDescriptionSave}
+                                descriptionSaving={saveDescriptionMutation.isPending}
+                              />
+                              {isPrintful && (
+                                <div className="absolute top-2 right-2 z-10">
+                                  <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
+                                </div>
                               )}
                             </div>
-                            {isPrintful && (
-                              <div className="absolute bottom-8 right-1">
-                                <Badge className="bg-indigo-600 text-white text-[9px] px-1 py-0">PF</Badge>
-                              </div>
-                            )}
-                            {blankTiers[catalogKey] && (
-                              <div className="absolute top-1 left-1">
-                                <Badge className={`text-[10px] px-1 py-0 ${
-                                  blankTiers[catalogKey] === 'good' ? 'bg-blue-600 text-white' :
-                                  blankTiers[catalogKey] === 'better' ? 'bg-amber-500 text-white' :
-                                  'bg-emerald-600 text-white'
-                                }`}>
-                                  {blankTiers[catalogKey] === 'good' ? 'G' : blankTiers[catalogKey] === 'better' ? 'B' : 'B+'}
-                                </Badge>
-                              </div>
-                            )}
-                            <div className="px-1.5 pb-1.5">
-                              <p className="text-xs leading-tight line-clamp-2 text-foreground">{p.title}</p>
-                            </div>
-                            <button
-                              className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                              style={{ visibility: "visible" }}
-                              onClick={() => {
-                                if (!validSelectedCatalogId) return;
-                                removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [catalogKey] });
-                              }}
-                              data-testid={`button-remove-catalog-${catalogKey}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, brand, or description..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="pl-10 text-base h-12"
-                  data-testid="input-search-blanks"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <Filter className="h-5 w-5 text-muted-foreground shrink-0" />
-                <select
-                  value={categoryFilter}
-                  onChange={e => setCategoryFilter(e.target.value)}
-                  className="text-base bg-background border rounded-md px-3 py-2"
-                  data-testid="select-category-filter"
-                >
-                  {categoryNames.map(name => (
-                    <option key={name} value={name}>
-                      {name === "all" ? `All Categories (${allProducts.length})` : `${name} (${activeCategories.find(c => c.name === name)?.count || 0})`}
-                    </option>
-                  ))}
-                </select>
-
-                {([
-                  { value: "all" as LocationFilter, label: "All Locations", icon: null },
-                  { value: "usa" as LocationFilter, label: "USA Made", icon: Flag },
-                  { value: "other" as LocationFilter, label: "Global", icon: Globe },
-                ]).map(f => (
-                  <Badge
-                    key={f.value}
-                    variant={locationFilter === f.value ? "default" : "outline"}
-                    className="cursor-pointer text-sm py-1.5 px-3"
-                    onClick={() => setLocationFilter(f.value)}
-                    data-testid={`filter-location-${f.value}`}
-                  >
-                    {f.icon && <f.icon className="w-4 h-4" />}
-                    {f.label}
-                  </Badge>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3 flex-wrap">
-                <Badge variant="secondary" className="text-sm py-1 px-3">{filtered.length} blanks shown</Badge>
-                {validSelectedCatalogId && (
-                  <Badge variant="default" className="text-sm py-1 px-3">{catalogBlankSet.size} in catalog</Badge>
+                          );
+                        },
+                      }}
+                    />
+                  </div>
                 )}
-                {!validSelectedCatalogId && (
-                  <p className="text-sm text-muted-foreground">Select a catalog above to start adding blanks</p>
-                )}
-              </div>
-            </div>
-
-            {loadingCatalog ? (
-              <div className="space-y-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-28 w-full rounded-md" />
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <Card className="p-8 text-center">
-                <p className="text-lg text-muted-foreground">
-                  {allProducts.length === 0
-                    ? (providerFilter === "printful"
-                      ? "No Printful products synced yet. Run a Printful catalog sync first."
-                      : "No products in catalog yet. Sync your Printify catalog first from the Products page.")
-                    : "No products match your search or filters."}
-                </p>
-              </Card>
+              </>
             ) : (
-              <SharedViewer
-                mode="scroll"
-                scrollProps={{
-                  items: scrollItems,
-                  selectedId: null,
-                  emptyMessage: "No products match the current filters.",
-                  layout: "vertical",
-                  gridHeight: "calc(100vh - 200px)",
-                  renderItem: renderCatalogCard,
-                }}
-              />
+              <>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, brand, or description..."
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      className="pl-10 text-base h-12"
+                      data-testid="input-search-blanks"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Filter className="h-5 w-5 text-muted-foreground shrink-0" />
+                    <select
+                      value={categoryFilter}
+                      onChange={e => setCategoryFilter(e.target.value)}
+                      className="text-base bg-background border rounded-md px-3 py-2"
+                      data-testid="select-category-filter"
+                    >
+                      {categoryNames.map(name => (
+                        <option key={name} value={name}>
+                          {name === "all" ? `All Categories (${allProducts.length})` : `${name} (${activeCategories.find(c => c.name === name)?.count || 0})`}
+                        </option>
+                      ))}
+                    </select>
+
+                    {([
+                      { value: "all" as LocationFilter, label: "All Locations", icon: null },
+                      { value: "usa" as LocationFilter, label: "USA Made", icon: Flag },
+                      { value: "other" as LocationFilter, label: "Global", icon: Globe },
+                    ]).map(f => (
+                      <Badge
+                        key={f.value}
+                        variant={locationFilter === f.value ? "default" : "outline"}
+                        className="cursor-pointer text-sm py-1.5 px-3"
+                        onClick={() => setLocationFilter(f.value)}
+                        data-testid={`filter-location-${f.value}`}
+                      >
+                        {f.icon && <f.icon className="w-4 h-4" />}
+                        {f.label}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Badge variant="secondary" className="text-sm py-1 px-3">{filtered.length} blanks shown</Badge>
+                    {!validSelectedCatalogId && (
+                      <p className="text-sm text-muted-foreground">Select a catalog above to start adding blanks</p>
+                    )}
+                  </div>
+                </div>
+
+                {loadingCatalog ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-28 w-full rounded-md" />
+                    ))}
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <p className="text-lg text-muted-foreground">
+                      {allProducts.length === 0
+                        ? (providerFilter === "printful"
+                          ? "No Printful products synced yet. Run a Printful catalog sync first."
+                          : "No products in catalog yet. Sync your Printify catalog first from the Products page.")
+                        : "No products match your search or filters."}
+                    </p>
+                  </Card>
+                ) : (
+                  <SharedViewer
+                    mode="scroll"
+                    scrollProps={{
+                      items: scrollItems,
+                      selectedId: null,
+                      emptyMessage: "No products match the current filters.",
+                      layout: "vertical",
+                      gridHeight: "calc(100vh - 200px)",
+                      renderItem: renderCatalogCard,
+                    }}
+                  />
+                )}
+              </>
             )}
           </>
         )}
