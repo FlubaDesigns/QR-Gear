@@ -112,11 +112,13 @@ Store → Channel → Collection → Artifact
 
 | File                              | Purpose                                    |
 |-----------------------------------|--------------------------------------------|
+| `functions/src/constants.ts`      | Single source of truth for CF collection names + store IDs |
+| `server/lib/constants.ts`         | Single source of truth for server-side collection names |
 | `shared/domainModel.ts`           | Canonical domain interfaces                |
 | `server/lib/domain-mappers.ts`    | Legacy Firestore → canonical normalization |
 | `server/lib/mosaicService.ts`     | Mosaic CRUD (primary implementation)       |
-| `server/lib/channelItemsService.ts` | Channel item CRUD (explicit storeId)     |
-| `server/lib/widget-auth.ts`       | Widget JWT system                          |
+| `server/lib/channelItemsService.ts` | Channel item CRUD + `PLATFORM_STORE_ID` / `LEGACY_STORE_ID` |
+| `server/lib/widget-auth.ts`       | Widget JWT system + `PLATFORM_ISSUER` / `VALID_ISSUERS` |
 | `server/lib/kcWidgetService.ts`   | Kingdom Connects partner integration       |
 | `shared/blankKeys.ts`             | Canonical blank key derivation             |
 | `shared/descriptionLayers.ts`     | Description cascade resolution             |

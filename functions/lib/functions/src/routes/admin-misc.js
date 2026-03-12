@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 const printful_1 = require("../services/printful");
 const printify_1 = require("../services/printify");
@@ -2100,7 +2101,7 @@ function register(app) {
     app.post('/brain/submit', middleware_1.requireAuth, async (req, res) => {
         try {
             const { input, context } = req.body;
-            const doc = await core_1.db.collection('brain_inbox').add({ input, context, siteId: 'qr-gear', status: 'pending', createdAt: new Date().toISOString() });
+            const doc = await core_1.db.collection('brain_inbox').add({ input, context, siteId: constants_1.PLATFORM_STORE_ID, status: 'pending', createdAt: new Date().toISOString() });
             res.json({ requestId: doc.id, status: 'submitted' });
         }
         catch (e) {

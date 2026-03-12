@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
+import { PLATFORM_STORE_ID } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -294,7 +295,7 @@ app.post('/members/:memberId/channels', async (req: Request, res: Response): Pro
     if (!memberId || !name) { res.status(400).json({ error: "memberId and name are required" }); return; }
     const auth = await verifyMemberAuthCF(req, memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
-    const channelData = { name, storeId: storeId || 'qr-gear', ownerId: memberId, type: 'member', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const channelData = { name, storeId: storeId || PLATFORM_STORE_ID, ownerId: memberId, type: 'member', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     const docRef = await db.collection("channels").add(channelData);
     res.json({ id: docRef.id, ...channelData });
   } catch (error: any) { res.status(500).json({ error: error.message }); }

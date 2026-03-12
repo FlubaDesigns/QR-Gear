@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 const mockup_generator_1 = require("../services/mockup-generator");
 const email_1 = require("../services/email");
@@ -406,7 +407,7 @@ function register(app) {
                 res.status(401).json({ error: auth.error });
                 return;
             }
-            const channelData = { name, storeId: storeId || 'qr-gear', ownerId: memberId, type: 'member', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const channelData = { name, storeId: storeId || constants_1.PLATFORM_STORE_ID, ownerId: memberId, type: 'member', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
             const docRef = await core_1.db.collection("channels").add(channelData);
             res.json({ id: docRef.id, ...channelData });
         }

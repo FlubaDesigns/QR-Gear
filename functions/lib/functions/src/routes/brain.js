@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 function register(app) {
     // ============ BRAIN PROXY ENDPOINTS ============
@@ -57,7 +58,7 @@ function register(app) {
                 method: "POST",
                 headers: {
                     "content-type": "application/json",
-                    "x-site-id": "qr-gear",
+                    "x-site-id": constants_1.PLATFORM_STORE_ID,
                     "x-signature": sig,
                 },
                 body: raw,

@@ -1,6 +1,5 @@
 import { getFirestoreDb } from './firebase-admin';
-
-const MOSAICS_COLLECTION = 'site_programs';
+import { MOSAICS_COLLECTION } from './constants';
 
 export interface MosaicEntry {
   day: number;

@@ -1,12 +1,6 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
-
-/**
- * Firestore collection name for mosaic templates (legacy name: dynamicsCollections).
- * Canonical domain term: MosaicTemplate.
- * Firestore collection unchanged to avoid data migration.
- */
-const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
+import { MOSAIC_TEMPLATES_COLLECTION } from "../lib/constants";
 
 export function registerDynamicsContentRoutes(app: Express): void {
 

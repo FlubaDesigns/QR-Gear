@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 function register(app) {
     // ============ ADMIN STORES (stores + storeChannels collections) ============
@@ -151,8 +152,7 @@ function register(app) {
                 if (collection)
                     collectionsSet.add(collection);
             });
-            const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
-            const explicitSnapshot = await core_1.db.collection(MOSAIC_TEMPLATES_COLLECTION)
+            const explicitSnapshot = await core_1.db.collection(constants_1.MOSAIC_TEMPLATES_COLLECTION)
                 .where('storeId', '==', storeId)
                 .where('channelId', '==', channelId)
                 .get();

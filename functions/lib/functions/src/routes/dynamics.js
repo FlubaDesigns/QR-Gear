@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const stripe_1 = __importDefault(require("stripe"));
 const core_1 = require("../core");
-const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 function register(app) {
     // ============ QR DYNAMICS & RESOLVE ROUTES (Batch 4) ============
@@ -329,7 +329,7 @@ function register(app) {
             const collectionsSet = new Set();
             linksSnapshot.docs.forEach(doc => { const c = doc.data().collection; if (c)
                 collectionsSet.add(c); });
-            const explicitSnapshot = await core_1.db.collection(MOSAIC_TEMPLATES_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
+            const explicitSnapshot = await core_1.db.collection(constants_1.MOSAIC_TEMPLATES_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
             explicitSnapshot.docs.forEach(doc => { const n = doc.data().name; if (n)
                 collectionsSet.add(n); });
             const collections = Array.from(collectionsSet).sort();
@@ -347,7 +347,7 @@ function register(app) {
                 res.status(400).json({ error: "name is required" });
                 return;
             }
-            const docRef = await core_1.db.collection(MOSAIC_TEMPLATES_COLLECTION).add({ storeId, channelId, name, createdAt: new Date(), updatedAt: new Date() });
+            const docRef = await core_1.db.collection(constants_1.MOSAIC_TEMPLATES_COLLECTION).add({ storeId, channelId, name, createdAt: new Date(), updatedAt: new Date() });
             res.json({ success: true, collectionId: docRef.id, name });
         }
         catch (error) {
