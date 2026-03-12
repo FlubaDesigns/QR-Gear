@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Package, Palette, Ruler, X } from "lucide-react";
-import { resolvePublicDescription } from "@shared/descriptionLayers";
 import type { AllowedProduct } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 export interface ReadOnlyProductDetailSkinProps {
@@ -11,10 +10,7 @@ export interface ReadOnlyProductDetailSkinProps {
 }
 
 export function ReadOnlyProductDetailSkin({ product, onSelect, onClose }: ReadOnlyProductDetailSkinProps) {
-  const description = resolvePublicDescription({
-    adminCatalogDescription: product.adminCatalogDescription || null,
-    providerDescription: product.providerDescription || product.description || null,
-  }) || product.effectiveDescription || product.description || "No description available";
+  const description = product.effectiveDescription || product.adminCatalogDescription || product.providerDescription || product.description || "No description available";
 
   const colorList = product.availableColors || [];
   const sizeList = product.availableSizes || product.sizes || [];

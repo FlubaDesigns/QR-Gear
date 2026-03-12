@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Package, Palette, Ruler, Save, Loader2, X } from "lucide-react";
-import { resolvePublicDescription } from "@shared/descriptionLayers";
-
 export interface AdminBlankDetailItem {
   id: string;
   title: string;
@@ -14,6 +12,7 @@ export interface AdminBlankDetailItem {
   baseCost?: number;
   providerDescription: string | null;
   adminCatalogDescription: string | null;
+  effectiveDescription: string | null;
   availableColors: Array<{ name: string; hex?: string }>;
   availableSizes: string[];
   fulfillmentProvider?: string;
@@ -31,10 +30,7 @@ export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving 
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState(item.adminCatalogDescription || "");
 
-  const effectiveDescription = resolvePublicDescription({
-    adminCatalogDescription: item.adminCatalogDescription,
-    providerDescription: item.providerDescription,
-  });
+  const effectiveDescription = item.effectiveDescription;
 
   return (
     <div

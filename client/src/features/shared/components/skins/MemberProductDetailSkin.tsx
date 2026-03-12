@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, DollarSign, Package, Palette, Ruler, Pencil, X } from "lucide-react";
-import { resolveDescription } from "@shared/descriptionLayers";
 import type { AllowedProduct } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 export interface MemberProductDetailSkinProps {
@@ -18,11 +17,7 @@ export function MemberProductDetailSkin({ product, onSelect, onClose }: MemberPr
   const [localProduct, setLocalProduct] = useState(product);
 
   const currentDesc = localProduct.memberPacketDescription || "";
-  const cascadedDesc = resolveDescription({
-    providerDescription: localProduct.providerDescription || null,
-    adminCatalogDescription: localProduct.adminCatalogDescription || null,
-    memberPacketDescription: localProduct.memberPacketDescription || null,
-  });
+  const cascadedDesc = localProduct.effectiveDescription || localProduct.memberPacketDescription || localProduct.adminCatalogDescription || localProduct.providerDescription || "";
 
   const colorList = localProduct.availableColors || [];
   const sizeList = localProduct.availableSizes || localProduct.sizes || [];
