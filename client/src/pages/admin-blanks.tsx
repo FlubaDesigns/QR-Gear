@@ -1044,7 +1044,40 @@ export default function AdminBlanks() {
               </div>
             </div>
 
-            {loadingCatalog ? (
+            {validSelectedCatalogId ? (
+              loadingCatalog ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-28 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : catalogProductsWithKeys.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <p className="text-lg text-muted-foreground">No items in this catalog.</p>
+                </Card>
+              ) : (
+                <SharedViewer
+                  mode="scroll"
+                  scrollProps={{
+                    items: catalogProductsWithKeys.map(c => ({
+                      id: String(c.product.id),
+                      imageUrl: c.product.imageUrl || c.product.image_url || c.product.thumbnailUrl || "",
+                      title: c.product.title || "",
+                      subtitle: c.product.brand,
+                      minPrice: c.product.minPrice,
+                      maxPrice: c.product.maxPrice,
+                      colorCount: c.product.colorCount,
+                      madeInUSA: c.product.madeInUSA,
+                    })),
+                    selectedId: null,
+                    emptyMessage: "No items in catalog.",
+                    layout: "vertical",
+                    gridHeight: "calc(100vh - 200px)",
+                    renderItem: renderCatalogCard,
+                  }}
+                />
+              )
+            ) : loadingCatalog ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-28 w-full rounded-md" />
