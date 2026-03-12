@@ -252,8 +252,8 @@ export function registerMemberRoutes(app: Express): void {
       console.log(`[ProductGraphic] showHeader: ${showHeader}, showFooter: ${showFooter}`);
       console.log(`[ProductGraphic] headerStyle?.text: "${headerStyle?.text || ''}", footerStyle?.text: "${footerStyle?.text || ''}"`);
       
-      const topText = showHeader && headerStyle?.text ? {
-        text: headerStyle.text,
+      const topText = showHeader && (headerStyle?.text || (headerStyle?.mode === 'image' && headerStyle?.imageUrl)) ? {
+        text: headerStyle.text || '',
         fontFamily: headerStyle.fontFamily || 'Arial',
         fontSize: headerStyle.fontSize || '48',
         color: headerStyle.color || '#000000',
@@ -261,10 +261,15 @@ export function registerMemberRoutes(app: Express): void {
         warpPreset: headerStyle.warpPreset || 'straight',
         strokeColor: headerStyle.strokeColor,
         strokeWidth: headerStyle.strokeWidth,
+        mode: headerStyle.mode,
+        imageUrl: headerStyle.imageUrl,
+        imageOffsetX: headerStyle.imageOffsetX,
+        imageOffsetY: headerStyle.imageOffsetY,
+        imageScale: headerStyle.imageScale,
       } : null;
       
-      const bottomText = showFooter && footerStyle?.text ? {
-        text: footerStyle.text,
+      const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
+        text: footerStyle.text || '',
         fontFamily: footerStyle.fontFamily || 'Arial',
         fontSize: footerStyle.fontSize || '48',
         color: footerStyle.color || '#000000',
@@ -272,6 +277,11 @@ export function registerMemberRoutes(app: Express): void {
         warpPreset: footerStyle.warpPreset || 'straight',
         strokeColor: footerStyle.strokeColor,
         strokeWidth: footerStyle.strokeWidth,
+        mode: footerStyle.mode,
+        imageUrl: footerStyle.imageUrl,
+        imageOffsetX: footerStyle.imageOffsetX,
+        imageOffsetY: footerStyle.imageOffsetY,
+        imageScale: footerStyle.imageScale,
       } : null;
       
       console.log(`[ProductGraphic] topText:`, topText ? JSON.stringify(topText) : 'null');
@@ -336,8 +346,8 @@ export function registerMemberRoutes(app: Express): void {
       const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
       const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
       
-      const topText = showHeader && headerStyle?.text ? {
-        text: headerStyle.text,
+      const topText = showHeader && (headerStyle?.text || (headerStyle?.mode === 'image' && headerStyle?.imageUrl)) ? {
+        text: headerStyle.text || '',
         fontFamily: headerStyle.fontFamily || 'Arial',
         fontSize: headerStyle.fontSize || '48',
         color: headerStyle.color || '#000000',
@@ -345,10 +355,15 @@ export function registerMemberRoutes(app: Express): void {
         warpPreset: headerStyle.warpPreset || 'straight',
         strokeColor: headerStyle.strokeColor,
         strokeWidth: headerStyle.strokeWidth,
+        mode: headerStyle.mode,
+        imageUrl: headerStyle.imageUrl,
+        imageOffsetX: headerStyle.imageOffsetX,
+        imageOffsetY: headerStyle.imageOffsetY,
+        imageScale: headerStyle.imageScale,
       } : null;
       
-      const bottomText = showFooter && footerStyle?.text ? {
-        text: footerStyle.text,
+      const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
+        text: footerStyle.text || '',
         fontFamily: footerStyle.fontFamily || 'Arial',
         fontSize: footerStyle.fontSize || '48',
         color: footerStyle.color || '#000000',
@@ -356,6 +371,11 @@ export function registerMemberRoutes(app: Express): void {
         warpPreset: footerStyle.warpPreset || 'straight',
         strokeColor: footerStyle.strokeColor,
         strokeWidth: footerStyle.strokeWidth,
+        mode: footerStyle.mode,
+        imageUrl: footerStyle.imageUrl,
+        imageOffsetX: footerStyle.imageOffsetX,
+        imageOffsetY: footerStyle.imageOffsetY,
+        imageScale: footerStyle.imageScale,
       } : null;
 
       const productGraphicDataUrl = await generatePrintifyComposite(
@@ -883,15 +903,17 @@ export function registerMemberRoutes(app: Express): void {
 
       let artworkUrl: string;
 
-      if (textLayoutChoice && textLayoutChoice !== '' && (headerStyle?.text || footerStyle?.text)) {
+      const hasHeaderContent = headerStyle?.text || (headerStyle?.mode === 'image' && headerStyle?.imageUrl);
+      const hasFooterContent = footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl);
+      if (textLayoutChoice && textLayoutChoice !== '' && (hasHeaderContent || hasFooterContent)) {
         console.log(`[PublicMockup] Generating composite artwork with text layout: ${textLayoutChoice}`);
         const { generatePrintifyComposite } = await import("../lib/composite-image-generator");
 
         const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
         const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
 
-        const topText = showHeader && headerStyle?.text ? {
-          text: headerStyle.text,
+        const topText = showHeader && hasHeaderContent ? {
+          text: headerStyle.text || '',
           fontFamily: headerStyle.fontFamily || 'Arial',
           fontSize: headerStyle.fontSize || '48',
           color: headerStyle.color || '#000000',
@@ -899,10 +921,15 @@ export function registerMemberRoutes(app: Express): void {
           warpPreset: headerStyle.warpPreset || 'straight',
           strokeColor: headerStyle.strokeColor,
           strokeWidth: headerStyle.strokeWidth,
+          mode: headerStyle.mode,
+          imageUrl: headerStyle.imageUrl,
+          imageOffsetX: headerStyle.imageOffsetX,
+          imageOffsetY: headerStyle.imageOffsetY,
+          imageScale: headerStyle.imageScale,
         } : null;
 
-        const bottomText = showFooter && footerStyle?.text ? {
-          text: footerStyle.text,
+        const bottomText = showFooter && hasFooterContent ? {
+          text: footerStyle.text || '',
           fontFamily: footerStyle.fontFamily || 'Arial',
           fontSize: footerStyle.fontSize || '48',
           color: footerStyle.color || '#000000',
@@ -910,6 +937,11 @@ export function registerMemberRoutes(app: Express): void {
           warpPreset: footerStyle.warpPreset || 'straight',
           strokeColor: footerStyle.strokeColor,
           strokeWidth: footerStyle.strokeWidth,
+          mode: footerStyle.mode,
+          imageUrl: footerStyle.imageUrl,
+          imageOffsetX: footerStyle.imageOffsetX,
+          imageOffsetY: footerStyle.imageOffsetY,
+          imageScale: footerStyle.imageScale,
         } : null;
 
         const compositeDataUrl = await generatePrintifyComposite(

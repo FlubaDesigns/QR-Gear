@@ -723,17 +723,21 @@ app.post('/members/generate-product-graphic', requireAuth, async (req: Request, 
     console.log(`[CF ProductGraphic] Generating composite with layout: ${textLayoutChoice}`);
     const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
     const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
-    const topText = showHeader && headerStyle?.text ? {
-      text: headerStyle.text, fontFamily: headerStyle.fontFamily || 'Arial',
+    const topText = showHeader && (headerStyle?.text || (headerStyle?.mode === 'image' && headerStyle?.imageUrl)) ? {
+      text: headerStyle.text || '', fontFamily: headerStyle.fontFamily || 'Arial',
       fontSize: headerStyle.fontSize || '48', color: headerStyle.color || '#000000',
       letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
       strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
+      mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
+      imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
     } : null;
-    const bottomText = showFooter && footerStyle?.text ? {
-      text: footerStyle.text, fontFamily: footerStyle.fontFamily || 'Arial',
+    const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
+      text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
       fontSize: footerStyle.fontSize || '48', color: footerStyle.color || '#000000',
       letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
       strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
+      mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
+      imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
     } : null;
     const productGraphicDataUrl = await cfGeneratePrintifyComposite(qrUrl, topText, bottomText, 1200, 1800, qrColor as 'black' | 'white');
     const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -755,17 +759,21 @@ app.post('/public/generate-product-graphic', async (req: Request, res: Response)
     console.log(`[CF PublicProductGraphic] Generating composite with layout: ${textLayoutChoice}`);
     const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
     const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
-    const topText = showHeader && headerStyle?.text ? {
-      text: headerStyle.text, fontFamily: headerStyle.fontFamily || 'Arial',
+    const topText = showHeader && (headerStyle?.text || (headerStyle?.mode === 'image' && headerStyle?.imageUrl)) ? {
+      text: headerStyle.text || '', fontFamily: headerStyle.fontFamily || 'Arial',
       fontSize: headerStyle.fontSize || '48', color: headerStyle.color || '#000000',
       letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
       strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
+      mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
+      imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
     } : null;
-    const bottomText = showFooter && footerStyle?.text ? {
-      text: footerStyle.text, fontFamily: footerStyle.fontFamily || 'Arial',
+    const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
+      text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
       fontSize: footerStyle.fontSize || '48', color: footerStyle.color || '#000000',
       letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
       strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
+      mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
+      imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
     } : null;
     const productGraphicDataUrl = await cfGeneratePrintifyComposite(qrUrl, topText, bottomText, 1200, 1800, qrColor as 'black' | 'white');
     const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -792,21 +800,27 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
     }
     console.log(`[CF PublicMockup] Starting for packet: ${tempPacketId || 'none'}, color: ${colorName}`);
     let artworkUrl: string;
-    if (textLayoutChoice && textLayoutChoice !== '' && (headerStyle?.text || footerStyle?.text)) {
+    const cfHasHeaderContent = headerStyle?.text || (headerStyle?.mode === 'image' && headerStyle?.imageUrl);
+    const cfHasFooterContent = footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl);
+    if (textLayoutChoice && textLayoutChoice !== '' && (cfHasHeaderContent || cfHasFooterContent)) {
       console.log(`[CF PublicMockup] Generating composite artwork with text layout: ${textLayoutChoice}`);
       const showHeader = textLayoutChoice === 'header' || textLayoutChoice === 'both';
       const showFooter = textLayoutChoice === 'footer' || textLayoutChoice === 'both';
-      const topText = showHeader && headerStyle?.text ? {
-        text: headerStyle.text, fontFamily: headerStyle.fontFamily || 'Arial',
+      const topText = showHeader && cfHasHeaderContent ? {
+        text: headerStyle.text || '', fontFamily: headerStyle.fontFamily || 'Arial',
         fontSize: headerStyle.fontSize || '48', color: headerStyle.color || '#000000',
         letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
         strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
+        mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
+        imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
       } : null;
-      const bottomText = showFooter && footerStyle?.text ? {
-        text: footerStyle.text, fontFamily: footerStyle.fontFamily || 'Arial',
+      const bottomText = showFooter && cfHasFooterContent ? {
+        text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
         fontSize: footerStyle.fontSize || '48', color: footerStyle.color || '#000000',
         letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
         strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
+        mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
+        imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
       } : null;
       const compositeDataUrl = await cfGeneratePrintifyComposite(
         qrUrl || 'https://example.com', topText, bottomText, 1200, 1800, qrColor as 'black' | 'white'
@@ -822,7 +836,7 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
       artworkUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(qrContent)}&format=png&qzone=2&ecc=H&color=000000&bgcolor=ffffff`;
       console.log(`[CF PublicMockup] Using raw QR artwork: ${artworkUrl}`);
     }
-    const hasComposite = !!(textLayoutChoice && textLayoutChoice !== '' && (headerStyle?.text || footerStyle?.text));
+    const hasComposite = !!(textLayoutChoice && textLayoutChoice !== '' && (cfHasHeaderContent || cfHasFooterContent));
     const result = await generateMockupFromPrintful({
       blueprintId: parseInt(blueprintId), printProviderId: parseInt(printProviderId) || 99,
       colorName, colorHex: colorHex || '#000000', artworkUrl,

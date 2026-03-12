@@ -12,6 +12,11 @@ export interface TextStyle {
   strokeWidth?: number;
   verticalOffset?: number;
   horizontalOffset?: number;
+  mode?: "text" | "image";
+  imageUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
 }
 
 export interface CompositeImageOptions {
@@ -98,7 +103,55 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const footerZoneTop = qrZoneTop + qrZoneHeight;
   const footerZoneHeight = height * 0.25;
 
-  if (topText && topText.text) {
+  const drawImageInZone = async (
+    imgUrl: string,
+    zoneX: number,
+    zoneY: number,
+    zoneW: number,
+    zoneH: number,
+    padding: number = 0.05,
+    offsetX: number = 50,
+    offsetY: number = 50,
+    scale: number = 100
+  ) => {
+    try {
+      if (!imgUrl.startsWith("data:") && !imgUrl.startsWith("https://firebasestorage.googleapis.com/") && !imgUrl.startsWith("https://storage.googleapis.com/")) {
+        console.warn("[composite-image-generator] Rejected non-allowed image URL scheme");
+        return;
+      }
+      const img = await loadImage(imgUrl);
+      const padX = zoneW * padding;
+      const padY = zoneH * padding;
+      const availW = zoneW - 2 * padX;
+      const availH = zoneH - 2 * padY;
+      const imgAspect = img.width / img.height;
+      const zoneAspect = availW / availH;
+      let baseW: number, baseH: number;
+      if (imgAspect > zoneAspect) {
+        baseW = availW;
+        baseH = availW / imgAspect;
+      } else {
+        baseH = availH;
+        baseW = availH * imgAspect;
+      }
+      const scaleFactor = scale / 100;
+      const drawW = baseW * scaleFactor;
+      const drawH = baseH * scaleFactor;
+      const clampedX = Math.max(0, Math.min(100, offsetX));
+      const clampedY = Math.max(0, Math.min(100, offsetY));
+      const drawX = zoneX + padX + (clampedX / 100) * (availW - drawW);
+      const drawY = zoneY + padY + (clampedY / 100) * (availH - drawH);
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    } catch (e: any) {
+      console.warn("[composite-image-generator] Image load failed:", e?.message);
+    }
+  };
+
+  const topIsImage = topText?.mode === "image" && topText?.imageUrl;
+  if (topIsImage) {
+    await drawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0.05,
+      topText!.imageOffsetX ?? 50, topText!.imageOffsetY ?? 50, topText!.imageScale ?? 100);
+  } else if (topText && topText.text) {
     const previewFontSize = getPreviewFontSize(topText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
     const fontFamily = FONT_MAP[topText.fontFamily] || "Arial";
@@ -164,7 +217,11 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   
   ctx.drawImage(qrImage, qrX, qrY, qrContentWidth, qrContentHeight);
 
-  if (bottomText && bottomText.text) {
+  const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
+  if (bottomIsImage) {
+    await drawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0.05,
+      bottomText!.imageOffsetX ?? 50, bottomText!.imageOffsetY ?? 50, bottomText!.imageScale ?? 100);
+  } else if (bottomText && bottomText.text) {
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
     const fontFamily = FONT_MAP[bottomText.fontFamily] || "Arial";

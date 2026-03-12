@@ -34,6 +34,11 @@ interface TextStyleCF {
   strokeWidth?: number;
   verticalOffset?: number;
   horizontalOffset?: number;
+  mode?: "text" | "image";
+  imageUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
 }
 
 const CF_PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -108,7 +113,56 @@ async function cfGenerateCompositeImage(options: {
   const footerZoneTop = qrZoneTop + qrZoneHeight;
   const footerZoneHeight = height * 0.25;
 
-  if (topText && topText.text) {
+  const cfDrawImageInZone = async (
+    imgUrl: string,
+    zoneX: number,
+    zoneY: number,
+    zoneW: number,
+    zoneH: number,
+    padding: number = 0.05,
+    offsetX: number = 50,
+    offsetY: number = 50,
+    scale: number = 100
+  ) => {
+    try {
+      if (!imgUrl.startsWith("data:") && !imgUrl.startsWith("https://firebasestorage.googleapis.com/") && !imgUrl.startsWith("https://storage.googleapis.com/")) {
+        console.warn("[cf-composite] Rejected non-allowed image URL scheme");
+        return;
+      }
+      const { loadImage: li2 } = getCanvas();
+      const img = await li2(imgUrl);
+      const padX = zoneW * padding;
+      const padY = zoneH * padding;
+      const availW = zoneW - 2 * padX;
+      const availH = zoneH - 2 * padY;
+      const imgAspect = img.width / img.height;
+      const zoneAspect = availW / availH;
+      let baseW: number, baseH: number;
+      if (imgAspect > zoneAspect) {
+        baseW = availW;
+        baseH = availW / imgAspect;
+      } else {
+        baseH = availH;
+        baseW = availH * imgAspect;
+      }
+      const sf = scale / 100;
+      const drawW = baseW * sf;
+      const drawH = baseH * sf;
+      const cx = Math.max(0, Math.min(100, offsetX));
+      const cy = Math.max(0, Math.min(100, offsetY));
+      const drawX = zoneX + padX + (cx / 100) * (availW - drawW);
+      const drawY = zoneY + padY + (cy / 100) * (availH - drawH);
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    } catch (e: any) {
+      console.warn("[cf-composite] Image load failed:", e?.message);
+    }
+  };
+
+  const topIsImage = topText?.mode === "image" && topText?.imageUrl;
+  if (topIsImage) {
+    await cfDrawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0.05,
+      topText!.imageOffsetX ?? 50, topText!.imageOffsetY ?? 50, topText!.imageScale ?? 100);
+  } else if (topText && topText.text) {
     const previewFontSize = cfGetPreviewFontSize(topText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
     const fontFamily = CF_FONT_MAP[topText.fontFamily] || "Arial";
@@ -169,7 +223,11 @@ async function cfGenerateCompositeImage(options: {
   ctx.fill();
   ctx.drawImage(qrImage, qrX, qrY, qrContentWidth, qrContentHeight);
 
-  if (bottomText && bottomText.text) {
+  const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
+  if (bottomIsImage) {
+    await cfDrawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0.05,
+      bottomText!.imageOffsetX ?? 50, bottomText!.imageOffsetY ?? 50, bottomText!.imageScale ?? 100);
+  } else if (bottomText && bottomText.text) {
     const previewFontSize = cfGetPreviewFontSize(bottomText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
     const fontFamily = CF_FONT_MAP[bottomText.fontFamily] || "Arial";
