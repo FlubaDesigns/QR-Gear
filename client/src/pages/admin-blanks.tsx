@@ -760,13 +760,8 @@ export default function AdminBlanks() {
       const customDesc = blankDescriptions[blankKey];
       map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
     });
-    catalogProducts.forEach(p => {
-      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
-      const customDesc = blankDescriptions[blankKey];
-      map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
-    });
     return map;
-  }, [filtered, catalogProducts, pricing, blankDescriptions]);
+  }, [filtered, pricing, blankDescriptions]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     filtered.map(p => ({
