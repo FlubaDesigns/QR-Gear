@@ -19,13 +19,14 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
   ```
 - **Firebase Deploy — Functions** (API):
   ```bash
-  cd functions && npm run build && cd _
+  cd functions && npm run build && cd ..
   echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
   export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
   firebase deploy --only functions --project qrgear-c1ffd
   rm /tmp/firebase-sa.json
   ```
-- **MODULAR API CODEBASE**: The Cloud Function entry point is `functions/src/index.ts` (~70 lines of wiring). All logic lives in modular files:
+- **MODULAR API CODEBASE**: The Cloud Function entry point is `functions/src/index.ts` (~94 lines of wiring). All logic lives in modular files:
+  - `functions/src/constants.ts` — Centralized platform constants: `MOSAICS_COLLECTION`, `MOSAIC_TEMPLATES_COLLECTION`, `PLATFORM_STORE_ID`, `LEGACY_STORE_ID`
   - `functions/src/core.ts` — Firebase init, db, storage, types, placement maps, normalization fns, doc helpers, color helpers
   - `functions/src/middleware.ts` — CORS, verifyAuth, requireAuth, requireAdmin, ADMIN_USER_IDS
   - `functions/src/services/` — email.ts, pricing.ts, storage-helpers.ts, printful.ts, printify.ts, mockup-generator.ts, composite-image.ts
@@ -82,7 +83,7 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Mockup Cache**: Includes artwork URL hash in the mockup cache key to prevent stale mockups.
 - **QR GEAR DUAL-PRODUCT ARCHITECTURE**: Comprises **QR COMPOSER** (for creating sellable QR merchandise templates) and **QR DYNAMICS** (for controlling purchased instances post-sale). **Naming convention**: "QR Compose" = the member wizard process of stitching items together; "QR Dynamics" = the resulting stitched item that rotates content. The member dashboard tab is labeled "QR Dynamics" and shows items built via QR Compose.
 - **Three Surfaces (Resolver Engine)**: Supports IMAGE (Canvas), VIDEO (Play), and future DOCUMENT (PDF) based QR experiences.
-- **Member Creation Wizards**: Progressive unlock system for members based on publishing activity (Quick Create, Advanced, Studio). Code-split via React.lazy for reduced initial bundle size.
+- **Member Creation Wizards**: Progressive unlock system for members based on publishing activity (SuperSimple, Simple, Advanced, Studio). Code-split via React.lazy for reduced initial bundle size.
 - **Advanced Wizard Differentiation**: Advanced tier includes Quick Start resume, font size slider, vertical offset controls, and placement coordinate display with X/Y offset adjusters.
 - **Wizard Completion Flow**: All wizard confirm screens hide Back/Next footer and show dual "Dashboard" / "Create Another" buttons via ShareKitHandoff.
 - **Error Toasts**: Packet creation failures and library auto-save failures show user-visible toast notifications instead of silent console logs.
@@ -115,7 +116,7 @@ Three canonical field names only: `providerDescription`, `adminCatalogDescriptio
 ### Step 4: Wizard Surface Split
 Wizard steps are modular components in `client/src/features/shared/components/wizardSteps/`. Three surfaces: IMAGE (Canvas), VIDEO (Play), DOCUMENT (future). `ProductSteps.tsx` uses canon skins (`WizardProductCardSkin`, `MemberProductDetailSkin`, `ReadOnlyProductDetailSkin`, `TierCardSkin`) and canon views (`ScrollVerticalView`).
 
-### Step 5: Skin System (43 skin files)
+### Step 5: Skin System (44 skin files)
 All skins in `client/src/features/shared/components/skins/`. Skins render visible controls only — they do NOT decide business truth, save targets, or permissions. They receive declared handlers and visible state from controllers.
 
 ### Step 6: Controller Layer (6 controller hooks)
@@ -145,7 +146,8 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
 10. **NEVER** use any grouping mechanism other than `Collection` — no programs, tags, or ad-hoc grouping (Canon Rule 1)
 11. **NEVER** use any stitching mechanism other than `Mosaic` + QR Dynamics (Canon Rule 2)
 12. **NEVER** store API tokens in plaintext files — use environment variables only
-13. **ALWAYS** deploy to production after every change — this means:
+13. **ALWAYS** import `MOSAICS_COLLECTION`, `MOSAIC_TEMPLATES_COLLECTION`, `PLATFORM_STORE_ID`, `LEGACY_STORE_ID` from centralized constants files (`functions/src/constants.ts` or `server/lib/constants.ts`) — never redefine locally
+14. **ALWAYS** deploy to production after every change — this means:
     - `npm run build` → `firebase deploy --only hosting`
     - `cd functions && npm run build && cd ..` → `firebase deploy --only functions`
     - Verify homepage returns 200: `curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/`
@@ -155,7 +157,7 @@ All skins in `client/src/features/shared/components/skins/`. Skins render visibl
     - Rebuild the zip: `downloads/QR_Gear_Full_Website.zip`
     - **Every session ends with deploy + verify. No exceptions.**
 
-## Canonical Domain Model (NEW)
+## Canonical Domain Model
 
 The system follows a canonical domain hierarchy defined in `shared/domainModel.ts`:
 
@@ -175,7 +177,7 @@ Store → Channel → Collection → Artifact
 ### Domain Mappers (`server/lib/domain-mappers.ts`)
 Normalize legacy Firestore records into canonical domain objects. Functions: `channelItemToArtifact()`, `firestoreDocToStore()`, `firestoreDocToChannel()`, `firestoreDocToCollection()`, `legacyProgramToMosaic()`.
 
-### Route Split (COMPLETED — Week 2)
+### Route Split (COMPLETED)
 The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-aligned route files:
 - `dynamic-pages.routes.ts` — Dynamic Pages CRUD
 - `buyer-instances.routes.ts` — Buyer Instances + QR resolve
@@ -202,7 +204,7 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 - `server/lib/widget-auth.ts` — Always throws if no `WIDGET_JWT_KEYS` or `WIDGET_JWT_SECRET` configured (no dev fallback in any environment)
 - License: README says Proprietary, `package.json` says `UNLICENSED` (npm convention for proprietary) — MATCHED
 
-### Test Coverage (NEW)
+### Test Coverage
 - `shared/__tests__/qrDynamicsResolver.test.ts` — 13 tests covering slot resolution, cycle wrap, boundary conditions, time remaining, negative elapsed
 - `shared/__tests__/blankKeys.test.ts` — 15 tests covering canonical key derivation, provider detection, prefix handling
 - `shared/__tests__/descriptionLayers.test.ts` — 11 tests covering three-level cascade, public resolution, snapshot builder
