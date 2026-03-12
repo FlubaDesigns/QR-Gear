@@ -753,6 +753,24 @@ export default function AdminBlanks() {
 
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
 
+  const allProductMap = useMemo(() => {
+    const map = new Map<string, CatalogProduct>();
+    printifyProducts.forEach(p => map.set(String(p.id), p));
+    printfulAsCatalogProducts.forEach(p => map.set(`pf:${p.id}`, p));
+    return map;
+  }, [printifyProducts, printfulAsCatalogProducts]);
+
+  const catalogProductsWithKeys = useMemo(() => {
+    return Array.from(catalogBlankSet)
+      .map(id => {
+        const product = allProductMap.get(id);
+        return product ? { product, catalogKey: id, isPrintful: id.startsWith('pf:') } : null;
+      })
+      .filter(Boolean) as { product: CatalogProduct; catalogKey: string; isPrintful: boolean }[];
+  }, [catalogBlankSet, allProductMap]);
+
+  const catalogProducts = useMemo(() => catalogProductsWithKeys.map(c => c.product), [catalogProductsWithKeys]);
+
   const selectItemMap = useMemo(() => {
     const map = new Map<string, ProductSelectItem>();
     filtered.forEach(p => {
@@ -760,8 +778,13 @@ export default function AdminBlanks() {
       const customDesc = blankDescriptions[blankKey];
       map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
     });
+    catalogProducts.forEach(p => {
+      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
+      const customDesc = blankDescriptions[blankKey];
+      map.set(String(p.id), catalogToSelectItem(p, pricing, customDesc));
+    });
     return map;
-  }, [filtered, pricing, blankDescriptions]);
+  }, [filtered, catalogProducts, pricing, blankDescriptions]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     filtered.map(p => ({
@@ -820,24 +843,6 @@ export default function AdminBlanks() {
     },
     [selectItemMap, toggleItem, isInCatalog, blankTiers, handleTierChange, validSelectedCatalogId, providerFilter, mappedPrintifyIds, mappedPrintfulIds, getBlankKey, handleDescriptionSave, saveDescriptionMutation.isPending]
   );
-
-  const allProductMap = useMemo(() => {
-    const map = new Map<string, CatalogProduct>();
-    printifyProducts.forEach(p => map.set(String(p.id), p));
-    printfulAsCatalogProducts.forEach(p => map.set(`pf:${p.id}`, p));
-    return map;
-  }, [printifyProducts, printfulAsCatalogProducts]);
-
-  const catalogProductsWithKeys = useMemo(() => {
-    return Array.from(catalogBlankSet)
-      .map(id => {
-        const product = allProductMap.get(id);
-        return product ? { product, catalogKey: id, isPrintful: id.startsWith('pf:') } : null;
-      })
-      .filter(Boolean) as { product: CatalogProduct; catalogKey: string; isPrintful: boolean }[];
-  }, [catalogBlankSet, allProductMap]);
-
-  const catalogProducts = useMemo(() => catalogProductsWithKeys.map(c => c.product), [catalogProductsWithKeys]);
 
   const handleOpenCatalog = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
