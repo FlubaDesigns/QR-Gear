@@ -87,6 +87,7 @@ function catalogToSelectItem(p: CatalogProduct, pricing: PricingSettings, custom
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
     description: customDescription ?? p.description ?? p.model ?? null,
+    originalDescription: p.description ?? null,
     colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || [],
     defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,

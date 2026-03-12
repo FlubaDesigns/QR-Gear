@@ -264,7 +264,8 @@ export function ProductPickerStep({
                     <div
                       className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
                       onClick={() => {
-                        setPickerDescDraft(zoomedImage.product.customDescription || zoomedImage.product.description || "");
+                        const cascaded = zoomedImage.product.customDescription || zoomedImage.product.description || zoomedImage.product.adminDescription || zoomedImage.product.originalDescription || "";
+                        setPickerDescDraft(cascaded);
                         setEditingPickerDesc(true);
                       }}
                       data-testid="button-edit-picker-member-desc"
@@ -725,6 +726,9 @@ export function TierPickerStep({
               fulfillmentProvider: (tp.fulfillmentProvider as 'printify' | 'printful') || 'printify',
               availableColors: tp.availableColors?.map(c => ({ name: c.name, hex: c.hex || '' })),
               availableSizes: tp.availableSizes,
+              description: tp.description,
+              originalDescription: tp.originalDescription,
+              adminDescription: tp.adminDescription,
             } as AllowedProduct;
             const isSelected = selectedProduct?.blueprintId === tp.blueprintId;
             return (
@@ -852,7 +856,8 @@ export function TierPickerStep({
                       <div
                         className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
                         onClick={() => {
-                          setMemberDescDraft(previewProduct.product.customDescription || previewProduct.tp.description || "");
+                          const cascaded = previewProduct.product.customDescription || previewProduct.tp.description || previewProduct.tp.adminDescription || previewProduct.tp.originalDescription || "";
+                          setMemberDescDraft(cascaded);
                           setEditingMemberDesc(true);
                         }}
                         data-testid="button-edit-member-desc"
@@ -927,6 +932,12 @@ export function TierPickerStep({
                     }
                     if (!productToSelect.description && previewProduct.tp.description) {
                       productToSelect.description = previewProduct.tp.description;
+                    }
+                    if (!productToSelect.originalDescription && previewProduct.tp.originalDescription) {
+                      productToSelect.originalDescription = previewProduct.tp.originalDescription;
+                    }
+                    if (!productToSelect.adminDescription && previewProduct.tp.adminDescription) {
+                      productToSelect.adminDescription = previewProduct.tp.adminDescription;
                     }
                     onSelect(productToSelect);
                     setPreviewProduct(null);

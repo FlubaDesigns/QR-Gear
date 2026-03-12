@@ -32,6 +32,7 @@ export interface ProductSelectItem {
   madeInUSA: boolean;
   primaryImageUrl: string | null;
   description: string | null;
+  originalDescription?: string | null;
   colorsAvailable: Array<{ name: string; hex?: string }>;
   sizesAvailable: string[];
   defaultColor: string | null;
@@ -184,6 +185,16 @@ function PreviewModal({
                           placeholder="Enter a custom description for this product..."
                           data-testid={`textarea-desc-${item.id}`}
                         />
+                        {item.originalDescription && item.originalDescription !== draftDesc && (
+                          <button
+                            type="button"
+                            className="text-xs text-blue-400 hover:text-blue-300 underline"
+                            onClick={() => setDraftDesc(item.originalDescription || "")}
+                            data-testid={`button-reset-to-original-${item.id}`}
+                          >
+                            Reset to Printify original
+                          </button>
+                        )}
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -211,7 +222,7 @@ function PreviewModal({
                     ) : (
                       <div
                         className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
-                        onClick={() => { setDraftDesc(item.description || ""); setEditingDesc(true); }}
+                        onClick={() => { setDraftDesc(item.description || item.originalDescription || ""); setEditingDesc(true); }}
                         data-testid={`button-edit-desc-${item.id}`}
                       >
                         <div className="flex items-start gap-2">

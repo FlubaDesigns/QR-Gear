@@ -1249,7 +1249,9 @@ app.get('/members/allowed-products', async (req, res) => {
                 }
                 const fulfillmentProvider = p.fulfillmentProvider || 'printify';
                 const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
-                const description = catalogBlankDescriptions[blankKey] || p.description || '';
+                const originalDescription = p.description || '';
+                const adminDescription = catalogBlankDescriptions[blankKey] || '';
+                const description = adminDescription || originalDescription;
                 return {
                     ...p,
                     blueprintId,
@@ -1262,6 +1264,8 @@ app.get('/members/allowed-products', async (req, res) => {
                     memberEarnings,
                     placements,
                     description,
+                    originalDescription,
+                    adminDescription,
                 };
             }));
         };
@@ -10099,12 +10103,15 @@ app.get('/members/tier-products', async (req, res) => {
                 availableColors = (prov?.availableColors || []).map((c) => ({ name: c.name || c, hex: c.hex || '' }));
                 availableSizes = (prov?.availableSizes || []).map((s) => typeof s === 'string' ? s : s.title || String(s));
             }
-            const customDesc = blankDescriptions[blankKey] || bp.description || '';
-            const fallbackDesc = customDesc || (bp.brand ? `${bp.title} by ${bp.brand}. Premium quality print-on-demand ${category.toLowerCase()}.` : '');
+            const originalDescription = bp.description || '';
+            const adminDescription = blankDescriptions[blankKey] || '';
+            const description = adminDescription || originalDescription || (bp.brand ? `${bp.title} by ${bp.brand}. Premium quality print-on-demand ${category.toLowerCase()}.` : '');
             categoryTierMap[category][tier].push({
                 blueprintId: numericId,
                 title: bp.title,
-                description: fallbackDesc,
+                description,
+                originalDescription,
+                adminDescription,
                 brand: bp.brand,
                 imageUrl: bp.images?.[0] || bp.primaryImageUrl || null,
                 cost,
