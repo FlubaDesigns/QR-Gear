@@ -225,70 +225,64 @@ export function ProductPickerStep({
                 <p className="text-xs text-slate-400">{zoomedImage.product.brand}</p>
               )}
 
-              {context === 'member' ? (
-                <div className="space-y-2">
-                  {editingPickerDesc ? (
-                    <>
-                      <Textarea
-                        value={pickerDescDraft}
-                        onChange={(e) => setPickerDescDraft(e.target.value)}
-                        className="text-sm min-h-[80px] bg-slate-800 border-slate-600 text-white"
-                        placeholder="Customize the product description..."
-                        data-testid="textarea-picker-member-desc"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-green-600 text-white"
-                          onClick={() => {
-                            if (zoomedImage) {
-                              setZoomedImage({
-                                ...zoomedImage,
-                                product: { ...zoomedImage.product, customDescription: pickerDescDraft },
-                              });
-                            }
-                            setEditingPickerDesc(false);
-                          }}
-                          data-testid="button-save-picker-member-desc"
-                        >
-                          Done
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-slate-300 border-slate-600"
-                          onClick={() => setEditingPickerDesc(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <div
-                      className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
-                      onClick={() => {
-                        const cascaded = zoomedImage.product.customDescription || zoomedImage.product.description || zoomedImage.product.adminDescription || zoomedImage.product.originalDescription || "";
-                        setPickerDescDraft(cascaded);
-                        setEditingPickerDesc(true);
-                      }}
-                      data-testid="button-edit-picker-member-desc"
-                    >
-                      <div className="flex items-start gap-2">
-                        <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                        {(zoomedImage.product.customDescription || zoomedImage.product.description) ? (
-                          <p className="text-sm text-slate-300">{zoomedImage.product.customDescription || zoomedImage.product.description}</p>
-                        ) : (
-                          <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
-                        )}
-                      </div>
+              <div className="space-y-2">
+                {editingPickerDesc ? (
+                  <>
+                    <Textarea
+                      value={pickerDescDraft}
+                      onChange={(e) => setPickerDescDraft(e.target.value)}
+                      className="text-sm min-h-[80px] bg-slate-800 border-slate-600 text-white"
+                      placeholder="Customize the product description..."
+                      data-testid="textarea-picker-member-desc"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 text-white"
+                        onClick={() => {
+                          if (zoomedImage) {
+                            setZoomedImage({
+                              ...zoomedImage,
+                              product: { ...zoomedImage.product, customDescription: pickerDescDraft },
+                            });
+                          }
+                          setEditingPickerDesc(false);
+                        }}
+                        data-testid="button-save-picker-member-desc"
+                      >
+                        Done
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-slate-300 border-slate-600"
+                        onClick={() => setEditingPickerDesc(false)}
+                      >
+                        Cancel
+                      </Button>
                     </div>
-                  )}
-                </div>
-              ) : (
-                (zoomedImage.product.description || zoomedImage.product.originalDescription) && (
-                  <p className="text-sm text-slate-300">{zoomedImage.product.description || zoomedImage.product.originalDescription}</p>
-                )
-              )}
+                  </>
+                ) : (
+                  <div
+                    className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
+                    onClick={() => {
+                      const cascaded = zoomedImage.product.customDescription || zoomedImage.product.description || zoomedImage.product.adminDescription || zoomedImage.product.originalDescription || "";
+                      setPickerDescDraft(cascaded);
+                      setEditingPickerDesc(true);
+                    }}
+                    data-testid="button-edit-picker-member-desc"
+                  >
+                    <div className="flex items-start gap-2">
+                      <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
+                      {(zoomedImage.product.customDescription || zoomedImage.product.description) ? (
+                        <p className="text-sm text-slate-300">{zoomedImage.product.customDescription || zoomedImage.product.description}</p>
+                      ) : (
+                        <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {(() => {
                 const colorList = zoomedImage.product.availableColors || [];
