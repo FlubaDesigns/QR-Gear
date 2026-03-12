@@ -5,7 +5,7 @@ import { Package, Search, Filter, Flag, Globe } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { SharedViewer } from "@/features/shared/components/SharedViewer";
 import { ProductSelectCardSkin, type ProductSelectItem } from "@/features/shared/components/skins/ProductSelectCardSkin";
-import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import type { Product } from "../shared/types";
 
 type LocationFilter = "all" | "usa" | "other";

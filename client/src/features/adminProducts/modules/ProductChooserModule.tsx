@@ -10,7 +10,7 @@ import {
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import { ProductsControlBar } from "./ProductsControlBar";
 import type { Product } from "../shared/types";
-import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+import type { ScrollViewItem } from "@/features/shared/components/views/index";
 
 type LocationFilter = "all" | "usa" | "other";
 type EnabledFilter = "all" | "enabled" | "disabled";

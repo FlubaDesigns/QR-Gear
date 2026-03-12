@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Layers, Loader2 } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { SharedViewer } from "./SharedViewer";
-import type { ScrollViewItem } from "./views/ScrollView";
+import type { ScrollViewItem } from "./views/index";
 
 export interface CatalogProduct {
   id: number;

@@ -20,7 +20,7 @@ import {
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
-import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+import type { ScrollViewItem } from "@/features/shared/components/views/index";
 
 interface AdminCatalog {
   id: string;

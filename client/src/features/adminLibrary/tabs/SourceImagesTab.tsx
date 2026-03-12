@@ -5,8 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useLibraryContext } from "../LibraryContext";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
-import { GridView, type GridViewItem } from "@/features/shared/components/views/GridView";
-import { SingleView } from "@/features/shared/components/views/SingleView";
+import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
+import { ItemModalView } from "@/features/shared/components/views/ModalView";
+import type { GridViewItem } from "@/features/shared/components/views/index";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
@@ -256,14 +257,25 @@ function SourceImagesTabInner() {
         </div>
       )}
 
-      <GridView
+      <ScrollGridView
         items={gridItems}
-        onSelect={handleSelect}
+        renderItem={(item) => (
+          <div
+            className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
+            onClick={() => handleSelect(item)}
+            data-testid={`card-grid-item-${item.id}`}
+          >
+            <img src={item.imageUrl} alt="" className="w-full h-auto" />
+          </div>
+        )}
         isLoading={isLoading}
         emptyMessage="No source images uploaded yet."
+        columns="grid-cols-2 sm:grid-cols-3"
+        height="auto"
+        footer={null}
       />
 
-      <SingleView
+      <ItemModalView
         item={selectedItem ? {
           id: selectedItem.id,
           name: selectedItem.name,
@@ -280,7 +292,7 @@ function SourceImagesTabInner() {
           onClose={() => setSingleViewOpen(false)}
           isDeleting={deleteMutation.isPending}
         />
-      </SingleView>
+      </ItemModalView>
 
       <CropUtility
         asset={assetToCrop}

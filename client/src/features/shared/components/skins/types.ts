@@ -1,4 +1,4 @@
-import type { GalleryImage } from "../views/GalleryView";
+import type { GalleryImage } from "../views/index";
 
 // Universal Product Packet - syncs across all stores when pricing updates
 export interface ProductPacket {

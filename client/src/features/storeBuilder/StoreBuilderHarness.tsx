@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { Store, Building2, Globe, ChevronRight, ChevronDown, Loader2, Package, QrCode, Link as LinkIcon, Palette, Ruler, Maximize2, Check, Library, FolderOpen, Layers, RefreshCw, Plus } from "lucide-react";
-import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
+import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { TemplatePickerSkin } from "@/features/shared/components/skins";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -1455,7 +1455,7 @@ export function StoreBuilderHarness() {
         onSelectGraphicSize={setGraphicSize}
       />
 
-      <ImageLightbox
+      <ImageModalView
         imageUrl={thumbnailLightbox}
         onClose={() => setThumbnailLightbox(null)}
       />

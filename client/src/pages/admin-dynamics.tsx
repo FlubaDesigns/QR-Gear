@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GridScrollView, QRDynamicsScanLightbox } from "@/features/shared/components/views";
+import { ScrollGridView, QRDynamicsScanLightbox } from "@/features/shared/components/views";
 import { ChannelItemSkin, type ChannelItem, CollectionItemSkinV2, type CollectionItem } from "@/features/shared/components/skins";
 
 interface StoreOption {
@@ -462,13 +462,15 @@ export default function TestDynamicsPage() {
                   <p className="text-sm">No QR Canvas or QR Play content in this channel.</p>
                 </div>
               ) : (
-                <GridScrollView
+                <ScrollGridView
                   items={packetItems}
-                  Skin={ChannelSkin}
-                  onAction={handlePacketAction}
-                  columns={4}
+                  renderItem={(item) => (
+                    <ChannelSkin item={item} onAction={handlePacketAction ? () => handlePacketAction(item) : undefined} />
+                  )}
+                  columns="grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
                   height="280px"
                   emptyMessage="No content available"
+                  footer={null}
                 />
               )}
             </div>

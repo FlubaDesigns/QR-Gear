@@ -18,7 +18,7 @@ import {
   ProductSelectCardSkin,
   type ProductSelectItem,
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
-import type { ScrollViewItem } from "@/features/shared/components/views/ScrollView";
+import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getCanonicalBlankKey, safeBlankId, isProviderPrintful, getProviderFromKey } from "@shared/blankKeys";
 
 interface CatalogProduct {

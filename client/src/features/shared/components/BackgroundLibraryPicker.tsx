@@ -5,7 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Library, User, X } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import { GridView, type GridViewItem } from "./views/GridView";
+import { ScrollGridView } from "./views/ScrollGridView";
+import type { GridViewItem } from "./views/index";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
 import { useToast } from "@/hooks/use-toast";
 
@@ -227,15 +228,23 @@ export function BackgroundLibraryPicker({
               <p className="text-sm text-slate-400 mb-3">
                 Admin-curated backgrounds available to all members.
               </p>
-              <div className="max-h-[400px] overflow-y-auto">
-                <GridView
-                  items={commonGridItems}
-                  onSelect={handleGridSelect}
-                  isLoading={loadingCommon}
-                  emptyMessage="No common backgrounds available"
-                  columns="grid-cols-3"
-                />
-              </div>
+              <ScrollGridView
+                items={commonGridItems}
+                renderItem={(item) => (
+                  <div
+                    className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
+                    onClick={() => handleGridSelect(item)}
+                    data-testid={`card-grid-item-${item.id}`}
+                  >
+                    <img src={item.imageUrl} alt="" className="w-full h-auto" />
+                  </div>
+                )}
+                isLoading={loadingCommon}
+                emptyMessage="No common backgrounds available"
+                columns="grid-cols-3"
+                height="400px"
+                footer={null}
+              />
             </TabsContent>
 
             <TabsContent value="personal" className="mt-4">
@@ -261,15 +270,23 @@ export function BackgroundLibraryPicker({
                   {uploading ? 'Uploading...' : 'Upload'}
                 </Button>
               </div>
-              <div className="max-h-[400px] overflow-y-auto">
-                <GridView
-                  items={personalGridItems}
-                  onSelect={handleGridSelect}
-                  isLoading={loadingPersonal}
-                  emptyMessage="No uploads yet. Click Upload to add images."
-                  columns="grid-cols-3"
-                />
-              </div>
+              <ScrollGridView
+                items={personalGridItems}
+                renderItem={(item) => (
+                  <div
+                    className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
+                    onClick={() => handleGridSelect(item)}
+                    data-testid={`card-grid-item-${item.id}`}
+                  >
+                    <img src={item.imageUrl} alt="" className="w-full h-auto" />
+                  </div>
+                )}
+                isLoading={loadingPersonal}
+                emptyMessage="No uploads yet. Click Upload to add images."
+                columns="grid-cols-3"
+                height="400px"
+                footer={null}
+              />
             </TabsContent>
           </Tabs>
 

@@ -3,7 +3,7 @@ import { Package, Loader2, Check, QrCode, Image, DollarSign, ArrowRight, Link2, 
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { ImageLightbox } from "@/features/shared/components/views/ImageLightbox";
+import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useBuilderContext } from "../BuilderContext";
@@ -998,7 +998,7 @@ export function CreateGraphicsModule() {
           </div>
         )}
 
-        <ImageLightbox
+        <ImageModalView
           imageUrl={thumbnailLightbox}
           onClose={() => setThumbnailLightbox(null)}
         />

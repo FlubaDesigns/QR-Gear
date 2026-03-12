@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Image, RefreshCw } from "lucide-react";
+import { Loader2, Image, RefreshCw, ChevronLeft, ChevronRight, X, ImageIcon, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { SkinGridViewer } from "./SkinGridViewer";
+import { ScrollGridView } from "./views/ScrollGridView";
+import { ModalView } from "./views/ModalView";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
 import { BackgroundCardSkin, BackgroundDetailSkin, CroppedImageCardSkin, CroppedImageDetailSkin } from "./skins";
 import type { SkinItem } from "./skins/types";
@@ -36,8 +38,8 @@ export interface LibraryBackgroundPickerProps {
 type TabType = "cropped" | "backgrounds";
 
 function assetToSkinItem(asset: BackgroundAsset): SkinItem {
-  const imageUrl = asset.thumbnailUrl || 
-    (asset.proxyUrl && asset.proxyUrl !== "/api/library-files/" ? asset.proxyUrl : null) || 
+  const imageUrl = asset.thumbnailUrl ||
+    (asset.proxyUrl && asset.proxyUrl !== "/api/library-files/" ? asset.proxyUrl : null) ||
     asset.storageUrl;
   return {
     id: asset.id,
@@ -62,6 +64,13 @@ export function LibraryBackgroundPicker({
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [croppedSelectedIndex, setCroppedSelectedIndex] = useState<number | null>(null);
+  const [croppedShowPrimary, setCroppedShowPrimary] = useState(true);
+
+  const [bgSelectedIndex, setBgSelectedIndex] = useState<number | null>(null);
+  const [bgShowPrimary, setBgShowPrimary] = useState(true);
+  const [bgShowConfirm, setBgShowConfirm] = useState(false);
 
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
     queryKey: [`${apiBase}/background-assets`, "cropped"],
@@ -130,7 +139,7 @@ export function LibraryBackgroundPicker({
 
   const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) return;
-    
+
     const authHeaders = await getAuthHeaders();
     const response = await fetch(`${apiBase}/background-assets`, {
       method: "POST",
@@ -160,10 +169,99 @@ export function LibraryBackgroundPicker({
     return URL.createObjectURL(blob);
   };
 
+  const croppedSelected = croppedSelectedIndex !== null ? croppedItems[croppedSelectedIndex] : null;
+  const croppedHasPrev = croppedSelectedIndex !== null && croppedSelectedIndex > 0;
+  const croppedHasNext = croppedSelectedIndex !== null && croppedSelectedIndex < croppedItems.length - 1;
+  const croppedDisplayImage = croppedSelected
+    ? (croppedShowPrimary ? croppedSelected.primaryImage : croppedSelected.secondaryImage) || croppedSelected.primaryImage || croppedSelected.secondaryImage
+    : null;
+
+  const bgSelected = bgSelectedIndex !== null ? backgroundItems[bgSelectedIndex] : null;
+  const bgHasPrev = bgSelectedIndex !== null && bgSelectedIndex > 0;
+  const bgHasNext = bgSelectedIndex !== null && bgSelectedIndex < backgroundItems.length - 1;
+  const bgDisplayImage = bgSelected
+    ? (bgShowPrimary ? bgSelected.primaryImage : bgSelected.secondaryImage) || bgSelected.primaryImage || bgSelected.secondaryImage
+    : null;
+
+  const renderDetailModal = (
+    items: SkinItem[],
+    selIndex: number | null,
+    setSelIndex: (i: number | null) => void,
+    showPrim: boolean,
+    setShowPrim: (v: boolean) => void,
+    displayImg: string | null | undefined,
+    selected: SkinItem | null,
+    hPrev: boolean,
+    hNext: boolean,
+    DetailSkin: typeof CroppedImageDetailSkin | typeof BackgroundDetailSkin,
+    actions: Record<string, any>,
+    isPending: boolean,
+  ) => {
+    const doPrev = () => { if (hPrev && selIndex !== null) { setSelIndex(selIndex - 1); setShowPrim(true); } };
+    const doNext = () => { if (hNext && selIndex !== null) { setSelIndex(selIndex + 1); setShowPrim(true); } };
+    const doClose = () => { setSelIndex(null); setShowPrim(true); };
+    const hasSec = selected?.secondaryImage && selected?.primaryImage;
+
+    return (
+      <ModalView
+        open={selIndex !== null}
+        onOpenChange={(open) => !open && doClose()}
+        title={selected?.name || "Item Preview"}
+        showCloseButton={false}
+      >
+        <div className="relative">
+          <Button variant="secondary" size="icon" className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70" onClick={doClose} data-testid="button-gallery-close">
+            <X className="h-5 w-5 text-white" />
+          </Button>
+          <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center">
+            {displayImg ? (
+              <img src={displayImg} alt={selected?.name || "Preview"} className="max-w-full max-h-full object-contain" data-testid="img-gallery-preview" />
+            ) : (
+              <ImageIcon className="h-24 w-24 text-muted-foreground" />
+            )}
+            {hPrev && (
+              <Button variant="secondary" size="icon" className="absolute left-2 top-1/2 -translate-y-1/2" onClick={doPrev} data-testid="button-gallery-prev">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            )}
+            {hNext && (
+              <Button variant="secondary" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={doNext} data-testid="button-gallery-next">
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            )}
+            {hasSec && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+                <Button variant={showPrim ? "default" : "secondary"} size="sm" onClick={() => setShowPrim(true)} data-testid="button-show-composite">Composite</Button>
+                <Button variant={!showPrim ? "default" : "secondary"} size="sm" onClick={() => setShowPrim(false)} data-testid="button-show-qr">QR Only</Button>
+              </div>
+            )}
+            <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+              {(selIndex ?? 0) + 1} / {items.length}
+            </div>
+          </div>
+          <div className="p-4 border-t flex flex-col items-center">
+            {selected && (
+              <DetailSkin
+                item={selected}
+                actions={actions}
+                isActionPending={isPending}
+                onClose={doClose}
+                onPrev={doPrev}
+                onNext={doNext}
+                hasPrev={hPrev}
+                hasNext={hNext}
+              />
+            )}
+          </div>
+        </div>
+      </ModalView>
+    );
+  };
+
   return (
     <div className="space-y-3">
       <p className="text-xs font-medium text-muted-foreground">Background Image</p>
-      
+
       {showSourceTab && (
         <div className="flex flex-wrap gap-2">
           <Button
@@ -194,7 +292,7 @@ export function LibraryBackgroundPicker({
           <p className="text-sm text-muted-foreground">
             Select a ready-to-use cropped background
           </p>
-          
+
           {loadingCropped ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" data-testid="loader-cropped" />
@@ -207,14 +305,30 @@ export function LibraryBackgroundPicker({
               </p>
             </div>
           ) : (
-            <SkinGridViewer
-              items={croppedItems}
-              CardSkin={CroppedImageCardSkin}
-              DetailSkin={CroppedImageDetailSkin}
-              actions={{ onSelect: handleSelectCropped }}
-              gridColumns="grid-cols-3"
-              selectedId={selectedId}
-            />
+            <>
+              <ScrollGridView
+                items={croppedItems}
+                columns="grid-cols-3"
+                height="auto"
+                emptyMessage="No items to display."
+                emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+                footer={null}
+                renderItem={(item, index) => (
+                  <CroppedImageCardSkin
+                    item={item}
+                    actions={{ onSelect: handleSelectCropped }}
+                    onClick={() => setCroppedSelectedIndex(index)}
+                    isSelected={selectedId === item.id}
+                  />
+                )}
+              />
+              {renderDetailModal(
+                croppedItems, croppedSelectedIndex, setCroppedSelectedIndex,
+                croppedShowPrimary, setCroppedShowPrimary, croppedDisplayImage,
+                croppedSelected, croppedHasPrev, croppedHasNext,
+                CroppedImageDetailSkin, { onSelect: handleSelectCropped }, false,
+              )}
+            </>
           )}
         </div>
       )}
@@ -224,7 +338,7 @@ export function LibraryBackgroundPicker({
           <p className="text-sm text-muted-foreground">
             Click an image to view, crop, or delete
           </p>
-          
+
           {loadingBackgrounds ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" data-testid="loader-backgrounds" />
@@ -237,21 +351,29 @@ export function LibraryBackgroundPicker({
               </p>
             </div>
           ) : (
-            <SkinGridViewer
-              items={backgroundItems}
-              CardSkin={BackgroundCardSkin}
-              DetailSkin={BackgroundDetailSkin}
-              actions={{
-                onCrop: handleCrop,
-                onDelete: handleDelete,
-              }}
-              isActionPending={deleting}
-              confirmAction={{
-                type: "delete",
-                title: "Delete this image?",
-                description: "This will permanently delete this background image.",
-              }}
-            />
+            <>
+              <ScrollGridView
+                items={backgroundItems}
+                columns="grid-cols-3"
+                height="auto"
+                emptyMessage="No items to display."
+                emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+                footer={null}
+                renderItem={(item, index) => (
+                  <BackgroundCardSkin
+                    item={item}
+                    actions={{ onCrop: handleCrop, onDelete: handleDelete }}
+                    onClick={() => setBgSelectedIndex(index)}
+                  />
+                )}
+              />
+              {renderDetailModal(
+                backgroundItems, bgSelectedIndex, setBgSelectedIndex,
+                bgShowPrimary, setBgShowPrimary, bgDisplayImage,
+                bgSelected, bgHasPrev, bgHasNext,
+                BackgroundDetailSkin, { onCrop: handleCrop, onDelete: () => setBgShowConfirm(true) }, deleting,
+              )}
+            </>
           )}
         </div>
       )}
@@ -288,6 +410,25 @@ export function LibraryBackgroundPicker({
           )}
         </div>
       )}
+
+      <AlertDialog open={bgShowConfirm} onOpenChange={setBgShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this image?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete this background image.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-confirm-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (bgSelected) handleDelete(bgSelected.id); setBgShowConfirm(false); }}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-action"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CropUtility
         asset={assetToCrop}

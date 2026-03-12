@@ -277,4 +277,40 @@ Those belong in domain + controller layers only.
 
 ---
 
+---
+
+## Implementation Status — COMPLETE
+
+All legacy views have been removed. The five canon views are built and deployed.
+
+### Canon View Files (client/src/features/shared/components/views/)
+- `SingleView.tsx` — Single focused content surface with background/overlay support
+- `ScrollGridView.tsx` — Generic grid layout with renderItem, configurable columns, scrollable
+- `ScrollVerticalView.tsx` — Vertical list layout with renderItem, max-width centering
+- `ScrollHorizontalView.tsx` — Horizontal strip with renderItem, snap support
+- `ModalView.tsx` — Dialog shell (ModalView), image lightbox (ImageModalView), item preview (ItemModalView)
+- `index.ts` — Barrel export + shared types (ScrollViewItem, GridViewItem, GalleryImage)
+- `QRDynamicsScanLightbox.tsx` — Specialized modal (kept; uses ModalView pattern)
+
+### Removed Legacy Files
+- `ScrollView.tsx` → replaced by ScrollGridView + ScrollVerticalView + ScrollHorizontalView via SharedViewer
+- `ContentView.tsx` → replaced by SingleView
+- `GridView.tsx` → replaced by ScrollGridView with renderItem
+- `GridScrollView.tsx` → replaced by ScrollGridView with renderItem
+- `GalleryView.tsx` → replaced by ModalView
+- `ImageLightbox.tsx` → replaced by ImageModalView
+- `SkinGridViewer.tsx` → folded into ScrollGridView + ModalView composition in each consumer
+
+### SharedViewer Modes
+SharedViewer supports both new canon modes and legacy backward-compatible modes:
+- `"scrollGrid"` — Canon: ScrollGridView
+- `"scrollVertical"` — Canon: ScrollVerticalView
+- `"scrollHorizontal"` — Canon: ScrollHorizontalView
+- `"single"` — Canon: SingleView
+- `"scroll"` — Legacy compat: routes to canon views based on layout prop
+- `"content"` — Legacy compat: routes to SingleView
+- `"grid"` — Passthrough: renders children
+
+---
+
 This is the canon. Build to this and do not improvise.

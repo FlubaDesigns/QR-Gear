@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Loader2, Image } from "lucide-react";
+import { Loader2, Image, ChevronLeft, ChevronRight, X, ImageIcon, Layers } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
+import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
+import { ModalView } from "@/features/shared/components/views/ModalView";
 import { TemplateCardSkin, TemplateDetailSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { authFetch } from "@/features/adminAuth/authFetch";
@@ -34,31 +38,23 @@ interface ProductTemplate {
 
 function templateToSkinItem(template: ProductTemplate): SkinItem {
   const packet = template.packet;
-  const price = typeof template.customerPrice === 'number' 
-    ? template.customerPrice 
+  const price = typeof template.customerPrice === 'number'
+    ? template.customerPrice
     : typeof template.customerPrice === 'string'
       ? parseFloat(template.customerPrice)
       : template.pricing?.customerPrice;
 
-  // Build images array for swipeable viewer
   const images: { url: string; label: string }[] = [];
-  
-  // 1. Product mockup (priority)
   if (packet?.priorityMockupUrl) {
     images.push({ url: packet.priorityMockupUrl, label: "Mockup" });
   }
-  
-  // 2. Graphic (composite)
   if (packet?.compositeUrl) {
     images.push({ url: packet.compositeUrl, label: "Graphic" });
   }
-  
-  // 3. Landing page snapshot (for QR Plus/Canvas)
   if (packet?.landingPageSnapshotUrl) {
     images.push({ url: packet.landingPageSnapshotUrl, label: "Landing Page" });
   }
 
-  // Templates show the product mockup as primary, graphic as secondary
   return {
     id: template.id,
     packetId: template.packetId,
@@ -81,6 +77,10 @@ export default function TemplatesTab() {
   const { toast } = useToast();
   const { getAuthHeaders } = useAdminAuth();
 
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [showPrimary, setShowPrimary] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const { data, isLoading } = useQuery<{ success: boolean; templates: ProductTemplate[] }>({
     queryKey: ["/api/admin/templates", "templates-tab"],
     queryFn: async () => {
@@ -94,9 +94,7 @@ export default function TemplatesTab() {
   const deleteMutation = useMutation({
     mutationFn: async (templateId: string) => {
       const template = templates.find(t => t.id === templateId);
-      
       await authFetch(`/api/admin/templates/${templateId}`, getAuthHeaders, { method: "DELETE" });
-      
       if (template?.packetId) {
         try {
           await authFetch(`/api/admin/packets/${template.packetId}`, getAuthHeaders, { method: "DELETE" });
@@ -104,7 +102,6 @@ export default function TemplatesTab() {
           console.warn("Failed to delete associated packet");
         }
       }
-      
       return { success: true };
     },
     onSuccess: () => {
@@ -118,6 +115,18 @@ export default function TemplatesTab() {
   });
 
   const skinItems = templates.map(templateToSkinItem);
+
+  const selectedItem = selectedIndex !== null ? skinItems[selectedIndex] : null;
+  const hasPrev = selectedIndex !== null && selectedIndex > 0;
+  const hasNext = selectedIndex !== null && selectedIndex < skinItems.length - 1;
+  const hasSecondaryImage = selectedItem?.secondaryImage && selectedItem?.primaryImage;
+  const displayImage = selectedItem
+    ? (showPrimary ? selectedItem.primaryImage : selectedItem.secondaryImage) || selectedItem.primaryImage || selectedItem.secondaryImage
+    : null;
+
+  const handlePrev = () => { if (hasPrev) { setSelectedIndex(selectedIndex! - 1); setShowPrimary(true); } };
+  const handleNext = () => { if (hasNext) { setSelectedIndex(selectedIndex! + 1); setShowPrimary(true); } };
+  const handleClose = () => { setSelectedIndex(null); setShowPrimary(true); };
 
   const handleEdit = (packetId: string) => {
     navigate(`/admin/store-builder?packetId=${packetId}`);
@@ -147,20 +156,113 @@ export default function TemplatesTab() {
   }
 
   return (
-    <SkinGridViewer
-      items={skinItems}
-      CardSkin={TemplateCardSkin}
-      DetailSkin={TemplateDetailSkin}
-      actions={{
-        onEdit: handleEdit,
-        onDelete: handleDelete,
-      }}
-      isActionPending={deleteMutation.isPending}
-      confirmAction={{
-        type: "delete",
-        title: "Delete this template?",
-        description: "This will permanently delete the template and its associated packet. This action cannot be undone.",
-      }}
-    />
+    <>
+      <ScrollGridView
+        items={skinItems}
+        columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        height="auto"
+        emptyMessage="No items to display."
+        emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+        footer={null}
+        renderItem={(item, index) => (
+          <TemplateCardSkin
+            item={item}
+            actions={{ onEdit: handleEdit, onDelete: handleDelete }}
+            onClick={() => setSelectedIndex(index)}
+          />
+        )}
+      />
+
+      <ModalView
+        open={selectedIndex !== null}
+        onOpenChange={(open) => !open && handleClose()}
+        title={selectedItem?.name || "Item Preview"}
+        showCloseButton={false}
+      >
+        <div className="relative">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute top-2 right-2 z-10 bg-black/50 hover:bg-black/70"
+            onClick={handleClose}
+            data-testid="button-gallery-close"
+          >
+            <X className="h-5 w-5 text-white" />
+          </Button>
+
+          <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center">
+            {displayImage ? (
+              <img
+                src={displayImage}
+                alt={selectedItem?.name || "Preview"}
+                className="max-w-full max-h-full object-contain"
+                data-testid="img-gallery-preview"
+              />
+            ) : (
+              <ImageIcon className="h-24 w-24 text-muted-foreground" />
+            )}
+
+            {hasPrev && (
+              <Button variant="secondary" size="icon" className="absolute left-2 top-1/2 -translate-y-1/2" onClick={handlePrev} data-testid="button-gallery-prev">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            )}
+            {hasNext && (
+              <Button variant="secondary" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleNext} data-testid="button-gallery-next">
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            )}
+
+            {hasSecondaryImage && (
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+                <Button variant={showPrimary ? "default" : "secondary"} size="sm" onClick={() => setShowPrimary(true)} data-testid="button-show-composite">Composite</Button>
+                <Button variant={!showPrimary ? "default" : "secondary"} size="sm" onClick={() => setShowPrimary(false)} data-testid="button-show-qr">QR Only</Button>
+              </div>
+            )}
+
+            <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+              {(selectedIndex ?? 0) + 1} / {skinItems.length}
+            </div>
+          </div>
+
+          <div className="p-4 border-t flex flex-col items-center">
+            {selectedItem && (
+              <TemplateDetailSkin
+                item={selectedItem}
+                actions={{
+                  onEdit: handleEdit,
+                  onDelete: () => setShowConfirm(true),
+                }}
+                isActionPending={deleteMutation.isPending}
+                onClose={handleClose}
+                onPrev={handlePrev}
+                onNext={handleNext}
+                hasPrev={hasPrev}
+                hasNext={hasNext}
+              />
+            )}
+          </div>
+        </div>
+      </ModalView>
+
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this template?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently delete the template and its associated packet. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-confirm-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (selectedItem) handleDelete(selectedItem.id); setShowConfirm(false); }}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-action"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

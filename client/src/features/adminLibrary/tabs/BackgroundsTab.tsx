@@ -4,8 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Image as ImageIcon } from "lucide-react";
 import { useLibraryContext } from "../LibraryContext";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
-import { GridView, type GridViewItem } from "@/features/shared/components/views/GridView";
-import { SingleView } from "@/features/shared/components/views/SingleView";
+import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
+import { ItemModalView } from "@/features/shared/components/views/ModalView";
+import type { GridViewItem } from "@/features/shared/components/views/index";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
@@ -102,15 +103,26 @@ export default function BackgroundsTab() {
           </p>
         </div>
       ) : (
-        <GridView
+        <ScrollGridView
           items={gridItems}
-          onSelect={handleSelect}
+          renderItem={(item) => (
+            <div
+              className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
+              onClick={() => handleSelect(item)}
+              data-testid={`card-grid-item-${item.id}`}
+            >
+              <img src={item.imageUrl} alt="" className="w-full h-auto" />
+            </div>
+          )}
           isLoading={isLoading}
           emptyMessage="No background images yet."
+          columns="grid-cols-2 sm:grid-cols-3"
+          height="auto"
+          footer={null}
         />
       )}
 
-      <SingleView
+      <ItemModalView
         item={selectedItem ? {
           id: selectedItem.id,
           name: selectedItem.name,
@@ -126,7 +138,7 @@ export default function BackgroundsTab() {
           onClose={() => setSingleViewOpen(false)}
           isDeleting={deleteMutation.isPending}
         />
-      </SingleView>
+      </ItemModalView>
 
       <CropUtility
         asset={assetToCrop}
