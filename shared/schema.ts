@@ -603,7 +603,7 @@ export const libraryAssets = pgTable("library_assets", {
   // Hierarchical category organization (shares templateCategories table)
   libraryCategoryId: varchar("library_category_id").references(() => templateCategories.id), // top-level category
   librarySubcategoryId: varchar("library_subcategory_id").references(() => templateCategories.id), // subcategory
-  // Legacy fields kept for migration - prefer category hierarchy
+  // Flat category fields — prefer hierarchical libraryCategoryId/librarySubcategoryId
   category: text("category"), // 'general', 'seasonal', 'events', etc.
   season: text("season"), // 'christmas', 'easter', 'summer', etc.
   event: text("event"), // 'birthday', 'wedding', 'graduation', etc.
@@ -1176,7 +1176,7 @@ export const productBundles = pgTable("product_bundles", {
 export const bundleItems = pgTable("bundle_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bundleId: varchar("bundle_id").notNull().references(() => productBundles.id, { onDelete: "cascade" }),
-  // Can reference either a master product or a legacy product
+  // Can reference either a master product or a standalone product
   masterProductId: varchar("master_product_id").references(() => masterProducts.id),
   productId: integer("product_id"),
   // Display order within the bundle

@@ -817,7 +817,7 @@ function register(app) {
         }
     });
     // ============ BATCH SYNC: REMAINING MISSING ROUTES ============
-    // --- Dynamic Pages (QR Dynamics legacy) ---
+    // --- Dynamic Pages ---
     app.get('/dynamic-pages', middleware_1.requireAuth, async (req, res) => {
         try {
             const userId = req.user?.uid;

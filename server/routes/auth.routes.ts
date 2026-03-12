@@ -179,7 +179,7 @@ export function registerAuthRoutes(app: Express): void {
         }
       }
 
-      // Fall back to Replit OAuth (legacy)
+      // Fall back to Replit OAuth
       if (req.isAuthenticated?.() && req.user?.claims?.sub) {
         const userId = req.user.claims.sub;
         const user = await storage.getUser(userId);

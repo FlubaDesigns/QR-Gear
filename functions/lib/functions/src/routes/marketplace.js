@@ -11,7 +11,7 @@ const VALID_JOB_STATUSES = new Set(['queued', 'running', 'completed', 'failed', 
 const VALID_JOB_ACTIONS = new Set(['create', 'update', 'delete', 'sync_inventory', 'full_sync']);
 const VALID_LOG_LEVELS = new Set(['info', 'warn', 'error']);
 function register(app) {
-    // ============ LEGACY MARKETPLACE ENDPOINTS (kept for backward compat) ============
+    // ============ MARKETPLACE ENDPOINTS ============
     app.get('/admin/marketplace/stores', middleware_1.requireAdmin, async (req, res) => {
         try {
             const snapshot = await core_1.db.collection('stores').where('roleType', '==', 'marketplace').get();

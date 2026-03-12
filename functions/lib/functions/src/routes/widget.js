@@ -117,14 +117,13 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // KC Widget Items endpoint - used by Kingdom Connects widget embed
+    // Partner widget items endpoint - used by external partner widget embeds
     app.get('/widget/items', async (req, res) => {
         try {
-            // Check KC_API_KEY authentication
             const authHeader = req.headers.authorization;
             const apiKey = req.headers['x-api-key'];
             const providedKey = apiKey || (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader);
-            if (!core_1.KC_API_KEY || providedKey !== core_1.KC_API_KEY) {
+            if (!core_1.PARTNER_API_KEY || providedKey !== core_1.PARTNER_API_KEY) {
                 res.status(401).json({ error: 'Invalid or missing API key' });
                 return;
             }

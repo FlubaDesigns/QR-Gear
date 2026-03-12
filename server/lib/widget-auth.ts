@@ -12,13 +12,13 @@ function getDevFallbackSecret(): string {
 
 /**
  * Platform issuer/audience for widget JWT tokens.
- * New tokens are signed with 'qrgear'. Verification accepts both
- * 'qrgear' and legacy 'kingdom_connects' for backward compat.
- * Once all external integrations update, remove LEGACY_ISSUER.
+ * New tokens are signed with 'qrgear'. Verification also accepts
+ * 'kingdom_connects' because the KC partner still issues tokens
+ * with that issuer value.
  */
 const PLATFORM_ISSUER = 'qrgear';
-const LEGACY_ISSUER = 'kingdom_connects';
-const VALID_ISSUERS = [PLATFORM_ISSUER, LEGACY_ISSUER];
+const KC_PARTNER_ISSUER = 'kingdom_connects';
+const VALID_ISSUERS = [PLATFORM_ISSUER, KC_PARTNER_ISSUER];
 const QR_GEAR_AUDIENCE = 'qrgear_widget';
 
 interface JWTKeys {
@@ -98,7 +98,7 @@ export interface WidgetTokenPayload {
     canManage?: boolean;
   };
   
-  // ============ LEGACY FIELDS (backward compatibility) ============
+  // ============ KC PARTNER FIELDS ============
   businessId?: string;
   businessName?: string;
   businessSlug?: string;
@@ -168,7 +168,7 @@ export const widgetTokenSchema = z.object({
     canManage: z.boolean().optional(),
   }).optional(),
   
-  // Legacy fields (backward compatibility)
+  // KC partner fields
   businessId: z.string().optional(),
   businessName: z.string().optional(),
   businessSlug: z.string().optional(),
@@ -232,8 +232,8 @@ export function mintWidgetToken(input: MintTokenInput): { token: string; expires
 }
 
 /**
- * Legacy sign function - kept for backward compatibility
- * New code should use mintWidgetToken
+ * Sign function — wraps mintWidgetToken for callers that pass
+ * a pre-built payload instead of individual parameters.
  */
 export function signWidgetToken(payload: WidgetTokenPayload): string {
   const { kid, secret } = getSigningKey();

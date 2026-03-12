@@ -1686,7 +1686,7 @@ export function registerMemberRoutes(app: Express): void {
         const canonicalBlankKey = isPf
           ? (String(p.blueprintId ?? '').startsWith('pf:') ? String(p.blueprintId) : `pf:${p.blueprintId}`)
           : String(p.blueprintId ?? '');
-        const providerDescription = p.originalDescription || p.description || null;
+        const providerDescription = p.providerDescription || p.description || null;
         const adminCatalogDescription = catalogBlankDescriptions[canonicalBlankKey] || null;
         const effectiveDescription = adminCatalogDescription ?? providerDescription ?? null;
 
@@ -2618,7 +2618,7 @@ export function registerMemberRoutes(app: Express): void {
     }
   });
 
-  // Legacy: Create member packet (old singular path - kept for test products)
+  // Create member packet (singular path — used by test products)
   app.post("/api/member/packets", async (req: any, res) => {
     try {
       const { memberId, kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;

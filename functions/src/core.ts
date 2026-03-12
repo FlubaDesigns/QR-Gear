@@ -266,7 +266,7 @@ export function cfBuildPrintfulVariantLookup(variants: any[]): Map<number, { col
 
 export const WIDGET_JWT_SECRET = process.env.WIDGET_JWT_SECRET;
 export const WIDGET_API_KEY = process.env.WIDGET_API_KEY;
-export const KC_API_KEY = process.env['KC-API-KEY'];
+export const PARTNER_API_KEY = process.env['KC-API-KEY'];
 
 export function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

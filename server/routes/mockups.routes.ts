@@ -204,13 +204,12 @@ export function registerMockupRoutes(app: Express): void {
       }
       
       // Check if mockup already exists in product's mockupsByColor
-      // New format: mockupsByColor["Black_medium"] or legacy format mockupsByColor["Black"]
       // Normalize color names for comparison (case-insensitive, trim whitespace)
       const existingMockups = (product.mockupsByColor as Record<string, any>) || {};
       const normalizeColor = (c: string) => c.toLowerCase().trim();
       const requestColorNorm = normalizeColor(color);
       
-      // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
+      // Build keys for lookup: color_size_placement (full), color_size, color-only
       const placement = 'front';
       const fullKey = `${color}_${resolvedQrSize}_${placement}`;
       const colorSizeKey = `${color}_${resolvedQrSize}`;

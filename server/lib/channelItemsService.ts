@@ -4,13 +4,8 @@ import { getFirestoreDb } from './firebase-admin';
  * Platform-level store identifier.
  * Exported so callers pass it explicitly — no hidden defaults.
  * Future multi-tenant: each store will have its own ID.
- *
- * MIGRATION NOTE: Firestore data still uses 'kingdom_connects' as storeId.
- * Once data is migrated to 'qr-gear', remove LEGACY_STORE_ID and update
- * any dual-read queries.
  */
 export const PLATFORM_STORE_ID = 'qr-gear';
-export const LEGACY_STORE_ID = 'kingdom_connects';
 
 export interface ChannelItem {
   itemId: string;

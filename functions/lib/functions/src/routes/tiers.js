@@ -223,21 +223,19 @@ function register(app) {
                     availableSizes = (prov?.availableSizes || []).map((s) => typeof s === 'string' ? s : s.title || String(s));
                 }
                 const rawRichDesc = bp.richDescription || bp.description || '';
-                const originalDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                const adminDescription = blankDescriptions[blankKey] || '';
-                const description = adminDescription || originalDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
+                const providerDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                const adminCatalogDescription = blankDescriptions[blankKey] || '';
+                const effectiveDescription = adminCatalogDescription || providerDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
                 const provider = bp._source === 'printful' ? 'printful' : 'printify';
                 categoryTierMap[category][tier].push({
                     blueprintId: numericId,
                     canonicalBlankKey: blankKey,
                     provider,
                     title: bp.title,
-                    description,
-                    providerDescription: originalDescription,
-                    adminCatalogDescription: adminDescription || null,
-                    effectiveDescription: description,
-                    originalDescription,
-                    adminDescription,
+                    description: effectiveDescription,
+                    providerDescription,
+                    adminCatalogDescription: adminCatalogDescription || null,
+                    effectiveDescription,
                     brand: bp.brand,
                     imageUrl: bp.images?.[0] || bp.primaryImageUrl || null,
                     cost,

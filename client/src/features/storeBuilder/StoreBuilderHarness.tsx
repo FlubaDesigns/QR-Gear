@@ -462,7 +462,7 @@ export function StoreBuilderHarness() {
             });
             
             // Priority mockup should already be in the packet from Create Packet flow
-            // Only generate if missing (legacy packets)
+            // Only generate if missing from packet
             if (!packet.priorityMockupUrl && packet.blueprintId && packet.compositeUrl) {
               console.log("[StoreBuilder] Priority mockup not in packet, generating...");
               const placement = (packet.placements || ["front"])[0];

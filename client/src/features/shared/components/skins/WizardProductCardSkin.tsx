@@ -5,7 +5,6 @@ import type { WizardMode } from "@shared/wizardProduct";
 export interface WizardProductItem {
   id: string | number;
   canonicalBlankKey: string;
-  /** @deprecated Use canonicalBlankKey */
   blueprintId: number;
   title: string;
   imageUrl: string;

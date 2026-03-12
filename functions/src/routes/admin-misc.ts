@@ -619,7 +619,7 @@ app.post('/admin/upload-media', requireAdmin, async (req: Request, res: Response
 
 // ============ BATCH SYNC: REMAINING MISSING ROUTES ============
 
-// --- Dynamic Pages (QR Dynamics legacy) ---
+// --- Dynamic Pages ---
 
 app.get('/dynamic-pages', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {

@@ -4,7 +4,7 @@ import {
   firestoreDocToStore,
   firestoreDocToChannel,
   firestoreDocToCollection,
-  legacyProgramToMosaic,
+  firestoreProgramToMosaic,
 } from '../../server/lib/domain-mappers';
 
 describe('domain-mappers', () => {
@@ -118,9 +118,9 @@ describe('domain-mappers', () => {
     });
   });
 
-  describe('legacyProgramToMosaic', () => {
-    it('maps legacy program data to MosaicRecord', () => {
-      const mosaic = legacyProgramToMosaic('prog-1', {
+  describe('firestoreProgramToMosaic', () => {
+    it('maps Firestore program data to MosaicRecord', () => {
+      const mosaic = firestoreProgramToMosaic('prog-1', {
         storeId: 'store-1',
         channelId: 'ch-1',
         collectionId: 'col-new',
@@ -137,24 +137,24 @@ describe('domain-mappers', () => {
     });
 
     it('uses collectionId directly', () => {
-      const m = legacyProgramToMosaic('p1', {
+      const m = firestoreProgramToMosaic('p1', {
         collectionId: 'my-col',
       });
       expect(m.collectionId).toBe('my-col');
     });
 
     it('returns undefined collectionId when not provided', () => {
-      const m = legacyProgramToMosaic('p1', {});
+      const m = firestoreProgramToMosaic('p1', {});
       expect(m.collectionId).toBeUndefined();
     });
 
     it('falls back to itemIds for artifactIds', () => {
-      const m = legacyProgramToMosaic('p1', { itemIds: ['x', 'y'] });
+      const m = firestoreProgramToMosaic('p1', { itemIds: ['x', 'y'] });
       expect(m.artifactIds).toEqual(['x', 'y']);
     });
 
     it('falls back to name for title', () => {
-      const m = legacyProgramToMosaic('p1', { name: 'From Name' });
+      const m = firestoreProgramToMosaic('p1', { name: 'From Name' });
       expect(m.title).toBe('From Name');
     });
   });

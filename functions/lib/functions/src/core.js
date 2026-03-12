@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.KC_API_KEY = exports.WIDGET_API_KEY = exports.WIDGET_JWT_SECRET = exports.LABEL_PLACEMENTS_PRINTFUL = exports.QR_GEAR_BRANDED_TAG_URL = exports.INTERNAL_TO_PRINTFUL_DTF = exports.INTERNAL_TO_PRINTFUL = exports.PRINTFUL_TO_INTERNAL = exports.PRINTIFY_TO_INTERNAL = exports.storage = exports.db = exports.admin = void 0;
+exports.PARTNER_API_KEY = exports.WIDGET_API_KEY = exports.WIDGET_JWT_SECRET = exports.LABEL_PLACEMENTS_PRINTFUL = exports.QR_GEAR_BRANDED_TAG_URL = exports.INTERNAL_TO_PRINTFUL_DTF = exports.INTERNAL_TO_PRINTFUL = exports.PRINTFUL_TO_INTERNAL = exports.PRINTIFY_TO_INTERNAL = exports.storage = exports.db = exports.admin = void 0;
 exports.normalizePlacement = normalizePlacement;
 exports.normalizePlacements = normalizePlacements;
 exports.toProviderPlacement = toProviderPlacement;
@@ -376,7 +376,7 @@ function cfBuildPrintfulVariantLookup(variants) {
 }
 exports.WIDGET_JWT_SECRET = process.env.WIDGET_JWT_SECRET;
 exports.WIDGET_API_KEY = process.env.WIDGET_API_KEY;
-exports.KC_API_KEY = process.env['KC-API-KEY'];
+exports.PARTNER_API_KEY = process.env['KC-API-KEY'];
 function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

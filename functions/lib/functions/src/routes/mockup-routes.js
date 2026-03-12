@@ -38,7 +38,7 @@ function register(app) {
             const existingMockups = product.mockupsByColor || {};
             const normalizeColor = (c) => c.toLowerCase().trim();
             const requestColorNorm = normalizeColor(color);
-            // Build keys for lookup: color_size_placement (full), color_size, color (legacy)
+            // Build keys for lookup: color_size_placement (full), color_size, color-only
             const placement = 'front';
             const fullKey = `${color}_${resolvedQrSize}_${placement}`;
             const colorSizeKey = `${color}_${resolvedQrSize}`;
@@ -398,7 +398,7 @@ function register(app) {
                         placement,
                         generatedAt: new Date().toISOString(),
                     };
-                    // Also keep legacy keys for backward compatibility
+                    // Also store color_size shorthand key
                     const colorSizeKey = `${colorInfo.name}_${graphicSize}`;
                     mockupsByColor[colorSizeKey] = {
                         front: mockupResult.mockupUrl,

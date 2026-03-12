@@ -124,10 +124,10 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
         const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
         const bpData = blueprintId ? blueprintCache.get(blueprintId) : null;
         const rawRichDesc = bpData?.richDescription || bpData?.description || p.description || '';
-        const originalDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        const adminDescription = catalogBlankDescriptions[blankKey] || '';
+        const providerDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const adminCatalogDescription = catalogBlankDescriptions[blankKey] || '';
         const productTitle = p.title || p.name || 'Untitled Product';
-        const description = adminDescription || originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
+        const effectiveDescription = adminCatalogDescription || providerDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
 
         return {
           ...p,
@@ -142,12 +142,10 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
           profit,
           memberEarnings,
           placements,
-          description,
-          providerDescription: originalDescription,
-          adminCatalogDescription: adminDescription || null,
-          effectiveDescription: description,
-          originalDescription,
-          adminDescription,
+          description: effectiveDescription,
+          providerDescription,
+          adminCatalogDescription: adminCatalogDescription || null,
+          effectiveDescription,
         };
       }));
     };
@@ -746,7 +744,7 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
     const { filename } = req.params;
     const bucket = storage.bucket();
     
-    // Search in new canonical paths first, then legacy paths
+    // Search across all storage paths
     const possiblePaths = [
       `library/backgrounds/raw/${filename}`,
       `library/backgrounds/cropped/${filename}`,

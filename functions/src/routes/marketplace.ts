@@ -30,7 +30,7 @@ const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_i
 const VALID_LOG_LEVELS = new Set<string>(['info', 'warn', 'error']);
 
   export function register(app: express.Express): void {
-  // ============ LEGACY MARKETPLACE ENDPOINTS (kept for backward compat) ============
+  // ============ MARKETPLACE ENDPOINTS ============
 
 app.get('/admin/marketplace/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {

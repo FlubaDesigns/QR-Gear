@@ -110,10 +110,10 @@ function register(app) {
                     const blankKey = fulfillmentProvider === 'printful' ? `pf:${blueprintId}` : String(blueprintId);
                     const bpData = blueprintId ? blueprintCache.get(blueprintId) : null;
                     const rawRichDesc = bpData?.richDescription || bpData?.description || p.description || '';
-                    const originalDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                    const adminDescription = catalogBlankDescriptions[blankKey] || '';
+                    const providerDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+                    const adminCatalogDescription = catalogBlankDescriptions[blankKey] || '';
                     const productTitle = p.title || p.name || 'Untitled Product';
-                    const description = adminDescription || originalDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
+                    const effectiveDescription = adminCatalogDescription || providerDescription || `${productTitle}${p.brand ? ' by ' + p.brand : ''}. Premium quality custom product.`;
                     return {
                         ...p,
                         blueprintId,
@@ -127,12 +127,10 @@ function register(app) {
                         profit,
                         memberEarnings,
                         placements,
-                        description,
-                        providerDescription: originalDescription,
-                        adminCatalogDescription: adminDescription || null,
-                        effectiveDescription: description,
-                        originalDescription,
-                        adminDescription,
+                        description: effectiveDescription,
+                        providerDescription,
+                        adminCatalogDescription: adminCatalogDescription || null,
+                        effectiveDescription,
                     };
                 }));
             };
@@ -691,7 +689,7 @@ function register(app) {
         try {
             const { filename } = req.params;
             const bucket = core_1.storage.bucket();
-            // Search in new canonical paths first, then legacy paths
+            // Search across all storage paths
             const possiblePaths = [
                 `library/backgrounds/raw/${filename}`,
                 `library/backgrounds/cropped/${filename}`,

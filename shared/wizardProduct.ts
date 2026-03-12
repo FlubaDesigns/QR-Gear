@@ -58,9 +58,6 @@ export interface NormalizeWizardProductInput {
   memberPacketDescription?: string | null;
   effectiveDescription?: string | null;
   description?: string | null;
-  originalDescription?: string | null;
-  adminDescription?: string | null;
-  customDescription?: string | null;
 
   retailPrice?: number;
   memberEarnings?: number;
@@ -92,9 +89,9 @@ export function normalizeWizardProduct(
   input: NormalizeWizardProductInput,
   mode: WizardMode = 'member'
 ): WizardProduct {
-  const providerDesc = input.providerDescription || input.originalDescription || input.description || '';
-  const adminDesc = input.adminCatalogDescription || input.adminDescription || '';
-  const memberDesc = input.memberPacketDescription || input.customDescription || '';
+  const providerDesc = input.providerDescription || input.description || '';
+  const adminDesc = input.adminCatalogDescription || '';
+  const memberDesc = input.memberPacketDescription || '';
 
   const layers: DescriptionLayers = {
     providerDescription: providerDesc,
@@ -172,9 +169,6 @@ export function wizardProductToPacketBoundProduct(wp: WizardProduct): Record<str
     effectiveDescription: snapshot.effectiveDescription || '',
     providerDescriptionSnapshot: snapshot.providerDescription || '',
     adminCatalogDescriptionSnapshot: snapshot.adminCatalogDescription || '',
-    originalDescription: wp.providerDescription,
-    adminDescription: wp.adminCatalogDescription,
-    customDescription: wp.memberPacketDescription,
   };
 }
 

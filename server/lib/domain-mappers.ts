@@ -71,7 +71,7 @@ export function firestoreDocToCollection(id: string, data: Record<string, any>):
   };
 }
 
-export function legacyProgramToMosaic(id: string, data: Record<string, any>): MosaicRecord {
+export function firestoreProgramToMosaic(id: string, data: Record<string, any>): MosaicRecord {
   return {
     mosaicId: id,
     collectionId: data.collectionId,

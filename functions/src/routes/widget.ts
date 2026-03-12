@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import * as jwt from 'jsonwebtoken';
-  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, WIDGET_JWT_SECRET, WIDGET_API_KEY, KC_API_KEY } from '../core';
+  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, WIDGET_JWT_SECRET, WIDGET_API_KEY, PARTNER_API_KEY } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { MOSAICS_COLLECTION } from '../constants';
 import { printfulClient } from '../services/printful';
@@ -108,16 +108,15 @@ app.post('/widget/token', async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-// KC Widget Items endpoint - used by Kingdom Connects widget embed
+// Partner widget items endpoint - used by external partner widget embeds
 app.get('/widget/items', async (req: Request, res: Response): Promise<void> => {
   try {
-    // Check KC_API_KEY authentication
     const authHeader = req.headers.authorization;
     const apiKey = req.headers['x-api-key'] as string;
     
     const providedKey = apiKey || (authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader);
     
-    if (!KC_API_KEY || providedKey !== KC_API_KEY) {
+    if (!PARTNER_API_KEY || providedKey !== PARTNER_API_KEY) {
       res.status(401).json({ error: 'Invalid or missing API key' });
       return;
     }
