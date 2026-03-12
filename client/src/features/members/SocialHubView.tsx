@@ -482,7 +482,7 @@ function ReadyToPostSection({ memberId }: { memberId: string }) {
                   </Button>
                 );
               })}
-              {typeof navigator !== 'undefined' && navigator.share && (
+              {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
                 <Button
                   size="sm"
                   variant="outline"

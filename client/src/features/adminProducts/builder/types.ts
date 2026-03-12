@@ -139,6 +139,9 @@ export interface ContentData {
   qrSizePercent: number;
   areaImageUrl: string;
   areaImageMode: "replace-qr" | "behind-qr";
+  areaImageOffsetX: number;
+  areaImageOffsetY: number;
+  areaImageScale: number;
   composeItems: Array<{
     packetId: string;
     name: string;
