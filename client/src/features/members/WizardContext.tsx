@@ -1349,6 +1349,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (simpleStep === 'play-preview') {
+      if (!user?.id) {
+        setSimpleStep('play-publish');
+        return;
+      }
       setIsGeneratingPlayMockup(true);
       setSimpleStep('play-mockup');
       try {
@@ -1372,6 +1376,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (simpleStep === 'url-preview') {
+      if (!user?.id) {
+        setSimpleStep('url-publish');
+        return;
+      }
       setIsGeneratingCanvasMockup(true);
       setSimpleStep('canvas-mockup');
       try {
@@ -1420,6 +1428,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     }
     if (simpleStep === 'compose-hosting') {
       if (!composeHostingTerm) return;
+      if (!user?.id) {
+        setSimpleStep('compose-preview');
+        return;
+      }
       setIsGeneratingComposeMockup(true);
       setSimpleStep('compose-mockup');
       try {
@@ -1582,7 +1594,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (simpleStep === 'play-publish') {
-      setSimpleStep('play-mockup');
+      setSimpleStep(user?.id ? 'play-mockup' : 'play-preview');
       return;
     }
     if (simpleStep === 'play-save-choice') {
@@ -1642,7 +1654,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (simpleStep === 'url-publish') {
-      setSimpleStep('canvas-mockup');
+      setSimpleStep(user?.id ? 'canvas-mockup' : 'url-preview');
       return;
     }
     if (simpleStep === 'url-explainer') {
