@@ -13,8 +13,12 @@ function getDevFallbackSecret(): string {
   return "dev-secret-change-in-production";
 }
 
-// KC Canonical Contract issuer/audience
-const KC_ISSUER = 'kingdom_connects';
+/**
+ * Platform issuer/audience for widget JWT tokens.
+ * Value remains 'kingdom_connects' for backward compat with existing tokens.
+ * Future: migrate to 'qrgear' issuer once all external integrations update.
+ */
+const PLATFORM_ISSUER = 'kingdom_connects';
 const QR_GEAR_AUDIENCE = 'qrgear_widget';
 
 interface JWTKeys {
@@ -55,7 +59,7 @@ function getKeyByKid(kid: string): string | null {
   return keys[kid] || null;
 }
 
-export type ViewType = 'channel_products' | 'program_series' | 'create_product';
+export type ViewType = 'channel_products' | 'program_series' | 'mosaic_series' | 'create_product';
 
 export interface StoreOwner {
   ownerType: string;
@@ -121,7 +125,7 @@ export const mintTokenInputSchema = z.object({
   mode: z.enum(['public', 'admin']).optional().default('public'),
   returnUrl: z.string().url().optional(),
   theme: z.string().optional(),
-  viewType: z.enum(['channel_products', 'program_series', 'create_product']).optional().default('channel_products'),
+  viewType: z.enum(['channel_products', 'program_series', 'mosaic_series', 'create_product']).optional().default('channel_products'),
   storeOwner: z.object({
     ownerType: z.string().min(1),
     ownerId: z.string().min(1),
@@ -150,7 +154,7 @@ export const widgetTokenSchema = z.object({
   mode: z.enum(['public', 'admin']).optional(),
   theme: z.string().optional(),
   returnUrl: z.string().url().optional(),
-  viewType: z.enum(['channel_products', 'program_series', 'create_product']).optional(),
+  viewType: z.enum(['channel_products', 'program_series', 'mosaic_series', 'create_product']).optional(),
   storeOwner: z.object({
     ownerType: z.string(),
     ownerId: z.string(),
@@ -195,7 +199,7 @@ export function mintWidgetToken(input: MintTokenInput): { token: string; expires
   const channelId = input.target?.channelId || `${input.entityType}_${input.entityId}`;
   
   const payload: Partial<WidgetTokenPayload> = {
-    iss: KC_ISSUER,
+    iss: PLATFORM_ISSUER,
     aud: QR_GEAR_AUDIENCE,
     storeId,
     channelId,
@@ -259,7 +263,7 @@ export function verifyWidgetToken(token: string): WidgetTokenPayload | null {
     const verified = jwt.verify(token, secret) as WidgetTokenPayload;
     
     // Validate KC canonical contract fields if present
-    if (verified.iss && verified.iss !== KC_ISSUER) {
+    if (verified.iss && verified.iss !== PLATFORM_ISSUER) {
       console.error("[WidgetAuth] Invalid issuer:", verified.iss);
       return null;
     }

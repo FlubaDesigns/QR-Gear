@@ -381,10 +381,11 @@ ${allPages.map(page => `  <url>
         return res.status(400).json({ error: "channelId is required" });
       }
       
-      const { upsertChannelItem } = await import("../lib/channelItemsService");
+      const { upsertChannelItem, PLATFORM_STORE_ID } = await import("../lib/channelItemsService");
       
       const testItems = [
         {
+          storeId: PLATFORM_STORE_ID,
           channelId,
           packetId: `test-packet-1-${Date.now()}`,
           title: "Welcome QR Card",
@@ -393,6 +394,7 @@ ${allPages.map(page => `  <url>
           collectionId: "Official",
         },
         {
+          storeId: PLATFORM_STORE_ID,
           channelId,
           packetId: `test-packet-2-${Date.now()}`,
           title: "Event Promo",
@@ -401,6 +403,7 @@ ${allPages.map(page => `  <url>
           collectionId: "Events",
         },
         {
+          storeId: PLATFORM_STORE_ID,
           channelId,
           packetId: `test-packet-3-${Date.now()}`,
           title: "Contact Card",

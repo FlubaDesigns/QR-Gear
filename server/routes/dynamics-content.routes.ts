@@ -1,6 +1,13 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
 
+/**
+ * Firestore collection name for mosaic templates (legacy name: dynamicsCollections).
+ * Canonical domain term: MosaicTemplate.
+ * Firestore collection unchanged to avoid data migration.
+ */
+const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
+
 export function registerDynamicsContentRoutes(app: Express): void {
 
   app.get("/api/admin/stores/:storeId/channels/:channelId/content", isAdmin, async (req: any, res) => {
@@ -317,7 +324,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
         }
       });
 
-      const explicitSnapshot = await firestoreDb.collection("dynamicsCollections")
+      const explicitSnapshot = await firestoreDb.collection(MOSAIC_TEMPLATES_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
         .get();
@@ -363,7 +370,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
         .limit(1)
         .get();
 
-      const explicitDoc = await firestoreDb.collection("dynamicsCollections")
+      const explicitDoc = await firestoreDb.collection(MOSAIC_TEMPLATES_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
         .where("name", "==", name)
@@ -374,7 +381,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
         return res.status(400).json({ error: "Collection already exists" });
       }
 
-      const docRef = await firestoreDb.collection("dynamicsCollections").add({
+      const docRef = await firestoreDb.collection(MOSAIC_TEMPLATES_COLLECTION).add({
         storeId,
         channelId,
         name,

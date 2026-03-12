@@ -27,7 +27,12 @@ export interface WidgetContext {
   payload?: KCWidgetPayload;
 }
 
-const KC_ISSUER = 'kingdom_connects';
+/**
+ * Kingdom Connects partner integration service.
+ * This service validates tokens FROM the KC platform specifically.
+ * The 'kingdom_connects' values are the partner's identity — not a platform default.
+ */
+const KC_PARTNER_ISSUER = 'kingdom_connects';
 const QR_GEAR_AUDIENCE = 'qrgear_widget';
 
 export function verifyKCToken(token: string): WidgetContext {
@@ -40,7 +45,7 @@ export function verifyKCToken(token: string): WidgetContext {
   
   try {
     const decoded = jwt.verify(token, secret, {
-      issuer: KC_ISSUER,
+      issuer: KC_PARTNER_ISSUER,
       audience: QR_GEAR_AUDIENCE,
     }) as KCWidgetPayload;
     

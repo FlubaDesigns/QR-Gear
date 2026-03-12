@@ -22,7 +22,7 @@ export function registerWidgetRoutes(app: Express): void {
       const normalized = normalizeWidgetPayload(payload);
       const { storeId, channelId, entityType, entityId, entityName, entityLogoUrl, mode, capabilities, viewType, storeOwner, programId } = normalized;
       
-      if (!channelId && viewType !== 'program_series') {
+      if (!channelId && viewType !== 'program_series' && viewType !== 'mosaic_series') {
         return res.status(400).json({ ok: false, error: "Token missing channelId" });
       }
 
@@ -57,7 +57,7 @@ export function registerWidgetRoutes(app: Express): void {
         }));
       }
 
-      if (viewType === 'program_series' && programId) {
+      if ((viewType === 'program_series' || viewType === 'mosaic_series') && programId) {
         const { getProgramMoments } = await import("../lib/programService");
         const result = await getProgramMoments(programId);
         if (result) {

@@ -1,6 +1,11 @@
 import { getFirestoreDb } from './firebase-admin';
 
-const DEFAULT_STORE_ID = 'kingdom_connects';
+/**
+ * Platform-level store identifier.
+ * Exported so callers pass it explicitly — no hidden defaults.
+ * Future multi-tenant: each store will have its own ID.
+ */
+export const PLATFORM_STORE_ID = 'kingdom_connects';
 
 export interface ChannelItem {
   itemId: string;
@@ -61,13 +66,13 @@ export function generateShareCaption(title: string, description?: string, shareU
 }
 
 export async function getChannelItems(options: {
-  storeId?: string;
+  storeId: string;
   channelId: string;
   limit?: number;
   includeInactive?: boolean;
 }): Promise<ChannelItem[]> {
   const db = getFirestoreDb();
-  const { storeId = DEFAULT_STORE_ID, channelId, limit = 12, includeInactive = false } = options;
+  const { storeId, channelId, limit = 12, includeInactive = false } = options;
   
   let query = db.collection('channel_items')
     .where('storeId', '==', storeId)
@@ -142,10 +147,10 @@ export async function getChannelItem(itemId: string): Promise<ChannelItem | null
   };
 }
 
-export async function upsertChannelItem(input: ChannelItemInput): Promise<ChannelItem> {
+export async function upsertChannelItem(input: ChannelItemInput & { storeId: string }): Promise<ChannelItem> {
   const db = getFirestoreDb();
   const now = new Date();
-  const storeId = input.storeId || DEFAULT_STORE_ID;
+  const storeId = input.storeId;
   const collectionValue = input.collectionId || input.collectionTag || null;
   
   const existingQuery = await db.collection('channel_items')

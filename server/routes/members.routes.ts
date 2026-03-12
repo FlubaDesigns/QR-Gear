@@ -2334,8 +2334,9 @@ export function registerMemberRoutes(app: Express): void {
       });
       
       if (channelId) {
-        const { upsertChannelItem } = await import("../lib/channelItemsService");
+        const { upsertChannelItem, PLATFORM_STORE_ID } = await import("../lib/channelItemsService");
         await upsertChannelItem({
+          storeId: PLATFORM_STORE_ID,
           channelId,
           packetId,
           title: titleLayer?.text || 'Untitled Video',
@@ -2860,8 +2861,9 @@ export function registerMemberRoutes(app: Express): void {
       });
       
       if (channelId) {
-        const { upsertChannelItem } = await import("../lib/channelItemsService");
+        const { upsertChannelItem, PLATFORM_STORE_ID } = await import("../lib/channelItemsService");
         await upsertChannelItem({
+          storeId: PLATFORM_STORE_ID,
           channelId,
           packetId,
           title: metadata?.title || 'Untitled Item',
