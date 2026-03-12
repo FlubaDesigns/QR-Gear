@@ -50,7 +50,8 @@ export function registerWidgetRoutes(app: Express): void {
           previewImageUrl: item.previewImageUrl,
           shareUrl: item.shareUrl,
           price: item.price,
-          collectionTag: item.collectionTag,
+          collectionId: item.collectionId || item.collectionTag,
+          collectionTag: item.collectionId || item.collectionTag,
           shareImageSquareUrl: item.shareImageSquareUrl,
           shareCaption: item.shareCaption,
         }));

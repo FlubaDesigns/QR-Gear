@@ -155,9 +155,19 @@ Store → Channel → Collection → Artifact
 ### Domain Mappers (`server/lib/domain-mappers.ts`)
 Normalize legacy Firestore records into canonical domain objects. Functions: `channelItemToArtifact()`, `firestoreDocToStore()`, `firestoreDocToChannel()`, `firestoreDocToCollection()`, `legacyProgramToMosaic()`.
 
+### Route Split (COMPLETED — Week 2)
+The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-aligned route files:
+- `dynamic-pages.routes.ts` — Dynamic Pages CRUD
+- `buyer-instances.routes.ts` — Buyer Instances + QR resolve
+- `dynamics-content.routes.ts` — Channel Content + Collection Items + Collections + Surfaces
+- `dynamics-v2.routes.ts` — QR Dynamics V2 instances, preview, resolver, scan-to-reveal
+
+### Mosaic Service Alias (COMPLETED — Week 2)
+`server/lib/mosaicService.ts` re-exports `programService.ts` functions with canonical mosaic vocabulary: `createMosaic`, `getMosaic`, `getMosaicsByStore`, etc. `programService.ts` remains untouched for backward compat.
+
 ### Name Translation (In Progress)
-- `collectionTag` → `collectionId` (dual-write: both fields written, reads prefer `collectionId`)
-- `site_programs` → `mosaics` (future)
+- `collectionTag` → `collectionId` — COMPLETED across all server routes and client code (dual-write: both fields written, reads prefer `collectionId`)
+- `site_programs` → `mosaics` — alias layer complete (`mosaicService.ts`), Firestore collection name unchanged
 - `dynamicContentSets` → `mosaicTemplates` (future)
 - `program_series` → `mosaic_series` (future)
 - Hardcoded `STORE_ID = 'kingdom_connects'` replaced with `DEFAULT_STORE_ID` + explicit `storeId` parameter

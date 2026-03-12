@@ -12,6 +12,8 @@ export interface ChannelItem {
   previewImageUrl?: string;
   shareUrl: string;
   price?: number;
+  collectionId?: string;
+  /** @deprecated Use collectionId */
   collectionTag?: string;
   shareImageSquareUrl?: string;
   shareCaption?: string;
