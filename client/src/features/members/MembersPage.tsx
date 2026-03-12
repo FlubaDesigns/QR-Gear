@@ -1222,7 +1222,34 @@ function MembersSandboxInner() {
           </Suspense>
         )}
 
-        {viewMode === 'index' && (
+        {viewMode === 'index' && !isAuthenticated && (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <Card className="bg-slate-800/80 border-slate-700 max-w-md w-full">
+              <CardContent className="p-8 text-center space-y-4">
+                <QrCode className="w-12 h-12 mx-auto text-emerald-400" />
+                <h2 className="text-xl font-bold text-white">You need an account to continue</h2>
+                <p className="text-slate-400 text-sm">
+                  An account lets us save your creations, generate your product mockups, and give you a personal dashboard to manage everything. It only takes a few seconds.
+                </p>
+                <p className="text-slate-500 text-xs">
+                  Head back to the creator — you'll be asked to sign up right before your mockup is generated.
+                </p>
+                <div className="flex flex-col gap-3 pt-2">
+                  <Button
+                    onClick={() => { setWizardTier('super-simple'); setViewMode('wizard'); }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                    data-testid="button-back-to-wizard"
+                  >
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Back to Creator
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {viewMode === 'index' && isAuthenticated && (
           <MemberIndexView 
             memberId={user?.id || ''} 
             onNavigate={(view, channelId) => {
