@@ -585,6 +585,8 @@ interface TierProduct {
   retailPrice?: number;
   memberEarnings?: number;
   description?: string;
+  originalDescription?: string;
+  adminDescription?: string;
   fulfillmentProvider?: string;
   cost?: number;
   availableColors?: Array<{ name: string; hex?: string }>;
