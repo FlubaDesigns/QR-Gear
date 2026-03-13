@@ -6,6 +6,24 @@ import {
 import { computePricingSnapshot } from '../../../shared/surfaces';
 import type { PricingSnapshot } from '../../../shared/surfaces';
 
+/**
+ * Canonical Order Service
+ *
+ * All checkout flows route through this service for order creation, pricing
+ * snapshot persistence, and payout attribution:
+ *
+ * - direct_cart: Session created in core-routes-checkout.ts; order finalized
+ *   in stripe-webhooks.ts on checkout.session.completed via createCanonicalOrder.
+ * - packet_share: Session created in checkout.ts /public/packet-checkout; order
+ *   finalized in checkout.ts /verify/:sessionId via createCanonicalOrder.
+ * - external_embed: Attribution staged in external-sites-public.ts /buy via
+ *   createCanonicalOrder; payout confirmed in stripe-webhooks.ts via
+ *   confirmEmbedOrderPayout on checkout.session.completed.
+ *
+ * freezePricingSnapshot() computes and returns (freezes) a PricingSnapshot at
+ * call time. Each createCanonicalOrder path persists this snapshot on the order
+ * record for durable audit.
+ */
 export type OrderSource = 'direct_cart' | 'packet_share' | 'external_embed';
 
 export interface PricingInput {
