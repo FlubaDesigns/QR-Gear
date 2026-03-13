@@ -147,6 +147,12 @@ async function createDirectCartOrder(input: CreateOrderInput, nowISO: string): P
     return sum + parseFloat(item.price || '0') * (item.quantity || 1);
   }, 0);
 
+  const pricingSnapshot = input.pricingSnapshot || freezePricingSnapshot({
+    salePrice: totalAmount,
+    productCost: 0,
+    currency: 'USD',
+  });
+
   const shippingAddress = input.shippingAddress;
   const orderData: Record<string, any> = {
     userId: input.userId,
@@ -156,6 +162,7 @@ async function createDirectCartOrder(input: CreateOrderInput, nowISO: string): P
     stripePaymentIntentId: input.stripePaymentIntentId || null,
     customerEmail: input.buyerEmail || null,
     shippingAddress,
+    pricingSnapshot,
     source: 'direct_cart',
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -196,6 +203,14 @@ async function createPacketOrder(input: CreateOrderInput, nowISO: string): Promi
   const claimCode = generateClaimCode();
   const packet = input.packet || {};
 
+  const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
+  const pricingSnapshot = input.pricingSnapshot || freezePricingSnapshot({
+    salePrice: input.totalAmount,
+    productCost,
+    affiliatePercent: 25,
+    currency: 'USD',
+  });
+
   const orderData: Record<string, any> = {
     packetId: input.packetId,
     stripeSessionId: input.stripeSessionId,
@@ -209,6 +224,7 @@ async function createPacketOrder(input: CreateOrderInput, nowISO: string): Promi
     selectedColor: packet.selectedColor || '',
     selectedSize: input.selectedSize || 'M',
     totalAmount: input.totalAmount,
+    pricingSnapshot,
     mockupUrl: packet.itemImage || null,
     creatorMemberId: input.creatorMemberId || '',
     referrerId: input.referrerId || '',
@@ -276,39 +292,36 @@ export async function confirmEmbedOrderPayout(stripeSessionId: string): Promise<
   await attribDoc.ref.update({ status: 'paid', paidAt: new Date().toISOString() });
   console.log(`[OrderService] Embed attribution ${attribDoc.id} confirmed paid for ${stripeSessionId}`);
 
-  const affiliateUserId = attrib.affiliateUserId;
-  const affiliateAmount = attrib.affiliateAmount || 0;
-  const qty = attrib.quantity || 1;
+  const snapshot: PricingSnapshot = {
+    baseSalePrice: attrib.baseSalePrice || 0,
+    displaySalePrice: attrib.displaySalePrice || 0,
+    productCost: attrib.productCost || 0,
+    providerCost: attrib.providerCost || 0,
+    platformFeeAmount: attrib.platformFeeAmount || 0,
+    shippingCostBurden: attrib.shippingCostBurden || 0,
+    discountBurden: attrib.discountBurden || 0,
+    grossProfitAmount: attrib.grossProfitAmount || 0,
+    affiliatePercent: attrib.affiliatePercent || 0,
+    affiliateBasis: attrib.affiliateBasis || 'gross_profit',
+    affiliateAmount: attrib.affiliateAmount || 0,
+    netPlatformProfitAmount: attrib.netPlatformProfitAmount || 0,
+    currency: attrib.currency || 'USD',
+    pricingSnapshotVersion: attrib.pricingSnapshotVersion || '1.0',
+    createdAt: attrib.createdAt || new Date().toISOString(),
+  };
 
-  if (affiliateUserId && affiliateAmount > 0) {
-    const existingPayout = await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION)
-      .where('orderId', '==', stripeSessionId)
-      .where('affiliateUserId', '==', affiliateUserId)
-      .limit(1).get();
-
-    if (!existingPayout.empty) {
-      console.log(`[OrderService] Payout ledger already exists for ${stripeSessionId}/${affiliateUserId}, skipping`);
-      return;
-    }
-
-    const nowISO = new Date().toISOString();
-    const d = new Date();
-    const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-
-    await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).add({
-      affiliateUserId,
-      builderHostId: attrib.builderHostId || '',
-      builderPlacementId: attrib.builderPlacementId || '',
-      orderId: stripeSessionId,
-      orderItemId: attrib.orderItemId || '',
-      affiliateAmount: affiliateAmount * qty,
-      currency: attrib.currency || 'USD',
-      status: 'pending',
-      periodKey,
-      createdAt: nowISO,
-    });
-    console.log(`[OrderService] Affiliate ${affiliateUserId} payout $${affiliateAmount * qty} confirmed for ${stripeSessionId}`);
-  }
+  await writePayoutAttribution({
+    source: 'external_embed',
+    orderId: stripeSessionId,
+    orderItemId: attrib.orderItemId || '',
+    orderTotal: snapshot.displaySalePrice * (attrib.quantity || 1),
+    productCost: snapshot.productCost,
+    pricingSnapshot: snapshot,
+    affiliateUserId: attrib.affiliateUserId || '',
+    builderHostId: attrib.builderHostId || '',
+    builderPlacementId: attrib.builderPlacementId || '',
+    quantity: attrib.quantity || 1,
+  });
 }
 
 export interface PayoutAttributionInput {
@@ -407,6 +420,15 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
 async function writeAffiliatePayouts(input: PayoutAttributionInput, nowISO: string): Promise<void> {
   const snapshot = input.pricingSnapshot;
   if (!input.affiliateUserId || !snapshot || snapshot.affiliateAmount <= 0) return;
+
+  const existingPayout = await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION)
+    .where('orderId', '==', input.orderId)
+    .where('affiliateUserId', '==', input.affiliateUserId)
+    .limit(1).get();
+  if (!existingPayout.empty) {
+    console.log(`[OrderService] Payout ledger already exists for ${input.orderId}/${input.affiliateUserId}, skipping`);
+    return;
+  }
 
   const qty = input.quantity || 1;
   const payoutEntry = {
