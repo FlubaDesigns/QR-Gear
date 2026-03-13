@@ -14,11 +14,38 @@ function register(app) {
                 core_1.db.collection('product_packets').get(),
             ]);
             const orders = ordersSnap.docs.map((d) => d.data());
-            const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            let revenueToday = 0, revenueWeek = 0, revenueMonth = 0;
+            let pendingCount = 0, productionCount = 0, shippedCount = 0;
+            for (const o of orders) {
+                const amount = o.totalAmount || 0;
+                const created = o.createdAt || '';
+                if (created >= todayStart)
+                    revenueToday += amount;
+                if (created >= weekAgo)
+                    revenueWeek += amount;
+                if (created >= monthAgo)
+                    revenueMonth += amount;
+                if (o.status === 'pending')
+                    pendingCount++;
+                if (o.status === 'routed' || o.status === 'in_production')
+                    productionCount++;
+                if (o.status === 'shipped')
+                    shippedCount++;
+            }
+            const newCustomersThisWeek = customersSnap.docs.filter((d) => {
+                const c = d.data();
+                return (c.createdAt || '') >= weekAgo;
+            }).length;
             res.json({
-                totalProducts: productsSnap.size, totalOrders: ordersSnap.size,
-                totalCustomers: customersSnap.size, totalPackets: packetsSnap.size,
-                totalRevenue, recentOrders: orders.slice(0, 10),
+                revenue: { today: revenueToday, week: revenueWeek, month: revenueMonth, trend: 0 },
+                orders: { total: ordersSnap.size, pending: pendingCount, inProduction: productionCount, shipped: shippedCount, trend: 0 },
+                customers: { total: customersSnap.size, newThisWeek: newCustomersThisWeek, returning: 0 },
+                products: { active: productsSnap.size, lowStock: 0, syncErrors: 0 },
+                health: { printify: 'healthy', stripe: 'healthy', lastCheck: now.toISOString() },
             });
         }
         catch (error) {
@@ -27,9 +54,45 @@ function register(app) {
     });
     app.get('/admin/customers', middleware_1.requireAdmin, async (_req, res) => {
         try {
-            const snapshot = await core_1.db.collection('customers').orderBy('createdAt', 'desc').limit(100).get();
-            const customers = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-            res.json({ customers });
+            let snapshot;
+            try {
+                snapshot = await core_1.db.collection('customers').orderBy('createdAt', 'desc').limit(100).get();
+            }
+            catch {
+                snapshot = await core_1.db.collection('customers').limit(100).get();
+            }
+            const ordersSnap = await core_1.db.collection('orders').get();
+            const ordersByCustomer = {};
+            for (const od of ordersSnap.docs) {
+                const o = od.data();
+                const cid = o.customerId || o.userId || '';
+                if (!cid)
+                    continue;
+                if (!ordersByCustomer[cid])
+                    ordersByCustomer[cid] = { count: 0, total: 0, lastDate: null };
+                ordersByCustomer[cid].count++;
+                ordersByCustomer[cid].total += (o.totalAmount || 0);
+                const d = o.createdAt || null;
+                if (d && (!ordersByCustomer[cid].lastDate || d > ordersByCustomer[cid].lastDate)) {
+                    ordersByCustomer[cid].lastDate = d;
+                }
+            }
+            const customers = snapshot.docs.map((d) => {
+                const data = d.data();
+                const stats = ordersByCustomer[d.id] || { count: 0, total: 0, lastDate: null };
+                return {
+                    id: d.id,
+                    email: data.email || null,
+                    firstName: data.firstName || data.displayName?.split(' ')[0] || null,
+                    lastName: data.lastName || data.displayName?.split(' ').slice(1).join(' ') || null,
+                    profileImageUrl: data.profileImageUrl || data.photoURL || null,
+                    createdAt: data.createdAt || null,
+                    orderCount: stats.count,
+                    totalSpent: stats.total,
+                    lastOrderDate: stats.lastDate,
+                };
+            });
+            res.json(customers);
         }
         catch (error) {
             res.status(500).json({ error: error.message });
@@ -42,7 +105,24 @@ function register(app) {
                 res.status(404).json({ error: "Customer not found" });
                 return;
             }
-            res.json({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            const ordersSnap = await core_1.db.collection('orders')
+                .where('customerId', '==', req.params.id).orderBy('createdAt', 'desc').limit(20).get()
+                .catch(() => core_1.db.collection('orders').where('customerId', '==', req.params.id).limit(20).get());
+            const recentOrders = ordersSnap.docs.map((od) => ({ id: od.id, ...od.data() }));
+            const totalSpent = recentOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+            const customer = {
+                id: doc.id,
+                email: data.email || null,
+                firstName: data.firstName || data.displayName?.split(' ')[0] || null,
+                lastName: data.lastName || data.displayName?.split(' ').slice(1).join(' ') || null,
+                profileImageUrl: data.profileImageUrl || data.photoURL || null,
+                createdAt: data.createdAt || null,
+                orderCount: recentOrders.length,
+                totalSpent,
+                lastOrderDate: recentOrders[0]?.createdAt || null,
+            };
+            res.json({ customer, recentOrders });
         }
         catch (error) {
             res.status(500).json({ error: error.message });

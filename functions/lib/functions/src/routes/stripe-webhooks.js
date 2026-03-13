@@ -5,10 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const order_service_1 = require("../services/order-service");
 const stripe_1 = __importDefault(require("stripe"));
 const nexusmail_1 = require("../nexusmail");
 function register(app) {
-    // ============ STRIPE WEBHOOKS ============
     app.post('/webhooks/stripe', async (req, res) => {
         try {
             const sig = req.headers['stripe-signature'];
@@ -35,8 +35,17 @@ function register(app) {
             switch (event.type) {
                 case 'checkout.session.completed': {
                     const session = event.data.object;
-                    console.log('Checkout session completed:', session.id);
-                    // Create order from checkout session
+                    const source = session.metadata?.source;
+                    console.log(`Checkout session completed: ${session.id}, source=${source || 'direct_cart'}`);
+                    if (source === 'external_embed') {
+                        try {
+                            await (0, order_service_1.confirmEmbedOrderPayout)(session.id);
+                        }
+                        catch (embedErr) {
+                            console.error('[Webhook] Error confirming embed payout:', embedErr.message);
+                        }
+                        break;
+                    }
                     try {
                         const userId = session.metadata?.userId;
                         const cartItemIds = session.metadata?.cartItemIds ? JSON.parse(session.metadata.cartItemIds) : [];
@@ -44,19 +53,8 @@ function register(app) {
                             console.error('No userId in checkout session metadata');
                             break;
                         }
-                        // Idempotency check: prevent duplicate orders from Stripe retries
-                        const existingOrderSnapshot = await core_1.db.collection('orders')
-                            .where('stripeSessionId', '==', session.id)
-                            .limit(1)
-                            .get();
-                        if (!existingOrderSnapshot.empty) {
-                            console.log(`Order already exists for session ${session.id}, skipping`);
-                            break;
-                        }
-                        // Get cart items
                         let cartItems = [];
                         if (cartItemIds.length > 0) {
-                            // Use specific cart item IDs from metadata
                             for (const itemId of cartItemIds) {
                                 const itemDoc = await core_1.db.collection('cartItems').doc(itemId).get();
                                 if (itemDoc.exists) {
@@ -65,7 +63,6 @@ function register(app) {
                             }
                         }
                         else {
-                            // Fallback: get all cart items for user
                             const cartSnapshot = await core_1.db.collection('cartItems').where('userId', '==', userId).get();
                             cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                         }
@@ -73,11 +70,6 @@ function register(app) {
                             console.warn('No cart items found for order creation');
                             break;
                         }
-                        // Calculate total from cart items
-                        const totalAmount = cartItems.reduce((sum, item) => {
-                            return sum + parseFloat(item.price || '0') * (item.quantity || 1);
-                        }, 0);
-                        // Extract shipping address from Stripe session
                         const shippingDetails = session.shipping_details;
                         const customerDetails = session.customer_details;
                         const shippingAddress = shippingDetails ? {
@@ -92,37 +84,39 @@ function register(app) {
                             zip: shippingDetails.address?.postal_code || '',
                             country: shippingDetails.address?.country || 'US',
                         } : null;
-                        // Create order
-                        const orderRef = await core_1.db.collection('orders').add({
-                            userId,
-                            status: 'paid',
-                            totalAmount: totalAmount.toFixed(2),
+                        const totalAmount = cartItems.reduce((sum, item) => {
+                            return sum + parseFloat(item.price || '0') * (item.quantity || 1);
+                        }, 0);
+                        const { orderId, alreadyExisted } = await (0, order_service_1.createCanonicalOrder)({
+                            source: 'direct_cart',
                             stripeSessionId: session.id,
                             stripePaymentIntentId: session.payment_intent,
-                            customerEmail: session.customer_details?.email || null,
+                            buyerEmail: customerDetails?.email || '',
+                            buyerName: customerDetails?.name || '',
                             shippingAddress,
-                            createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-                            updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                            totalAmount,
+                            userId,
+                            cartItems,
                         });
-                        console.log(`Order created: ${orderRef.id}`);
-                        // Create order items from cart
-                        for (const item of cartItems) {
-                            await core_1.db.collection('orderItems').add({
-                                orderId: orderRef.id,
-                                productId: item.productId,
-                                quantity: item.quantity || 1,
-                                price: item.price,
-                                customization: item.customization || {},
-                                createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                        if (alreadyExisted) {
+                            console.log(`[Webhook] Order already exists for session ${session.id}, skipping side effects`);
+                            break;
+                        }
+                        const referrerId = session.metadata?.referrerId;
+                        if (referrerId) {
+                            await (0, order_service_1.writePayoutAttribution)({
+                                source: 'direct_cart',
+                                orderId,
+                                orderTotal: totalAmount,
+                                productCost: 0,
+                                referrerId,
+                                buyerEmail: customerDetails?.email || undefined,
                             });
                         }
-                        console.log(`Created ${cartItems.length} order items for order ${orderRef.id}`);
-                        // Send order confirmation email BEFORE clearing cart (use orderItems data)
                         const customerEmail = customerDetails?.email;
                         if (customerEmail) {
-                            // Fetch order items we just created for accurate email data
                             const orderItemsSnapshot = await core_1.db.collection('orderItems')
-                                .where('orderId', '==', orderRef.id)
+                                .where('orderId', '==', orderId)
                                 .get();
                             const emailItems = await Promise.all(orderItemsSnapshot.docs.map(async (doc) => {
                                 const item = doc.data();
@@ -142,8 +136,7 @@ function register(app) {
                             const customerName = shippingAddress
                                 ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
                                 : customerDetails?.name || 'Customer';
-                            // Use NexusMail for order confirmation (queue-first, idempotent)
-                            await (0, nexusmail_1.sendOrderConfirmation)(core_1.db, orderRef.id, customerEmail, customerName, emailItems, totalAmount.toFixed(2), shippingAddress ? {
+                            await (0, nexusmail_1.sendOrderConfirmation)(core_1.db, orderId, customerEmail, customerName, emailItems, totalAmount.toFixed(2), shippingAddress ? {
                                 address1: shippingAddress.address1,
                                 address2: shippingAddress.address2,
                                 city: shippingAddress.city,
@@ -152,17 +145,15 @@ function register(app) {
                                 country: shippingAddress.country,
                             } : undefined);
                         }
-                        // Clear cart items AFTER email is sent
                         const batch = core_1.db.batch();
                         for (const item of cartItems) {
                             batch.delete(core_1.db.collection('cartItems').doc(item.id));
                         }
                         await batch.commit();
-                        console.log(`Cleared ${cartItems.length} cart items for user ${userId}`);
+                        console.log(`[OrderService] Cleared ${cartItems.length} cart items for user ${userId}`);
                     }
                     catch (orderError) {
                         console.error('Error creating order from checkout:', orderError);
-                        // Don't fail the webhook - order can be manually reconciled
                     }
                     break;
                 }

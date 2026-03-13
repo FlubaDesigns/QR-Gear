@@ -7,168 +7,20 @@ exports.registerExternalSitesPublicRoutes = registerExternalSitesPublicRoutes;
 const core_1 = require("../core");
 const constants_1 = require("../constants");
 const surfaces_1 = require("../../../shared/surfaces");
+const order_service_1 = require("../services/order-service");
+const embed_validation_1 = require("../services/embed-validation");
 const stripe_1 = __importDefault(require("stripe"));
-const DEFAULT_BUILDER_PERMISSIONS = {
-    allowHeaderText: true,
-    allowHeaderImage: false,
-    allowFooterText: true,
-    allowFooterImage: false,
-    allowCenterGraphic: true,
-    allowQrModeSwitch: false,
-    allowUpload: false,
-    allowAssetLibrary: true,
-    allowProductChange: false,
-    allowVariantChange: true,
-    allowSaveDraft: false,
-    allowBuyNow: true,
-};
-function extractRequestDomain(req) {
-    const origin = req.headers.origin;
-    if (origin) {
-        try {
-            return new URL(origin).hostname;
-        }
-        catch { /* ignore */ }
-    }
-    const referer = req.headers.referer;
-    if (referer) {
-        try {
-            return new URL(referer).hostname;
-        }
-        catch { /* ignore */ }
-    }
-    const supplied = req.query.domain || req.body?.domain;
-    if (supplied && typeof supplied === 'string')
-        return supplied;
-    return null;
-}
-function isDomainAllowed(requestDomain, allowedDomains) {
-    if (!allowedDomains || allowedDomains.length === 0)
-        return true;
-    if (!requestDomain)
-        return false;
-    const norm = requestDomain.toLowerCase().replace(/^www\./, '');
-    return allowedDomains.some(d => {
-        const allowed = d.toLowerCase().replace(/^www\./, '');
-        if (allowed.startsWith('*.')) {
-            const suffix = allowed.slice(2);
-            return norm === suffix || norm.endsWith('.' + suffix);
-        }
-        return norm === allowed;
-    });
-}
-async function validateEmbedContext(placementId, req, opts = {}) {
-    const placementDoc = await core_1.db.collection(constants_1.BUILDER_PLACEMENTS_COLLECTION).doc(placementId).get();
-    if (!placementDoc.exists)
-        return { valid: false, error: 'Placement not found' };
-    const placement = { id: placementDoc.id, ...placementDoc.data() };
-    if (placement.status !== 'active')
-        return { valid: false, error: 'Placement is not active' };
-    const hostDoc = await core_1.db.collection(constants_1.BUILDER_HOSTS_COLLECTION).doc(placement.builderHostId).get();
-    if (!hostDoc.exists)
-        return { valid: false, error: 'Host not found' };
-    const host = { id: hostDoc.id, ...hostDoc.data() };
-    if (host.status !== 'active')
-        return { valid: false, error: 'Host is not active' };
-    const requestDomain = extractRequestDomain(req);
-    if (!isDomainAllowed(requestDomain, host.allowedDomains || [])) {
-        return { valid: false, error: `Domain '${requestDomain || 'unknown'}' is not allowed for this host` };
-    }
-    let profile = null;
-    const profileId = placement.builderProfileId || host.defaultBuilderProfileId;
-    if (profileId) {
-        const profileDoc = await core_1.db.collection(constants_1.BUILDER_PROFILES_COLLECTION).doc(profileId).get();
-        if (profileDoc.exists) {
-            profile = { id: profileDoc.id, ...profileDoc.data() };
-            if (profile.status !== 'active')
-                return { valid: false, error: 'Profile is not active' };
-        }
-    }
-    let surface = null;
-    let variants = [];
-    if (placement.surfaceId) {
-        const surfaceDoc = await core_1.db.collection(constants_1.SURFACES_COLLECTION).doc(placement.surfaceId).get();
-        if (surfaceDoc.exists) {
-            surface = { id: surfaceDoc.id, ...surfaceDoc.data() };
-            if (surface.status === 'archived' || surface.status === 'blocked') {
-                return { valid: false, error: 'Surface is not available' };
-            }
-        }
-    }
-    if (opts.requireSurface && !surface)
-        return { valid: false, error: 'Placement has no surface configured' };
-    if (surface && opts.requireReadiness) {
-        const variantsSnap = await core_1.db.collection(constants_1.SURFACE_VARIANTS_COLLECTION)
-            .where('surfaceId', '==', surface.id).get();
-        variants = variantsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const readiness = (0, surfaces_1.checkSurfaceReadiness)(surface, variants);
-        if (!readiness.ready) {
-            return { valid: false, error: `Surface not ready: ${readiness.errors.join(', ')}` };
-        }
-    }
-    let pricingPolicy = null;
-    const policyId = placement.pricingPolicyId || host.defaultPricingPolicyId;
-    if (policyId) {
-        const policyDoc = await core_1.db.collection(constants_1.PRICING_POLICIES_COLLECTION).doc(policyId).get();
-        if (policyDoc.exists)
-            pricingPolicy = { id: policyDoc.id, ...policyDoc.data() };
-    }
-    let revenueSplit = null;
-    const splitId = placement.revenueSplitId || host.defaultRevenueSplitId;
-    if (splitId) {
-        const splitDoc = await core_1.db.collection(constants_1.REVENUE_SPLITS_COLLECTION).doc(splitId).get();
-        if (splitDoc.exists)
-            revenueSplit = { id: splitDoc.id, ...splitDoc.data() };
-    }
-    let affiliateUserId = '';
-    if (placement.affiliateUserId) {
-        affiliateUserId = placement.affiliateUserId;
-    }
-    else if (host.ownerUserId) {
-        affiliateUserId = host.ownerUserId;
-    }
-    if (revenueSplit && revenueSplit.affiliatePercent > 0 && !affiliateUserId) {
-        if (revenueSplit.requireAffiliate !== false) {
-            return { valid: false, error: 'Revenue sharing is enabled but no affiliate user could be resolved' };
-        }
-    }
-    return { valid: true, placement, host, profile, surface, variants, pricingPolicy, revenueSplit, affiliateUserId };
-}
-function buildPricingFromContext(surface, pricingPolicy, revenueSplit) {
-    const salePrice = surface?.retailPrice || 0;
-    const productCost = surface?.baseCost || 0;
-    const affiliatePercent = revenueSplit?.affiliatePercent ?? 25;
-    const platformFeeAmount = pricingPolicy?.platformFeeAmount || 0;
-    return (0, surfaces_1.computePricingSnapshot)({
-        salePrice, productCost, platformFeeAmount, affiliatePercent,
-        currency: pricingPolicy?.currency || 'USD',
-    });
-}
-function getPeriodKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-const VALID_HOST_STATUSES = new Set(constants_1.BUILDER_HOST_STATUSES);
-const VALID_PROFILE_STATUSES = new Set(constants_1.BUILDER_PROFILE_STATUSES);
-const VALID_PLACEMENT_STATUSES = new Set(constants_1.BUILDER_PLACEMENT_STATUSES);
-const VALID_EMBED_MODES = new Set(constants_1.EMBED_MODES);
-const VALID_PAYOUT_STATUSES = new Set(constants_1.PAYOUT_STATUSES);
-const VALID_BASE_COST_MODES = new Set(['snapshot', 'live-cost', 'variant-cost']);
-const VALID_MARGIN_TYPES = new Set(['fixed', 'percent']);
-const VALID_ROUNDING_MODES = new Set(['none', 'round', 'ceil', 'floor']);
-const VALID_PRICING_STATUSES = new Set(['active', 'draft', 'archived']);
-const VALID_SPLIT_STATUSES = new Set(['active', 'draft', 'archived']);
 function registerExternalSitesPublicRoutes(app) {
     app.get('/public/embed/placement/:placementId', async (req, res) => {
         try {
             const { placementId } = req.params;
-            const ctx = await validateEmbedContext(placementId, req);
+            const ctx = await (0, embed_validation_1.validateEmbedContext)(placementId, req);
             if (!ctx.valid) {
                 const code = ctx.error?.includes('not found') ? 404 : 403;
                 res.status(code).json({ error: ctx.error });
                 return;
             }
-            const permissions = ctx.profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
+            const permissions = ctx.profile?.permissions || embed_validation_1.DEFAULT_BUILDER_PERMISSIONS;
             res.json({
                 placement: ctx.placement,
                 host: ctx.host ? { id: ctx.host.id, name: ctx.host.name, storeId: ctx.host.storeId } : null,
@@ -219,7 +71,7 @@ function registerExternalSitesPublicRoutes(app) {
                 res.status(400).json({ error: 'builderPlacementId is required' });
                 return;
             }
-            const ctx = await validateEmbedContext(builderPlacementId, req, { requireSurface: true, requireReadiness: true });
+            const ctx = await (0, embed_validation_1.validateEmbedContext)(builderPlacementId, req, { requireSurface: true, requireReadiness: true });
             if (!ctx.valid) {
                 const code = ctx.error?.includes('not found') ? 404 : ctx.error?.includes('not ready') ? 422 : 403;
                 res.status(code).json({ error: ctx.error });
@@ -232,7 +84,7 @@ function registerExternalSitesPublicRoutes(app) {
             const now = new Date().toISOString();
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
             const pricingSnapshot = ctx.surface && ctx.pricingPolicy
-                ? buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit)
+                ? (0, embed_validation_1.buildPricingFromContext)(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit)
                 : null;
             const sessionData = {
                 builderPlacementId,
@@ -275,13 +127,13 @@ function registerExternalSitesPublicRoutes(app) {
                 res.status(403).json({ error: 'Session is not active' });
                 return;
             }
-            const ctx = await validateEmbedContext(session.builderPlacementId, req);
+            const ctx = await (0, embed_validation_1.validateEmbedContext)(session.builderPlacementId, req);
             if (!ctx.valid) {
                 res.status(403).json({ error: ctx.error });
                 return;
             }
             const profile = ctx.profile;
-            const permissions = profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
+            const permissions = profile?.permissions || embed_validation_1.DEFAULT_BUILDER_PERMISSIONS;
             if (!permissions.allowSaveDraft) {
                 res.status(403).json({ error: 'Saving drafts is not allowed by the current profile' });
                 return;
@@ -322,7 +174,7 @@ function registerExternalSitesPublicRoutes(app) {
                 res.status(403).json({ error: 'Session is not active' });
                 return;
             }
-            const ctx = await validateEmbedContext(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
+            const ctx = await (0, embed_validation_1.validateEmbedContext)(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
             if (!ctx.valid) {
                 res.status(403).json({ error: ctx.error });
                 return;
@@ -350,7 +202,7 @@ function registerExternalSitesPublicRoutes(app) {
                     return;
                 }
             }
-            const pricingSnapshot = buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
+            const pricingSnapshot = (0, embed_validation_1.buildPricingFromContext)(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
             const now = new Date().toISOString();
             const cartItemData = {
                 sessionId,
@@ -397,15 +249,19 @@ function registerExternalSitesPublicRoutes(app) {
                 res.status(403).json({ error: 'Session is not in a buyable state' });
                 return;
             }
-            const ctx = await validateEmbedContext(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
+            const ctx = await (0, embed_validation_1.validateEmbedContext)(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
             if (!ctx.valid) {
                 res.status(403).json({ error: ctx.error });
                 return;
             }
             const profile = ctx.profile;
-            const permissions = profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
+            const permissions = profile?.permissions || embed_validation_1.DEFAULT_BUILDER_PERMISSIONS;
             if (!permissions.allowBuyNow) {
                 res.status(403).json({ error: 'Direct purchase is not allowed by the current profile' });
+                return;
+            }
+            if (!ctx.affiliateUserId) {
+                res.status(422).json({ error: 'Cannot process purchase: no affiliate user resolved for this placement. Check placement, host, or profile affiliate configuration.' });
                 return;
             }
             const { surfaceId, variantId, quantity, designSelections, qrSelections, previewSnapshot, successUrl, cancelUrl } = req.body;
@@ -414,7 +270,7 @@ function registerExternalSitesPublicRoutes(app) {
                 res.status(400).json({ error: 'surfaceId is required' });
                 return;
             }
-            const pricingSnapshot = buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
+            const pricingSnapshot = (0, embed_validation_1.buildPricingFromContext)(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
             const unitPrice = pricingSnapshot.displaySalePrice;
             const qty = quantity || 1;
             const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -422,7 +278,7 @@ function registerExternalSitesPublicRoutes(app) {
                 res.status(503).json({ error: 'Payment not configured' });
                 return;
             }
-            const stripe = new stripe_1.default(stripeKey, { apiVersion: '2023-10-16' });
+            const stripe = new stripe_1.default(stripeKey);
             const productTitle = ctx.surface?.title || 'QR Gear Product';
             const productImage = ctx.surface?.images?.[0] || null;
             const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
@@ -459,43 +315,29 @@ function registerExternalSitesPublicRoutes(app) {
                 customer_creation: 'if_required',
             });
             const now = new Date().toISOString();
-            const orderItemId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-            const attributionData = {
-                orderId: checkoutSession.id,
-                orderItemId,
-                builderHostId: session.builderHostId,
-                builderPlacementId: session.builderPlacementId,
-                builderProfileId: session.builderProfileId || '',
-                affiliateUserId: ctx.affiliateUserId || '',
-                surfaceId: effectiveSurfaceId,
-                variantId: variantId || null,
-                pricingPolicyId: ctx.pricingPolicy?.id || '',
-                revenueSplitId: ctx.revenueSplit?.id || '',
-                ...pricingSnapshot,
-                quantity: qty,
-                designSelections: designSelections || {},
-                qrSelections: qrSelections || {},
-                previewSnapshot: previewSnapshot || null,
-                stripeCheckoutSessionId: checkoutSession.id,
-                status: 'pending_payment',
-                createdAt: now,
-            };
-            await core_1.db.collection(constants_1.EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION).add(attributionData);
-            if (ctx.affiliateUserId && pricingSnapshot.affiliateAmount > 0) {
-                const payoutEntry = {
-                    affiliateUserId: ctx.affiliateUserId,
+            const { orderItemId } = await (0, order_service_1.createCanonicalOrder)({
+                source: 'external_embed',
+                stripeSessionId: checkoutSession.id,
+                buyerEmail: '',
+                buyerName: '',
+                shippingAddress: null,
+                totalAmount: unitPrice * qty,
+                pricingSnapshot,
+                cartItems: [{ quantity: qty }],
+                embedContext: {
                     builderHostId: session.builderHostId,
                     builderPlacementId: session.builderPlacementId,
-                    orderId: checkoutSession.id,
-                    orderItemId,
-                    affiliateAmount: pricingSnapshot.affiliateAmount * qty,
-                    currency: pricingSnapshot.currency,
-                    status: 'pending',
-                    periodKey: getPeriodKey(),
-                    createdAt: now,
-                };
-                await core_1.db.collection(constants_1.AFFILIATE_PAYOUT_LEDGER_COLLECTION).add(payoutEntry);
-            }
+                    builderProfileId: session.builderProfileId || '',
+                    affiliateUserId: ctx.affiliateUserId || '',
+                    surfaceId: effectiveSurfaceId,
+                    variantId: variantId || '',
+                    pricingPolicyId: ctx.pricingPolicy?.id || '',
+                    revenueSplitId: ctx.revenueSplit?.id || '',
+                    designSelections: designSelections || {},
+                    qrSelections: qrSelections || {},
+                    previewSnapshot: previewSnapshot || null,
+                },
+            });
             await core_1.db.collection(constants_1.BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
                 lastSeenAt: now,
                 status: 'checkout_started',

@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const order_service_1 = require("../services/order-service");
 const stripe_1 = __importDefault(require("stripe"));
 function register(app) {
-    // ============ PACKET CHECKOUT (Share Link → Buy) ============
     app.post('/public/packet-checkout', async (req, res) => {
         try {
             const { packetId, selectedShirtSize, referrerId } = req.body;
@@ -25,26 +25,8 @@ function register(app) {
                 res.status(400).json({ error: "Product is no longer available" });
                 return;
             }
-            const pricingDoc = await core_1.db.collection("testSettings").doc("pricing").get();
-            const ps = pricingDoc.exists ? pricingDoc.data() : null;
-            const defaultSU = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-            const sizeUpcharges = ps?.sizeUpcharges || defaultSU;
-            let basePrice = 0;
-            if (packet.pricingSnapshot?.retailPriceBase) {
-                basePrice = packet.pricingSnapshot.retailPriceBase;
-            }
-            else if (packet.boundProduct?.retailPrice) {
-                basePrice = parseFloat(packet.boundProduct.retailPrice);
-            }
-            else if (packet.socialPacket?.retailPrice) {
-                basePrice = parseFloat(packet.socialPacket.retailPrice);
-            }
-            else {
-                basePrice = ps?.baseRetailPrice || 29.99;
-            }
             const size = selectedShirtSize || packet.selectedShirtSize || 'M';
-            const sizeUpcharge = sizeUpcharges[size] || 0;
-            const serverTotal = Math.round((basePrice + sizeUpcharge) * 100) / 100;
+            const { totalPrice: serverTotal } = await (0, order_service_1.freezePacketPricing)({ packet, selectedSize: size });
             const stripeKey = process.env.STRIPE_SECRET_KEY;
             if (!stripeKey) {
                 res.status(503).json({ error: "Payment not configured" });
@@ -127,98 +109,38 @@ function register(app) {
             const buyerEmail = session.customer_details?.email || '';
             const buyerName = session.customer_details?.name || '';
             const shippingAddress = session.shipping_details?.address || null;
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let claimCode = '';
-            for (let i = 0; i < 8; i++)
-                claimCode += chars.charAt(Math.floor(Math.random() * chars.length));
-            const now = new Date();
-            const orderData = {
-                packetId,
+            const totalAmount = serverTotal || (session.amount_total / 100);
+            const { orderId, claimCode, alreadyExisted, orderData } = await (0, order_service_1.createCanonicalOrder)({
+                source: 'packet_share',
                 stripeSessionId: sessionId,
                 stripePaymentIntentId: session.payment_intent,
                 buyerEmail,
                 buyerName,
                 shippingAddress,
-                claimCode,
-                productTitle: packet.title || 'QR Gear Product',
-                qrType: packet.qrType || packet.packetType || 'qr-basic',
-                selectedColor: packet.selectedColor || '',
+                totalAmount,
+                packetId,
+                packet,
                 selectedSize,
-                totalAmount: serverTotal || (session.amount_total / 100),
-                mockupUrl: packet.itemImage || null,
-                creatorMemberId,
                 referrerId: referrerId || '',
-                source: 'packet_share',
-                status: 'paid',
-                createdAt: now.toISOString(),
-                updatedAt: now.toISOString(),
-            };
-            const orderRef = await core_1.db.collection('orders_public').add(orderData);
-            console.log(`[PacketCheckout] Order ${orderRef.id} created for packet ${packetId}`);
-            const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
-            const profit = serverTotal - productCost;
-            if (creatorMemberId && profit > 0) {
-                try {
-                    const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
-                    await core_1.db.collection('member_earnings').add({
-                        memberId: creatorMemberId,
-                        orderId: orderRef.id,
-                        packetId,
-                        orderTotal: serverTotal,
-                        productCost,
-                        profit,
-                        sharePercent: 25,
-                        earnings: creatorEarnings,
-                        type: 'product_sale',
-                        status: 'pending',
-                        createdAt: now.toISOString(),
-                    });
-                    console.log(`[Member Earnings] Creator ${creatorMemberId} earned $${creatorEarnings} from packet order ${orderRef.id}`);
-                }
-                catch (earnErr) {
-                    console.error('[Member Earnings] Non-fatal error:', earnErr.message);
-                }
-            }
-            if (referrerId && buyerEmail) {
-                try {
-                    const buyerKey = buyerEmail;
-                    const existingRef = await core_1.db.collection('referrals')
-                        .where('buyerKey', '==', buyerKey).limit(1).get();
-                    if (existingRef.empty) {
-                        await core_1.db.collection('referrals').add({
-                            referrerId,
-                            buyerKey,
-                            profitSharePercent: 25,
-                            lifetime: true,
-                            source: 'packet_checkout',
-                            createdAt: now.toISOString(),
-                        });
-                        console.log(`[Referral] Captured: ${referrerId} → ${buyerKey}`);
-                    }
-                    if (profit > 0 && referrerId !== creatorMemberId) {
-                        const referralEarnings = Math.round((profit * 0.25) * 100) / 100;
-                        await core_1.db.collection('referral_earnings').add({
-                            memberId: referrerId,
-                            orderId: orderRef.id,
-                            buyerKey,
-                            orderTotal: serverTotal,
-                            productCost,
-                            profit,
-                            sharePercent: 25,
-                            earnings: referralEarnings,
-                            status: 'pending',
-                            createdAt: now.toISOString(),
-                        });
-                        console.log(`[Referral Earnings] ${referrerId} earned $${referralEarnings} from packet order ${orderRef.id}`);
-                    }
-                }
-                catch (refErr) {
-                    console.error('[Referral] Non-fatal error recording referral:', refErr.message);
-                }
+                creatorMemberId,
+            });
+            if (!alreadyExisted) {
+                const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
+                await (0, order_service_1.writePayoutAttribution)({
+                    source: 'packet_share',
+                    orderId,
+                    orderTotal: totalAmount,
+                    productCost,
+                    creatorMemberId,
+                    referrerId: referrerId || undefined,
+                    buyerEmail: buyerEmail || undefined,
+                    packetId,
+                });
             }
             res.json({
                 success: true,
-                order: { id: orderRef.id, ...orderData },
+                alreadyProcessed: alreadyExisted,
+                order: { id: orderId, ...orderData },
                 claimCode,
             });
         }

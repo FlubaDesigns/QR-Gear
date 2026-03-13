@@ -72,6 +72,7 @@ function registerCoreCheckoutRoutes(app) {
                 cancel_url: cancelUrl || `${req.headers.origin}/cart`,
                 metadata: {
                     userId,
+                    source: 'direct_cart',
                     referrerId: req.body.referrerId || '',
                 },
             });
@@ -146,6 +147,7 @@ function registerCoreCheckoutRoutes(app) {
                 return_url: returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
                 metadata: {
                     userId,
+                    source: 'direct_cart',
                     cartItemIds: JSON.stringify(cartItemIds),
                 },
             });
