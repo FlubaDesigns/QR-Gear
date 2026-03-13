@@ -13,7 +13,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import {
   Plus, Trash2, Pencil, Loader2,
-  DollarSign, PieChart, FileText, CreditCard,
+  PieChart, FileText, CreditCard,
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {

@@ -6,14 +6,12 @@ import {
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
-import StickyActionBar from "@/components/admin/StickyActionBar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Coupon } from "@shared/schema";
 import { CouponsSection } from "./admin-pricing-coupons";
 
 interface HostingTier {

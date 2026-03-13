@@ -13,8 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import {
-  Plus, Trash2, Pencil, Loader2, Layout, Building2, Code, Eye,
-  ShoppingBag, Hammer,
+  Plus, Trash2, Pencil, Loader2, Layout, Building2,
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
