@@ -171,7 +171,12 @@ export async function validateEmbedContext(
     affiliateSource = 'profile';
   }
 
-  if (revenueSplit && revenueSplit.affiliatePercent > 0 && !affiliateUserId) {
+  const resolvedAffiliatePercent = revenueSplit?.affiliatePercent ?? revenueSplit?.affiliateSharePercent ?? 0;
+  if (revenueSplit) {
+    revenueSplit.affiliatePercent = resolvedAffiliatePercent;
+  }
+
+  if (revenueSplit && resolvedAffiliatePercent > 0 && !affiliateUserId) {
     if (revenueSplit.requireAffiliate !== false) {
       return { valid: false, error: 'Revenue sharing is enabled but no affiliate user could be resolved (checked placement.affiliateUserId, host.ownerUserId, and profile.affiliateUserId)' };
     }
