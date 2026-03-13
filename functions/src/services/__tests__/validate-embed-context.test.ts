@@ -113,15 +113,24 @@ describe('validateEmbedContext', () => {
     const { validateEmbedContext } = await import('../embed-validation');
     setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1' });
     setDoc('builderHosts', 'h1', { status: 'active' });
-    const result = await validateEmbedContext('p1', mockReq());
+    const result = await validateEmbedContext('p1', mockReq({ origin: 'https://anything.com' }));
     expect(result.valid).toBe(true);
+  });
+
+  it('rejects missing Origin+Referer even without allowedDomains', async () => {
+    const { validateEmbedContext } = await import('../embed-validation');
+    setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1' });
+    setDoc('builderHosts', 'h1', { status: 'active' });
+    const result = await validateEmbedContext('p1', mockReq());
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('could not be determined');
   });
 
   it('resolves affiliate from placement first', async () => {
     const { validateEmbedContext } = await import('../embed-validation');
     setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1', affiliateUserId: 'p-aff' });
     setDoc('builderHosts', 'h1', { status: 'active', ownerUserId: 'h-owner' });
-    const result = await validateEmbedContext('p1', mockReq());
+    const result = await validateEmbedContext('p1', mockReq({ origin: 'https://test.com' }));
     expect(result.valid).toBe(true);
     expect(result.affiliateUserId).toBe('p-aff');
     expect(result.affiliateSource).toBe('placement');
@@ -131,7 +140,7 @@ describe('validateEmbedContext', () => {
     const { validateEmbedContext } = await import('../embed-validation');
     setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1' });
     setDoc('builderHosts', 'h1', { status: 'active', ownerUserId: 'h-owner' });
-    const result = await validateEmbedContext('p1', mockReq());
+    const result = await validateEmbedContext('p1', mockReq({ origin: 'https://test.com' }));
     expect(result.valid).toBe(true);
     expect(result.affiliateUserId).toBe('h-owner');
     expect(result.affiliateSource).toBe('host_owner');
@@ -142,7 +151,7 @@ describe('validateEmbedContext', () => {
     setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1', builderProfileId: 'prof1' });
     setDoc('builderHosts', 'h1', { status: 'active' });
     setDoc('builderProfiles', 'prof1', { status: 'active', affiliateUserId: 'prof-aff' });
-    const result = await validateEmbedContext('p1', mockReq());
+    const result = await validateEmbedContext('p1', mockReq({ origin: 'https://test.com' }));
     expect(result.valid).toBe(true);
     expect(result.affiliateUserId).toBe('prof-aff');
     expect(result.affiliateSource).toBe('profile');
@@ -153,7 +162,7 @@ describe('validateEmbedContext', () => {
     setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1', revenueSplitId: 'rs1', affiliateUserId: 'aff1' });
     setDoc('builderHosts', 'h1', { status: 'active' });
     setDoc('revenueSplits', 'rs1', { affiliateSharePercent: 30 });
-    const result = await validateEmbedContext('p1', mockReq());
+    const result = await validateEmbedContext('p1', mockReq({ origin: 'https://test.com' }));
     expect(result.valid).toBe(true);
     expect(result.revenueSplit?.affiliatePercent).toBe(30);
   });
@@ -163,7 +172,7 @@ describe('validateEmbedContext', () => {
     setDoc('builderPlacements', 'p1', { status: 'active', builderHostId: 'h1', revenueSplitId: 'rs1' });
     setDoc('builderHosts', 'h1', { status: 'active' });
     setDoc('revenueSplits', 'rs1', { affiliateSharePercent: 25, requireAffiliate: true });
-    const result = await validateEmbedContext('p1', mockReq());
+    const result = await validateEmbedContext('p1', mockReq({ origin: 'https://test.com' }));
     expect(result.valid).toBe(false);
     expect(result.error).toContain('no affiliate user could be resolved');
   });

@@ -99,16 +99,15 @@ export async function validateEmbedContext(
   const host = { id: hostDoc.id, ...hostDoc.data() } as any;
   if (host.status !== 'active') return { valid: false, error: 'Host is not active' };
 
-  const hostHasDomainRestrictions = host.allowedDomains && host.allowedDomains.length > 0;
   const requestDomain = extractRequestDomain(req);
 
-  if (hostHasDomainRestrictions) {
-    if (!requestDomain) {
-      return { valid: false, error: 'Domain could not be determined from request (missing Origin and Referer headers)' };
-    }
-    if (!isDomainAllowed(requestDomain, host.allowedDomains)) {
-      return { valid: false, error: `Domain '${requestDomain}' is not allowed for this host` };
-    }
+  if (!requestDomain) {
+    return { valid: false, error: 'Domain could not be determined from request (missing Origin and Referer headers)' };
+  }
+
+  const hostHasDomainRestrictions = host.allowedDomains && host.allowedDomains.length > 0;
+  if (hostHasDomainRestrictions && !isDomainAllowed(requestDomain, host.allowedDomains)) {
+    return { valid: false, error: `Domain '${requestDomain}' is not allowed for this host` };
   }
 
   let profile: any = null;

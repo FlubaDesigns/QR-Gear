@@ -256,7 +256,7 @@ app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Respo
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) { res.status(503).json({ error: 'Payment not configured' }); return; }
-    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
+    const stripe = new Stripe(stripeKey);
 
     const productTitle = ctx.surface?.title || 'QR Gear Product';
     const productImage = ctx.surface?.images?.[0] || null;
