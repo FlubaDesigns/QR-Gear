@@ -286,7 +286,7 @@ export const QR_BASIC_STEPS: { id: SimpleWizardStep; label: string; icon: any }[
   { id: 'type', label: 'Type', icon: Sparkles },
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
-  { id: 'generate', label: 'Header/Footer?', icon: Wand2 },
+  { id: 'generate', label: 'Text/Image?', icon: Wand2 },
   { id: 'qr-basic-type', label: 'URL or Text', icon: Link2 },
   { id: 'qr-basic-input', label: 'Enter Content', icon: Type },
   { id: 'qr-basic-mockup', label: 'Preview', icon: Eye },
