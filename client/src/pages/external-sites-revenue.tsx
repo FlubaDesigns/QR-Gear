@@ -16,6 +16,40 @@ import {
   PieChart, FileText, CreditCard,
 } from "lucide-react";
 
+interface RevenueSplit {
+  id: string;
+  name: string;
+  affiliateSharePercent: number;
+  platformSharePercent: number;
+  notes: string;
+  status: string;
+}
+
+interface OrderAttribution {
+  id: string;
+  orderId: string;
+  displaySalePrice: number;
+  grossProfitAmount: number;
+  affiliatePercent: number;
+  affiliateAmount: number;
+  netPlatformProfitAmount: number;
+  createdAt: string;
+}
+
+interface AffiliatePayout {
+  id: string;
+  orderId: string;
+  affiliateUserId: string;
+  affiliateAmount: number;
+  status: string;
+  createdAt: string;
+}
+
+interface BuilderHostRef {
+  id: string;
+  name: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   active: "text-green-600",
   paused: "text-yellow-600",
@@ -31,7 +65,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function RevenueSection() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [editingSplit, setEditingSplit] = useState<any>(null);
+  const [editingSplit, setEditingSplit] = useState<RevenueSplit | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     affiliateSharePercent: 25,
@@ -40,7 +74,7 @@ export function RevenueSection() {
     status: "draft",
   });
 
-  const { data: splits = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/external/revenue-splits"] });
+  const { data: splits = [], isLoading } = useQuery<RevenueSplit[]>({ queryKey: ["/api/admin/external/revenue-splits"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -86,7 +120,7 @@ export function RevenueSection() {
     setFormData({ name: "", affiliateSharePercent: 25, platformSharePercent: 75, notes: "", status: "draft" });
   };
 
-  const openEdit = (split: any) => {
+  const openEdit = (split: RevenueSplit) => {
     setEditingSplit(split);
     setFormData({
       name: split.name || "",
@@ -122,7 +156,7 @@ export function RevenueSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-splits">No revenue splits configured. Default is 25% affiliate / 75% platform.</div>
       ) : (
         <div className="space-y-3">
-          {splits.map((split: any) => (
+          {splits.map((split) => (
             <Card key={split.id} data-testid={`card-split-${split.id}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -191,8 +225,8 @@ export function AttributionsSection() {
   const queryString = queryParams.toString();
   const url = `/api/admin/external/attributions${queryString ? `?${queryString}` : ""}`;
 
-  const { data: attributions = [], isLoading } = useQuery<any[]>({ queryKey: [url] });
-  const { data: hosts = [] } = useQuery<any[]>({ queryKey: ["/api/admin/external/hosts"] });
+  const { data: attributions = [], isLoading } = useQuery<OrderAttribution[]>({ queryKey: [url] });
+  const { data: hosts = [] } = useQuery<BuilderHostRef[]>({ queryKey: ["/api/admin/external/hosts"] });
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-attributions" /></div>;
 
@@ -206,7 +240,7 @@ export function AttributionsSection() {
           <SelectTrigger className="w-[180px]" data-testid="select-attr-host"><SelectValue placeholder="All hosts" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">All hosts</SelectItem>
-            {(hosts as any[]).map((h: any) => (
+            {hosts.map((h) => (
               <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
             ))}
           </SelectContent>
@@ -224,7 +258,7 @@ export function AttributionsSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-attributions">No order attributions recorded yet.</div>
       ) : (
         <div className="space-y-3">
-          {attributions.map((attr: any) => (
+          {attributions.map((attr) => (
             <Card key={attr.id} data-testid={`card-attr-${attr.id}`}>
               <CardContent className="p-4">
                 <div className="space-y-1">
@@ -258,7 +292,7 @@ export function PayoutsSection() {
   const queryString = queryParams.toString();
   const url = `/api/admin/external/payouts${queryString ? `?${queryString}` : ""}`;
 
-  const { data: payouts = [], isLoading } = useQuery<any[]>({ queryKey: [url] });
+  const { data: payouts = [], isLoading } = useQuery<AffiliatePayout[]>({ queryKey: [url] });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -274,8 +308,8 @@ export function PayoutsSection() {
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-payouts" /></div>;
 
-  const totalPending = payouts.filter((p: any) => p.status === "pending").reduce((sum: number, p: any) => sum + (p.affiliateAmount || 0), 0);
-  const totalPaid = payouts.filter((p: any) => p.status === "paid").reduce((sum: number, p: any) => sum + (p.affiliateAmount || 0), 0);
+  const totalPending = payouts.filter((p) => p.status === "pending").reduce((sum, p) => sum + (p.affiliateAmount || 0), 0);
+  const totalPaid = payouts.filter((p) => p.status === "paid").reduce((sum, p) => sum + (p.affiliateAmount || 0), 0);
 
   return (
     <AdminSectionCard
@@ -314,7 +348,7 @@ export function PayoutsSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-payouts">No payout entries yet.</div>
       ) : (
         <div className="space-y-3">
-          {payouts.map((payout: any) => (
+          {payouts.map((payout) => (
             <Card key={payout.id} data-testid={`card-payout-${payout.id}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2 flex-wrap">

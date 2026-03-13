@@ -16,6 +16,28 @@ import {
   Plus, Trash2, Pencil, Loader2, Layout, Building2,
 } from "lucide-react";
 
+interface BuilderHost {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  allowedDomains: string[];
+  contactEmail: string;
+  contactName: string;
+  notes: string;
+  status: string;
+}
+
+interface BuilderProfile {
+  id: string;
+  name: string;
+  storeId: string;
+  surfaceId: string;
+  defaultTheme: string;
+  maxUploads: number;
+  status: string;
+  permissions: Record<string, boolean>;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   active: "text-green-600",
   paused: "text-yellow-600",
@@ -31,7 +53,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function HostsSection() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [editingHost, setEditingHost] = useState<any>(null);
+  const [editingHost, setEditingHost] = useState<BuilderHost | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     ownerUserId: "",
@@ -42,7 +64,7 @@ export function HostsSection() {
     status: "active",
   });
 
-  const { data: hosts = [], isLoading } = useQuery<any[]>({
+  const { data: hosts = [], isLoading } = useQuery<BuilderHost[]>({
     queryKey: ["/api/admin/external/hosts"],
   });
 
@@ -90,7 +112,7 @@ export function HostsSection() {
     setFormData({ name: "", ownerUserId: "", allowedDomains: "", contactEmail: "", contactName: "", notes: "", status: "active" });
   };
 
-  const openEdit = (host: any) => {
+  const openEdit = (host: BuilderHost) => {
     setEditingHost(host);
     setFormData({
       name: host.name || "",
@@ -132,7 +154,7 @@ export function HostsSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-hosts">No builder hosts yet. Add one to get started.</div>
       ) : (
         <div className="space-y-3">
-          {hosts.map((host: any) => (
+          {hosts.map((host) => (
             <Card key={host.id} data-testid={`card-host-${host.id}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -200,7 +222,7 @@ export function HostsSection() {
 export function ProfilesSection() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<any>(null);
+  const [editingProfile, setEditingProfile] = useState<BuilderProfile | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     storeId: "",
@@ -222,7 +244,7 @@ export function ProfilesSection() {
     allowBuyNow: true,
   });
 
-  const { data: profiles = [], isLoading } = useQuery<any[]>({
+  const { data: profiles = [], isLoading } = useQuery<BuilderProfile[]>({
     queryKey: ["/api/admin/external/profiles"],
   });
 
@@ -275,7 +297,7 @@ export function ProfilesSection() {
     });
   };
 
-  const openEdit = (profile: any) => {
+  const openEdit = (profile: BuilderProfile) => {
     setEditingProfile(profile);
     const perms = profile.permissions || {};
     setFormData({
@@ -345,7 +367,7 @@ export function ProfilesSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-profiles">No builder profiles yet.</div>
       ) : (
         <div className="space-y-3">
-          {profiles.map((profile: any) => {
+          {profiles.map((profile) => {
             const perms = profile.permissions || {};
             const enabledCount = Object.values(perms).filter(Boolean).length;
             return (
@@ -396,7 +418,7 @@ export function ProfilesSection() {
                 {permissionToggles.map((perm) => (
                   <div key={perm.key} className="flex items-center gap-2 min-h-[44px]">
                     <Switch
-                      checked={(formData as any)[perm.key]}
+                      checked={formData[perm.key as keyof typeof formData] as boolean}
                       onCheckedChange={(checked) => setFormData({ ...formData, [perm.key]: checked })}
                       data-testid={`switch-${perm.key}`}
                     />

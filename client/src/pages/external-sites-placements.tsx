@@ -16,6 +16,43 @@ import {
   ShoppingBag, Hammer,
 } from "lucide-react";
 
+interface BuilderHost {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface BuilderProfile {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface BuilderPlacement {
+  id: string;
+  builderHostId: string;
+  builderProfileId: string;
+  surfaceId: string;
+  placementName: string;
+  slug: string;
+  domainHint: string;
+  embedMode: string;
+  status: string;
+}
+
+interface PricingPolicy {
+  id: string;
+  name: string;
+  currency: string;
+  baseCostMode: string;
+  baseRetailPrice: number;
+  platformMarginType: string;
+  platformMarginValue: number;
+  affiliatePercent: number;
+  roundingMode: string;
+  status: string;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   active: "border-green-500 text-green-600",
   pending: "border-yellow-500 text-yellow-600",
@@ -37,7 +74,7 @@ const EMBED_MODE_ICONS: Record<string, typeof Globe> = {
 export function PlacementsSection() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [editingPlacement, setEditingPlacement] = useState<any>(null);
+  const [editingPlacement, setEditingPlacement] = useState<BuilderPlacement | null>(null);
   const [formData, setFormData] = useState({
     builderHostId: "",
     builderProfileId: "",
@@ -49,9 +86,9 @@ export function PlacementsSection() {
     status: "active",
   });
 
-  const { data: placements = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/external/placements"] });
-  const { data: hosts = [] } = useQuery<any[]>({ queryKey: ["/api/admin/external/hosts"] });
-  const { data: profiles = [] } = useQuery<any[]>({ queryKey: ["/api/admin/external/profiles"] });
+  const { data: placements = [], isLoading } = useQuery<BuilderPlacement[]>({ queryKey: ["/api/admin/external/placements"] });
+  const { data: hosts = [] } = useQuery<BuilderHost[]>({ queryKey: ["/api/admin/external/hosts"] });
+  const { data: profiles = [] } = useQuery<BuilderProfile[]>({ queryKey: ["/api/admin/external/profiles"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -97,7 +134,7 @@ export function PlacementsSection() {
     setFormData({ builderHostId: "", builderProfileId: "", surfaceId: "", placementName: "", slug: "", domainHint: "", embedMode: "store", status: "active" });
   };
 
-  const openEdit = (p: any) => {
+  const openEdit = (p: BuilderPlacement) => {
     setEditingPlacement(p);
     setFormData({
       builderHostId: p.builderHostId || "",
@@ -121,7 +158,7 @@ export function PlacementsSection() {
     }
   };
 
-  const getHostName = (id: string) => (hosts as any[]).find((h: any) => h.id === id)?.name || id;
+  const getHostName = (id: string) => hosts.find((h) => h.id === id)?.name || id;
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-placements" /></div>;
 
@@ -139,7 +176,7 @@ export function PlacementsSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-placements">No placements yet. Create a host first, then add placements.</div>
       ) : (
         <div className="space-y-3">
-          {placements.map((p: any) => {
+          {placements.map((p) => {
             const ModeIcon = EMBED_MODE_ICONS[p.embedMode] || Globe;
             return (
               <Card key={p.id} data-testid={`card-placement-${p.id}`}>
@@ -177,7 +214,7 @@ export function PlacementsSection() {
               <Select value={formData.builderHostId} onValueChange={(v) => setFormData({ ...formData, builderHostId: v })}>
                 <SelectTrigger data-testid="select-placement-host"><SelectValue placeholder="Select host" /></SelectTrigger>
                 <SelectContent>
-                  {(hosts as any[]).map((h: any) => (
+                  {hosts.map((h) => (
                     <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -192,7 +229,7 @@ export function PlacementsSection() {
                 <SelectTrigger data-testid="select-placement-profile"><SelectValue placeholder="Select profile" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>
-                  {(profiles as any[]).map((p: any) => (
+                  {profiles.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -238,7 +275,7 @@ export function PlacementsSection() {
 export function PricingSection() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [editingPolicy, setEditingPolicy] = useState<any>(null);
+  const [editingPolicy, setEditingPolicy] = useState<PricingPolicy | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     currency: "USD",
@@ -251,7 +288,7 @@ export function PricingSection() {
     status: "draft",
   });
 
-  const { data: policies = [], isLoading } = useQuery<any[]>({ queryKey: ["/api/admin/external/pricing-policies"] });
+  const { data: policies = [], isLoading } = useQuery<PricingPolicy[]>({ queryKey: ["/api/admin/external/pricing-policies"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -297,7 +334,7 @@ export function PricingSection() {
     setFormData({ name: "", currency: "USD", baseCostMode: "snapshot", baseRetailPrice: 0, platformMarginType: "percent", platformMarginValue: 0, affiliatePercent: 25, roundingMode: "round", status: "draft" });
   };
 
-  const openEdit = (policy: any) => {
+  const openEdit = (policy: PricingPolicy) => {
     setEditingPolicy(policy);
     setFormData({
       name: policy.name || "",
@@ -337,7 +374,7 @@ export function PricingSection() {
         <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-pricing">No pricing policies yet.</div>
       ) : (
         <div className="space-y-3">
-          {policies.map((policy: any) => (
+          {policies.map((policy) => (
             <Card key={policy.id} data-testid={`card-pricing-${policy.id}`}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2 flex-wrap">

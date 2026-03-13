@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
+import StickyActionBar from "@/components/admin/StickyActionBar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -149,23 +150,6 @@ export default function AdminPricing() {
       icon={DollarSign}
       backHref="/admin/products"
       backLabel="Back to Products"
-      stickyBar={
-        <button
-          onClick={handleSave}
-          disabled={saveMutation.isPending}
-          className="qr-btn qr-btn--primary qr-btn--touch disabled:opacity-50"
-          data-testid="button-save"
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : saveMutation.isSuccess ? (
-            <Check className="h-5 w-5" />
-          ) : (
-            <Save className="h-5 w-5" />
-          )}
-          Save Pricing
-        </button>
-      }
     >
       <div className="grid gap-4">
         <AdminSectionCard
@@ -574,6 +558,24 @@ export default function AdminPricing() {
           </div>
         </AdminSectionCard>
       </div>
+
+      <StickyActionBar>
+        <button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          className="qr-btn qr-btn--primary qr-btn--touch disabled:opacity-50"
+          data-testid="button-save"
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : saveMutation.isSuccess ? (
+            <Check className="h-5 w-5" />
+          ) : (
+            <Save className="h-5 w-5" />
+          )}
+          Save Pricing
+        </button>
+      </StickyActionBar>
     </AdminShell>
   );
 }
