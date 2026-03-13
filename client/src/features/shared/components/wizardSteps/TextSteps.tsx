@@ -220,19 +220,19 @@ export function TextLayoutChoiceStep({
     {
       id: 'header' as TextLayoutChoice,
       label: 'Header Only',
-      description: 'Text above the QR code',
+      description: 'Text or image above the QR code',
       lines: 1,
     },
     {
       id: 'footer' as TextLayoutChoice,
       label: 'Footer Only', 
-      description: 'Text below the QR code',
+      description: 'Text or image below the QR code',
       lines: 1,
     },
     {
       id: 'both' as TextLayoutChoice,
       label: 'Header + Footer',
-      description: 'Text above and below',
+      description: 'Text or image above and below',
       lines: 2,
     }
   ];
@@ -248,11 +248,11 @@ export function TextLayoutChoiceStep({
   return (
     <div className="text-center space-y-2">
       <div>
-        <h2 className="text-base font-bold text-white mb-0.5">Add Text to Your Design</h2>
+        <h2 className="text-base font-bold text-white mb-0.5">Add Text or Image to Your Design</h2>
         <p className="text-slate-400 text-xs max-w-xs mx-auto">
           {context === 'member'
-            ? 'Each text line earns you more per sale'
-            : 'Pick where text goes on your product — above the QR code, below it, or both. Each zone adds a small cost.'}
+            ? 'Each text or image line earns you more per sale'
+            : 'Pick where text or an image goes on your product — above the QR code, below it, or both. Each zone adds a small cost.'}
         </p>
       </div>
 

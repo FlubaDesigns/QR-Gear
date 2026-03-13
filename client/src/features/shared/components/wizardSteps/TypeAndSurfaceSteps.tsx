@@ -313,7 +313,7 @@ export function GenerateGraphicStep({
   return (
     <div className="text-center space-y-3 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
-        <h2 className="text-base font-bold text-white mb-0.5">Add a Header or Footer</h2>
+        <h2 className="text-base font-bold text-white mb-0.5">Add Header or Footer Text/Image</h2>
         <p className={`font-semibold text-sm ${context === 'owner' ? 'text-blue-400' : 'text-green-400'}`}>
           {context === 'owner' ? 'Customize your product!' : 'Make more money!'}
         </p>
@@ -385,7 +385,7 @@ export function GenerateGraphicStep({
           data-testid="button-want-text-yes"
         >
           <Check className="w-5 h-5 mr-2" />
-          Yes, add text
+          Yes, add text or image
         </Button>
         <Button
           onClick={onNo}
