@@ -300,7 +300,7 @@ async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promis
   const attribRef = db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION).doc();
   batch.set(attribRef, attributionData);
 
-  if (ctx.affiliateUserId && snapshot && snapshot.affiliateAmount > 0) {
+  if (ctx.affiliateUserId) {
     const payoutRef = db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).doc();
     batch.set(payoutRef, {
       affiliateUserId: ctx.affiliateUserId,
@@ -308,8 +308,8 @@ async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promis
       builderPlacementId: ctx.builderPlacementId || '',
       orderId: input.stripeSessionId,
       orderItemId,
-      affiliateAmount: snapshot.affiliateAmount * qty,
-      currency: snapshot.currency,
+      affiliateAmount: (snapshot?.affiliateAmount || 0) * qty,
+      currency: snapshot?.currency || 'USD',
       status: 'pending',
       periodKey: getPeriodKey(),
       createdAt: nowISO,

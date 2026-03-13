@@ -242,6 +242,10 @@ app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Respo
       res.status(403).json({ error: 'Direct purchase is not allowed by the current profile' }); return;
     }
 
+    if (!ctx.affiliateUserId) {
+      res.status(422).json({ error: 'Cannot process purchase: no affiliate user resolved for this placement. Check placement, host, or profile affiliate configuration.' }); return;
+    }
+
     const { surfaceId, variantId, quantity, designSelections, qrSelections, previewSnapshot, successUrl, cancelUrl } = req.body;
     const effectiveSurfaceId = surfaceId || session.surfaceId;
     if (!effectiveSurfaceId) { res.status(400).json({ error: 'surfaceId is required' }); return; }

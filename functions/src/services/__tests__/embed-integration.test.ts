@@ -384,4 +384,44 @@ describe('Embed Integration: session → cart → buy → confirm', () => {
     expect(res.body.pricingSnapshot.affiliatePercent).toBe(25);
     expect(res.body.pricingSnapshot.affiliateAmount).toBeGreaterThan(0);
   });
+
+  it('buy rejects when no affiliate user is resolved', async () => {
+    seedDoc('builderPlacements', 'placement-no-aff', {
+      status: 'active',
+      builderHostId: 'host-noaff',
+      surfaceId: 'surface-1',
+      pricingPolicyId: 'policy-1',
+      embedMode: 'builder',
+    });
+    seedDoc('builderHosts', 'host-noaff', {
+      status: 'active',
+      name: 'No Affiliate Host',
+    });
+
+    const sessionRes = await request(app)
+      .post('/public/embed/session')
+      .set('Origin', 'https://anywhere.com')
+      .send({ builderPlacementId: 'placement-no-aff' });
+
+    expect(sessionRes.status).toBe(200);
+    const sessionId = sessionRes.body.id;
+    expect(sessionRes.body.affiliateUserId).toBeFalsy();
+
+    const buyRes = await request(app)
+      .post(`/public/embed/session/${sessionId}/buy`)
+      .set('Origin', 'https://anywhere.com')
+      .send({
+        surfaceId: 'surface-1',
+        quantity: 1,
+      });
+
+    expect(buyRes.status).toBe(422);
+    expect(buyRes.body.error).toContain('no affiliate user resolved');
+
+    const attributions = getAllDocs('embeddedOrderAttributions');
+    expect(attributions.length).toBe(0);
+
+    const payouts = getAllDocs('affiliatePayoutLedger');
+    expect(payouts.length).toBe(0);
+  });
 });
