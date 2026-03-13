@@ -77,7 +77,7 @@ export function RevenueSection() {
   const { data: splits = [], isLoading } = useQuery<RevenueSplit[]>({ queryKey: ["/api/admin/external/revenue-splits"] });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest("POST", "/api/admin/external/revenue-splits", data);
       return res.json();
     },
@@ -86,11 +86,11 @@ export function RevenueSection() {
       toast({ title: "Revenue split created" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Record<string, unknown>) => {
       const res = await apiRequest("PATCH", `/api/admin/external/revenue-splits/${id}`, data);
       return res.json();
     },
@@ -99,7 +99,7 @@ export function RevenueSection() {
       toast({ title: "Split updated" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -111,7 +111,7 @@ export function RevenueSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/external/revenue-splits"] });
       toast({ title: "Split deleted" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const resetForm = () => {
@@ -303,7 +303,7 @@ export function PayoutsSection() {
       queryClient.invalidateQueries({ queryKey: [url] });
       toast({ title: "Payout updated" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-payouts" /></div>;

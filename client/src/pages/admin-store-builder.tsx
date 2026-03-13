@@ -73,7 +73,7 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-medium text-base truncate">Add Products to: {store.name}</h3>
-        <Button size="icon" variant="ghost" onClick={onClose} data-testid="button-close-fulfillment"><X className="h-4 w-4" /></Button>
+        <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={onClose} data-testid="button-close-fulfillment"><X className="h-4 w-4" /></Button>
       </div>
 
       <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg flex-wrap">
@@ -232,7 +232,7 @@ function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose
                       <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
                     </div>
                   </div>
-                  <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
+                  <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -422,7 +422,7 @@ function BareProductPicker({ store, onClose }: { store: StoreData; onClose: () =
                   <p className="font-medium truncate">{p.title}</p>
                   <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
+                <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
@@ -468,7 +468,7 @@ function StoreManager() {
       setShowCreateForm(false);
       queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -558,7 +558,7 @@ function StoreManager() {
                     <div key={s.id} className="p-3 rounded-lg border bg-green-500/10 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-medium truncate">{s.name}</span>
-                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
+                        <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -583,7 +583,7 @@ function StoreManager() {
                     <div key={s.id} className="p-3 rounded-lg border space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm truncate">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
-                        <Button size="icon" variant="ghost" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
+                        <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>

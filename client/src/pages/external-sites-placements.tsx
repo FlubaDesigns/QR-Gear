@@ -91,7 +91,7 @@ export function PlacementsSection() {
   const { data: profiles = [] } = useQuery<BuilderProfile[]>({ queryKey: ["/api/admin/external/profiles"] });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest("POST", "/api/admin/external/placements", data);
       return res.json();
     },
@@ -100,11 +100,11 @@ export function PlacementsSection() {
       toast({ title: "Placement created" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Record<string, unknown>) => {
       const res = await apiRequest("PATCH", `/api/admin/external/placements/${id}`, data);
       return res.json();
     },
@@ -113,7 +113,7 @@ export function PlacementsSection() {
       toast({ title: "Placement updated" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -125,7 +125,7 @@ export function PlacementsSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/external/placements"] });
       toast({ title: "Placement deleted" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const resetForm = () => {
@@ -291,7 +291,7 @@ export function PricingSection() {
   const { data: policies = [], isLoading } = useQuery<PricingPolicy[]>({ queryKey: ["/api/admin/external/pricing-policies"] });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest("POST", "/api/admin/external/pricing-policies", data);
       return res.json();
     },
@@ -300,11 +300,11 @@ export function PricingSection() {
       toast({ title: "Pricing policy created" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Record<string, unknown>) => {
       const res = await apiRequest("PATCH", `/api/admin/external/pricing-policies/${id}`, data);
       return res.json();
     },
@@ -313,7 +313,7 @@ export function PricingSection() {
       toast({ title: "Policy updated" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -325,7 +325,7 @@ export function PricingSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/external/pricing-policies"] });
       toast({ title: "Policy deleted" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const resetForm = () => {

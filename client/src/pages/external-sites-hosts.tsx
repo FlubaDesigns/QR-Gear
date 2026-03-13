@@ -69,7 +69,7 @@ export function HostsSection() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest("POST", "/api/admin/external/hosts", data);
       return res.json();
     },
@@ -78,11 +78,11 @@ export function HostsSection() {
       toast({ title: "Host created" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Record<string, unknown>) => {
       const res = await apiRequest("PATCH", `/api/admin/external/hosts/${id}`, data);
       return res.json();
     },
@@ -91,7 +91,7 @@ export function HostsSection() {
       toast({ title: "Host updated" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -103,7 +103,7 @@ export function HostsSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/external/hosts"] });
       toast({ title: "Host deleted" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const resetForm = () => {
@@ -249,7 +249,7 @@ export function ProfilesSection() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const res = await apiRequest("POST", "/api/admin/external/profiles", data);
       return res.json();
     },
@@ -258,11 +258,11 @@ export function ProfilesSection() {
       toast({ title: "Profile created" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Record<string, unknown>) => {
       const res = await apiRequest("PATCH", `/api/admin/external/profiles/${id}`, data);
       return res.json();
     },
@@ -271,7 +271,7 @@ export function ProfilesSection() {
       toast({ title: "Profile updated" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -283,7 +283,7 @@ export function ProfilesSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/external/profiles"] });
       toast({ title: "Profile deleted" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const resetForm = () => {
