@@ -1,149 +1,110 @@
+import { describe, it, expect } from 'vitest';
 import { extractRequestDomain, isDomainAllowed } from '../embed-validation';
 
-type MockHeaders = Record<string, string | undefined>;
-
-function mockRequest(headers: MockHeaders, query: Record<string, string> = {}, body: Record<string, any> = {}): any {
-  return { headers, query, body };
+function mockRequest(headers: Record<string, string | undefined>): any {
+  return { headers, query: {}, body: {} };
 }
 
-let passed = 0;
-let failed = 0;
+describe('extractRequestDomain', () => {
+  it('extracts hostname from Origin header', () => {
+    expect(extractRequestDomain(mockRequest({ origin: 'https://example.com' }))).toBe('example.com');
+  });
 
-function assert(condition: boolean, label: string) {
-  if (condition) {
-    passed++;
-  } else {
-    failed++;
-    console.error(`  FAIL: ${label}`);
-  }
-}
+  it('extracts hostname from Referer header', () => {
+    expect(extractRequestDomain(mockRequest({ referer: 'https://shop.example.com/page?q=1' }))).toBe('shop.example.com');
+  });
 
-function section(name: string) {
-  console.log(`\n=== ${name} ===`);
-}
+  it('prefers Origin over Referer', () => {
+    expect(extractRequestDomain(mockRequest({ origin: 'https://origin.com', referer: 'https://referer.com' }))).toBe('origin.com');
+  });
 
-section('extractRequestDomain');
+  it('returns null when neither Origin nor Referer is present', () => {
+    expect(extractRequestDomain(mockRequest({}))).toBeNull();
+  });
 
-assert(
-  extractRequestDomain(mockRequest({ origin: 'https://example.com' })) === 'example.com',
-  'extracts hostname from Origin header'
-);
+  it('does NOT accept domain from query params (anti-spoofing)', () => {
+    const req = { headers: {}, query: { domain: 'spoofed.com' }, body: {} };
+    expect(extractRequestDomain(req as any)).toBeNull();
+  });
 
-assert(
-  extractRequestDomain(mockRequest({ referer: 'https://shop.example.com/page?q=1' })) === 'shop.example.com',
-  'extracts hostname from Referer header'
-);
+  it('does NOT accept domain from request body (anti-spoofing)', () => {
+    const req = { headers: {}, query: {}, body: { domain: 'spoofed.com' } };
+    expect(extractRequestDomain(req as any)).toBeNull();
+  });
 
-assert(
-  extractRequestDomain(mockRequest({ origin: 'https://origin.com', referer: 'https://referer.com' })) === 'origin.com',
-  'prefers Origin over Referer'
-);
+  it('returns null for malformed Origin', () => {
+    expect(extractRequestDomain(mockRequest({ origin: 'not-a-url' }))).toBeNull();
+  });
+});
 
-assert(
-  extractRequestDomain(mockRequest({})) === null,
-  'returns null when neither Origin nor Referer is present'
-);
+describe('isDomainAllowed', () => {
+  it('allows any domain when allowedDomains is empty', () => {
+    expect(isDomainAllowed('example.com', [])).toBe(true);
+  });
 
-assert(
-  extractRequestDomain(mockRequest({}, { domain: 'spoofed.com' })) === null,
-  'does NOT accept domain from query params (anti-spoofing)'
-);
+  it('allows null domain when allowedDomains is empty', () => {
+    expect(isDomainAllowed(null, [])).toBe(true);
+  });
 
-assert(
-  extractRequestDomain(mockRequest({}, {}, { domain: 'spoofed.com' })) === null,
-  'does NOT accept domain from request body (anti-spoofing)'
-);
+  it('rejects null domain when allowedDomains is non-empty', () => {
+    expect(isDomainAllowed(null, ['example.com'])).toBe(false);
+  });
 
-assert(
-  extractRequestDomain(mockRequest({ origin: 'not-a-url' })) === null,
-  'returns null for malformed Origin'
-);
+  it('exact match succeeds', () => {
+    expect(isDomainAllowed('example.com', ['example.com'])).toBe(true);
+  });
 
-section('isDomainAllowed');
+  it('wrong domain is rejected', () => {
+    expect(isDomainAllowed('evil.com', ['example.com'])).toBe(false);
+  });
 
-assert(
-  isDomainAllowed('example.com', []) === true,
-  'allows any domain when allowedDomains is empty'
-);
+  it('www subdomain is stripped and matched', () => {
+    expect(isDomainAllowed('www.example.com', ['example.com'])).toBe(true);
+  });
 
-assert(
-  isDomainAllowed(null, []) === true,
-  'allows null domain when allowedDomains is empty'
-);
+  it('www in allowedDomains is stripped and matched', () => {
+    expect(isDomainAllowed('example.com', ['www.example.com'])).toBe(true);
+  });
 
-assert(
-  isDomainAllowed(null, ['example.com']) === false,
-  'rejects null domain when allowedDomains is non-empty'
-);
+  it('case-insensitive matching', () => {
+    expect(isDomainAllowed('Example.COM', ['example.com'])).toBe(true);
+  });
 
-assert(
-  isDomainAllowed('example.com', ['example.com']) === true,
-  'exact match succeeds'
-);
+  describe('wildcard subdomains', () => {
+    it('wildcard matches subdomain', () => {
+      expect(isDomainAllowed('shop.example.com', ['*.example.com'])).toBe(true);
+    });
 
-assert(
-  isDomainAllowed('evil.com', ['example.com']) === false,
-  'wrong domain is rejected'
-);
+    it('wildcard matches deep subdomain', () => {
+      expect(isDomainAllowed('deep.shop.example.com', ['*.example.com'])).toBe(true);
+    });
 
-assert(
-  isDomainAllowed('www.example.com', ['example.com']) === true,
-  'www subdomain is stripped and matched'
-);
+    it('wildcard matches bare domain', () => {
+      expect(isDomainAllowed('example.com', ['*.example.com'])).toBe(true);
+    });
 
-assert(
-  isDomainAllowed('example.com', ['www.example.com']) === true,
-  'www in allowedDomains is stripped and matched'
-);
+    it('wildcard does not match unrelated domain', () => {
+      expect(isDomainAllowed('evil.com', ['*.example.com'])).toBe(false);
+    });
 
-assert(
-  isDomainAllowed('Example.COM', ['example.com']) === true,
-  'case-insensitive matching'
-);
+    it('wildcard does not match partial suffix', () => {
+      expect(isDomainAllowed('exampleXcom', ['*.example.com'])).toBe(false);
+    });
+  });
 
-section('isDomainAllowed — wildcard subdomains');
+  describe('multiple domains', () => {
+    const domains = ['example.com', 'partner.co', '*.vendor.io'];
 
-assert(
-  isDomainAllowed('shop.example.com', ['*.example.com']) === true,
-  'wildcard matches subdomain'
-);
+    it('matches one of multiple allowed domains', () => {
+      expect(isDomainAllowed('partner.co', domains)).toBe(true);
+    });
 
-assert(
-  isDomainAllowed('deep.shop.example.com', ['*.example.com']) === true,
-  'wildcard matches deep subdomain'
-);
+    it('matches wildcard in multiple allowed domains', () => {
+      expect(isDomainAllowed('app.vendor.io', domains)).toBe(true);
+    });
 
-assert(
-  isDomainAllowed('example.com', ['*.example.com']) === true,
-  'wildcard matches bare domain'
-);
-
-assert(
-  isDomainAllowed('evil.com', ['*.example.com']) === false,
-  'wildcard does not match unrelated domain'
-);
-
-assert(
-  isDomainAllowed('exampleXcom', ['*.example.com']) === false,
-  'wildcard does not match partial suffix'
-);
-
-section('isDomainAllowed — multiple domains');
-
-assert(
-  isDomainAllowed('partner.co', ['example.com', 'partner.co', '*.vendor.io']) === true,
-  'matches one of multiple allowed domains'
-);
-
-assert(
-  isDomainAllowed('app.vendor.io', ['example.com', 'partner.co', '*.vendor.io']) === true,
-  'matches wildcard in multiple allowed domains'
-);
-
-assert(
-  isDomainAllowed('hacker.org', ['example.com', 'partner.co', '*.vendor.io']) === false,
-  'rejects domain not in allowed list'
-);
-
-console.log(`\n--- Results: ${passed} passed, ${failed} failed ---`);
-if (failed > 0) process.exit(1);
+    it('rejects domain not in allowed list', () => {
+      expect(isDomainAllowed('hacker.org', domains)).toBe(false);
+    });
+  });
+});

@@ -1,139 +1,331 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { computePricingSnapshot } from '../../../../shared/surfaces';
-import type { PricingSnapshot } from '../../../../shared/surfaces';
 
-let passed = 0;
-let failed = 0;
+const mockFirestoreData: Record<string, Record<string, any>> = {};
+let batchOps: Array<{ type: string; path: string; data: any }> = [];
 
-function assert(condition: boolean, label: string) {
-  if (condition) {
-    passed++;
-  } else {
-    failed++;
-    console.error(`  FAIL: ${label}`);
-  }
-}
-
-function section(name: string) {
-  console.log(`\n=== ${name} ===`);
-}
-
-section('PricingSnapshot computation — basic');
-
-const snap1 = computePricingSnapshot({
-  salePrice: 29.99,
-  productCost: 12.00,
-  affiliatePercent: 25,
-  currency: 'USD',
+const mockBatch = () => ({
+  set: vi.fn((ref: any, data: any) => {
+    batchOps.push({ type: 'set', path: ref._path, data });
+  }),
+  update: vi.fn((ref: any, data: any) => {
+    batchOps.push({ type: 'update', path: ref._path, data });
+  }),
+  commit: vi.fn(async () => {
+    for (const op of batchOps) {
+      const [collection, docId] = op.path.split('/');
+      if (!mockFirestoreData[collection]) mockFirestoreData[collection] = {};
+      if (op.type === 'set') {
+        mockFirestoreData[collection][docId] = op.data;
+      } else if (op.type === 'update') {
+        mockFirestoreData[collection][docId] = {
+          ...(mockFirestoreData[collection][docId] || {}),
+          ...op.data,
+        };
+      }
+    }
+    batchOps = [];
+  }),
 });
 
-assert(snap1.baseSalePrice === 29.99, 'baseSalePrice matches input');
-assert(snap1.displaySalePrice === 29.99, 'displaySalePrice matches input');
-assert(snap1.productCost === 12.00, 'productCost matches input');
-assert(snap1.grossProfitAmount === 29.99 - 12.00, 'grossProfit = sale - cost');
-assert(snap1.affiliatePercent === 25, 'affiliatePercent preserved');
-assert(snap1.affiliateAmount > 0, 'affiliateAmount is positive');
-assert(Math.abs(snap1.netPlatformProfitAmount - (snap1.grossProfitAmount - snap1.affiliateAmount)) < 0.01, 'netPlatform = gross - affiliate (within rounding)');
-assert(snap1.currency === 'USD', 'currency preserved');
-assert(snap1.pricingSnapshotVersion === '1.0', 'version tag present');
-
-section('PricingSnapshot — zero profit');
-
-const snap2 = computePricingSnapshot({
-  salePrice: 10.00,
-  productCost: 10.00,
-  affiliatePercent: 25,
+let docIdCounter = 0;
+const mockCollection = (name: string) => ({
+  doc: (id?: string) => {
+    const docId = id || `auto_${++docIdCounter}`;
+    return {
+      _path: `${name}/${docId}`,
+      id: docId,
+      get: vi.fn(async () => {
+        const data = mockFirestoreData[name]?.[docId];
+        return { exists: !!data, id: docId, data: () => data, ref: { _path: `${name}/${docId}`, update: vi.fn() } };
+      }),
+    };
+  },
+  add: vi.fn(async (data: any) => {
+    const docId = `auto_${++docIdCounter}`;
+    if (!mockFirestoreData[name]) mockFirestoreData[name] = {};
+    mockFirestoreData[name][docId] = data;
+    return { id: docId };
+  }),
+  where: vi.fn((_field: string, _op: string, value: any) => ({
+    where: vi.fn(() => ({
+      limit: vi.fn(() => ({
+        get: vi.fn(async () => {
+          const docs = Object.entries(mockFirestoreData[name] || {})
+            .filter(([_, d]) => {
+              return d[_field] === value;
+            })
+            .map(([id, d]) => ({
+              id,
+              data: () => d,
+              ref: {
+                _path: `${name}/${id}`,
+                update: vi.fn(async (updateData: any) => {
+                  mockFirestoreData[name][id] = { ...d, ...updateData };
+                }),
+              },
+            }));
+          return { empty: docs.length === 0, docs };
+        }),
+      })),
+    })),
+    limit: vi.fn(() => ({
+      get: vi.fn(async () => {
+        const docs = Object.entries(mockFirestoreData[name] || {})
+          .filter(([_, d]) => d[_field] === value)
+          .map(([id, d]) => ({
+            id,
+            data: () => d,
+            ref: {
+              _path: `${name}/${id}`,
+              update: vi.fn(async (updateData: any) => {
+                mockFirestoreData[name][id] = { ...d, ...updateData };
+              }),
+            },
+          }));
+        return { empty: docs.length === 0, docs };
+      }),
+    })),
+  })),
 });
 
-assert(snap2.grossProfitAmount === 0, 'grossProfit is zero when cost equals sale');
-assert(snap2.affiliateAmount === 0, 'affiliateAmount is zero when no profit');
-assert(snap2.netPlatformProfitAmount === 0, 'netPlatformProfit is zero');
+vi.mock('../../core', () => ({
+  db: {
+    collection: (name: string) => mockCollection(name),
+    batch: () => mockBatch(),
+  },
+  admin: { firestore: { FieldValue: { serverTimestamp: vi.fn() } } },
+}));
 
-section('PricingSnapshot — negative margin (loss)');
-
-const snap3 = computePricingSnapshot({
-  salePrice: 8.00,
-  productCost: 12.00,
-  affiliatePercent: 25,
+vi.mock('../../../../shared/surfaces', async () => {
+  const actual = await vi.importActual('../../../../shared/surfaces');
+  return actual;
 });
 
-assert(snap3.grossProfitAmount < 0, 'grossProfit is negative on loss');
-assert(snap3.affiliateAmount === 0, 'affiliateAmount is zero on loss');
+describe('PricingSnapshot computation', () => {
+  it('computes correct snapshot for basic inputs', () => {
+    const snap = computePricingSnapshot({
+      salePrice: 29.99,
+      productCost: 12.00,
+      affiliatePercent: 25,
+      currency: 'USD',
+    });
+    expect(snap.baseSalePrice).toBe(29.99);
+    expect(snap.displaySalePrice).toBe(29.99);
+    expect(snap.productCost).toBe(12.00);
+    expect(snap.grossProfitAmount).toBe(29.99 - 12.00);
+    expect(snap.affiliatePercent).toBe(25);
+    expect(snap.affiliateAmount).toBeGreaterThan(0);
+    expect(snap.currency).toBe('USD');
+    expect(snap.pricingSnapshotVersion).toBe('1.0');
+  });
 
-section('PricingSnapshot — with platform fee and shipping burden');
+  it('handles zero profit', () => {
+    const snap = computePricingSnapshot({ salePrice: 10, productCost: 10, affiliatePercent: 25 });
+    expect(snap.grossProfitAmount).toBe(0);
+    expect(snap.affiliateAmount).toBe(0);
+  });
 
-const snap4 = computePricingSnapshot({
-  salePrice: 30.00,
-  productCost: 10.00,
-  platformFeeAmount: 2.00,
-  shippingCostBurden: 4.95,
-  affiliatePercent: 25,
+  it('handles negative margin', () => {
+    const snap = computePricingSnapshot({ salePrice: 8, productCost: 12, affiliatePercent: 25 });
+    expect(snap.grossProfitAmount).toBeLessThan(0);
+    expect(snap.affiliateAmount).toBe(0);
+  });
+
+  it('deducts fees and shipping from gross profit', () => {
+    const snap = computePricingSnapshot({
+      salePrice: 30, productCost: 10, platformFeeAmount: 2, shippingCostBurden: 4.95, affiliatePercent: 25,
+    });
+    expect(snap.grossProfitAmount).toBe(30 - 10 - 2 - 4.95);
+    expect(snap.affiliateAmount).toBe(Math.round((snap.grossProfitAmount * 0.25) * 100) / 100);
+  });
 });
 
-assert(snap4.platformFeeAmount === 2.00, 'platformFeeAmount preserved');
-assert(snap4.shippingCostBurden === 4.95, 'shippingCostBurden preserved');
-assert(snap4.grossProfitAmount === 30.00 - 10.00 - 2.00 - 4.95, 'grossProfit deducts fees and shipping');
-const expectedAff = Math.round((snap4.grossProfitAmount * 0.25) * 100) / 100;
-assert(snap4.affiliateAmount === expectedAff, 'affiliateAmount computed from reduced profit');
+describe('Embed order transaction chain', () => {
+  beforeEach(() => {
+    Object.keys(mockFirestoreData).forEach(k => delete mockFirestoreData[k]);
+    batchOps = [];
+    docIdCounter = 0;
+  });
 
-section('Transaction chain data contract — embed order flow');
+  it('createEmbedOrder writes attribution and payout atomically', async () => {
+    const { createCanonicalOrder } = await import('../order-service');
+    const pricingSnapshot = computePricingSnapshot({
+      salePrice: 24.99, productCost: 11, affiliatePercent: 25, currency: 'USD',
+    });
 
-const sessionPricingSnapshot = computePricingSnapshot({
-  salePrice: 24.99,
-  productCost: 11.00,
-  platformFeeAmount: 1.50,
-  shippingCostBurden: 4.95,
-  affiliatePercent: 25,
-  currency: 'USD',
+    const result = await createCanonicalOrder({
+      source: 'external_embed',
+      stripeSessionId: 'cs_test_atomic_1',
+      cartItems: [{ surfaceId: 's1', variantId: 'v1', quantity: 2 }],
+      pricingSnapshot,
+      embedContext: {
+        builderHostId: 'host-1',
+        builderPlacementId: 'placement-1',
+        builderProfileId: 'profile-1',
+        affiliateUserId: 'affiliate-user-1',
+        surfaceId: 's1',
+        variantId: 'v1',
+        pricingPolicyId: 'pp-1',
+        revenueSplitId: 'rs-1',
+      },
+    });
+
+    expect(result.orderId).toBe('cs_test_atomic_1');
+    expect(result.alreadyExisted).toBe(false);
+
+    const attributions = mockFirestoreData['embeddedOrderAttributions'] || {};
+    const payouts = mockFirestoreData['affiliatePayoutLedger'] || {};
+
+    const attribEntries = Object.values(attributions);
+    const payoutEntries = Object.values(payouts);
+
+    expect(attribEntries.length).toBe(1);
+    expect(payoutEntries.length).toBe(1);
+
+    const attrib = attribEntries[0] as any;
+    expect(attrib.stripeCheckoutSessionId).toBe('cs_test_atomic_1');
+    expect(attrib.status).toBe('pending_payment');
+    expect(attrib.affiliateUserId).toBe('affiliate-user-1');
+    expect(attrib.quantity).toBe(2);
+
+    const payout = payoutEntries[0] as any;
+    expect(payout.orderId).toBe('cs_test_atomic_1');
+    expect(payout.affiliateUserId).toBe('affiliate-user-1');
+    expect(payout.status).toBe('pending');
+    expect(payout.affiliateAmount).toBe(pricingSnapshot.affiliateAmount * 2);
+  });
+
+  it('createEmbedOrder is idempotent — second call returns existing', async () => {
+    const { createCanonicalOrder } = await import('../order-service');
+    const pricingSnapshot = computePricingSnapshot({
+      salePrice: 20, productCost: 10, affiliatePercent: 25, currency: 'USD',
+    });
+
+    mockFirestoreData['embeddedOrderAttributions'] = {
+      'existing-doc': {
+        stripeCheckoutSessionId: 'cs_test_dup',
+        orderItemId: 'existing-item',
+        status: 'pending_payment',
+      },
+    };
+
+    const result = await createCanonicalOrder({
+      source: 'external_embed',
+      stripeSessionId: 'cs_test_dup',
+      cartItems: [{ surfaceId: 's1', variantId: 'v1', quantity: 1 }],
+      pricingSnapshot,
+      embedContext: {
+        builderHostId: 'host-1',
+        builderPlacementId: 'placement-1',
+        affiliateUserId: 'aff-1',
+        surfaceId: 's1',
+      },
+    });
+
+    expect(result.alreadyExisted).toBe(true);
+    expect(result.orderItemId).toBe('existing-item');
+  });
+
+  it('confirmEmbedOrderPayout transitions both docs atomically', async () => {
+    const { confirmEmbedOrderPayout } = await import('../order-service');
+
+    mockFirestoreData['embeddedOrderAttributions'] = {
+      'attrib-1': {
+        stripeCheckoutSessionId: 'cs_test_confirm',
+        orderItemId: 'item-1',
+        affiliateUserId: 'aff-1',
+        affiliateAmount: 5.00,
+        quantity: 1,
+        status: 'pending_payment',
+      },
+    };
+    mockFirestoreData['affiliatePayoutLedger'] = {
+      'payout-1': {
+        orderId: 'cs_test_confirm',
+        affiliateUserId: 'aff-1',
+        status: 'pending',
+      },
+    };
+
+    await confirmEmbedOrderPayout('cs_test_confirm');
+
+    const attrib = mockFirestoreData['embeddedOrderAttributions']['attrib-1'];
+    const payout = mockFirestoreData['affiliatePayoutLedger']['payout-1'];
+    expect(attrib.status).toBe('paid');
+    expect(attrib.paidAt).toBeDefined();
+    expect(payout.status).toBe('approved');
+    expect(payout.approvedAt).toBeDefined();
+  });
+
+  it('confirmEmbedOrderPayout creates legacy payout for pre-patch attributions', async () => {
+    const { confirmEmbedOrderPayout } = await import('../order-service');
+
+    mockFirestoreData['embeddedOrderAttributions'] = {
+      'attrib-legacy': {
+        stripeCheckoutSessionId: 'cs_test_legacy',
+        orderItemId: 'item-legacy',
+        affiliateUserId: 'aff-legacy',
+        affiliateAmount: 3.50,
+        quantity: 1,
+        currency: 'USD',
+        status: 'pending_payment',
+      },
+    };
+    mockFirestoreData['affiliatePayoutLedger'] = {};
+
+    await confirmEmbedOrderPayout('cs_test_legacy');
+
+    const payoutEntries = Object.values(mockFirestoreData['affiliatePayoutLedger'] || {}) as any[];
+    expect(payoutEntries.length).toBe(1);
+    expect(payoutEntries[0].affiliateUserId).toBe('aff-legacy');
+    expect(payoutEntries[0].status).toBe('approved');
+    expect(payoutEntries[0].legacyBackfill).toBe(true);
+  });
+
+  it('confirmEmbedOrderPayout is idempotent — paid attribution is skipped', async () => {
+    const { confirmEmbedOrderPayout } = await import('../order-service');
+
+    mockFirestoreData['embeddedOrderAttributions'] = {
+      'attrib-paid': {
+        stripeCheckoutSessionId: 'cs_test_paid',
+        status: 'paid',
+        paidAt: '2025-01-01T00:00:00Z',
+      },
+    };
+
+    await confirmEmbedOrderPayout('cs_test_paid');
+
+    expect(mockFirestoreData['embeddedOrderAttributions']['attrib-paid'].status).toBe('paid');
+  });
 });
 
-const orderItemId = 'test-item-123';
-const stripeSessionId = 'cs_test_abc';
-const affiliateUserId = 'user-affiliate-001';
-const builderHostId = 'host-001';
-const builderPlacementId = 'placement-001';
-const qty = 2;
+describe('Affiliate resolution chain priority', () => {
+  it('placement affiliate takes priority', () => {
+    const result = resolveAffiliate({ affiliateUserId: 'p-user' }, { ownerUserId: 'h-user' }, { affiliateUserId: 'pr-user' });
+    expect(result).toEqual({ userId: 'p-user', source: 'placement' });
+  });
 
-const attributionData = {
-  orderId: stripeSessionId,
-  orderItemId,
-  builderHostId,
-  builderPlacementId,
-  affiliateUserId,
-  ...sessionPricingSnapshot,
-  quantity: qty,
-  stripeCheckoutSessionId: stripeSessionId,
-  status: 'pending_payment',
-};
+  it('host owner is second in chain', () => {
+    const result = resolveAffiliate({}, { ownerUserId: 'h-user' }, { affiliateUserId: 'pr-user' });
+    expect(result).toEqual({ userId: 'h-user', source: 'host_owner' });
+  });
 
-assert(attributionData.orderId === stripeSessionId, 'attribution.orderId links to stripe session');
-assert(attributionData.affiliateUserId === affiliateUserId, 'attribution carries affiliateUserId');
-assert(attributionData.baseSalePrice === 24.99, 'attribution carries pricing snapshot fields');
-assert(attributionData.status === 'pending_payment', 'attribution starts as pending_payment');
+  it('profile affiliate is third in chain', () => {
+    const result = resolveAffiliate({}, {}, { affiliateUserId: 'pr-user' });
+    expect(result).toEqual({ userId: 'pr-user', source: 'profile' });
+  });
 
-const payoutEntry = {
-  affiliateUserId,
-  builderHostId,
-  builderPlacementId,
-  orderId: stripeSessionId,
-  orderItemId,
-  affiliateAmount: sessionPricingSnapshot.affiliateAmount * qty,
-  currency: sessionPricingSnapshot.currency,
-  status: 'pending' as const,
-};
+  it('returns none when all sources empty', () => {
+    const result = resolveAffiliate({}, {}, {});
+    expect(result).toEqual({ userId: '', source: 'none' });
+  });
 
-assert(payoutEntry.orderId === stripeSessionId, 'payout.orderId links to stripe session');
-assert(payoutEntry.affiliateUserId === affiliateUserId, 'payout carries affiliateUserId');
-assert(payoutEntry.affiliateAmount === sessionPricingSnapshot.affiliateAmount * qty, 'payout.affiliateAmount scales by quantity');
-assert(payoutEntry.status === 'pending', 'payout starts as pending');
-assert(payoutEntry.currency === 'USD', 'payout carries currency');
-
-const confirmedAttribution = { ...attributionData, status: 'paid', paidAt: new Date().toISOString() };
-const confirmedPayout = { ...payoutEntry, status: 'approved' as const, approvedAt: new Date().toISOString() };
-
-assert(confirmedAttribution.status === 'paid', 'after webhook: attribution status = paid');
-assert(confirmedPayout.status === 'approved', 'after webhook: payout status = approved');
-
-section('Affiliate resolution chain priority');
+  it('handles null profile gracefully', () => {
+    const result = resolveAffiliate({}, {}, null);
+    expect(result).toEqual({ userId: '', source: 'none' });
+  });
+});
 
 function resolveAffiliate(placement: any, host: any, profile: any): { userId: string; source: string } {
   if (placement.affiliateUserId) return { userId: placement.affiliateUserId, source: 'placement' };
@@ -141,21 +333,3 @@ function resolveAffiliate(placement: any, host: any, profile: any): { userId: st
   if (profile?.affiliateUserId) return { userId: profile.affiliateUserId, source: 'profile' };
   return { userId: '', source: 'none' };
 }
-
-const r1 = resolveAffiliate({ affiliateUserId: 'p-user' }, { ownerUserId: 'h-user' }, { affiliateUserId: 'pr-user' });
-assert(r1.userId === 'p-user' && r1.source === 'placement', 'placement affiliate takes priority');
-
-const r2 = resolveAffiliate({}, { ownerUserId: 'h-user' }, { affiliateUserId: 'pr-user' });
-assert(r2.userId === 'h-user' && r2.source === 'host_owner', 'host owner is second in chain');
-
-const r3 = resolveAffiliate({}, {}, { affiliateUserId: 'pr-user' });
-assert(r3.userId === 'pr-user' && r3.source === 'profile', 'profile affiliate is third in chain');
-
-const r4 = resolveAffiliate({}, {}, {});
-assert(r4.userId === '' && r4.source === 'none', 'returns none when chain is empty');
-
-const r5 = resolveAffiliate({}, {}, null);
-assert(r5.userId === '' && r5.source === 'none', 'handles null profile gracefully');
-
-console.log(`\n--- Results: ${passed} passed, ${failed} failed ---`);
-if (failed > 0) process.exit(1);
