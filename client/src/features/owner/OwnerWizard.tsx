@@ -5,314 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Palette, Crosshair, PenLine, PartyPopper } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
-import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
-import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
-import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
-import { GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
-import { QRBasicTypeStep, QRBasicInputStep, QRBasicMockupStep } from "@/features/shared/components/wizardSteps/QRBasicSteps";
-import { QRPlusMockupStep } from "@/features/shared/components/wizardSteps/QRPlusSteps";
-import { ShirtPreviewStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
-import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import type { AllowedProduct, SimpleWizardStep, QRType, GraphicLocation, GraphicSize, PlacementOption, TextLayoutChoice, QRBasicInputType, PlacementGraphicChoice } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { SHIRT_SIZES, SHIRT_COLORS, SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
+import { GUIDED_CARDS, GUIDED_STEP_MAP, GuidedCard, OwnerCostSummary, MemberConversionPitch } from "./OwnerWizardComponents";
+import { OwnerWizardStepContent } from "./OwnerWizardStepContent";
 
 const OWNER_WIZARD_STEPS = SIMPLE_WIZARD_STEPS.filter(s => s.id !== 'channel');
 const OWNER_BASIC_STEPS = QR_BASIC_STEPS.filter(s => s.id !== 'channel');
 const OWNER_PLUS_STEPS = QR_PLUS_STEPS.filter(s => s.id !== 'channel');
-
-interface GuidedCardData {
-  icon: React.ReactNode;
-  title: string;
-  lines: { text: string; highlight?: boolean }[];
-  tip?: string;
-  buttonText?: string;
-}
-
-const GUIDED_CARDS: Record<string, GuidedCardData> = {
-  'welcome': {
-    icon: <Sparkles className="w-8 h-8" />,
-    title: "Let's Build Your Custom Tee",
-    lines: [
-      { text: "You're about to design your own t-shirt with a QR code built right into it." },
-      { text: "When you or anyone scans it, something cool happens — a video plays, a page opens, whatever you set up.", highlight: true },
-      { text: "We'll walk you through every step. No design skills needed." },
-      { text: "Takes about 2 minutes. Ready?" },
-    ],
-    tip: "Introduce the moments that matter — wear them, scan them, share them.",
-    buttonText: "Let's Do This",
-  },
-  'product': {
-    icon: <ShoppingCart className="w-8 h-8" />,
-    title: "Pick Your Shirt",
-    lines: [
-      { text: "Here's where you choose which t-shirt style you want." },
-      { text: "Each one has a different look and starting price.", highlight: true },
-      { text: "Your QR code gets printed right on it — same great quality no matter which you pick." },
-      { text: "Tap the one you like and we'll keep going." },
-    ],
-    tip: "Every style looks great with a QR code — pick the one that fits your vibe.",
-  },
-  'color': {
-    icon: <Palette className="w-8 h-8" />,
-    title: "Make It Yours",
-    lines: [
-      { text: "Time to pick your color and size." },
-      { text: "This is YOUR t-shirt — choose what you actually want to wear.", highlight: true },
-      { text: "Every color is the same price. No gotchas." },
-      { text: "Bigger sizes add a small upcharge — you'll see it update as you go." },
-    ],
-    tip: "The price updates in real time so there are no surprises at checkout.",
-  },
-  'type': {
-    icon: <QrCode className="w-8 h-8" />,
-    title: "What Should Your QR Do?",
-    lines: [
-      { text: "This is what makes your t-shirt interactive." },
-      { text: "Canvas — scanning reveals a full-screen image. A photo, a design, your art — it's like a hidden gallery.", highlight: true },
-      { text: "Play — scanning launches a full-screen video. Movement, sound, story — maximum impact." },
-      { text: "Basic & Plus are great too — they open a link or add custom text to your shirt." },
-    ],
-    tip: "Canvas and Play create the biggest reactions — people love scanning and seeing something unexpected.",
-  },
-  'placement': {
-    icon: <Crosshair className="w-8 h-8" />,
-    title: "Where Do You Want It?",
-    lines: [
-      { text: "Now pick where on your t-shirt the QR design goes." },
-      { text: "Front, back, or both — totally up to you.", highlight: true },
-      { text: "Most people go with front. Back works great if you want a bigger design." },
-      { text: "Adding a second spot costs a little extra." },
-    ],
-  },
-  'text': {
-    icon: <PenLine className="w-8 h-8" />,
-    title: "Add Some Text",
-    lines: [
-      { text: "Want words printed on your shirt alongside the QR code?" },
-      { text: "A phrase on top, a message on the bottom — or nothing at all. Totally optional.", highlight: true },
-      { text: "This is what people see on your shirt before they scan." },
-      { text: "Keep it short and fun. Or skip it — your call." },
-    ],
-    tip: "Ideas: \"Scan me\" — \"Watch this\" — \"Our story\" — or your own phrase.",
-  },
-  'type-confirm-basic': {
-    icon: <QrCode className="w-8 h-8" />,
-    title: "Nice — You Picked Basic QR",
-    lines: [
-      { text: "Your QR code will open any link you choose — a website, a social profile, a video, whatever you want." },
-      { text: "Simple, clean, and it works every time someone scans your shirt.", highlight: true },
-      { text: "Up next we'll figure out where it goes on your shirt and how big you want it." },
-      { text: "You'll have choices at every step — nothing is locked in until you say so." },
-    ],
-    tip: "You can always change the link your QR points to later — even after you get the shirt.",
-  },
-  'type-confirm-plus': {
-    icon: <Type className="w-8 h-8" />,
-    title: "Great Choice — QR Plus",
-    lines: [
-      { text: "QR Plus does everything Basic does, but you also get custom text printed right on the shirt alongside your QR code." },
-      { text: "A headline on top, a message underneath — whatever you want people to read before they scan.", highlight: true },
-      { text: "Next up, we'll set where everything goes on your shirt and how big it should be." },
-      { text: "More choices ahead — we'll walk you through each one." },
-    ],
-    tip: "Most people use something short like \"Scan Me\" or their brand name.",
-  },
-  'type-confirm-canvas': {
-    icon: <ImagePlus className="w-8 h-8" />,
-    title: "You Picked Canvas — Nice",
-    lines: [
-      { text: "When someone scans your shirt, they'll see a full-screen image — a photo, a design, art, anything you upload." },
-      { text: "This is the wow factor. It turns your t-shirt into a window to something bigger.", highlight: true },
-      { text: "Coming up, you'll place the QR on your shirt and upload the image people will see when they scan." },
-      { text: "We'll walk you through each part — it's easier than you think." },
-    ],
-    tip: "Think of it like a secret reveal — the shirt is the teaser, the scan is the payoff.",
-  },
-  'type-confirm-play': {
-    icon: <Play className="w-8 h-8" />,
-    title: "Play Mode — Love It",
-    lines: [
-      { text: "When someone scans your shirt, a video plays. Full screen, right on their phone." },
-      { text: "A message, a performance, a memory, a promo — whatever story you want to tell.", highlight: true },
-      { text: "Next we'll set where the QR goes on your shirt, then you'll upload or link your video." },
-      { text: "Every step has choices — we'll guide you through each one." },
-    ],
-    tip: "Videos hit different. This is the one that makes people stop and pay attention.",
-  },
-  'type-confirm-compose': {
-    icon: <Layers className="w-8 h-8" />,
-    title: "Compose — The Power Move",
-    lines: [
-      { text: "Compose lets you build a rotating playlist of content. Images, videos, whatever you create — it cycles through them on a schedule." },
-      { text: "One QR code, unlimited content. It's like having a channel on your shirt.", highlight: true },
-      { text: "This one's a bit more advanced, so we'll walk you through setting it up." },
-      { text: "But first — you'll need to build some content to put in the rotation." },
-    ],
-    tip: "Think of it like a TV channel — you're the programmer, and the shirt is the screen.",
-  },
-  'checkout': {
-    icon: <PartyPopper className="w-8 h-8" />,
-    title: "You Just Designed a Custom Tee!",
-    lines: [
-      { text: "Look at that — you picked the shirt, chose your colors, set up your QR code, and built a real product." },
-      { text: "Your custom t-shirt is ready to order. One tap and it ships straight to your door.", highlight: true },
-      { text: "It's printed just for you. No warehouse, no waiting on stock — made fresh when you order." },
-    ],
-    tip: "After checkout you'll get a claim code so you can activate your QR when the shirt arrives.",
-    buttonText: "Take Me to Checkout",
-  },
-};
-
-const GUIDED_STEP_MAP: Record<string, string[]> = {
-  'product': ['welcome', 'product'],
-  'color': ['color'],
-  'type': ['type'],
-  'placement-count': ['placement'],
-  'generate': ['text'],
-};
-
-function GuidedCard({ data, onContinue }: { data: GuidedCardData; onContinue: () => void }) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center px-2 animate-in fade-in duration-500"
-      style={{ minHeight: 'calc(60vh - 80px)' }}
-      data-testid="guided-chalkboard"
-    >
-      <div className="w-full max-w-sm">
-        <div className="relative overflow-hidden rounded-2xl border border-sky-500/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-950/30 to-slate-900" />
-          <div
-            className="absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}
-          />
-
-          <div className="relative p-6 space-y-5">
-            <div className="flex justify-center">
-              <div className="p-3 rounded-full bg-sky-500/20 text-sky-400">
-                {data.icon}
-              </div>
-            </div>
-
-            <h2 className="text-xl font-bold text-white text-center">{data.title}</h2>
-
-            <div className="space-y-3">
-              {data.lines.map((line, i) => (
-                <p
-                  key={i}
-                  className={`text-sm leading-relaxed text-center ${
-                    line.highlight
-                      ? 'text-sky-200 font-medium'
-                      : 'text-slate-300'
-                  }`}
-                >
-                  {line.text}
-                </p>
-              ))}
-            </div>
-
-            {data.tip && (
-              <div className="bg-sky-500/10 rounded-lg p-3 flex items-start gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-amber-200/80 leading-relaxed">{data.tip}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Button
-          onClick={onContinue}
-          className="w-full mt-5 bg-sky-600 hover:bg-sky-700 text-white py-6 text-lg font-semibold"
-          data-testid="guided-continue"
-        >
-          {data.buttonText || 'Got It'}
-          <ArrowRight className="w-5 h-5 ml-2" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function OwnerCostSummary({ basePrice, sizeCost, placementCost, textCost, total }: {
-  basePrice: number; sizeCost: number; placementCost: number; textCost: number; total: number;
-}) {
-  return (
-    <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-600 space-y-2">
-      <h3 className="text-white font-bold text-sm mb-3">Cost Breakdown</h3>
-      <div className="flex justify-between gap-2 text-sm">
-        <span className="text-slate-400">Base product</span>
-        <span className="text-white">${basePrice.toFixed(2)}</span>
-      </div>
-      {sizeCost > 0 && (
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-slate-400">Size upcharge</span>
-          <span className="text-white">+${sizeCost.toFixed(2)}</span>
-        </div>
-      )}
-      {placementCost > 0 && (
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-slate-400">Extra placements</span>
-          <span className="text-white">+${placementCost.toFixed(2)}</span>
-        </div>
-      )}
-      {textCost > 0 && (
-        <div className="flex justify-between gap-2 text-sm">
-          <span className="text-slate-400">Text customization</span>
-          <span className="text-white">+${textCost.toFixed(2)}</span>
-        </div>
-      )}
-      <div className="border-t border-slate-600 pt-2 mt-2">
-        <div className="flex justify-between gap-2">
-          <span className="text-white font-bold">Total</span>
-          <span className="text-blue-400 font-bold text-lg">${total.toFixed(2)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MemberConversionPitch({ earnings, onSignUp, onSkip }: {
-  earnings: number; onSignUp: () => void; onSkip: () => void;
-}) {
-  return (
-    <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-5 border border-amber-500/30 space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="bg-amber-500/20 rounded-full p-2">
-          <Crown className="w-6 h-6 text-amber-400" />
-        </div>
-        <div>
-          <h3 className="text-white font-bold">Turn This Into Income</h3>
-          <p className="text-amber-200/70 text-sm">Your design could earn you money</p>
-        </div>
-      </div>
-      <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Sell this design to others</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Earnings start at ${earnings.toFixed(2)} per sale — and only go up from there</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Save designs to your personal library</span>
-        </div>
-      </div>
-      <div className="flex gap-3 flex-wrap">
-        <Button onClick={onSignUp} className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold" data-testid="button-become-member">
-          <Crown className="w-4 h-4 mr-2" />
-          Become a Member
-        </Button>
-        <Button variant="ghost" onClick={onSkip} className="text-slate-400" data-testid="button-skip-member">
-          Maybe later
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export function OwnerWizard() {
   const params = new URLSearchParams(window.location.search);
@@ -586,8 +288,8 @@ export function OwnerWizard() {
       case 'graphic-size': return !!graphicSize;
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return !!textLayoutChoice;
-      case 'text-edit-header': return !!headerStyle.text.trim();
-      case 'text-edit-footer': return !!footerStyle.text.trim();
+      case 'text-edit-header': return headerStyle.mode === 'image' ? !!headerStyle.imageUrl : !!headerStyle.text.trim();
+      case 'text-edit-footer': return footerStyle.mode === 'image' ? !!footerStyle.imageUrl : !!footerStyle.text.trim();
       case 'placement-config': return !!placementGraphicChoice;
       case 'shirt-preview': return true;
       case 'qr-basic-type': return !!qrBasicInputType;
@@ -980,497 +682,72 @@ export function OwnerWizard() {
               data={GUIDED_CARDS[guidedQueue[0]]}
               onContinue={handleGuidedContinue}
             />
-          ) : (<>
-
-          {simpleStep === 'product' && (
-            <TierPickerStep
-              selectedProduct={selectedProductType}
-              onSelect={handleProductSelect}
-              context="owner"
-            />
-          )}
-
-          {simpleStep === 'product-congrats' && selectedProductType && (
-            <div className="flex flex-col items-center justify-center py-4 space-y-4 animate-in fade-in slide-in-from-right-5 duration-300">
-              <div className="relative">
-                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
-                <div className="relative bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full p-4">
-                  <ShoppingCart className="w-12 h-12 text-white" />
-                </div>
-              </div>
-              <div className="text-center space-y-3">
-                <h2 className="text-lg font-bold text-white">Great Choice!</h2>
-                <p className="text-slate-300">
-                  You selected the <span className="text-white font-semibold">{selectedProductType.title}</span>
-                </p>
-              </div>
-              <div className="bg-slate-800/80 rounded-2xl p-6 border border-blue-500/30">
-                <p className="text-slate-400 text-sm mb-2">Starting price</p>
-                <div className="text-3xl font-bold text-blue-400" data-testid="text-starting-price">
-                  ${(selectedProductType.retailPrice || pricingSettings?.baseRetailPrice || 29.99).toFixed(2)}
-                </div>
-                <p className="text-slate-500 text-xs mt-2">Final price may vary with options you choose</p>
-              </div>
-            </div>
-          )}
-
-          {simpleStep === 'color' && (
-            <ColorPickerStep
+          ) : (
+            <OwnerWizardStepContent
+              simpleStep={simpleStep}
+              selectedProductType={selectedProductType}
               selectedColor={selectedColor}
-              onSelect={setSelectedColor}
-              context="owner"
-              productName={getProductFriendlyName(selectedProductType?.title)}
-            />
-          )}
-
-          {simpleStep === 'size' && (
-            <SizePickerStep
-              selectedSize={selectedShirtSize}
-              selectedColor={selectedColor}
-              baseEarnings={runningCost}
-              sizeEarningsBonuses={sizeCostBonuses}
+              selectedShirtSize={selectedShirtSize}
               selectedPlacements={selectedPlacements}
-              context="owner"
-              productName={getProductFriendlyName(selectedProductType?.title)}
-              onSelect={(size) => {
-                const oldBonus = sizeCostBonuses[selectedShirtSize] || 0;
-                const newBonus = sizeCostBonuses[size] || 0;
-                const costDiff = newBonus - oldBonus;
-                setSelectedShirtSize(size);
-                if (selectedShirtSize && costDiff !== 0) {
-                  setRunningCost(prev => prev + costDiff);
-                } else if (!selectedShirtSize) {
-                  setRunningCost(prev => prev + newBonus);
-                }
-                setCostPulse(true);
-                setTimeout(() => setCostPulse(false), 600);
-              }}
-            />
-          )}
-
-          {simpleStep === 'type' && (
-            <div className="animate-in fade-in slide-in-from-right-5 duration-300">
-              <div className="text-center mb-3">
-                <h2 className="text-lg font-bold text-white mb-2">What do you want to create?</h2>
-                <p className="text-slate-400">Choose the type of QR experience</p>
-                {minTierIndex > 0 && (
-                  <p className="text-xs text-amber-400 mt-1">Based on your selection, showing {allowedTypes.length} options</p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
-                {allTypeDefinitions
-                  .filter(t => allowedTypes.includes(t.id))
-                  .map((type) => {
-                    return (
-                      <button
-                        key={type.id}
-                        onClick={() => setQrType(type.id)}
-                        className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
-                          qrType === type.id
-                            ? 'border-white bg-white/10'
-                            : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-                        }`}
-                        data-testid={`button-type-${type.id}`}
-                      >
-                        <div className={`w-12 h-12 rounded-full ${type.color} flex items-center justify-center flex-shrink-0`}>
-                          <type.icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div className="text-left flex-1">
-                          <h3 className="font-bold text-white">{type.label}</h3>
-                          <p className="text-slate-400 text-sm">{type.description}</p>
-                        </div>
-                        {qrType === type.id && (
-                          <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-          {simpleStep === ('compose-explain' as SimpleWizardStep) && (
-            <div className="animate-in fade-in slide-in-from-right-5 duration-300 text-center space-y-4 py-4">
-              <div className="relative mx-auto w-fit">
-                <div className="absolute inset-0 bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
-                <div className="relative bg-gradient-to-br from-amber-500 to-orange-600 rounded-full p-4">
-                  <Layers className="w-12 h-12 text-white" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-lg font-bold text-white">QR Compose</h2>
-                <p className="text-slate-300 text-sm max-w-sm mx-auto">
-                  QR Compose lets you build a rotating playlist from multiple QR experiences. One scan, many moments - on a schedule you control.
-                </p>
-              </div>
-              <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-600 text-left space-y-3 max-w-sm mx-auto">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-300 text-sm">Combine Canvas, Play, and Basic QR items into one rotating playlist</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <QrCode className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-300 text-sm">One QR code shows different content at different times</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Layers className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-300 text-sm">You need at least 2 published moments to start composing</p>
-                </div>
-              </div>
-
-              <div className="text-left max-w-sm mx-auto space-y-3">
-                <h3 className="text-white font-bold text-sm text-center">Two ways to get there</h3>
-
-                <div className="bg-blue-500/10 rounded-xl p-4 border border-blue-500/20 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <ShoppingCart className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                    <h4 className="text-blue-400 font-bold text-sm">Keep buying</h4>
-                  </div>
-                  <p className="text-slate-300 text-sm">
-                    Build and purchase at least 2 products. Each one becomes a moment. Once you have 2, you can compose them into a rotating playlist.
-                  </p>
-                </div>
-
-                <div className="text-center text-slate-500 text-xs font-medium">or</div>
-
-                <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-500/30 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Crown className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                    <h4 className="text-amber-400 font-bold text-sm">Become a member</h4>
-                  </div>
-                  <p className="text-slate-300 text-sm mb-2">
-                    Members get everything owners get, plus:
-                  </p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                      <span className="text-slate-300 text-xs">Earn money every time someone buys your design</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Layers className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                      <span className="text-slate-300 text-xs">Save designs to your personal library</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                      <span className="text-slate-300 text-xs">Share products on social media with built-in tools</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
-                      <span className="text-slate-300 text-xs">Access advanced builder tools and templates</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center gap-2 max-w-sm mx-auto">
-                <Button
-                  onClick={() => {
-                    setQrType('');
-                    setSimpleStep('type');
-                  }}
-                  className="w-full bg-blue-500 hover:bg-blue-600 font-bold"
-                  data-testid="button-compose-build-first"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Build Your First Moment
-                </Button>
-                <Button
-                  onClick={() => navigate(`/members?tempPacketId=${tempPacketId || ''}&wizard=super-simple`)}
-                  variant="outline"
-                  className="w-full border-amber-500/40 text-amber-400"
-                  data-testid="button-compose-become-member"
-                >
-                  <Crown className="w-4 h-4 mr-2" />
-                  Become a Member
-                </Button>
-                <Button
-                  onClick={() => {
-                    setQrType('');
-                    setSimpleStep('type');
-                  }}
-                  variant="ghost"
-                  className="text-slate-400"
-                  data-testid="button-compose-back-to-types"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Pick a different type
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {simpleStep === 'placement-count' && (
-            <PlacementCountStep
-              selected={selectedPlacements}
-              onToggle={(placement) => {
-                const isRemoving = selectedPlacements.includes(placement);
-                if (isRemoving) {
-                  if (selectedPlacements.length > 1) {
-                    setRunningCost(prev => prev - placementCostExtra);
-                  }
-                  setSelectedPlacements(prev => prev.filter(p => p !== placement));
-                } else {
-                  if (selectedPlacements.length >= 1) {
-                    setRunningCost(prev => prev + placementCostExtra);
-                  }
-                  setSelectedPlacements(prev => [...prev, placement]);
-                }
-              }}
-              selectedColor={selectedColor}
-              placementEarningsBonus={placementCostExtra}
-              productPlacements={selectedProductType?.placements}
-              context="owner"
-            />
-          )}
-
-          {simpleStep === 'graphic-size' && (
-            <div className="space-y-2">
-              <GraphicSizeStep
-                selectedSize={graphicSize}
-                selectedColor={selectedColor}
-                currentPlacement={currentPlacement}
-                onSelect={setGraphicSize}
-              />
-            </div>
-          )}
-
-          {simpleStep === 'generate' && (
-            <div className="space-y-2">
-              <GenerateGraphicStep
-                selectedColor={selectedColor}
-                graphicLocation={graphicLocation}
-                graphicSize={graphicSize}
-                context="owner"
-                onYes={() => {
-                  setWantsHeaderFooter(true);
-                  if (!preSelectedType || preSelectedType === 'qr-basic' || preSelectedType === 'qr-plus') {
-                    setQrType('qr-plus');
-                  }
-                  setSimpleStep('text-choice');
-                }}
-                onNo={() => {
-                  setWantsHeaderFooter(false);
-                  if (!preSelectedType || preSelectedType === 'qr-basic' || preSelectedType === 'qr-plus') {
-                    if (qrType !== 'qr-plus') {
-                      setQrType('qr-basic');
-                    }
-                    setSimpleStep('qr-basic-type');
-                  } else {
-                    setSimpleStep('shirt-preview');
-                  }
-                }}
-              />
-            </div>
-          )}
-
-          {simpleStep === 'text-choice' && (
-            <div className="space-y-2">
-              <TextLayoutChoiceStep
-                selected={textLayoutChoice}
-                textLineEarningsBonus={textLineCost}
-                context="owner"
-                onSelect={(choice) => {
-                  const prevLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
-                  const newLines = choice === 'both' ? 2 : 1;
-                  const diff = newLines - prevLines;
-                  if (diff !== 0) {
-                    setRunningCost(prev => prev + (diff * textLineCost));
-                  }
-                  setTextLayoutChoice(choice);
-                }}
-              />
-            </div>
-          )}
-
-          {simpleStep === 'text-edit-header' && (
-            <HeaderTextEditStep
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
               graphicLocation={graphicLocation}
+              graphicSize={graphicSize}
+              qrType={qrType}
+              textLayoutChoice={textLayoutChoice}
               headerStyle={headerStyle}
-              onHeaderChange={setHeaderStyle}
-              earningsPerLine={textLineCost}
-              context="owner"
-            />
-          )}
-
-          {simpleStep === 'text-edit-footer' && (
-            <FooterTextEditStep
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-              graphicLocation={graphicLocation}
               footerStyle={footerStyle}
-              onFooterChange={setFooterStyle}
-              headerStyle={headerStyle}
-              earningsPerLine={textLineCost}
-              context="owner"
-            />
-          )}
-
-          {simpleStep === 'placement-config' && (
-            <PlacementConfigStep
               currentPlacement={currentPlacement}
-              currentIndex={currentPlacementIndex}
-              totalPlacements={selectedPlacements.length}
-              graphicChoice={placementGraphicChoice}
-              onGraphicChoiceChange={setPlacementGraphicChoice}
-              headerStyle={headerStyle}
-              footerStyle={footerStyle}
-              textLayoutChoice={textLayoutChoice}
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-              qrPositionX={qrPositionX}
-              qrPositionY={qrPositionY}
-              qrSizePercent={qrSizePercent}
-            />
-          )}
-
-          {simpleStep === 'shirt-preview' && (
-            <ShirtPreviewStep
-              selectedColor={selectedColor}
-              graphicLocation={graphicLocation}
-              graphicSize={graphicSize}
-              headerStyle={headerStyle}
-              footerStyle={footerStyle}
-              textLayoutChoice={textLayoutChoice}
-              selectedPlacements={selectedPlacements}
+              currentPlacementIndex={currentPlacementIndex}
+              placementGraphicChoice={placementGraphicChoice}
+              qrBasicInputType={qrBasicInputType}
+              qrBasicContent={qrBasicContent}
+              qrBasicMockup={qrBasicMockup}
+              qrPlusMockup={qrPlusMockup}
               qrPositionX={qrPositionX}
               qrPositionY={qrPositionY}
               qrSizePercent={qrSizePercent}
               areaImageUrl={areaImageUrl}
               areaImageMode={areaImageMode}
+              isGeneratingBasicMockup={isGeneratingBasicMockup}
+              isGeneratingPlusMockup={isGeneratingPlusMockup}
+              isGeneratingRealMockup={isGeneratingRealMockup}
+              realMockupUrl={realMockupUrl}
+              lifestyleMockupUrl={lifestyleMockupUrl}
+              tempPacketId={tempPacketId}
+              runningCost={runningCost}
+              wantsHeaderFooter={wantsHeaderFooter}
+              pricingSettings={pricingSettings}
+              placementCostExtra={placementCostExtra}
+              textLineCost={textLineCost}
+              sizeCostBonuses={sizeCostBonuses}
+              allowedTypes={allowedTypes}
+              allTypeDefinitions={allTypeDefinitions}
+              preSelectedType={preSelectedType}
+              minTierIndex={minTierIndex}
+              textLines={textLines}
+              setSelectedColor={setSelectedColor}
+              setSelectedShirtSize={setSelectedShirtSize}
+              setQrType={setQrType}
+              setSelectedPlacements={setSelectedPlacements}
+              setGraphicSize={setGraphicSize}
+              setWantsHeaderFooter={setWantsHeaderFooter}
+              setHeaderStyle={setHeaderStyle}
+              setFooterStyle={setFooterStyle}
+              setTextLayoutChoice={setTextLayoutChoice}
+              setPlacementGraphicChoice={setPlacementGraphicChoice}
+              setQrBasicInputType={setQrBasicInputType}
+              setQrBasicContent={setQrBasicContent}
+              setQrPositionX={setQrPositionX}
+              setQrPositionY={setQrPositionY}
+              setQrSizePercent={setQrSizePercent}
+              setAreaImageUrl={setAreaImageUrl}
+              setAreaImageMode={setAreaImageMode}
+              setRunningCost={setRunningCost}
+              setCostPulse={setCostPulse}
+              setSimpleStep={setSimpleStep}
+              handleProductSelect={handleProductSelect}
+              navigate={navigate}
             />
           )}
-
-          {simpleStep === 'qr-basic-type' && (
-            <QRBasicTypeStep
-              selectedType={qrBasicInputType}
-              onSelect={(type) => {
-                setQrBasicInputType(type);
-                setSimpleStep('qr-basic-input');
-              }}
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-            />
-          )}
-
-          {simpleStep === 'qr-basic-input' && (
-            <QRBasicInputStep
-              inputType={qrBasicInputType}
-              content={qrBasicContent}
-              onContentChange={setQrBasicContent}
-              selectedColor={selectedColor}
-              graphicSize={graphicSize}
-            />
-          )}
-
-          {simpleStep === 'qr-basic-mockup' && (
-            <div className="space-y-4">
-              {isGeneratingBasicMockup || isGeneratingRealMockup ? (
-                <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-300">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
-                    <Loader2 className="w-16 h-16 text-blue-400 animate-spin relative" />
-                  </div>
-                  <div className="text-center space-y-2">
-                    <h3 className="text-white font-bold">Generating Your Product Mockup</h3>
-                    <p className="text-slate-400 text-sm">Creating a realistic preview of your design on the actual product...</p>
-                    <p className="text-slate-500 text-xs">This may take 10-20 seconds</p>
-                  </div>
-                </div>
-              ) : realMockupUrl ? (
-                <div className="space-y-3 animate-in fade-in duration-300">
-                  <h2 className="text-lg font-bold text-white text-center">Your Product Mockup</h2>
-                  <p className="text-slate-400 text-sm text-center">Here's how your design will look on the actual product</p>
-                  <div className="flex justify-center gap-3 flex-wrap">
-                    <img src={realMockupUrl} alt="Product mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-real-mockup-basic" />
-                    {lifestyleMockupUrl && (
-                      <img src={lifestyleMockupUrl} alt="Lifestyle mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-lifestyle-mockup-basic" />
-                    )}
-                  </div>
-                  {tempPacketId && (
-                    <p className="text-center text-xs text-slate-500">Packet ID: {tempPacketId}</p>
-                  )}
-                </div>
-              ) : (
-                <QRBasicMockupStep
-                  mockupUrl={qrBasicMockup || generateQRCodeUrl(qrBasicContent, 300)}
-                  isLoading={false}
-                  selectedColor={selectedColor}
-                  selectedSize={selectedShirtSize}
-                  inputType={qrBasicInputType}
-                  content={qrBasicContent}
-                  qrPositionX={qrPositionX}
-                  qrPositionY={qrPositionY}
-                  qrSizePercent={qrSizePercent}
-                  onPositionXChange={setQrPositionX}
-                  onPositionYChange={setQrPositionY}
-                  onSizeChange={setQrSizePercent}
-                  areaImageUrl={areaImageUrl}
-                  areaImageMode={areaImageMode}
-                  onAreaImageUrlChange={setAreaImageUrl}
-                  onAreaImageModeChange={setAreaImageMode}
-                />
-              )}
-              <OwnerCostSummary
-                basePrice={selectedProductType?.retailPrice || 0}
-                sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
-                placementCost={Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
-                textCost={textLines * textLineCost}
-                total={runningCost}
-              />
-            </div>
-          )}
-
-          {simpleStep === 'qr-plus-mockup' && (
-            <div className="space-y-4">
-              {isGeneratingPlusMockup || isGeneratingRealMockup ? (
-                <div className="flex flex-col items-center justify-center py-8 space-y-4 animate-in fade-in duration-300">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
-                    <Loader2 className="w-16 h-16 text-blue-400 animate-spin relative" />
-                  </div>
-                  <div className="text-center space-y-2">
-                    <h3 className="text-white font-bold">Generating Your Product Mockup</h3>
-                    <p className="text-slate-400 text-sm">Creating a realistic preview with your text and QR design...</p>
-                    <p className="text-slate-500 text-xs">This may take 10-20 seconds</p>
-                  </div>
-                </div>
-              ) : realMockupUrl ? (
-                <div className="space-y-3 animate-in fade-in duration-300">
-                  <h2 className="text-lg font-bold text-white text-center">Your Product Mockup</h2>
-                  <p className="text-slate-400 text-sm text-center">Here's how your design will look on the actual product</p>
-                  <div className="flex justify-center gap-3 flex-wrap">
-                    <img src={realMockupUrl} alt="Product mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-real-mockup-plus" />
-                    {lifestyleMockupUrl && (
-                      <img src={lifestyleMockupUrl} alt="Lifestyle mockup" className="max-w-[280px] rounded-xl border border-slate-600 shadow-lg" data-testid="img-lifestyle-mockup-plus" />
-                    )}
-                  </div>
-                  {tempPacketId && (
-                    <p className="text-center text-xs text-slate-500">Packet ID: {tempPacketId}</p>
-                  )}
-                </div>
-              ) : (
-                <QRPlusMockupStep
-                  mockupUrl={qrPlusMockup}
-                  isLoading={false}
-                  selectedColor={selectedColor}
-                  selectedSize={selectedShirtSize}
-                  headerText={headerStyle.text}
-                  footerText={footerStyle.text}
-                />
-              )}
-              <OwnerCostSummary
-                basePrice={selectedProductType?.retailPrice || 0}
-                sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
-                placementCost={Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
-                textCost={textLines * textLineCost}
-                total={runningCost}
-              />
-            </div>
-          )}
-
-          </>)}
         </div>
 
         {guidedQueue.length === 0 && (

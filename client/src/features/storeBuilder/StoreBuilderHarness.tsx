@@ -12,254 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import type { PartnerStore } from "@shared/schema";
-
-const COLOR_HEX_MAP: Record<string, string> = {
-  "White": "#FFFFFF", "Black": "#000000", "Navy": "#1F2937", "Navy Blue": "#1F2937",
-  "Red": "#DC2626", "Blue": "#2563EB", "Royal Blue": "#1D4ED8", "Light Blue": "#93C5FD",
-  "Green": "#16A34A", "Forest Green": "#166534", "Yellow": "#FBBF24", "Gold": "#F59E0B",
-  "Orange": "#EA580C", "Pink": "#EC4899", "Purple": "#9333EA", "Gray": "#6B7280",
-  "Grey": "#6B7280", "Charcoal": "#374151", "Brown": "#92400E", "Tan": "#D4A574",
-  "Maroon": "#7F1D1D", "Burgundy": "#881337", "Teal": "#0D9488", "Aqua": "#22D3D1",
-  "Heather Gray": "#9CA3AF", "Heather Grey": "#9CA3AF", "Sport Grey": "#9CA3AF",
-  "Dark Heather": "#4B5563", "Ash": "#D1D5DB", "Natural": "#F5F5DC", "Cream": "#FFFDD0",
-  "Sand": "#C2B280", "Olive": "#556B2F", "Kelly Green": "#22C55E", "Irish Green": "#22C55E",
-  "Cardinal": "#B91C1C", "Safety Orange": "#FF6600", "Safety Green": "#84CC16",
-};
-
-function getColorHex(color: { name: string; hex?: string }): string {
-  if (color.hex && color.hex.trim() !== "") return color.hex;
-  const normalized = color.name.trim();
-  if (COLOR_HEX_MAP[normalized]) return COLOR_HEX_MAP[normalized];
-  const lowerName = normalized.toLowerCase();
-  for (const [key, value] of Object.entries(COLOR_HEX_MAP)) {
-    if (key.toLowerCase() === lowerName) return value;
-  }
-  return "#CCCCCC";
-}
-
-interface ProductColor {
-  hex: string;
-  name: string;
-}
-
-interface ProductPackage {
-  packetId?: string;
-  templateId?: string;
-  productId?: string;
-  qrContent?: string;
-  productName?: string;
-  productDescription?: string;
-  productImageUrl?: string;
-  compositeUrl?: string;
-  qrOnlyUrl?: string;
-  headerText?: string;
-  footerText?: string;
-  colors?: ProductColor[];
-  sizes?: string[];
-  qrSizes?: string[];
-  availablePlacements?: string[];
-  placements?: string[];
-  basePrice?: string;
-  customerPrice?: string;
-  qrProductState?: string;
-  blueprintId?: number;
-  printProviderId?: number;
-  manufacturer?: string;
-  madeIn?: string;
-  defaultColor?: string;
-  defaultColorHex?: string;
-  placementSizes?: Record<string, string>;
-  priorityMockupUrl?: string | null;
-  // Destination info from Products Builder
-  destinationRoleType?: string | null;
-  destinationStoreId?: string | null;
-  destinationStoreName?: string | null;
-  destinationChannelId?: string | null;
-  destinationChannelName?: string | null;
-  pricing?: {
-    baseProductCost: number;
-    placementCost: number;
-    textUpcharge: number;
-    hostingCost: number;
-    subtotal: number;
-    markupPercent: number;
-    markupFixed: number;
-    markupAmount: number;
-    customerPrice: number;
-    hostingTierCode?: string;
-  };
-}
-
-interface ProductConfiguration {
-  enabledColors: Set<string>;
-  enabledSizes: Set<string>;
-  selectedGraphicSize: string;
-  defaultColor: string;
-}
-
-interface MockupJob {
-  id: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  color?: string;
-  size?: string;
-  placement?: string;
-  mockupUrl?: string | null;
-  error?: string | null;
-}
-
-type StoreType = "internal" | "external" | null;
-
-function CollapsibleSection({ 
-  title, 
-  icon, 
-  defaultOpen = false, 
-  children 
-}: { 
-  title: string; 
-  icon?: React.ReactNode;
-  defaultOpen?: boolean; 
-  children: React.ReactNode;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3 bg-muted/30 hover-elevate"
-        data-testid={`collapse-${title.toLowerCase().replace(/\s+/g, '-')}`}
-      >
-        <div className="flex items-center gap-2">
-          {icon}
-          <span className="font-medium text-sm">{title}</span>
-        </div>
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-      </button>
-      {isOpen && (
-        <div className="p-3 border-t">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function HeroImageLightbox({
-  isOpen,
-  onClose,
-  productPackage,
-  configuration,
-  mockups,
-  onSelectColor,
-  onSelectGraphicSize,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  productPackage: ProductPackage | null;
-  configuration: ProductConfiguration;
-  mockups: MockupJob[];
-  onSelectColor: (color: string) => void;
-  onSelectGraphicSize: (size: string) => void;
-}) {
-  if (!isOpen || !productPackage) return null;
-
-  const availableColors = productPackage.colors || [];
-  const graphicSizes = ["small", "medium", "large"];
-  
-  const currentMockup = mockups.find(
-    m => m.status === "completed" && 
-         m.mockupUrl && 
-         m.color === configuration.defaultColor
-  );
-
-  const previewUrl = currentMockup?.mockupUrl || productPackage.productImageUrl || productPackage.compositeUrl;
-
-  return (
-    <div 
-      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div 
-        className="bg-background rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="p-4 border-b">
-          <h3 className="font-semibold">Set Hero Image</h3>
-        </div>
-        
-        <div className="p-4 space-y-4">
-          <div className="aspect-square bg-muted rounded-lg overflow-hidden flex items-center justify-center">
-            {previewUrl ? (
-              <img 
-                src={previewUrl} 
-                alt="Hero preview" 
-                className="w-full h-full object-contain"
-                data-testid="img-hero-preview"
-              />
-            ) : (
-              <div className="text-center text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                <p className="text-sm">Mockup generating...</p>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium mb-2">Default Color</p>
-              <div className="flex flex-wrap gap-2">
-                {availableColors.map(color => (
-                  <button
-                    key={color.name}
-                    onClick={() => onSelectColor(color.name)}
-                    className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
-                      configuration.defaultColor === color.name
-                        ? "ring-2 ring-offset-2 ring-primary border-primary"
-                        : "border-muted hover:border-primary/50"
-                    }`}
-                    style={{ backgroundColor: getColorHex(color) }}
-                    title={color.name}
-                    data-testid={`lightbox-color-${color.name}`}
-                  >
-                  </button>
-                ))}
-              </div>
-              {configuration.defaultColor && (
-                <p className="text-xs text-muted-foreground mt-1">Selected: {configuration.defaultColor}</p>
-              )}
-            </div>
-
-            <div>
-              <p className="text-sm font-medium mb-2">Graphic Size</p>
-              <div className="flex gap-2">
-                {graphicSizes.map(size => (
-                  <Button
-                    key={size}
-                    variant={configuration.selectedGraphicSize === size ? "default" : "outline"}
-                    size="sm"
-                    className="capitalize flex-1"
-                    onClick={() => onSelectGraphicSize(size)}
-                    data-testid={`lightbox-graphic-${size}`}
-                  >
-                    {size}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 border-t">
-          <Button className="w-full" onClick={onClose} data-testid="button-confirm-hero">
-            <Check className="h-4 w-4 mr-2" />
-            Confirm Selection
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { getColorHex, type ProductPackage, type ProductConfiguration, type MockupJob, type StoreType } from "./store-builder-types";
+import { CollapsibleSection, HeroImageLightbox } from "./StoreBuilderComponents";
+import { executeCreateStore, executeCreateChannel, executeAssign } from "./store-builder-actions";
 
 export function StoreBuilderHarness() {
   const { apiBase, getAuthHeaders } = useAdminAuth();
@@ -576,28 +331,14 @@ export function StoreBuilderHarness() {
   const channels = selectedStore?.availableSegments || [];
 
   const handleCreateStore = async () => {
-    if (!newStoreName.trim() || !selectedStoreType) return;
-    
     setIsCreatingStore(true);
     try {
-      const res = await authFetch(`${apiBase}/stores`, getAuthHeaders, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name: newStoreName.trim(), 
-          roleType: selectedStoreType,
-        }),
-      });
-      
-      if (!res.ok) throw new Error(`Failed to create store: ${res.status}`);
-      
-      const newStore = await res.json();
+      const result = await executeCreateStore(apiBase, getAuthHeaders, newStoreName, selectedStoreType);
       queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
       setNewStoreName("");
       setShowAddStore(false);
-      
-      if (newStore?.id) {
-        setSelectedStoreId(newStore.id);
+      if (result.id) {
+        setSelectedStoreId(result.id);
         setSelectedChannel(null);
       }
     } catch (err: any) {
@@ -608,26 +349,13 @@ export function StoreBuilderHarness() {
   };
 
   const handleCreateChannel = async () => {
-    if (!newChannelName.trim() || !selectedStoreId) return;
-    
     setIsCreatingChannel(true);
     try {
-      const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels`, getAuthHeaders, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newChannelName.trim() }),
-      });
-      
-      if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
-      
-      const newChannel = await res.json();
+      const result = await executeCreateChannel(apiBase, getAuthHeaders, selectedStoreId!, newChannelName);
       queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
       setNewChannelName("");
       setShowAddChannel(false);
-      
-      if (newChannel?.name) {
-        setSelectedChannel(newChannel.name);
-      }
+      if (result.name) setSelectedChannel(result.name);
     } catch (err: any) {
       setSaveStatus({ type: "error", message: err.message || "Failed to create channel" });
     } finally {
@@ -635,175 +363,30 @@ export function StoreBuilderHarness() {
     }
   };
 
-  // Check if configuration has changed from original (for fork-on-edit)
-  const hasConfigurationChanges = (): boolean => {
-    if (!originalConfiguration) return true; // No original = always "changed"
-    
-    const colorsChanged = 
-      configuration.enabledColors.size !== originalConfiguration.enabledColors.size ||
-      !Array.from(configuration.enabledColors).every(c => originalConfiguration.enabledColors.has(c));
-    
-    const sizesChanged = 
-      configuration.enabledSizes.size !== originalConfiguration.enabledSizes.size ||
-      !Array.from(configuration.enabledSizes).every(s => originalConfiguration.enabledSizes.has(s));
-    
-    const graphicSizeChanged = configuration.selectedGraphicSize !== originalConfiguration.selectedGraphicSize;
-    const defaultColorChanged = configuration.defaultColor !== originalConfiguration.defaultColor;
-    
-    return colorsChanged || sizesChanged || graphicSizeChanged || defaultColorChanged;
-  };
-
   const handleAssign = async () => {
     if (!productPackage || !selectedStore || !selectedChannel) return;
-
-    if (!productPackage.packetId && !productPackage.templateId) {
-      setSaveStatus({
-        type: "error",
-        message: "Package missing IDs. Please use 'Create Graphics' in Products Builder first.",
-      });
-      return;
-    }
-
     setIsSaving(true);
     setSaveStatus(null);
-
     try {
-      let currentPacketId = productPackage.packetId;
-      let templateId = productPackage.templateId;
-      let wasForked = false; // Track if we forked for success message
-      
-      // Fork-on-edit: Only fork when configuration has actually changed
-      // If no changes, just link the existing packet to the store
-      const shouldFork = isEditMode && originalPacketId && hasConfigurationChanges();
-      
-      if (shouldFork) {
-        console.log("[StoreBuilder] Edit mode - creating new packet (fork from:", originalPacketId, ")");
-        
-        const packetResponse = await authFetch(`${apiBase}/packets`, getAuthHeaders, {
-          method: "POST",
-          body: JSON.stringify({
-            qrOnlyUrl: productPackage.qrOnlyUrl,
-            compositeUrl: productPackage.compositeUrl,
-            qrContent: productPackage.qrContent,
-            headerText: productPackage.headerText,
-            footerText: productPackage.footerText,
-            pricing: productPackage.pricing,
-            productName: productPackage.productName,
-            productDescription: productPackage.productDescription,
-            productImageUrl: productPackage.productImageUrl,
-            blueprintId: productPackage.blueprintId,
-            printProviderId: productPackage.printProviderId,
-            manufacturer: productPackage.manufacturer,
-            qrProductState: productPackage.qrProductState,
-            placements: productPackage.placements,
-            availablePlacements: productPackage.availablePlacements,
-            sizes: productPackage.sizes,
-            colors: productPackage.colors,
-            basePrice: productPackage.basePrice,
-            customerPrice: productPackage.customerPrice,
-            forkedFrom: originalPacketId,
-          }),
-        });
-
-        if (packetResponse.ok) {
-          const packetData = await packetResponse.json();
-          currentPacketId = packetData.packetId;
-          templateId = undefined; // New packet needs new template
-          console.log("[StoreBuilder] Created forked packet:", currentPacketId);
-          
-          // Update local state to use new packet ID and clear old template reference
-          setProductPackage(prev => prev ? { 
-            ...prev, 
-            packetId: currentPacketId,
-            templateId: undefined, // Clear old template - new one will be created below
-          } : null);
-          // Clear edit mode since we now have a fresh packet
-          setIsEditMode(false);
-          setOriginalPacketId(null);
-          wasForked = true;
-        } else {
-          // Fork is mandatory - do NOT fall back to original packet
-          const errorData = await packetResponse.json().catch(() => ({}));
-          throw new Error(`Failed to create new version: ${errorData.error || 'Unknown error'}`);
-        }
-      }
-      
-      // Create template if needed
-      if (currentPacketId && !templateId) {
-        const templateResponse = await authFetch(`${apiBase}/templates`, getAuthHeaders, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            packetId: currentPacketId,
-            name: productPackage.productName || `Template - ${new Date().toLocaleDateString()}`,
-            productId: productPackage.productId,
-            blueprintId: productPackage.blueprintId,
-            printProviderId: productPackage.printProviderId,
-            artworkUrl: productPackage.compositeUrl,
-            thumbnailUrl: productPackage.compositeUrl,
-            qrContent: productPackage.qrContent,
-            pricing: productPackage.pricing,
-            selectedSize: configuration.selectedGraphicSize,
-            enabledColors: Array.from(configuration.enabledColors),
-            enabledSizes: Array.from(configuration.enabledSizes),
-            defaultColor: configuration.defaultColor,
-            isActive: true,
-          }),
-        });
-
-        if (templateResponse.ok) {
-          const templateData = await templateResponse.json();
-          templateId = templateData.templateId;
-          console.log("[StoreBuilder] Created template:", templateId);
-          // Update state with new templateId for mockup polling
-          setProductPackage(prev => prev ? { ...prev, templateId } : null);
-        } else {
-          console.warn("[StoreBuilder] Template creation failed, continuing with store link");
-        }
-      }
-
-      const response = await authFetch(`${apiBase}/store-product-links`, getAuthHeaders, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storeId: selectedStore.id,
-          storeName: selectedStore.name,
-          channel: selectedChannel,
-          collection: selectedCollection.trim() || null,
-          packetId: currentPacketId,
-          templateId: templateId,
-          qrContent: productPackage.qrContent,
-          productName: productPackage.productName,
-          compositeUrl: productPackage.compositeUrl,
-          qrOnlyUrl: productPackage.qrOnlyUrl,
-          pricing: productPackage.pricing,
-          enabledColors: Array.from(configuration.enabledColors),
-          enabledSizes: Array.from(configuration.enabledSizes),
-          selectedGraphicSize: configuration.selectedGraphicSize,
-          defaultColor: configuration.defaultColor,
-          qrProductState: productPackage.qrProductState || null,
-          mockupUrl: productPackage.priorityMockupUrl || null,
-        }),
+      const result = await executeAssign({
+        apiBase, getAuthHeaders, productPackage, selectedStore, selectedChannel,
+        selectedCollection, configuration, isEditMode, originalPacketId, originalConfiguration,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to assign to store");
+      if (!result.success) {
+        setSaveStatus({ type: "error", message: result.message });
+        return;
       }
-
-      const collectionSuffix = selectedCollection.trim() ? ` [${selectedCollection.trim()}]` : "";
-      const successMsg = wasForked 
-        ? `New version created and linked to ${selectedStore.name} / ${selectedChannel}${collectionSuffix}`
-        : `Linked to ${selectedStore.name} / ${selectedChannel}${collectionSuffix}`;
-      
-      setSaveStatus({
-        type: "success",
-        message: successMsg,
-      });
+      if (result.wasForked && result.newPacketId) {
+        setProductPackage(prev => prev ? { ...prev, packetId: result.newPacketId, templateId: result.newTemplateId } : null);
+        setIsEditMode(false);
+        setOriginalPacketId(null);
+      }
+      if (result.newTemplateId) {
+        setProductPackage(prev => prev ? { ...prev, templateId: result.newTemplateId } : null);
+      }
+      setSaveStatus({ type: "success", message: result.message });
     } catch (error: any) {
-      setSaveStatus({
-        type: "error",
-        message: error.message || "Failed to assign to store",
-      });
+      setSaveStatus({ type: "error", message: error.message || "Failed to assign to store" });
     } finally {
       setIsSaving(false);
     }
