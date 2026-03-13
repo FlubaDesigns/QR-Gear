@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import {
-  Plus, Trash2, Pencil, Loader2, Globe, Users, Layout, MapPin,
-  DollarSign, PieChart, FileText, CreditCard, Building2, Code, Eye,
+  Plus, Trash2, Pencil, Loader2, Layout, Building2, Code, Eye,
   ShoppingBag, Hammer,
 } from "lucide-react";
 
@@ -27,12 +27,6 @@ const STATUS_COLORS: Record<string, string> = {
   approved: "text-blue-600",
   paid: "text-green-600",
   reversed: "text-red-600",
-};
-
-const EMBED_MODE_ICONS: Record<string, typeof Globe> = {
-  store: ShoppingBag,
-  product: Eye,
-  builder: Hammer,
 };
 
 export function HostsSection() {
@@ -126,16 +120,17 @@ export function HostsSection() {
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-hosts" /></div>;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-semibold" data-testid="text-hosts-title">Builder Hosts ({hosts.length})</h2>
+    <AdminSectionCard
+      title={`Builder Hosts (${hosts.length})`}
+      icon={Building2}
+      actions={
         <Button onClick={() => { resetForm(); setShowForm(true); }} data-testid="button-add-host">
           <Plus className="w-4 h-4 mr-1" /> Add Host
         </Button>
-      </div>
-
+      }
+    >
       {hosts.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-hosts">No builder hosts yet. Add one to get started.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-hosts">No builder hosts yet. Add one to get started.</div>
       ) : (
         <div className="space-y-3">
           {hosts.map((host: any) => (
@@ -158,8 +153,8 @@ export function HostsSection() {
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(host)} data-testid={`button-edit-host-${host.id}`}><Pencil className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this host?")) deleteMutation.mutate(host.id); }} data-testid={`button-delete-host-${host.id}`}><Trash2 className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(host)} data-testid={`button-edit-host-${host.id}`}><Pencil className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => { if (confirm("Delete this host?")) deleteMutation.mutate(host.id); }} data-testid={`button-delete-host-${host.id}`}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -199,11 +194,9 @@ export function HostsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminSectionCard>
   );
 }
-
-// ============ PROFILES SECTION ============
 
 export function ProfilesSection() {
   const { toast } = useToast();
@@ -340,16 +333,17 @@ export function ProfilesSection() {
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-profiles" /></div>;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-semibold" data-testid="text-profiles-title">Builder Profiles ({profiles.length})</h2>
+    <AdminSectionCard
+      title={`Builder Profiles (${profiles.length})`}
+      icon={Layout}
+      actions={
         <Button onClick={() => { resetForm(); setShowForm(true); }} data-testid="button-add-profile">
           <Plus className="w-4 h-4 mr-1" /> Add Profile
         </Button>
-      </div>
-
+      }
+    >
       {profiles.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-profiles">No builder profiles yet.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-profiles">No builder profiles yet.</div>
       ) : (
         <div className="space-y-3">
           {profiles.map((profile: any) => {
@@ -368,8 +362,8 @@ export function ProfilesSection() {
                       <p className="text-sm text-muted-foreground">{enabledCount} permissions enabled</p>
                     </div>
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(profile)} data-testid={`button-edit-profile-${profile.id}`}><Pencil className="w-4 h-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this profile?")) deleteMutation.mutate(profile.id); }} data-testid={`button-delete-profile-${profile.id}`}><Trash2 className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(profile)} data-testid={`button-edit-profile-${profile.id}`}><Pencil className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => { if (confirm("Delete this profile?")) deleteMutation.mutate(profile.id); }} data-testid={`button-delete-profile-${profile.id}`}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
                 </CardContent>
@@ -401,7 +395,7 @@ export function ProfilesSection() {
               <Label className="text-base font-medium">Permissions</Label>
               <div className="grid grid-cols-2 gap-2">
                 {permissionToggles.map((perm) => (
-                  <div key={perm.key} className="flex items-center gap-2">
+                  <div key={perm.key} className="flex items-center gap-2 min-h-[44px]">
                     <Switch
                       checked={(formData as any)[perm.key]}
                       onCheckedChange={(checked) => setFormData({ ...formData, [perm.key]: checked })}
@@ -422,9 +416,6 @@ export function ProfilesSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminSectionCard>
   );
 }
-
-// ============ PLACEMENTS SECTION ============
-

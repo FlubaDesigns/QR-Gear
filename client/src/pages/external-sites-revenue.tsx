@@ -1,20 +1,19 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import {
-  Plus, Trash2, Pencil, Loader2, Globe, Users, Layout, MapPin,
-  DollarSign, PieChart, FileText, CreditCard, Building2, Code, Eye,
-  ShoppingBag, Hammer,
+  Plus, Trash2, Pencil, Loader2,
+  DollarSign, PieChart, FileText, CreditCard,
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -110,16 +109,17 @@ export function RevenueSection() {
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-revenue" /></div>;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-semibold" data-testid="text-revenue-title">Revenue Splits ({splits.length})</h2>
+    <AdminSectionCard
+      title={`Revenue Splits (${splits.length})`}
+      icon={PieChart}
+      actions={
         <Button onClick={() => { resetForm(); setShowForm(true); }} data-testid="button-add-split">
           <Plus className="w-4 h-4 mr-1" /> Add Split
         </Button>
-      </div>
-
+      }
+    >
       {splits.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-splits">No revenue splits configured. Default is 25% affiliate / 75% platform.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-splits">No revenue splits configured. Default is 25% affiliate / 75% platform.</div>
       ) : (
         <div className="space-y-3">
           {splits.map((split: any) => (
@@ -138,8 +138,8 @@ export function RevenueSection() {
                     {split.notes && <p className="text-xs text-muted-foreground">{split.notes}</p>}
                   </div>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(split)} data-testid={`button-edit-split-${split.id}`}><Pencil className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this split?")) deleteMutation.mutate(split.id); }} data-testid={`button-delete-split-${split.id}`}><Trash2 className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(split)} data-testid={`button-edit-split-${split.id}`}><Pencil className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => { if (confirm("Delete this split?")) deleteMutation.mutate(split.id); }} data-testid={`button-delete-split-${split.id}`}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -177,11 +177,9 @@ export function RevenueSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminSectionCard>
   );
 }
-
-// ============ ATTRIBUTIONS SECTION ============
 
 export function AttributionsSection() {
   const [filterHost, setFilterHost] = useState("__all__");
@@ -199,10 +197,11 @@ export function AttributionsSection() {
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-attributions" /></div>;
 
   return (
-    <div className="space-y-4 p-4">
-      <h2 className="text-lg font-semibold" data-testid="text-attributions-title">Order Attributions ({attributions.length})</h2>
-
-      <div className="flex gap-2 flex-wrap">
+    <AdminSectionCard
+      title={`Order Attributions (${attributions.length})`}
+      icon={FileText}
+    >
+      <div className="flex gap-2 flex-wrap mb-4">
         <Select value={filterHost} onValueChange={setFilterHost}>
           <SelectTrigger className="w-[180px]" data-testid="select-attr-host"><SelectValue placeholder="All hosts" /></SelectTrigger>
           <SelectContent>
@@ -222,7 +221,7 @@ export function AttributionsSection() {
       </div>
 
       {attributions.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-attributions">No order attributions recorded yet.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-attributions">No order attributions recorded yet.</div>
       ) : (
         <div className="space-y-3">
           {attributions.map((attr: any) => (
@@ -246,11 +245,9 @@ export function AttributionsSection() {
           ))}
         </div>
       )}
-    </div>
+    </AdminSectionCard>
   );
 }
-
-// ============ PAYOUTS SECTION ============
 
 export function PayoutsSection() {
   const { toast } = useToast();
@@ -281,10 +278,11 @@ export function PayoutsSection() {
   const totalPaid = payouts.filter((p: any) => p.status === "paid").reduce((sum: number, p: any) => sum + (p.affiliateAmount || 0), 0);
 
   return (
-    <div className="space-y-4 p-4">
-      <h2 className="text-lg font-semibold" data-testid="text-payouts-title">Affiliate Payouts ({payouts.length})</h2>
-
-      <div className="grid grid-cols-2 gap-3">
+    <AdminSectionCard
+      title={`Affiliate Payouts (${payouts.length})`}
+      icon={CreditCard}
+    >
+      <div className="grid grid-cols-2 gap-3 mb-4">
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-sm text-muted-foreground">Pending</p>
@@ -299,19 +297,21 @@ export function PayoutsSection() {
         </Card>
       </div>
 
-      <Select value={filterStatus} onValueChange={setFilterStatus}>
-        <SelectTrigger className="w-[180px]" data-testid="select-payout-status"><SelectValue placeholder="All statuses" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">All statuses</SelectItem>
-          <SelectItem value="pending">Pending</SelectItem>
-          <SelectItem value="approved">Approved</SelectItem>
-          <SelectItem value="paid">Paid</SelectItem>
-          <SelectItem value="reversed">Reversed</SelectItem>
-        </SelectContent>
-      </Select>
+      <div className="mb-4">
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[180px]" data-testid="select-payout-status"><SelectValue placeholder="All statuses" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All statuses</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="reversed">Reversed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       {payouts.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-payouts">No payout entries yet.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-payouts">No payout entries yet.</div>
       ) : (
         <div className="space-y-3">
           {payouts.map((payout: any) => (
@@ -331,6 +331,7 @@ export function PayoutsSection() {
                   {payout.status === "pending" && (
                     <Button
                       variant="outline"
+                      className="min-h-[44px]"
                       onClick={() => updateMutation.mutate({ id: payout.id, status: "approved" })}
                       disabled={updateMutation.isPending}
                       data-testid={`button-approve-payout-${payout.id}`}
@@ -341,6 +342,7 @@ export function PayoutsSection() {
                   {payout.status === "approved" && (
                     <Button
                       variant="outline"
+                      className="min-h-[44px]"
                       onClick={() => updateMutation.mutate({ id: payout.id, status: "paid" })}
                       disabled={updateMutation.isPending}
                       data-testid={`button-pay-payout-${payout.id}`}
@@ -354,6 +356,6 @@ export function PayoutsSection() {
           ))}
         </div>
       )}
-    </div>
+    </AdminSectionCard>
   );
 }

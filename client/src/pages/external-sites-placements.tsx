@@ -1,19 +1,18 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import {
-  Plus, Trash2, Pencil, Loader2, Globe, Users, Layout, MapPin,
-  DollarSign, PieChart, FileText, CreditCard, Building2, Code, Eye,
+  Plus, Trash2, Pencil, Loader2, Globe, MapPin,
+  DollarSign, Layout, Code, Eye,
   ShoppingBag, Hammer,
 } from "lucide-react";
 
@@ -23,6 +22,8 @@ const STATUS_COLORS: Record<string, string> = {
   inactive: "border-gray-400 text-gray-500",
   paused: "border-orange-500 text-orange-600",
   rejected: "border-red-500 text-red-600",
+  draft: "text-gray-500",
+  archived: "text-gray-400",
 };
 
 const EMBED_MODE_ICONS: Record<string, typeof Globe> = {
@@ -125,16 +126,17 @@ export function PlacementsSection() {
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-placements" /></div>;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-semibold" data-testid="text-placements-title">Builder Placements ({placements.length})</h2>
+    <AdminSectionCard
+      title={`Builder Placements (${placements.length})`}
+      icon={MapPin}
+      actions={
         <Button onClick={() => { resetForm(); setShowForm(true); }} data-testid="button-add-placement">
           <Plus className="w-4 h-4 mr-1" /> Add Placement
         </Button>
-      </div>
-
+      }
+    >
       {placements.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-placements">No placements yet. Create a host first, then add placements.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-placements">No placements yet. Create a host first, then add placements.</div>
       ) : (
         <div className="space-y-3">
           {placements.map((p: any) => {
@@ -155,8 +157,8 @@ export function PlacementsSection() {
                       {p.domainHint && <p className="text-xs text-muted-foreground">{p.domainHint}</p>}
                     </div>
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-placement-${p.id}`}><Pencil className="w-4 h-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this placement?")) deleteMutation.mutate(p.id); }} data-testid={`button-delete-placement-${p.id}`}><Trash2 className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(p)} data-testid={`button-edit-placement-${p.id}`}><Pencil className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => { if (confirm("Delete this placement?")) deleteMutation.mutate(p.id); }} data-testid={`button-delete-placement-${p.id}`}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                   </div>
                 </CardContent>
@@ -229,11 +231,9 @@ export function PlacementsSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminSectionCard>
   );
 }
-
-// ============ PRICING SECTION ============
 
 export function PricingSection() {
   const { toast } = useToast();
@@ -324,16 +324,17 @@ export function PricingSection() {
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-pricing" /></div>;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="text-lg font-semibold" data-testid="text-pricing-title">Pricing Policies ({policies.length})</h2>
+    <AdminSectionCard
+      title={`Pricing Policies (${policies.length})`}
+      icon={DollarSign}
+      actions={
         <Button onClick={() => { resetForm(); setShowForm(true); }} data-testid="button-add-pricing">
           <Plus className="w-4 h-4 mr-1" /> Add Policy
         </Button>
-      </div>
-
+      }
+    >
       {policies.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground" data-testid="text-no-pricing">No pricing policies yet.</CardContent></Card>
+        <div className="text-center py-6 text-muted-foreground text-sm" data-testid="text-no-pricing">No pricing policies yet.</div>
       ) : (
         <div className="space-y-3">
           {policies.map((policy: any) => (
@@ -351,8 +352,8 @@ export function PricingSection() {
                     </p>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(policy)} data-testid={`button-edit-pricing-${policy.id}`}><Pencil className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => { if (confirm("Delete this policy?")) deleteMutation.mutate(policy.id); }} data-testid={`button-delete-pricing-${policy.id}`}><Trash2 className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(policy)} data-testid={`button-edit-pricing-${policy.id}`}><Pencil className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => { if (confirm("Delete this policy?")) deleteMutation.mutate(policy.id); }} data-testid={`button-delete-pricing-${policy.id}`}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -424,9 +425,6 @@ export function PricingSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminSectionCard>
   );
 }
-
-// ============ REVENUE SECTION ============
-
