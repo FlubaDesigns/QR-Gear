@@ -15,10 +15,12 @@ import { SHIRT_COLORS, LOCATION_AREA_DIMS } from "./wizardTypes";
 
 export function TypePickerStep({ 
   selectedType, 
-  onSelect 
+  onSelect,
+  allowedQrTypes,
 }: { 
   selectedType: QRType;
   onSelect: (type: QRType) => void;
+  allowedQrTypes?: QRType[];
 }) {
   const allTypes = [
     { 
@@ -58,6 +60,10 @@ export function TypePickerStep({
     },
   ];
 
+  const visibleTypes = allowedQrTypes?.length
+    ? allTypes.filter(t => allowedQrTypes.includes(t.id))
+    : allTypes;
+
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300">
       <div className="text-center mb-3">
@@ -66,7 +72,7 @@ export function TypePickerStep({
       </div>
 
       <div className="grid grid-cols-1 gap-3 max-w-md mx-auto">
-        {allTypes.map((type) => (
+        {visibleTypes.map((type) => (
           <button
             key={type.id}
             onClick={() => onSelect(type.id)}

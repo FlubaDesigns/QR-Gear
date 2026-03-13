@@ -17,6 +17,7 @@ import { useWizardContext } from './WizardContext';
 
 export function AdvancedWizardProductSteps() {
   const {
+    capabilities,
     user,
     simpleStep, setSimpleStep,
     selectedChannel, setSelectedChannel,
@@ -205,6 +206,7 @@ export function AdvancedWizardProductSteps() {
         <TypePickerStep 
           selectedType={qrType}
           onSelect={setQrType}
+          allowedQrTypes={capabilities.allowedQrTypes}
         />
       )}
       
@@ -416,12 +418,14 @@ export function AdvancedWizardProductSteps() {
             onHeaderChange={setHeaderStyle}
             earningsPerLine={textLineEarningsBonus}
           />
+          {(capabilities.allowFontSlider || capabilities.allowOffsets) && (
           <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-text-controls-header">
             <div className="flex items-center gap-2 mb-2">
               <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
               <span className="text-xs font-medium text-blue-400">Advanced Text Controls</span>
             </div>
             <div className="space-y-3">
+              {capabilities.allowFontSlider && (
               <div>
                 <label className="text-xs text-white/60 mb-1 block">Font Size: {customFontSize}px</label>
                 <Slider
@@ -438,6 +442,8 @@ export function AdvancedWizardProductSteps() {
                   data-testid="slider-advanced-header-font-size"
                 />
               </div>
+              )}
+              {capabilities.allowOffsets && (
               <div>
                 <label className="text-xs text-white/60 mb-1 block">Vertical Offset: {headerStyle.verticalOffset || 0}%</label>
                 <Slider
@@ -452,8 +458,10 @@ export function AdvancedWizardProductSteps() {
                   data-testid="slider-advanced-header-offset"
                 />
               </div>
+              )}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -468,12 +476,14 @@ export function AdvancedWizardProductSteps() {
             headerStyle={headerStyle}
             earningsPerLine={textLineEarningsBonus}
           />
+          {(capabilities.allowFontSlider || capabilities.allowOffsets) && (
           <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-text-controls-footer">
             <div className="flex items-center gap-2 mb-2">
               <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" />
               <span className="text-xs font-medium text-blue-400">Advanced Text Controls</span>
             </div>
             <div className="space-y-3">
+              {capabilities.allowFontSlider && (
               <div>
                 <label className="text-xs text-white/60 mb-1 block">Font Size: {customFontSize}px</label>
                 <Slider
@@ -490,6 +500,8 @@ export function AdvancedWizardProductSteps() {
                   data-testid="slider-advanced-footer-font-size"
                 />
               </div>
+              )}
+              {capabilities.allowOffsets && (
               <div>
                 <label className="text-xs text-white/60 mb-1 block">Vertical Offset: {footerStyle.verticalOffset || 0}%</label>
                 <Slider
@@ -504,8 +516,10 @@ export function AdvancedWizardProductSteps() {
                   data-testid="slider-advanced-footer-offset"
                 />
               </div>
+              )}
             </div>
           </div>
+          )}
         </div>
       )}
       
