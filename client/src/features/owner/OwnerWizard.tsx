@@ -1,17 +1,14 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, X, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2, ArrowRight, Palette, Crosshair, PenLine, PartyPopper } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, Tag, X, QrCode, Type, ImagePlus, Play, Sparkles, Loader2 } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
-import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
-import type { AllowedProduct, SimpleWizardStep, QRType, GraphicLocation, GraphicSize, PlacementOption, TextLayoutChoice, QRBasicInputType, PlacementGraphicChoice } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { SHIRT_SIZES, SHIRT_COLORS } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
+import type { QRType, SimpleWizardStep } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { GUIDED_CARDS, GUIDED_STEP_MAP, GuidedCard, OwnerCostSummary, MemberConversionPitch } from "./OwnerWizardComponents";
 import { OwnerWizardStepContent } from "./OwnerWizardStepContent";
 import { useOwnerWizardNav } from "./useOwnerWizardNav";
+import { useOwnerWizardState } from "./useOwnerWizardState";
 
 export function OwnerWizard() {
   const params = new URLSearchParams(window.location.search);
@@ -28,56 +25,28 @@ export function OwnerWizard() {
   const minTierIndex = TIER_ORDER.indexOf(minTier as QRType);
   const preSelectedType = (minTierIndex >= 0 ? minTier : '') as QRType;
 
-  const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
-  const [selectedProductType, setSelectedProductType] = useState<AllowedProduct | null>(null);
-  const [selectedColor, setSelectedColor] = useState('');
-  const [selectedShirtSize, setSelectedShirtSize] = useState('');
-  const [graphicLocation, setGraphicLocation] = useState<GraphicLocation>('');
-  const [graphicSize, setGraphicSize] = useState<GraphicSize>('');
-  const [perPlacementSizes, setPerPlacementSizes] = useState<Record<string, GraphicSize>>({});
-  const [wantsHeaderFooter, setWantsHeaderFooter] = useState<boolean | null>(null);
-  const [qrType, setQrType] = useState<QRType>(preSelectedType);
-  const [runningCost, setRunningCost] = useState(0);
-  const [costPulse, setCostPulse] = useState(false);
-  const [selectedPlacements, setSelectedPlacements] = useState<PlacementOption[]>([]);
-  const [textLayoutChoice, setTextLayoutChoice] = useState<TextLayoutChoice>('');
-  const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
-  const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
-  const [currentPlacementIndex, setCurrentPlacementIndex] = useState(0);
-  const [placementGraphicChoice, setPlacementGraphicChoice] = useState<PlacementGraphicChoice>('');
-
-  const [qrBasicInputType, setQrBasicInputType] = useState<QRBasicInputType>('');
-  const [qrBasicContent, setQrBasicContent] = useState('');
-  const [qrBasicMockup, setQrBasicMockup] = useState('');
-  const [isGeneratingBasicMockup, setIsGeneratingBasicMockup] = useState(false);
-  const [qrPositionX, setQrPositionX] = useState(50);
-  const [qrPositionY, setQrPositionY] = useState(50);
-  const [qrSizePercent, setQrSizePercent] = useState(50);
-  const [areaImageUrl, setAreaImageUrl] = useState('');
-  const [areaImageMode, setAreaImageMode] = useState<"replace-qr" | "behind-qr">("behind-qr");
-
-  const [qrPlusMockup, setQrPlusMockup] = useState('');
-  const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
-
-  const [showMemberPitch, setShowMemberPitch] = useState(false);
-  const [showCheckoutCard, setShowCheckoutCard] = useState(false);
-  const [pendingPostTypeStep, setPendingPostTypeStep] = useState<string | null>(null);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-
-  const [tempPacketId, setTempPacketId] = useState<string | null>(null);
-  const [realMockupUrl, setRealMockupUrl] = useState<string | null>(null);
-  const [lifestyleMockupUrl, setLifestyleMockupUrl] = useState<string | null>(null);
-  const [isGeneratingRealMockup, setIsGeneratingRealMockup] = useState(false);
-  const packetCreating = useRef(false);
-
-  const [guidedQueue, setGuidedQueue] = useState<string[]>(isGuided ? ['welcome', 'product'] : []);
-  const [guidedSeenSteps, setGuidedSeenSteps] = useState<Set<string>>(new Set(isGuided ? ['product'] : []));
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [simpleStep]);
+  const state = useOwnerWizardState(preSelectedType, isGuided);
+  const {
+    simpleStep, setSimpleStep,
+    selectedProductType, selectedColor, selectedShirtSize,
+    selectedPlacements, graphicLocation, graphicSize,
+    qrType, textLayoutChoice, headerStyle, footerStyle,
+    currentPlacementIndex, placementGraphicChoice,
+    qrBasicInputType, qrBasicContent, qrBasicMockup,
+    qrPositionX, qrPositionY, qrSizePercent,
+    areaImageUrl, areaImageMode,
+    qrPlusMockup, isGeneratingBasicMockup, isGeneratingPlusMockup,
+    wantsHeaderFooter, perPlacementSizes,
+    showMemberPitch, setShowMemberPitch,
+    showCheckoutCard, isCheckingOut,
+    tempPacketId, realMockupUrl, lifestyleMockupUrl, isGeneratingRealMockup,
+    runningCost, costPulse, currentPlacement,
+    placementCostExtra, textLineCost, textLines, sizeCostBonuses,
+    pricingSettings,
+    guidedQueue, setGuidedQueue, guidedSeenSteps, setGuidedSeenSteps,
+    pendingPostTypeStep, setPendingPostTypeStep,
+    updateTempPacket, generateRealMockup, handlePublicCheckout, handleProductSelect,
+  } = state;
 
   useEffect(() => {
     if (!isGuided) return;
@@ -100,7 +69,7 @@ export function OwnerWizard() {
     scrollToTop();
     if (guidedQueue[0] === 'checkout') {
       setGuidedQueue([]);
-      setShowCheckoutCard(false);
+      state.setShowCheckoutCard(false);
       handlePublicCheckout();
       return;
     }
@@ -119,119 +88,6 @@ export function OwnerWizard() {
     }
   };
 
-  const createTempPacket = useCallback(async (product: AllowedProduct) => {
-    if (packetCreating.current || tempPacketId) return;
-    packetCreating.current = true;
-    try {
-      const res = await fetch('/api/public/packets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wizardType: 'owner',
-          blueprintId: product.blueprintId,
-          printProviderId: product.printProviderId,
-          productTitle: product.title,
-          retailPrice: product.retailPrice,
-          fulfillmentProvider: product.fulfillmentProvider || 'printify',
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTempPacketId(data.tempPacketId);
-        console.log('[OwnerWizard] Temp packet created:', data.tempPacketId);
-      }
-    } catch (err) {
-      console.warn('[OwnerWizard] Failed to create temp packet:', err);
-    } finally {
-      packetCreating.current = false;
-    }
-  }, [tempPacketId]);
-
-  const updateTempPacket = useCallback(async (updates: Record<string, any>) => {
-    if (!tempPacketId) return;
-    try {
-      await fetch(`/api/public/packets/${tempPacketId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-    } catch (err) {
-      console.warn('[OwnerWizard] Failed to update temp packet:', err);
-    }
-  }, [tempPacketId]);
-
-  const generateRealMockup = useCallback(async (): Promise<boolean> => {
-    if (!selectedProductType) return false;
-    setIsGeneratingRealMockup(true);
-    try {
-      const colorInfo = SHIRT_COLORS.find(c => c.id === selectedColor);
-      const qrContent = qrType === 'qr-basic'
-        ? qrBasicContent || 'https://example.com'
-        : `${window.location.origin}/preview/${Date.now()}`;
-
-      const res = await fetch('/api/public/generate-mockup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tempPacketId,
-          blueprintId: selectedProductType.blueprintId,
-          printProviderId: selectedProductType.printProviderId || 99,
-          colorName: colorInfo?.name || selectedColor,
-          colorHex: colorInfo?.hex || '#1a1a1a',
-          placement: selectedPlacements[0] || 'front',
-          qrSize: graphicSize || 'medium',
-          qrUrl: qrContent,
-          headerStyle: headerStyle,
-          footerStyle: footerStyle,
-          textLayoutChoice: textLayoutChoice,
-          qrColor: (colorInfo?.textColor === '#FFFFFF') ? 'white' : 'black',
-          fulfillmentProvider: selectedProductType.fulfillmentProvider || 'printify',
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.mockupUrl) {
-        setRealMockupUrl(data.mockupUrl);
-        setLifestyleMockupUrl(data.lifestyleMockupUrl || null);
-        console.log('[OwnerWizard] Real mockup generated:', data.mockupUrl);
-        return true;
-      } else {
-        console.warn('[OwnerWizard] Mockup generation returned:', data);
-        return false;
-      }
-    } catch (err) {
-      console.warn('[OwnerWizard] Mockup generation failed:', err);
-      return false;
-    } finally {
-      setIsGeneratingRealMockup(false);
-    }
-  }, [selectedProductType, selectedColor, qrType, qrBasicContent, selectedPlacements, graphicSize, headerStyle, footerStyle, textLayoutChoice, tempPacketId]);
-
-  const { data: pricingSettings } = useQuery<{
-    memberProfitShare: number;
-    additionalPlacementCost: number;
-    textLineUpcharge: number;
-    sizeUpcharges: Record<string, number>;
-    baseRetailPrice: number;
-  }>({
-    queryKey: ['/api/pricing-settings'],
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
-
-  const placementCostExtra = pricingSettings?.additionalPlacementCost || 4;
-  const textLineCost = pricingSettings?.textLineUpcharge || 2;
-
-  const sizeCostBonuses = useMemo(() => {
-    const defaultUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10 };
-    const upcharges = pricingSettings?.sizeUpcharges || defaultUpcharges;
-    const bonuses: Record<string, number> = {};
-    for (const size of SHIRT_SIZES) {
-      bonuses[size] = upcharges[size] || 0;
-    }
-    return bonuses;
-  }, [pricingSettings]);
-
   const allowedTypes = minTierIndex >= 0
     ? TIER_ORDER.slice(minTierIndex)
     : TIER_ORDER;
@@ -244,60 +100,6 @@ export function OwnerWizard() {
     { id: 'qr-compose' as QRType, label: 'QR Compose', description: 'Build a rotating playlist', icon: Sparkles, color: 'bg-amber-600', requiresMember: true },
   ];
 
-  const handleProductSelect = (product: AllowedProduct) => {
-    setSelectedProductType(product);
-    const basePrice = product.retailPrice || pricingSettings?.baseRetailPrice || 29.99;
-    setRunningCost(basePrice);
-    setCostPulse(true);
-    setTimeout(() => setCostPulse(false), 600);
-    createTempPacket(product);
-
-    if (!product.placements || product.placements.length === 0) {
-      const provider = product.fulfillmentProvider || 'printify';
-      const params = new URLSearchParams({ provider });
-      if (provider === 'printify') {
-        if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
-        if (product.printProviderId) params.set('printProviderId', String(product.printProviderId));
-      } else {
-        params.set('productId', String(product.blueprintId));
-      }
-      fetch(`/api/public/catalog/placements?${params}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.placements && data.placements.length > 0) {
-            setSelectedProductType(prev => prev ? { ...prev, placements: data.placements } : prev);
-          }
-        })
-        .catch(err => console.warn('[OwnerWizard] Failed to fetch placements:', err));
-    }
-  };
-
-  const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
-
-  const handlePublicCheckout = useCallback(async () => {
-    if (!tempPacketId || isCheckingOut) return;
-    setIsCheckingOut(true);
-    try {
-      const resp = await fetch('/api/public/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tempPacketId }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) {
-        console.error('[OwnerWizard] Checkout error:', data.error);
-        setIsCheckingOut(false);
-        return;
-      }
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('[OwnerWizard] Checkout failed:', err);
-      setIsCheckingOut(false);
-    }
-  }, [tempPacketId, isCheckingOut]);
-
   const { canProceed, isFinalStep, handleNext, handleBack, getTierInfo } = useOwnerWizardNav(
     {
       simpleStep, selectedProductType, selectedColor, selectedShirtSize,
@@ -308,11 +110,19 @@ export function OwnerWizard() {
       runningCost, realMockupUrl, lifestyleMockupUrl, currentPlacement, sizeCostBonuses,
     },
     {
-      setSimpleStep, setWantsHeaderFooter, setCurrentPlacementIndex, setGraphicSize,
-      setPlacementGraphicChoice, setPerPlacementSizes, setIsGeneratingBasicMockup,
-      setIsGeneratingPlusMockup, setQrBasicMockup, setQrPlusMockup, setShowCheckoutCard,
-      setShowMemberPitch, setGuidedQueue, setPendingPostTypeStep, updateTempPacket,
-      generateRealMockup, handlePublicCheckout,
+      setSimpleStep, setWantsHeaderFooter: state.setWantsHeaderFooter,
+      setCurrentPlacementIndex: state.setCurrentPlacementIndex,
+      setGraphicSize: state.setGraphicSize,
+      setPlacementGraphicChoice: state.setPlacementGraphicChoice,
+      setPerPlacementSizes: state.setPerPlacementSizes,
+      setIsGeneratingBasicMockup: state.setIsGeneratingBasicMockup,
+      setIsGeneratingPlusMockup: state.setIsGeneratingPlusMockup,
+      setQrBasicMockup: state.setQrBasicMockup,
+      setQrPlusMockup: state.setQrPlusMockup,
+      setShowCheckoutCard: state.setShowCheckoutCard,
+      setShowMemberPitch: state.setShowMemberPitch,
+      setGuidedQueue, setPendingPostTypeStep,
+      updateTempPacket, generateRealMockup, handlePublicCheckout,
     }
   );
 
@@ -466,25 +276,25 @@ export function OwnerWizard() {
               preSelectedType={preSelectedType}
               minTierIndex={minTierIndex}
               textLines={textLines}
-              setSelectedColor={setSelectedColor}
-              setSelectedShirtSize={setSelectedShirtSize}
-              setQrType={setQrType}
-              setSelectedPlacements={setSelectedPlacements}
-              setGraphicSize={setGraphicSize}
-              setWantsHeaderFooter={setWantsHeaderFooter}
-              setHeaderStyle={setHeaderStyle}
-              setFooterStyle={setFooterStyle}
-              setTextLayoutChoice={setTextLayoutChoice}
-              setPlacementGraphicChoice={setPlacementGraphicChoice}
-              setQrBasicInputType={setQrBasicInputType}
-              setQrBasicContent={setQrBasicContent}
-              setQrPositionX={setQrPositionX}
-              setQrPositionY={setQrPositionY}
-              setQrSizePercent={setQrSizePercent}
-              setAreaImageUrl={setAreaImageUrl}
-              setAreaImageMode={setAreaImageMode}
-              setRunningCost={setRunningCost}
-              setCostPulse={setCostPulse}
+              setSelectedColor={state.setSelectedColor}
+              setSelectedShirtSize={state.setSelectedShirtSize}
+              setQrType={state.setQrType}
+              setSelectedPlacements={state.setSelectedPlacements}
+              setGraphicSize={state.setGraphicSize}
+              setWantsHeaderFooter={state.setWantsHeaderFooter}
+              setHeaderStyle={state.setHeaderStyle}
+              setFooterStyle={state.setFooterStyle}
+              setTextLayoutChoice={state.setTextLayoutChoice}
+              setPlacementGraphicChoice={state.setPlacementGraphicChoice}
+              setQrBasicInputType={state.setQrBasicInputType}
+              setQrBasicContent={state.setQrBasicContent}
+              setQrPositionX={state.setQrPositionX}
+              setQrPositionY={state.setQrPositionY}
+              setQrSizePercent={state.setQrSizePercent}
+              setAreaImageUrl={state.setAreaImageUrl}
+              setAreaImageMode={state.setAreaImageMode}
+              setRunningCost={state.setRunningCost}
+              setCostPulse={state.setCostPulse}
               setSimpleStep={setSimpleStep}
               handleProductSelect={handleProductSelect}
               navigate={navigate}
