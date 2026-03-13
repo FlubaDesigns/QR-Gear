@@ -81,7 +81,7 @@ export interface EmbedValidationResult {
   pricingPolicy?: any;
   revenueSplit?: any;
   affiliateUserId?: string;
-  affiliateSource?: 'placement' | 'host_owner' | 'none';
+  affiliateSource?: 'placement' | 'host_owner' | 'profile' | 'none';
 }
 
 export async function validateEmbedContext(
@@ -159,18 +159,21 @@ export async function validateEmbedContext(
   }
 
   let affiliateUserId = '';
-  let affiliateSource: 'placement' | 'host_owner' | 'none' = 'none';
+  let affiliateSource: 'placement' | 'host_owner' | 'profile' | 'none' = 'none';
   if (placement.affiliateUserId) {
     affiliateUserId = placement.affiliateUserId;
     affiliateSource = 'placement';
   } else if (host.ownerUserId) {
     affiliateUserId = host.ownerUserId;
     affiliateSource = 'host_owner';
+  } else if (profile?.affiliateUserId) {
+    affiliateUserId = profile.affiliateUserId;
+    affiliateSource = 'profile';
   }
 
   if (revenueSplit && revenueSplit.affiliatePercent > 0 && !affiliateUserId) {
     if (revenueSplit.requireAffiliate !== false) {
-      return { valid: false, error: 'Revenue sharing is enabled but no affiliate user could be resolved (check placement.affiliateUserId or host.ownerUserId)' };
+      return { valid: false, error: 'Revenue sharing is enabled but no affiliate user could be resolved (checked placement.affiliateUserId, host.ownerUserId, and profile.affiliateUserId)' };
     }
   }
 

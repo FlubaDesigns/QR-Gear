@@ -260,6 +260,18 @@ async function createPacketOrder(input: CreateOrderInput, nowISO: string): Promi
 
 async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promise<CreateOrderResult> {
   const ctx = input.embedContext!;
+  const qty = input.cartItems?.[0]?.quantity || 1;
+  const snapshot = input.pricingSnapshot;
+
+  const existingAttrib = await db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION)
+    .where('stripeCheckoutSessionId', '==', input.stripeSessionId)
+    .limit(1).get();
+  if (!existingAttrib.empty) {
+    const existing = existingAttrib.docs[0].data();
+    console.log(`[OrderService] Embed attribution already exists for ${input.stripeSessionId}, returning existing`);
+    return { orderId: input.stripeSessionId, orderItemId: existing.orderItemId || '', alreadyExisted: true, orderData: existing };
+  }
+
   const orderItemId = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
   const attributionData: Record<string, any> = {
@@ -273,8 +285,8 @@ async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promis
     variantId: ctx.variantId || null,
     pricingPolicyId: ctx.pricingPolicyId || '',
     revenueSplitId: ctx.revenueSplitId || '',
-    ...(input.pricingSnapshot || {}),
-    quantity: input.cartItems?.[0]?.quantity || 1,
+    ...(snapshot || {}),
+    quantity: qty,
     designSelections: ctx.designSelections || {},
     qrSelections: ctx.qrSelections || {},
     previewSnapshot: ctx.previewSnapshot || null,
@@ -283,13 +295,36 @@ async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promis
     createdAt: nowISO,
   };
 
-  await db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION).add(attributionData);
-  console.log(`[OrderService] Embed attribution created for stripe session ${input.stripeSessionId}`);
+  const batch = db.batch();
+
+  const attribRef = db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION).doc();
+  batch.set(attribRef, attributionData);
+
+  if (ctx.affiliateUserId && snapshot && snapshot.affiliateAmount > 0) {
+    const payoutRef = db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).doc();
+    batch.set(payoutRef, {
+      affiliateUserId: ctx.affiliateUserId,
+      builderHostId: ctx.builderHostId || '',
+      builderPlacementId: ctx.builderPlacementId || '',
+      orderId: input.stripeSessionId,
+      orderItemId,
+      affiliateAmount: snapshot.affiliateAmount * qty,
+      currency: snapshot.currency,
+      status: 'pending',
+      periodKey: getPeriodKey(),
+      createdAt: nowISO,
+    });
+  }
+
+  await batch.commit();
+  console.log(`[OrderService] Embed attribution + payout ledger created atomically for stripe session ${input.stripeSessionId}`);
 
   return { orderId: input.stripeSessionId, orderItemId, alreadyExisted: false, orderData: attributionData };
 }
 
 export async function confirmEmbedOrderPayout(stripeSessionId: string): Promise<void> {
+  const nowISO = new Date().toISOString();
+
   const attribSnap = await db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION)
     .where('stripeCheckoutSessionId', '==', stripeSessionId)
     .limit(1).get();
@@ -307,39 +342,38 @@ export async function confirmEmbedOrderPayout(stripeSessionId: string): Promise<
     return;
   }
 
-  await attribDoc.ref.update({ status: 'paid', paidAt: new Date().toISOString() });
+  const batch = db.batch();
+
+  batch.update(attribDoc.ref, { status: 'paid', paidAt: nowISO });
+
+  const payoutSnap = await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION)
+    .where('orderId', '==', stripeSessionId)
+    .limit(1).get();
+
+  if (!payoutSnap.empty) {
+    batch.update(payoutSnap.docs[0].ref, { status: 'approved', approvedAt: nowISO });
+    console.log(`[OrderService] Payout ledger ${payoutSnap.docs[0].id} confirmed for ${stripeSessionId}`);
+  } else if (attrib.affiliateUserId && attrib.affiliateAmount > 0) {
+    const legacyPayoutRef = db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).doc();
+    batch.set(legacyPayoutRef, {
+      affiliateUserId: attrib.affiliateUserId,
+      builderHostId: attrib.builderHostId || '',
+      builderPlacementId: attrib.builderPlacementId || '',
+      orderId: stripeSessionId,
+      orderItemId: attrib.orderItemId || '',
+      affiliateAmount: attrib.affiliateAmount * (attrib.quantity || 1),
+      currency: attrib.currency || 'USD',
+      status: 'approved',
+      approvedAt: nowISO,
+      periodKey: getPeriodKey(),
+      createdAt: nowISO,
+      legacyBackfill: true,
+    });
+    console.log(`[OrderService] Legacy payout ledger created for pre-patch attribution ${stripeSessionId}`);
+  }
+
+  await batch.commit();
   console.log(`[OrderService] Embed attribution ${attribDoc.id} confirmed paid for ${stripeSessionId}`);
-
-  const snapshot: PricingSnapshot = {
-    baseSalePrice: attrib.baseSalePrice || 0,
-    displaySalePrice: attrib.displaySalePrice || 0,
-    productCost: attrib.productCost || 0,
-    providerCost: attrib.providerCost || 0,
-    platformFeeAmount: attrib.platformFeeAmount || 0,
-    shippingCostBurden: attrib.shippingCostBurden || 0,
-    discountBurden: attrib.discountBurden || 0,
-    grossProfitAmount: attrib.grossProfitAmount || 0,
-    affiliatePercent: attrib.affiliatePercent || 0,
-    affiliateBasis: attrib.affiliateBasis || 'gross_profit',
-    affiliateAmount: attrib.affiliateAmount || 0,
-    netPlatformProfitAmount: attrib.netPlatformProfitAmount || 0,
-    currency: attrib.currency || 'USD',
-    pricingSnapshotVersion: attrib.pricingSnapshotVersion || '1.0',
-    createdAt: attrib.createdAt || new Date().toISOString(),
-  };
-
-  await writePayoutAttribution({
-    source: 'external_embed',
-    orderId: stripeSessionId,
-    orderItemId: attrib.orderItemId || '',
-    orderTotal: snapshot.displaySalePrice * (attrib.quantity || 1),
-    productCost: snapshot.productCost,
-    pricingSnapshot: snapshot,
-    affiliateUserId: attrib.affiliateUserId || '',
-    builderHostId: attrib.builderHostId || '',
-    builderPlacementId: attrib.builderPlacementId || '',
-    quantity: attrib.quantity || 1,
-  });
 }
 
 export interface PayoutAttributionInput {
