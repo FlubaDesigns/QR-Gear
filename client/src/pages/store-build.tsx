@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -21,29 +20,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  ChevronRight,
-  Loader2,
-  Plus,
-  Check,
-  X,
-  Flag,
-  Globe2,
-  Star,
-} from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronRight, Loader2, Plus, Check, Flag } from "lucide-react";
 import { StoreBuildProductCard, StoreBuildOptionsDialog } from "./store-build-components";
 
 type ProductConfig = {

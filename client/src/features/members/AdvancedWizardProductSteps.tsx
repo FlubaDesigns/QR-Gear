@@ -87,7 +87,7 @@ export function AdvancedWizardProductSteps() {
     channelName: selectedChannel?.name || '',
   });
 
-  const handleCreateAnother = () => {
+  const resetWizardState = () => {
     setSimpleStep('channel');
     setCurrentPacketId(null);
     setSimpleTitle('');
@@ -98,17 +98,8 @@ export function AdvancedWizardProductSteps() {
     setProductGraphic('');
   };
 
-  const handleBackToDashboard = () => {
-    setSimpleStep('channel');
-    setViewMode('index');
-    setCurrentPacketId(null);
-    setSimpleTitle('');
-    setSimpleDescription('');
-    setQrType('');
-    setContentRightsConfirmed(false);
-    setUrlGraphic('');
-    setProductGraphic('');
-  };
+  const handleCreateAnother = () => resetWizardState();
+  const handleBackToDashboard = () => { resetWizardState(); setViewMode('index'); };
 
   return (
     <>
