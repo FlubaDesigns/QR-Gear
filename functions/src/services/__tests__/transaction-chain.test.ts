@@ -157,6 +157,10 @@ describe('Embed order transaction chain', () => {
     const result = await createCanonicalOrder({
       source: 'external_embed',
       stripeSessionId: 'cs_test_atomic_1',
+      buyerEmail: '',
+      buyerName: '',
+      shippingAddress: null,
+      totalAmount: 24.99 * 2,
       cartItems: [{ surfaceId: 's1', variantId: 'v1', quantity: 2 }],
       pricingSnapshot,
       embedContext: {
@@ -213,6 +217,10 @@ describe('Embed order transaction chain', () => {
     const result = await createCanonicalOrder({
       source: 'external_embed',
       stripeSessionId: 'cs_test_dup',
+      buyerEmail: '',
+      buyerName: '',
+      shippingAddress: null,
+      totalAmount: 20,
       cartItems: [{ surfaceId: 's1', variantId: 'v1', quantity: 1 }],
       pricingSnapshot,
       embedContext: {
