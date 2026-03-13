@@ -1,17 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Store, Loader2, Package, Layers, RefreshCw } from "lucide-react";
-import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { Loader2 } from "lucide-react";
 import { TemplatePickerSkin } from "@/features/shared/components/skins";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { authFetch } from "@/features/adminAuth/authFetch";
-import { Card } from "@/components/ui/card";
 import type { PartnerStore } from "@shared/schema";
 import { getColorHex, type ProductPackage, type ProductConfiguration, type MockupJob, type StoreType } from "./store-builder-types";
-import { CollapsibleSection, HeroImageLightbox } from "./StoreBuilderComponents";
-import { StoreBuilderProductDetail } from "./StoreBuilderProductDetail";
-import { StoreBuilderAssignment } from "./StoreBuilderAssignment";
+import { StoreBuilderOverview } from "./StoreBuilderOverview";
+import { StoreBuilderCatalog } from "./StoreBuilderCatalog";
+import { StoreBuilderDestination } from "./StoreBuilderDestination";
 import { executeCreateStore, executeCreateChannel, executeAssign } from "./store-builder-actions";
 
 export function StoreBuilderHarness() {
@@ -40,20 +38,21 @@ export function StoreBuilderHarness() {
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
   const [wantsToChangeDestination, setWantsToChangeDestination] = useState(false);
   const queryClient = useQueryClient();
-  const fetchTemplates = useCallback(async () => {
+
+  const fetchTemplates = useCallback(async (): Promise<Array<{ id: string; name: string; primaryImage?: string | null; secondaryImage?: string | null; productName?: string | null; packetId?: string | null; qrMode?: string | null; colorCount?: number; sizeCount?: number }>> => {
     const res = await authFetch(`${apiBase}/templates`, getAuthHeaders);
     const data = await res.json();
     if (data.templates) {
-      return data.templates.map((t: any) => ({
-        id: t.id,
-        name: t.name || t.productName || `Template ${t.id.slice(0, 6)}`,
-        primaryImage: t.thumbnailUrl || t.artworkUrl || t.compositeUrl,
-        secondaryImage: t.qrOnlyUrl,
-        productName: t.productName,
-        packetId: t.packetId,
-        qrMode: t.qrMode || t.qrProductState,
-        colorCount: t.colorCount || t.colors?.length,
-        sizeCount: t.sizeCount || t.sizes?.length,
+      return data.templates.map((t: Record<string, unknown>) => ({
+        id: t.id as string,
+        name: (t.name || t.productName || `Template ${String(t.id).slice(0, 6)}`) as string,
+        primaryImage: (t.thumbnailUrl || t.artworkUrl || t.compositeUrl) as string | null,
+        secondaryImage: t.qrOnlyUrl as string | null,
+        productName: t.productName as string | null,
+        packetId: t.packetId as string | null,
+        qrMode: (t.qrMode || t.qrProductState) as string | null,
+        colorCount: (t.colorCount || (t.colors as string[] | undefined)?.length) as number | undefined,
+        sizeCount: (t.sizeCount || (t.sizes as string[] | undefined)?.length) as number | undefined,
       }));
     }
     return [];
@@ -100,7 +99,7 @@ export function StoreBuilderHarness() {
     if (productPackage) {
       const colors = productPackage.colors?.map(c => c.name) || [];
       const sizes = productPackage.sizes || [];
-      const packetDefaultColor = (productPackage as any).defaultColor;
+      const packetDefaultColor = (productPackage as Record<string, unknown>).defaultColor as string | undefined;
       const resolvedDefaultColor = packetDefaultColor && colors.includes(packetDefaultColor) 
         ? packetDefaultColor 
         : colors[0] || "";
@@ -108,13 +107,12 @@ export function StoreBuilderHarness() {
       const initialConfig = {
         enabledColors: new Set(colors),
         enabledSizes: new Set(sizes),
-        selectedGraphicSize: (productPackage as any).placementSizes?.front || "medium",
+        selectedGraphicSize: ((productPackage as Record<string, unknown>).placementSizes as Record<string, string> | undefined)?.front || "medium",
         defaultColor: resolvedDefaultColor,
       };
       
       setConfiguration(initialConfig);
       
-      // Store original config only on first load (when originalConfiguration is null)
       if (isEditMode && !originalConfiguration) {
         setOriginalConfiguration(initialConfig);
       }
@@ -127,18 +125,14 @@ export function StoreBuilderHarness() {
     const urlStoreId = urlParams.get("storeId");
     const urlChannel = urlParams.get("channel");
     
-    if (urlStoreId) {
-      setSelectedStoreId(urlStoreId);
-    }
-    if (urlChannel) {
-      setSelectedChannel(urlChannel);
-    }
+    if (urlStoreId) setSelectedStoreId(urlStoreId);
+    if (urlChannel) setSelectedChannel(urlChannel);
     
     if (packetId) {
       setIsLoadingPacket(true);
       setOriginalPacketId(packetId);
       setIsEditMode(true);
-      setOriginalConfiguration(null); // Reset so new packet records its own baseline
+      setOriginalConfiguration(null);
       authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders)
         .then(res => res.json())
         .then(data => {
@@ -172,7 +166,6 @@ export function StoreBuilderHarness() {
               defaultColorHex: packet.defaultColorHex,
               placementSizes: packet.placementSizes,
               priorityMockupUrl: packet.priorityMockupUrl || null,
-              // Destination from Products Builder
               destinationRoleType: packet.roleType || null,
               destinationStoreId: packet.storeId || null,
               destinationStoreName: packet.storeName || null,
@@ -181,10 +174,8 @@ export function StoreBuilderHarness() {
             };
             setProductPackage(loadedPackage);
             
-            // Pre-select store/channel from packet's destination if not already set via URL
             if (!urlStoreId && packet.storeId) {
               setSelectedStoreId(packet.storeId);
-              // Set store type based on packet's roleType (internal/external/member)
               if (packet.roleType === "internal" || packet.roleType === "external") {
                 setSelectedStoreType(packet.roleType as StoreType);
               }
@@ -193,7 +184,6 @@ export function StoreBuilderHarness() {
               setSelectedChannel(packet.channelName);
             }
             
-            // Auto-fetch collections when destination is pre-set
             if (packet.storeId && packet.channelName) {
               authFetch(`${apiBase}/stores/${packet.storeId}/channels/${packet.channelName}/collections`, getAuthHeaders)
                 .then(res => res.json())
@@ -201,17 +191,7 @@ export function StoreBuilderHarness() {
                 .catch(() => setExistingCollections([]));
             }
             
-            console.log("[StoreBuilder] Loaded destination from packet:", {
-              roleType: packet.roleType,
-              storeId: packet.storeId,
-              storeName: packet.storeName,
-              channelName: packet.channelName,
-            });
-            
-            // Priority mockup should already be in the packet from Create Packet flow
-            // Only generate if missing from packet
             if (!packet.priorityMockupUrl && packet.blueprintId && packet.compositeUrl) {
-              console.log("[StoreBuilder] Priority mockup not in packet, generating...");
               const placement = (packet.placements || ["front"])[0];
               const colorName = packet.defaultColor || (packet.colors?.[0]?.name) || "Black";
               const colorHex = packet.defaultColorHex || (packet.colors?.[0]?.hex) || "#000000";
@@ -237,14 +217,12 @@ export function StoreBuilderHarness() {
                   }
                 })
                 .catch(() => {});
-            } else if (packet.priorityMockupUrl) {
-              console.log("[StoreBuilder] Priority mockup loaded from packet:", packet.priorityMockupUrl);
             }
           }
         })
         .catch(err => {
           console.error("Failed to load packet:", err);
-          setSaveStatus({ type: "error", message: `Failed to load packet: ${err.message}` });
+          setSaveStatus({ type: "error", message: `Failed to load packet: ${(err as Error).message}` });
         })
         .finally(() => {
           setIsLoadingPacket(false);
@@ -252,17 +230,13 @@ export function StoreBuilderHarness() {
       return;
     }
 
-    // No packetId in URL - user should go to Products Builder first
     setProductPackage(null);
   }, [location, apiBase]);
 
   const currentMockup = mockups.find(
-    m => m.status === "completed" && 
-         m.mockupUrl && 
-         m.color === configuration.defaultColor
+    m => m.status === "completed" && m.mockupUrl && m.color === configuration.defaultColor
   );
 
-  // Priority: priority mockup > template mockup > product image > composite
   const previewImageUrl = productPackage?.priorityMockupUrl || currentMockup?.mockupUrl || productPackage?.productImageUrl || productPackage?.compositeUrl;
 
   const packetThumbnails = [
@@ -302,9 +276,7 @@ export function StoreBuilderHarness() {
   const setDefaultColor = (color: string) => {
     setConfiguration(prev => {
       const newEnabledColors = new Set(prev.enabledColors);
-      if (!newEnabledColors.has(color)) {
-        newEnabledColors.add(color);
-      }
+      if (!newEnabledColors.has(color)) newEnabledColors.add(color);
       return { ...prev, defaultColor: color, enabledColors: newEnabledColors };
     });
   };
@@ -333,8 +305,8 @@ export function StoreBuilderHarness() {
         setSelectedStoreId(result.id);
         setSelectedChannel(null);
       }
-    } catch (err: any) {
-      setSaveStatus({ type: "error", message: err.message || "Failed to create store" });
+    } catch (err: unknown) {
+      setSaveStatus({ type: "error", message: (err as Error).message || "Failed to create store" });
     } finally {
       setIsCreatingStore(false);
     }
@@ -348,8 +320,8 @@ export function StoreBuilderHarness() {
       setNewChannelName("");
       setShowAddChannel(false);
       if (result.name) setSelectedChannel(result.name);
-    } catch (err: any) {
-      setSaveStatus({ type: "error", message: err.message || "Failed to create channel" });
+    } catch (err: unknown) {
+      setSaveStatus({ type: "error", message: (err as Error).message || "Failed to create channel" });
     } finally {
       setIsCreatingChannel(false);
     }
@@ -377,10 +349,60 @@ export function StoreBuilderHarness() {
         setProductPackage(prev => prev ? { ...prev, templateId: result.newTemplateId } : null);
       }
       setSaveStatus({ type: "success", message: result.message });
-    } catch (error: any) {
-      setSaveStatus({ type: "error", message: error.message || "Failed to assign to store" });
+    } catch (error: unknown) {
+      setSaveStatus({ type: "error", message: (error as Error).message || "Failed to assign to store" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleTemplateSelect = (packetId: string) => {
+    navigate(`/admin/store-builder?packetId=${packetId}`);
+  };
+
+  const handleRefreshPacket = () => {
+    const currentPacketId = productPackage?.packetId;
+    if (currentPacketId) {
+      setProductPackage(null);
+      setTimeout(() => {
+        navigate(`/admin/store-builder?packetId=${currentPacketId}`);
+      }, 50);
+    }
+  };
+
+  const handleClearAfterAssign = () => {
+    setSaveStatus(null);
+    setProductPackage(null);
+    setSelectedStoreId(null);
+    setSelectedChannel(null);
+    setIsEditMode(false);
+    setOriginalPacketId(null);
+    setOriginalConfiguration(null);
+    setConfiguration({
+      enabledColors: new Set<string>(),
+      enabledSizes: new Set<string>(),
+      selectedGraphicSize: "medium",
+      defaultColor: "",
+    });
+    navigate("/admin/store-builder");
+  };
+
+  const handleViewInStore = () => {
+    if (selectedStoreId && selectedChannel) {
+      navigate(`/admin/store-library?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);
+    }
+  };
+
+  const handleChannelSelect = async (channel: string) => {
+    setSelectedChannel(channel);
+    setSelectedCollection("");
+    setWantsToChangeDestination(false);
+    try {
+      const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`, getAuthHeaders);
+      const data = await res.json();
+      setExistingCollections(data.collections || []);
+    } catch {
+      setExistingCollections([]);
     }
   };
 
@@ -393,82 +415,35 @@ export function StoreBuilderHarness() {
     );
   }
 
-  const handleTemplateSelect = (packetId: string) => {
-    navigate(`/admin/store-builder?packetId=${packetId}`);
-  };
-
   if (!productPackage) {
     return (
-      <>
-        <Card className="p-4">
-          <div className="text-center py-6">
-            <Package className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-            <h3 className="text-base font-semibold mb-2">No Product Package Loaded</h3>
-            <p className="text-muted-foreground mb-4 text-sm">
-              Load from your library or create a new product.
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => setTemplatePickerOpen(true)}
-                className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full"
-                data-testid="button-load-templates"
-              >
-                <Layers className="h-5 w-5" />
-                Load Template
-              </button>
-              <button
-                onClick={() => navigate("/admin/products")}
-                className="qr-btn qr-btn--outline qr-btn--xl qr-btn--full"
-                data-testid="button-go-products"
-              >
-                <Package className="h-5 w-5" />
-                Create New in Products
-              </button>
-            </div>
-          </div>
-        </Card>
-        <TemplatePickerSkin
-          isOpen={templatePickerOpen}
-          onClose={() => setTemplatePickerOpen(false)}
-          onSelect={handleTemplateSelect}
-          fetchTemplates={fetchTemplates}
-        />
-      </>
+      <StoreBuilderOverview
+        productPackage={null}
+        templatePickerOpen={templatePickerOpen}
+        onTemplatePickerOpen={() => setTemplatePickerOpen(true)}
+        onTemplatePickerClose={() => setTemplatePickerOpen(false)}
+        onTemplateSelect={handleTemplateSelect}
+        fetchTemplates={fetchTemplates}
+        onRefreshPacket={handleRefreshPacket}
+        onNavigateProducts={() => navigate("/admin/products")}
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3">
-        {productPackage?.packetId && (
-          <button
-            onClick={() => {
-              const currentPacketId = productPackage.packetId;
-              if (currentPacketId) {
-                setProductPackage(null);
-                setTimeout(() => {
-                  navigate(`/admin/store-builder?packetId=${currentPacketId}`);
-                }, 50);
-              }
-            }}
-            className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full"
-            data-testid="button-refresh-packet"
-          >
-            <RefreshCw className="h-5 w-5" />
-            Refresh Packet
-          </button>
-        )}
-        <button
-          onClick={() => setTemplatePickerOpen(true)}
-          className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
-          data-testid="button-load-templates"
-        >
-          <Layers className="h-5 w-5" />
-          Load Template
-        </button>
-      </div>
+      <StoreBuilderOverview
+        productPackage={productPackage}
+        templatePickerOpen={templatePickerOpen}
+        onTemplatePickerOpen={() => setTemplatePickerOpen(true)}
+        onTemplatePickerClose={() => setTemplatePickerOpen(false)}
+        onTemplateSelect={handleTemplateSelect}
+        fetchTemplates={fetchTemplates}
+        onRefreshPacket={handleRefreshPacket}
+        onNavigateProducts={() => navigate("/admin/products")}
+      />
 
-      <StoreBuilderProductDetail
+      <StoreBuilderCatalog
         productPackage={productPackage}
         configuration={configuration}
         previewImageUrl={previewImageUrl}
@@ -477,126 +452,55 @@ export function StoreBuilderHarness() {
         isEditMode={isEditMode}
         selectedStoreId={selectedStoreId}
         selectedChannel={selectedChannel}
+        mockups={mockups}
+        lightboxOpen={lightboxOpen}
+        thumbnailLightbox={thumbnailLightbox}
         onLightboxOpen={() => setLightboxOpen(true)}
+        onLightboxClose={() => setLightboxOpen(false)}
         onThumbnailClick={setThumbnailLightbox}
+        onThumbnailClose={() => setThumbnailLightbox(null)}
         onGraphicSizeChange={setGraphicSize}
         onToggleSize={toggleSize}
         onToggleColor={toggleColor}
-      />
-
-      <CollapsibleSection
-        title="Assign to Store"
-        icon={<Store className="h-4 w-4" />}
-        defaultOpen={true}
-      >
-        <StoreBuilderAssignment
-          productPackage={productPackage}
-          selectedStoreType={selectedStoreType}
-          selectedStoreId={selectedStoreId}
-          selectedChannel={selectedChannel}
-          selectedCollection={selectedCollection}
-          existingCollections={existingCollections}
-          isSaving={isSaving}
-          wantsToChangeDestination={wantsToChangeDestination}
-          showAddStore={showAddStore}
-          showAddChannel={showAddChannel}
-          newStoreName={newStoreName}
-          newChannelName={newChannelName}
-          isCreatingStore={isCreatingStore}
-          isCreatingChannel={isCreatingChannel}
-          filteredStores={filteredStores}
-          selectedStore={selectedStore}
-          channels={channels}
-          onSetStoreType={setSelectedStoreType}
-          onSetStoreId={setSelectedStoreId}
-          onSetChannel={setSelectedChannel}
-          onSetCollection={setSelectedCollection}
-          onSetWantsToChangeDestination={setWantsToChangeDestination}
-          onSetShowAddStore={setShowAddStore}
-          onSetShowAddChannel={setShowAddChannel}
-          onSetNewStoreName={setNewStoreName}
-          onSetNewChannelName={setNewChannelName}
-          onCreateStore={handleCreateStore}
-          onCreateChannel={handleCreateChannel}
-          onAssign={handleAssign}
-          onChannelSelect={async (channel) => {
-            setSelectedChannel(channel);
-            setSelectedCollection("");
-            setWantsToChangeDestination(false);
-            try {
-              const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`, getAuthHeaders);
-              const data = await res.json();
-              setExistingCollections(data.collections || []);
-            } catch (e) {
-              setExistingCollections([]);
-            }
-          }}
-        />
-      </CollapsibleSection>
-
-      {saveStatus && (
-        <div
-          className={`p-4 rounded-md border ${
-            saveStatus.type === "success"
-              ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
-              : "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200"
-          }`}
-          data-testid="store-save-status"
-        >
-          <span className="text-base font-medium block mb-3">{saveStatus.message}</span>
-          {saveStatus.type === "success" && (
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  setSaveStatus(null);
-                  setProductPackage(null);
-                  setSelectedStoreId(null);
-                  setSelectedChannel(null);
-                  setIsEditMode(false);
-                  setOriginalPacketId(null);
-                  setOriginalConfiguration(null);
-                  setConfiguration({
-                    enabledColors: new Set<string>(),
-                    enabledSizes: new Set<string>(),
-                    selectedGraphicSize: "medium",
-                    defaultColor: "",
-                  });
-                  navigate("/admin/store-builder");
-                }}
-                className="qr-btn qr-btn--outline qr-btn--xl qr-btn--full"
-                data-testid="button-clear-after-assign"
-              >
-                Clear & New
-              </button>
-              <button
-                onClick={() => {
-                  if (selectedStoreId && selectedChannel) {
-                    navigate(`/admin/store-library?storeId=${selectedStoreId}&channel=${encodeURIComponent(selectedChannel)}`);
-                  }
-                }}
-                className="qr-btn qr-btn--primary qr-btn--xl qr-btn--full"
-                data-testid="button-view-store"
-              >
-                View in Store
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <HeroImageLightbox
-        isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-        productPackage={productPackage}
-        configuration={configuration}
-        mockups={mockups}
         onSelectColor={setDefaultColor}
         onSelectGraphicSize={setGraphicSize}
       />
 
-      <ImageModalView
-        imageUrl={thumbnailLightbox}
-        onClose={() => setThumbnailLightbox(null)}
+      <StoreBuilderDestination
+        productPackage={productPackage}
+        configuration={configuration}
+        selectedStoreType={selectedStoreType}
+        selectedStoreId={selectedStoreId}
+        selectedChannel={selectedChannel}
+        selectedCollection={selectedCollection}
+        existingCollections={existingCollections}
+        isSaving={isSaving}
+        wantsToChangeDestination={wantsToChangeDestination}
+        showAddStore={showAddStore}
+        showAddChannel={showAddChannel}
+        newStoreName={newStoreName}
+        newChannelName={newChannelName}
+        isCreatingStore={isCreatingStore}
+        isCreatingChannel={isCreatingChannel}
+        filteredStores={filteredStores}
+        selectedStore={selectedStore}
+        channels={channels}
+        saveStatus={saveStatus}
+        onSetStoreType={setSelectedStoreType}
+        onSetStoreId={setSelectedStoreId}
+        onSetChannel={setSelectedChannel}
+        onSetCollection={setSelectedCollection}
+        onSetWantsToChangeDestination={setWantsToChangeDestination}
+        onSetShowAddStore={setShowAddStore}
+        onSetShowAddChannel={setShowAddChannel}
+        onSetNewStoreName={setNewStoreName}
+        onSetNewChannelName={setNewChannelName}
+        onCreateStore={handleCreateStore}
+        onCreateChannel={handleCreateChannel}
+        onAssign={handleAssign}
+        onChannelSelect={handleChannelSelect}
+        onClearAfterAssign={handleClearAfterAssign}
+        onViewInStore={handleViewInStore}
       />
 
       <TemplatePickerSkin
