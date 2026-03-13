@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check, Tag,
-  Plus, Trash2,
+  Plus, Trash2, Truck,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ interface PricingSettings {
   textLineUpcharge: number;
   centerGraphicUpcharge: number;
   memberProfitShare: number;
+  builtInShippingCost: number;
   hostingTiers: HostingTier[];
   brandLabelPricing: BrandLabelPricing;
   preferredLabelPosition: 'outside' | 'inside';
@@ -78,6 +79,7 @@ export default function AdminPricing() {
   const [textLineUpcharge, setTextLineUpcharge] = useState<string>("");
   const [centerGraphicUpcharge, setCenterGraphicUpcharge] = useState<string>("");
   const [memberProfitShare, setMemberProfitShare] = useState<string>("");
+  const [builtInShippingCost, setBuiltInShippingCost] = useState<string>("4.95");
   const [hostingTiers, setHostingTiers] = useState<HostingTier[]>([]);
   const [brandLabelPricing, setBrandLabelPricing] = useState<BrandLabelPricing>({
     printifyInside: 0.55,
@@ -95,6 +97,7 @@ export default function AdminPricing() {
     setTextLineUpcharge(String(settings.textLineUpcharge));
     setCenterGraphicUpcharge(String(settings.centerGraphicUpcharge || 5));
     setMemberProfitShare(String((settings.memberProfitShare || 0.25) * 100));
+    setBuiltInShippingCost(String(settings.builtInShippingCost ?? 4.95));
     setHostingTiers(settings.hostingTiers || []);
     if (settings.brandLabelPricing) {
       setBrandLabelPricing(settings.brandLabelPricing);
@@ -127,6 +130,7 @@ export default function AdminPricing() {
       textLineUpcharge: parseFloat(textLineUpcharge) || 0,
       centerGraphicUpcharge: parseFloat(centerGraphicUpcharge) || 0,
       memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100,
+      builtInShippingCost: parseFloat(builtInShippingCost) || 4.95,
       hostingTiers,
       brandLabelPricing,
       preferredLabelPosition,
@@ -298,6 +302,38 @@ export default function AdminPricing() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Charged when a full graphic image is uploaded to the center area (behind or replacing the QR code)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Built-In Shipping Cost
+              </CardTitle>
+              <CardDescription>
+                Shipping cost baked into the product price — customers see "Free Shipping"
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="built-in-shipping">Shipping Cost ($)</Label>
+                <Input
+                  id="built-in-shipping"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={builtInShippingCost}
+                  onChange={(e) => setBuiltInShippingCost(e.target.value)}
+                  placeholder="4.95"
+                  className="min-h-[48px] text-lg max-w-xs"
+                  inputMode="decimal"
+                  data-testid="input-built-in-shipping"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This amount is added to the base cost before markup. Customers will never see this — they see "Free Shipping" at checkout.
                 </p>
               </div>
             </CardContent>
@@ -526,8 +562,9 @@ export default function AdminPricing() {
               <CardTitle className="text-lg">Pricing Formula</CardTitle>
             </CardHeader>
             <CardContent className="font-mono text-sm space-y-1">
-              <p>Base Cost = Production + Placements + Text + Hosting + Brand Label</p>
+              <p>Base Cost = Production + Placements + Text + Hosting + Brand Label + Shipping</p>
               <p>Customer Price = Base x (1 + {markupPercent || 0}%) + ${markupFixed || 0}</p>
+              <p className="text-muted-foreground">Shipping is baked into the price — customers see "Free Shipping"</p>
             </CardContent>
           </Card>
 
@@ -540,7 +577,7 @@ export default function AdminPricing() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground mb-4">
-                Example: $15 base product, 1 extra placement, 1 header/footer zone, 1 center graphic, 1-year hosting, inside brand label
+                Example: $15 base product, 1 extra placement, 1 header/footer zone, 1 center graphic, 1-year hosting, inside brand label, built-in shipping
               </p>
 
               <div className="flex gap-2 mb-4 flex-wrap">
@@ -578,11 +615,16 @@ export default function AdminPricing() {
                   <span className="text-amber-900 dark:text-amber-200">Brand Label (inside):</span>
                   <span className="font-medium text-amber-900 dark:text-amber-200">+${brandLabelPricing.printifyInside.toFixed(2)}</span>
                 </div>
+                <div className="flex justify-between gap-2 p-2 bg-emerald-50 dark:bg-emerald-950 rounded-md border border-emerald-200 dark:border-emerald-800">
+                  <span className="text-emerald-900 dark:text-emerald-200">Built-In Shipping:</span>
+                  <span className="font-medium text-emerald-900 dark:text-emerald-200">+${parseFloat(builtInShippingCost || "4.95").toFixed(2)}</span>
+                </div>
                 
                 <div className="border-t pt-2 mt-2">
                   {(() => {
                     const labelCost = brandLabelPricing.printifyInside;
-                    const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + parseFloat(centerGraphicUpcharge || "5") + (hostingTiers[0]?.price || 5) + labelCost;
+                    const shippingCost = parseFloat(builtInShippingCost || "4.95");
+                    const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + parseFloat(centerGraphicUpcharge || "5") + (hostingTiers[0]?.price || 5) + labelCost + shippingCost;
                     const markupAmount = (subtotal * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0");
                     const customerPrice = subtotal + markupAmount;
                     return (

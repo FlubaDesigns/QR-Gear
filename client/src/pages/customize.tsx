@@ -431,7 +431,7 @@ export default function Customize() {
                     
                     <div className="bg-gradient-to-br from-green-600/20 to-teal-600/20 border border-green-500/30 rounded-xl p-6 text-center">
                       <p className="text-3xl font-bold text-white mb-2">$24.99</p>
-                      <p className="text-slate-400 text-sm">Free shipping on orders over $50</p>
+                      <p className="text-slate-400 text-sm">Free shipping included</p>
                     </div>
                     
                     <Button

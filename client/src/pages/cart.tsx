@@ -268,9 +268,9 @@ export default function Cart() {
                       <span data-testid="text-member-savings">-${(total * CREATOR_DISCOUNT).toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm text-muted-foreground">
+                  <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
                     <span>Shipping</span>
-                    <span>Calculated at checkout</span>
+                    <span data-testid="text-shipping-free">FREE</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">

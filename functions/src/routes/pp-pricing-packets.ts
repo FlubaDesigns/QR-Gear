@@ -46,6 +46,7 @@ app.get('/pricing-settings', async (_req: Request, res: Response): Promise<void>
       res.json({
         markupPercent: 25, markupFixed: 0, additionalPlacementCost: 4,
         textLineUpcharge: 2, centerGraphicUpcharge: 5, memberProfitShare: 0.25,
+        builtInShippingCost: 4.95,
         sizeUpcharges: defaultSizeUpcharges,
         hostingTiers: [
           { code: "1_year", name: "1 Year", price: 5 },
@@ -61,6 +62,7 @@ app.get('/pricing-settings', async (_req: Request, res: Response): Promise<void>
     res.json({
       ...data,
       memberProfitShare: data?.memberProfitShare ?? 0.25,
+      builtInShippingCost: data?.builtInShippingCost ?? 4.95,
       sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
       brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
       preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
@@ -81,7 +83,7 @@ app.get('/admin/pricing-settings', requireAdmin, async (_req: Request, res: Resp
     if (!doc.exists) {
       res.json({
         markupPercent: 25, markupFixed: 0, additionalPlacementCost: 4, textLineUpcharge: 2, centerGraphicUpcharge: 5,
-        memberProfitShare: 0.25, sizeUpcharges: defaultSizeUpcharges,
+        memberProfitShare: 0.25, builtInShippingCost: 4.95, sizeUpcharges: defaultSizeUpcharges,
         hostingTiers: [
           { code: "1_year", name: "1 Year", price: 5 },
           { code: "2_year", name: "2 Years", price: 8 },
@@ -96,6 +98,7 @@ app.get('/admin/pricing-settings', requireAdmin, async (_req: Request, res: Resp
     res.json({
       ...data,
       memberProfitShare: data?.memberProfitShare ?? 0.25,
+      builtInShippingCost: data?.builtInShippingCost ?? 4.95,
       sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
       brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
       preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
@@ -108,7 +111,7 @@ app.get('/admin/pricing-settings', requireAdmin, async (_req: Request, res: Resp
 
 app.post('/admin/pricing-settings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, centerGraphicUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
+    const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, centerGraphicUpcharge, memberProfitShare, builtInShippingCost, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
     const defaultSizeUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
     const defaultBrandLabelPricing = { printifyInside: 0.55, printifyOutside: 0.55, printfulInside: 0.99, printfulOutside: 2.49 };
     const settings = {
@@ -118,6 +121,7 @@ app.post('/admin/pricing-settings', requireAdmin, async (req: Request, res: Resp
       textLineUpcharge: parseFloat(textLineUpcharge) || 2,
       centerGraphicUpcharge: parseFloat(centerGraphicUpcharge) || 5,
       memberProfitShare: parseFloat(memberProfitShare) || 0.25,
+      builtInShippingCost: typeof builtInShippingCost === 'number' ? builtInShippingCost : 4.95,
       sizeUpcharges: sizeUpcharges || defaultSizeUpcharges,
       hostingTiers: hostingTiers || [
         { code: "1_year", name: "1 Year", price: 5 },
