@@ -255,6 +255,62 @@ async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promis
   return { orderId: input.stripeSessionId, orderItemId, alreadyExisted: false, orderData: attributionData };
 }
 
+export async function confirmEmbedOrderPayout(stripeSessionId: string): Promise<void> {
+  const attribSnap = await db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION)
+    .where('stripeCheckoutSessionId', '==', stripeSessionId)
+    .limit(1).get();
+
+  if (attribSnap.empty) {
+    console.warn(`[OrderService] No attribution found for stripe session ${stripeSessionId}`);
+    return;
+  }
+
+  const attribDoc = attribSnap.docs[0];
+  const attrib = attribDoc.data();
+
+  if (attrib.status === 'paid') {
+    console.log(`[OrderService] Embed attribution already confirmed for ${stripeSessionId}, skipping`);
+    return;
+  }
+
+  await attribDoc.ref.update({ status: 'paid', paidAt: new Date().toISOString() });
+  console.log(`[OrderService] Embed attribution ${attribDoc.id} confirmed paid for ${stripeSessionId}`);
+
+  const affiliateUserId = attrib.affiliateUserId;
+  const affiliateAmount = attrib.affiliateAmount || 0;
+  const qty = attrib.quantity || 1;
+
+  if (affiliateUserId && affiliateAmount > 0) {
+    const existingPayout = await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION)
+      .where('orderId', '==', stripeSessionId)
+      .where('affiliateUserId', '==', affiliateUserId)
+      .limit(1).get();
+
+    if (!existingPayout.empty) {
+      console.log(`[OrderService] Payout ledger already exists for ${stripeSessionId}/${affiliateUserId}, skipping`);
+      return;
+    }
+
+    const nowISO = new Date().toISOString();
+    const d = new Date();
+    const periodKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+    await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).add({
+      affiliateUserId,
+      builderHostId: attrib.builderHostId || '',
+      builderPlacementId: attrib.builderPlacementId || '',
+      orderId: stripeSessionId,
+      orderItemId: attrib.orderItemId || '',
+      affiliateAmount: affiliateAmount * qty,
+      currency: attrib.currency || 'USD',
+      status: 'pending',
+      periodKey,
+      createdAt: nowISO,
+    });
+    console.log(`[OrderService] Affiliate ${affiliateUserId} payout $${affiliateAmount * qty} confirmed for ${stripeSessionId}`);
+  }
+}
+
 export interface PayoutAttributionInput {
   source: OrderSource;
   orderId: string;

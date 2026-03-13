@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
-  import { createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
+  import { createCanonicalOrder, writePayoutAttribution, confirmEmbedOrderPayout } from '../services/order-service';
 import Stripe from 'stripe';
-import { getNexusMailService, sendOrderConfirmation as nexusOrderConfirmation, sendShippingNotification as nexusShippingNotification, seedDefaultTemplates } from '../nexusmail';
+import { sendOrderConfirmation as nexusOrderConfirmation } from '../nexusmail';
 
   export function register(app: express.Express): void {
 
@@ -41,8 +41,18 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log('Checkout session completed:', session.id);
+        const source = session.metadata?.source;
+        console.log(`Checkout session completed: ${session.id}, source=${source || 'direct_cart'}`);
         
+        if (source === 'external_embed') {
+          try {
+            await confirmEmbedOrderPayout(session.id);
+          } catch (embedErr: any) {
+            console.error('[Webhook] Error confirming embed payout:', embedErr.message);
+          }
+          break;
+        }
+
         try {
           const userId = session.metadata?.userId;
           const cartItemIds = session.metadata?.cartItemIds ? JSON.parse(session.metadata.cartItemIds) : [];

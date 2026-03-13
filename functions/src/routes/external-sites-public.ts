@@ -20,7 +20,7 @@ import {
 } from '../constants';
 import { computePricingSnapshot, checkSurfaceReadiness } from '../../../shared/surfaces';
 import type { PricingSnapshot } from '../../../shared/surfaces';
-import { createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
+import { createCanonicalOrder } from '../services/order-service';
 import Stripe from 'stripe';
 
 interface BuilderPermissionScope {
@@ -497,19 +497,6 @@ app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Respo
         qrSelections: qrSelections || {},
         previewSnapshot: previewSnapshot || null,
       },
-    });
-
-    await writePayoutAttribution({
-      source: 'external_embed',
-      orderId: checkoutSession.id,
-      orderItemId,
-      orderTotal: unitPrice * qty,
-      productCost: pricingSnapshot.productCost,
-      pricingSnapshot,
-      affiliateUserId: ctx.affiliateUserId || '',
-      builderHostId: session.builderHostId,
-      builderPlacementId: session.builderPlacementId,
-      quantity: qty,
     });
 
     await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
