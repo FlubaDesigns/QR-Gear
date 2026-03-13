@@ -148,3 +148,7 @@ export const CAPABILITY_PRESETS: Record<string, BuilderCapabilities> = {
   "owner": OWNER_CAPABILITIES,
   "external": EXTERNAL_CAPABILITIES,
 };
+
+export function capabilitiesForTier(tier: string): BuilderCapabilities {
+  return CAPABILITY_PRESETS[tier] ?? SIMPLE_CAPABILITIES;
+}

@@ -11,8 +11,10 @@ import type {
 } from "@/features/shared/components/wizardSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import type { useMembersContext } from "@/features/members/MembersContext";
+import type { BuilderCapabilities } from "@/features/shared/builder-capabilities";
 
 export interface WizardContextType {
+  capabilities: BuilderCapabilities;
   user: any;
   authLoading: boolean;
   isAuthenticated: boolean;

@@ -18,6 +18,7 @@ import {
 } from "@/features/shared/components/wizardSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import type { WizardContextType } from "./wizard-context-types";
+import { capabilitiesForTier } from "@/features/shared/builder-capabilities";
 import { computeCanSimpleProceed, computeCanProceed } from "./wizard-context-helpers";
 import {
   executeGeneratePreviewQrCode,
@@ -148,6 +149,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     advanced: publishCount >= 1,
     studio: publishCount >= 2
   };
+
+  const capabilities = useMemo(() => capabilitiesForTier(wizardTier), [wizardTier]);
 
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
   const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementConfig>>({});
@@ -451,6 +454,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value: WizardContextType = {
+    capabilities,
     user, authLoading, isAuthenticated, api,
     viewMode, setViewMode, currentStep, setCurrentStep,
     simpleStep, setSimpleStep, completedSteps, setCompletedSteps,

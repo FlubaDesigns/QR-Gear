@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, ShoppingCart, Tag, X, QrCode, Type, ImagePlus, Play, Sparkles, Loader2 } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import type { QRType, SimpleWizardStep } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { OWNER_CAPABILITIES } from "@/features/shared/builder-capabilities";
 import { GUIDED_CARDS, GUIDED_STEP_MAP, GuidedCard, OwnerCostSummary, MemberConversionPitch } from "./OwnerWizardComponents";
 import { OwnerWizardStepContent } from "./OwnerWizardStepContent";
 import { useOwnerWizardNav } from "./useOwnerWizardNav";
@@ -135,7 +136,7 @@ export function OwnerWizard() {
         <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
           <p className="text-xs text-slate-400 flex items-center gap-1">
             <ShoppingCart className="w-3 h-3" />
-            Build Your Product
+            {OWNER_CAPABILITIES.label}
           </p>
           <Button
             variant="ghost"
@@ -195,7 +196,7 @@ export function OwnerWizard() {
       <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
         <p className="text-xs text-slate-400 flex items-center gap-1">
           <ShoppingCart className="w-3 h-3" />
-          Build Your Product
+          {OWNER_CAPABILITIES.label}
         </p>
         <Button
           variant="ghost"

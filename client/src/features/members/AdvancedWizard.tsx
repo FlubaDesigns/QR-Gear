@@ -7,6 +7,7 @@ import { AdvancedWizardStepContent } from './AdvancedWizardStepContent';
 
 export function AdvancedWizard() {
   const {
+    capabilities,
     user,
     simpleStep, setSimpleStep,
     selectedChannel,
@@ -72,13 +73,13 @@ export function AdvancedWizard() {
     setProductGraphic('');
   };
 
-  if (!user) {
+  if (capabilities.requiresAuth && !user) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
           <p className="text-xs text-slate-400 flex items-center gap-1">
             <Layers className="w-3 h-3" />
-            Advanced Builder
+            {capabilities.label}
           </p>
           <Button
             variant="ghost"
@@ -111,7 +112,7 @@ export function AdvancedWizard() {
       <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
         <p className="text-xs text-blue-400 flex items-center gap-1">
           <Layers className="w-3 h-3" />
-          Advanced Builder
+          {capabilities.label}
         </p>
         <Button
           variant="ghost"
@@ -152,7 +153,7 @@ export function AdvancedWizard() {
           ) : null;
         })()}
         <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
-        {runningEarnings > 0 && (
+        {capabilities.showEarnings && runningEarnings > 0 && (
           <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-green-400/60 bg-green-500/20' : ''}`} data-testid="badge-advanced-potential-earnings">
             <DollarSign className="w-3.5 h-3.5 text-green-400" />
             <span className="text-green-400 font-bold text-sm">

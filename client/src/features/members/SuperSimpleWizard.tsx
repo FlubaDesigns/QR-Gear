@@ -18,6 +18,7 @@ import { useSuperSimpleTutorial } from './useSuperSimpleTutorial';
 
 export function SuperSimpleWizard() {
   const {
+    capabilities,
     user,
     simpleStep, setSimpleStep,
     selectedChannel, setSelectedChannel,
@@ -183,7 +184,7 @@ export function SuperSimpleWizard() {
         <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
           <p className="text-xs text-emerald-400 flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
-            First Product Builder
+            {capabilities.label}
           </p>
           <Button
             variant="ghost"
@@ -216,7 +217,7 @@ export function SuperSimpleWizard() {
       <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
         <p className="text-xs text-emerald-400 flex items-center gap-1">
           <Sparkles className="w-3 h-3" />
-          First Product Builder
+          {capabilities.label}
         </p>
         <Button
           variant="ghost"
@@ -261,7 +262,7 @@ export function SuperSimpleWizard() {
           <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
         )}
 
-        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && runningEarnings > 0 && (
+        {capabilities.showEarnings && !isShowingBlackboard && !showQrTypeCards && !showQrCongrats && runningEarnings > 0 && (
           <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-emerald-400/60 bg-emerald-500/20' : ''}`} data-testid="badge-potential-earnings">
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-emerald-400 font-bold text-sm">
