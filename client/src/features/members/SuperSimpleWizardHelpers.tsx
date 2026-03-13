@@ -93,7 +93,7 @@ export const BLACKBOARD_CONTENT: Record<string, BlackboardData> = {
     lines: [
       { text: "After this tutorial, you'll jump into the real builder." },
       { text: "The builder lets you customize everything in detail." },
-      { text: "Upload images, add text, preview your product live.", highlight: true },
+      { text: "Upload images, add text or images, preview your product live.", highlight: true },
       { text: "Don't worry — you can always edit before publishing." },
     ],
     tip: "Think of this tutorial as your warm-up lap. The race starts next.",

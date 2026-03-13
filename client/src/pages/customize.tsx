@@ -268,7 +268,7 @@ export default function Customize() {
                 {step === 'text' && (
                   <div className="space-y-6">
                     <div className="text-center">
-                      <h2 className="text-xl font-bold text-white mb-2">Add Your Text</h2>
+                      <h2 className="text-xl font-bold text-white mb-2">Add Your Text or Image</h2>
                       <p className="text-slate-400 text-sm">Optional - make it personal</p>
                     </div>
                     

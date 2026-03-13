@@ -67,14 +67,14 @@ export const GUIDED_CARDS: Record<string, GuidedCardData> = {
   },
   'text': {
     icon: <PenLine className="w-8 h-8" />,
-    title: "Add Some Text",
+    title: "Add Text or Image",
     lines: [
-      { text: "Want words printed on your shirt alongside the QR code?" },
-      { text: "A phrase on top, a message on the bottom — or nothing at all. Totally optional.", highlight: true },
+      { text: "Want words or an image printed on your shirt alongside the QR code?" },
+      { text: "A phrase on top, a logo on the bottom — or nothing at all. Totally optional.", highlight: true },
       { text: "This is what people see on your shirt before they scan." },
-      { text: "Keep it short and fun. Or skip it — your call." },
+      { text: "Keep it short and fun, or upload an image. Your call." },
     ],
-    tip: "Ideas: \"Scan me\" — \"Watch this\" — \"Our story\" — or your own phrase.",
+    tip: "Ideas: \"Scan me\" — \"Watch this\" — \"Our story\" — or upload your logo.",
   },
   'type-confirm-basic': {
     icon: <QrCode className="w-8 h-8" />,

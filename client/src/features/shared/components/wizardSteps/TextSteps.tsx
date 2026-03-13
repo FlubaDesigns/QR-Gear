@@ -573,8 +573,8 @@ export function TextEditStep({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-xl font-bold text-white mb-1">Add Your Text</h2>
-        <p className="text-slate-400 text-sm">Type your message and style it</p>
+        <h2 className="text-xl font-bold text-white mb-1">Add Your Text or Image</h2>
+        <p className="text-slate-400 text-sm">Type your message, upload an image, and style it</p>
       </div>
 
       {showHeader && (
