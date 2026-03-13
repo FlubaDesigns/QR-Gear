@@ -1,21 +1,10 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
   import express from 'express';
-  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { printfulClient } from '../services/printful';
-  import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
-  import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
-  import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
-  import type { MockupRequest, MockupResult } from '../services/mockup-generator';
-  import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
-  import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
-  import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
-  import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+  import { db } from '../core';
+  import { freezePacketPricing, createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
 import Stripe from 'stripe';
 
   export function register(app: express.Express): void {
-  // ============ PACKET CHECKOUT (Share Link → Buy) ============
 
 app.post('/public/packet-checkout', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -29,25 +18,8 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
       res.status(400).json({ error: "Product is no longer available" }); return;
     }
 
-    const pricingDoc = await db.collection("testSettings").doc("pricing").get();
-    const ps = pricingDoc.exists ? pricingDoc.data() : null;
-    const defaultSU: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-    const sizeUpcharges = ps?.sizeUpcharges || defaultSU;
-
-    let basePrice = 0;
-    if (packet.pricingSnapshot?.retailPriceBase) {
-      basePrice = packet.pricingSnapshot.retailPriceBase;
-    } else if (packet.boundProduct?.retailPrice) {
-      basePrice = parseFloat(packet.boundProduct.retailPrice);
-    } else if (packet.socialPacket?.retailPrice) {
-      basePrice = parseFloat(packet.socialPacket.retailPrice);
-    } else {
-      basePrice = ps?.baseRetailPrice || 29.99;
-    }
-
     const size = selectedShirtSize || packet.selectedShirtSize || 'M';
-    const sizeUpcharge = sizeUpcharges[size] || 0;
-    const serverTotal = Math.round((basePrice + sizeUpcharge) * 100) / 100;
+    const { totalPrice: serverTotal } = await freezePacketPricing({ packet, selectedSize: size });
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
@@ -131,101 +103,42 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
     const buyerName = (session.customer_details as any)?.name || '';
     const shippingAddress = (session as any).shipping_details?.address || null;
 
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let claimCode = '';
-    for (let i = 0; i < 8; i++) claimCode += chars.charAt(Math.floor(Math.random() * chars.length));
+    const totalAmount = serverTotal || ((session as any).amount_total! / 100);
 
-    const now = new Date();
-    const orderData: Record<string, any> = {
-      packetId,
+    const { orderId, claimCode, alreadyExisted, orderData } = await createCanonicalOrder({
+      source: 'packet_share',
       stripeSessionId: sessionId,
       stripePaymentIntentId: session.payment_intent as string,
       buyerEmail,
       buyerName,
       shippingAddress,
-      claimCode,
-      productTitle: packet.title || 'QR Gear Product',
-      qrType: packet.qrType || packet.packetType || 'qr-basic',
-      selectedColor: packet.selectedColor || '',
+      totalAmount,
+      packetId,
+      packet,
       selectedSize,
-      totalAmount: serverTotal || ((session as any).amount_total! / 100),
-      mockupUrl: packet.itemImage || null,
-      creatorMemberId,
       referrerId: referrerId || '',
-      source: 'packet_share',
-      status: 'paid',
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    };
-    const orderRef = await db.collection('orders_public').add(orderData);
-    console.log(`[PacketCheckout] Order ${orderRef.id} created for packet ${packetId}`);
+      creatorMemberId,
+    });
 
-    const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
-    const profit = serverTotal - productCost;
+    if (!alreadyExisted) {
+      const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
 
-    if (creatorMemberId && profit > 0) {
-      try {
-        const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
-        await db.collection('member_earnings').add({
-          memberId: creatorMemberId,
-          orderId: orderRef.id,
-          packetId,
-          orderTotal: serverTotal,
-          productCost,
-          profit,
-          sharePercent: 25,
-          earnings: creatorEarnings,
-          type: 'product_sale',
-          status: 'pending',
-          createdAt: now.toISOString(),
-        });
-        console.log(`[Member Earnings] Creator ${creatorMemberId} earned $${creatorEarnings} from packet order ${orderRef.id}`);
-      } catch (earnErr: any) {
-        console.error('[Member Earnings] Non-fatal error:', earnErr.message);
-      }
-    }
-
-    if (referrerId && buyerEmail) {
-      try {
-        const buyerKey = buyerEmail;
-        const existingRef = await db.collection('referrals')
-          .where('buyerKey', '==', buyerKey).limit(1).get();
-        if (existingRef.empty) {
-          await db.collection('referrals').add({
-            referrerId,
-            buyerKey,
-            profitSharePercent: 25,
-            lifetime: true,
-            source: 'packet_checkout',
-            createdAt: now.toISOString(),
-          });
-          console.log(`[Referral] Captured: ${referrerId} → ${buyerKey}`);
-        }
-
-        if (profit > 0 && referrerId !== creatorMemberId) {
-          const referralEarnings = Math.round((profit * 0.25) * 100) / 100;
-          await db.collection('referral_earnings').add({
-            memberId: referrerId,
-            orderId: orderRef.id,
-            buyerKey,
-            orderTotal: serverTotal,
-            productCost,
-            profit,
-            sharePercent: 25,
-            earnings: referralEarnings,
-            status: 'pending',
-            createdAt: now.toISOString(),
-          });
-          console.log(`[Referral Earnings] ${referrerId} earned $${referralEarnings} from packet order ${orderRef.id}`);
-        }
-      } catch (refErr: any) {
-        console.error('[Referral] Non-fatal error recording referral:', refErr.message);
-      }
+      await writePayoutAttribution({
+        source: 'packet_share',
+        orderId,
+        orderTotal: totalAmount,
+        productCost,
+        creatorMemberId,
+        referrerId: referrerId || undefined,
+        buyerEmail: buyerEmail || undefined,
+        packetId,
+      });
     }
 
     res.json({
       success: true,
-      order: { id: orderRef.id, ...orderData },
+      alreadyProcessed: alreadyExisted,
+      order: { id: orderId, ...orderData },
       claimCode,
     });
   } catch (error: any) {

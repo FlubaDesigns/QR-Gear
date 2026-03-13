@@ -10,8 +10,6 @@ import {
   BUILDER_DRAFTS_COLLECTION,
   PRICING_POLICIES_COLLECTION,
   REVENUE_SPLITS_COLLECTION,
-  EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION,
-  AFFILIATE_PAYOUT_LEDGER_COLLECTION,
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
   EMBED_MODES,
@@ -22,6 +20,7 @@ import {
 } from '../constants';
 import { computePricingSnapshot, checkSurfaceReadiness } from '../../../shared/surfaces';
 import type { PricingSnapshot } from '../../../shared/surfaces';
+import { createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
 import Stripe from 'stripe';
 
 interface BuilderPermissionScope {
@@ -186,11 +185,6 @@ function buildPricingFromContext(surface: any, pricingPolicy: any, revenueSplit:
     salePrice, productCost, platformFeeAmount, affiliatePercent,
     currency: pricingPolicy?.currency || 'USD',
   });
-}
-
-function getPeriodKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const VALID_HOST_STATUSES = new Set<string>(BUILDER_HOST_STATUSES);
@@ -480,45 +474,43 @@ app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Respo
     });
 
     const now = new Date().toISOString();
-    const orderItemId = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-    const attributionData = {
-      orderId: checkoutSession.id,
-      orderItemId,
-      builderHostId: session.builderHostId,
-      builderPlacementId: session.builderPlacementId,
-      builderProfileId: session.builderProfileId || '',
-      affiliateUserId: ctx.affiliateUserId || '',
-      surfaceId: effectiveSurfaceId,
-      variantId: variantId || null,
-      pricingPolicyId: ctx.pricingPolicy?.id || '',
-      revenueSplitId: ctx.revenueSplit?.id || '',
-      ...pricingSnapshot,
-      quantity: qty,
-      designSelections: designSelections || {},
-      qrSelections: qrSelections || {},
-      previewSnapshot: previewSnapshot || null,
-      stripeCheckoutSessionId: checkoutSession.id,
-      status: 'pending_payment',
-      createdAt: now,
-    };
-    await db.collection(EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION).add(attributionData);
-
-    if (ctx.affiliateUserId && pricingSnapshot.affiliateAmount > 0) {
-      const payoutEntry = {
-        affiliateUserId: ctx.affiliateUserId,
+    const { orderItemId } = await createCanonicalOrder({
+      source: 'external_embed',
+      stripeSessionId: checkoutSession.id,
+      buyerEmail: '',
+      buyerName: '',
+      shippingAddress: null,
+      totalAmount: unitPrice * qty,
+      pricingSnapshot,
+      cartItems: [{ quantity: qty }],
+      embedContext: {
         builderHostId: session.builderHostId,
         builderPlacementId: session.builderPlacementId,
-        orderId: checkoutSession.id,
-        orderItemId,
-        affiliateAmount: pricingSnapshot.affiliateAmount * qty,
-        currency: pricingSnapshot.currency,
-        status: 'pending',
-        periodKey: getPeriodKey(),
-        createdAt: now,
-      };
-      await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).add(payoutEntry);
-    }
+        builderProfileId: session.builderProfileId || '',
+        affiliateUserId: ctx.affiliateUserId || '',
+        surfaceId: effectiveSurfaceId,
+        variantId: variantId || '',
+        pricingPolicyId: ctx.pricingPolicy?.id || '',
+        revenueSplitId: ctx.revenueSplit?.id || '',
+        designSelections: designSelections || {},
+        qrSelections: qrSelections || {},
+        previewSnapshot: previewSnapshot || null,
+      },
+    });
+
+    await writePayoutAttribution({
+      source: 'external_embed',
+      orderId: checkoutSession.id,
+      orderItemId,
+      orderTotal: unitPrice * qty,
+      productCost: pricingSnapshot.productCost,
+      pricingSnapshot,
+      affiliateUserId: ctx.affiliateUserId || '',
+      builderHostId: session.builderHostId,
+      builderPlacementId: session.builderPlacementId,
+      quantity: qty,
+    });
 
     await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
       lastSeenAt: now,

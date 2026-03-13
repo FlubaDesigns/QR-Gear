@@ -1,22 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
   import express from 'express';
-  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { printfulClient } from '../services/printful';
-  import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
-  import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
-  import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
-  import type { MockupRequest, MockupResult } from '../services/mockup-generator';
-  import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
-  import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
-  import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
-  import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+  import { db } from '../core';
+  import { createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
 import Stripe from 'stripe';
 import { getNexusMailService, sendOrderConfirmation as nexusOrderConfirmation, sendShippingNotification as nexusShippingNotification, seedDefaultTemplates } from '../nexusmail';
 
   export function register(app: express.Express): void {
-  // ============ STRIPE WEBHOOKS ============
 
 app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -54,7 +43,6 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         const session = event.data.object as Stripe.Checkout.Session;
         console.log('Checkout session completed:', session.id);
         
-        // Create order from checkout session
         try {
           const userId = session.metadata?.userId;
           const cartItemIds = session.metadata?.cartItemIds ? JSON.parse(session.metadata.cartItemIds) : [];
@@ -64,21 +52,8 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
             break;
           }
 
-          // Idempotency check: prevent duplicate orders from Stripe retries
-          const existingOrderSnapshot = await db.collection('orders')
-            .where('stripeSessionId', '==', session.id)
-            .limit(1)
-            .get();
-          
-          if (!existingOrderSnapshot.empty) {
-            console.log(`Order already exists for session ${session.id}, skipping`);
-            break;
-          }
-
-          // Get cart items
           let cartItems: any[] = [];
           if (cartItemIds.length > 0) {
-            // Use specific cart item IDs from metadata
             for (const itemId of cartItemIds) {
               const itemDoc = await db.collection('cartItems').doc(itemId).get();
               if (itemDoc.exists) {
@@ -86,7 +61,6 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
               }
             }
           } else {
-            // Fallback: get all cart items for user
             const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
             cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           }
@@ -96,12 +70,6 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
             break;
           }
 
-          // Calculate total from cart items
-          const totalAmount = cartItems.reduce((sum, item) => {
-            return sum + parseFloat(item.price || '0') * (item.quantity || 1);
-          }, 0);
-
-          // Extract shipping address from Stripe session
           const shippingDetails = session.shipping_details;
           const customerDetails = session.customer_details;
           const shippingAddress = shippingDetails ? {
@@ -117,41 +85,43 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
             country: shippingDetails.address?.country || 'US',
           } : null;
 
-          // Create order
-          const orderRef = await db.collection('orders').add({
-            userId,
-            status: 'paid',
-            totalAmount: totalAmount.toFixed(2),
+          const totalAmount = cartItems.reduce((sum: number, item: any) => {
+            return sum + parseFloat(item.price || '0') * (item.quantity || 1);
+          }, 0);
+
+          const { orderId, alreadyExisted } = await createCanonicalOrder({
+            source: 'direct_cart',
             stripeSessionId: session.id,
             stripePaymentIntentId: session.payment_intent as string,
-            customerEmail: session.customer_details?.email || null,
+            buyerEmail: customerDetails?.email || '',
+            buyerName: customerDetails?.name || '',
             shippingAddress,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            totalAmount,
+            userId,
+            cartItems,
           });
 
-          console.log(`Order created: ${orderRef.id}`);
+          if (alreadyExisted) {
+            console.log(`[Webhook] Order already exists for session ${session.id}, skipping side effects`);
+            break;
+          }
 
-          // Create order items from cart
-          for (const item of cartItems) {
-            await db.collection('orderItems').add({
-              orderId: orderRef.id,
-              productId: item.productId,
-              quantity: item.quantity || 1,
-              price: item.price,
-              customization: item.customization || {},
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          const referrerId = session.metadata?.referrerId;
+          if (referrerId) {
+            await writePayoutAttribution({
+              source: 'direct_cart',
+              orderId,
+              orderTotal: totalAmount,
+              productCost: 0,
+              referrerId,
+              buyerEmail: customerDetails?.email || undefined,
             });
           }
 
-          console.log(`Created ${cartItems.length} order items for order ${orderRef.id}`);
-
-          // Send order confirmation email BEFORE clearing cart (use orderItems data)
           const customerEmail = customerDetails?.email;
           if (customerEmail) {
-            // Fetch order items we just created for accurate email data
             const orderItemsSnapshot = await db.collection('orderItems')
-              .where('orderId', '==', orderRef.id)
+              .where('orderId', '==', orderId)
               .get();
             
             const emailItems = await Promise.all(orderItemsSnapshot.docs.map(async (doc) => {
@@ -174,10 +144,9 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
               ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
               : customerDetails?.name || 'Customer';
 
-            // Use NexusMail for order confirmation (queue-first, idempotent)
             await nexusOrderConfirmation(
               db,
-              orderRef.id,
+              orderId,
               customerEmail,
               customerName,
               emailItems,
@@ -193,17 +162,15 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
             );
           }
 
-          // Clear cart items AFTER email is sent
           const batch = db.batch();
           for (const item of cartItems) {
             batch.delete(db.collection('cartItems').doc(item.id));
           }
           await batch.commit();
-          console.log(`Cleared ${cartItems.length} cart items for user ${userId}`);
+          console.log(`[OrderService] Cleared ${cartItems.length} cart items for user ${userId}`);
 
         } catch (orderError: any) {
           console.error('Error creating order from checkout:', orderError);
-          // Don't fail the webhook - order can be manually reconciled
         }
         break;
       }
