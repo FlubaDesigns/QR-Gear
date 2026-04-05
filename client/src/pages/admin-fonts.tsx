@@ -215,12 +215,27 @@ function FontManagerInner() {
           </h2>
 
           <div className="mb-4 p-3 rounded-md bg-background/30 border border-white/5">
-            <label className="text-xs text-muted-foreground mb-1.5 block">Type any Google Font name to add it</label>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+              <label className="text-xs text-muted-foreground">Browse Google Fonts, then type the name here to add it</label>
+              <a
+                href="https://fonts.google.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                data-testid="link-browse-google-fonts"
+              >
+                <Search className="h-3 w-3" />
+                Browse Google Fonts
+              </a>
+            </div>
             <div className="flex gap-2">
               <Input
                 placeholder="e.g. Permanent Marker, Cinzel, Satisfy..."
                 value={customFontName}
-                onChange={e => setCustomFontName(e.target.value)}
+                onChange={e => {
+                  setCustomFontName(e.target.value);
+                  if (e.target.value.trim()) loadGoogleFont(e.target.value.trim());
+                }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && customFontName.trim()) {
                     const name = customFontName.trim();
