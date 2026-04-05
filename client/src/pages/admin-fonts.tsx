@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Settings, Type, Plus, Trash2, GripVertical, Search, Loader2, Check, X, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
+import { Settings, Type, Plus, Trash2, GripVertical, Search, Loader2, Check, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,19 +10,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { authFetch } from "@/features/adminAuth/authFetch";
 import { loadGoogleFont, loadGoogleFonts } from "@/hooks/use-fonts";
-
-const POPULAR_GOOGLE_FONTS = [
-  "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
-  "Poppins", "Nunito", "Ubuntu", "Playfair Display", "Merriweather",
-  "PT Sans", "Roboto Condensed", "Roboto Slab", "Inter", "Noto Sans",
-  "Fira Sans", "Quicksand", "Mulish", "Barlow", "Rubik", "Work Sans",
-  "Libre Baskerville", "Josefin Sans", "Archivo", "Bebas Neue",
-  "Dancing Script", "Pacifico", "Lobster", "Righteous", "Permanent Marker",
-  "Bangers", "Bungee", "Press Start 2P", "Orbitron", "Creepster",
-  "Special Elite", "Sacramento", "Great Vibes", "Caveat", "Comfortaa",
-  "Abril Fatface", "Fredoka One", "Alfa Slab One", "Anton", "Lilita One",
-  "Passion One", "Titan One", "Black Ops One", "Russo One", "Teko",
-];
+import { GOOGLE_FONT_FAMILIES } from "@/data/google-fonts-list";
 
 const SYSTEM_FONTS = [
   "Arial", "Helvetica", "Times New Roman", "Georgia", "Verdana",
@@ -30,14 +18,17 @@ const SYSTEM_FONTS = [
   "Tahoma", "Lucida Console",
 ];
 
+const FONTS_PER_PAGE = 40;
+
 function FontManagerInner() {
   const { toast } = useToast();
   const { getAuthHeaders } = useAdminAuth();
   const [search, setSearch] = useState("");
-  const [showBrowser, setShowBrowser] = useState(true);
-  const [customFontName, setCustomFontName] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [localFonts, setLocalFonts] = useState<string[]>([]);
+  const [visibleCount, setVisibleCount] = useState(FONTS_PER_PAGE);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const loadedFontsRef = useRef<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery<{ fonts: string[] }>({
     queryKey: ["/api/fonts"],
@@ -76,6 +67,7 @@ function FontManagerInner() {
     loadGoogleFont(fontName);
     setLocalFonts(prev => [...prev, fontName]);
     setHasChanges(true);
+    toast({ title: "Font added", description: `${fontName} added to your list. Don't forget to save!` });
   }, [localFonts, toast]);
 
   const removeFont = useCallback((fontName: string) => {
@@ -107,10 +99,24 @@ function FontManagerInner() {
     setHasChanges(true);
   }, []);
 
-  const allAvailableFonts = [...SYSTEM_FONTS, ...POPULAR_GOOGLE_FONTS];
-  const browseFonts = allAvailableFonts
+  const allBrowseFonts = [...SYSTEM_FONTS, ...GOOGLE_FONT_FAMILIES];
+  const filteredFonts = allBrowseFonts
     .filter(f => !localFonts.includes(f))
     .filter(f => !search || f.toLowerCase().includes(search.toLowerCase()));
+
+  const visibleFonts = filteredFonts.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredFonts.length;
+
+  useEffect(() => {
+    setVisibleCount(FONTS_PER_PAGE);
+  }, [search]);
+
+  const lazyLoadFont = useCallback((fontName: string) => {
+    if (SYSTEM_FONTS.includes(fontName)) return;
+    if (loadedFontsRef.current.has(fontName)) return;
+    loadedFontsRef.current.add(fontName);
+    loadGoogleFont(fontName);
+  }, []);
 
   if (isLoading) {
     return (
@@ -159,7 +165,7 @@ function FontManagerInner() {
         <div className="glass-card">
           <h2 className="glass-title text-base flex items-center gap-2 mb-3">
             <Type className="h-5 w-5 text-blue-400" />
-            Active Fonts
+            Active Fonts ({localFonts.length})
           </h2>
           <div className="space-y-1">
             {localFonts.map((font, index) => (
@@ -211,138 +217,80 @@ function FontManagerInner() {
         <div className="glass-card">
           <h2 className="glass-title text-base flex items-center gap-2 mb-3">
             <Plus className="h-5 w-5 text-green-400" />
-            Add Fonts
+            Browse Google Fonts ({GOOGLE_FONT_FAMILIES.length.toLocaleString()} available)
           </h2>
 
-          <div className="mb-4 p-3 rounded-md bg-background/30 border border-white/5">
-            <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
-              <label className="text-xs text-muted-foreground">Browse Google Fonts, then type the name here to add it</label>
-              <a
-                href="https://fonts.google.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                data-testid="link-browse-google-fonts"
-              >
-                <Search className="h-3 w-3" />
-                Browse Google Fonts
-              </a>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="e.g. Permanent Marker, Cinzel, Satisfy..."
-                value={customFontName}
-                onChange={e => {
-                  setCustomFontName(e.target.value);
-                  if (e.target.value.trim()) loadGoogleFont(e.target.value.trim());
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && customFontName.trim()) {
-                    const name = customFontName.trim();
-                    loadGoogleFont(name);
-                    addFont(name);
-                    setCustomFontName('');
-                  }
-                }}
-                className="flex-1"
-                data-testid="input-custom-font-name"
-              />
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (customFontName.trim()) {
-                    const name = customFontName.trim();
-                    loadGoogleFont(name);
-                    addFont(name);
-                    setCustomFontName('');
-                  }
-                }}
-                disabled={!customFontName.trim()}
-                data-testid="button-add-custom-font"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add
-              </Button>
-            </div>
-            {customFontName.trim() && (
-              <div className="mt-2 p-2 rounded bg-background/20 border border-white/5">
-                <div className="text-xs text-muted-foreground mb-1">Preview:</div>
-                <div className="text-lg" style={{ fontFamily: `"${customFontName.trim()}", sans-serif` }}>
-                  The quick brown fox jumps over the lazy dog
-                </div>
-              </div>
-            )}
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search all Google Fonts..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-fonts"
+            />
           </div>
 
-          <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
-            <span className="text-sm text-muted-foreground">Or pick from popular fonts:</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBrowser(!showBrowser)}
-              data-testid="button-toggle-browser"
-            >
-              {showBrowser ? "Hide" : "Show"} List
-            </Button>
+          <div className="text-xs text-muted-foreground mb-2">
+            Showing {Math.min(visibleCount, filteredFonts.length)} of {filteredFonts.length} fonts
+            {search && ` matching "${search}"`}
           </div>
 
-          {showBrowser && (
-            <div>
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Filter popular fonts..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-search-fonts"
-                />
-              </div>
-              <ScrollArea className="h-80">
-                <div className="space-y-1">
-                  {browseFonts.map(font => {
-                    const isSystem = SYSTEM_FONTS.includes(font);
-                    return (
-                      <div
-                        key={font}
-                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover-elevate cursor-pointer"
-                        onClick={() => {
-                          if (!isSystem) loadGoogleFont(font);
-                          addFont(font);
-                        }}
-                        data-testid={`button-add-font-${font.replace(/\s+/g, '-').toLowerCase()}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs text-muted-foreground">{font}</span>
-                            {isSystem && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">System</span>
-                            )}
-                            {!isSystem && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">Google</span>
-                            )}
-                          </div>
-                          <div
-                            className="text-lg truncate"
-                            style={{ fontFamily: isSystem ? font : `"${font}", sans-serif` }}
-                            onMouseEnter={() => { if (!isSystem) loadGoogleFont(font); }}
-                          >
-                            The quick brown fox
-                          </div>
-                        </div>
-                        <Plus className="h-4 w-4 text-green-400 flex-shrink-0" />
+          <ScrollArea className="h-[28rem]" ref={scrollRef}>
+            <div className="space-y-1">
+              {visibleFonts.map(font => {
+                const isSystem = SYSTEM_FONTS.includes(font);
+                return (
+                  <div
+                    key={font}
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-md hover-elevate cursor-pointer"
+                    onClick={() => {
+                      if (!isSystem) loadGoogleFont(font);
+                      addFont(font);
+                    }}
+                    onMouseEnter={() => lazyLoadFont(font)}
+                    data-testid={`button-add-font-${font.replace(/\s+/g, '-').toLowerCase()}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted-foreground">{font}</span>
+                        {isSystem && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">System</span>
+                        )}
+                        {!isSystem && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">Google</span>
+                        )}
                       </div>
-                    );
-                  })}
-                  {browseFonts.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                      {search ? "No fonts match your filter" : "All popular fonts already added"}
+                      <div
+                        className="text-lg truncate"
+                        style={{ fontFamily: isSystem ? font : `"${font}", sans-serif` }}
+                      >
+                        The quick brown fox
+                      </div>
                     </div>
-                  )}
+                    <Plus className="h-4 w-4 text-green-400 flex-shrink-0" />
+                  </div>
+                );
+              })}
+              {visibleFonts.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  {search ? `No fonts match "${search}"` : "All fonts already added"}
                 </div>
-              </ScrollArea>
+              )}
+              {hasMore && (
+                <div className="pt-3 pb-1 text-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVisibleCount(prev => prev + FONTS_PER_PAGE)}
+                    data-testid="button-load-more-fonts"
+                  >
+                    Load More ({filteredFonts.length - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+          </ScrollArea>
         </div>
     </AdminShell>
   );
