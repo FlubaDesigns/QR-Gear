@@ -34,7 +34,8 @@ function FontManagerInner() {
   const { toast } = useToast();
   const { getAuthHeaders } = useAdminAuth();
   const [search, setSearch] = useState("");
-  const [showBrowser, setShowBrowser] = useState(false);
+  const [showBrowser, setShowBrowser] = useState(true);
+  const [customFontName, setCustomFontName] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [localFonts, setLocalFonts] = useState<string[]>([]);
 
@@ -208,18 +209,65 @@ function FontManagerInner() {
         </div>
 
         <div className="glass-card">
+          <h2 className="glass-title text-base flex items-center gap-2 mb-3">
+            <Plus className="h-5 w-5 text-green-400" />
+            Add Fonts
+          </h2>
+
+          <div className="mb-4 p-3 rounded-md bg-background/30 border border-white/5">
+            <label className="text-xs text-muted-foreground mb-1.5 block">Type any Google Font name to add it</label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. Permanent Marker, Cinzel, Satisfy..."
+                value={customFontName}
+                onChange={e => setCustomFontName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && customFontName.trim()) {
+                    const name = customFontName.trim();
+                    loadGoogleFont(name);
+                    addFont(name);
+                    setCustomFontName('');
+                  }
+                }}
+                className="flex-1"
+                data-testid="input-custom-font-name"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (customFontName.trim()) {
+                    const name = customFontName.trim();
+                    loadGoogleFont(name);
+                    addFont(name);
+                    setCustomFontName('');
+                  }
+                }}
+                disabled={!customFontName.trim()}
+                data-testid="button-add-custom-font"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            </div>
+            {customFontName.trim() && (
+              <div className="mt-2 p-2 rounded bg-background/20 border border-white/5">
+                <div className="text-xs text-muted-foreground mb-1">Preview:</div>
+                <div className="text-lg" style={{ fontFamily: `"${customFontName.trim()}", sans-serif` }}>
+                  The quick brown fox jumps over the lazy dog
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
-            <h2 className="glass-title text-base flex items-center gap-2">
-              <Plus className="h-5 w-5 text-green-400" />
-              Add Fonts
-            </h2>
+            <span className="text-sm text-muted-foreground">Or pick from popular fonts:</span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowBrowser(!showBrowser)}
               data-testid="button-toggle-browser"
             >
-              {showBrowser ? "Hide" : "Browse"} Google Fonts
+              {showBrowser ? "Hide" : "Show"} List
             </Button>
           </div>
 
@@ -228,7 +276,7 @@ function FontManagerInner() {
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search fonts..."
+                  placeholder="Filter popular fonts..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-9"
@@ -250,7 +298,7 @@ function FontManagerInner() {
                         data-testid={`button-add-font-${font.replace(/\s+/g, '-').toLowerCase()}`}
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs text-muted-foreground">{font}</span>
                             {isSystem && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">System</span>
@@ -273,18 +321,12 @@ function FontManagerInner() {
                   })}
                   {browseFonts.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground text-sm">
-                      {search ? "No fonts match your search" : "All fonts already added"}
+                      {search ? "No fonts match your filter" : "All popular fonts already added"}
                     </div>
                   )}
                 </div>
               </ScrollArea>
             </div>
-          )}
-
-          {!showBrowser && (
-            <p className="text-sm text-muted-foreground">
-              Click "Browse Google Fonts" to search and add from 50+ popular fonts including system fonts and Google web fonts.
-            </p>
           )}
         </div>
     </AdminShell>
