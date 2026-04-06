@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare } from "lucide-react";
+import { useRef, useState, useCallback, useEffect } from "react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -9,12 +9,113 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
 const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
 
+interface LibraryImage {
+  id: string;
+  name: string;
+  storageUrl: string;
+  proxyUrl?: string;
+  thumbnailUrl?: string;
+}
+
+function ImageLibraryDialog({
+  open,
+  onClose,
+  onSelect,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (url: string) => void;
+}) {
+  const { apiBase, getAuthHeaders } = useAdminAuth();
+  const [images, setImages] = useState<LibraryImage[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadImages = useCallback(async () => {
+    setLoading(true);
+    try {
+      const headers = await getAuthHeaders();
+      const [croppedRes, bgRes] = await Promise.all([
+        fetch(`${apiBase}/background-assets?type=cropped`, { headers }),
+        fetch(`${apiBase}/background-assets?type=background`, { headers }),
+      ]);
+      const cropped = croppedRes.ok ? await croppedRes.json() : [];
+      const backgrounds = bgRes.ok ? await bgRes.json() : [];
+      setImages([...cropped, ...backgrounds]);
+    } catch {
+      setImages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiBase, getAuthHeaders]);
+
+  useEffect(() => {
+    if (open) loadImages();
+  }, [open, loadImages]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle>Choose from Library</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : images.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No images in library yet. Upload backgrounds in the admin library first.
+          </p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-[50vh] p-1">
+            {images.map((img) => (
+              <div
+                key={img.id}
+                onClick={() => {
+                  onSelect(img.proxyUrl || img.storageUrl);
+                  onClose();
+                }}
+                className="cursor-pointer rounded-md border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                data-testid={`library-image-${img.id}`}
+              >
+                <img
+                  src={img.thumbnailUrl || img.proxyUrl || img.storageUrl}
+                  alt={img.name}
+                  className="w-full aspect-square object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ProductGraphicTextModule() {
   const { state, setContent } = useBuilderContext();
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | null>(null);
+
+  const openLibraryFor = useCallback((target: "header" | "footer") => {
+    setLibraryTarget(target);
+    setLibraryOpen(true);
+  }, []);
+
+  const handleLibrarySelect = useCallback((url: string) => {
+    if (libraryTarget === "header") {
+      setContent({ headerStyle: { ...((state.content?.headerStyle as TextStyleConfig) || headerDefaultStyle), imageUrl: url, mode: "image" } });
+    } else if (libraryTarget === "footer") {
+      setContent({ footerStyle: { ...((state.content?.footerStyle as TextStyleConfig) || footerDefaultStyle), imageUrl: url, mode: "image" } });
+    }
+  }, [libraryTarget, state.content, setContent]);
 
   const showGraphicText = state.qrProductState === "qr_plus" ||
                           state.qrProductState === "qr_canvas" || 
@@ -76,6 +177,7 @@ export function ProductGraphicTextModule() {
           testIdPrefix="header"
           showPositionControls={true}
           previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+          onPickFromLibrary={() => openLibraryFor("header")}
         />
 
         {showPreview && (
@@ -118,6 +220,7 @@ export function ProductGraphicTextModule() {
           testIdPrefix="footer"
           showPositionControls={true}
           previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+          onPickFromLibrary={() => openLibraryFor("footer")}
         />
 
         <div className="mt-4 pt-4 border-t">
@@ -348,6 +451,12 @@ export function ProductGraphicTextModule() {
           </div>
         </div>
       </div>
+
+      <ImageLibraryDialog
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={handleLibrarySelect}
+      />
     </CollapsibleModule>
   );
 }

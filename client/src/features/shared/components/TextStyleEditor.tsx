@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { FontPicker } from "@/components/ui/font-picker";
-import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X, FolderOpen } from "lucide-react";
 import { TextStyleViewer } from "./TextStyleViewer";
 import { useFonts, loadGoogleFonts } from "@/hooks/use-fonts";
 
@@ -82,6 +82,7 @@ interface TextStyleEditorProps {
   previewBackgroundImage?: string;
   defaultCollapsed?: boolean;
   fonts?: string[];
+  onPickFromLibrary?: () => void;
 }
 
 export function TextStyleEditor({ 
@@ -97,6 +98,7 @@ export function TextStyleEditor({
   previewBackgroundImage,
   defaultCollapsed = true,
   fonts: fontsProp,
+  onPickFromLibrary,
 }: TextStyleEditorProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [controlsOpen, setControlsOpen] = useState(false);
@@ -219,7 +221,7 @@ export function TextStyleEditor({
                       data-testid={`img-${testIdPrefix}-preview`}
                     />
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
@@ -227,8 +229,19 @@ export function TextStyleEditor({
                       data-testid={`button-${testIdPrefix}-replace-image`}
                     >
                       <Upload className="h-4 w-4 mr-1" />
-                      Replace
+                      Upload
                     </Button>
+                    {onPickFromLibrary && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onPickFromLibrary}
+                        data-testid={`button-${testIdPrefix}-library-image`}
+                      >
+                        <FolderOpen className="h-4 w-4 mr-1" />
+                        Library
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -297,14 +310,27 @@ export function TextStyleEditor({
                   )}
                 </div>
               ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed rounded-md p-6 flex flex-col items-center gap-2 cursor-pointer hover:bg-muted/30 transition-colors"
-                  data-testid={`dropzone-${testIdPrefix}-upload`}
-                >
-                  <Upload className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Tap to upload an image</p>
-                  <p className="text-xs text-muted-foreground">PNG, JPG, SVG, or WebP</p>
+                <div className="flex gap-2">
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                    data-testid={`dropzone-${testIdPrefix}-upload`}
+                  >
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground font-medium">Upload</p>
+                    <p className="text-xs text-muted-foreground/60">PNG, JPG, SVG</p>
+                  </div>
+                  {onPickFromLibrary && (
+                    <div
+                      onClick={onPickFromLibrary}
+                      className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                      data-testid={`dropzone-${testIdPrefix}-library`}
+                    >
+                      <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground font-medium">Library</p>
+                      <p className="text-xs text-muted-foreground/60">Our images</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
