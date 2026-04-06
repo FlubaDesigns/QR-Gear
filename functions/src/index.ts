@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260312-legacy-purge';
+const _BUILD_ID = '20260406-admin-images';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';

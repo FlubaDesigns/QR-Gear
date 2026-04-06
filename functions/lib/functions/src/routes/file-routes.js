@@ -711,12 +711,11 @@ function register(app) {
     app.get('/admin/images', middleware_1.requireAdmin, async (req, res) => {
         try {
             const folder = req.query.folder || '';
-            let query = core_1.db.collection('admin_images').where('isActive', '==', true);
-            if (folder) {
-                query = query.where('folder', '==', folder);
-            }
-            const snap = await query.get();
-            const images = snap.docs.map(doc => {
+            console.log('[AdminImages] GET request - folder filter:', folder || '(all)');
+            const snap = await core_1.db.collection('admin_images').get();
+            console.log('[AdminImages] Raw docs:', snap.size);
+            const images = snap.docs
+                .map(doc => {
                 const data = doc.data();
                 const filename = (data.storageUrl || '').split('/').pop() || '';
                 return {
@@ -724,7 +723,10 @@ function register(app) {
                     ...data,
                     proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
                 };
-            }).sort((a, b) => {
+            })
+                .filter((img) => img.isActive !== false)
+                .filter((img) => !folder || img.folder === folder)
+                .sort((a, b) => {
                 const getTime = (val) => {
                     if (!val)
                         return 0;
@@ -738,19 +740,23 @@ function register(app) {
                 };
                 return getTime(b.createdAt) - getTime(a.createdAt);
             });
+            console.log('[AdminImages] Filtered images:', images.length);
             res.json(images);
         }
         catch (error) {
-            console.error('[AdminImages] List error:', error);
+            console.error('[AdminImages] List error:', error.message, error.stack);
             res.status(500).json({ error: error.message });
         }
     });
     app.get('/admin/images/folders', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const snap = await core_1.db.collection('admin_images').where('isActive', '==', true).get();
+            const snap = await core_1.db.collection('admin_images').get();
             const folderSet = new Set();
             snap.docs.forEach(doc => {
-                const f = doc.data().folder;
+                const data = doc.data();
+                if (data.isActive === false)
+                    return;
+                const f = data.folder;
                 if (f)
                     folderSet.add(f);
             });
@@ -765,7 +771,9 @@ function register(app) {
     app.post('/admin/images', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { name, imageData, mimeType, folder } = req.body;
+            console.log('[AdminImages] POST upload request:', { name, mimeType, folder, dataLength: imageData?.length || 0 });
             if (!name || !imageData) {
+                console.log('[AdminImages] Missing fields:', { hasName: !!name, hasImageData: !!imageData });
                 res.status(400).json({ error: 'Missing required fields: name, imageData' });
                 return;
             }

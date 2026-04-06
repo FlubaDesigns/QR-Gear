@@ -780,42 +780,47 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
 app.get('/admin/images', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const folder = (req.query.folder as string) || '';
-    let query: FirebaseFirestore.Query = db.collection('admin_images').where('isActive', '==', true);
-    if (folder) {
-      query = query.where('folder', '==', folder);
-    }
-    const snap = await query.get();
-    const images = snap.docs.map(doc => {
-      const data = doc.data();
-      const filename = (data.storageUrl || '').split('/').pop() || '';
-      return {
-        id: doc.id,
-        ...data,
-        proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
-      };
-    }).sort((a: any, b: any) => {
-      const getTime = (val: any): number => {
-        if (!val) return 0;
-        if (val._seconds) return val._seconds * 1000;
-        if (val.toDate) return val.toDate().getTime();
-        if (typeof val === 'string') return new Date(val).getTime() || 0;
-        return 0;
-      };
-      return getTime(b.createdAt) - getTime(a.createdAt);
-    });
+    console.log('[AdminImages] GET request - folder filter:', folder || '(all)');
+    const snap = await db.collection('admin_images').get();
+    console.log('[AdminImages] Raw docs:', snap.size);
+    const images = snap.docs
+      .map(doc => {
+        const data = doc.data();
+        const filename = (data.storageUrl || '').split('/').pop() || '';
+        return {
+          id: doc.id,
+          ...data,
+          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+        };
+      })
+      .filter((img: any) => img.isActive !== false)
+      .filter((img: any) => !folder || img.folder === folder)
+      .sort((a: any, b: any) => {
+        const getTime = (val: any): number => {
+          if (!val) return 0;
+          if (val._seconds) return val._seconds * 1000;
+          if (val.toDate) return val.toDate().getTime();
+          if (typeof val === 'string') return new Date(val).getTime() || 0;
+          return 0;
+        };
+        return getTime(b.createdAt) - getTime(a.createdAt);
+      });
+    console.log('[AdminImages] Filtered images:', images.length);
     res.json(images);
   } catch (error: any) {
-    console.error('[AdminImages] List error:', error);
+    console.error('[AdminImages] List error:', error.message, error.stack);
     res.status(500).json({ error: error.message });
   }
 });
 
 app.get('/admin/images/folders', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const snap = await db.collection('admin_images').where('isActive', '==', true).get();
+    const snap = await db.collection('admin_images').get();
     const folderSet = new Set<string>();
     snap.docs.forEach(doc => {
-      const f = doc.data().folder;
+      const data = doc.data();
+      if (data.isActive === false) return;
+      const f = data.folder;
       if (f) folderSet.add(f);
     });
     const folders = Array.from(folderSet).sort();
@@ -829,7 +834,9 @@ app.get('/admin/images/folders', requireAdmin, async (req: Request, res: Respons
 app.post('/admin/images', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, imageData, mimeType, folder } = req.body;
+    console.log('[AdminImages] POST upload request:', { name, mimeType, folder, dataLength: imageData?.length || 0 });
     if (!name || !imageData) {
+      console.log('[AdminImages] Missing fields:', { hasName: !!name, hasImageData: !!imageData });
       res.status(400).json({ error: 'Missing required fields: name, imageData' });
       return;
     }
