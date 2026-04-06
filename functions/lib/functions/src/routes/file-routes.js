@@ -707,5 +707,125 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // ============ ADMIN IMAGE LIBRARY (with folders) ============
+    app.get('/admin/images', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const folder = req.query.folder || '';
+            let query = core_1.db.collection('admin_images').where('isActive', '==', true);
+            if (folder) {
+                query = query.where('folder', '==', folder);
+            }
+            const snap = await query.get();
+            const images = snap.docs.map(doc => {
+                const data = doc.data();
+                const filename = (data.storageUrl || '').split('/').pop() || '';
+                return {
+                    id: doc.id,
+                    ...data,
+                    proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+                };
+            }).sort((a, b) => {
+                const getTime = (val) => {
+                    if (!val)
+                        return 0;
+                    if (val._seconds)
+                        return val._seconds * 1000;
+                    if (val.toDate)
+                        return val.toDate().getTime();
+                    if (typeof val === 'string')
+                        return new Date(val).getTime() || 0;
+                    return 0;
+                };
+                return getTime(b.createdAt) - getTime(a.createdAt);
+            });
+            res.json(images);
+        }
+        catch (error) {
+            console.error('[AdminImages] List error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.get('/admin/images/folders', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const snap = await core_1.db.collection('admin_images').where('isActive', '==', true).get();
+            const folderSet = new Set();
+            snap.docs.forEach(doc => {
+                const f = doc.data().folder;
+                if (f)
+                    folderSet.add(f);
+            });
+            const folders = Array.from(folderSet).sort();
+            res.json(folders);
+        }
+        catch (error) {
+            console.error('[AdminImages] Folders error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.post('/admin/images', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { name, imageData, mimeType, folder } = req.body;
+            if (!name || !imageData) {
+                res.status(400).json({ error: 'Missing required fields: name, imageData' });
+                return;
+            }
+            const targetFolder = folder || 'general';
+            const bucket = core_1.storage.bucket();
+            const ext = (mimeType || 'image/png').split('/')[1] || 'png';
+            const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fullPath = `library/images/${targetFolder}/${Date.now()}-${safeName}.${ext}`;
+            const buffer = Buffer.from(imageData, 'base64');
+            const file = bucket.file(fullPath);
+            await file.save(buffer, { metadata: { contentType: mimeType || 'image/png' } });
+            await file.makePublic();
+            const fileNameOnly = fullPath.split('/').pop() || safeName;
+            const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
+            const docRef = await core_1.db.collection('admin_images').add({
+                name,
+                folder: targetFolder,
+                mimeType: mimeType || 'image/png',
+                sizeBytes: buffer.length,
+                storageUrl: fullPath,
+                publicUrl: proxyUrl,
+                isActive: true,
+                createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+            });
+            const doc = await docRef.get();
+            res.json({ id: doc.id, ...doc.data(), proxyUrl });
+        }
+        catch (error) {
+            console.error('[AdminImages] Upload error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.patch('/admin/images/:id', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { folder, name } = req.body;
+            const updates = { updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() };
+            if (folder !== undefined)
+                updates.folder = folder;
+            if (name !== undefined)
+                updates.name = name;
+            await core_1.db.collection('admin_images').doc(req.params.id).update(updates);
+            res.json({ success: true });
+        }
+        catch (error) {
+            console.error('[AdminImages] Update error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.delete('/admin/images/:id', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            await core_1.db.collection('admin_images').doc(req.params.id).update({
+                isActive: false,
+                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+            });
+            res.json({ success: true });
+        }
+        catch (error) {
+            console.error('[AdminImages] Delete error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
 }
 //# sourceMappingURL=file-routes.js.map

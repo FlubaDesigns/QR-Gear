@@ -18,9 +18,10 @@ const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", ena
 interface LibraryImage {
   id: string;
   name: string;
+  folder: string;
   storageUrl: string;
   proxyUrl?: string;
-  thumbnailUrl?: string;
+  publicUrl?: string;
 }
 
 function ImageLibraryDialog({
@@ -34,29 +35,56 @@ function ImageLibraryDialog({
 }) {
   const { apiBase, getAuthHeaders } = useAdminAuth();
   const [images, setImages] = useState<LibraryImage[]>([]);
+  const [folders, setFolders] = useState<string[]>([]);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const loadImages = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const headers = await getAuthHeaders();
-      const [croppedRes, bgRes] = await Promise.all([
+      const [foldersRes, imagesRes, croppedRes, bgRes] = await Promise.all([
+        fetch(`${apiBase}/images/folders`, { headers }),
+        fetch(`${apiBase}/images${activeFolder ? `?folder=${encodeURIComponent(activeFolder)}` : ''}`, { headers }),
         fetch(`${apiBase}/background-assets?type=cropped`, { headers }),
         fetch(`${apiBase}/background-assets?type=background`, { headers }),
       ]);
+      const folderList = foldersRes.ok ? await foldersRes.json() : [];
+      const adminImages = imagesRes.ok ? await imagesRes.json() : [];
       const cropped = croppedRes.ok ? await croppedRes.json() : [];
       const backgrounds = bgRes.ok ? await bgRes.json() : [];
-      setImages([...cropped, ...backgrounds]);
+      setFolders(folderList);
+      const bgImages = [...cropped, ...backgrounds].map((img: any) => ({
+        ...img,
+        folder: '_backgrounds',
+      }));
+      if (activeFolder === '_backgrounds') {
+        setImages(bgImages);
+      } else if (activeFolder) {
+        setImages(adminImages);
+      } else {
+        setImages([...adminImages, ...bgImages]);
+      }
     } catch {
       setImages([]);
+      setFolders([]);
     } finally {
       setLoading(false);
     }
-  }, [apiBase, getAuthHeaders]);
+  }, [apiBase, getAuthHeaders, activeFolder]);
 
   useEffect(() => {
-    if (open) loadImages();
-  }, [open, loadImages]);
+    if (open) {
+      loadData();
+    } else {
+      setActiveFolder(null);
+    }
+  }, [open, loadData]);
+
+  const allFolders = [...folders];
+  if (!allFolders.includes('_backgrounds')) allFolders.push('_backgrounds');
+
+  const folderLabel = (f: string) => f === '_backgrounds' ? 'Backgrounds' : f;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -64,34 +92,66 @@ function ImageLibraryDialog({
         <DialogHeader>
           <DialogTitle>Choose from Library</DialogTitle>
         </DialogHeader>
+
+        {!activeFolder && allFolders.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {allFolders.map((f) => (
+              <button
+                key={f}
+                onClick={() => setActiveFolder(f)}
+                className="qr-btn qr-btn--outline text-xs px-3 py-1.5"
+                data-testid={`picker-folder-${f}`}
+              >
+                {folderLabel(f)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeFolder && (
+          <button
+            onClick={() => setActiveFolder(null)}
+            className="text-sm text-blue-400 mb-2 flex items-center gap-1"
+            data-testid="button-picker-back"
+          >
+            <span>&larr;</span> All Images
+          </button>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : images.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
-            No images in library yet. Upload backgrounds in the admin library first.
+            No images found. Upload images in the Asset Library &gt; Images tab first.
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-[50vh] p-1">
-            {images.map((img) => (
-              <div
-                key={img.id}
-                onClick={() => {
-                  onSelect(img.proxyUrl || img.storageUrl);
-                  onClose();
-                }}
-                className="cursor-pointer rounded-md border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                data-testid={`library-image-${img.id}`}
-              >
-                <img
-                  src={img.thumbnailUrl || img.proxyUrl || img.storageUrl}
-                  alt={img.name}
-                  className="w-full aspect-square object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ))}
+            {images.map((img) => {
+              const url = img.proxyUrl || img.publicUrl || img.storageUrl;
+              return (
+                <div
+                  key={img.id}
+                  onClick={() => {
+                    onSelect(url);
+                    onClose();
+                  }}
+                  className="cursor-pointer rounded-md overflow-hidden border border-white/10 hover:ring-2 hover:ring-blue-400 transition-all"
+                  data-testid={`library-image-${img.id}`}
+                >
+                  <img
+                    src={url}
+                    alt={img.name}
+                    className="w-full aspect-square object-cover bg-black/20"
+                    loading="lazy"
+                  />
+                  <div className="text-[10px] text-white/70 p-1 truncate bg-black/40">
+                    {img.name}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </DialogContent>

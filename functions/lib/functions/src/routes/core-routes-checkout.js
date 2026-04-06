@@ -282,6 +282,17 @@ function registerCoreCheckoutRoutes(app) {
                 `library/admin/designs/${filename}`,
                 `library/backgrounds/raw/zip/${filename}`,
             ];
+            // Check if the filename itself contains a full storage path from admin_images
+            const imgDoc = await core_1.db.collection('admin_images')
+                .where('isActive', '==', true)
+                .get();
+            for (const doc of imgDoc.docs) {
+                const storageUrl = doc.data().storageUrl || '';
+                const storedFilename = storageUrl.split('/').pop() || '';
+                if (storedFilename === filename && storageUrl) {
+                    possiblePaths.unshift(storageUrl);
+                }
+            }
             for (const path of possiblePaths) {
                 const file = bucket.file(path);
                 const [exists] = await file.exists();
