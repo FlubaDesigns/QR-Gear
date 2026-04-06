@@ -103,6 +103,7 @@ export function ProductGraphicTextModule() {
   const { state, setContent } = useBuilderContext();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | null>(null);
+  const adminAreaFileRef = useRef<HTMLInputElement>(null);
 
   const openLibraryFor = useCallback((target: "header" | "footer") => {
     setLibraryTarget(target);
@@ -129,7 +130,6 @@ export function ProductGraphicTextModule() {
   const posX = state.content.qrPositionX ?? 50;
   const posY = state.content.qrPositionY ?? 50;
   const sizeVal = state.content.qrSizePercent ?? 50;
-  const adminAreaFileRef = useRef<HTMLInputElement>(null);
   const adminAreaImageUrl = state.content.areaImageUrl || '';
   const adminAreaImageMode = state.content.areaImageMode || 'behind-qr';
   const areaOffX = state.content.areaImageOffsetX ?? 50;
