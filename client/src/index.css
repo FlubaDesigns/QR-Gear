@@ -479,9 +479,12 @@
 }
 
 /* Zone proportions — single source of truth: shared/constants/zoneLayout.ts */
-/* Header: 25%, Middle: 50% (10% top margin, 80% QR, 10% bottom margin), Footer: 25% */
+/* Header: 25%, Middle: 40% (50% when sub-bottom hidden), Sub-bottom: 10% (hidden by default), Footer: 25% */
 .qr-canvas__header { flex: 0 0 25%; min-height: 0; }
 .qr-canvas__middle { flex: 0 0 50%; min-height: 0; }
+.qr-canvas--sub-visible .qr-canvas__middle { flex: 0 0 40%; }
+.qr-canvas__sub-bottom { flex: 0 0 10%; min-height: 0; display: none; }
+.qr-canvas__sub-bottom--visible { display: flex; }
 .qr-canvas__footer { flex: 0 0 25%; min-height: 0; }
 
 .qr-canvas__header,
@@ -512,6 +515,15 @@
   line-height: 1.05;
 }
 
+.qr-canvas__sub-bottom {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 4%;
+  overflow: hidden;
+}
+
 .qr-canvas__middle {
   display: flex;
   flex-direction: column;
@@ -521,11 +533,16 @@
 .qr-canvas__middle::before,
 .qr-canvas__middle::after {
   content: "";
+  flex: 0 0 15%;
+}
+
+.qr-canvas--sub-visible .qr-canvas__middle::before,
+.qr-canvas--sub-visible .qr-canvas__middle::after {
   flex: 0 0 10%;
 }
 
 .qr-canvas__middle .qr-area {
-  flex: 0 0 80%;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   align-items: center;

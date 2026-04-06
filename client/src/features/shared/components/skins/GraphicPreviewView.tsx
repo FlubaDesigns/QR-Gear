@@ -39,6 +39,10 @@ export interface GraphicPreviewViewProps {
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;
+  subBottomEnabled?: boolean;
+  subBottomText?: string;
+  subBottomColor?: string;
+  subBottomFontSize?: string;
 }
 
 function toTextStyle(overlay?: TextOverlay): TextStyle | null {
@@ -82,6 +86,10 @@ export function GraphicPreviewView({
   areaImageOffsetX,
   areaImageOffsetY,
   areaImageScale,
+  subBottomEnabled,
+  subBottomText,
+  subBottomColor,
+  subBottomFontSize,
 }: GraphicPreviewViewProps) {
   const aspectClass =
     aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-square";
@@ -105,7 +113,11 @@ export function GraphicPreviewView({
     areaImageOffsetX,
     areaImageOffsetY,
     areaImageScale,
-    enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl,
+    subBottomEnabled,
+    subBottomText,
+    subBottomColor,
+    subBottomFontSize,
+    enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl || subBottomEnabled,
     debounceMs: 300,
   });
 

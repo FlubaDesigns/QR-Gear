@@ -35,6 +35,8 @@ interface ZoneLayoutProps {
   backgroundImage?: string;
   fontScale?: 'mini' | 'mid';
   className?: string;
+  subBottomEnabled?: boolean;
+  subBottomText?: string;
 }
 
 export function ZoneLayout({
@@ -47,12 +49,14 @@ export function ZoneLayout({
   backgroundImage,
   fontScale = 'mini',
   className = '',
+  subBottomEnabled = false,
+  subBottomText,
 }: ZoneLayoutProps) {
   const getFont = fontScale === 'mid' ? getMidFont : getMiniFont;
 
   return (
     <div
-      className={`qr-canvas qr-canvas--fill ${className}`}
+      className={`qr-canvas qr-canvas--fill ${subBottomEnabled ? 'qr-canvas--sub-visible' : ''} ${className}`}
       style={{
         backgroundColor: backgroundColor || undefined,
         backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
@@ -91,6 +95,11 @@ export function ZoneLayout({
           )}
         </div>
       </div>
+      {subBottomEnabled && (
+        <div className="qr-canvas__sub-bottom qr-canvas__sub-bottom--visible">
+          <span className="text-xs text-muted-foreground">{subBottomText || "Scan Me"}</span>
+        </div>
+      )}
       <div className="qr-canvas__footer">
         <div className="zone-content" style={{ position: 'relative' }}>
           {footerText && (footerStyle as any)?.enabled && (

@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Type, Move, Maximize2, Upload, X, ImageIcon } from "lucide-react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -7,6 +7,8 @@ import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPr
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 
 const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
 const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
@@ -46,7 +48,7 @@ export function ProductGraphicTextModule() {
 
   const hasHeaderContent = (state.content.headerStyle as TextStyleConfig)?.enabled;
   const hasFooterContent = (state.content.footerStyle as TextStyleConfig)?.enabled;
-  const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl;
+  const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomEnabled;
 
   return (
     <CollapsibleModule
@@ -93,6 +95,8 @@ export function ProductGraphicTextModule() {
               areaImageOffsetX={areaOffX}
               areaImageOffsetY={areaOffY}
               areaImageScale={areaSc}
+              subBottomEnabled={state.content.subBottomEnabled}
+              subBottomText={state.content.subBottomText}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
               This is how your product graphic will appear
@@ -115,6 +119,32 @@ export function ProductGraphicTextModule() {
           showPositionControls={true}
           previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
         />
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+              <Label className="text-sm font-medium">Sub-Bottom CTA</Label>
+            </div>
+            <Switch
+              checked={state.content.subBottomEnabled ?? false}
+              onCheckedChange={(checked) => setContent({ subBottomEnabled: checked })}
+              data-testid="switch-sub-bottom-enabled"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Small call-to-action text below the QR code (e.g. "Scan Me")
+          </p>
+          {state.content.subBottomEnabled && (
+            <Input
+              value={state.content.subBottomText || ''}
+              onChange={(e) => setContent({ subBottomText: e.target.value })}
+              placeholder="Scan Me"
+              maxLength={30}
+              data-testid="input-sub-bottom-text"
+            />
+          )}
+        </div>
 
         <div className="mt-4 pt-4 border-t">
           <p className="text-xs text-muted-foreground mb-3 font-medium">QR Code Position & Size</p>

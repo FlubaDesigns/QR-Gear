@@ -142,6 +142,8 @@ export interface ContentData {
   areaImageOffsetX: number;
   areaImageOffsetY: number;
   areaImageScale: number;
+  subBottomEnabled: boolean;
+  subBottomText: string;
   composeItems: Array<{
     packetId: string;
     name: string;

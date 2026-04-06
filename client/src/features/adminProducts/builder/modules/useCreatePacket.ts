@@ -132,6 +132,8 @@ export function useCreatePacket({
         channelId: selectedChannel?.id || null,
         channelName: selectedChannel?.name || null,
         fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
+        subBottomEnabled: state.content?.subBottomEnabled || false,
+        subBottomText: state.content?.subBottomText || '',
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
@@ -240,6 +242,8 @@ export function useCreatePacket({
           qrSizePercent: state.content.qrSizePercent,
           areaImageUrl: state.content.areaImageUrl || undefined,
           areaImageMode: state.content.areaImageMode || "behind-qr",
+          subBottomEnabled: state.content.subBottomEnabled || false,
+          subBottomText: state.content.subBottomText || "",
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

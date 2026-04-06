@@ -62,6 +62,8 @@ const initialContent: ContentData = {
   areaImageOffsetX: 50,
   areaImageOffsetY: 50,
   areaImageScale: 100,
+  subBottomEnabled: false,
+  subBottomText: '',
   // Compose-specific fields
   composeItems: [],
   composeMode: '',

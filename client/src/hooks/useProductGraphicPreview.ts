@@ -23,6 +23,10 @@ interface UseProductGraphicPreviewOptions {
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;
+  subBottomEnabled?: boolean;
+  subBottomText?: string;
+  subBottomColor?: string;
+  subBottomFontSize?: string;
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -54,6 +58,10 @@ export function useProductGraphicPreview(
     areaImageOffsetX,
     areaImageOffsetY,
     areaImageScale,
+    subBottomEnabled,
+    subBottomText,
+    subBottomColor,
+    subBottomFontSize,
     enabled = true,
     debounceMs = 400,
   } = options;
@@ -112,6 +120,10 @@ export function useProductGraphicPreview(
           areaImageOffsetX,
           areaImageOffsetY,
           areaImageScale,
+          subBottomEnabled,
+          subBottomText,
+          subBottomColor,
+          subBottomFontSize,
         };
 
         const result = await renderProductGraphic(renderOpts);
@@ -177,6 +189,10 @@ export function useProductGraphicPreview(
     areaImageOffsetX,
     areaImageOffsetY,
     areaImageScale,
+    subBottomEnabled,
+    subBottomText,
+    subBottomColor,
+    subBottomFontSize,
     enabled,
     debounceMs,
   ]);

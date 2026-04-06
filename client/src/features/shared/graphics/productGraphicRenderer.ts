@@ -39,6 +39,10 @@ export interface RenderOptions {
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;
+  subBottomEnabled?: boolean;
+  subBottomText?: string;
+  subBottomColor?: string;
+  subBottomFontSize?: string;
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -122,12 +126,25 @@ export async function renderProductGraphic(
   const W = dims.width;
   const H = dims.height;
 
+  const subBottomEnabled = options.subBottomEnabled ?? false;
+  const subBottomText = options.subBottomText || "Scan Me";
+  const subBottomColor = options.subBottomColor || "#666666";
+  const subBottomFontSizeStr = options.subBottomFontSize || "14px";
+
   const headerZoneTop = 0;
   const headerZoneHeight = H * ZONE_LAYOUT.HEADER_PERCENT;
   const qrZoneTop = headerZoneHeight;
-  const qrZoneHeight = H * ZONE_LAYOUT.MIDDLE_PERCENT;
-  const footerZoneTop = qrZoneTop + qrZoneHeight;
+  const qrZoneHeight = subBottomEnabled
+    ? H * ZONE_LAYOUT.MIDDLE_PERCENT
+    : H * (ZONE_LAYOUT.MIDDLE_PERCENT + ZONE_LAYOUT.SUB_BOTTOM_PERCENT);
+  const subBottomZoneTop = qrZoneTop + qrZoneHeight;
+  const subBottomZoneHeight = subBottomEnabled ? H * ZONE_LAYOUT.SUB_BOTTOM_PERCENT : 0;
+  const footerZoneTop = subBottomZoneTop + subBottomZoneHeight;
   const footerZoneHeight = H * ZONE_LAYOUT.FOOTER_PERCENT;
+
+  const qrInnerMargin = subBottomEnabled
+    ? ZONE_LAYOUT.QR_INNER_MARGIN
+    : ZONE_LAYOUT.QR_INNER_MARGIN_EXPANDED;
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -237,14 +254,14 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
-  const SAFE_MARGIN = 0.03;
-  const safeMarginX = W * SAFE_MARGIN;
-  const safeMarginY = H * SAFE_MARGIN;
+  const safeMarginX = W * 0.03;
+  const safeMarginY = qrZoneHeight * qrInnerMargin;
   const safeW = W - 2 * safeMarginX;
-  const safeH = H - 2 * safeMarginY;
+  const safeH = qrZoneHeight - 2 * safeMarginY;
 
   const clampedSize = Math.max(20, Math.min(100, qrSizePercent));
-  const qrContentWidth = safeW * (clampedSize / 100);
+  const maxQrDimension = Math.min(safeW, safeH);
+  const qrContentWidth = maxQrDimension * (clampedSize / 100);
   const qrContentHeight = qrContentWidth;
 
   const clampedX = Math.max(0, Math.min(100, qrPositionX));
@@ -252,7 +269,7 @@ export async function renderProductGraphic(
   const availableX = safeW - qrContentWidth;
   const availableY = safeH - qrContentHeight;
   const qrX = safeMarginX + (clampedX / 100) * availableX;
-  const qrY = safeMarginY + (clampedY / 100) * availableY;
+  const qrY = qrZoneTop + safeMarginY + (clampedY / 100) * availableY;
 
   const bgPadding = 20;
   const bgRadius = 16;
@@ -309,6 +326,17 @@ export async function renderProductGraphic(
     } catch (e) {
       console.warn("[productGraphicRenderer] QR load failed:", e);
     }
+  }
+
+  if (subBottomEnabled && subBottomText) {
+    const subFontSize = Math.round(parseFontSize(subBottomFontSizeStr) * (W / 360));
+    ctx.font = `${subFontSize}px "Arial"`;
+    ctx.fillStyle = subBottomColor;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const subCenterX = W / 2;
+    const subCenterY = subBottomZoneTop + subBottomZoneHeight / 2;
+    ctx.fillText(subBottomText, subCenterX, subCenterY);
   }
 
   const footerIsImage = footerStyle?.mode === "image" && footerStyle?.imageUrl;
