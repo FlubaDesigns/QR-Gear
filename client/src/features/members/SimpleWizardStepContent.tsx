@@ -10,7 +10,8 @@ import { PlayVideoSourceStep, PlayPreviewStep, PlayPublishStep, PlayPublishedSte
 import { ComposeModePicker, ComposePickItemsStep, ComposeDurationsStep, ComposeOrderStep, ComposeHostingStep, ComposePreviewStep, ComposePublishStep, ComposeConfirmStep, ComposeExplainerCard, PlatformAcknowledgementCard } from "@/features/shared/components/wizardSteps/ComposeSteps";
 import { ShirtPreviewStep, UrlTitleStep, UrlDescriptionStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
 import { ShareKitHandoff } from "@/features/shared/components/ShareKitHandoff";
-import { calculateSizeEarningsBonuses, generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
+import { calculateSizeEarningsBonuses } from "@/features/shared/components/wizardSteps";
+import { generateBrandedQRDataUrl } from "@/components/BrandedQR";
 import { ContentRightsCheckbox } from "@/features/shared/components/ContentRightsCheckbox";
 import { useWizardContext } from './WizardContext';
 
@@ -441,7 +442,7 @@ export function SimpleWizardStepContent({
             setSimpleStep('qr-plus-mockup');
             try {
               const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-              const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
+              const qrApiUrl = await generateBrandedQRDataUrl(previewUrl, 200);
               setQrGraphic(qrApiUrl);
               const productGraphicResult = await api.generateProductGraphic({
                 qrUrl: previewUrl, headerStyle, footerStyle, textLayoutChoice, qrColor: 'black',
@@ -469,7 +470,7 @@ export function SimpleWizardStepContent({
                 setQrPlusMockup(qrApiUrl);
               }
             } catch {
-              setQrPlusMockup(generateQRCodeUrl('placeholder', 200));
+              setQrPlusMockup(await generateBrandedQRDataUrl('placeholder', 200));
             } finally {
               setIsGeneratingPlusMockup(false);
             }

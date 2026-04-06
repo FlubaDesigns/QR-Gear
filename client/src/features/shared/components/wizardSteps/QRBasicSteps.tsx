@@ -1,4 +1,5 @@
 import { QrCode, Link2, Type, Loader2, Check, ShoppingBag, Library, Move, Maximize2, Upload, X, ImageIcon } from "lucide-react";
+import { BrandedQR } from "@/components/BrandedQR";
 import { PlaceholderPreview } from "@/features/shared/components/ZonePreview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -575,10 +576,11 @@ export function QRBasicConfirmStep({
         )}
         {(saveChoice === 'graphic' || saveChoice === 'both') && (
           <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
-            <img 
-              src={generateQRCodeUrl(qrContent, 128)} 
-              alt="QR Code" 
+            <BrandedQR 
+              content={qrContent} 
+              size={128} 
               className="w-32 h-32 object-contain mx-auto mb-2 bg-white rounded"
+              alt="QR Code"
             />
             <p className="text-sm text-slate-400">QR Graphic</p>
           </div>

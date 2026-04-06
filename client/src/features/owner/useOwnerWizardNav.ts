@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from "react";
 import type { SimpleWizardStep, QRType, GraphicSize, PlacementOption, TextLayoutChoice, PlacementGraphicChoice } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps";
+import { generateBrandedQRDataUrl } from "@/components/BrandedQR";
 import { GUIDED_CARDS } from "./OwnerWizardComponents";
 import type { TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 
@@ -189,15 +189,15 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       updateTempPacket({ headerStyle, footerStyle, textLayoutChoice });
       setIsGeneratingPlusMockup(true);
       setSimpleStep('qr-plus-mockup');
-      generateRealMockup().then((success) => {
+      generateRealMockup().then(async (success) => {
         setIsGeneratingPlusMockup(false);
         if (!success) {
           const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-          setQrPlusMockup(generateQRCodeUrl(previewUrl, 1000));
+          setQrPlusMockup(await generateBrandedQRDataUrl(previewUrl, 1000));
         }
-      }).catch(() => {
+      }).catch(async () => {
         const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-        setQrPlusMockup(generateQRCodeUrl(previewUrl, 1000));
+        setQrPlusMockup(await generateBrandedQRDataUrl(previewUrl, 1000));
         setIsGeneratingPlusMockup(false);
       });
       return;
@@ -206,11 +206,11 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       updateTempPacket({ qrBasicInputType, qrBasicContent });
       setIsGeneratingBasicMockup(true);
       setSimpleStep('qr-basic-mockup');
-      generateRealMockup().then((success) => {
+      generateRealMockup().then(async (success) => {
         setIsGeneratingBasicMockup(false);
-        if (!success) { setQrBasicMockup(generateQRCodeUrl(qrBasicContent, 1000)); }
-      }).catch(() => {
-        setQrBasicMockup(generateQRCodeUrl(qrBasicContent, 1000));
+        if (!success) { setQrBasicMockup(await generateBrandedQRDataUrl(qrBasicContent, 1000)); }
+      }).catch(async () => {
+        setQrBasicMockup(await generateBrandedQRDataUrl(qrBasicContent, 1000));
         setIsGeneratingBasicMockup(false);
       });
       return;

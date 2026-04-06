@@ -286,6 +286,26 @@ export async function renderProductGraphic(
       const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
       const qrImg = await loadImage(qrUrl);
       ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
+
+      try {
+        const logoSize = qrContentWidth * 0.22;
+        const logoBgSize = logoSize * 1.3;
+        const logoBgX = qrX + (qrContentWidth - logoBgSize) / 2;
+        const logoBgY = qrY + (qrContentHeight - logoBgSize) / 2;
+        const logoBgRadius = logoBgSize * 0.12;
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.roundRect(logoBgX, logoBgY, logoBgSize, logoBgSize, logoBgRadius);
+        ctx.fill();
+
+        const { default: qLogoPath } = await import("@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png");
+        const qLogo = await loadImage(qLogoPath);
+        const logoX = qrX + (qrContentWidth - logoSize) / 2;
+        const logoY = qrY + (qrContentHeight - logoSize) / 2;
+        ctx.drawImage(qLogo, logoX, logoY, logoSize, logoSize);
+      } catch (logoErr) {
+        console.warn("[productGraphicRenderer] Q logo overlay failed:", logoErr);
+      }
     } catch (e) {
       console.warn("[productGraphicRenderer] QR load failed:", e);
     }
