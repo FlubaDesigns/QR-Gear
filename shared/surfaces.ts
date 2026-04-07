@@ -21,6 +21,10 @@ import type {
 } from '../functions/src/constants';
 
 // ============ SURFACE (canonical outward-facing sellable object) ============
+// Surface is the single source of truth for all outbound channels:
+//   - Marketplace listings (Etsy/eBay/Amazon) reference surfaceId via MarketplaceListing
+//   - External-sites / embedded builders reference surfaceId via BuilderProfile + BuilderPlacement
+// Both pipelines read product data (title, images, price, variants) from the same Surface document.
 
 export interface Surface {
   id: string;
@@ -129,6 +133,7 @@ export interface MarketplaceSyncJob {
   attempts: number;
   maxAttempts: number;
   lastAttemptAt?: string;
+  nextRetryAt?: string;
   completedAt?: string;
   errorMessage?: string;
   result?: {

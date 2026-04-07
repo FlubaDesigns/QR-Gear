@@ -12,7 +12,7 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { executeSyncJob, retryFailedJob } from '../services/marketplace-sync';
+import { executeSyncJob, retryFailedJob, processRetryQueue } from '../services/marketplace-sync';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -648,6 +648,17 @@ app.post('/admin/surfaces/jobs/:jobId/retry', requireAdmin, async (req: Request,
   } catch (error: any) {
     console.error('[Surfaces] POST job retry error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/jobs/process-retries', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const processed = await processRetryQueue();
+    res.json({ processed, message: `Processed ${processed} retry job(s)` });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[Surfaces] POST process-retries error:', error);
+    res.status(500).json({ error: msg });
   }
 });
 
