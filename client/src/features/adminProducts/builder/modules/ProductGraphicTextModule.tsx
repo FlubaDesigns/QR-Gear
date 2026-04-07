@@ -1,9 +1,11 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen } from "lucide-react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
+import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
+import { ModalView } from "@/features/shared/components/views/ModalView";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -38,33 +40,23 @@ function ImageLibraryDialog({
   const [folders, setFolders] = useState<string[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<LibraryImage | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const headers = await getAuthHeaders();
-      const [foldersRes, imagesRes, croppedRes, bgRes] = await Promise.all([
+      const [foldersRes, imagesRes] = await Promise.all([
         fetch(`${apiBase}/images/folders`, { headers }),
         fetch(`${apiBase}/images${activeFolder ? `?folder=${encodeURIComponent(activeFolder)}` : ''}`, { headers }),
-        fetch(`${apiBase}/background-assets?type=cropped`, { headers }),
-        fetch(`${apiBase}/background-assets?type=background`, { headers }),
       ]);
       const folderList = foldersRes.ok ? await foldersRes.json() : [];
       const adminImages = imagesRes.ok ? await imagesRes.json() : [];
-      const cropped = croppedRes.ok ? await croppedRes.json() : [];
-      const backgrounds = bgRes.ok ? await bgRes.json() : [];
       setFolders(folderList);
-      const bgImages = [...cropped, ...backgrounds].map((img: any) => ({
-        ...img,
-        folder: '_backgrounds',
-      }));
-      if (activeFolder === '_backgrounds') {
-        setImages(bgImages);
-      } else if (activeFolder) {
-        setImages(adminImages);
-      } else {
-        setImages([...adminImages, ...bgImages]);
-      }
+      setImages(adminImages);
     } catch {
       setImages([]);
       setFolders([]);
@@ -78,24 +70,44 @@ function ImageLibraryDialog({
       loadData();
     } else {
       setActiveFolder(null);
+      setSelectedImage(null);
+      setShowNewFolder(false);
+      setNewFolderName("");
     }
   }, [open, loadData]);
 
-  const allFolders = [...folders];
-  if (!allFolders.includes('_backgrounds')) allFolders.push('_backgrounds');
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${apiBase}/images/${id}`, { method: 'DELETE', headers });
+      setSelectedImage(null);
+      loadData();
+    } catch (e) {
+      console.error("Delete failed:", e);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-  const folderLabel = (f: string) => f === '_backgrounds' ? 'Backgrounds' : f;
+  const handleCreateFolder = () => {
+    const trimmed = newFolderName.trim();
+    if (!trimmed) return;
+    setActiveFolder(trimmed);
+    setShowNewFolder(false);
+    setNewFolderName("");
+  };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col p-4">
         <DialogHeader className="pb-2">
           <DialogTitle className="text-lg">
-            {activeFolder ? folderLabel(activeFolder) : "Choose from Library"}
+            {activeFolder ? activeFolder : "Choose from Library"}
           </DialogTitle>
         </DialogHeader>
 
-        {activeFolder && (
+        {activeFolder ? (
           <button
             onClick={() => setActiveFolder(null)}
             className="qr-btn qr-btn--outline qr-btn--touch text-sm mb-3 self-start"
@@ -103,51 +115,68 @@ function ImageLibraryDialog({
           >
             &larr; All Folders
           </button>
-        )}
-
-        {!activeFolder && allFolders.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {allFolders.map((f) => (
-              <button
-                key={f}
-                onClick={() => setActiveFolder(f)}
-                className="qr-btn qr-btn--outline qr-btn--touch min-h-[48px] flex items-center justify-center gap-2 text-sm font-medium capitalize"
-                data-testid={`picker-folder-${f}`}
-              >
-                <FolderOpen className="h-4 w-4" />
-                {folderLabel(f)}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : images.length === 0 ? (
-          <div className="text-center py-12">
-            <ImageIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              No images found.
-            </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">
-              Upload images in Asset Library &gt; Images tab first.
-            </p>
-          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1 pb-2" style={{ maxHeight: '60vh' }}>
-            {images.map((img) => {
+          <div className="space-y-2 mb-3">
+            <div className="grid grid-cols-2 gap-2">
+              {folders.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setActiveFolder(f)}
+                  className="qr-btn qr-btn--outline qr-btn--touch min-h-[48px] flex items-center justify-center gap-2 text-sm font-medium capitalize"
+                  data-testid={`picker-folder-${f}`}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {showNewFolder ? (
+              <div className="flex gap-2">
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name"
+                  className="flex-1"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                  data-testid="input-new-folder-name"
+                />
+                <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()} data-testid="button-confirm-new-folder">
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} data-testid="button-cancel-new-folder">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewFolder(true)}
+                className="qr-btn qr-btn--outline qr-btn--touch w-full min-h-[48px] flex items-center justify-center gap-2 text-sm"
+                data-testid="button-new-folder"
+              >
+                <FolderPlus className="h-4 w-4" />
+                New Folder
+              </button>
+            )}
+          </div>
+        )}
+
+        {activeFolder && (
+          <ScrollGridView
+            items={images.map(img => ({ ...img, id: img.id }))}
+            columns="grid-cols-2"
+            height="55vh"
+            emptyMessage="No images in this folder"
+            emptyIcon={<ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />}
+            isLoading={loading}
+            renderItem={(img) => {
               const url = img.proxyUrl || img.publicUrl || img.storageUrl;
               return (
                 <button
-                  key={img.id}
                   type="button"
-                  onClick={() => {
-                    onSelect(url);
-                    onClose();
-                  }}
-                  className="rounded-lg overflow-hidden border-2 border-white/10 active:border-blue-400 active:scale-[0.97] transition-all bg-black/10"
+                  onClick={() => setSelectedImage(img as LibraryImage)}
+                  className="w-full rounded-lg overflow-hidden border-2 border-white/10 active:border-blue-400 active:scale-[0.97] transition-all bg-black/10 text-left"
                   data-testid={`library-image-${img.id}`}
                 >
                   <img
@@ -161,9 +190,205 @@ function ImageLibraryDialog({
                   </div>
                 </button>
               );
-            })}
+            }}
+            footer={null}
+          />
+        )}
+
+        {!activeFolder && !loading && folders.length === 0 && !showNewFolder && (
+          <div className="text-center py-8">
+            <ImageIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">No folders yet.</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Create a folder to organize your images.</p>
           </div>
         )}
+      </DialogContent>
+
+      <ModalView
+        open={!!selectedImage}
+        onOpenChange={() => setSelectedImage(null)}
+        title={selectedImage?.name || "Image Preview"}
+        maxWidth="max-w-sm"
+      >
+        {selectedImage && (
+          <>
+            <img
+              src={selectedImage.proxyUrl || selectedImage.publicUrl || selectedImage.storageUrl}
+              alt={selectedImage.name}
+              className="w-full max-h-[50vh] object-contain bg-black/20"
+              data-testid="img-picker-preview"
+            />
+            <div className="p-4 space-y-3">
+              <p className="text-sm font-medium text-center truncate">{selectedImage.name}</p>
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => {
+                  const url = selectedImage.proxyUrl || selectedImage.publicUrl || selectedImage.storageUrl;
+                  onSelect(url);
+                  setSelectedImage(null);
+                  onClose();
+                }}
+                data-testid="button-picker-select"
+              >
+                <Check className="h-5 w-5 mr-2" />
+                Use This Image
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-red-400"
+                onClick={() => handleDelete(selectedImage.id)}
+                disabled={deleting}
+                data-testid="button-picker-delete"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {deleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </>
+        )}
+      </ModalView>
+    </Dialog>
+  );
+}
+
+function SaveToLibraryDialog({
+  open,
+  onClose,
+  imageDataUrl,
+}: {
+  open: boolean;
+  onClose: () => void;
+  imageDataUrl: string;
+}) {
+  const { apiBase, getAuthHeaders } = useAdminAuth();
+  const [folders, setFolders] = useState<string[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
+  const [imageName, setImageName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${apiBase}/images/folders`, { headers });
+        const list = res.ok ? await res.json() : [];
+        setFolders(list);
+        if (list.length > 0) setSelectedFolder(list[0]);
+      } catch { /* ignore */ }
+    })();
+  }, [open, apiBase, getAuthHeaders]);
+
+  const handleSave = async () => {
+    const folder = selectedFolder || "general";
+    const name = imageName.trim() || `image-${Date.now()}`;
+    setSaving(true);
+    try {
+      const headers = await getAuthHeaders();
+      const parts = imageDataUrl.split(",");
+      const base64 = parts[1] || parts[0];
+      const mimeMatch = imageDataUrl.match(/data:([^;]+)/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+      await fetch(`${apiBase}/images`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ name, imageData: base64, mimeType, folder }),
+      });
+      onClose();
+    } catch (e) {
+      console.error("Save to library failed:", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateFolder = () => {
+    const trimmed = newFolderName.trim();
+    if (!trimmed) return;
+    if (!folders.includes(trimmed)) setFolders([...folders, trimmed]);
+    setSelectedFolder(trimmed);
+    setShowNewFolder(false);
+    setNewFolderName("");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-[95vw] max-w-sm p-4">
+        <DialogHeader>
+          <DialogTitle>Save to Library</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div>
+            <Label className="text-sm mb-1.5 block">Image Name</Label>
+            <Input
+              value={imageName}
+              onChange={(e) => setImageName(e.target.value)}
+              placeholder="My image"
+              data-testid="input-save-image-name"
+            />
+          </div>
+          <div>
+            <Label className="text-sm mb-1.5 block">Folder</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {folders.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setSelectedFolder(f)}
+                  className={`qr-btn qr-btn--touch min-h-[44px] text-sm capitalize ${
+                    selectedFolder === f ? "qr-btn--primary" : "qr-btn--outline"
+                  }`}
+                  data-testid={`save-folder-${f}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            {showNewFolder ? (
+              <div className="flex gap-2 mt-2">
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name"
+                  className="flex-1"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                  data-testid="input-save-new-folder"
+                />
+                <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()} data-testid="button-save-confirm-folder">
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} data-testid="button-save-cancel-folder">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowNewFolder(true)}
+                className="qr-btn qr-btn--outline qr-btn--touch w-full min-h-[44px] text-sm mt-2 flex items-center justify-center gap-2"
+                data-testid="button-save-new-folder"
+              >
+                <FolderPlus className="h-4 w-4" />
+                New Folder
+              </button>
+            )}
+          </div>
+          <Button
+            className="w-full"
+            size="lg"
+            onClick={handleSave}
+            disabled={saving}
+            data-testid="button-save-to-library"
+          >
+            <Save className="h-5 w-5 mr-2" />
+            {saving ? "Saving..." : "Save to Library"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -172,10 +397,11 @@ function ImageLibraryDialog({
 export function ProductGraphicTextModule() {
   const { state, setContent } = useBuilderContext();
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | null>(null);
+  const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | "area" | null>(null);
+  const [saveToLibraryOpen, setSaveToLibraryOpen] = useState(false);
   const adminAreaFileRef = useRef<HTMLInputElement>(null);
 
-  const openLibraryFor = useCallback((target: "header" | "footer") => {
+  const openLibraryFor = useCallback((target: "header" | "footer" | "area") => {
     setLibraryTarget(target);
     setLibraryOpen(true);
   }, []);
@@ -185,6 +411,8 @@ export function ProductGraphicTextModule() {
       setContent({ headerStyle: { ...((state.content?.headerStyle as TextStyleConfig) || headerDefaultStyle), imageUrl: url, mode: "image" } });
     } else if (libraryTarget === "footer") {
       setContent({ footerStyle: { ...((state.content?.footerStyle as TextStyleConfig) || footerDefaultStyle), imageUrl: url, mode: "image" } });
+    } else if (libraryTarget === "area") {
+      setContent({ areaImageUrl: url, areaImageMode: state.content?.areaImageMode || 'behind-qr' });
     }
   }, [libraryTarget, state.content, setContent]);
 
@@ -435,7 +663,7 @@ export function ProductGraphicTextModule() {
                     Replace QR
                   </button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -445,6 +673,26 @@ export function ProductGraphicTextModule() {
                     <Upload className="h-4 w-4 mr-1" />
                     Replace
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openLibraryFor("area")}
+                    data-testid="button-admin-area-library"
+                  >
+                    <FolderOpen className="h-4 w-4 mr-1" />
+                    Library
+                  </Button>
+                  {adminAreaImageUrl.startsWith("data:") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSaveToLibraryOpen(true)}
+                      data-testid="button-admin-save-area-to-library"
+                    >
+                      <Save className="h-4 w-4 mr-1" />
+                      Save
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -508,14 +756,25 @@ export function ProductGraphicTextModule() {
                 </div>
               </div>
             ) : (
-              <div
-                onClick={() => adminAreaFileRef.current?.click()}
-                className="border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
-                data-testid="dropzone-admin-area-image"
-              >
-                <Upload className="h-6 w-6 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Upload an image for the center area</p>
-                <p className="text-xs text-muted-foreground/60">Logo, graphic, or photo</p>
+              <div className="flex gap-2">
+                <div
+                  onClick={() => adminAreaFileRef.current?.click()}
+                  className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                  data-testid="dropzone-admin-area-image"
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground font-medium">Upload</p>
+                  <p className="text-xs text-muted-foreground/60">PNG, JPG, SVG</p>
+                </div>
+                <div
+                  onClick={() => openLibraryFor("area")}
+                  className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                  data-testid="dropzone-admin-area-library"
+                >
+                  <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground font-medium">Library</p>
+                  <p className="text-xs text-muted-foreground/60">Your images</p>
+                </div>
               </div>
             )}
           </div>
@@ -527,6 +786,14 @@ export function ProductGraphicTextModule() {
         onClose={() => setLibraryOpen(false)}
         onSelect={handleLibrarySelect}
       />
+
+      {adminAreaImageUrl.startsWith("data:") && (
+        <SaveToLibraryDialog
+          open={saveToLibraryOpen}
+          onClose={() => setSaveToLibraryOpen(false)}
+          imageDataUrl={adminAreaImageUrl}
+        />
+      )}
     </CollapsibleModule>
   );
 }
