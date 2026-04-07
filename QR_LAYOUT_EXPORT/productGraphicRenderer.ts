@@ -67,6 +67,11 @@ function parseFontSize(fontSize: string): number {
   return !isNaN(num) && num > 0 ? num : DEFAULT_FONT_SIZE_NUM;
 }
 
+function scaledFontSize(fontSize: string, canvasWidth: number): number {
+  const base = parseFontSize(fontSize);
+  return Math.round(base * (canvasWidth / 1200) * 2.5);
+}
+
 function wrapText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -293,25 +298,50 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       await drawImageInZone(ctx, resolvedHeaderUrl, 0, topPadding, W, headerZoneHeight, 0.05,
         headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100);
     } else if (headerStyle) {
+      const fSize = scaledFontSize(headerStyle.fontSize, W);
       ctx.fillStyle = headerStyle.color || "#000";
-      ctx.font = `${parseFontSize(headerStyle.fontSize)}px ${headerStyle.fontFamily}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      ctx.font = `bold ${fSize}px ${headerStyle.fontFamily}`;
+      ctx.textBaseline = "top";
+
+      const vOffset = headerStyle.verticalOffset ?? 50;
+      const hOffset = headerStyle.horizontalOffset ?? 50;
 
       const lines = wrapText(ctx, headerStyle.text, W * 0.9);
-      const lineHeight = parseFontSize(headerStyle.fontSize) * 1.2;
-      let y = topPadding + headerZoneHeight / 2 - ((lines.length - 1) * lineHeight) / 2;
+      const lineHeight = fSize * 1.3;
+      const totalTextHeight = lines.length * lineHeight;
 
+      const marginY = headerZoneHeight * 0.01;
+      const marginX = W * 0.01;
+      const usableH = headerZoneHeight - 2 * marginY;
+      const usableW = W - 2 * marginX;
+
+      const startY = topPadding + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
+      const textX = marginX + (hOffset / 100) * usableW;
+
+      ctx.textAlign = "center";
       for (const line of lines) {
-        ctx.fillText(line, W / 2, y);
-        y += lineHeight;
+        ctx.fillText(line, textX, startY + lines.indexOf(line) * lineHeight);
+      }
+
+      if (headerStyle.strokeColor && headerStyle.strokeWidth && headerStyle.strokeWidth > 0) {
+        ctx.strokeStyle = headerStyle.strokeColor;
+        ctx.lineWidth = headerStyle.strokeWidth * 7.5;
+        ctx.lineJoin = "round";
+        for (let i = 0; i < lines.length; i++) {
+          ctx.strokeText(lines[i], textX, startY + i * lineHeight);
+        }
+        ctx.fillStyle = headerStyle.color || "#000";
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], textX, startY + i * lineHeight);
+        }
       }
     }
   }
 
   if (subBottomActive) {
+    const sbFSize = scaledFontSize(subBottomFontSize, W);
     ctx.fillStyle = subBottomColor;
-    ctx.font = `${parseFontSize(subBottomFontSize)}px sans-serif`;
+    ctx.font = `${sbFSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(subBottomText.trim(), W / 2, subBottomZoneTop + subBottomZoneHeight / 2);
@@ -325,18 +355,42 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       await drawImageInZone(ctx, resolvedFooterUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
         footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100);
     } else if (footerStyle) {
+      const fSize = scaledFontSize(footerStyle.fontSize, W);
       ctx.fillStyle = footerStyle.color || "#000";
-      ctx.font = `${parseFontSize(footerStyle.fontSize)}px ${footerStyle.fontFamily}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      ctx.font = `bold ${fSize}px ${footerStyle.fontFamily}`;
+      ctx.textBaseline = "top";
+
+      const vOffset = footerStyle.verticalOffset ?? 50;
+      const hOffset = footerStyle.horizontalOffset ?? 50;
 
       const lines = wrapText(ctx, footerStyle.text, W * 0.9);
-      const lineHeight = parseFontSize(footerStyle.fontSize) * 1.2;
-      let y = footerZoneTop + footerZoneHeight / 2 - ((lines.length - 1) * lineHeight) / 2;
+      const lineHeight = fSize * 1.3;
+      const totalTextHeight = lines.length * lineHeight;
 
+      const marginY = footerZoneHeight * 0.01;
+      const marginX = W * 0.01;
+      const usableH = footerZoneHeight - 2 * marginY;
+      const usableW = W - 2 * marginX;
+
+      const startY = footerZoneTop + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
+      const textX = marginX + (hOffset / 100) * usableW;
+
+      ctx.textAlign = "center";
       for (const line of lines) {
-        ctx.fillText(line, W / 2, y);
-        y += lineHeight;
+        ctx.fillText(line, textX, startY + lines.indexOf(line) * lineHeight);
+      }
+
+      if (footerStyle.strokeColor && footerStyle.strokeWidth && footerStyle.strokeWidth > 0) {
+        ctx.strokeStyle = footerStyle.strokeColor;
+        ctx.lineWidth = footerStyle.strokeWidth * 7.5;
+        ctx.lineJoin = "round";
+        for (let i = 0; i < lines.length; i++) {
+          ctx.strokeText(lines[i], textX, startY + i * lineHeight);
+        }
+        ctx.fillStyle = footerStyle.color || "#000";
+        for (let i = 0; i < lines.length; i++) {
+          ctx.fillText(lines[i], textX, startY + i * lineHeight);
+        }
       }
     }
   }
