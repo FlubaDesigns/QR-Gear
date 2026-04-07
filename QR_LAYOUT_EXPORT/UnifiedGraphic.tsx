@@ -1,4 +1,4 @@
-import { GRAPHIC_LAYOUT } from "./graphicLayoutConstants";
+import { getGraphicLayout } from "@/features/shared/graphics/graphicLayout";
 
 interface TextStyleProp {
   text: string;
@@ -25,16 +25,15 @@ interface UnifiedGraphicProps {
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
+  subBottomEnabled?: boolean;
+  subBottomText?: string;
   "data-testid"?: string;
 }
 
 const CANVAS_W = 1200;
 const CANVAS_H = 1800;
-
-const PADDING = 60;
-const MAX_TEXT_WIDTH = CANVAS_W - PADDING * 2;
 const SCALE_FACTOR = 7.5;
-const BG_RADIUS = 16;
+const MAX_TEXT_WIDTH = CANVAS_W * 0.9;
 
 export function getUnifiedFontSize(fontSize: string): number {
   const num = parseInt(fontSize, 10);
@@ -61,7 +60,7 @@ function wrapText(text: string, fontSize: number): string[] {
   }
 
   if (currentLine) lines.push(currentLine);
-  return lines.length ? lines : [""];
+  return lines;
 }
 
 function StylizedQRCode({
@@ -102,7 +101,7 @@ function StylizedQRCode({
   const rng = (seed: number) => {
     let s = seed;
     return () => {
-      s = (s * 16807) % 2147483647;
+      s = (s * 16807 + 0) % 2147483647;
       return s / 2147483647;
     };
   };
@@ -148,13 +147,14 @@ function renderTextInZone(
   opacity: number,
   keyPrefix: string
 ): JSX.Element[] {
-  if (style.enabled === false || !style.text) return [];
+  if (!style.enabled || !style.text) return [];
 
   const lines = wrapText(style.text, fontSize);
   const fontFamily = style.fontFamily || "Arial";
   const fillColor = style.color || "#000000";
   const hasStroke = !!(style.strokeColor && style.strokeWidth && style.strokeWidth > 0);
   const strokeWidth = hasStroke ? style.strokeWidth! * SCALE_FACTOR : 0;
+  const elements: JSX.Element[] = [];
 
   const vOffset = style.verticalOffset ?? 50;
   const hOffset = style.horizontalOffset ?? 50;
@@ -164,11 +164,8 @@ function renderTextInZone(
   const marginX = CANVAS_W * 0.01;
   const usableHeight = zoneHeight - 2 * marginY;
   const usableWidth = CANVAS_W - 2 * marginX;
-
   const startY = zoneTop + marginY + (vOffset / 100) * (usableHeight - totalTextHeight);
   const textXPos = marginX + (hOffset / 100) * usableWidth;
-
-  const elements: JSX.Element[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const textY = startY + i * fontSize * 1.3 + fontSize * 0.85;
@@ -222,55 +219,56 @@ export function UnifiedGraphic({
   showQRCode = true,
   className,
   width,
-  highlightHeader = false,
-  highlightFooter = false,
+  highlightHeader,
+  highlightFooter,
   qrPositionX = 50,
-  qrPositionY = 45,
-  qrSizePercent = 55,
+  qrPositionY = 0,
+  qrSizePercent = 42,
+  subBottomEnabled = false,
+  subBottomText = "",
   "data-testid": testId,
 }: UnifiedGraphicProps) {
+  const headerActive = !!(
+    headerStyle &&
+    headerStyle.enabled !== false &&
+    headerStyle.text
+  );
+
+  const footerActive = !!(
+    footerStyle &&
+    footerStyle.enabled !== false &&
+    footerStyle.text
+  );
+
+  const subBottomActive = !!(subBottomEnabled && subBottomText?.trim());
+
+  const layout = getGraphicLayout({
+    canvasWidth: CANVAS_W,
+    canvasHeight: CANVAS_H,
+    headerActive,
+    footerActive,
+    subBottomActive,
+    qrPositionX,
+    qrPositionY,
+    qrSizePercent,
+  });
+
   const headerOpacity = highlightFooter ? 0.4 : 1;
   const footerOpacity = highlightHeader ? 0.4 : 1;
 
-  const headerFontSize = headerStyle ? getUnifiedFontSize(headerStyle.fontSize || "18px") : 90;
-  const footerFontSize = footerStyle ? getUnifiedFontSize(footerStyle.fontSize || "18px") : 90;
+  const headerFontSize = headerStyle
+    ? getUnifiedFontSize(headerStyle.fontSize || "18px")
+    : 90;
 
-  const topPadding = CANVAS_H * GRAPHIC_LAYOUT.padding.top;
-  const bottomPadding = CANVAS_H * GRAPHIC_LAYOUT.padding.bottom;
-  const sectionGap = CANVAS_H * GRAPHIC_LAYOUT.padding.gap;
-
-  const headerActive = Boolean(headerStyle && headerStyle.enabled !== false && headerStyle.text);
-  const footerActive = Boolean(footerStyle && footerStyle.enabled !== false && footerStyle.text);
-  const subBottomActive = false;
-
-  const headerZoneHeight = headerActive ? CANVAS_H * GRAPHIC_LAYOUT.zones.header : 0;
-  const footerZoneHeight = footerActive ? CANVAS_H * GRAPHIC_LAYOUT.zones.footer : 0;
-  const subBottomZoneHeight = subBottomActive ? CANVAS_H * GRAPHIC_LAYOUT.zones.subBottom : 0;
-
-  const headerGap = headerActive ? sectionGap : 0;
-  const subBottomGap = subBottomActive ? sectionGap * 0.7 : 0;
-  const footerGap = footerActive ? sectionGap * 0.7 : 0;
-
-  const reservedHeight =
-    topPadding +
-    bottomPadding +
-    headerZoneHeight +
-    subBottomZoneHeight +
-    footerZoneHeight +
-    headerGap +
-    subBottomGap +
-    footerGap;
-
-  const middleZoneHeight = Math.max(CANVAS_H * 0.38, CANVAS_H - reservedHeight);
-  const middleZoneTop = topPadding + headerZoneHeight + headerGap;
-  const subBottomZoneTop = middleZoneTop + middleZoneHeight + subBottomGap;
-  const footerZoneTop = subBottomZoneTop + subBottomZoneHeight + footerGap;
+  const footerFontSize = footerStyle
+    ? getUnifiedFontSize(footerStyle.fontSize || "18px")
+    : 90;
 
   const headerElements = headerStyle
     ? renderTextInZone(
         headerStyle,
-        topPadding,
-        headerZoneHeight,
+        layout.zones.header.y,
+        layout.zones.header.height,
         headerFontSize,
         headerOpacity,
         "header"
@@ -280,42 +278,25 @@ export function UnifiedGraphic({
   const footerElements = footerStyle
     ? renderTextInZone(
         footerStyle,
-        footerZoneTop,
-        footerZoneHeight,
+        layout.zones.footer.y,
+        layout.zones.footer.height,
         footerFontSize,
         footerOpacity,
         "footer"
       )
     : [];
 
-  const qrMaxSize = Math.min(
-    CANVAS_W * GRAPHIC_LAYOUT.qr.maxWidth,
-    middleZoneHeight * GRAPHIC_LAYOUT.qr.maxHeight
-  );
-
-  const qrSize = Math.min(
-    Math.max(qrMaxSize * (qrSizePercent / 100), GRAPHIC_LAYOUT.qr.minSize),
-    qrMaxSize
-  );
-
-  const qrSafeMarginX = CANVAS_W * GRAPHIC_LAYOUT.qr.safeMarginX;
-  const qrTravelWidth = Math.max(0, CANVAS_W - qrSize - qrSafeMarginX * 2);
-  const qrX = qrSafeMarginX + qrTravelWidth * (qrPositionX / 100);
-
-  const qrSafeMarginY = middleZoneHeight * GRAPHIC_LAYOUT.qr.safeMarginY;
-  const qrTravelHeight = Math.max(0, middleZoneHeight - qrSize - qrSafeMarginY * 2);
-  const qrY = middleZoneTop + qrSafeMarginY + qrTravelHeight * (qrPositionY / 100);
-
   const qrFill = qrColor === "white" ? "#FFFFFF" : "#000000";
   const qrBg = qrColor === "white" ? "#000000" : "#FFFFFF";
 
-  const qrBgSize = qrSize * GRAPHIC_LAYOUT.qr.backgroundScale;
-  const qrBgOffset = (qrBgSize - qrSize) / 2;
+  const svgStyle: React.CSSProperties = {};
+  if (width !== undefined) {
+    svgStyle.width = typeof width === "number" ? `${width}px` : width;
+    svgStyle.height = "auto";
+  }
 
-  const svgStyle: React.CSSProperties =
-    width !== undefined
-      ? { width: typeof width === "number" ? `${width}px` : width, height: "auto" }
-      : {};
+  const subBottomCenterY =
+    layout.zones.subBottom.y + layout.zones.subBottom.height / 2;
 
   return (
     <svg
@@ -334,17 +315,35 @@ export function UnifiedGraphic({
       {showQRCode && (
         <g>
           <rect
-            x={qrX - qrBgOffset}
-            y={qrY - qrBgOffset}
-            width={qrBgSize}
-            height={qrBgSize}
-            rx={BG_RADIUS}
-            ry={BG_RADIUS}
+            x={layout.qr.background.x}
+            y={layout.qr.background.y}
+            width={layout.qr.background.width}
+            height={layout.qr.background.height}
+            rx={layout.qr.bgRadius}
+            ry={layout.qr.bgRadius}
             fill={qrBg}
-            opacity={0.95}
           />
-          <StylizedQRCode x={qrX} y={qrY} size={qrSize} color={qrFill} />
+          <StylizedQRCode
+            x={layout.qr.square.x}
+            y={layout.qr.square.y}
+            size={layout.qr.square.width}
+            color={qrFill}
+          />
         </g>
+      )}
+
+      {subBottomActive && (
+        <text
+          x={CANVAS_W / 2}
+          y={subBottomCenterY}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily='"Arial"'
+          fontSize={34}
+          fill="#666666"
+        >
+          {subBottomText}
+        </text>
       )}
 
       {footerElements}

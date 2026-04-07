@@ -1,4 +1,4 @@
-client/src/features/shared/graphics/graphicLayoutConstants.ts
+client/src/features/shared/graphics/graphicLayout.ts        ← SINGLE SOURCE OF TRUTH
 client/src/features/shared/graphics/productGraphicRenderer.ts
 client/src/features/shared/graphics/UnifiedGraphic.tsx
 client/src/features/shared/graphics/landingPageRenderer.ts

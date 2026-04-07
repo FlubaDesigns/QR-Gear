@@ -1,6 +1,6 @@
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
-import { GRAPHIC_LAYOUT } from "./graphicLayoutConstants";
+import { getGraphicLayout, clamp } from "@/features/shared/graphics/graphicLayout";
 
 export interface TextStyle {
   text: string;
@@ -57,10 +57,6 @@ const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = 
 
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1800;
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
 
 function parseFontSize(fontSize: string): number {
   const num = parseInt(fontSize, 10);
@@ -152,8 +148,8 @@ async function drawImageInZone(
       drawH *= fitScale;
     }
 
-    const clampedOX = Math.max(0, Math.min(100, offsetX));
-    const clampedOY = Math.max(0, Math.min(100, offsetY));
+    const clampedOX = clamp(offsetX, 0, 100);
+    const clampedOY = clamp(offsetY, 0, 100);
 
     const marginX = zoneW * 0.02;
     const marginY = zoneH * 0.02;
@@ -172,6 +168,50 @@ async function drawImageInZone(
   }
 }
 
+function drawTextInZone(
+  ctx: CanvasRenderingContext2D,
+  style: TextStyle,
+  zoneY: number,
+  zoneHeight: number,
+  W: number
+) {
+  const fSize = scaledFontSize(style.fontSize, W);
+  ctx.fillStyle = style.color || "#000";
+  ctx.font = `bold ${fSize}px ${style.fontFamily}`;
+  ctx.textBaseline = "top";
+
+  const vOffset = style.verticalOffset ?? 50;
+  const hOffset = style.horizontalOffset ?? 50;
+
+  const lines = wrapText(ctx, style.text, W * 0.9);
+  const lineHeight = fSize * 1.3;
+  const totalTextHeight = lines.length * lineHeight;
+
+  const marginY = zoneHeight * 0.01;
+  const marginX = W * 0.01;
+  const usableH = zoneHeight - 2 * marginY;
+  const usableW = W - 2 * marginX;
+
+  const startY = zoneY + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
+  const textX = marginX + (hOffset / 100) * usableW;
+
+  ctx.textAlign = "center";
+
+  if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
+    ctx.strokeStyle = style.strokeColor;
+    ctx.lineWidth = style.strokeWidth * 7.5;
+    ctx.lineJoin = "round";
+    for (let i = 0; i < lines.length; i++) {
+      ctx.strokeText(lines[i], textX, startY + i * lineHeight);
+    }
+  }
+
+  ctx.fillStyle = style.color || "#000";
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], textX, startY + i * lineHeight);
+  }
+}
+
 export async function renderProductGraphic(options: RenderOptions): Promise<string> {
   const {
     qrContent,
@@ -182,8 +222,8 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     transparent = true,
     placement,
     qrPositionX = 50,
-    qrPositionY = 45,
-    qrSizePercent = 55,
+    qrPositionY = 0,
+    qrSizePercent = 42,
     headerImageUrl,
     footerImageUrl,
     areaImageUrl,
@@ -202,10 +242,6 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   const W = dims.width;
   const H = dims.height;
 
-  const topPadding = H * GRAPHIC_LAYOUT.padding.top;
-  const bottomPadding = H * GRAPHIC_LAYOUT.padding.bottom;
-  const sectionGap = H * GRAPHIC_LAYOUT.padding.gap;
-
   const headerActive = Boolean(
     (headerStyle?.enabled !== false && headerStyle?.text) ||
       headerImageUrl ||
@@ -220,28 +256,28 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
 
   const subBottomActive = Boolean(subBottomEnabled && subBottomText?.trim());
 
-  const headerZoneHeight = headerActive ? H * GRAPHIC_LAYOUT.zones.header : 0;
-  const footerZoneHeight = footerActive ? H * GRAPHIC_LAYOUT.zones.footer : 0;
-  const subBottomZoneHeight = subBottomActive ? H * GRAPHIC_LAYOUT.zones.subBottom : 0;
+  const layout = getGraphicLayout({
+    canvasWidth: W,
+    canvasHeight: H,
+    headerActive,
+    footerActive,
+    subBottomActive,
+    qrPositionX,
+    qrPositionY,
+    qrSizePercent,
+  });
 
-  const headerGap = headerActive ? sectionGap : 0;
-  const subBottomGap = subBottomActive ? sectionGap * 0.7 : 0;
-  const footerGap = footerActive ? sectionGap * 0.7 : 0;
+  const headerZoneTop = layout.zones.header.y;
+  const headerZoneHeight = layout.zones.header.height;
 
-  const reservedHeight =
-    topPadding +
-    bottomPadding +
-    headerZoneHeight +
-    subBottomZoneHeight +
-    footerZoneHeight +
-    headerGap +
-    subBottomGap +
-    footerGap;
+  const middleZoneTop = layout.zones.middle.y;
+  const middleZoneHeight = layout.zones.middle.height;
 
-  const middleZoneHeight = Math.max(H * 0.38, H - reservedHeight);
-  const middleZoneTop = topPadding + headerZoneHeight + headerGap;
-  const subBottomZoneTop = middleZoneTop + middleZoneHeight + subBottomGap;
-  const footerZoneTop = subBottomZoneTop + subBottomZoneHeight + footerGap;
+  const subBottomZoneTop = layout.zones.subBottom.y;
+  const subBottomZoneHeight = layout.zones.subBottom.height;
+
+  const footerZoneTop = layout.zones.footer.y;
+  const footerZoneHeight = layout.zones.footer.height;
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -261,20 +297,15 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
   const qrImg = await loadImage(qrUrl);
 
-  const qrMaxWidth = W * GRAPHIC_LAYOUT.qr.maxWidth;
-  const qrMaxHeight = middleZoneHeight * GRAPHIC_LAYOUT.qr.maxHeight;
-  const qrBaseSize = Math.min(qrMaxWidth, qrMaxHeight);
+  const qrX = layout.qr.square.x;
+  const qrY = layout.qr.square.y;
+  const qrSquareSize = layout.qr.size;
 
-  let qrSize = qrBaseSize * (qrSizePercent / 100);
-  qrSize = clamp(qrSize, GRAPHIC_LAYOUT.qr.minSize, qrBaseSize);
-
-  const qrSafeMarginX = W * GRAPHIC_LAYOUT.qr.safeMarginX;
-  const qrTravelWidth = Math.max(0, W - qrSize - qrSafeMarginX * 2);
-  const qrX = qrSafeMarginX + qrTravelWidth * (qrPositionX / 100);
-
-  const qrSafeMarginY = middleZoneHeight * GRAPHIC_LAYOUT.qr.safeMarginY;
-  const qrTravelHeight = Math.max(0, middleZoneHeight - qrSize - qrSafeMarginY * 2);
-  const qrY = middleZoneTop + qrSafeMarginY + qrTravelHeight * (qrPositionY / 100);
+  const qrBgX = layout.qr.background.x;
+  const qrBgY2 = layout.qr.background.y;
+  const qrBgWidth = layout.qr.background.width;
+  const qrBgHeight = layout.qr.background.height;
+  const bgRadius = layout.qr.bgRadius;
 
   const areaOffX = options.areaImageOffsetX ?? 50;
   const areaOffY = options.areaImageOffsetY ?? 50;
@@ -284,10 +315,16 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     await drawImageInZone(ctx, areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
   }
 
+  const qrBgColor = qrColor === "white" ? "#000000" : "#FFFFFF";
+  ctx.fillStyle = qrBgColor;
+  ctx.beginPath();
+  ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
+  ctx.fill();
+
   if (areaImageUrl && areaImageMode === "replace-qr") {
     await drawImageInZone(ctx, areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
   } else {
-    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    ctx.drawImage(qrImg, qrX, qrY, qrSquareSize, qrSquareSize);
   }
 
   if (headerActive) {
@@ -295,46 +332,10 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       headerImageUrl || (headerStyle?.mode === "image" ? headerStyle?.imageUrl : undefined);
 
     if (resolvedHeaderUrl) {
-      await drawImageInZone(ctx, resolvedHeaderUrl, 0, topPadding, W, headerZoneHeight, 0.05,
+      await drawImageInZone(ctx, resolvedHeaderUrl, 0, headerZoneTop, W, headerZoneHeight, 0.05,
         headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100);
     } else if (headerStyle) {
-      const fSize = scaledFontSize(headerStyle.fontSize, W);
-      ctx.fillStyle = headerStyle.color || "#000";
-      ctx.font = `bold ${fSize}px ${headerStyle.fontFamily}`;
-      ctx.textBaseline = "top";
-
-      const vOffset = headerStyle.verticalOffset ?? 50;
-      const hOffset = headerStyle.horizontalOffset ?? 50;
-
-      const lines = wrapText(ctx, headerStyle.text, W * 0.9);
-      const lineHeight = fSize * 1.3;
-      const totalTextHeight = lines.length * lineHeight;
-
-      const marginY = headerZoneHeight * 0.01;
-      const marginX = W * 0.01;
-      const usableH = headerZoneHeight - 2 * marginY;
-      const usableW = W - 2 * marginX;
-
-      const startY = topPadding + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
-      const textX = marginX + (hOffset / 100) * usableW;
-
-      ctx.textAlign = "center";
-      for (const line of lines) {
-        ctx.fillText(line, textX, startY + lines.indexOf(line) * lineHeight);
-      }
-
-      if (headerStyle.strokeColor && headerStyle.strokeWidth && headerStyle.strokeWidth > 0) {
-        ctx.strokeStyle = headerStyle.strokeColor;
-        ctx.lineWidth = headerStyle.strokeWidth * 7.5;
-        ctx.lineJoin = "round";
-        for (let i = 0; i < lines.length; i++) {
-          ctx.strokeText(lines[i], textX, startY + i * lineHeight);
-        }
-        ctx.fillStyle = headerStyle.color || "#000";
-        for (let i = 0; i < lines.length; i++) {
-          ctx.fillText(lines[i], textX, startY + i * lineHeight);
-        }
-      }
+      drawTextInZone(ctx, headerStyle, headerZoneTop, headerZoneHeight, W);
     }
   }
 
@@ -355,43 +356,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       await drawImageInZone(ctx, resolvedFooterUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
         footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100);
     } else if (footerStyle) {
-      const fSize = scaledFontSize(footerStyle.fontSize, W);
-      ctx.fillStyle = footerStyle.color || "#000";
-      ctx.font = `bold ${fSize}px ${footerStyle.fontFamily}`;
-      ctx.textBaseline = "top";
-
-      const vOffset = footerStyle.verticalOffset ?? 50;
-      const hOffset = footerStyle.horizontalOffset ?? 50;
-
-      const lines = wrapText(ctx, footerStyle.text, W * 0.9);
-      const lineHeight = fSize * 1.3;
-      const totalTextHeight = lines.length * lineHeight;
-
-      const marginY = footerZoneHeight * 0.01;
-      const marginX = W * 0.01;
-      const usableH = footerZoneHeight - 2 * marginY;
-      const usableW = W - 2 * marginX;
-
-      const startY = footerZoneTop + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
-      const textX = marginX + (hOffset / 100) * usableW;
-
-      ctx.textAlign = "center";
-      for (const line of lines) {
-        ctx.fillText(line, textX, startY + lines.indexOf(line) * lineHeight);
-      }
-
-      if (footerStyle.strokeColor && footerStyle.strokeWidth && footerStyle.strokeWidth > 0) {
-        ctx.strokeStyle = footerStyle.strokeColor;
-        ctx.lineWidth = footerStyle.strokeWidth * 7.5;
-        ctx.lineJoin = "round";
-        for (let i = 0; i < lines.length; i++) {
-          ctx.strokeText(lines[i], textX, startY + i * lineHeight);
-        }
-        ctx.fillStyle = footerStyle.color || "#000";
-        for (let i = 0; i < lines.length; i++) {
-          ctx.fillText(lines[i], textX, startY + i * lineHeight);
-        }
-      }
+      drawTextInZone(ctx, footerStyle, footerZoneTop, footerZoneHeight, W);
     }
   }
 
