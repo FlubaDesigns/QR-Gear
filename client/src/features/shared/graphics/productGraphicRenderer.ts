@@ -1,6 +1,7 @@
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
+import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
 
 export interface TextStyle {
   text: string;
@@ -121,22 +122,14 @@ async function drawImageInZone(
 
     const padX = zoneW * padding;
     const padY = zoneH * padding;
-    const availW = zoneW - 2 * padX;
-    const availH = zoneH - 2 * padY;
+    const availW = Math.max(1, zoneW - 2 * padX);
+    const availH = Math.max(1, zoneH - 2 * padY);
 
     const imgAspect = img.width / img.height;
     const zoneAspect = availW / availH;
 
-    let baseW: number;
-    let baseH: number;
-
-    if (imgAspect > zoneAspect) {
-      baseW = availW;
-      baseH = baseW / imgAspect;
-    } else {
-      baseH = availH;
-      baseW = baseH * imgAspect;
-    }
+    let baseW = imgAspect > zoneAspect ? availW : availH * imgAspect;
+    let baseH = imgAspect > zoneAspect ? baseW / imgAspect : availH;
 
     const scaleFactor = scale / 100;
     let drawW = baseW * scaleFactor;
@@ -179,6 +172,7 @@ function drawTextInZone(
   ctx.fillStyle = style.color || "#000";
   ctx.font = `bold ${fSize}px ${style.fontFamily}`;
   ctx.textBaseline = "top";
+  ctx.textAlign = "center";
 
   const vOffset = style.verticalOffset ?? 50;
   const hOffset = style.horizontalOffset ?? 50;
@@ -194,8 +188,6 @@ function drawTextInZone(
 
   const startY = zoneY + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
   const textX = marginX + (hOffset / 100) * usableW;
-
-  ctx.textAlign = "center";
 
   if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
     ctx.strokeStyle = style.strokeColor;
@@ -267,18 +259,6 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     qrSizePercent,
   });
 
-  const headerZoneTop = layout.zones.header.y;
-  const headerZoneHeight = layout.zones.header.height;
-
-  const middleZoneTop = layout.zones.middle.y;
-  const middleZoneHeight = layout.zones.middle.height;
-
-  const subBottomZoneTop = layout.zones.subBottom.y;
-  const subBottomZoneHeight = layout.zones.subBottom.height;
-
-  const footerZoneTop = layout.zones.footer.y;
-  const footerZoneHeight = layout.zones.footer.height;
-
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
@@ -302,7 +282,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   const qrSquareSize = layout.qr.size;
 
   const qrBgX = layout.qr.background.x;
-  const qrBgY2 = layout.qr.background.y;
+  const qrBgY = layout.qr.background.y;
   const qrBgWidth = layout.qr.background.width;
   const qrBgHeight = layout.qr.background.height;
   const bgRadius = layout.qr.bgRadius;
@@ -312,19 +292,45 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   const areaSc = options.areaImageScale ?? 100;
 
   if (areaImageUrl && areaImageMode === "behind-qr") {
-    await drawImageInZone(ctx, areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
+    await drawImageInZone(
+      ctx, areaImageUrl,
+      0, layout.zones.middle.y,
+      W, layout.zones.middle.height,
+      0.03, areaOffX, areaOffY, areaSc
+    );
   }
 
   const qrBgColor = qrColor === "white" ? "#000000" : "#FFFFFF";
   ctx.fillStyle = qrBgColor;
   ctx.beginPath();
-  ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
+  ctx.roundRect(qrBgX, qrBgY, qrBgWidth, qrBgHeight, bgRadius);
   ctx.fill();
 
   if (areaImageUrl && areaImageMode === "replace-qr") {
-    await drawImageInZone(ctx, areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
+    await drawImageInZone(
+      ctx, areaImageUrl,
+      0, layout.zones.middle.y,
+      W, layout.zones.middle.height,
+      0.03, areaOffX, areaOffY, areaSc
+    );
   } else {
     ctx.drawImage(qrImg, qrX, qrY, qrSquareSize, qrSquareSize);
+  }
+
+  try {
+    const logoImg = await loadImage(qLogoSrc);
+    const lb = layout.qr.logoBg;
+    const li = layout.qr.logoImg;
+    const lbRadius = lb.width * 0.12;
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.roundRect(lb.x, lb.y, lb.width, lb.height, lbRadius);
+    ctx.fill();
+
+    ctx.drawImage(logoImg, li.x, li.y, li.width, li.height);
+  } catch (_e) {
+    // logo load failed, QR still works without it
   }
 
   if (headerActive) {
@@ -332,10 +338,15 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       headerImageUrl || (headerStyle?.mode === "image" ? headerStyle?.imageUrl : undefined);
 
     if (resolvedHeaderUrl) {
-      await drawImageInZone(ctx, resolvedHeaderUrl, 0, headerZoneTop, W, headerZoneHeight, 0.05,
-        headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100);
+      await drawImageInZone(
+        ctx, resolvedHeaderUrl,
+        0, layout.zones.header.y,
+        W, layout.zones.header.height,
+        0.05,
+        headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100
+      );
     } else if (headerStyle) {
-      drawTextInZone(ctx, headerStyle, headerZoneTop, headerZoneHeight, W);
+      drawTextInZone(ctx, headerStyle, layout.zones.header.y, layout.zones.header.height, W);
     }
   }
 
@@ -345,7 +356,11 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     ctx.font = `${sbFSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(subBottomText.trim(), W / 2, subBottomZoneTop + subBottomZoneHeight / 2);
+    ctx.fillText(
+      subBottomText.trim(),
+      W / 2,
+      layout.zones.subBottom.y + layout.zones.subBottom.height / 2
+    );
   }
 
   if (footerActive) {
@@ -353,10 +368,15 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       footerImageUrl || (footerStyle?.mode === "image" ? footerStyle?.imageUrl : undefined);
 
     if (resolvedFooterUrl) {
-      await drawImageInZone(ctx, resolvedFooterUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
-        footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100);
+      await drawImageInZone(
+        ctx, resolvedFooterUrl,
+        0, layout.zones.footer.y,
+        W, layout.zones.footer.height,
+        0.05,
+        footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100
+      );
     } else if (footerStyle) {
-      drawTextInZone(ctx, footerStyle, footerZoneTop, footerZoneHeight, W);
+      drawTextInZone(ctx, footerStyle, layout.zones.footer.y, layout.zones.footer.height, W);
     }
   }
 

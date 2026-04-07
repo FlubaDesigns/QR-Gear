@@ -1,4 +1,5 @@
 import { getGraphicLayout, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
+import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
 
 interface TextStyleProp {
   text: string;
@@ -328,6 +329,22 @@ export function UnifiedGraphic({
             y={layout.qr.square.y}
             size={layout.qr.square.width}
             color={qrFill}
+          />
+          <rect
+            x={layout.qr.logoBg.x}
+            y={layout.qr.logoBg.y}
+            width={layout.qr.logoBg.width}
+            height={layout.qr.logoBg.height}
+            rx={layout.qr.logoBg.width * 0.12}
+            ry={layout.qr.logoBg.height * 0.12}
+            fill="#FFFFFF"
+          />
+          <image
+            href={qLogoSrc}
+            x={layout.qr.logoImg.x}
+            y={layout.qr.logoImg.y}
+            width={layout.qr.logoImg.width}
+            height={layout.qr.logoImg.height}
           />
         </g>
       )}
