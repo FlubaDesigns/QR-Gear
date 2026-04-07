@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   Layers,
   Search,
@@ -26,6 +28,7 @@ interface AdminCatalog {
   id: string;
   name: string;
   blankIds: string[];
+  blankDescriptions?: Record<string, string>;
 }
 
 type LocationFilter = "all" | "usa" | "other";
@@ -62,10 +65,15 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
   return "unisex";
 }
 
-function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
+function catalogToSelectItem(
+  p: CatalogProduct,
+  adminCatalogDescription?: string | null,
+): ProductSelectItem {
   const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
   const raw = p as any;
   const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
+  const providerDescription = p.description || p.model || null;
+  const effectiveDescription = adminCatalogDescription ?? providerDescription;
   return {
     id: String(p.id),
     name: p.title || raw.name || "",
@@ -74,7 +82,9 @@ function catalogToSelectItem(p: CatalogProduct): ProductSelectItem {
     manufacturer: p.brand || raw.manufacturer || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
-    description: p.description || p.model || null,
+    description: effectiveDescription,
+    providerDescription,
+    adminCatalogDescription: adminCatalogDescription ?? null,
     colorsAvailable: (p.availableColors || raw.colors || []).map((c: any) => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || raw.sizes || [],
     defaultColor: (p.availableColors || raw.colors || []).length > 0
@@ -97,6 +107,7 @@ interface CatalogCategoryResponse {
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
+  const { toast } = useToast();
 
   const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
 
@@ -331,14 +342,40 @@ export function ProductsModule() {
 
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : filteredProducts;
 
+  const blankDescriptions = activeCatalog?.blankDescriptions || {};
+
   const selectItemMap = useMemo(() => {
-    const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string } }>();
+    const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
     activeProducts.forEach(p => {
       const withGender = { ...p, gender: detectGender(p.title) };
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p), catalog: withGender });
+      const blankKey = p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id);
+      const adminDesc = blankDescriptions[blankKey] || null;
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts]);
+  }, [activeProducts, blankDescriptions]);
+
+  const saveDescriptionMutation = useMutation({
+    mutationFn: async ({ catalogId, blankId, description }: { catalogId: string; blankId: string; description: string }) => {
+      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-description`, { blankId, description });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Description saved" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error saving description", description: err.message, variant: "destructive" }),
+  });
+
+  const handleDescriptionSave = useCallback(async (id: string, description: string) => {
+    if (!activeCatalog) {
+      toast({ title: "Select a catalog first", variant: "destructive" });
+      return;
+    }
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    await saveDescriptionMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, description });
+  }, [activeCatalog, selectItemMap, saveDescriptionMutation, toast]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
@@ -376,10 +413,13 @@ export function ProductsModule() {
           item={entry.selectItem}
           isSelected={selectedProductId === String(scrollItem.id)}
           onSelect={handleCardSelect}
+          editableDescription={!!activeCatalog}
+          onDescriptionSave={handleDescriptionSave}
+          descriptionSaving={saveDescriptionMutation.isPending}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect]
+    [selectItemMap, selectedProductId, handleCardSelect, activeCatalog, handleDescriptionSave, saveDescriptionMutation.isPending]
   );
 
   return (
