@@ -51,7 +51,7 @@ export const GRAPHIC_LAYOUT_DEFAULTS = {
 
   defaultQrPositionX: 50,
   defaultQrPositionY: 50,
-  defaultQrSizePercent: 42,
+  defaultQrSizePercent: 75,
 } as const;
 
 export function clamp(value: number, min: number, max: number): number {

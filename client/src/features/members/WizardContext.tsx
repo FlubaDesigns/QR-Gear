@@ -156,8 +156,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [placementConfigs, setPlacementConfigs] = useState<Record<string, PlacementConfig>>({});
   const [qrType, setQrType] = useState<QRType>('');
   const [qrPositionX, setQrPositionX] = useState<number>(50);
-  const [qrPositionY, setQrPositionY] = useState<number>(0);
-  const [qrSizePercent, setQrSizePercent] = useState<number>(42);
+  const [qrPositionY, setQrPositionY] = useState<number>(50);
+  const [qrSizePercent, setQrSizePercent] = useState<number>(75);
   const [areaImageUrl, setAreaImageUrl] = useState<string>('');
   const [areaImageMode, setAreaImageMode] = useState<"replace-qr" | "behind-qr">("behind-qr");
   const [qrDestination, setQrDestination] = useState<string>('');

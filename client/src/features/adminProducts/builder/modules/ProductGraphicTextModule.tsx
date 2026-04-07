@@ -509,7 +509,7 @@ export function ProductGraphicTextModule() {
 
   const posX = state.content.qrPositionX ?? 50;
   const posY = state.content.qrPositionY ?? 0;
-  const sizeVal = state.content.qrSizePercent ?? 42;
+  const sizeVal = state.content.qrSizePercent ?? 75;
   const adminAreaImageUrl = state.content.areaImageUrl || '';
   const adminAreaImageMode = state.content.areaImageMode || 'behind-qr';
   const areaOffX = state.content.areaImageOffsetX ?? 50;
@@ -723,7 +723,7 @@ export function ProductGraphicTextModule() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 0, qrSizePercent: 42 })}
+                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 50, qrSizePercent: 75 })}
                 data-testid="button-admin-reset-qr-position"
               >
                 Reset to Default

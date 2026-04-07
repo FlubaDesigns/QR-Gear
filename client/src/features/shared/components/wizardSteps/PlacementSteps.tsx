@@ -405,8 +405,8 @@ export function PlacementConfigStep({
   selectedColor,
   graphicSize,
   qrPositionX = 50,
-  qrPositionY = 0,
-  qrSizePercent = 42,
+  qrPositionY = 50,
+  qrSizePercent = 75,
 }: {
   currentPlacement: PlacementOption;
   currentIndex: number;
