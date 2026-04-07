@@ -210,20 +210,28 @@ export async function renderProductGraphic(
     zoneY: number,
     zoneW: number,
     zoneH: number,
-    padding: number = 0.05,
+    padding: number = 0.02,
     offsetX: number = 50,
     offsetY: number = 50,
     scale: number = 100
   ) => {
     try {
       const img = await loadImage(imgUrl);
-      const padX = zoneW * padding;
-      const padY = zoneH * padding;
-      const availW = zoneW - 2 * padX;
-      const availH = zoneH - 2 * padY;
+
+      const safeMarginX = zoneW * 0.02;
+      const safeMarginY = zoneH * 0.02;
+      const padX = Math.max(zoneW * padding, safeMarginX);
+      const padY = Math.max(zoneH * padding, safeMarginY);
+
+      const availW = Math.max(1, zoneW - 2 * padX);
+      const availH = Math.max(1, zoneH - 2 * padY);
+
       const imgAspect = img.width / img.height;
       const zoneAspect = availW / availH;
-      let baseW: number, baseH: number;
+
+      let baseW: number;
+      let baseH: number;
+
       if (imgAspect > zoneAspect) {
         baseW = availW;
         baseH = availW / imgAspect;
@@ -231,30 +239,31 @@ export async function renderProductGraphic(
         baseH = availH;
         baseW = availH * imgAspect;
       }
-      const scaleFactor = scale / 100;
+
+      const scaleFactor = Math.max(0.2, scale / 100);
       const drawW = baseW * scaleFactor;
       const drawH = baseH * scaleFactor;
+
       const clampedX = Math.max(0, Math.min(100, offsetX));
       const clampedY = Math.max(0, Math.min(100, offsetY));
-      const margin = zoneH * 0.02;
-      const marginX = zoneW * 0.02;
-      const rangeY = zoneH - drawH;
-      const topEdge = zoneY + margin;
-      const bottomEdge = zoneY + rangeY - margin;
-      const minTravelY = zoneH * 0.15;
-      const actualRangeY = Math.max(minTravelY, bottomEdge - topEdge);
-      const centerY = zoneY + (zoneH - drawH) / 2;
-      const drawY = centerY + (clampedY / 100 - 0.5) * actualRangeY;
-      const rangeX = zoneW - drawW;
-      const leftEdge = zoneX + marginX;
-      const rightEdge = zoneX + rangeX - marginX;
-      const minTravelX = zoneW * 0.15;
-      const actualRangeX = Math.max(minTravelX, rightEdge - leftEdge);
-      const centerX = zoneX + (zoneW - drawW) / 2;
-      const drawX = centerX + (clampedX / 100 - 0.5) * actualRangeX;
+
+      const minX = zoneX + padX + Math.min(0, availW - drawW);
+      const maxX = zoneX + padX + Math.max(0, availW - drawW);
+
+      const minY = zoneY + padY + Math.min(0, availH - drawH);
+      const maxY = zoneY + padY + Math.max(0, availH - drawH);
+
+      const drawX = minX + (clampedX / 100) * (maxX - minX);
+      const drawY = minY + (clampedY / 100) * (maxY - minY);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(zoneX + padX, zoneY + padY, availW, availH);
+      ctx.clip();
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    } catch (e) {
-      console.warn("[productGraphicRenderer] Image load failed:", e);
+      ctx.restore();
+    } catch (err) {
+      console.error("drawImageInZone failed:", err);
     }
   };
 

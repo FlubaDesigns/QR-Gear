@@ -93,6 +93,13 @@ function ImageLibraryDialog({
   const handleCreateFolder = () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
+
+    setFolders((prev) =>
+      prev.includes(trimmed)
+        ? prev
+        : [...prev, trimmed].sort((a, b) => a.localeCompare(b))
+    );
+
     setActiveFolder(trimmed);
     setShowNewFolder(false);
     setNewFolderName("");
@@ -278,10 +285,19 @@ function SaveToLibraryDialog({
         const res = await fetch(`${apiBase}/images/folders`, { headers });
         const list = res.ok ? await res.json() : [];
         setFolders(list);
-        if (list.length > 0) setSelectedFolder(list[0]);
+        setSelectedFolder((current) => current || list[0] || "");
       } catch { /* ignore */ }
     })();
   }, [open, apiBase, getAuthHeaders]);
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedFolder("");
+      setImageName("");
+      setNewFolderName("");
+      setShowNewFolder(false);
+    }
+  }, [open]);
 
   const handleSave = async () => {
     if (!selectedFolder) return;
@@ -323,7 +339,13 @@ function SaveToLibraryDialog({
   const handleCreateFolder = () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
-    if (!folders.includes(trimmed)) setFolders([...folders, trimmed]);
+
+    setFolders((prev) =>
+      prev.includes(trimmed)
+        ? prev
+        : [...prev, trimmed].sort((a, b) => a.localeCompare(b))
+    );
+
     setSelectedFolder(trimmed);
     setShowNewFolder(false);
     setNewFolderName("");
