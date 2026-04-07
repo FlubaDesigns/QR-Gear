@@ -74,6 +74,10 @@ export const GRAPHIC_LAYOUT_DEFAULTS = {
   qrBgPaddingMin: 14,
   qrBgRadiusPct: 0.055,
   qrBgRadiusMin: 12,
+
+  defaultQrPositionX: 50,
+  defaultQrPositionY: 0,
+  defaultQrSizePercent: 42,
 } as const;
 
 export function clamp(value: number, min: number, max: number): number {
@@ -87,9 +91,9 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     headerActive,
     footerActive,
     subBottomActive,
-    qrPositionX = 50,
-    qrPositionY = 0,
-    qrSizePercent = 42,
+    qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
+    qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
+    qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
   } = input;
 
   const cfg = GRAPHIC_LAYOUT_DEFAULTS;

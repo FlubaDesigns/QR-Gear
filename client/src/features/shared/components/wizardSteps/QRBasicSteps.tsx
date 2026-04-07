@@ -268,8 +268,8 @@ export function QRBasicMockupStep({
   const showControls = onPositionXChange && onPositionYChange && onSizeChange;
   const showImageUpload = onAreaImageUrlChange && onAreaImageModeChange;
   const posX = qrPositionX ?? 50;
-  const posY = qrPositionY ?? 50;
-  const sizeVal = qrSizePercent ?? 50;
+  const posY = qrPositionY ?? 0;
+  const sizeVal = qrSizePercent ?? 42;
   const areaFileRef = useRef<HTMLInputElement>(null);
 
   const handleAreaImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,4 +1,4 @@
-import { getGraphicLayout } from "@/features/shared/graphics/graphicLayout";
+import { getGraphicLayout, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
 
 interface TextStyleProp {
   text: string;
@@ -221,9 +221,9 @@ export function UnifiedGraphic({
   width,
   highlightHeader,
   highlightFooter,
-  qrPositionX = 50,
-  qrPositionY = 0,
-  qrSizePercent = 42,
+  qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
+  qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
+  qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
   subBottomEnabled = false,
   subBottomText = "",
   "data-testid": testId,

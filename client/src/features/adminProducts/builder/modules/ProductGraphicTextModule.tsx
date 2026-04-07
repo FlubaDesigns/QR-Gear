@@ -509,7 +509,7 @@ export function ProductGraphicTextModule() {
 
   const posX = state.content.qrPositionX ?? 50;
   const posY = state.content.qrPositionY ?? 0;
-  const sizeVal = state.content.qrSizePercent ?? 70;
+  const sizeVal = state.content.qrSizePercent ?? 42;
   const adminAreaImageUrl = state.content.areaImageUrl || '';
   const adminAreaImageMode = state.content.areaImageMode || 'behind-qr';
   const areaOffX = state.content.areaImageOffsetX ?? 50;

@@ -1,8 +1,0 @@
-client/src/features/shared/graphics/graphicLayout.ts        ← SINGLE SOURCE OF TRUTH
-client/src/features/shared/graphics/productGraphicRenderer.ts
-client/src/features/shared/graphics/UnifiedGraphic.tsx
-client/src/features/shared/graphics/landingPageRenderer.ts
-client/src/features/adminProducts/builder/modules/ProductGraphicTextModule.tsx
-client/src/features/adminProducts/builder/modules/PlacementModule.tsx
-client/src/features/adminProducts/builder/BuilderContext.tsx
-client/src/features/adminProducts/builder/types.ts

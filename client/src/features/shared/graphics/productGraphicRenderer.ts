@@ -1,6 +1,6 @@
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
-import { getGraphicLayout, clamp } from "@/features/shared/graphics/graphicLayout";
+import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
 
 export interface TextStyle {
   text: string;
@@ -221,9 +221,9 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     backgroundColor,
     transparent = true,
     placement,
-    qrPositionX = 50,
-    qrPositionY = 0,
-    qrSizePercent = 42,
+    qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
+    qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
+    qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
     headerImageUrl,
     footerImageUrl,
     areaImageUrl,

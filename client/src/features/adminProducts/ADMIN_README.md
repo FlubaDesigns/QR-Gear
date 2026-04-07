@@ -110,8 +110,8 @@ This is the core engine that draws the product graphic on a canvas. It uses a co
 - **Slider range:** 40–85 (step 2)
 - **Preset buttons:** S (48), M (56), L (64), XL (72)
 - **Semantic labels:** "Tiny" / "Small" / "Medium" / "Large" / "X-Large" / "Huge"
-- **Default size:** 70%
-- **Reset button:** Returns to qrSizePercent=70, qrPositionY=0
+- **Default size:** 42%
+- **Reset button:** Returns to qrSizePercent=42, qrPositionY=0
 
 The QR size percentage is applied as `min(regionWidth, regionHeight) * percent / 100` inside the middle zone.
 
