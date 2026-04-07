@@ -167,7 +167,7 @@ export async function renderProductGraphic(
   const headerZoneHeight = headerActive ? H * 0.13 : 0;
 
   const subBottomZoneHeight = subBottomActive ? H * 0.05 : 0;
-  const footerZoneHeight = footerActive ? H * 0.09 : 0;
+  const footerZoneHeight = footerActive ? H * 0.06 : 0;
 
   const headerGap = headerActive ? sectionGap : 0;
   const subBottomGap = subBottomActive ? sectionGap * 0.35 : 0;
@@ -184,7 +184,7 @@ export async function renderProductGraphic(
     footerGap;
 
   const middleZoneTop = headerZoneTop + headerZoneHeight + headerGap;
-  const middleZoneHeight = Math.max(H * 0.30, H - reservedHeight);
+  const middleZoneHeight = Math.max(H * 0.24, H - reservedHeight);
 
   const subBottomZoneTop =
     middleZoneTop + middleZoneHeight + (subBottomActive ? subBottomGap : 0);
@@ -322,8 +322,8 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
-  const qrTopInset = Math.max(8, middleZoneHeight * 0.015);
-  const qrBottomInset = Math.max(8, middleZoneHeight * 0.015);
+  const qrTopInset = Math.max(6, middleZoneHeight * 0.01);
+  const qrBottomInset = Math.max(6, middleZoneHeight * 0.01);
   const qrSideInset = Math.max(12, W * 0.03);
 
   const qrContentRegionTop = middleZoneTop + qrTopInset;
@@ -335,7 +335,7 @@ export async function renderProductGraphic(
   const qrContentRegionWidth = Math.max(1, W - qrSideInset * 2);
 
   const maxQrSquare = Math.min(qrContentRegionWidth, qrContentRegionHeight);
-  const effectiveQrPercent = clamp(qrSizePercent, 30, 55);
+  const effectiveQrPercent = clamp(qrSizePercent, 30, 62);
   const qrSquareSize = clamp(maxQrSquare * (effectiveQrPercent / 100), MIN_QR_PIXEL_SIZE, maxQrSquare);
 
   const clampedX = clamp(qrPositionX, 0, 100);
@@ -430,7 +430,39 @@ export async function renderProductGraphic(
     await drawImageInZone(resolvedFooterImageUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
       footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100);
   } else if (footerIsText) {
-    drawTextInZone(footerStyle!, footerZoneTop, footerZoneHeight);
+    const footerText = footerStyle!.text || "";
+    const footerFontFamily = footerStyle!.fontFamily || "Arial";
+    const footerColor = footerStyle!.color || "#000000";
+    const footerFontSizeStr = footerStyle!.fontSize || "16px";
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const maxFooterWidth = W * 0.85;
+
+    let footerFontSize = Math.round(parseFontSize(footerFontSizeStr) * (W / 360));
+    ctx.font = `bold ${footerFontSize}px "${footerFontFamily}", "Arial", sans-serif`;
+
+    let measured = ctx.measureText(footerText);
+
+    if (measured.width > maxFooterWidth) {
+      const scale = maxFooterWidth / measured.width;
+      footerFontSize = Math.max(14, Math.round(footerFontSize * scale));
+      ctx.font = `bold ${footerFontSize}px "${footerFontFamily}", "Arial", sans-serif`;
+    }
+
+    ctx.fillStyle = footerColor;
+
+    const footerCenterX = W / 2;
+    const footerCenterY = footerZoneTop + footerZoneHeight / 2;
+
+    if (footerStyle!.strokeColor && footerStyle!.strokeWidth && footerStyle!.strokeWidth > 0) {
+      ctx.strokeStyle = footerStyle!.strokeColor;
+      ctx.lineWidth = footerStyle!.strokeWidth * (W / 360);
+      ctx.strokeText(footerText, footerCenterX, footerCenterY);
+    }
+
+    ctx.fillText(footerText, footerCenterX, footerCenterY);
   }
 
   return canvas.toDataURL("image/png");
