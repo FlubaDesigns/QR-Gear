@@ -60,9 +60,6 @@ const DEFAULT_HEIGHT = 1800;
 
 const MIN_QR_PIXEL_SIZE = 280;
 const MAX_LOGO_RATIO = 0.16;
-const QR_BACKING_PADDING_RATIO = 0.12;
-const QR_BACKING_RADIUS_RATIO = 0.08;
-const QR_SAFE_MARGIN_X_RATIO = 0.06;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -152,9 +149,8 @@ export async function renderProductGraphic(
   const footerZoneTop = subBottomZoneTop + subBottomZoneHeight;
   const footerZoneHeight = H * ZONE_LAYOUT.FOOTER_PERCENT;
 
-  const qrInnerMargin = subBottomEnabled
-    ? ZONE_LAYOUT.QR_INNER_MARGIN
-    : ZONE_LAYOUT.QR_INNER_MARGIN_EXPANDED;
+  const middleZoneTop = qrZoneTop;
+  const middleZoneHeight = qrZoneHeight + subBottomZoneHeight;
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -290,65 +286,68 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
-  const safeMarginX = W * QR_SAFE_MARGIN_X_RATIO;
-  const safeMarginY = qrZoneHeight * Math.max(qrInnerMargin, 0.12);
-  const safeW = Math.max(1, W - 2 * safeMarginX);
-  const safeH = Math.max(1, qrZoneHeight - 2 * safeMarginY);
+  const captionReservedHeight = subBottomEnabled
+    ? Math.max(28, middleZoneHeight * 0.14)
+    : 0;
 
-  const clampedSize = clamp(qrSizePercent, 30, 100);
-  const maxQrDimension = Math.min(safeW, safeH);
+  const qrTopInset = Math.max(8, middleZoneHeight * 0.02);
+  const qrBottomInset = Math.max(8, middleZoneHeight * 0.02);
+  const qrSideInset = Math.max(12, W * 0.03);
 
-  const requestedQrDimension = maxQrDimension * (clampedSize / 100);
-  const qrContentWidth = clamp(requestedQrDimension, MIN_QR_PIXEL_SIZE, maxQrDimension);
-  const qrContentHeight = qrContentWidth;
+  const qrContentRegionTop = middleZoneTop + qrTopInset;
+  const qrContentRegionHeight = Math.max(1, middleZoneHeight - captionReservedHeight - qrTopInset - qrBottomInset);
+  const qrContentRegionLeft = qrSideInset;
+  const qrContentRegionWidth = Math.max(1, W - qrSideInset * 2);
+
+  const maxQrSquare = Math.min(qrContentRegionWidth, qrContentRegionHeight);
+  const effectiveQrPercent = clamp(qrSizePercent, 30, 100);
+  const qrSquareSize = clamp(maxQrSquare * (effectiveQrPercent / 100), MIN_QR_PIXEL_SIZE, maxQrSquare);
 
   const clampedX = clamp(qrPositionX, 0, 100);
   const clampedY = clamp(qrPositionY, 0, 100);
 
-  const availableX = Math.max(0, safeW - qrContentWidth);
-  const availableY = Math.max(0, safeH - qrContentHeight);
+  const availableX = Math.max(0, qrContentRegionWidth - qrSquareSize);
+  const availableY = Math.max(0, qrContentRegionHeight - qrSquareSize);
 
-  const qrX = safeMarginX + (clampedX / 100) * availableX;
-  const qrY = qrZoneTop + safeMarginY + (clampedY / 100) * availableY;
+  const qrX = qrContentRegionLeft + (clampedX / 100) * availableX;
+  const qrY = qrContentRegionTop + (clampedY / 100) * availableY;
 
-  const bgPadding = Math.max(24, qrContentWidth * QR_BACKING_PADDING_RATIO);
-  const bgRadius = Math.max(16, qrContentWidth * QR_BACKING_RADIUS_RATIO);
+  const bgPadding = Math.max(16, qrSquareSize * 0.08);
+  const bgRadius = Math.max(12, qrSquareSize * 0.06);
 
   const qrBgX = qrX - bgPadding;
   const qrBgY2 = qrY - bgPadding;
-  const qrBgWidth = qrContentWidth + bgPadding * 2;
-  const qrBgHeight = qrContentHeight + bgPadding * 2;
-
-  const qrLight = "#FFFFFF";
+  const qrBgWidth = qrSquareSize + bgPadding * 2;
+  const qrBgHeight = qrSquareSize + bgPadding * 2;
 
   const areaOffX = options.areaImageOffsetX ?? 50;
   const areaOffY = options.areaImageOffsetY ?? 50;
   const areaSc = options.areaImageScale ?? 100;
 
   if (areaImageUrl && areaImageMode === "replace-qr") {
-    await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
+    await drawImageInZone(areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
   } else {
     if (areaImageUrl && areaImageMode === "behind-qr") {
-      await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
+      await drawImageInZone(areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
     }
 
-    ctx.fillStyle = qrLight;
+    ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();
     ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
     ctx.fill();
 
     try {
-      const qrImgSize = Math.max(512, Math.round(qrContentWidth * 2));
+      const qrImgSize = Math.max(512, Math.round(qrSquareSize * 2));
       const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
       const qrImg = await loadImage(qrUrl);
 
-      ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
+      ctx.drawImage(qrImg, qrX, qrY, qrSquareSize, qrSquareSize);
 
       try {
-        const logoSize = qrContentWidth * MAX_LOGO_RATIO;
+        const logoSize = qrSquareSize * MAX_LOGO_RATIO;
         const logoBgSize = logoSize * 1.35;
-        const logoBgX = qrX + (qrContentWidth - logoBgSize) / 2;
-        const logoBgY = qrY + (qrContentHeight - logoBgSize) / 2;
+        const logoBgX = qrX + (qrSquareSize - logoBgSize) / 2;
+        const logoBgY = qrY + (qrSquareSize - logoBgSize) / 2;
         const logoBgRadius = logoBgSize * 0.14;
 
         ctx.fillStyle = "#FFFFFF";
@@ -359,8 +358,8 @@ export async function renderProductGraphic(
         const { default: qLogoPath } = await import("@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png");
         const qLogo = await loadImage(qLogoPath);
 
-        const logoX = qrX + (qrContentWidth - logoSize) / 2;
-        const logoY = qrY + (qrContentHeight - logoSize) / 2;
+        const logoX = qrX + (qrSquareSize - logoSize) / 2;
+        const logoY = qrY + (qrSquareSize - logoSize) / 2;
         ctx.drawImage(qLogo, logoX, logoY, logoSize, logoSize);
       } catch (logoErr) {
         console.warn("[productGraphicRenderer] Q logo overlay failed:", logoErr);
@@ -371,14 +370,23 @@ export async function renderProductGraphic(
   }
 
   if (subBottomEnabled && subBottomText) {
+    const captionTop = middleZoneTop + middleZoneHeight - captionReservedHeight;
+    const captionPadX = Math.max(12, W * 0.03);
+    const captionPadY = Math.max(6, captionReservedHeight * 0.15);
     const subFontSize = Math.round(parseFontSize(subBottomFontSizeStr) * (W / 360));
     ctx.font = `${subFontSize}px "Arial"`;
     ctx.fillStyle = subBottomColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const subCenterX = W / 2;
-    const subCenterY = subBottomZoneTop + subBottomZoneHeight / 2;
-    ctx.fillText(subBottomText, subCenterX, subCenterY);
+    const maxCaptionWidth = W - captionPadX * 2;
+    const captionCenterX = W / 2;
+    const captionCenterY = captionTop + captionReservedHeight / 2;
+    const measured = ctx.measureText(subBottomText);
+    if (measured.width > maxCaptionWidth) {
+      const scale = maxCaptionWidth / measured.width;
+      ctx.font = `${Math.round(subFontSize * scale)}px "Arial"`;
+    }
+    ctx.fillText(subBottomText, captionCenterX, captionCenterY);
   }
 
   const footerIsImage = footerStyle?.mode === "image" && footerStyle?.imageUrl;
