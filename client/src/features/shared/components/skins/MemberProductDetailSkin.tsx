@@ -2,25 +2,50 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, DollarSign, Package, Palette, Ruler, Pencil, X } from "lucide-react";
+import { Check, DollarSign, Package, Palette, Ruler, Pencil, X, Loader2 } from "lucide-react";
 import type { AllowedProduct } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 export interface MemberProductDetailSkinProps {
   product: AllowedProduct;
   onSelect: (product: AllowedProduct) => void;
   onClose: () => void;
+  onDescriptionSave?: (product: AllowedProduct, description: string) => Promise<void>;
 }
 
-export function MemberProductDetailSkin({ product, onSelect, onClose }: MemberProductDetailSkinProps) {
+export function MemberProductDetailSkin({ product, onSelect, onClose, onDescriptionSave }: MemberProductDetailSkinProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
   const [localProduct, setLocalProduct] = useState(product);
 
-  const currentDesc = localProduct.memberPacketDescription || "";
-  const cascadedDesc = localProduct.effectiveDescription || localProduct.memberPacketDescription || localProduct.adminCatalogDescription || localProduct.providerDescription || "";
+  const cascadedDesc = localProduct.memberPacketDescription
+    || localProduct.effectiveDescription
+    || localProduct.adminCatalogDescription
+    || localProduct.providerDescription
+    || "";
 
   const colorList = localProduct.availableColors || [];
   const sizeList = localProduct.availableSizes || localProduct.sizes || [];
+
+  const handleSave = async () => {
+    const updated = {
+      ...localProduct,
+      memberPacketDescription: draft,
+      effectiveDescription: draft || localProduct.adminCatalogDescription || localProduct.providerDescription || "",
+    };
+    setLocalProduct(updated);
+    setEditing(false);
+
+    if (onDescriptionSave) {
+      setSaving(true);
+      try {
+        await onDescriptionSave(updated, draft);
+      } catch {
+      } finally {
+        setSaving(false);
+      }
+    }
+  };
 
   return (
     <div
@@ -85,16 +110,12 @@ export function MemberProductDetailSkin({ product, onSelect, onClose }: MemberPr
                   <Button
                     size="sm"
                     className="bg-green-600 text-white"
-                    onClick={() => {
-                      setLocalProduct({
-                        ...localProduct,
-                        memberPacketDescription: draft,
-                      });
-                      setEditing(false);
-                    }}
+                    disabled={saving}
+                    onClick={handleSave}
                     data-testid="button-save-member-desc"
                   >
-                    Done
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+                    Save
                   </Button>
                   <Button
                     size="sm"
@@ -104,25 +125,39 @@ export function MemberProductDetailSkin({ product, onSelect, onClose }: MemberPr
                   >
                     Cancel
                   </Button>
+                  {(localProduct.providerDescription || localProduct.adminCatalogDescription) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-slate-400 text-xs ml-auto"
+                      onClick={() => setDraft(localProduct.adminCatalogDescription || localProduct.providerDescription || "")}
+                      data-testid="button-reset-to-default-desc"
+                    >
+                      Reset to default
+                    </Button>
+                  )}
                 </div>
               </>
             ) : (
-              <div
-                className="group cursor-pointer rounded-lg border border-dashed border-slate-600 p-2"
-                onClick={() => {
-                  setDraft(cascadedDesc);
-                  setEditing(true);
-                }}
-                data-testid="button-edit-member-desc"
-              >
-                <div className="flex items-start gap-2">
-                  <Pencil className="w-3.5 h-3.5 mt-0.5 text-slate-400 shrink-0" />
-                  {currentDesc || localProduct.description ? (
-                    <p className="text-sm text-slate-300">{currentDesc || localProduct.description}</p>
-                  ) : (
-                    <p className="text-sm text-slate-500 italic">Tap to add your product description...</p>
-                  )}
-                </div>
+              <div className="space-y-1.5">
+                {cascadedDesc ? (
+                  <p className="text-sm text-slate-300" data-testid="text-member-product-desc">{cascadedDesc}</p>
+                ) : (
+                  <p className="text-sm text-slate-500 italic" data-testid="text-member-product-desc-empty">No description yet.</p>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-slate-300 border-slate-600"
+                  onClick={() => {
+                    setDraft(cascadedDesc);
+                    setEditing(true);
+                  }}
+                  data-testid="button-edit-member-desc"
+                >
+                  <Pencil className="w-3 h-3 mr-1.5" />
+                  Edit Description
+                </Button>
               </div>
             )}
           </div>

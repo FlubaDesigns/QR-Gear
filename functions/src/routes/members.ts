@@ -341,6 +341,34 @@ app.put('/members/:memberId/channels/:channelId/remove-item', async (req: Reques
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.patch('/members/:memberId/packets/:packetId/description', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { memberId, packetId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    const { memberPacketDescription } = req.body;
+    if (typeof memberPacketDescription !== 'string') { res.status(400).json({ error: 'memberPacketDescription is required' }); return; }
+    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    if (!packetDoc.exists) { res.status(404).json({ error: 'Packet not found' }); return; }
+    const packetData = packetDoc.data();
+    if (packetData?.memberId !== memberId) { res.status(403).json({ error: 'Not your packet' }); return; }
+    const boundProduct = packetData?.boundProduct || {};
+    const providerDesc = boundProduct.providerDescription || '';
+    const adminDesc = boundProduct.adminCatalogDescription || '';
+    const effectiveDescription = memberPacketDescription || adminDesc || providerDesc || '';
+    await db.collection('memberPackets').doc(packetId).update({
+      'boundProduct.memberPacketDescription': memberPacketDescription,
+      'boundProduct.effectiveDescription': effectiveDescription,
+      'boundProduct.description': effectiveDescription,
+      updatedAt: new Date().toISOString(),
+    });
+    res.json({ success: true, effectiveDescription });
+  } catch (error: any) {
+    console.error('[Members] Patch packet description error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/members/:memberId/products/:productId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, productId } = req.params;
