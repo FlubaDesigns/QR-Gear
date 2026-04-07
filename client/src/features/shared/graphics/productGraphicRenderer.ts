@@ -220,7 +220,7 @@ export async function renderProductGraphic(
     zoneY: number,
     zoneW: number,
     zoneH: number,
-    padding: number = 0.02,
+    padding: number = 0.05,
     offsetX: number = 50,
     offsetY: number = 50,
     scale: number = 100
@@ -228,13 +228,11 @@ export async function renderProductGraphic(
     try {
       const img = await loadImage(imgUrl);
 
-      const safeMarginX = zoneW * 0.02;
-      const safeMarginY = zoneH * 0.02;
-      const padX = Math.max(zoneW * padding, safeMarginX);
-      const padY = Math.max(zoneH * padding, safeMarginY);
+      const padX = zoneW * padding;
+      const padY = zoneH * padding;
 
-      const availW = Math.max(1, zoneW - 2 * padX);
-      const availH = Math.max(1, zoneH - 2 * padY);
+      const availW = zoneW - 2 * padX;
+      const availH = zoneH - 2 * padY;
 
       const imgAspect = img.width / img.height;
       const zoneAspect = availW / availH;
@@ -244,36 +242,40 @@ export async function renderProductGraphic(
 
       if (imgAspect > zoneAspect) {
         baseW = availW;
-        baseH = availW / imgAspect;
+        baseH = baseW / imgAspect;
       } else {
         baseH = availH;
-        baseW = availH * imgAspect;
+        baseW = baseH * imgAspect;
       }
 
-      const scaleFactor = Math.max(0.2, scale / 100);
-      const drawW = baseW * scaleFactor;
-      const drawH = baseH * scaleFactor;
+      const scaleFactor = scale / 100;
+      let drawW = baseW * scaleFactor;
+      let drawH = baseH * scaleFactor;
+
+      if (drawW > availW || drawH > availH) {
+        const fitScale = Math.min(availW / drawW, availH / drawH);
+        drawW *= fitScale;
+        drawH *= fitScale;
+      }
 
       const clampedX = Math.max(0, Math.min(100, offsetX));
       const clampedY = Math.max(0, Math.min(100, offsetY));
 
-      const minX = zoneX + padX + Math.min(0, availW - drawW);
-      const maxX = zoneX + padX + Math.max(0, availW - drawW);
+      const marginX = zoneW * 0.02;
+      const marginY = zoneH * 0.02;
 
-      const minY = zoneY + padY + Math.min(0, availH - drawH);
-      const maxY = zoneY + padY + Math.max(0, availH - drawH);
+      const minX = zoneX + padX + marginX;
+      const maxX = zoneX + zoneW - padX - marginX - drawW;
 
-      const drawX = minX + (clampedX / 100) * (maxX - minX);
-      const drawY = minY + (clampedY / 100) * (maxY - minY);
+      const minY = zoneY + padY + marginY;
+      const maxY = zoneY + zoneH - padY - marginY - drawH;
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(zoneX + padX, zoneY + padY, availW, availH);
-      ctx.clip();
+      const drawX = minX + (clampedX / 100) * Math.max(0, maxX - minX);
+      const drawY = minY + (clampedY / 100) * Math.max(0, maxY - minY);
+
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
-      ctx.restore();
     } catch (err) {
-      console.error("drawImageInZone failed:", err);
+      console.warn("[productGraphicRenderer] Image load failed:", err);
     }
   };
 
