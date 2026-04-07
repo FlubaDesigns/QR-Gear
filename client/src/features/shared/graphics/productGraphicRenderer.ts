@@ -159,15 +159,15 @@ export async function renderProductGraphic(
   const footerActive = Boolean(resolvedFooterImageUrl || footerIsText);
   const subBottomActive = Boolean(subBottomEnabled && subBottomText);
 
-  const topPadding = H * 0.035;
-  const bottomPadding = H * 0.03;
-  const sectionGap = H * 0.012;
+  const topPadding = H * 0.02;
+  const bottomPadding = H * 0.02;
+  const sectionGap = H * 0.01;
 
   const headerZoneTop = topPadding;
-  const headerZoneHeight = headerActive ? H * 0.13 : 0;
+  const headerZoneHeight = headerActive ? H * 0.25 : 0;
 
-  const subBottomZoneHeight = subBottomActive ? H * 0.05 : 0;
-  const footerZoneHeight = footerActive ? H * 0.06 : 0;
+  const subBottomZoneHeight = subBottomActive ? H * 0.04 : 0;
+  const footerZoneHeight = footerActive ? H * 0.25 : 0;
 
   const headerGap = headerActive ? sectionGap : 0;
   const subBottomGap = subBottomActive ? sectionGap * 0.35 : 0;
@@ -184,7 +184,7 @@ export async function renderProductGraphic(
     footerGap;
 
   const middleZoneTop = headerZoneTop + headerZoneHeight + headerGap;
-  const middleZoneHeight = Math.max(H * 0.24, H - reservedHeight);
+  const middleZoneHeight = Math.max(H * 0.20, H - reservedHeight);
 
   const subBottomZoneTop =
     middleZoneTop + middleZoneHeight + (subBottomActive ? subBottomGap : 0);
