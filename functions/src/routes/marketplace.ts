@@ -12,6 +12,7 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+import { executeSyncJob, retryFailedJob } from '../services/marketplace-sync';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -608,6 +609,10 @@ app.post('/admin/surfaces/jobs', requireAdmin, async (req: Request, res: Respons
     const docRef = await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).add(data);
     await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).update({ status: 'syncing', lastSyncJobId: docRef.id, updatedAt: now });
     res.json({ id: docRef.id, ...data });
+
+    executeSyncJob(docRef.id).catch((err) =>
+      console.error(`[Surfaces] Async sync execution failed for job ${docRef.id}:`, err)
+    );
   } catch (error: any) {
     console.error('[Surfaces] POST job error:', error);
     res.status(500).json({ error: error.message });
@@ -630,6 +635,18 @@ app.patch('/admin/surfaces/jobs/:jobId', requireAdmin, async (req: Request, res:
     res.json({ id: jobId, ...doc.data(), ...updates });
   } catch (error: any) {
     console.error('[Surfaces] PATCH job error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/surfaces/jobs/:jobId/retry', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { jobId } = req.params;
+    const result = await retryFailedJob(jobId);
+    if (!result.success) { res.status(400).json({ error: result.error }); return; }
+    res.json({ id: jobId, status: 'queued', message: 'Job re-queued for retry' });
+  } catch (error: any) {
+    console.error('[Surfaces] POST job retry error:', error);
     res.status(500).json({ error: error.message });
   }
 });

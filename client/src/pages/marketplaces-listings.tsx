@@ -14,7 +14,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Plus, Trash2, ShoppingBag, Settings, RefreshCw, Loader2, ExternalLink,
   CheckCircle, AlertCircle, Package, Layers, Link2, ListChecks, ScrollText,
-  Pencil, Play, Clock, XCircle, Info, AlertTriangle,
+  Pencil, Play, Clock, XCircle, Info, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
 import type { MarketplaceAccount, SurfaceData, ListingData, MarketplacePlatform } from "./marketplaces-accounts";
@@ -32,6 +32,11 @@ export function ListingsSection() {
 
   const { data: listings = [], isLoading } = useQuery<ListingData[]>({
     queryKey: ["/api/admin/surfaces/listings"],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data && data.some((l: ListingData) => l.status === "syncing")) return 3000;
+      return false;
+    },
   });
 
   const { data: surfaces = [] } = useQuery<SurfaceData[]>({
@@ -57,14 +62,15 @@ export function ListingsSection() {
   });
 
   const publishMutation = useMutation({
-    mutationFn: async (listingId: string) => {
-      const res = await apiRequest("POST", "/api/admin/surfaces/jobs", { listingId, action: "create" });
+    mutationFn: async ({ listingId, action }: { listingId: string; action: string }) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces/jobs", { listingId, action });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
-      toast({ title: "Publish job queued" });
+      const label = variables.action === "create" ? "Publish" : variables.action === "update" ? "Sync" : variables.action;
+      toast({ title: `${label} job queued` });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -95,6 +101,11 @@ export function ListingsSection() {
 
   const getSurfaceTitle = (id: string) => surfaces.find((s) => s.id === id)?.title || id;
   const getAccountName = (id: string) => accounts.find((a) => a.id === id)?.accountName || id;
+
+  const formatDate = (iso?: string) => {
+    if (!iso) return null;
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -150,6 +161,11 @@ export function ListingsSection() {
                         {listing.price > 0 && <span>${listing.price.toFixed(2)}</span>}
                         {listing.externalListingId && <span className="font-mono">#{listing.externalListingId}</span>}
                       </div>
+                      {listing.lastSyncAt && (
+                        <p className="text-xs text-muted-foreground mt-1" data-testid={`text-listing-sync-${listing.id}`}>
+                          Last sync: {formatDate(listing.lastSyncAt)}
+                        </p>
+                      )}
                       {listing.errorMessage && (
                         <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3 flex-shrink-0" />{listing.errorMessage}
@@ -166,12 +182,36 @@ export function ListingsSection() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => publishMutation.mutate(listing.id)}
+                          onClick={() => publishMutation.mutate({ listingId: listing.id, action: "create" })}
                           disabled={publishMutation.isPending}
                           data-testid={`button-publish-${listing.id}`}
                         >
                           <Play className="h-3 w-3 mr-1" />
                           Publish
+                        </Button>
+                      )}
+                      {listing.status === "active" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => publishMutation.mutate({ listingId: listing.id, action: "update" })}
+                          disabled={publishMutation.isPending}
+                          data-testid={`button-sync-${listing.id}`}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Sync
+                        </Button>
+                      )}
+                      {listing.status === "error" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => publishMutation.mutate({ listingId: listing.id, action: "create" })}
+                          disabled={publishMutation.isPending}
+                          data-testid={`button-retry-listing-${listing.id}`}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Retry
                         </Button>
                       )}
                       <Button
@@ -256,8 +296,28 @@ interface SyncJobData {
 }
 
 export function JobsSection() {
+  const { toast } = useToast();
+
   const { data: jobs = [], isLoading } = useQuery<SyncJobData[]>({
     queryKey: ["/api/admin/surfaces/jobs"],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data && data.some((j: SyncJobData) => j.status === "queued" || j.status === "running")) return 3000;
+      return false;
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const res = await apiRequest("POST", `/api/admin/surfaces/jobs/${jobId}/retry`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      toast({ title: "Job re-queued for retry" });
+    },
+    onError: (err: Error) => toast({ title: "Retry failed", description: err.message, variant: "destructive" }),
   });
 
   const jobStatusIcon = (status: string) => {
@@ -323,11 +383,26 @@ export function JobsSection() {
                         <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                           <span>{formatDate(job.createdAt)}</span>
                           <span>Attempts: {job.attempts}/{job.maxAttempts}</span>
+                          {job.completedAt && <span>Completed: {formatDate(job.completedAt)}</span>}
                         </div>
                         {job.errorMessage && (
                           <p className="text-xs text-destructive mt-1">{job.errorMessage}</p>
                         )}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {job.status === "failed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => retryMutation.mutate(job.id)}
+                          disabled={retryMutation.isPending}
+                          data-testid={`button-retry-job-${job.id}`}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Retry
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
