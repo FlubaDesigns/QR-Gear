@@ -185,13 +185,14 @@ export async function renderProductGraphic(
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = style.verticalOffset ?? 50;
     const hOff = style.horizontalOffset ?? 50;
-    const marginPct = 0.01;
+    const marginPct = 0.005;
     const marginY = zoneHeight * marginPct;
     const marginX = W * marginPct;
-    const usableH = zoneHeight - 2 * marginY;
     const usableW = W - 2 * marginX;
-    let currentY =
-      zoneTop + marginY + (vOff / 100) * (usableH - totalTextHeight);
+    const topEdge = zoneTop + marginY;
+    const bottomEdge = zoneTop + zoneHeight - marginY - totalTextHeight;
+    let currentY = topEdge + (vOff / 100) * (bottomEdge - topEdge);
+    if (currentY < topEdge) currentY = topEdge;
     const textX = marginX + (hOff / 100) * usableW;
 
     for (const line of lines) {
