@@ -121,7 +121,7 @@ export function TextStyleEditor({
     if (!file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = () => {
-      onChange({ imageUrl: reader.result as string, mode: "image" });
+      onChange({ imageUrl: reader.result as string, mode: "image", enabled: true });
     };
     reader.readAsDataURL(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -171,17 +171,31 @@ export function TextStyleEditor({
         </div>
       </div>
       
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+        data-testid={`input-${testIdPrefix}-file`}
+      />
+
+      {style.enabled && style.mode === "image" && style.imageUrl && isCollapsed && (
+        <div className="px-4 pb-3">
+          <div className="border rounded-md p-2 bg-muted/30">
+            <img
+              src={style.imageUrl}
+              alt="Zone graphic"
+              className="w-full max-h-[100px] object-contain rounded"
+              style={{ pointerEvents: "none" }}
+              data-testid={`img-${testIdPrefix}-collapsed-preview`}
+            />
+          </div>
+        </div>
+      )}
+
       {!isCollapsed && style.enabled && (
         <div className="space-y-4 p-4 pt-0">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-            data-testid={`input-${testIdPrefix}-file`}
-          />
-
           <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid={`toggle-${testIdPrefix}-mode`}>
             <button
               type="button"
