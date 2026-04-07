@@ -398,7 +398,7 @@ export function ProductGraphicTextModule() {
   const { state, setContent } = useBuilderContext();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | "area" | null>(null);
-  const [saveToLibraryOpen, setSaveToLibraryOpen] = useState(false);
+  const [saveImageDataUrl, setSaveImageDataUrl] = useState<string | null>(null);
   const adminAreaFileRef = useRef<HTMLInputElement>(null);
 
   const openLibraryFor = useCallback((target: "header" | "footer" | "area") => {
@@ -476,6 +476,10 @@ export function ProductGraphicTextModule() {
           showPositionControls={true}
           previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
           onPickFromLibrary={() => openLibraryFor("header")}
+          onSaveToLibrary={() => {
+            const headerImg = (state.content.headerStyle as TextStyleConfig)?.imageUrl;
+            if (headerImg?.startsWith("data:")) setSaveImageDataUrl(headerImg);
+          }}
         />
 
         {showPreview && (
@@ -519,6 +523,10 @@ export function ProductGraphicTextModule() {
           showPositionControls={true}
           previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
           onPickFromLibrary={() => openLibraryFor("footer")}
+          onSaveToLibrary={() => {
+            const footerImg = (state.content.footerStyle as TextStyleConfig)?.imageUrl;
+            if (footerImg?.startsWith("data:")) setSaveImageDataUrl(footerImg);
+          }}
         />
 
         <div className="mt-4 pt-4 border-t">
@@ -686,7 +694,7 @@ export function ProductGraphicTextModule() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setSaveToLibraryOpen(true)}
+                      onClick={() => setSaveImageDataUrl(adminAreaImageUrl)}
                       data-testid="button-admin-save-area-to-library"
                     >
                       <Save className="h-4 w-4 mr-1" />
@@ -787,11 +795,11 @@ export function ProductGraphicTextModule() {
         onSelect={handleLibrarySelect}
       />
 
-      {adminAreaImageUrl.startsWith("data:") && (
+      {saveImageDataUrl && (
         <SaveToLibraryDialog
-          open={saveToLibraryOpen}
-          onClose={() => setSaveToLibraryOpen(false)}
-          imageDataUrl={adminAreaImageUrl}
+          open={!!saveImageDataUrl}
+          onClose={() => setSaveImageDataUrl(null)}
+          imageDataUrl={saveImageDataUrl}
         />
       )}
     </CollapsibleModule>

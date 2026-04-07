@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { FontPicker } from "@/components/ui/font-picker";
-import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X, FolderOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X, FolderOpen, Save } from "lucide-react";
 import { TextStyleViewer } from "./TextStyleViewer";
 import { useFonts, loadGoogleFonts } from "@/hooks/use-fonts";
 
@@ -83,6 +83,7 @@ interface TextStyleEditorProps {
   defaultCollapsed?: boolean;
   fonts?: string[];
   onPickFromLibrary?: () => void;
+  onSaveToLibrary?: () => void;
 }
 
 export function TextStyleEditor({ 
@@ -99,6 +100,7 @@ export function TextStyleEditor({
   defaultCollapsed = true,
   fonts: fontsProp,
   onPickFromLibrary,
+  onSaveToLibrary,
 }: TextStyleEditorProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [controlsOpen, setControlsOpen] = useState(false);
@@ -240,6 +242,17 @@ export function TextStyleEditor({
                       >
                         <FolderOpen className="h-4 w-4 mr-1" />
                         Library
+                      </Button>
+                    )}
+                    {onSaveToLibrary && style.imageUrl?.startsWith("data:") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onSaveToLibrary}
+                        data-testid={`button-${testIdPrefix}-save-to-library`}
+                      >
+                        <Save className="h-4 w-4 mr-1" />
+                        Save
                       </Button>
                     )}
                     <Button
