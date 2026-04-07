@@ -99,8 +99,13 @@ export interface TextStyleConfig {
   letterSpacing: number;
   strokeColor: string;
   strokeWidth: number;
-  verticalOffset: number;   // Distance from QR code (0-100, higher = further from QR)
-  horizontalOffset: number; // Left/right position (-50 to 50, 0 = centered)
+  verticalOffset: number;
+  horizontalOffset: number;
+  mode?: "text" | "image";
+  imageUrl?: string;
+  imageOffsetX?: number;
+  imageOffsetY?: number;
+  imageScale?: number;
 }
 
 export {

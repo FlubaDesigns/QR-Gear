@@ -8,7 +8,14 @@ export function clampQrPercent(value: number) {
   return Math.max(MIN_SAFE_QR_SIZE_PERCENT, Math.min(MAX_SAFE_QR_SIZE_PERCENT, value));
 }
 
-export function sanitizeQrReadableContent<T extends Record<string, any>>(partial: T): T {
+interface QrContentFields {
+  qrSizePercent?: number;
+  qrPositionX?: number;
+  qrPositionY?: number;
+  areaImageMode?: string;
+}
+
+export function sanitizeQrReadableContent<T extends QrContentFields>(partial: T): T {
   const next = { ...partial };
   if (typeof next.qrSizePercent === "number") {
     next.qrSizePercent = clampQrPercent(next.qrSizePercent);

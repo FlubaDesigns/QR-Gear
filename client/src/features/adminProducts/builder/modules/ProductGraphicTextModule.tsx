@@ -333,7 +333,7 @@ function SaveToLibraryDialog({
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
-      delete headers["Content-Type"];
+      delete (headers as Record<string, string>)["Content-Type"];
       const mimeMatch = imageDataUrl.match(/data:([^;]+)/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
       const resp64 = await fetch(imageDataUrl);

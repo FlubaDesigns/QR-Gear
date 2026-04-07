@@ -36,6 +36,9 @@ export interface RenderOptions {
   footerImageUrl?: string;
   areaImageUrl?: string;
   areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageOffsetX?: number;
+  areaImageOffsetY?: number;
+  areaImageScale?: number;
   subBottomEnabled?: boolean;
   subBottomText?: string;
   subBottomColor?: string;
