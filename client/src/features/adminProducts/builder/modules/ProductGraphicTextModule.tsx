@@ -294,11 +294,16 @@ function SaveToLibraryDialog({
       const base64 = parts[1] || parts[0];
       const mimeMatch = imageDataUrl.match(/data:([^;]+)/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
-      await fetch(`${apiBase}/images`, {
+      const resp = await fetch(`${apiBase}/images`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ name, imageData: base64, mimeType, folder }),
       });
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        alert(`Save failed: ${errData.error || resp.statusText}`);
+        return;
+      }
       onClose();
     } catch (e) {
       console.error("Save to library failed:", e);
