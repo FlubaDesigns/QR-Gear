@@ -98,30 +98,35 @@ function ImageLibraryDialog({
     }
   };
 
+  const [folderError, setFolderError] = useState<string | null>(null);
+
   const handleCreateFolder = async () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
+    setFolderError(null);
 
     try {
       const headers = await getAuthHeaders();
-      await fetch(`${apiBase}/images/folders`, {
+      const res = await fetch(`${apiBase}/images/folders`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setFolderError(`Failed to create folder: ${errData.error || res.statusText}`);
+        return;
+      }
+      const foldersRes = await fetch(`${apiBase}/images/folders`, { headers });
+      const serverFolders = foldersRes.ok ? await foldersRes.json() : [];
+      setFolders(serverFolders);
+      setActiveFolder(trimmed);
+      setShowNewFolder(false);
+      setNewFolderName("");
     } catch (e) {
       console.error("Create folder failed:", e);
+      setFolderError(`Failed to create folder: ${e instanceof Error ? e.message : "Network error"}`);
     }
-
-    setFolders((prev) =>
-      prev.includes(trimmed)
-        ? prev
-        : [...prev, trimmed].sort((a, b) => a.localeCompare(b))
-    );
-
-    setActiveFolder(trimmed);
-    setShowNewFolder(false);
-    setNewFolderName("");
   };
 
   return (
@@ -171,7 +176,7 @@ function ImageLibraryDialog({
                 <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()} data-testid="button-confirm-new-folder">
                   <Check className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} data-testid="button-cancel-new-folder">
+                <Button size="sm" variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); setFolderError(null); }} data-testid="button-cancel-new-folder">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -184,6 +189,9 @@ function ImageLibraryDialog({
                 <FolderPlus className="h-4 w-4" />
                 New Folder
               </button>
+            )}
+            {folderError && (
+              <p className="text-sm text-red-500 mt-1" data-testid="text-folder-error">{folderError}</p>
             )}
           </div>
         )}
@@ -355,30 +363,35 @@ function SaveToLibraryDialog({
     }
   };
 
+  const [folderError2, setFolderError2] = useState<string | null>(null);
+
   const handleCreateFolder = async () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
+    setFolderError2(null);
 
     try {
       const headers = await getAuthHeaders();
-      await fetch(`${apiBase}/images/folders`, {
+      const res = await fetch(`${apiBase}/images/folders`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: trimmed }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setFolderError2(`Failed to create folder: ${errData.error || res.statusText}`);
+        return;
+      }
+      const foldersRes = await fetch(`${apiBase}/images/folders`, { headers });
+      const serverFolders = foldersRes.ok ? await foldersRes.json() : [];
+      setFolders(serverFolders);
+      setSelectedFolder(trimmed);
+      setShowNewFolder(false);
+      setNewFolderName("");
     } catch (e) {
       console.error("Create folder failed:", e);
+      setFolderError2(`Failed to create folder: ${e instanceof Error ? e.message : "Network error"}`);
     }
-
-    setFolders((prev) =>
-      prev.includes(trimmed)
-        ? prev
-        : [...prev, trimmed].sort((a, b) => a.localeCompare(b))
-    );
-
-    setSelectedFolder(trimmed);
-    setShowNewFolder(false);
-    setNewFolderName("");
   };
 
   return (
@@ -428,7 +441,7 @@ function SaveToLibraryDialog({
                 <Button size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()} data-testid="button-save-confirm-folder">
                   <Check className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); }} data-testid="button-save-cancel-folder">
+                <Button size="sm" variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(""); setFolderError2(null); }} data-testid="button-save-cancel-folder">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -442,6 +455,9 @@ function SaveToLibraryDialog({
                 <FolderPlus className="h-4 w-4" />
                 New Folder
               </button>
+            )}
+            {folderError2 && (
+              <p className="text-sm text-red-500 mt-1" data-testid="text-save-folder-error">{folderError2}</p>
             )}
           </div>
           <Button

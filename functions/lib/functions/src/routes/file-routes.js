@@ -783,15 +783,22 @@ function register(app) {
                 res.status(400).json({ error: 'Folder name is required' });
                 return;
             }
-            const trimmed = name.trim();
-            const existing = await core_1.db.collection('admin_image_folders').where('name', '==', trimmed).get();
-            if (!existing.empty) {
-                res.json({ success: true, folder: trimmed, existed: true });
+            const trimmed = name.trim().replace(/\s{2,}/g, ' ');
+            if (trimmed.length > 80) {
+                res.status(400).json({ error: 'Folder name must be 80 characters or less' });
                 return;
             }
-            await core_1.db.collection('admin_image_folders').add({ name: trimmed, createdAt: new Date().toISOString() });
+            const normalizedName = trimmed.toLowerCase();
+            const allFolders = await core_1.db.collection('admin_image_folders').get();
+            const match = allFolders.docs.find(doc => (doc.data().name || '').trim().toLowerCase() === normalizedName);
+            if (match) {
+                const existingName = match.data().name;
+                res.json({ ok: true, folder: existingName, created: false });
+                return;
+            }
+            await core_1.db.collection('admin_image_folders').add({ name: trimmed, normalizedName, createdAt: new Date().toISOString() });
             console.log('[AdminImages] Folder created:', trimmed);
-            res.json({ success: true, folder: trimmed });
+            res.json({ ok: true, folder: trimmed, created: true });
         }
         catch (error) {
             console.error('[AdminImages] Create folder error:', error);

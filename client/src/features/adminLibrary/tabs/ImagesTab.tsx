@@ -134,19 +134,25 @@ export default function ImagesTab() {
     if (!name) return;
     try {
       const headers = await getAuthHeaders();
-      await fetch(`${apiBase}/images/folders`, {
+      const res = await fetch(`${apiBase}/images/folders`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        toast({ title: "Failed to create folder", description: errData.error || res.statusText, variant: "destructive" });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/images/folders"] });
+      setActiveFolder(name);
+      setNewFolderOpen(false);
+      setNewFolderName("");
+      toast({ title: `Folder "${name}" created` });
     } catch (e) {
       console.error("Create folder failed:", e);
+      toast({ title: "Failed to create folder", description: e instanceof Error ? e.message : "Network error", variant: "destructive" });
     }
-    setActiveFolder(name);
-    setNewFolderOpen(false);
-    setNewFolderName("");
-    toast({ title: `Folder "${name}" created` });
   }, [newFolderName, toast, apiBase, getAuthHeaders, queryClient]);
 
   const images = imagesQuery.data || [];
