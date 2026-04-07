@@ -133,7 +133,7 @@ export async function renderProductGraphic(
   const H = dims.height;
 
   const subBottomEnabled = options.subBottomEnabled ?? false;
-  const subBottomText = options.subBottomText || "Scan Me";
+  const subBottomText = (options.subBottomText || "Scan Me").trim();
   const subBottomColor = options.subBottomColor || "#666666";
   const subBottomFontSizeStr = options.subBottomFontSize || "14px";
 
@@ -157,20 +157,21 @@ export async function renderProductGraphic(
 
   const headerActive = Boolean(resolvedHeaderImageUrl || headerIsText);
   const footerActive = Boolean(resolvedFooterImageUrl || footerIsText);
+  const subBottomActive = Boolean(subBottomEnabled && subBottomText);
 
-  const topPadding = H * 0.04;
-  const bottomPadding = H * 0.04;
-  const sectionGap = H * 0.018;
+  const topPadding = H * 0.035;
+  const bottomPadding = H * 0.03;
+  const sectionGap = H * 0.012;
 
   const headerZoneTop = topPadding;
-  const headerZoneHeight = headerActive ? H * 0.20 : 0;
+  const headerZoneHeight = headerActive ? H * 0.13 : 0;
 
-  const subBottomZoneHeight = subBottomEnabled ? H * 0.06 : 0;
-  const footerZoneHeight = footerActive ? H * 0.16 : 0;
+  const subBottomZoneHeight = subBottomActive ? H * 0.05 : 0;
+  const footerZoneHeight = footerActive ? H * 0.09 : 0;
 
   const headerGap = headerActive ? sectionGap : 0;
-  const subBottomGap = subBottomEnabled ? sectionGap * 0.6 : 0;
-  const footerGap = footerActive ? sectionGap : 0;
+  const subBottomGap = subBottomActive ? sectionGap * 0.35 : 0;
+  const footerGap = footerActive ? sectionGap * 0.35 : 0;
 
   const reservedHeight =
     topPadding +
@@ -183,10 +184,10 @@ export async function renderProductGraphic(
     footerGap;
 
   const middleZoneTop = headerZoneTop + headerZoneHeight + headerGap;
-  const middleZoneHeight = H - reservedHeight;
+  const middleZoneHeight = Math.max(H * 0.30, H - reservedHeight);
 
   const subBottomZoneTop =
-    middleZoneTop + middleZoneHeight + (subBottomEnabled ? subBottomGap : 0);
+    middleZoneTop + middleZoneHeight + (subBottomActive ? subBottomGap : 0);
 
   const footerZoneTop =
     subBottomZoneTop + subBottomZoneHeight + (footerActive ? footerGap : 0);
@@ -321,8 +322,8 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
-  const qrTopInset = Math.max(8, middleZoneHeight * 0.02);
-  const qrBottomInset = Math.max(8, middleZoneHeight * 0.02);
+  const qrTopInset = Math.max(8, middleZoneHeight * 0.015);
+  const qrBottomInset = Math.max(8, middleZoneHeight * 0.015);
   const qrSideInset = Math.max(12, W * 0.03);
 
   const qrContentRegionTop = middleZoneTop + qrTopInset;
@@ -334,7 +335,7 @@ export async function renderProductGraphic(
   const qrContentRegionWidth = Math.max(1, W - qrSideInset * 2);
 
   const maxQrSquare = Math.min(qrContentRegionWidth, qrContentRegionHeight);
-  const effectiveQrPercent = clamp(qrSizePercent, 30, 95);
+  const effectiveQrPercent = clamp(qrSizePercent, 30, 82);
   const qrSquareSize = clamp(maxQrSquare * (effectiveQrPercent / 100), MIN_QR_PIXEL_SIZE, maxQrSquare);
 
   const clampedX = clamp(qrPositionX, 0, 100);
@@ -403,7 +404,7 @@ export async function renderProductGraphic(
     }
   }
 
-  if (subBottomEnabled && subBottomText) {
+  if (subBottomActive) {
     const captionPadX = Math.max(12, W * 0.03);
     const subFontSize = Math.round(parseFontSize(subBottomFontSizeStr) * (W / 360));
 
