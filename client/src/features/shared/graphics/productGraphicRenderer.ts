@@ -236,11 +236,12 @@ export async function renderProductGraphic(
       const drawH = baseH * scaleFactor;
       const clampedX = Math.max(0, Math.min(100, offsetX));
       const clampedY = Math.max(0, Math.min(100, offsetY));
-      const marginPct = 0.005;
-      const leftEdge = zoneX + zoneW * marginPct;
-      const rightEdge = zoneX + zoneW - zoneW * marginPct - drawW;
-      const topEdge = zoneY + zoneH * marginPct;
-      const bottomEdge = zoneY + zoneH - zoneH * marginPct - drawH;
+      const margin = zoneH * 0.02;
+      const topEdge = zoneY + margin;
+      const bottomEdge = zoneY + zoneH - margin - drawH;
+      const marginX = zoneW * 0.02;
+      const leftEdge = zoneX + marginX;
+      const rightEdge = zoneX + zoneW - marginX - drawW;
       const drawX = leftEdge + (clampedX / 100) * Math.max(0, rightEdge - leftEdge);
       const drawY = topEdge + (clampedY / 100) * Math.max(0, bottomEdge - topEdge);
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
