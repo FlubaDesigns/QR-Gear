@@ -58,6 +58,16 @@ const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = 
 const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1800;
 
+const MIN_QR_PIXEL_SIZE = 280;
+const MAX_LOGO_RATIO = 0.16;
+const QR_BACKING_PADDING_RATIO = 0.12;
+const QR_BACKING_RADIUS_RATIO = 0.08;
+const QR_SAFE_MARGIN_X_RATIO = 0.06;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 
 function parseFontSize(fontSize: string): number {
   const num = parseInt(fontSize, 10);
@@ -278,31 +288,36 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
-  const safeMarginX = W * 0.03;
-  const safeMarginY = qrZoneHeight * qrInnerMargin;
-  const safeW = W - 2 * safeMarginX;
-  const safeH = qrZoneHeight - 2 * safeMarginY;
+  const safeMarginX = W * QR_SAFE_MARGIN_X_RATIO;
+  const safeMarginY = qrZoneHeight * Math.max(qrInnerMargin, 0.12);
+  const safeW = Math.max(1, W - 2 * safeMarginX);
+  const safeH = Math.max(1, qrZoneHeight - 2 * safeMarginY);
 
-  const clampedSize = Math.max(20, Math.min(100, qrSizePercent));
+  const clampedSize = clamp(qrSizePercent, 30, 100);
   const maxQrDimension = Math.min(safeW, safeH);
-  const qrContentWidth = maxQrDimension * (clampedSize / 100);
+
+  const requestedQrDimension = maxQrDimension * (clampedSize / 100);
+  const qrContentWidth = clamp(requestedQrDimension, MIN_QR_PIXEL_SIZE, maxQrDimension);
   const qrContentHeight = qrContentWidth;
 
-  const clampedX = Math.max(0, Math.min(100, qrPositionX));
-  const clampedY = Math.max(0, Math.min(100, qrPositionY));
-  const availableX = safeW - qrContentWidth;
-  const availableY = safeH - qrContentHeight;
+  const clampedX = clamp(qrPositionX, 0, 100);
+  const clampedY = clamp(qrPositionY, 0, 100);
+
+  const availableX = Math.max(0, safeW - qrContentWidth);
+  const availableY = Math.max(0, safeH - qrContentHeight);
+
   const qrX = safeMarginX + (clampedX / 100) * availableX;
   const qrY = qrZoneTop + safeMarginY + (clampedY / 100) * availableY;
 
-  const bgPadding = 20;
-  const bgRadius = 16;
+  const bgPadding = Math.max(24, qrContentWidth * QR_BACKING_PADDING_RATIO);
+  const bgRadius = Math.max(16, qrContentWidth * QR_BACKING_RADIUS_RATIO);
+
   const qrBgX = qrX - bgPadding;
   const qrBgY2 = qrY - bgPadding;
   const qrBgWidth = qrContentWidth + bgPadding * 2;
   const qrBgHeight = qrContentHeight + bgPadding * 2;
 
-  const qrLight = qrColor === "white" ? "#000000" : "#FFFFFF";
+  const qrLight = "#FFFFFF";
 
   const areaOffX = options.areaImageOffsetX ?? 50;
   const areaOffY = options.areaImageOffsetY ?? 50;
@@ -315,25 +330,25 @@ export async function renderProductGraphic(
       await drawImageInZone(areaImageUrl, 0, qrZoneTop, W, qrZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
     }
 
-    if (!transparent) {
-      ctx.fillStyle = qrLight;
-      ctx.beginPath();
-      ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
-      ctx.fill();
-    }
+    ctx.fillStyle = qrLight;
+    ctx.beginPath();
+    ctx.roundRect(qrBgX, qrBgY2, qrBgWidth, qrBgHeight, bgRadius);
+    ctx.fill();
 
     try {
-      const qrImgSize = Math.round(qrContentWidth);
+      const qrImgSize = Math.max(512, Math.round(qrContentWidth * 2));
       const qrUrl = generateQRCodeUrl(qrContent, qrImgSize, qrColor);
       const qrImg = await loadImage(qrUrl);
+
       ctx.drawImage(qrImg, qrX, qrY, qrContentWidth, qrContentHeight);
 
       try {
-        const logoSize = qrContentWidth * 0.22;
-        const logoBgSize = logoSize * 1.3;
+        const logoSize = qrContentWidth * MAX_LOGO_RATIO;
+        const logoBgSize = logoSize * 1.35;
         const logoBgX = qrX + (qrContentWidth - logoBgSize) / 2;
         const logoBgY = qrY + (qrContentHeight - logoBgSize) / 2;
-        const logoBgRadius = logoBgSize * 0.12;
+        const logoBgRadius = logoBgSize * 0.14;
+
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
         ctx.roundRect(logoBgX, logoBgY, logoBgSize, logoBgSize, logoBgRadius);
@@ -341,6 +356,7 @@ export async function renderProductGraphic(
 
         const { default: qLogoPath } = await import("@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png");
         const qLogo = await loadImage(qLogoPath);
+
         const logoX = qrX + (qrContentWidth - logoSize) / 2;
         const logoY = qrY + (qrContentHeight - logoSize) / 2;
         ctx.drawImage(qLogo, logoX, logoY, logoSize, logoSize);
