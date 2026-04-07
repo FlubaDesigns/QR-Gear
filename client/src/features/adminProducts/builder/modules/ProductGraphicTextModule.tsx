@@ -509,7 +509,7 @@ export function ProductGraphicTextModule() {
 
   const posX = state.content.qrPositionX ?? 50;
   const posY = state.content.qrPositionY ?? 0;
-  const sizeVal = state.content.qrSizePercent ?? 85;
+  const sizeVal = state.content.qrSizePercent ?? 70;
   const adminAreaImageUrl = state.content.areaImageUrl || '';
   const adminAreaImageMode = state.content.areaImageMode || 'behind-qr';
   const areaOffX = state.content.areaImageOffsetX ?? 50;
@@ -691,28 +691,39 @@ export function ProductGraphicTextModule() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-sm flex items-center gap-1.5">
-                  <Maximize2 className="w-3.5 h-3.5" /> QR Size
+                  <Maximize2 className="w-3.5 h-3.5" /> QR Size: {sizeVal <= 50 ? 'Small' : sizeVal <= 60 ? 'Medium' : sizeVal <= 68 ? 'Large' : 'XL'}
                 </Label>
                 <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-size">{sizeVal}%</span>
               </div>
               <Slider
                 value={[sizeVal]}
                 onValueChange={([v]) => safeSetContent({ qrSizePercent: v })}
-                min={MIN_SAFE_QR_SIZE_PERCENT}
-                max={100}
-                step={1}
+                min={40}
+                max={85}
+                step={2}
                 data-testid="slider-admin-qr-size"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Minimum enforced for readability: {MIN_SAFE_QR_SIZE_PERCENT}%
-              </p>
+              <div className="flex gap-1.5 pt-1">
+                {([['S', 48], ['M', 56], ['L', 64], ['XL', 72]] as const).map(([label, val]) => (
+                  <Button
+                    key={label}
+                    variant={sizeVal === val ? 'default' : 'outline'}
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => safeSetContent({ qrSizePercent: val })}
+                    data-testid={`button-qr-preset-${label.toLowerCase()}`}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="text-center pt-1">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 0, qrSizePercent: 85 })}
+                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 0, qrSizePercent: 70 })}
                 data-testid="button-admin-reset-qr-position"
               >
                 Reset to Default

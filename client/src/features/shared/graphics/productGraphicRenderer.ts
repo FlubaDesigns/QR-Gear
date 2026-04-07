@@ -119,7 +119,7 @@ export async function renderProductGraphic(
     placement,
     qrPositionX = 50,
     qrPositionY = 0,
-    qrSizePercent = 85,
+    qrSizePercent = 70,
     headerImageUrl,
     footerImageUrl,
     areaImageUrl,
@@ -300,7 +300,7 @@ export async function renderProductGraphic(
   const qrContentRegionWidth = Math.max(1, W - qrSideInset * 2);
 
   const maxQrSquare = Math.min(qrContentRegionWidth, qrContentRegionHeight);
-  const effectiveQrPercent = clamp(qrSizePercent, 30, 100);
+  const effectiveQrPercent = clamp(qrSizePercent, 30, 95);
   const qrSquareSize = clamp(maxQrSquare * (effectiveQrPercent / 100), MIN_QR_PIXEL_SIZE, maxQrSquare);
 
   const clampedX = clamp(qrPositionX, 0, 100);
