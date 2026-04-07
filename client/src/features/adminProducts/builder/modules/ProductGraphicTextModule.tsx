@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2 } from "lucide-react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -88,68 +88,78 @@ function ImageLibraryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>Choose from Library</DialogTitle>
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] flex flex-col p-4">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg">
+            {activeFolder ? folderLabel(activeFolder) : "Choose from Library"}
+          </DialogTitle>
         </DialogHeader>
 
+        {activeFolder && (
+          <button
+            onClick={() => setActiveFolder(null)}
+            className="qr-btn qr-btn--outline qr-btn--touch text-sm mb-3 self-start"
+            data-testid="button-picker-back"
+          >
+            &larr; All Folders
+          </button>
+        )}
+
         {!activeFolder && allFolders.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="grid grid-cols-2 gap-2 mb-3">
             {allFolders.map((f) => (
               <button
                 key={f}
                 onClick={() => setActiveFolder(f)}
-                className="qr-btn qr-btn--outline text-xs px-3 py-1.5"
+                className="qr-btn qr-btn--outline qr-btn--touch min-h-[48px] flex items-center justify-center gap-2 text-sm font-medium capitalize"
                 data-testid={`picker-folder-${f}`}
               >
+                <FolderOpen className="h-4 w-4" />
                 {folderLabel(f)}
               </button>
             ))}
           </div>
         )}
 
-        {activeFolder && (
-          <button
-            onClick={() => setActiveFolder(null)}
-            className="text-sm text-blue-400 mb-2 flex items-center gap-1"
-            data-testid="button-picker-back"
-          >
-            <span>&larr;</span> All Images
-          </button>
-        )}
-
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : images.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            No images found. Upload images in the Asset Library &gt; Images tab first.
-          </p>
+          <div className="text-center py-12">
+            <ImageIcon className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              No images found.
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Upload images in Asset Library &gt; Images tab first.
+            </p>
+          </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2 overflow-y-auto max-h-[50vh] p-1">
+          <div className="grid grid-cols-2 gap-3 overflow-y-auto flex-1 pb-2" style={{ maxHeight: '60vh' }}>
             {images.map((img) => {
               const url = img.proxyUrl || img.publicUrl || img.storageUrl;
               return (
-                <div
+                <button
                   key={img.id}
+                  type="button"
                   onClick={() => {
                     onSelect(url);
                     onClose();
                   }}
-                  className="cursor-pointer rounded-md overflow-hidden border border-white/10 hover:ring-2 hover:ring-blue-400 transition-all"
+                  className="rounded-lg overflow-hidden border-2 border-white/10 active:border-blue-400 active:scale-[0.97] transition-all bg-black/10"
                   data-testid={`library-image-${img.id}`}
                 >
                   <img
                     src={url}
                     alt={img.name}
-                    className="w-full aspect-square object-cover bg-black/20"
+                    className="w-full aspect-[4/3] object-cover"
                     loading="lazy"
                   />
-                  <div className="text-[10px] text-white/70 p-1 truncate bg-black/40">
+                  <div className="text-xs text-foreground/80 px-2 py-1.5 truncate font-medium">
                     {img.name}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
