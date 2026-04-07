@@ -309,7 +309,7 @@ function register(app) {
                 return;
             }
             const bucket = core_1.admin.storage().bucket();
-            const roots = ['library/backgrounds/raw', 'library/backgrounds/cropped', 'library/backgrounds/raw/zip', 'library/backgrounds/zip', 'library/templates', 'library/designs', 'custom-designs'];
+            const roots = ['library/backgrounds/raw', 'library/backgrounds/cropped', 'library/backgrounds/raw/zip', 'library/backgrounds/zip', 'library/templates', 'library/designs', 'custom-designs', 'library/images'];
             for (const root of roots) {
                 const file = bucket.file(`${root}/${fileName}`);
                 const [exists] = await file.exists();

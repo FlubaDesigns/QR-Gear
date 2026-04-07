@@ -98,9 +98,20 @@ function ImageLibraryDialog({
     }
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${apiBase}/images/folders`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+    } catch (e) {
+      console.error("Create folder failed:", e);
+    }
 
     setFolders((prev) =>
       prev.includes(trimmed)
@@ -344,9 +355,20 @@ function SaveToLibraryDialog({
     }
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${apiBase}/images/folders`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+    } catch (e) {
+      console.error("Create folder failed:", e);
+    }
 
     setFolders((prev) =>
       prev.includes(trimmed)

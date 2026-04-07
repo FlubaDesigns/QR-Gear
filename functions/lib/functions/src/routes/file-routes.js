@@ -750,9 +750,17 @@ function register(app) {
     });
     app.get('/admin/images/folders', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const snap = await core_1.db.collection('admin_images').get();
+            const [imgSnap, folderSnap] = await Promise.all([
+                core_1.db.collection('admin_images').get(),
+                core_1.db.collection('admin_image_folders').get(),
+            ]);
             const folderSet = new Set();
-            snap.docs.forEach(doc => {
+            folderSnap.docs.forEach(doc => {
+                const name = doc.data().name;
+                if (name)
+                    folderSet.add(name);
+            });
+            imgSnap.docs.forEach(doc => {
                 const data = doc.data();
                 if (data.isActive === false)
                     return;
@@ -765,6 +773,28 @@ function register(app) {
         }
         catch (error) {
             console.error('[AdminImages] Folders error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.post('/admin/images/folders', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { name } = req.body;
+            if (!name || typeof name !== 'string' || !name.trim()) {
+                res.status(400).json({ error: 'Folder name is required' });
+                return;
+            }
+            const trimmed = name.trim();
+            const existing = await core_1.db.collection('admin_image_folders').where('name', '==', trimmed).get();
+            if (!existing.empty) {
+                res.json({ success: true, folder: trimmed, existed: true });
+                return;
+            }
+            await core_1.db.collection('admin_image_folders').add({ name: trimmed, createdAt: new Date().toISOString() });
+            console.log('[AdminImages] Folder created:', trimmed);
+            res.json({ success: true, folder: trimmed });
+        }
+        catch (error) {
+            console.error('[AdminImages] Create folder error:', error);
             res.status(500).json({ error: error.message });
         }
     });

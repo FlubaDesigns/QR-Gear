@@ -815,9 +815,16 @@ app.get('/admin/images', requireAdmin, async (req: Request, res: Response): Prom
 
 app.get('/admin/images/folders', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const snap = await db.collection('admin_images').get();
+    const [imgSnap, folderSnap] = await Promise.all([
+      db.collection('admin_images').get(),
+      db.collection('admin_image_folders').get(),
+    ]);
     const folderSet = new Set<string>();
-    snap.docs.forEach(doc => {
+    folderSnap.docs.forEach(doc => {
+      const name = doc.data().name;
+      if (name) folderSet.add(name);
+    });
+    imgSnap.docs.forEach(doc => {
       const data = doc.data();
       if (data.isActive === false) return;
       const f = data.folder;
@@ -827,6 +834,28 @@ app.get('/admin/images/folders', requireAdmin, async (req: Request, res: Respons
     res.json(folders);
   } catch (error: any) {
     console.error('[AdminImages] Folders error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/images/folders', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'Folder name is required' });
+      return;
+    }
+    const trimmed = name.trim();
+    const existing = await db.collection('admin_image_folders').where('name', '==', trimmed).get();
+    if (!existing.empty) {
+      res.json({ success: true, folder: trimmed, existed: true });
+      return;
+    }
+    await db.collection('admin_image_folders').add({ name: trimmed, createdAt: new Date().toISOString() });
+    console.log('[AdminImages] Folder created:', trimmed);
+    res.json({ success: true, folder: trimmed });
+  } catch (error: any) {
+    console.error('[AdminImages] Create folder error:', error);
     res.status(500).json({ error: error.message });
   }
 });

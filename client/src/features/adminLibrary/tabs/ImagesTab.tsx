@@ -132,11 +132,22 @@ export default function ImagesTab() {
   const handleCreateFolder = useCallback(async () => {
     const name = newFolderName.trim();
     if (!name) return;
+    try {
+      const headers = await getAuthHeaders();
+      await fetch(`${apiBase}/images/folders`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/images/folders"] });
+    } catch (e) {
+      console.error("Create folder failed:", e);
+    }
     setActiveFolder(name);
     setNewFolderOpen(false);
     setNewFolderName("");
-    toast({ title: `Folder "${name}" created — upload images to populate it` });
-  }, [newFolderName, toast]);
+    toast({ title: `Folder "${name}" created` });
+  }, [newFolderName, toast, apiBase, getAuthHeaders, queryClient]);
 
   const images = imagesQuery.data || [];
   const folders = foldersQuery.data || [];
