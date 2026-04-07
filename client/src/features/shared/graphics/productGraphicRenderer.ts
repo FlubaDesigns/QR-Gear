@@ -103,6 +103,70 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+async function drawImageInZone(
+  ctx: CanvasRenderingContext2D,
+  imgUrl: string,
+  zoneX: number,
+  zoneY: number,
+  zoneW: number,
+  zoneH: number,
+  padding: number = 0.05,
+  offsetX: number = 50,
+  offsetY: number = 50,
+  scale: number = 100
+) {
+  try {
+    const img = await loadImage(imgUrl);
+
+    const padX = zoneW * padding;
+    const padY = zoneH * padding;
+    const availW = zoneW - 2 * padX;
+    const availH = zoneH - 2 * padY;
+
+    const imgAspect = img.width / img.height;
+    const zoneAspect = availW / availH;
+
+    let baseW: number;
+    let baseH: number;
+
+    if (imgAspect > zoneAspect) {
+      baseW = availW;
+      baseH = baseW / imgAspect;
+    } else {
+      baseH = availH;
+      baseW = baseH * imgAspect;
+    }
+
+    const scaleFactor = scale / 100;
+    let drawW = baseW * scaleFactor;
+    let drawH = baseH * scaleFactor;
+
+    if (drawW > availW || drawH > availH) {
+      const fitScale = Math.min(availW / drawW, availH / drawH);
+      drawW *= fitScale;
+      drawH *= fitScale;
+    }
+
+    const clampedOX = Math.max(0, Math.min(100, offsetX));
+    const clampedOY = Math.max(0, Math.min(100, offsetY));
+
+    const marginX = zoneW * 0.02;
+    const marginY = zoneH * 0.02;
+
+    const minX = zoneX + padX + marginX;
+    const maxX = zoneX + zoneW - padX - marginX - drawW;
+    const minY = zoneY + padY + marginY;
+    const maxY = zoneY + zoneH - padY - marginY - drawH;
+
+    const drawX = minX + (clampedOX / 100) * Math.max(0, maxX - minX);
+    const drawY = minY + (clampedOY / 100) * Math.max(0, maxY - minY);
+
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  } catch (err) {
+    console.warn("[productGraphicRenderer] Image load failed:", err);
+  }
+}
+
 export async function renderProductGraphic(options: RenderOptions): Promise<string> {
   const {
     qrContent,
@@ -207,18 +271,16 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   const qrTravelHeight = Math.max(0, middleZoneHeight - qrSize - qrSafeMarginY * 2);
   const qrY = middleZoneTop + qrSafeMarginY + qrTravelHeight * (qrPositionY / 100);
 
+  const areaOffX = options.areaImageOffsetX ?? 50;
+  const areaOffY = options.areaImageOffsetY ?? 50;
+  const areaSc = options.areaImageScale ?? 100;
+
   if (areaImageUrl && areaImageMode === "behind-qr") {
-    try {
-      const areaImg = await loadImage(areaImageUrl);
-      ctx.drawImage(areaImg, 0, middleZoneTop, W, middleZoneHeight);
-    } catch {}
+    await drawImageInZone(ctx, areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
   }
 
   if (areaImageUrl && areaImageMode === "replace-qr") {
-    try {
-      const areaImg = await loadImage(areaImageUrl);
-      ctx.drawImage(areaImg, qrX, qrY, qrSize, qrSize);
-    } catch {}
+    await drawImageInZone(ctx, areaImageUrl, 0, middleZoneTop, W, middleZoneHeight, 0.03, areaOffX, areaOffY, areaSc);
   } else {
     ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
   }
@@ -228,10 +290,8 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       headerImageUrl || (headerStyle?.mode === "image" ? headerStyle?.imageUrl : undefined);
 
     if (resolvedHeaderUrl) {
-      try {
-        const img = await loadImage(resolvedHeaderUrl);
-        ctx.drawImage(img, 0, topPadding, W, headerZoneHeight);
-      } catch {}
+      await drawImageInZone(ctx, resolvedHeaderUrl, 0, topPadding, W, headerZoneHeight, 0.05,
+        headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100);
     } else if (headerStyle) {
       ctx.fillStyle = headerStyle.color || "#000";
       ctx.font = `${parseFontSize(headerStyle.fontSize)}px ${headerStyle.fontFamily}`;
@@ -262,10 +322,8 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
       footerImageUrl || (footerStyle?.mode === "image" ? footerStyle?.imageUrl : undefined);
 
     if (resolvedFooterUrl) {
-      try {
-        const img = await loadImage(resolvedFooterUrl);
-        ctx.drawImage(img, 0, footerZoneTop, W, footerZoneHeight);
-      } catch {}
+      await drawImageInZone(ctx, resolvedFooterUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
+        footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100);
     } else if (footerStyle) {
       ctx.fillStyle = footerStyle.color || "#000";
       ctx.font = `${parseFontSize(footerStyle.fontSize)}px ${footerStyle.fontFamily}`;
