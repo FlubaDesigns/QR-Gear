@@ -118,8 +118,8 @@ export async function renderProductGraphic(
     transparent = true,
     placement,
     qrPositionX = 50,
-    qrPositionY = 50,
-    qrSizePercent = 50,
+    qrPositionY = 0,
+    qrSizePercent = 85,
     headerImageUrl,
     footerImageUrl,
     areaImageUrl,
@@ -287,11 +287,11 @@ export async function renderProductGraphic(
   }
 
   const captionReservedHeight = subBottomEnabled
-    ? Math.max(28, middleZoneHeight * 0.14)
+    ? Math.max(22, middleZoneHeight * 0.10)
     : 0;
 
-  const qrTopInset = Math.max(8, middleZoneHeight * 0.02);
-  const qrBottomInset = Math.max(8, middleZoneHeight * 0.02);
+  const qrTopInset = Math.max(2, middleZoneHeight * 0.005);
+  const qrBottomInset = Math.max(4, middleZoneHeight * 0.01);
   const qrSideInset = Math.max(12, W * 0.03);
 
   const qrContentRegionTop = middleZoneTop + qrTopInset;
