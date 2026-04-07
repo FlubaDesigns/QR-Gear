@@ -102,6 +102,31 @@ function getQrSafetyClasses(status: QrSafetyStatus) {
   }
 }
 
+const MIN_SAFE_QR_SIZE_PERCENT = 35;
+const MAX_SAFE_QR_SIZE_PERCENT = 100;
+const FORCE_BLOCK_REPLACE_QR = true;
+
+function clampQrPercent(value: number) {
+  return Math.max(MIN_SAFE_QR_SIZE_PERCENT, Math.min(MAX_SAFE_QR_SIZE_PERCENT, value));
+}
+
+function sanitizeQrReadableContent<T extends Record<string, any>>(partial: T): T {
+  const next = { ...partial };
+  if (typeof next.qrSizePercent === "number") {
+    next.qrSizePercent = clampQrPercent(next.qrSizePercent);
+  }
+  if (typeof next.qrPositionX === "number") {
+    next.qrPositionX = Math.max(0, Math.min(100, next.qrPositionX));
+  }
+  if (typeof next.qrPositionY === "number") {
+    next.qrPositionY = Math.max(0, Math.min(100, next.qrPositionY));
+  }
+  if (FORCE_BLOCK_REPLACE_QR && next.areaImageMode === "replace-qr") {
+    next.areaImageMode = "behind-qr";
+  }
+  return next;
+}
+
 interface LibraryImage {
   id: string;
   name: string;
@@ -580,6 +605,10 @@ export function ProductGraphicTextModule() {
 
   const qrSafetyClasses = getQrSafetyClasses(qrSafety.status);
 
+  const safeSetContent = (updates: Partial<typeof state.content>) => {
+    setContent(sanitizeQrReadableContent(updates));
+  };
+
   return (
     <CollapsibleModule
       title="Product Graphic Text"
@@ -732,19 +761,22 @@ export function ProductGraphicTextModule() {
               </div>
               <Slider
                 value={[sizeVal]}
-                onValueChange={([v]) => setContent({ qrSizePercent: v })}
-                min={20}
-                max={80}
+                onValueChange={([v]) => safeSetContent({ qrSizePercent: v })}
+                min={MIN_SAFE_QR_SIZE_PERCENT}
+                max={100}
                 step={1}
                 data-testid="slider-admin-qr-size"
               />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Minimum enforced for readability: {MIN_SAFE_QR_SIZE_PERCENT}%
+              </p>
             </div>
 
             <div className="text-center pt-1">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setContent({ qrPositionX: 50, qrPositionY: 50, qrSizePercent: 50 })}
+                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 50, qrSizePercent: 50 })}
                 data-testid="button-admin-reset-qr-position"
               >
                 Reset to Center
@@ -804,6 +836,13 @@ export function ProductGraphicTextModule() {
                 </ul>
               )}
             </div>
+
+            <div className="mt-2 rounded-md border border-blue-500/20 bg-blue-500/10 p-2">
+              <p className="text-[11px] text-blue-100" data-testid="text-admin-qr-guardrail-notice">
+                Readability guardrails are active. QR size cannot go below {MIN_SAFE_QR_SIZE_PERCENT}%
+                {FORCE_BLOCK_REPLACE_QR ? ", and QR replacement mode is disabled" : ""} to protect scan reliability.
+              </p>
+            </div>
           </div>
 
           <div className="pt-3 border-t space-y-3">
@@ -833,7 +872,7 @@ export function ProductGraphicTextModule() {
                 <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-admin-area-mode">
                   <button
                     type="button"
-                    onClick={() => setContent({ areaImageMode: "behind-qr" })}
+                    onClick={() => safeSetContent({ areaImageMode: "behind-qr" })}
                     className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
                       adminAreaImageMode === "behind-qr"
                         ? "bg-background text-foreground shadow-sm"
@@ -845,15 +884,20 @@ export function ProductGraphicTextModule() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setContent({ areaImageMode: "replace-qr" })}
+                    disabled={FORCE_BLOCK_REPLACE_QR}
+                    onClick={() => {
+                      if (!FORCE_BLOCK_REPLACE_QR) safeSetContent({ areaImageMode: "replace-qr" });
+                    }}
                     className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
-                      adminAreaImageMode === "replace-qr"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
+                      FORCE_BLOCK_REPLACE_QR
+                        ? "opacity-40 cursor-not-allowed text-muted-foreground"
+                        : adminAreaImageMode === "replace-qr"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                     }`}
                     data-testid="button-admin-area-mode-replace"
                   >
-                    Replace QR
+                    Replace QR {FORCE_BLOCK_REPLACE_QR ? "(locked)" : ""}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
