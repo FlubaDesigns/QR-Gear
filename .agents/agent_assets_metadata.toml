@@ -6,3 +6,9 @@ id = "VvjPq9Vo5UHfXlSuYHRTX"
 uri = "file://qrgear-backup.zip"
 type = "unspecified"
 title = "QR Gear Full Source Backup"
+
+[[outputs]]
+id = "LpkDWMxG1f-h35YkcrvEo"
+uri = "file://downloads/QR_Gear_Full_Website.zip"
+type = "unspecified"
+title = "QR Gear Full Website (Updated April 7, 2026)"

@@ -1,95 +1,415 @@
-# Admin Builder — Current Status & Known Issues
+# QR Gear — Admin Section Guide
 
 Last updated: April 7, 2026
 
-## What This Area Does
+---
 
-The admin builder lets you create product graphics with customizable text zones (top/bottom), center image area, background colors, and QR codes. Images can be uploaded directly or picked from the admin image library.
+## Table of Contents
+
+1. [Platform Overview](#platform-overview)
+2. [Admin Dashboard](#admin-dashboard)
+3. [Product Builder](#product-builder)
+4. [QR Code System](#qr-code-system)
+5. [Image Library](#image-library)
+6. [Store Builder](#store-builder)
+7. [Orchestration & Pricing](#orchestration--pricing)
+8. [Email System (NexusMail)](#email-system-nexusmail)
+9. [External Sites & Embeds](#external-sites--embeds)
+10. [Member Management](#member-management)
+11. [Orders & Fulfillment](#orders--fulfillment)
+12. [File & Folder Structure](#file--folder-structure)
+13. [Storage & Database](#storage--database)
+14. [Deploy Commands](#deploy-commands)
+15. [Rebuild From This Zip](#rebuild-from-this-zip)
+16. [Recent Changes Log](#recent-changes-log)
+17. [Known Issues & Next Steps](#known-issues--next-steps)
 
 ---
 
-## Current Work In Progress
+## Platform Overview
 
-### 1. Image Y-Axis Positioning (Top & Bottom Zones)
+QR Gear is a Firebase-hosted e-commerce platform for creating and selling QR-code-integrated apparel and products. The admin panel controls product creation, image management, store configuration, pricing, fulfillment routing, and member management.
 
-**Goal:** The up/down slider should move the image across the entire vertical range of its zone, minus a small print-safe margin (2% on each edge).
+**Live site:** https://qrgear-c1ffd.web.app
 
-**What was wrong:** When an image filled most of the zone height, the slider had almost zero travel — moving it from 0 to 100 did almost nothing because the available range (`bottomEdge - topEdge`) was near zero.
-
-**Current fix:** The renderer now guarantees a minimum travel distance of 15% of the zone height, even when the image fills the zone. The image is centered by default (slider at 50) and moves up/down from center based on the slider value.
-
-**File:** `client/src/features/shared/graphics/productGraphicRenderer.ts` — `drawImageInZone()` function
-
-**Still needs testing:** Verify that images don't clip outside the graphic boundaries at extreme slider positions (0 or 100). May need canvas clipping if they do.
+**Architecture:**
+- **Frontend:** React + Vite + TypeScript (client/)
+- **Backend API:** Firebase Cloud Functions (functions/)
+- **Database:** Firestore (NoSQL)
+- **Storage:** Firebase Storage (images, media)
+- **Payments:** Stripe
+- **Print fulfillment:** Printify, Printful, Apliiq
+- **Email:** Resend (via NexusMail)
 
 ---
 
-### 2. Admin Image Library — Save to Folder
+## Admin Dashboard
 
-**Goal:** Upload an image from your phone, then save it to a named folder in the library for reuse across products.
+**Route:** `/admin`
 
-**What was wrong:**
-- Save was using base64 encoding (doubling the file size in transit, hitting request limits on large PNGs)
-- No error feedback if save failed — dialog just closed silently
-- Could save with a blank folder name
+The dashboard is the central hub. From here you can access:
 
-**Current fix:**
-- Upload now sends the native PNG/image file via multipart form data (no base64 bloat)
-- Save button is disabled until a folder is selected
-- Errors now show an alert with the actual failure reason
-- New folder creation works: type a name, tap the checkmark, then save
+| Section | Route | Purpose |
+|---------|-------|---------|
+| Products | `/admin/products` | Create/edit product graphics and manage catalog |
+| Library | `/admin/library` | Manage uploaded images, backgrounds, templates |
+| Store Builder | `/admin/store-builder` | Configure storefronts and assign products |
+| Store Library | `/admin/store-library` | Browse existing stores and channels |
+| Orders | `/admin/orders` | View and manage customer orders |
+| Customers | `/admin/customers` | View registered members |
+| Pricing | `/admin/pricing` | Set pricing rules and margins |
+| Categories | `/admin/categories` | Organize products into categories |
+| Dynamics | `/admin/dynamics` | Configure QR dynamic content |
+| Settings | `/admin/settings` | Platform-wide settings |
+| Health | `/admin/health` | System health monitoring |
+| Orchestration | `/admin/orchestration` | Bulk operations, analytics, routing |
+| External Sites | `/admin/external-sites` | Manage embedded product widgets |
+| Email Templates | `/admin/email-templates` | Configure automated emails |
+| Gifts | `/admin/gifts` | Gift card and gift flow management |
+| Partners | `/admin/partners` | Partner/referral management |
+| Videos | `/admin/videos` | Video content management |
+| Fonts | `/admin/fonts` | Custom font management |
+| Backgrounds | `/admin/backgrounds` | Background image management |
+
+---
+
+## Product Builder
+
+**Route:** `/admin/products` → click a product → Builder opens
+**Key files:**
+- `client/src/features/adminProducts/builder/BuilderContext.tsx` — State management for the builder
+- `client/src/features/adminProducts/builder/BuilderHarness.tsx` — Main builder container
+- `client/src/features/adminProducts/builder/modules/` — All builder modules
+
+### How It Works
+
+1. **Basics** (`BasicsContentModule.tsx`) — Set product name, description, category
+2. **Compose** (`ComposeContentModule.tsx`) — Choose background, images, text zones
+3. **Text** (`ProductGraphicTextModule.tsx`) — Configure header/footer text, fonts, colors, images
+4. **QR Code** — Size slider (40–85%), position slider, preset buttons (S/M/L/XL)
+5. **Placement** (`PlacementModule.tsx`) — Choose print areas on the blank product
+6. **Products** (`ProductsModule.tsx`) — Select which blank products to apply the design to
+7. **State** (`StateModule.tsx`) — Manage product lifecycle (draft → active → archived)
+8. **Play** (`PlayContentModule.tsx`) — Preview the product graphic
+
+### Product Graphic Renderer
+
+**File:** `client/src/features/shared/graphics/productGraphicRenderer.ts`
+
+This is the core engine that draws the product graphic on a canvas. It uses a content-aware zone layout:
+
+- **Canvas size:** 1200 x 1800 pixels
+- **Header zone:** Active when top text/image is enabled. Currently ~20% of canvas height
+- **Footer zone:** Active when bottom text/image is enabled. Currently ~16% of canvas height
+- **Middle zone:** Gets all remaining space — this is where the QR code goes
+- **Sub-bottom zone:** Active when sub-bottom text is enabled
+- Inactive zones collapse to 0 height, giving more space to the QR code
+
+### QR Size Controls
+
+- **Slider range:** 40–85 (step 2)
+- **Preset buttons:** S (48), M (56), L (64), XL (72)
+- **Semantic labels:** "Tiny" / "Small" / "Medium" / "Large" / "X-Large" / "Huge"
+- **Default size:** 70%
+- **Reset button:** Returns to qrSizePercent=70, qrPositionY=0
+
+The QR size percentage is applied as `min(regionWidth, regionHeight) * percent / 100` inside the middle zone.
+
+---
+
+## QR Code System
+
+QR Gear's core feature is embedding QR codes into product graphics.
+
+### QR Dynamics
+
+**Route:** `/admin/dynamics`
+**Spec:** `docs/QR_DYNAMICS_SPEC.md`
+
+Each QR code can link to dynamic content that changes after the product is printed:
+- Videos
+- URLs
+- Images
+- Text messages
+- Contact cards
+
+The QR dynamics resolver (`shared/qrDynamicsResolver.ts`) determines what content to show when a QR code is scanned.
+
+### QR Safety
+
+**File:** `client/src/features/adminProducts/shared/qrSafety.ts`
+
+A safety meter in the builder warns when QR codes might not scan well:
+- Too small
+- Low contrast against background
+- Overlapping with text or images
+
+---
+
+## Image Library
+
+**Route:** `/admin/library`
+**Key files:**
+- `client/src/features/adminLibrary/LibraryPage.tsx` — Main library page
+- `client/src/features/adminLibrary/tabs/ImagesTab.tsx` — Image management tab
+- `client/src/features/adminLibrary/tabs/BackgroundsTab.tsx` — Background images
+- `client/src/features/adminLibrary/tabs/TemplatesTab.tsx` — Saved templates
+
+### Folder System
+
+Images are organized into folders. Folders are persisted in Firestore under the `admin_image_folders` collection.
+
+**How folders work:**
+1. Create a folder via the "New Folder" button
+2. Server validates: max 80 characters, case-insensitive duplicate detection
+3. Folder is saved with a `normalizedName` field for duplicate checking
+4. On success, the client refetches the canonical folder list from the server
+5. On failure, an inline error message appears (no more silent failures)
+
+**Folder API:**
+- `GET /admin/images/folders` — Returns merged list from collection + image folder fields
+- `POST /admin/images/folders` — Creates a new folder with validation
+
+**Storage paths:** `library/images/{folderName}/{timestamp}-{safeName}.{ext}`
+
+---
+
+## Store Builder
+
+**Route:** `/admin/store-builder`
+**Key files:**
+- `client/src/features/adminProducts/storeBuilder/StoreBuilderHarness.tsx` — Container
+- `client/src/features/adminProducts/storeBuilder/StoreBuilderContext.tsx` — State
+- `client/src/features/adminProducts/storeBuilder/modules/` — Builder modules
+
+### How It Works
+
+1. **Store Picker** — Select or create a storefront
+2. **Channel Picker** — Choose sales channels (web, marketplace, external site)
+3. **Catalog Browser** — Browse available products to add
+4. **Product Configure** — Set pricing, variants, availability per product
+5. **Assignment** — Assign products to specific positions/categories in the store
+
+---
+
+## Orchestration & Pricing
+
+**Route:** `/admin/orchestration`
+**Tabs:**
+- **Analytics** — Sales and performance metrics
+- **Bulk Publish** — Publish multiple products at once
+- **Bundles** — Product bundle management
+- **Health** — System health checks
+- **Profit** — Margin and profit calculations
+- **Repricing** — Automated price adjustments
+- **Routing** — Fulfillment provider routing rules
+
+**Pricing files:**
+- `server/services/auto-repricer.ts` — Automated repricing engine
+- `server/services/profit-calculator.ts` — Margin calculations
+- `functions/src/services/pricing.ts` — Cloud function pricing logic
+
+---
+
+## Email System (NexusMail)
 
 **Files:**
-- Client: `client/src/features/adminProducts/builder/modules/ProductGraphicTextModule.tsx` — `SaveToLibraryDialog` component
-- Server: `functions/src/routes/file-routes.ts` — `POST /admin/images` endpoint
+- `shared/nexusmail/` — Shared types and contracts
+- `functions/src/nexusmail/` — Cloud function implementation
+
+NexusMail handles automated emails:
+- Order confirmations
+- Shipping notifications
+- Claim code delivery
+- Welcome emails
+
+Uses Resend as the email provider with QR Gear branding templates.
 
 ---
 
-### 3. Library Image Display (Broken Images Fix)
+## External Sites & Embeds
 
-**Goal:** Images saved to the library should display correctly when browsing or when used in a product graphic.
+**Route:** `/admin/external-sites`
+**Key files:**
+- `functions/src/routes/external-sites.ts` — API routes
+- `functions/src/services/embed-validation.ts` — Security validation
 
-**What was wrong:** The file proxy route (`/api/library-files/:filename`) only searched old background storage paths (`library/backgrounds/raw/`, etc.). Admin images are stored at `library/images/{folder}/{filename}` which wasn't in the search list.
-
-**Current fix:** The proxy now falls back to a Firestore lookup in the `admin_images` collection to find the actual storage path when the file isn't found in the standard locations.
-
-**Files:**
-- `functions/src/routes/store-files.ts` — GET `/library-files/:file`
-- `functions/src/routes/core-routes-checkout.ts` — GET `/library-files/:filename`
+External sites can embed QR Gear product widgets on their pages. The system validates embed contexts and manages trust boundaries for cross-origin content.
 
 ---
 
-### 4. PNG Upload in Top/Bottom Text Zones
+## Member Management
 
-**Status:** Reported but not yet fully debugged.
+**Route:** `/admin/customers`
 
-**Issue:** Uploading a PNG to the top or bottom text zone may not show in the preview. The file input is only rendered when `!isCollapsed && style.enabled` — so the section must be expanded and enabled for upload to work.
+Members are users who have registered accounts. They can:
+- Create custom products via the member builder
+- Manage their QR dynamic content
+- Build their own storefronts
+- Upload media (images, videos)
 
-**File:** `client/src/features/shared/components/TextStyleEditor.tsx`
+### Description Cascade
+
+Product descriptions follow a priority cascade:
+```
+memberPacketDescription ?? adminCatalogDescription ?? providerDescription
+```
+
+Members can override descriptions via `PATCH /members/:memberId/packets/:packetId/description`
 
 ---
 
-## Storage Structure
+## Orders & Fulfillment
 
-- **Admin images:** `library/images/{folderName}/{timestamp}-{safeName}.{ext}`
-- **Background assets:** `library/backgrounds/raw/`, `library/backgrounds/cropped/`, etc.
-- **Member media:** `library/member/{userId}/{mediaType}/{filename}`
-- **Firestore collection:** `admin_images` — tracks name, folder, storageUrl, mimeType, isActive
+**Route:** `/admin/orders`
+**Key files:**
+- `functions/src/services/order-service.ts` — Order processing
+- `functions/src/routes/checkout.ts` — Checkout flow
+- `server/routes/cart-checkout.routes.ts` — Cart management
+
+Orders flow through:
+1. Cart → Checkout (Stripe) → Order created in Firestore
+2. Fulfillment routed to appropriate print provider (Printify/Printful/Apliiq)
+3. Tracking info updated when available
+4. Order status webhooks from Stripe
+
+---
+
+## File & Folder Structure
+
+```
+project/
+├── client/                          # React frontend
+│   ├── index.html                   # Entry HTML (favicon refs here)
+│   ├── public/                      # Static assets
+│   │   ├── favicon.ico              # Multi-size favicon
+│   │   ├── favicon.png              # PNG favicon
+│   │   ├── apple-touch-icon.png     # iOS home screen icon (180x180)
+│   │   ├── logo.svg                 # Full logo
+│   │   ├── logo-dark.svg            # Dark mode logo
+│   │   ├── og-image.png             # Social sharing image
+│   │   └── sitemap.xml              # SEO sitemap
+│   └── src/
+│       ├── App.tsx                   # Route definitions
+│       ├── main.tsx                  # React entry point
+│       ├── features/                # Feature modules
+│       │   ├── adminProducts/       # Admin product builder
+│       │   │   ├── builder/         # Product graphic builder
+│       │   │   ├── storeBuilder/    # Store builder
+│       │   │   ├── storeLibrary/    # Store library browser
+│       │   │   └── modules/         # Shared admin modules
+│       │   ├── adminLibrary/        # Image & asset library
+│       │   ├── shared/              # Cross-feature shared code
+│       │   │   ├── graphics/        # Canvas renderers
+│       │   │   ├── components/      # Shared components
+│       │   │   └── constants/       # Zone layout, placement types
+│       │   ├── members/             # Member-facing features
+│       │   ├── owner/               # Owner/member wizard
+│       │   ├── sites/               # External site widgets
+│       │   ├── store/               # Store display
+│       │   └── storeBuilder/        # Member store builder
+│       ├── components/              # Global components
+│       │   └── ui/                  # Shadcn UI primitives
+│       ├── lib/                     # Utilities and services
+│       ├── pages/                   # Route page components
+│       └── hooks/                   # React hooks
+├── functions/                       # Firebase Cloud Functions
+│   ├── src/
+│   │   ├── index.ts                 # Function entry (_BUILD_ID here)
+│   │   ├── routes/                  # API route handlers
+│   │   ├── services/                # Business logic
+│   │   ├── nexus/                   # Orchestration engine
+│   │   └── nexusmail/               # Email service
+│   └── package.json                 # Functions dependencies (version here)
+├── server/                          # Express backend (dev server)
+│   ├── index.ts                     # Server entry
+│   ├── routes/                      # API routes
+│   ├── routes.ts                    # Route registration
+│   ├── lib/                         # Server utilities
+│   ├── services/                    # Backend services
+│   ├── storage/                     # Data access layer
+│   └── storage.ts                   # Storage interface
+├── shared/                          # Code shared across all layers
+│   ├── schema.ts                    # Main DB schema
+│   ├── schema-*.ts                  # Domain-specific schemas
+│   ├── domainModel.ts               # Domain logic
+│   ├── constants.ts                 # Shared constants
+│   ├── nexus/                       # Orchestration types
+│   └── nexusmail/                   # Email types
+├── docs/                            # Specifications and documentation
+├── migrations/                      # Database migrations
+├── scripts/                         # Utility scripts
+├── firebase.json                    # Firebase config
+├── firestore.rules                  # Firestore security rules
+└── package.json                     # Root dependencies
+```
+
+---
+
+## Storage & Database
+
+### Firestore Collections
+
+| Collection | Purpose |
+|------------|---------|
+| `admin_products` | Product definitions and graphics |
+| `admin_images` | Image metadata (name, folder, storageUrl) |
+| `admin_image_folders` | Persisted folder names with normalizedName |
+| `admin_stores` | Store configurations |
+| `members` | Member accounts |
+| `member_packets` | Member product customizations |
+| `orders` | Customer orders |
+| `dynamics` | QR dynamic content entries |
+| `claims` | Claim codes for products |
+| `gifts` | Gift configurations |
+| `categories` | Product categories |
+| `admin_settings` | Platform settings |
+
+### Firebase Storage Paths
+
+| Path | Content |
+|------|---------|
+| `library/images/{folder}/{file}` | Admin uploaded images |
+| `library/backgrounds/raw/` | Raw background images |
+| `library/backgrounds/cropped/` | Cropped backgrounds |
+| `library/member/{userId}/` | Member uploaded media |
+| `mockups/` | Generated product mockups |
 
 ---
 
 ## Deploy Commands
 
-**Hosting (frontend):**
-```
-npm run build && firebase deploy --only hosting --project qrgear-c1ffd
+### Frontend (Hosting)
+
+```bash
+npm run build && \
+echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json && \
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json && \
+firebase deploy --only hosting --project qrgear-c1ffd && \
+rm /tmp/firebase-sa.json
 ```
 
-**Functions (backend):**
-- Bump `_BUILD_ID` in `functions/src/index.ts`
-- Bump `version` in `functions/package.json`
+### Backend (Cloud Functions)
+
+Before deploying functions, you MUST:
+1. Bump `_BUILD_ID` in `functions/src/index.ts`
+2. Bump `version` in `functions/package.json`
+
+```bash
+echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json && \
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json && \
+timeout 100 firebase deploy --only functions --project qrgear-c1ffd && \
+rm /tmp/firebase-sa.json
 ```
-firebase deploy --only functions --project qrgear-c1ffd
+
+### Full Deploy (Both)
+
+```bash
+npm run build && \
+echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json && \
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json && \
+firebase deploy --project qrgear-c1ffd && \
+rm /tmp/firebase-sa.json
 ```
 
 ---
@@ -97,9 +417,74 @@ firebase deploy --only functions --project qrgear-c1ffd
 ## Rebuild From This Zip
 
 1. Extract `QR_Gear_Full_Website.zip`
-2. Run `npm install` in root
+2. Run `npm install` in the root directory
 3. Run `cd functions && npm install`
-4. Set up Firebase credentials (service account key)
-5. Set environment variables in `functions/.env`
-6. Upload library images manually through the admin UI
-7. `npm run build && firebase deploy --project qrgear-c1ffd`
+4. Set up Firebase:
+   - Create a Firebase project or use existing `qrgear-c1ffd`
+   - Download service account key JSON
+   - Set as `FIREBASE_SERVICE_ACCOUNT_KEY` environment variable
+5. Set up Stripe:
+   - Set `STRIPE_SECRET_KEY` environment variable
+   - Configure webhook endpoint for `/api/stripe-webhooks`
+6. Set up Resend (for email):
+   - Set `RESEND_API_KEY` environment variable
+7. Configure `functions/.env` with all required keys
+8. Build and deploy:
+   ```bash
+   npm run build
+   firebase deploy --project qrgear-c1ffd
+   ```
+9. Upload library images through the admin UI at `/admin/library`
+
+### Required Environment Variables
+
+| Variable | Purpose |
+|----------|---------|
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Firebase admin credentials (JSON) |
+| `STRIPE_SECRET_KEY` | Stripe payment processing |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook validation |
+| `RESEND_API_KEY` | Email sending via Resend |
+| `VITE_FIREBASE_*` | Frontend Firebase config (apiKey, authDomain, etc.) |
+
+---
+
+## Recent Changes Log
+
+### April 7, 2026 — QR Layout & Favicon
+
+- **Product graphic renderer** — Zones now size to 0 when inactive (header/footer/sub-bottom); QR middle zone gets all remaining space; sub-bottom text renders in its own zone below QR
+- **QR slider UX** — Range 40–85, step 2; preset buttons S(48)/M(56)/L(64)/XL(72); semantic labels; default 70%
+- **Favicon** — QR Gear "Q" logo as favicon.ico (multi-size), favicon.png, apple-touch-icon.png (180x180)
+- **Folder persistence** — Both `handleCreateFolder` functions check `res.ok`, refetch from server on success, show inline error on failure; Cloud Functions folder endpoint has case-insensitive duplicate detection, normalizedName field, 80-char max validation
+
+### March 2026 — Builder Family Unification (Task #7)
+
+- Unified admin builder and member builder into shared harness/context pattern
+- Shared wizard steps across admin and member flows
+- QR safety meter added to builder
+- Description cascade system implemented
+- Store builder restructured with channel/catalog/assignment modules
+
+### Earlier — Tasks #2–#6
+
+- Order & checkout unification
+- External sites transaction closure with embed validation
+- Client-side file splits for performance
+- Admin UX shell adoption (Shadcn sidebar)
+- Store builder restructure
+
+---
+
+## Known Issues & Next Steps
+
+### QR Layout Proportions
+The content-aware renderer works but the zone proportions (header 20%, footer 16%) may still be larger than desired. The user's preferred values are header 13%, footer 9%, with a max QR clamp of 82%.
+
+### UnifiedGraphic.tsx Stale Imports
+`UnifiedGraphic.tsx` still imports `ZONE_LAYOUT` and references `QR_MARGIN_PERCENT`/`QR_AREA_PERCENT` — these are pre-existing references that don't break the build but should be cleaned up.
+
+### Remaining Tasks
+- **Task #8:** Marketplace Domain Hardening
+- **Task #9:** Security & Trust-Boundary Pass
+- **Task #10:** Test Coverage Expansion
+- **Task #11:** Legacy Naming & Compatibility Cleanup
