@@ -237,13 +237,21 @@ export async function renderProductGraphic(
       const clampedX = Math.max(0, Math.min(100, offsetX));
       const clampedY = Math.max(0, Math.min(100, offsetY));
       const margin = zoneH * 0.02;
-      const topEdge = zoneY + margin;
-      const bottomEdge = zoneY + zoneH - margin - drawH;
       const marginX = zoneW * 0.02;
+      const rangeY = zoneH - drawH;
+      const topEdge = zoneY + margin;
+      const bottomEdge = zoneY + rangeY - margin;
+      const minTravelY = zoneH * 0.15;
+      const actualRangeY = Math.max(minTravelY, bottomEdge - topEdge);
+      const centerY = zoneY + (zoneH - drawH) / 2;
+      const drawY = centerY + (clampedY / 100 - 0.5) * actualRangeY;
+      const rangeX = zoneW - drawW;
       const leftEdge = zoneX + marginX;
-      const rightEdge = zoneX + zoneW - marginX - drawW;
-      const drawX = leftEdge + (clampedX / 100) * Math.max(0, rightEdge - leftEdge);
-      const drawY = topEdge + (clampedY / 100) * Math.max(0, bottomEdge - topEdge);
+      const rightEdge = zoneX + rangeX - marginX;
+      const minTravelX = zoneW * 0.15;
+      const actualRangeX = Math.max(minTravelX, rightEdge - leftEdge);
+      const centerX = zoneX + (zoneW - drawW) / 2;
+      const drawX = centerX + (clampedX / 100 - 0.5) * actualRangeX;
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
     } catch (e) {
       console.warn("[productGraphicRenderer] Image load failed:", e);

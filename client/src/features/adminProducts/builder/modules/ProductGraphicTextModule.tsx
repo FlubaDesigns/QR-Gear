@@ -284,7 +284,8 @@ function SaveToLibraryDialog({
   }, [open, apiBase, getAuthHeaders]);
 
   const handleSave = async () => {
-    const folder = selectedFolder || "general";
+    if (!selectedFolder) return;
+    const folder = selectedFolder;
     const name = imageName.trim() || `image-${Date.now()}`;
     setSaving(true);
     try {
@@ -382,7 +383,7 @@ function SaveToLibraryDialog({
             className="w-full"
             size="lg"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !selectedFolder}
             data-testid="button-save-to-library"
           >
             <Save className="h-5 w-5 mr-2" />
