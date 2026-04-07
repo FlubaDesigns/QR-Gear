@@ -1,4 +1,3 @@
-import { ZONE_LAYOUT } from "@/features/shared/constants/zoneLayout";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 
@@ -138,19 +137,59 @@ export async function renderProductGraphic(
   const subBottomColor = options.subBottomColor || "#666666";
   const subBottomFontSizeStr = options.subBottomFontSize || "14px";
 
-  const headerZoneTop = 0;
-  const headerZoneHeight = H * ZONE_LAYOUT.HEADER_PERCENT;
-  const qrZoneTop = headerZoneHeight;
-  const qrZoneHeight = subBottomEnabled
-    ? H * ZONE_LAYOUT.MIDDLE_PERCENT
-    : H * (ZONE_LAYOUT.MIDDLE_PERCENT + ZONE_LAYOUT.SUB_BOTTOM_PERCENT);
-  const subBottomZoneTop = qrZoneTop + qrZoneHeight;
-  const subBottomZoneHeight = subBottomEnabled ? H * ZONE_LAYOUT.SUB_BOTTOM_PERCENT : 0;
-  const footerZoneTop = subBottomZoneTop + subBottomZoneHeight;
-  const footerZoneHeight = H * ZONE_LAYOUT.FOOTER_PERCENT;
+  const headerIsImage = headerStyle?.mode === "image" && headerStyle?.imageUrl;
+  const headerIsText =
+    !!headerStyle &&
+    headerStyle.enabled !== false &&
+    !!headerStyle.text &&
+    headerStyle.mode !== "image";
+  const resolvedHeaderImageUrl =
+    headerImageUrl || (headerIsImage ? headerStyle!.imageUrl : undefined);
 
-  const middleZoneTop = qrZoneTop;
-  const middleZoneHeight = qrZoneHeight + subBottomZoneHeight;
+  const footerIsImage = footerStyle?.mode === "image" && footerStyle?.imageUrl;
+  const footerIsText =
+    !!footerStyle &&
+    footerStyle.enabled !== false &&
+    !!footerStyle.text &&
+    footerStyle.mode !== "image";
+  const resolvedFooterImageUrl =
+    footerImageUrl || (footerIsImage ? footerStyle!.imageUrl : undefined);
+
+  const headerActive = Boolean(resolvedHeaderImageUrl || headerIsText);
+  const footerActive = Boolean(resolvedFooterImageUrl || footerIsText);
+
+  const topPadding = H * 0.04;
+  const bottomPadding = H * 0.04;
+  const sectionGap = H * 0.018;
+
+  const headerZoneTop = topPadding;
+  const headerZoneHeight = headerActive ? H * 0.20 : 0;
+
+  const subBottomZoneHeight = subBottomEnabled ? H * 0.06 : 0;
+  const footerZoneHeight = footerActive ? H * 0.16 : 0;
+
+  const headerGap = headerActive ? sectionGap : 0;
+  const subBottomGap = subBottomEnabled ? sectionGap * 0.6 : 0;
+  const footerGap = footerActive ? sectionGap : 0;
+
+  const reservedHeight =
+    topPadding +
+    bottomPadding +
+    headerZoneHeight +
+    subBottomZoneHeight +
+    footerZoneHeight +
+    headerGap +
+    subBottomGap +
+    footerGap;
+
+  const middleZoneTop = headerZoneTop + headerZoneHeight + headerGap;
+  const middleZoneHeight = H - reservedHeight;
+
+  const subBottomZoneTop =
+    middleZoneTop + middleZoneHeight + (subBottomEnabled ? subBottomGap : 0);
+
+  const footerZoneTop =
+    subBottomZoneTop + subBottomZoneHeight + (footerActive ? footerGap : 0);
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -275,10 +314,6 @@ export async function renderProductGraphic(
     }
   };
 
-  const headerIsImage = headerStyle?.mode === "image" && headerStyle?.imageUrl;
-  const headerIsText = headerStyle && headerStyle.enabled !== false && headerStyle.text && headerStyle.mode !== "image";
-  const resolvedHeaderImageUrl = headerImageUrl || (headerIsImage ? headerStyle!.imageUrl : undefined);
-
   if (resolvedHeaderImageUrl) {
     await drawImageInZone(resolvedHeaderImageUrl, 0, headerZoneTop, W, headerZoneHeight, 0.05,
       headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100);
@@ -286,16 +321,15 @@ export async function renderProductGraphic(
     drawTextInZone(headerStyle!, headerZoneTop, headerZoneHeight);
   }
 
-  const captionReservedHeight = subBottomEnabled
-    ? Math.max(22, middleZoneHeight * 0.10)
-    : 0;
-
-  const qrTopInset = Math.max(2, middleZoneHeight * 0.005);
-  const qrBottomInset = Math.max(4, middleZoneHeight * 0.01);
+  const qrTopInset = Math.max(8, middleZoneHeight * 0.02);
+  const qrBottomInset = Math.max(8, middleZoneHeight * 0.02);
   const qrSideInset = Math.max(12, W * 0.03);
 
   const qrContentRegionTop = middleZoneTop + qrTopInset;
-  const qrContentRegionHeight = Math.max(1, middleZoneHeight - captionReservedHeight - qrTopInset - qrBottomInset);
+  const qrContentRegionHeight = Math.max(
+    1,
+    middleZoneHeight - qrTopInset - qrBottomInset
+  );
   const qrContentRegionLeft = qrSideInset;
   const qrContentRegionWidth = Math.max(1, W - qrSideInset * 2);
 
@@ -370,28 +404,26 @@ export async function renderProductGraphic(
   }
 
   if (subBottomEnabled && subBottomText) {
-    const captionTop = middleZoneTop + middleZoneHeight - captionReservedHeight;
     const captionPadX = Math.max(12, W * 0.03);
-    const captionPadY = Math.max(6, captionReservedHeight * 0.15);
     const subFontSize = Math.round(parseFontSize(subBottomFontSizeStr) * (W / 360));
+
     ctx.font = `${subFontSize}px "Arial"`;
     ctx.fillStyle = subBottomColor;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+
     const maxCaptionWidth = W - captionPadX * 2;
     const captionCenterX = W / 2;
-    const captionCenterY = captionTop + captionReservedHeight / 2;
+    const captionCenterY = subBottomZoneTop + subBottomZoneHeight / 2;
+
     const measured = ctx.measureText(subBottomText);
     if (measured.width > maxCaptionWidth) {
       const scale = maxCaptionWidth / measured.width;
-      ctx.font = `${Math.round(subFontSize * scale)}px "Arial"`;
+      ctx.font = `${Math.max(10, Math.round(subFontSize * scale))}px "Arial"`;
     }
+
     ctx.fillText(subBottomText, captionCenterX, captionCenterY);
   }
-
-  const footerIsImage = footerStyle?.mode === "image" && footerStyle?.imageUrl;
-  const footerIsText = footerStyle && footerStyle.enabled !== false && footerStyle.text && footerStyle.mode !== "image";
-  const resolvedFooterImageUrl = footerImageUrl || (footerIsImage ? footerStyle!.imageUrl : undefined);
 
   if (resolvedFooterImageUrl) {
     await drawImageInZone(resolvedFooterImageUrl, 0, footerZoneTop, W, footerZoneHeight, 0.05,
