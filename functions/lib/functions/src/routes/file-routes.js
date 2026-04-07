@@ -770,39 +770,81 @@ function register(app) {
     });
     app.post('/admin/images', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { name, imageData, mimeType, folder } = req.body;
-            console.log('[AdminImages] POST upload request:', { name, mimeType, folder, dataLength: imageData?.length || 0 });
-            if (!name || !imageData) {
-                console.log('[AdminImages] Missing fields:', { hasName: !!name, hasImageData: !!imageData });
-                res.status(400).json({ error: 'Missing required fields: name, imageData' });
+            const contentType = req.headers['content-type'] || '';
+            const boundaryMatch = contentType.match(/boundary=(.+)/);
+            if (!boundaryMatch) {
+                res.status(400).json({ error: 'Expected multipart/form-data' });
                 return;
             }
-            const targetFolder = folder || 'general';
+            const boundary = boundaryMatch[1];
+            const rawBody = req.rawBody || Buffer.from(req.body || '');
+            if (!rawBody || rawBody.length === 0) {
+                res.status(400).json({ error: 'No request body' });
+                return;
+            }
+            const boundaryBuffer = Buffer.from(`--${boundary}`);
+            const parts = [];
+            let start = 0;
+            while (true) {
+                const idx = rawBody.indexOf(boundaryBuffer, start);
+                if (idx === -1)
+                    break;
+                if (start > 0)
+                    parts.push(rawBody.slice(start, idx - 2));
+                start = idx + boundaryBuffer.length + 2;
+            }
+            let fileBuffer = null;
+            let fileMimeType = 'image/png';
+            let fieldName = '';
+            let fieldFolder = 'general';
+            for (const part of parts) {
+                const headerEnd = part.indexOf('\r\n\r\n');
+                if (headerEnd === -1)
+                    continue;
+                const hdrs = part.slice(0, headerEnd).toString();
+                const body = part.slice(headerEnd + 4);
+                const filenameMatch = hdrs.match(/filename="([^"]+)"/);
+                const ctMatch = hdrs.match(/Content-Type:\s*([^\r\n]+)/i);
+                const nameMatch = hdrs.match(/name="([^"]+)"/);
+                if (filenameMatch) {
+                    fileBuffer = body;
+                    if (ctMatch)
+                        fileMimeType = ctMatch[1].trim();
+                }
+                else if (nameMatch) {
+                    const val = body.toString().trim();
+                    if (nameMatch[1] === 'name')
+                        fieldName = val;
+                    if (nameMatch[1] === 'folder')
+                        fieldFolder = val;
+                }
+            }
+            if (!fileBuffer || fileBuffer.length === 0) {
+                res.status(400).json({ error: 'No file in upload' });
+                return;
+            }
+            const name = fieldName || `image-${Date.now()}`;
+            const folder = fieldFolder || 'general';
             const bucket = core_1.storage.bucket();
-            const ext = (mimeType || 'image/png').split('/')[1] || 'png';
+            const ext = fileMimeType.split('/')[1] || 'png';
             const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const fullPath = `library/images/${targetFolder}/${Date.now()}-${safeName}.${ext}`;
-            const buffer = Buffer.from(imageData, 'base64');
+            const fullPath = `library/images/${folder}/${Date.now()}-${safeName}.${ext}`;
+            console.log(`[AdminImages] Upload native file: ${name} -> ${fullPath} (${fileBuffer.length} bytes)`);
             const file = bucket.file(fullPath);
-            await file.save(buffer, { metadata: { contentType: mimeType || 'image/png' } });
+            await file.save(fileBuffer, { metadata: { contentType: fileMimeType } });
             await file.makePublic();
             const fileNameOnly = fullPath.split('/').pop() || safeName;
             const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
             const docRef = await core_1.db.collection('admin_images').add({
-                name,
-                folder: targetFolder,
-                mimeType: mimeType || 'image/png',
-                sizeBytes: buffer.length,
-                storageUrl: fullPath,
-                publicUrl: proxyUrl,
-                isActive: true,
+                name, folder, mimeType: fileMimeType, sizeBytes: fileBuffer.length,
+                storageUrl: fullPath, publicUrl: proxyUrl, isActive: true,
                 createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
             });
             const doc = await docRef.get();
             res.json({ id: doc.id, ...doc.data(), proxyUrl });
         }
         catch (error) {
-            console.error('[AdminImages] Upload error:', error);
+            console.error('[AdminImages] Native upload error:', error);
             res.status(500).json({ error: error.message });
         }
     });

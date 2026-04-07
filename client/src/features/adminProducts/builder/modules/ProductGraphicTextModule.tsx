@@ -290,14 +290,21 @@ function SaveToLibraryDialog({
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
-      const parts = imageDataUrl.split(",");
-      const base64 = parts[1] || parts[0];
+      delete headers["Content-Type"];
       const mimeMatch = imageDataUrl.match(/data:([^;]+)/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
+      const resp64 = await fetch(imageDataUrl);
+      const blob = await resp64.blob();
+      const ext = mimeType.split("/")[1] || "png";
+      const file = new File([blob], `${name}.${ext}`, { type: mimeType });
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", name);
+      formData.append("folder", folder);
       const resp = await fetch(`${apiBase}/images`, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, imageData: base64, mimeType, folder }),
+        headers,
+        body: formData,
       });
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
@@ -307,6 +314,7 @@ function SaveToLibraryDialog({
       onClose();
     } catch (e) {
       console.error("Save to library failed:", e);
+      alert(`Save failed: ${e instanceof Error ? e.message : "Unknown error"}`);
     } finally {
       setSaving(false);
     }
