@@ -17,6 +17,91 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
 const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
 
+type QrSafetyStatus = "safe" | "caution" | "risky" | "replace";
+
+function getQrSafetyAssessment({
+  qrSizePercent,
+  areaImageMode,
+  subBottomEnabled,
+  headerEnabled,
+  footerEnabled,
+}: {
+  qrSizePercent: number;
+  areaImageMode?: string;
+  subBottomEnabled?: boolean;
+  headerEnabled?: boolean;
+  footerEnabled?: boolean;
+}) {
+  if (areaImageMode === "replace-qr") {
+    return {
+      status: "replace" as QrSafetyStatus,
+      label: "QR Replaced",
+      score: 0,
+      summary: "Center image is replacing the QR. This is not scannable as a QR code.",
+      tips: ["Switch center image mode back to 'Behind QR' if readability matters."],
+    };
+  }
+
+  let score = 100;
+  const tips: string[] = [];
+
+  if (qrSizePercent < 30) {
+    score -= 45;
+    tips.push("QR is too small. Raise it to at least 35–40% for more reliable scanning.");
+  } else if (qrSizePercent < 40) {
+    score -= 20;
+    tips.push("QR is on the small side. Bigger is safer, especially for print.");
+  }
+
+  if (subBottomEnabled) {
+    score -= 6;
+    tips.push("Sub-bottom text reduces available QR area slightly. Keep enough breathing room.");
+  }
+
+  if (headerEnabled && footerEnabled) {
+    score -= 6;
+    tips.push("Top and bottom content both active means the QR zone is more crowded.");
+  }
+
+  score = Math.max(0, Math.min(100, score));
+
+  if (score >= 85) {
+    return {
+      status: "safe" as QrSafetyStatus, label: "Safe", score,
+      summary: "This layout looks comfortably readable for most normal use.",
+      tips: tips.length ? tips : ["Still test on at least one phone before finalizing."],
+    };
+  }
+
+  if (score >= 60) {
+    return {
+      status: "caution" as QrSafetyStatus, label: "Caution", score,
+      summary: "This may scan fine, but you are getting closer to the edge.",
+      tips,
+    };
+  }
+
+  return {
+    status: "risky" as QrSafetyStatus, label: "Risky", score,
+    summary: "This layout is more likely to fail or become inconsistent across phones and print conditions.",
+    tips,
+  };
+}
+
+function getQrSafetyClasses(status: QrSafetyStatus) {
+  switch (status) {
+    case "safe":
+      return { wrap: "border-emerald-500/30 bg-emerald-500/10", badge: "bg-emerald-600 text-white", text: "text-emerald-200" };
+    case "caution":
+      return { wrap: "border-amber-500/30 bg-amber-500/10", badge: "bg-amber-500 text-black", text: "text-amber-100" };
+    case "risky":
+      return { wrap: "border-red-500/30 bg-red-500/10", badge: "bg-red-600 text-white", text: "text-red-100" };
+    case "replace":
+    default:
+      return { wrap: "border-red-600/40 bg-red-600/15", badge: "bg-red-700 text-white", text: "text-red-100" };
+  }
+}
+
 interface LibraryImage {
   id: string;
   name: string;
@@ -485,6 +570,16 @@ export function ProductGraphicTextModule() {
   const hasFooterContent = (state.content.footerStyle as TextStyleConfig)?.enabled;
   const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomEnabled;
 
+  const qrSafety = getQrSafetyAssessment({
+    qrSizePercent: sizeVal,
+    areaImageMode: adminAreaImageUrl ? adminAreaImageMode : undefined,
+    subBottomEnabled: state.content.subBottomEnabled,
+    headerEnabled: !!hasHeaderContent,
+    footerEnabled: !!hasFooterContent,
+  });
+
+  const qrSafetyClasses = getQrSafetyClasses(qrSafety.status);
+
   return (
     <CollapsibleModule
       title="Product Graphic Text"
@@ -654,6 +749,60 @@ export function ProductGraphicTextModule() {
               >
                 Reset to Center
               </Button>
+            </div>
+
+            <div
+              className={`mt-3 rounded-lg border p-3 space-y-2 ${qrSafetyClasses.wrap}`}
+              data-testid="panel-admin-qr-safety"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm font-medium">QR Safety Meter</Label>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${qrSafetyClasses.badge}`}
+                  data-testid="badge-admin-qr-safety"
+                >
+                  {qrSafety.label}
+                </span>
+              </div>
+
+              <p
+                className={`text-xs ${qrSafetyClasses.text}`}
+                data-testid="text-admin-qr-safety-summary"
+              >
+                {qrSafety.summary}
+              </p>
+
+              {qrSafety.status !== "replace" && (
+                <div className="space-y-1" data-testid="bar-admin-qr-safety-score">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Readability Score</span>
+                    <span>{qrSafety.score}/100</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
+                    <div
+                      className={`h-full transition-all ${
+                        qrSafety.status === "safe"
+                          ? "bg-emerald-500"
+                          : qrSafety.status === "caution"
+                            ? "bg-amber-400"
+                            : "bg-red-500"
+                      }`}
+                      style={{ width: `${qrSafety.score}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {!!qrSafety.tips.length && (
+                <ul
+                  className="list-disc pl-4 space-y-1 text-[11px] text-muted-foreground"
+                  data-testid="list-admin-qr-safety-tips"
+                >
+                  {qrSafety.tips.map((tip, idx) => (
+                    <li key={`${tip}-${idx}`}>{tip}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
