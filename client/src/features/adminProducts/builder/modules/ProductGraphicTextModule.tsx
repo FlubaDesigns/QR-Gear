@@ -698,13 +698,13 @@ export function ProductGraphicTextModule() {
               <Slider
                 value={[sizeVal]}
                 onValueChange={([v]) => safeSetContent({ qrSizePercent: v })}
-                min={40}
-                max={85}
-                step={2}
+                min={30}
+                max={55}
+                step={1}
                 data-testid="slider-admin-qr-size"
               />
               <div className="flex gap-1.5 pt-1">
-                {([['S', 48], ['M', 56], ['L', 64], ['XL', 72]] as const).map(([label, val]) => (
+                {([['S', 32], ['M', 38], ['L', 42], ['XL', 50]] as const).map(([label, val]) => (
                   <Button
                     key={label}
                     variant={sizeVal === val ? 'default' : 'outline'}
@@ -723,7 +723,7 @@ export function ProductGraphicTextModule() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 0, qrSizePercent: 70 })}
+                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 0, qrSizePercent: 42 })}
                 data-testid="button-admin-reset-qr-position"
               >
                 Reset to Default

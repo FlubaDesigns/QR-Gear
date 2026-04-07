@@ -56,7 +56,7 @@ const initialContent: ContentData = {
   playPermissionConfirmed: false,
   qrPositionX: 50,
   qrPositionY: 0,
-  qrSizePercent: 70,
+  qrSizePercent: 42,
   areaImageUrl: '',
   areaImageMode: 'behind-qr',
   areaImageOffsetX: 50,
