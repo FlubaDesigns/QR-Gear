@@ -322,6 +322,21 @@ function register(app) {
                     return;
                 }
             }
+            const imgSnap = await core_1.admin.firestore().collection('admin_images').where('isActive', '==', true).get();
+            for (const doc of imgSnap.docs) {
+                const sUrl = doc.data().storageUrl || '';
+                if (sUrl && sUrl.split('/').pop() === fileName) {
+                    const file = bucket.file(sUrl);
+                    const [exists] = await file.exists();
+                    if (exists) {
+                        const [metadata] = await file.getMetadata();
+                        res.set('Content-Type', metadata.contentType || 'application/octet-stream');
+                        res.set('Cache-Control', 'public, max-age=3600');
+                        file.createReadStream().pipe(res);
+                        return;
+                    }
+                }
+            }
             res.status(404).json({ error: 'File not found' });
         }
         catch (e) {
