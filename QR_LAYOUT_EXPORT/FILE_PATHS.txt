@@ -1,9 +1,6 @@
+client/src/features/shared/graphics/graphicLayoutConstants.ts
 client/src/features/shared/graphics/productGraphicRenderer.ts
-client/src/features/shared/components/UnifiedGraphic.tsx
-client/src/features/shared/graphics/graphicZones.ts          [DOES NOT EXIST YET]
-client/src/features/shared/graphics/zoneLayout.ts            [DOES NOT EXIST YET]
-client/src/features/shared/graphics/qrLayout.ts              [DOES NOT EXIST YET]
-client/src/features/shared/graphics/qrSafety.ts              [DOES NOT EXIST YET]
+client/src/features/shared/graphics/UnifiedGraphic.tsx
 client/src/features/shared/graphics/landingPageRenderer.ts
 client/src/features/adminProducts/builder/modules/ProductGraphicTextModule.tsx
 client/src/features/adminProducts/builder/modules/PlacementModule.tsx
