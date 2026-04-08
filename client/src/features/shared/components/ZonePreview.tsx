@@ -64,7 +64,7 @@ export function ZoneLayout({
         backgroundPosition: 'center',
       }}
     >
-      <div className="qr-canvas__header">
+      <div className="flex-[0_0_30%] min-h-0">
         <div className="zone-content" style={{ position: 'relative' }}>
           {headerText && (headerStyle as any)?.enabled && (
             <div
@@ -86,21 +86,21 @@ export function ZoneLayout({
           )}
         </div>
       </div>
-      <div className="qr-canvas__middle">
-        <div className="qr-area bg-white rounded-lg">
+      <div className="flex-[0_0_40%] min-h-0 flex items-center justify-center">
+        <div className="bg-white rounded-lg flex items-center justify-center">
           {qrCodeUrl ? (
-            <img src={qrCodeUrl} alt="QR Code" />
+            <img src={qrCodeUrl} alt="QR Code" className="max-w-full max-h-full w-auto h-auto block" />
           ) : (
             <QrCode className="w-2/3 h-2/3 text-slate-800" />
           )}
         </div>
       </div>
       {subBottomEnabled && (
-        <div className="qr-canvas__sub-bottom qr-canvas__sub-bottom--visible">
+        <div className="flex-[0_0_5%] min-h-0 flex items-center justify-center">
           <span className="text-xs text-muted-foreground">{subBottomText || "Scan Me"}</span>
         </div>
       )}
-      <div className="qr-canvas__footer">
+      <div className={`min-h-0 ${subBottomEnabled ? 'flex-[0_0_25%]' : 'flex-[0_0_30%]'}`}>
         <div className="zone-content" style={{ position: 'relative' }}>
           {footerText && (footerStyle as any)?.enabled && (
             <div
@@ -152,19 +152,19 @@ export function ZoneThumbnail({
         isSelected ? 'bg-orange-900/40' : 'bg-slate-700'
       } ${className}`}
     >
-      <div className="qr-canvas__header">
+      <div className="flex-[0_0_30%] min-h-0">
         <div className="zone-content">
           {showHeader && (
             <div className={`w-full ${barH} bg-yellow-400 border border-yellow-200 rounded shadow-lg`} />
           )}
         </div>
       </div>
-      <div className="qr-canvas__middle">
-        <div className="qr-area bg-white/90 rounded">
+      <div className="flex-[0_0_40%] min-h-0 flex items-center justify-center">
+        <div className="bg-white/90 rounded flex items-center justify-center">
           <QrCode className={`${isSm ? 'w-3 h-3' : 'w-5 h-5'} text-slate-800`} />
         </div>
       </div>
-      <div className="qr-canvas__footer">
+      <div className="flex-[0_0_30%] min-h-0">
         <div className="zone-content">
           {showFooter && (
             <div className={`w-full ${barH} bg-yellow-400 border border-yellow-200 rounded shadow-lg`} />
