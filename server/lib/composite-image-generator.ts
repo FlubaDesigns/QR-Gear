@@ -122,7 +122,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     zoneY: number,
     zoneW: number,
     zoneH: number,
-    padding: number = 0.05,
+    _padding: number = 0,
     offsetX: number = 50,
     offsetY: number = 50,
     scale: number = 100
@@ -133,27 +133,28 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
         return;
       }
       const img = await loadImage(imgUrl);
-      const padX = zoneW * padding;
-      const padY = zoneH * padding;
-      const availW = zoneW - 2 * padX;
-      const availH = zoneH - 2 * padY;
       const imgAspect = img.width / img.height;
-      const zoneAspect = availW / availH;
+      const zoneAspect = zoneW / zoneH;
       let baseW: number, baseH: number;
       if (imgAspect > zoneAspect) {
-        baseW = availW;
-        baseH = availW / imgAspect;
+        baseW = zoneW;
+        baseH = zoneW / imgAspect;
       } else {
-        baseH = availH;
-        baseW = availH * imgAspect;
+        baseH = zoneH;
+        baseW = zoneH * imgAspect;
       }
-      const scaleFactor = scale / 100;
-      const drawW = baseW * scaleFactor;
-      const drawH = baseH * scaleFactor;
+      const sf = scale / 100;
+      let drawW = baseW * sf;
+      let drawH = baseH * sf;
+      if (drawW > zoneW || drawH > zoneH) {
+        const fitScale = Math.min(zoneW / drawW, zoneH / drawH);
+        drawW *= fitScale;
+        drawH *= fitScale;
+      }
       const clampedX = Math.max(0, Math.min(100, offsetX));
       const clampedY = Math.max(0, Math.min(100, offsetY));
-      const drawX = zoneX + padX + (clampedX / 100) * (availW - drawW);
-      const drawY = zoneY + padY + (clampedY / 100) * (availH - drawH);
+      const drawX = zoneX + (clampedX / 100) * Math.max(0, zoneW - drawW);
+      const drawY = zoneY + (clampedY / 100) * Math.max(0, zoneH - drawH);
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
     } catch (e: any) {
       console.warn("[composite-image-generator] Image load failed:", e?.message);
@@ -162,7 +163,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
 
   const topIsImage = topText?.mode === "image" && topText?.imageUrl;
   if (topIsImage) {
-    await drawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0.05,
+    await drawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0,
       topText!.horizontalOffset ?? 50, topText!.verticalOffset ?? 50, topText!.imageScale ?? 100);
   } else if (topText && topText.text) {
     const previewFontSize = getPreviewFontSize(topText.fontSize);
@@ -184,13 +185,8 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = topText.verticalOffset ?? 50;
     const hOff = topText.horizontalOffset ?? 50;
-    const marginPct = 0.01;
-    const marginY = headerZoneHeight * marginPct;
-    const marginX = width * marginPct;
-    const usableH = headerZoneHeight - 2 * marginY;
-    const usableW = width - 2 * marginX;
-    let currentY = headerZoneTop + marginY + (vOff / 100) * (usableH - totalTextHeight);
-    const textX = marginX + (hOff / 100) * usableW;
+    let currentY = headerZoneTop + (vOff / 100) * Math.max(0, headerZoneHeight - totalTextHeight);
+    const textX = (hOff / 100) * width;
 
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
@@ -232,7 +228,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
 
   const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
   if (bottomIsImage) {
-    await drawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0.05,
+    await drawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0,
       bottomText!.horizontalOffset ?? 50, bottomText!.verticalOffset ?? 50, bottomText!.imageScale ?? 100);
   } else if (bottomText && bottomText.text) {
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);
@@ -254,13 +250,8 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = bottomText.verticalOffset ?? 50;
     const hOff = bottomText.horizontalOffset ?? 50;
-    const marginPct = 0.01;
-    const marginY = footerZoneHeight * marginPct;
-    const marginX = width * marginPct;
-    const usableH = footerZoneHeight - 2 * marginY;
-    const usableW = width - 2 * marginX;
-    let currentY = footerZoneTop + marginY + (vOff / 100) * (usableH - totalTextHeight);
-    const textX = marginX + (hOff / 100) * usableW;
+    let currentY = footerZoneTop + (vOff / 100) * Math.max(0, footerZoneHeight - totalTextHeight);
+    const textX = (hOff / 100) * width;
 
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {

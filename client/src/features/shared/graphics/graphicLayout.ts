@@ -102,7 +102,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     qrRegion = middleZone;
   }
 
-  const qrMaxDim = Math.min(qrRegion.width, qrRegion.height) * 0.85;
+  const qrMaxDim = Math.min(qrRegion.width, qrRegion.height);
   const qrSize = clamp(qrMaxDim * (qrSizePercent / 100), 180, qrMaxDim);
 
   const clampedX = clamp(qrPositionX, 0, 100);

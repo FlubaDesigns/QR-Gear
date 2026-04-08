@@ -133,7 +133,7 @@ async function cfGenerateCompositeImage(options: {
     zoneY: number,
     zoneW: number,
     zoneH: number,
-    padding: number = 0.05,
+    _padding: number = 0,
     offsetX: number = 50,
     offsetY: number = 50,
     scale: number = 100
@@ -145,27 +145,28 @@ async function cfGenerateCompositeImage(options: {
       }
       const { loadImage: li2 } = getCanvas();
       const img = await li2(imgUrl);
-      const padX = zoneW * padding;
-      const padY = zoneH * padding;
-      const availW = zoneW - 2 * padX;
-      const availH = zoneH - 2 * padY;
       const imgAspect = img.width / img.height;
-      const zoneAspect = availW / availH;
+      const zoneAspect = zoneW / zoneH;
       let baseW: number, baseH: number;
       if (imgAspect > zoneAspect) {
-        baseW = availW;
-        baseH = availW / imgAspect;
+        baseW = zoneW;
+        baseH = zoneW / imgAspect;
       } else {
-        baseH = availH;
-        baseW = availH * imgAspect;
+        baseH = zoneH;
+        baseW = zoneH * imgAspect;
       }
       const sf = scale / 100;
-      const drawW = baseW * sf;
-      const drawH = baseH * sf;
+      let drawW = baseW * sf;
+      let drawH = baseH * sf;
+      if (drawW > zoneW || drawH > zoneH) {
+        const fitScale = Math.min(zoneW / drawW, zoneH / drawH);
+        drawW *= fitScale;
+        drawH *= fitScale;
+      }
       const cx = Math.max(0, Math.min(100, offsetX));
       const cy = Math.max(0, Math.min(100, offsetY));
-      const drawX = zoneX + padX + (cx / 100) * (availW - drawW);
-      const drawY = zoneY + padY + (cy / 100) * (availH - drawH);
+      const drawX = zoneX + (cx / 100) * Math.max(0, zoneW - drawW);
+      const drawY = zoneY + (cy / 100) * Math.max(0, zoneH - drawH);
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
     } catch (e: any) {
       console.warn("[cf-composite] Image load failed:", e?.message);
@@ -174,7 +175,7 @@ async function cfGenerateCompositeImage(options: {
 
   const topIsImage = topText?.mode === "image" && topText?.imageUrl;
   if (topIsImage) {
-    await cfDrawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0.05,
+    await cfDrawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0,
       topText!.horizontalOffset ?? 50, topText!.verticalOffset ?? 50, topText!.imageScale ?? 100);
   } else if (topText && topText.text) {
     const previewFontSize = cfGetPreviewFontSize(topText.fontSize);
@@ -193,15 +194,8 @@ async function cfGenerateCompositeImage(options: {
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = topText.verticalOffset ?? 50;
     const hOff = topText.horizontalOffset ?? 50;
-    const marginPct = 0.005;
-    const marginY = headerZoneHeight * marginPct;
-    const marginX = width * marginPct;
-    const usableW = width - 2 * marginX;
-    const topEdge = headerZoneTop + marginY;
-    const bottomEdge = headerZoneTop + headerZoneHeight - marginY - totalTextHeight;
-    let currentY = topEdge + (vOff / 100) * (bottomEdge - topEdge);
-    if (currentY < topEdge) currentY = topEdge;
-    const textX = marginX + (hOff / 100) * usableW;
+    let currentY = headerZoneTop + (vOff / 100) * Math.max(0, headerZoneHeight - totalTextHeight);
+    const textX = (hOff / 100) * width;
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
         ctx.strokeText(line, textX, currentY);
@@ -241,7 +235,7 @@ async function cfGenerateCompositeImage(options: {
 
   const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
   if (bottomIsImage) {
-    await cfDrawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0.05,
+    await cfDrawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0,
       bottomText!.horizontalOffset ?? 50, bottomText!.verticalOffset ?? 50, bottomText!.imageScale ?? 100);
   } else if (bottomText && bottomText.text) {
     const previewFontSize = cfGetPreviewFontSize(bottomText.fontSize);
@@ -260,15 +254,8 @@ async function cfGenerateCompositeImage(options: {
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = bottomText.verticalOffset ?? 50;
     const hOff = bottomText.horizontalOffset ?? 50;
-    const marginPct = 0.005;
-    const marginY = footerZoneHeight * marginPct;
-    const marginX = width * marginPct;
-    const usableW = width - 2 * marginX;
-    const topEdge = footerZoneTop + marginY;
-    const bottomEdge = footerZoneTop + footerZoneHeight - marginY - totalTextHeight;
-    let currentY = topEdge + (vOff / 100) * (bottomEdge - topEdge);
-    if (currentY < topEdge) currentY = topEdge;
-    const textX = marginX + (hOff / 100) * usableW;
+    let currentY = footerZoneTop + (vOff / 100) * Math.max(0, footerZoneHeight - totalTextHeight);
+    const textX = (hOff / 100) * width;
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
         ctx.strokeText(line, textX, currentY);

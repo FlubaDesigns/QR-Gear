@@ -111,7 +111,7 @@ async function drawImageInZone(
   zoneY: number,
   zoneW: number,
   zoneH: number,
-  padding: number = 0.05,
+  _padding: number = 0,
   offsetX: number = 50,
   offsetY: number = 50,
   scale: number = 100
@@ -119,23 +119,18 @@ async function drawImageInZone(
   try {
     const img = await loadImage(imgUrl);
 
-    const padX = zoneW * padding;
-    const padY = zoneH * padding;
-    const availW = Math.max(1, zoneW - 2 * padX);
-    const availH = Math.max(1, zoneH - 2 * padY);
-
     const imgAspect = img.width / img.height;
-    const zoneAspect = availW / availH;
+    const zoneAspect = zoneW / zoneH;
 
-    let baseW = imgAspect > zoneAspect ? availW : availH * imgAspect;
-    let baseH = imgAspect > zoneAspect ? baseW / imgAspect : availH;
+    let baseW = imgAspect > zoneAspect ? zoneW : zoneH * imgAspect;
+    let baseH = imgAspect > zoneAspect ? baseW / imgAspect : zoneH;
 
     const scaleFactor = scale / 100;
     let drawW = baseW * scaleFactor;
     let drawH = baseH * scaleFactor;
 
-    if (drawW > availW || drawH > availH) {
-      const fitScale = Math.min(availW / drawW, availH / drawH);
+    if (drawW > zoneW || drawH > zoneH) {
+      const fitScale = Math.min(zoneW / drawW, zoneH / drawH);
       drawW *= fitScale;
       drawH *= fitScale;
     }
@@ -143,13 +138,10 @@ async function drawImageInZone(
     const clampedOX = clamp(offsetX, 0, 100);
     const clampedOY = clamp(offsetY, 0, 100);
 
-    const marginX = zoneW * 0.02;
-    const marginY = zoneH * 0.02;
-
-    const minX = zoneX + padX + marginX;
-    const maxX = zoneX + zoneW - padX - marginX - drawW;
-    const minY = zoneY + padY + marginY;
-    const maxY = zoneY + zoneH - padY - marginY - drawH;
+    const minX = zoneX;
+    const maxX = zoneX + zoneW - drawW;
+    const minY = zoneY;
+    const maxY = zoneY + zoneH - drawH;
 
     const drawX = minX + (clampedOX / 100) * Math.max(0, maxX - minX);
     const drawY = minY + (clampedOY / 100) * Math.max(0, maxY - minY);
@@ -180,13 +172,8 @@ function drawTextInZone(
   const lineHeight = fSize * 1.3;
   const totalTextHeight = lines.length * lineHeight;
 
-  const marginY = zoneHeight * 0.01;
-  const marginX = W * 0.01;
-  const usableH = zoneHeight - 2 * marginY;
-  const usableW = W - 2 * marginX;
-
-  const startY = zoneY + marginY + (vOffset / 100) * Math.max(0, usableH - totalTextHeight);
-  const textX = marginX + (hOffset / 100) * usableW;
+  const startY = zoneY + (vOffset / 100) * Math.max(0, zoneHeight - totalTextHeight);
+  const textX = (hOffset / 100) * W;
 
   if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
     ctx.strokeStyle = style.strokeColor;
