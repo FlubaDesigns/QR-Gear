@@ -673,7 +673,7 @@ export function ProductGraphicTextModule() {
             data-testid="button-layout-freeform"
           >
             <Move className="h-4 w-4" />
-            Freeform
+            Canvas
           </button>
         </div>
 

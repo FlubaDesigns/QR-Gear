@@ -47,9 +47,9 @@ export default function QRUrlLanding() {
   return (
     <div className="vanity-page">
       <SEO 
-        title="QR Canvas | Custom Background QR Products | QR Gear"
-        description="Create QR Canvas merchandise - upload your own image that appears when people scan your QR. Perfect for weddings, family gifts, artists, and treasured memories. USA options available."
-        keywords="QR Canvas, custom QR background, wedding QR shirts, family photo gifts, artist QR apparel, memorial QR gifts"
+        title="QR Compose | Custom Background QR Products | QR Gear"
+        description="Create QR Compose merchandise - upload your own image that appears when people scan your QR. Perfect for weddings, family gifts, artists, and treasured memories. USA options available."
+        keywords="QR Compose, custom QR background, wedding QR shirts, family photo gifts, artist QR apparel, memorial QR gifts"
       />
       <Navbar />
 <main className="vanity-content">
@@ -60,13 +60,13 @@ export default function QRUrlLanding() {
             </div>
             <div className="vanity-header-text">
               <p className="vanity-category">State: Visual</p>
-              <h1 className="vanity-title">QR Canvas</h1>
+              <h1 className="vanity-title">QR Compose</h1>
             </div>
           </div>
           
           <p className="vanity-tagline">Design a custom image your QR opens to.</p>
           <p className="vanity-description">
-            Your creative canvas for the scan experience. When someone scans your QR, they land on your hosted QR Space 
+            Your creative compose for the scan experience. When someone scans your QR, they land on your hosted QR Space 
             showing a custom background image — a photo, artwork, memory, or moment. Upload your own or choose from templates.
             Optional header and footer text can be printed on the product.
           </p>
@@ -108,7 +108,7 @@ export default function QRUrlLanding() {
 
           <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-canvas">
-              Create Your QR Canvas
+              Create Your QR Compose
               <ArrowRight />
             </button>
           </Link>
