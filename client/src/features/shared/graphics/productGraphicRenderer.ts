@@ -111,7 +111,6 @@ async function drawImageInZone(
   zoneY: number,
   zoneW: number,
   zoneH: number,
-  _padding: number = 0,
   offsetX: number = 50,
   offsetY: number = 50,
   scale: number = 100
@@ -155,11 +154,13 @@ async function drawImageInZone(
 function drawTextInZone(
   ctx: CanvasRenderingContext2D,
   style: TextStyle,
+  zoneX: number,
   zoneY: number,
+  zoneW: number,
   zoneHeight: number,
-  W: number
+  canvasW: number
 ) {
-  const fSize = scaledFontSize(style.fontSize, W);
+  const fSize = scaledFontSize(style.fontSize, canvasW);
   ctx.fillStyle = style.color || "#000";
   ctx.font = `bold ${fSize}px ${style.fontFamily}`;
   ctx.textBaseline = "top";
@@ -168,12 +169,12 @@ function drawTextInZone(
   const vOffset = style.verticalOffset ?? 50;
   const hOffset = style.horizontalOffset ?? 50;
 
-  const lines = wrapText(ctx, style.text, W * 0.9);
+  const lines = wrapText(ctx, style.text, zoneW * 0.95);
   const lineHeight = fSize * 1.3;
   const totalTextHeight = lines.length * lineHeight;
 
   const startY = zoneY + (vOffset / 100) * Math.max(0, zoneHeight - totalTextHeight);
-  const textX = (hOffset / 100) * W;
+  const textX = zoneX + (hOffset / 100) * zoneW;
 
   if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
     ctx.strokeStyle = style.strokeColor;
@@ -282,9 +283,9 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   if (areaImageUrl && areaImageMode === "behind-qr") {
     await drawImageInZone(
       ctx, areaImageUrl,
-      0, layout.zones.middle.y,
-      W, layout.zones.middle.height,
-      0.03, areaOffX, areaOffY, areaSc
+      layout.zones.middle.x, layout.zones.middle.y,
+      layout.zones.middle.width, layout.zones.middle.height,
+      areaOffX, areaOffY, areaSc
     );
   }
 
@@ -297,9 +298,9 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   if (areaImageUrl && areaImageMode === "replace-qr") {
     await drawImageInZone(
       ctx, areaImageUrl,
-      0, layout.zones.middle.y,
-      W, layout.zones.middle.height,
-      0.03, areaOffX, areaOffY, areaSc
+      layout.zones.middle.x, layout.zones.middle.y,
+      layout.zones.middle.width, layout.zones.middle.height,
+      areaOffX, areaOffY, areaSc
     );
   } else {
     ctx.drawImage(qrImg, qrX, qrY, qrSquareSize, qrSquareSize);
@@ -328,15 +329,14 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     if (resolvedHeaderUrl) {
       await drawImageInZone(
         ctx, resolvedHeaderUrl,
-        0, layout.zones.header.y,
-        W, layout.zones.header.height,
-        0.05,
+        layout.zones.header.x, layout.zones.header.y,
+        layout.zones.header.width, layout.zones.header.height,
         headerStyle?.horizontalOffset ?? 50,
         headerStyle?.verticalOffset ?? 50,
         headerStyle?.imageScale ?? 100
       );
     } else if (headerStyle) {
-      drawTextInZone(ctx, headerStyle, layout.zones.header.y, layout.zones.header.height, W);
+      drawTextInZone(ctx, headerStyle, layout.zones.header.x, layout.zones.header.y, layout.zones.header.width, layout.zones.header.height, W);
     }
   }
 
@@ -348,7 +348,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     ctx.textBaseline = "middle";
     ctx.fillText(
       subBottomText.trim(),
-      W / 2,
+      layout.zones.subBottom.x + layout.zones.subBottom.width / 2,
       layout.zones.subBottom.y + layout.zones.subBottom.height / 2
     );
   }
@@ -360,15 +360,14 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     if (resolvedFooterUrl) {
       await drawImageInZone(
         ctx, resolvedFooterUrl,
-        0, layout.zones.footer.y,
-        W, layout.zones.footer.height,
-        0.05,
+        layout.zones.footer.x, layout.zones.footer.y,
+        layout.zones.footer.width, layout.zones.footer.height,
         footerStyle?.horizontalOffset ?? 50,
         footerStyle?.verticalOffset ?? 50,
         footerStyle?.imageScale ?? 100
       );
     } else if (footerStyle) {
-      drawTextInZone(ctx, footerStyle, layout.zones.footer.y, layout.zones.footer.height, W);
+      drawTextInZone(ctx, footerStyle, layout.zones.footer.x, layout.zones.footer.y, layout.zones.footer.width, layout.zones.footer.height, W);
     }
   }
 
