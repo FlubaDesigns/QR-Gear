@@ -33,7 +33,7 @@ export interface GraphicPreviewViewProps {
   qrPositionY?: number;
   qrSizePercent?: number;
   areaImageUrl?: string;
-  areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageMode?: "behind-qr";
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;

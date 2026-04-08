@@ -35,7 +35,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [qrPositionY, setQrPositionY] = useState(50);
   const [qrSizePercent, setQrSizePercent] = useState(75);
   const [areaImageUrl, setAreaImageUrl] = useState('');
-  const [areaImageMode, setAreaImageMode] = useState<"replace-qr" | "behind-qr">("behind-qr");
+  const [areaImageMode, setAreaImageMode] = useState<"behind-qr">("behind-qr");
 
   const [qrPlusMockup, setQrPlusMockup] = useState('');
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);

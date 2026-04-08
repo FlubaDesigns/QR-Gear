@@ -34,7 +34,7 @@ export interface RenderOptions {
   headerImageUrl?: string;
   footerImageUrl?: string;
   areaImageUrl?: string;
-  areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageMode?: "behind-qr";
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;
@@ -295,16 +295,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   ctx.roundRect(qrBgX, qrBgY, qrBgWidth, qrBgHeight, bgRadius);
   ctx.fill();
 
-  if (areaImageUrl && areaImageMode === "replace-qr") {
-    await drawImageInZone(
-      ctx, areaImageUrl,
-      layout.zones.middle.x, layout.zones.middle.y,
-      layout.zones.middle.width, layout.zones.middle.height,
-      areaOffX, areaOffY, areaSc
-    );
-  } else {
-    ctx.drawImage(qrImg, qrX, qrY, qrSquareSize, qrSquareSize);
-  }
+  ctx.drawImage(qrImg, qrX, qrY, qrSquareSize, qrSquareSize);
 
   try {
     const logoImg = await loadImage(qLogoSrc);

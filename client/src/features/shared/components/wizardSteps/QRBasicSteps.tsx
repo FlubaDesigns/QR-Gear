@@ -243,9 +243,7 @@ export function QRBasicMockupStep({
   onPositionYChange,
   onSizeChange,
   areaImageUrl,
-  areaImageMode,
   onAreaImageUrlChange,
-  onAreaImageModeChange,
 }: {
   mockupUrl: string;
   isLoading: boolean;
@@ -260,13 +258,11 @@ export function QRBasicMockupStep({
   onPositionYChange?: (val: number) => void;
   onSizeChange?: (val: number) => void;
   areaImageUrl?: string;
-  areaImageMode?: "replace-qr" | "behind-qr";
   onAreaImageUrlChange?: (url: string) => void;
-  onAreaImageModeChange?: (mode: "replace-qr" | "behind-qr") => void;
 }) {
   const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
   const showControls = onPositionXChange && onPositionYChange && onSizeChange;
-  const showImageUpload = onAreaImageUrlChange && onAreaImageModeChange;
+  const showImageUpload = !!onAreaImageUrlChange;
   const posX = qrPositionX ?? 50;
   const posY = qrPositionY ?? 0;
   const sizeVal = qrSizePercent ?? 75;
@@ -413,32 +409,6 @@ export function QRBasicMockupStep({
                   className="w-full max-h-[100px] object-contain rounded"
                   data-testid="img-area-preview"
                 />
-              </div>
-              <div className="flex gap-1 p-1 bg-slate-800 rounded-md" data-testid="toggle-area-image-mode">
-                <button
-                  type="button"
-                  onClick={() => onAreaImageModeChange("behind-qr")}
-                  className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
-                    (areaImageMode || "behind-qr") === "behind-qr"
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                  data-testid="button-area-mode-behind"
-                >
-                  Behind QR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onAreaImageModeChange("replace-qr")}
-                  className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
-                    areaImageMode === "replace-qr"
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white"
-                  }`}
-                  data-testid="button-area-mode-replace"
-                >
-                  Replace QR
-                </button>
               </div>
               <div className="flex gap-2">
                 <Button

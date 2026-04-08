@@ -1,8 +1,7 @@
-export type QrSafetyStatus = "safe" | "caution" | "risky" | "replace";
+export type QrSafetyStatus = "safe" | "caution" | "risky";
 
 export const MIN_SAFE_QR_SIZE_PERCENT = 35;
 export const MAX_SAFE_QR_SIZE_PERCENT = 100;
-export const FORCE_BLOCK_REPLACE_QR = true;
 
 export function clampQrPercent(value: number) {
   return Math.max(MIN_SAFE_QR_SIZE_PERCENT, Math.min(MAX_SAFE_QR_SIZE_PERCENT, value));
@@ -12,7 +11,6 @@ interface QrContentFields {
   qrSizePercent?: number;
   qrPositionX?: number;
   qrPositionY?: number;
-  areaImageMode?: string;
 }
 
 export function sanitizeQrReadableContent<T extends QrContentFields>(partial: T): T {
@@ -26,35 +24,20 @@ export function sanitizeQrReadableContent<T extends QrContentFields>(partial: T)
   if (typeof next.qrPositionY === "number") {
     next.qrPositionY = Math.max(0, Math.min(100, next.qrPositionY));
   }
-  if (FORCE_BLOCK_REPLACE_QR && next.areaImageMode === "replace-qr") {
-    next.areaImageMode = "behind-qr";
-  }
   return next;
 }
 
 export function getQrSafetyAssessment({
   qrSizePercent,
-  areaImageMode,
   subBottomEnabled,
   headerEnabled,
   footerEnabled,
 }: {
   qrSizePercent: number;
-  areaImageMode?: string;
   subBottomEnabled?: boolean;
   headerEnabled?: boolean;
   footerEnabled?: boolean;
 }) {
-  if (areaImageMode === "replace-qr") {
-    return {
-      status: "replace" as QrSafetyStatus,
-      label: "QR Replaced",
-      score: 0,
-      summary: "Center image is replacing the QR. This is not scannable as a QR code.",
-      tips: ["Switch center image mode back to 'Behind QR' if readability matters."],
-    };
-  }
-
   let score = 100;
   const tips: string[] = [];
 
@@ -108,9 +91,7 @@ export function getQrSafetyClasses(status: QrSafetyStatus) {
     case "caution":
       return { wrap: "border-amber-500/30 bg-amber-500/10", badge: "bg-amber-500 text-black", text: "text-amber-100" };
     case "risky":
-      return { wrap: "border-red-500/30 bg-red-500/10", badge: "bg-red-600 text-white", text: "text-red-100" };
-    case "replace":
     default:
-      return { wrap: "border-red-600/40 bg-red-600/15", badge: "bg-red-700 text-white", text: "text-red-100" };
+      return { wrap: "border-red-500/30 bg-red-500/10", badge: "bg-red-600 text-white", text: "text-red-100" };
   }
 }

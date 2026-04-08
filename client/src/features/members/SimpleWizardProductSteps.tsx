@@ -255,9 +255,7 @@ export function SimpleWizardProductSteps() {
           onPositionYChange={setQrPositionY}
           onSizeChange={setQrSizePercent}
           areaImageUrl={areaImageUrl}
-          areaImageMode={areaImageMode}
           onAreaImageUrlChange={setAreaImageUrl}
-          onAreaImageModeChange={setAreaImageMode}
         />
       )}
       

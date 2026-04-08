@@ -159,7 +159,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [qrPositionY, setQrPositionY] = useState<number>(50);
   const [qrSizePercent, setQrSizePercent] = useState<number>(75);
   const [areaImageUrl, setAreaImageUrl] = useState<string>('');
-  const [areaImageMode, setAreaImageMode] = useState<"replace-qr" | "behind-qr">("behind-qr");
+  const [areaImageMode, setAreaImageMode] = useState<"behind-qr">("behind-qr");
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);

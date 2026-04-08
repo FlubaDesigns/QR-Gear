@@ -19,7 +19,7 @@ interface UseProductGraphicPreviewOptions {
   headerImageUrl?: string;
   footerImageUrl?: string;
   areaImageUrl?: string;
-  areaImageMode?: "replace-qr" | "behind-qr";
+  areaImageMode?: "behind-qr";
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;

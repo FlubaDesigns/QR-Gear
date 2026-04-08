@@ -36,7 +36,7 @@ interface OwnerWizardStepContentProps {
   qrPositionY: number;
   qrSizePercent: number;
   areaImageUrl: string;
-  areaImageMode: "replace-qr" | "behind-qr";
+  areaImageMode: "behind-qr";
   isGeneratingBasicMockup: boolean;
   isGeneratingPlusMockup: boolean;
   isGeneratingRealMockup: boolean;
@@ -71,7 +71,7 @@ interface OwnerWizardStepContentProps {
   setQrPositionY: (y: number) => void;
   setQrSizePercent: (s: number) => void;
   setAreaImageUrl: (u: string) => void;
-  setAreaImageMode: (m: "replace-qr" | "behind-qr") => void;
+  setAreaImageMode: (m: "behind-qr") => void;
   setRunningCost: (fn: (prev: number) => number) => void;
   setCostPulse: (v: boolean) => void;
   setSimpleStep: (s: SimpleWizardStep) => void;
@@ -527,9 +527,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
               onPositionYChange={setQrPositionY}
               onSizeChange={setQrSizePercent}
               areaImageUrl={areaImageUrl}
-              areaImageMode={areaImageMode}
               onAreaImageUrlChange={setAreaImageUrl}
-              onAreaImageModeChange={setAreaImageMode}
             />
           )}
           <OwnerCostSummary

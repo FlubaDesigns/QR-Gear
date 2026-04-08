@@ -100,8 +100,8 @@ export interface WizardContextType {
   setQrSizePercent: React.Dispatch<React.SetStateAction<number>>;
   areaImageUrl: string;
   setAreaImageUrl: React.Dispatch<React.SetStateAction<string>>;
-  areaImageMode: "replace-qr" | "behind-qr";
-  setAreaImageMode: React.Dispatch<React.SetStateAction<"replace-qr" | "behind-qr">>;
+  areaImageMode: "behind-qr";
+  setAreaImageMode: React.Dispatch<React.SetStateAction<"behind-qr">>;
   qrDestination: string;
   setQrDestination: React.Dispatch<React.SetStateAction<string>>;
   channelName: string;

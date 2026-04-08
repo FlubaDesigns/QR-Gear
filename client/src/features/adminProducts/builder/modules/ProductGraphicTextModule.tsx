@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import {
   MIN_SAFE_QR_SIZE_PERCENT,
-  FORCE_BLOCK_REPLACE_QR,
   clampQrPercent,
   sanitizeQrReadableContent,
   getQrSafetyAssessment,
@@ -626,7 +625,6 @@ export function ProductGraphicTextModule() {
 
   const qrSafety = getQrSafetyAssessment({
     qrSizePercent: sizeVal,
-    areaImageMode: adminAreaImageUrl ? adminAreaImageMode : undefined,
     subBottomEnabled: state.content.subBottomEnabled,
     headerEnabled: !!hasHeaderContent,
     footerEnabled: !!hasFooterContent,
@@ -874,8 +872,7 @@ export function ProductGraphicTextModule() {
 
             <div className="mt-2 rounded-md border border-blue-500/20 bg-blue-500/10 p-2">
               <p className="text-[11px] text-blue-100" data-testid="text-admin-qr-guardrail-notice">
-                Readability guardrails are active. QR size cannot go below {MIN_SAFE_QR_SIZE_PERCENT}%
-                {FORCE_BLOCK_REPLACE_QR ? ", and QR replacement mode is disabled" : ""} to protect scan reliability.
+                Readability guardrails are active. QR size cannot go below {MIN_SAFE_QR_SIZE_PERCENT}% to protect scan reliability.
               </p>
             </div>
           </div>
@@ -903,37 +900,6 @@ export function ProductGraphicTextModule() {
                     className="w-full max-h-[100px] object-contain rounded"
                     data-testid="img-admin-area-preview"
                   />
-                </div>
-                <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-admin-area-mode">
-                  <button
-                    type="button"
-                    onClick={() => safeSetContent({ areaImageMode: "behind-qr" })}
-                    className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
-                      adminAreaImageMode === "behind-qr"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    data-testid="button-admin-area-mode-behind"
-                  >
-                    Behind QR
-                  </button>
-                  <button
-                    type="button"
-                    disabled={FORCE_BLOCK_REPLACE_QR}
-                    onClick={() => {
-                      if (!FORCE_BLOCK_REPLACE_QR) safeSetContent({ areaImageMode: "replace-qr" });
-                    }}
-                    className={`flex-1 min-h-[36px] rounded-sm text-xs font-medium transition-colors ${
-                      FORCE_BLOCK_REPLACE_QR
-                        ? "opacity-40 cursor-not-allowed text-muted-foreground"
-                        : adminAreaImageMode === "replace-qr"
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    data-testid="button-admin-area-mode-replace"
-                  >
-                    Replace QR {FORCE_BLOCK_REPLACE_QR ? "(locked)" : ""}
-                  </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
