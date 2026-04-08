@@ -30,6 +30,8 @@ app.get('/members/:memberId/graphics', async (req: Request, res: Response): Prom
 app.post('/members/:memberId/packets', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
     if (!background?.url) { res.status(400).json({ error: "background.url is required" }); return; }
@@ -43,6 +45,8 @@ app.post('/members/:memberId/packets', async (req: Request, res: Response): Prom
 app.patch('/members/:memberId/packets/:packetId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, packetId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const updates = req.body;
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
     const doc = await db.collection('memberPackets').doc(packetId).get();
@@ -71,10 +75,11 @@ app.post('/members/:memberId/claim-temp-packet', requireAuth, async (req: Reques
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/member/packets', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/packets', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     if (!background?.url) { res.status(400).json({ error: "background.url is required" }); return; }
     const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetData = { packetId, memberId, kind: kind || 'qr_canvas', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
@@ -83,21 +88,23 @@ app.post('/member/packets', async (req: Request, res: Response): Promise<void> =
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/member/packets', async (req: Request, res: Response): Promise<void> => {
+app.get('/member/packets', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberId = req.query.memberId as string;
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const snapshot = await db.collection('memberPackets').where('memberId', '==', memberId as string).limit(100).get();
     const packets = snapshot.docs.map(doc => doc.data());
     res.json({ packets });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.delete('/member/packets/:packetId', async (req: Request, res: Response): Promise<void> => {
+app.delete('/member/packets/:packetId', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { packetId } = req.params;
     const { memberId } = req.body;
     if (!packetId || !memberId) { res.status(400).json({ error: "packetId and memberId are required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const doc = await db.collection('memberPackets').doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
@@ -106,10 +113,11 @@ app.delete('/member/packets/:packetId', async (req: Request, res: Response): Pro
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/member/graphics/create', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/graphics/create', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, packetId } = req.body;
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const packetDoc = await db.collection('memberPackets').doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const packet = packetDoc.data();
@@ -123,10 +131,11 @@ app.post('/member/graphics/create', async (req: Request, res: Response): Promise
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/member/templates/save', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/templates/save', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, packetId, compositeUrl, titleText, descriptionText, kind, metadata } = req.body;
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetDoc = await db.collection('memberPackets').doc(packetId).get();
     const packetData = packetDoc.data() || {};
@@ -137,10 +146,11 @@ app.post('/member/templates/save', async (req: Request, res: Response): Promise<
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/member/library-links', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/library-links', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, packetId, channelId, templateId, compositeUrl, qrOnlyUrl, boundProduct, metadata, status } = req.body;
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const libraryLinkId = `lib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const linkData = { libraryLinkId, packetId, channelId: channelId || null, storeId: memberId, templateId: templateId || null, memberId, compositeUrl: compositeUrl || null, qrOnlyUrl: qrOnlyUrl || null, boundProduct: boundProduct || null, metadata: metadata || null, status: status || 'active', shareUrl: `/share/${packetId}`, createdAt: new Date().toISOString() };
     await db.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
@@ -149,10 +159,11 @@ app.post('/member/library-links', async (req: Request, res: Response): Promise<v
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/member/library-links', async (req: Request, res: Response): Promise<void> => {
+app.get('/member/library-links', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberId = req.query.memberId as string;
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const snapshot = await db.collection('memberLibraryLinks').where('memberId', '==', memberId as string).limit(100).get();
     const items = snapshot.docs.map(doc => doc.data());
     res.json({ items });
@@ -175,10 +186,11 @@ app.post('/pricing-settings', requireAdmin, async (req: Request, res: Response):
 
 // ============ MEMBER PLAY PACKETS ============
 
-app.post('/member/play-packets', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/play-packets', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, videoUrl, title, description, background, thumbnailUrl, metadata, storeId, channelId, source, status } = req.body;
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const packetId = `pkt-play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetData = { packetId, memberId, packetType: 'qr-play', videoUrl: videoUrl || null, title: title || 'Untitled', description: description || '', background: background || null, thumbnailUrl: thumbnailUrl || null, metadata: metadata || null, storeId: storeId || memberId, channelId: channelId || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await db.collection('memberPackets').doc(packetId).set(packetData);
@@ -426,6 +438,8 @@ app.get('/members/common-library', async (req: Request, res: Response): Promise<
 app.get('/members/:memberId/library', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const assetType = req.query.assetType as string;
     let query: any = db.collection('memberLibrary').where('memberId', '==', memberId).where('isActive', '==', true);
     if (assetType) query = query.where('assetType', '==', assetType);
@@ -442,6 +456,8 @@ app.get('/members/:memberId/library', async (req: Request, res: Response): Promi
 app.post('/members/:memberId/library', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { publicUrl, storageUrl, assetType, mediaType, name, fileName } = req.body;
     if (!publicUrl) { res.status(400).json({ error: 'publicUrl is required' }); return; }
     const now = new Date().toISOString();
@@ -468,11 +484,17 @@ app.post('/members/:memberId/library', async (req: Request, res: Response): Prom
 app.post('/members/:memberId/library/upload', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { assetType = 'background', name, imageData, mimeType: inputMimeType, originalName: inputOriginalName, isCropped = false, originalAssetId } = req.body;
     if (!imageData) { res.status(400).json({ error: "No imageData provided" }); return; }
     const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
+    const allowedImageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
     const mimeType = inputMimeType || 'image/png';
+    if (!allowedImageTypes.includes(mimeType)) { res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: PNG, JPEG, WebP, GIF, MP4, WebM` }); return; }
+    const maxSize = 25 * 1024 * 1024;
+    if (buffer.length > maxSize) { res.status(400).json({ error: "File exceeds 25MB limit" }); return; }
     const originalName = inputOriginalName || `upload-${Date.now()}.png`;
     const displayName = name || originalName;
     const mediaType = mimeType.startsWith('video/') ? 'video' : 'image';
@@ -498,10 +520,14 @@ app.post('/members/:memberId/library/upload', async (req: Request, res: Response
 app.post('/members/:memberId/library/crop', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { sourceAssetId, name, cropData, imageData } = req.body;
     if (!imageData) { res.status(400).json({ error: "No imageData provided" }); return; }
     const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
+    const maxSize = 25 * 1024 * 1024;
+    if (buffer.length > maxSize) { res.status(400).json({ error: "Cropped image exceeds 25MB limit" }); return; }
     const mimeType = 'image/png';
     const sanitizedName = `${Date.now()}-cropped-${sourceAssetId}.png`;
     const folder = `members/${memberId}/library/cropped`;
@@ -525,6 +551,8 @@ app.post('/members/:memberId/library/crop', async (req: Request, res: Response):
 app.post('/members/:memberId/videos/upload', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
+    const auth = await verifyMemberAuthCF(req, memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { videoData, mimeType: inputMimeType, fileName: inputFileName } = req.body;
     if (!videoData) { res.status(400).json({ error: "No videoData provided" }); return; }
     const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
@@ -555,11 +583,12 @@ app.post('/members/:memberId/videos/upload', async (req: Request, res: Response)
 
 // ============ BATCH: MEMBER PLAY-PACKET PUBLISH & SHARE-CARD ============
 
-app.post('/member/play-packets/:packetId/share-card', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/play-packets/:packetId/share-card', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { packetId } = req.params;
     const { memberId } = req.body;
     if (!packetId || !memberId) { res.status(400).json({ error: "packetId and memberId are required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const packetDoc = await db.collection('memberPackets').doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const packet = packetDoc.data();
@@ -571,11 +600,12 @@ app.post('/member/play-packets/:packetId/share-card', async (req: Request, res: 
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/member/play-packets/:packetId/publish', async (req: Request, res: Response): Promise<void> => {
+app.post('/member/play-packets/:packetId/publish', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { packetId } = req.params;
     const { memberId, channelId, metadata } = req.body;
     if (!packetId || !memberId) { res.status(400).json({ error: "packetId and memberId are required" }); return; }
+    if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const packetDoc = await db.collection('memberPackets').doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const packet = packetDoc.data();

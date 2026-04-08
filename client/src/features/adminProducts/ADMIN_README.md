@@ -450,6 +450,13 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 8, 2026 — Security & Trust-Boundary Pass (Task #9)
+
+- **Member route auth hardened** — All `/member/*` body-based routes now use `requireAuth` middleware + UID match (`packets`, `graphics/create`, `templates/save`, `library-links`, `play-packets`, `publish`, `share-card`). All `/members/:memberId/*` URL-param routes now use `verifyMemberAuthCF` JWT check (`packets`, `library`, `library/upload`, `library/crop`, `videos/upload`).
+- **Upload constraints added** — MIME type allowlists enforced on `POST /images/upload` (PNG, JPEG, WebP, GIF, SVG), `POST /uploads/request-url` (images + video), and member library uploads. 25MB size limit on all image upload endpoints. Filename sanitization on `uploads/request-url`.
+- **referrerId validation** — `POST /public/packet-checkout` now validates `referrerId` against the `users` collection before accepting it; invalid values are silently dropped with a server warning log.
+- **CF deployed** — All fixes verified on production (`qrgear-c1ffd`): unauthenticated requests to `/images/upload`, `/member/packets`, `/uploads/request-url` all return 401.
+
 ### April 8, 2026 — Layout Mode & Legacy Cleanup
 
 - **"Structured" renamed to "Zone"** — All references to `'structured'` layout mode renamed to `'zone'` across client and Cloud Functions (`composite-image.ts`). No backward compatibility shim; clean rename only.

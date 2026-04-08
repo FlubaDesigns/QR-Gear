@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const middleware_1 = require("../middleware");
 function register(app) {
     // ============ BATCH: IMAGES, PROXY, UPLOADS, CLAIMS, STORAGE ============
     app.get('/proxy-image', async (req, res) => {
@@ -33,14 +34,24 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
-    app.post('/images/upload', async (req, res) => {
+    app.post('/images/upload', middleware_1.requireAuth, async (req, res) => {
         try {
             const { imageData, originalName, mimeType, title, description, userId } = req.body;
             if (!imageData || !originalName || !mimeType) {
                 res.status(400).json({ error: "Missing required fields" });
                 return;
             }
+            const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
+            if (!allowedMimeTypes.includes(mimeType)) {
+                res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: PNG, JPEG, WebP, GIF, SVG` });
+                return;
+            }
             const buf = Buffer.from(imageData, 'base64');
+            const maxSize = 25 * 1024 * 1024;
+            if (buf.length > maxSize) {
+                res.status(400).json({ error: "Image exceeds 25MB limit" });
+                return;
+            }
             const fileName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
             const bucket = core_1.admin.storage().bucket();
             const file = bucket.file(`uploads/${fileName}`);
@@ -89,14 +100,20 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
-    app.post('/uploads/request-url', async (req, res) => {
+    app.post('/uploads/request-url', middleware_1.requireAuth, async (req, res) => {
         try {
             const { name, contentType } = req.body;
             if (!name || !contentType) {
                 res.status(400).json({ error: "Missing name or contentType" });
                 return;
             }
-            const path = `uploads/${Date.now()}-${name}`;
+            const allowedUploadTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml', 'video/mp4', 'video/webm'];
+            if (!allowedUploadTypes.includes(contentType)) {
+                res.status(400).json({ error: `Invalid content type: ${contentType}` });
+                return;
+            }
+            const sanitizedName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const path = `uploads/${Date.now()}-${sanitizedName}`;
             const bucket = core_1.admin.storage().bucket();
             const file = bucket.file(path);
             const [uploadUrl] = await file.getSignedUrl({ action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType });

@@ -34,11 +34,15 @@ app.get('/proxy-image', async (req: Request, res: Response): Promise<void> => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/images/upload', async (req: Request, res: Response): Promise<void> => {
+app.post('/images/upload', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { imageData, originalName, mimeType, title, description, userId } = req.body;
     if (!imageData || !originalName || !mimeType) { res.status(400).json({ error: "Missing required fields" }); return; }
+    const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!allowedMimeTypes.includes(mimeType)) { res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: PNG, JPEG, WebP, GIF, SVG` }); return; }
     const buf = Buffer.from(imageData, 'base64');
+    const maxSize = 25 * 1024 * 1024;
+    if (buf.length > maxSize) { res.status(400).json({ error: "Image exceeds 25MB limit" }); return; }
     const fileName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const bucket = admin.storage().bucket();
     const file = bucket.file(`uploads/${fileName}`);
@@ -73,11 +77,14 @@ app.get('/images/user/:userId', async (req: Request, res: Response): Promise<voi
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/uploads/request-url', async (req: Request, res: Response): Promise<void> => {
+app.post('/uploads/request-url', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, contentType } = req.body;
     if (!name || !contentType) { res.status(400).json({ error: "Missing name or contentType" }); return; }
-    const path = `uploads/${Date.now()}-${name}`;
+    const allowedUploadTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml', 'video/mp4', 'video/webm'];
+    if (!allowedUploadTypes.includes(contentType)) { res.status(400).json({ error: `Invalid content type: ${contentType}` }); return; }
+    const sanitizedName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const path = `uploads/${Date.now()}-${sanitizedName}`;
     const bucket = admin.storage().bucket();
     const file = bucket.file(path);
     const [uploadUrl] = await file.getSignedUrl({ action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType });

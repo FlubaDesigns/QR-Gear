@@ -26,6 +26,11 @@ function registerMembersLibraryRoutes(app) {
     app.post('/members/:memberId/packets', async (req, res) => {
         try {
             const { memberId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const { kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
             if (!memberId) {
                 res.status(400).json({ error: "memberId is required" });
@@ -47,6 +52,11 @@ function registerMembersLibraryRoutes(app) {
     app.patch('/members/:memberId/packets/:packetId', async (req, res) => {
         try {
             const { memberId, packetId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const updates = req.body;
             if (!memberId || !packetId) {
                 res.status(400).json({ error: "memberId and packetId are required" });
@@ -99,11 +109,15 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/member/packets', async (req, res) => {
+    app.post('/member/packets', middleware_1.requireAuth, async (req, res) => {
         try {
             const { memberId, kind, urlContent, background, textLayers, boundProduct, metadata, source, status } = req.body;
             if (!memberId) {
                 res.status(400).json({ error: "memberId is required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             if (!background?.url) {
@@ -119,11 +133,15 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.get('/member/packets', async (req, res) => {
+    app.get('/member/packets', middleware_1.requireAuth, async (req, res) => {
         try {
             const memberId = req.query.memberId;
             if (!memberId) {
                 res.status(400).json({ error: "memberId is required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const snapshot = await core_1.db.collection('memberPackets').where('memberId', '==', memberId).limit(100).get();
@@ -134,12 +152,16 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.delete('/member/packets/:packetId', async (req, res) => {
+    app.delete('/member/packets/:packetId', middleware_1.requireAuth, async (req, res) => {
         try {
             const { packetId } = req.params;
             const { memberId } = req.body;
             if (!packetId || !memberId) {
                 res.status(400).json({ error: "packetId and memberId are required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const doc = await core_1.db.collection('memberPackets').doc(packetId).get();
@@ -158,11 +180,15 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/member/graphics/create', async (req, res) => {
+    app.post('/member/graphics/create', middleware_1.requireAuth, async (req, res) => {
         try {
             const { memberId, packetId } = req.body;
             if (!memberId || !packetId) {
                 res.status(400).json({ error: "memberId and packetId are required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
@@ -186,11 +212,15 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/member/templates/save', async (req, res) => {
+    app.post('/member/templates/save', middleware_1.requireAuth, async (req, res) => {
         try {
             const { memberId, packetId, compositeUrl, titleText, descriptionText, kind, metadata } = req.body;
             if (!memberId || !packetId) {
                 res.status(400).json({ error: "memberId and packetId are required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -205,11 +235,15 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/member/library-links', async (req, res) => {
+    app.post('/member/library-links', middleware_1.requireAuth, async (req, res) => {
         try {
             const { memberId, packetId, channelId, templateId, compositeUrl, qrOnlyUrl, boundProduct, metadata, status } = req.body;
             if (!memberId || !packetId) {
                 res.status(400).json({ error: "memberId and packetId are required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const libraryLinkId = `lib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -222,11 +256,15 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.get('/member/library-links', async (req, res) => {
+    app.get('/member/library-links', middleware_1.requireAuth, async (req, res) => {
         try {
             const memberId = req.query.memberId;
             if (!memberId) {
                 res.status(400).json({ error: "memberId is required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const snapshot = await core_1.db.collection('memberLibraryLinks').where('memberId', '==', memberId).limit(100).get();
@@ -252,11 +290,15 @@ function registerMembersLibraryRoutes(app) {
         }
     });
     // ============ MEMBER PLAY PACKETS ============
-    app.post('/member/play-packets', async (req, res) => {
+    app.post('/member/play-packets', middleware_1.requireAuth, async (req, res) => {
         try {
             const { memberId, videoUrl, title, description, background, thumbnailUrl, metadata, storeId, channelId, source, status } = req.body;
             if (!memberId) {
                 res.status(400).json({ error: "memberId is required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const packetId = `pkt-play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -522,6 +564,11 @@ function registerMembersLibraryRoutes(app) {
     app.get('/members/:memberId/library', async (req, res) => {
         try {
             const { memberId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const assetType = req.query.assetType;
             let query = core_1.db.collection('memberLibrary').where('memberId', '==', memberId).where('isActive', '==', true);
             if (assetType)
@@ -541,6 +588,11 @@ function registerMembersLibraryRoutes(app) {
     app.post('/members/:memberId/library', async (req, res) => {
         try {
             const { memberId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const { publicUrl, storageUrl, assetType, mediaType, name, fileName } = req.body;
             if (!publicUrl) {
                 res.status(400).json({ error: 'publicUrl is required' });
@@ -570,6 +622,11 @@ function registerMembersLibraryRoutes(app) {
     app.post('/members/:memberId/library/upload', async (req, res) => {
         try {
             const { memberId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const { assetType = 'background', name, imageData, mimeType: inputMimeType, originalName: inputOriginalName, isCropped = false, originalAssetId } = req.body;
             if (!imageData) {
                 res.status(400).json({ error: "No imageData provided" });
@@ -577,7 +634,17 @@ function registerMembersLibraryRoutes(app) {
             }
             const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
             const buffer = Buffer.from(base64Data, 'base64');
+            const allowedImageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
             const mimeType = inputMimeType || 'image/png';
+            if (!allowedImageTypes.includes(mimeType)) {
+                res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: PNG, JPEG, WebP, GIF, MP4, WebM` });
+                return;
+            }
+            const maxSize = 25 * 1024 * 1024;
+            if (buffer.length > maxSize) {
+                res.status(400).json({ error: "File exceeds 25MB limit" });
+                return;
+            }
             const originalName = inputOriginalName || `upload-${Date.now()}.png`;
             const displayName = name || originalName;
             const mediaType = mimeType.startsWith('video/') ? 'video' : 'image';
@@ -606,6 +673,11 @@ function registerMembersLibraryRoutes(app) {
     app.post('/members/:memberId/library/crop', async (req, res) => {
         try {
             const { memberId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const { sourceAssetId, name, cropData, imageData } = req.body;
             if (!imageData) {
                 res.status(400).json({ error: "No imageData provided" });
@@ -613,6 +685,11 @@ function registerMembersLibraryRoutes(app) {
             }
             const base64Data = imageData.replace(/^data:[^;]+;base64,/, '');
             const buffer = Buffer.from(base64Data, 'base64');
+            const maxSize = 25 * 1024 * 1024;
+            if (buffer.length > maxSize) {
+                res.status(400).json({ error: "Cropped image exceeds 25MB limit" });
+                return;
+            }
             const mimeType = 'image/png';
             const sanitizedName = `${Date.now()}-cropped-${sourceAssetId}.png`;
             const folder = `members/${memberId}/library/cropped`;
@@ -638,6 +715,11 @@ function registerMembersLibraryRoutes(app) {
     app.post('/members/:memberId/videos/upload', async (req, res) => {
         try {
             const { memberId } = req.params;
+            const auth = await (0, middleware_1.verifyMemberAuthCF)(req, memberId);
+            if (!auth.authorized) {
+                res.status(401).json({ error: auth.error });
+                return;
+            }
             const { videoData, mimeType: inputMimeType, fileName: inputFileName } = req.body;
             if (!videoData) {
                 res.status(400).json({ error: "No videoData provided" });
@@ -678,12 +760,16 @@ function registerMembersLibraryRoutes(app) {
         }
     });
     // ============ BATCH: MEMBER PLAY-PACKET PUBLISH & SHARE-CARD ============
-    app.post('/member/play-packets/:packetId/share-card', async (req, res) => {
+    app.post('/member/play-packets/:packetId/share-card', middleware_1.requireAuth, async (req, res) => {
         try {
             const { packetId } = req.params;
             const { memberId } = req.body;
             if (!packetId || !memberId) {
                 res.status(400).json({ error: "packetId and memberId are required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
@@ -705,12 +791,16 @@ function registerMembersLibraryRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/member/play-packets/:packetId/publish', async (req, res) => {
+    app.post('/member/play-packets/:packetId/publish', middleware_1.requireAuth, async (req, res) => {
         try {
             const { packetId } = req.params;
             const { memberId, channelId, metadata } = req.body;
             if (!packetId || !memberId) {
                 res.status(400).json({ error: "packetId and memberId are required" });
+                return;
+            }
+            if (req.user.uid !== memberId) {
+                res.status(403).json({ error: "Forbidden" });
                 return;
             }
             const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();

@@ -8,8 +8,15 @@ import Stripe from 'stripe';
 
 app.post('/public/packet-checkout', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { packetId, selectedShirtSize, referrerId } = req.body;
+    const { packetId, selectedShirtSize, referrerId: rawReferrerId } = req.body;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
+
+    let referrerId = '';
+    if (rawReferrerId) {
+      const referrerDoc = await db.collection('users').doc(rawReferrerId).get();
+      if (referrerDoc.exists) { referrerId = rawReferrerId; }
+      else { console.warn(`[PacketCheckout] Invalid referrerId '${rawReferrerId}' — not a real user, ignoring`); }
+    }
 
     const packetDoc = await db.collection('memberPackets').doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }

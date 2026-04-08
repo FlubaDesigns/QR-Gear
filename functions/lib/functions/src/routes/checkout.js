@@ -10,10 +10,20 @@ const stripe_1 = __importDefault(require("stripe"));
 function register(app) {
     app.post('/public/packet-checkout', async (req, res) => {
         try {
-            const { packetId, selectedShirtSize, referrerId } = req.body;
+            const { packetId, selectedShirtSize, referrerId: rawReferrerId } = req.body;
             if (!packetId) {
                 res.status(400).json({ error: "packetId is required" });
                 return;
+            }
+            let referrerId = '';
+            if (rawReferrerId) {
+                const referrerDoc = await core_1.db.collection('users').doc(rawReferrerId).get();
+                if (referrerDoc.exists) {
+                    referrerId = rawReferrerId;
+                }
+                else {
+                    console.warn(`[PacketCheckout] Invalid referrerId '${rawReferrerId}' — not a real user, ignoring`);
+                }
             }
             const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
             if (!packetDoc.exists) {
