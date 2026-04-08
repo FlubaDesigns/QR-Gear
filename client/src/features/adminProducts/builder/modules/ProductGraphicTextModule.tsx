@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save } from "lucide-react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save, ArrowUp, ArrowDown } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -476,6 +476,99 @@ function SaveToLibraryDialog({
   );
 }
 
+type ZoneId = "top" | "bottom";
+
+function ZoneEditor({
+  state,
+  setContent,
+  openLibraryFor,
+  setSaveImageDataUrl,
+}: {
+  state: any;
+  setContent: (updates: any) => void;
+  openLibraryFor: (target: "header" | "footer" | "area") => void;
+  setSaveImageDataUrl: (url: string | null) => void;
+}) {
+  const [activeZone, setActiveZone] = useState<ZoneId>("top");
+
+  const zoneConfig: Record<ZoneId, {
+    label: string;
+    sublabel: string;
+    stateKey: "headerStyle" | "footerStyle";
+    libraryTarget: "header" | "footer";
+    icon: typeof ArrowUp;
+  }> = {
+    top: {
+      label: "Top Text",
+      sublabel: "Appears at top of graphic",
+      stateKey: "headerStyle",
+      libraryTarget: "header",
+      icon: ArrowUp,
+    },
+    bottom: {
+      label: "Bottom Text",
+      sublabel: "Appears at bottom of graphic",
+      stateKey: "footerStyle",
+      libraryTarget: "footer",
+      icon: ArrowDown,
+    },
+  };
+
+  const zone = zoneConfig[activeZone];
+  const currentStyle = (state.content?.[zone.stateKey] as TextStyleConfig) || headerDefaultStyle;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-zone-selector">
+        {(Object.keys(zoneConfig) as ZoneId[]).map((id) => {
+          const z = zoneConfig[id];
+          const Icon = z.icon;
+          const style = (state.content?.[z.stateKey] as TextStyleConfig);
+          const isActive = style?.enabled && style?.text?.trim();
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveZone(id)}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[36px] rounded-sm text-sm font-medium transition-colors ${
+                activeZone === id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`button-zone-${id}`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {z.label}
+              {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+            </button>
+          );
+        })}
+      </div>
+
+      <TextStyleEditor
+        label={zone.label}
+        sublabel={zone.sublabel}
+        maxLength={40}
+        style={currentStyle}
+        onChange={(updates) => setContent({
+          [zone.stateKey]: {
+            ...currentStyle,
+            ...updates,
+          },
+        })}
+        testIdPrefix={zone.libraryTarget}
+        showPositionControls={true}
+        previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+        onPickFromLibrary={() => openLibraryFor(zone.libraryTarget)}
+        onSaveToLibrary={() => {
+          const img = currentStyle?.imageUrl;
+          if (img?.startsWith("data:")) setSaveImageDataUrl(img);
+        }}
+      />
+    </div>
+  );
+}
+
 export function ProductGraphicTextModule() {
   const { state, setContent } = useBuilderContext();
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -586,25 +679,11 @@ export function ProductGraphicTextModule() {
           </button>
         </div>
 
-        <TextStyleEditor
-          label="Top Text"
-          sublabel="Appears at top of graphic"
-          maxLength={40}
-          style={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
-          onChange={(updates) => setContent({ 
-            headerStyle: { 
-              ...((state.content.headerStyle as TextStyleConfig) || headerDefaultStyle), 
-              ...updates 
-            } 
-          })}
-          testIdPrefix="header"
-          showPositionControls={true}
-          previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-          onPickFromLibrary={() => openLibraryFor("header")}
-          onSaveToLibrary={() => {
-            const headerImg = (state.content.headerStyle as TextStyleConfig)?.imageUrl;
-            if (headerImg?.startsWith("data:")) setSaveImageDataUrl(headerImg);
-          }}
+        <ZoneEditor
+          state={state}
+          setContent={setContent}
+          openLibraryFor={openLibraryFor}
+          setSaveImageDataUrl={setSaveImageDataUrl}
         />
 
         {showPreview && (
@@ -633,27 +712,6 @@ export function ProductGraphicTextModule() {
             </p>
           </div>
         )}
-        
-        <TextStyleEditor
-          label="Bottom Text"
-          sublabel="Appears at bottom of graphic"
-          maxLength={40}
-          style={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
-          onChange={(updates) => setContent({ 
-            footerStyle: { 
-              ...((state.content.footerStyle as TextStyleConfig) || footerDefaultStyle), 
-              ...updates 
-            } 
-          })}
-          testIdPrefix="footer"
-          showPositionControls={true}
-          previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-          onPickFromLibrary={() => openLibraryFor("footer")}
-          onSaveToLibrary={() => {
-            const footerImg = (state.content.footerStyle as TextStyleConfig)?.imageUrl;
-            if (footerImg?.startsWith("data:")) setSaveImageDataUrl(footerImg);
-          }}
-        />
 
         <div className="mt-4 pt-4 border-t">
           <div className="flex items-center justify-between gap-2 mb-3">
