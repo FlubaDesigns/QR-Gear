@@ -43,7 +43,7 @@ export const BLEED_SAFE_PX = 75;
 
 export const GRAPHIC_LAYOUT_DEFAULTS = {
   headerPct: 0.30,
-  footerPct: 0.25,
+  footerPct: 0.30,
   middlePct: 0.40,
   subBottomPct: 0.05,
 
@@ -113,8 +113,8 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
 
     headerZone = { x: SX, y: SY, width: SW, height: headerHeight };
     middleZone = { x: SX, y: SY + headerHeight, width: SW, height: middleHeight };
-    subBottomZone = { x: SX, y: SY + headerHeight + middleHeight, width: SW, height: subBottomHeight };
-    footerZone = { x: SX, y: SY + headerHeight + middleHeight + subBottomHeight, width: SW, height: footerHeight };
+    footerZone = { x: SX, y: SY + headerHeight + middleHeight, width: SW, height: footerHeight };
+    subBottomZone = { x: SX, y: SY + headerHeight + middleHeight + footerHeight, width: SW, height: subBottomHeight };
     qrRegion = middleZone;
   }
 

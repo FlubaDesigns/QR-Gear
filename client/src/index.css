@@ -478,13 +478,14 @@
   height: 100%;
 }
 
-/* Zone proportions — must match graphicLayout.ts: header 30%, middle 40%, sub-bottom 5%, footer 25% */
+/* Zone proportions — must match graphicLayout.ts: header 30%, middle 40%, footer 30% */
+/* With sub-bottom visible: sub-bottom 5% taken from footer, footer becomes 25% */
 .qr-canvas__header { flex: 0 0 30%; min-height: 0; }
-.qr-canvas__middle { flex: 0 0 45%; min-height: 0; }
-.qr-canvas--sub-visible .qr-canvas__middle { flex: 0 0 40%; }
+.qr-canvas__middle { flex: 0 0 40%; min-height: 0; }
 .qr-canvas__sub-bottom { flex: 0 0 5%; min-height: 0; display: none; }
 .qr-canvas__sub-bottom--visible { display: flex; }
-.qr-canvas__footer { flex: 0 0 25%; min-height: 0; }
+.qr-canvas__footer { flex: 0 0 30%; min-height: 0; }
+.qr-canvas--sub-visible .qr-canvas__footer { flex: 0 0 25%; }
 
 .qr-canvas__header,
 .qr-canvas__footer {
