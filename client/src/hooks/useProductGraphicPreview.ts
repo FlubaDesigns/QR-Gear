@@ -27,6 +27,7 @@ interface UseProductGraphicPreviewOptions {
   subBottomText?: string;
   subBottomColor?: string;
   subBottomFontSize?: string;
+  graphicLayoutMode?: "structured" | "freeform";
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -62,6 +63,7 @@ export function useProductGraphicPreview(
     subBottomText,
     subBottomColor,
     subBottomFontSize,
+    graphicLayoutMode = "structured",
     enabled = true,
     debounceMs = 400,
   } = options;
@@ -124,6 +126,7 @@ export function useProductGraphicPreview(
           subBottomText,
           subBottomColor,
           subBottomFontSize,
+          graphicLayoutMode,
         };
 
         const result = await renderProductGraphic(renderOpts);
@@ -189,6 +192,7 @@ export function useProductGraphicPreview(
     subBottomText,
     subBottomColor,
     subBottomFontSize,
+    graphicLayoutMode,
     enabled,
     debounceMs,
   ]);

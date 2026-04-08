@@ -27,6 +27,7 @@ export interface CompositeImageOptions {
   qrUrl: string;
   qrColor?: 'black' | 'white';
   placement?: string;
+  graphicLayoutMode?: 'structured' | 'freeform';
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -81,6 +82,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     bottomText,
     qrUrl,
     qrColor = 'black',
+    graphicLayoutMode = 'structured',
   } = options;
 
   const canvas = createCanvas(width, height);
@@ -94,12 +96,25 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const textColor = "#000000";
   const scaleFactor = width / PREVIEW_CONTAINER_WIDTH;
 
-  const headerZoneTop = 0;
-  const headerZoneHeight = height * 0.25;
-  const qrZoneTop = headerZoneHeight;
-  const qrZoneHeight = height * 0.50;
-  const footerZoneTop = qrZoneTop + qrZoneHeight;
-  const footerZoneHeight = height * 0.25;
+  let headerZoneTop: number, headerZoneHeight: number;
+  let qrZoneTop: number, qrZoneHeight: number;
+  let footerZoneTop: number, footerZoneHeight: number;
+
+  if (graphicLayoutMode === 'freeform') {
+    headerZoneTop = 0;
+    headerZoneHeight = height;
+    qrZoneTop = 0;
+    qrZoneHeight = height;
+    footerZoneTop = 0;
+    footerZoneHeight = height;
+  } else {
+    headerZoneTop = 0;
+    headerZoneHeight = height * 0.30;
+    qrZoneTop = headerZoneHeight;
+    qrZoneHeight = height * 0.40;
+    footerZoneTop = qrZoneTop + qrZoneHeight;
+    footerZoneHeight = height * 0.30;
+  }
 
   const drawImageInZone = async (
     imgUrl: string,

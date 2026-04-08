@@ -557,6 +557,35 @@ export function ProductGraphicTextModule() {
           Add styled text to the top or bottom of your product graphic (+$2 per line)
         </p>
 
+        <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-layout-mode">
+          <button
+            type="button"
+            onClick={() => setContent({ graphicLayoutMode: "structured" })}
+            className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
+              (state.content.graphicLayoutMode || "structured") === "structured"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="button-layout-structured"
+          >
+            <Maximize2 className="h-4 w-4" />
+            Structured
+          </button>
+          <button
+            type="button"
+            onClick={() => setContent({ graphicLayoutMode: "freeform" })}
+            className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
+              state.content.graphicLayoutMode === "freeform"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            data-testid="button-layout-freeform"
+          >
+            <Move className="h-4 w-4" />
+            Freeform
+          </button>
+        </div>
+
         <TextStyleEditor
           label="Top Text"
           sublabel="Appears at top of graphic"
@@ -597,6 +626,7 @@ export function ProductGraphicTextModule() {
               areaImageScale={areaSc}
               subBottomEnabled={state.content.subBottomEnabled}
               subBottomText={state.content.subBottomText}
+              graphicLayoutMode={state.content.graphicLayoutMode || "structured"}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
               This is how your product graphic will appear

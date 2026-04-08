@@ -41,6 +41,7 @@ export interface GraphicPreviewViewProps {
   subBottomText?: string;
   subBottomColor?: string;
   subBottomFontSize?: string;
+  graphicLayoutMode?: "structured" | "freeform";
 }
 
 function toTextStyle(overlay?: TextOverlay): TextStyle | null {
@@ -86,6 +87,7 @@ export function GraphicPreviewView({
   subBottomText,
   subBottomColor,
   subBottomFontSize,
+  graphicLayoutMode,
 }: GraphicPreviewViewProps) {
   const aspectClass =
     aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-square";
@@ -113,6 +115,7 @@ export function GraphicPreviewView({
     subBottomText,
     subBottomColor,
     subBottomFontSize,
+    graphicLayoutMode,
     enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl || subBottomEnabled,
     debounceMs: 300,
   });

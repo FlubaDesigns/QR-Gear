@@ -42,6 +42,7 @@ export interface RenderOptions {
   subBottomText?: string;
   subBottomColor?: string;
   subBottomFontSize?: string;
+  graphicLayoutMode?: "structured" | "freeform";
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -222,6 +223,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomText = "Scan Me",
     subBottomColor = "#666666",
     subBottomFontSize = "14px",
+    graphicLayoutMode = "structured",
   } = options;
 
   const dims = PLACEMENT_DIMENSIONS[placement || ""] || {
@@ -255,6 +257,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     qrPositionX,
     qrPositionY,
     qrSizePercent,
+    layoutMode: graphicLayoutMode,
   });
 
   const canvas = document.createElement("canvas");

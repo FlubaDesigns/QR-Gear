@@ -87,10 +87,12 @@ async function cfGenerateCompositeImage(options: {
   width?: number; height?: number; backgroundColor?: string; qrSize?: number;
   topText?: TextStyleCF | null; bottomText?: TextStyleCF | null;
   qrUrl: string; qrColor?: 'black' | 'white'; placement?: string;
+  graphicLayoutMode?: 'structured' | 'freeform';
 }): Promise<string> {
   const {
     width = 1200, height = 1800, backgroundColor = "#FFFFFF",
     qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black',
+    graphicLayoutMode = 'structured',
   } = options;
 
   const { createCanvas: cc, loadImage: li } = getCanvas();
@@ -104,12 +106,26 @@ async function cfGenerateCompositeImage(options: {
 
   const textColor = "#000000";
   const scaleFactor = width / CF_PREVIEW_CONTAINER_WIDTH;
-  const headerZoneTop = 0;
-  const headerZoneHeight = height * 0.25;
-  const qrZoneTop = headerZoneHeight;
-  const qrZoneHeight = height * 0.50;
-  const footerZoneTop = qrZoneTop + qrZoneHeight;
-  const footerZoneHeight = height * 0.25;
+
+  let headerZoneTop: number, headerZoneHeight: number;
+  let qrZoneTop: number, qrZoneHeight: number;
+  let footerZoneTop: number, footerZoneHeight: number;
+
+  if (graphicLayoutMode === 'freeform') {
+    headerZoneTop = 0;
+    headerZoneHeight = height;
+    qrZoneTop = 0;
+    qrZoneHeight = height;
+    footerZoneTop = 0;
+    footerZoneHeight = height;
+  } else {
+    headerZoneTop = 0;
+    headerZoneHeight = height * 0.30;
+    qrZoneTop = headerZoneHeight;
+    qrZoneHeight = height * 0.40;
+    footerZoneTop = qrZoneTop + qrZoneHeight;
+    footerZoneHeight = height * 0.30;
+  }
 
   const cfDrawImageInZone = async (
     imgUrl: string,
@@ -271,7 +287,8 @@ const CF_PREVIEW_QR_SIZE = 36;
 async function cfGeneratePrintifyComposite(
   qrUrl: string, topText: TextStyleCF | null, bottomText: TextStyleCF | null,
   printWidth: number = 1200, printHeight: number = 1800,
-  qrColor: 'black' | 'white' = 'black', placement?: string
+  qrColor: 'black' | 'white' = 'black', placement?: string,
+  graphicLayoutMode?: 'structured' | 'freeform'
 ): Promise<string> {
   let finalWidth = printWidth;
   let finalHeight = printHeight;
@@ -283,7 +300,7 @@ async function cfGeneratePrintifyComposite(
   const qrSize = CF_PREVIEW_QR_SIZE * scaleFactor;
   return cfGenerateCompositeImage({
     width: finalWidth, height: finalHeight, backgroundColor: "transparent",
-    qrSize, topText, bottomText, qrUrl, qrColor, placement,
+    qrSize, topText, bottomText, qrUrl, qrColor, placement, graphicLayoutMode,
   });
 }
 

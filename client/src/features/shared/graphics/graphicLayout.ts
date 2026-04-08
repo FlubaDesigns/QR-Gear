@@ -1,3 +1,5 @@
+export type GraphicLayoutMode = "structured" | "freeform";
+
 export interface GraphicLayoutInput {
   canvasWidth: number;
   canvasHeight: number;
@@ -7,6 +9,7 @@ export interface GraphicLayoutInput {
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
+  layoutMode?: GraphicLayoutMode;
 }
 
 export interface Rect {
@@ -36,8 +39,9 @@ export interface GraphicLayoutResult {
 }
 
 export const GRAPHIC_LAYOUT_DEFAULTS = {
-  headerPct: 0.25,
-  footerPct: 0.25,
+  headerPct: 0.30,
+  footerPct: 0.30,
+  middlePct: 0.40,
   subBottomPct: 0.05,
 
   qrBgPaddingPct: 0.07,
@@ -68,32 +72,48 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
     qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
     qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
+    layoutMode = "structured",
   } = input;
 
   const cfg = GRAPHIC_LAYOUT_DEFAULTS;
 
-  const headerHeight = headerActive ? H * cfg.headerPct : 0;
-  const footerHeight = footerActive ? H * cfg.footerPct : 0;
-  const subBottomHeight = subBottomActive ? H * cfg.subBottomPct : 0;
-  const middleHeight = Math.max(1, H - headerHeight - footerHeight - subBottomHeight);
+  let headerZone: Rect;
+  let middleZone: Rect;
+  let subBottomZone: Rect;
+  let footerZone: Rect;
+  let qrRegion: { width: number; height: number; x: number; y: number };
 
-  const headerZone: Rect = { x: 0, y: 0, width: W, height: headerHeight };
-  const middleZone: Rect = { x: 0, y: headerHeight, width: W, height: middleHeight };
-  const subBottomZone: Rect = { x: 0, y: headerHeight + middleHeight, width: W, height: subBottomHeight };
-  const footerZone: Rect = { x: 0, y: headerHeight + middleHeight + subBottomHeight, width: W, height: footerHeight };
+  if (layoutMode === "freeform") {
+    headerZone = { x: 0, y: 0, width: W, height: H };
+    middleZone = { x: 0, y: 0, width: W, height: H };
+    subBottomZone = { x: 0, y: 0, width: W, height: 0 };
+    footerZone = { x: 0, y: 0, width: W, height: H };
+    qrRegion = { x: 0, y: 0, width: W, height: H };
+  } else {
+    const subBottomHeight = subBottomActive ? H * cfg.subBottomPct : 0;
+    const headerHeight = headerActive ? H * cfg.headerPct : 0;
+    const footerHeight = footerActive ? Math.max(0, H * cfg.footerPct - subBottomHeight) : 0;
+    const middleHeight = Math.max(1, H - headerHeight - footerHeight - subBottomHeight);
 
-  const qrMaxDim = Math.min(middleZone.width, middleZone.height) * 0.85;
+    headerZone = { x: 0, y: 0, width: W, height: headerHeight };
+    middleZone = { x: 0, y: headerHeight, width: W, height: middleHeight };
+    subBottomZone = { x: 0, y: headerHeight + middleHeight, width: W, height: subBottomHeight };
+    footerZone = { x: 0, y: headerHeight + middleHeight + subBottomHeight, width: W, height: footerHeight };
+    qrRegion = middleZone;
+  }
+
+  const qrMaxDim = Math.min(qrRegion.width, qrRegion.height) * 0.85;
   const qrSize = clamp(qrMaxDim * (qrSizePercent / 100), 180, qrMaxDim);
 
   const clampedX = clamp(qrPositionX, 0, 100);
   const clampedY = clamp(qrPositionY, 0, 100);
 
-  const availX = Math.max(0, middleZone.width - qrSize);
-  const availY = Math.max(0, middleZone.height - qrSize);
+  const availX = Math.max(0, qrRegion.width - qrSize);
+  const availY = Math.max(0, qrRegion.height - qrSize);
 
   const qrSquare: Rect = {
-    x: (clampedX / 100) * availX,
-    y: middleZone.y + (clampedY / 100) * availY,
+    x: qrRegion.x + (clampedX / 100) * availX,
+    y: qrRegion.y + (clampedY / 100) * availY,
     width: qrSize,
     height: qrSize,
   };
