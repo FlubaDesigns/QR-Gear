@@ -35,7 +35,7 @@ export function OwnerWizard() {
     currentPlacementIndex, placementGraphicChoice,
     qrBasicInputType, qrBasicContent, qrBasicMockup,
     qrPositionX, qrPositionY, qrSizePercent,
-    areaImageUrl, areaImageMode,
+    areaImageUrl, areaImageMode, graphicLayoutMode,
     qrPlusMockup, isGeneratingBasicMockup, isGeneratingPlusMockup,
     wantsHeaderFooter, perPlacementSizes,
     showMemberPitch, setShowMemberPitch,
@@ -260,6 +260,7 @@ export function OwnerWizard() {
               qrSizePercent={qrSizePercent}
               areaImageUrl={areaImageUrl}
               areaImageMode={areaImageMode}
+              graphicLayoutMode={graphicLayoutMode}
               isGeneratingBasicMockup={isGeneratingBasicMockup}
               isGeneratingPlusMockup={isGeneratingPlusMockup}
               isGeneratingRealMockup={isGeneratingRealMockup}
@@ -294,6 +295,7 @@ export function OwnerWizard() {
               setQrSizePercent={state.setQrSizePercent}
               setAreaImageUrl={state.setAreaImageUrl}
               setAreaImageMode={state.setAreaImageMode}
+              setGraphicLayoutMode={state.setGraphicLayoutMode}
               setRunningCost={state.setRunningCost}
               setCostPulse={state.setCostPulse}
               setSimpleStep={setSimpleStep}

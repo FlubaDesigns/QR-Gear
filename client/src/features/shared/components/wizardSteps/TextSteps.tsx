@@ -11,6 +11,8 @@ import {
   ImageIcon,
   Upload,
   X,
+  Layers,
+  Maximize,
 } from "lucide-react";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
@@ -198,6 +200,73 @@ export function TextAskStep({
           <ChevronRight className="w-5 h-5 mr-2" />
           No, Skip
         </Button>
+      </div>
+    </div>
+  );
+}
+
+export function LayoutModeChoiceStep({
+  selected,
+  onSelect,
+}: {
+  selected: "zone" | "freeform";
+  onSelect: (mode: "zone" | "freeform") => void;
+}) {
+  const modes = [
+    {
+      id: "zone" as const,
+      label: "Zone",
+      description: "Content is organized in separate top, middle, and bottom bands. Best for clean, structured designs.",
+      icon: Layers,
+    },
+    {
+      id: "freeform" as const,
+      label: "Freeform",
+      description: "All content shares the full canvas. Best for creative, overlapping designs.",
+      icon: Maximize,
+    },
+  ];
+
+  return (
+    <div className="text-center space-y-3">
+      <div>
+        <h2 className="text-base font-bold text-white mb-0.5" data-testid="text-layout-mode-title">Choose Your Layout</h2>
+        <p className="text-slate-400 text-xs max-w-xs mx-auto">
+          Pick how your graphic content is arranged
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto w-full">
+        {modes.map((mode) => {
+          const Icon = mode.icon;
+          return (
+            <button
+              key={mode.id}
+              onClick={() => onSelect(mode.id)}
+              className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                selected === mode.id
+                  ? "border-orange-500 bg-orange-500/20 shadow-lg shadow-orange-500/20"
+                  : "border-slate-600 bg-slate-800/50 hover:border-slate-500"
+              }`}
+              data-testid={`button-layout-mode-${mode.id}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${
+                  selected === mode.id ? "bg-orange-500/30" : "bg-slate-700"
+                }`}>
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white text-sm">{mode.label}</span>
+                    {selected === mode.id && <Check className="h-4 w-4 text-orange-400" />}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">{mode.description}</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

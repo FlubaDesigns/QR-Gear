@@ -1,7 +1,7 @@
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
-import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
+import { LayoutModeChoiceStep, TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { TypePickerStep, GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
 import { QRBasicTypeStep, QRBasicInputStep, QRBasicMockupStep, QRBasicSaveChoiceStep, QRBasicConfirmStep } from "@/features/shared/components/wizardSteps/QRBasicSteps";
 import { QRPlusMockupStep, QRPlusSaveChoiceStep, QRPlusConfirmStep } from "@/features/shared/components/wizardSteps/QRPlusSteps";
@@ -58,6 +58,7 @@ export function SimpleWizardProductSteps() {
     qrSizePercent, setQrSizePercent,
     areaImageUrl, setAreaImageUrl,
     areaImageMode, setAreaImageMode,
+    graphicLayoutMode, setGraphicLayoutMode,
     publishedPacketId,
     qrCanvasMockup, qrPlayMockup, composeMockup,
     simpleTitle, setSimpleTitle,
@@ -204,7 +205,7 @@ export function SimpleWizardProductSteps() {
             onYes={() => {
               setWantsHeaderFooter(true);
               setQrType('qr-plus');
-              setSimpleStep('text-choice');
+              setSimpleStep('layout-mode');
             }}
             onNo={() => {
               setWantsHeaderFooter(false);
@@ -215,6 +216,24 @@ export function SimpleWizardProductSteps() {
               }
             }}
           />
+        </div>
+      )}
+
+      {simpleStep === 'layout-mode' && (
+        <div className="space-y-2">
+          <LayoutModeChoiceStep
+            selected={graphicLayoutMode}
+            onSelect={(mode) => setGraphicLayoutMode(mode)}
+          />
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setSimpleStep('text-choice')}
+              className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+              data-testid="button-layout-mode-next"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
       
@@ -388,6 +407,7 @@ export function SimpleWizardProductSteps() {
           headerStyle={headerStyle}
           onHeaderChange={setHeaderStyle}
           earningsPerLine={textLineEarningsBonus}
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
 
@@ -400,6 +420,7 @@ export function SimpleWizardProductSteps() {
           onFooterChange={setFooterStyle}
           headerStyle={headerStyle}
           earningsPerLine={textLineEarningsBonus}
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
       
@@ -434,7 +455,7 @@ export function SimpleWizardProductSteps() {
           qrPositionY={qrPositionY}
           qrSizePercent={qrSizePercent}
           areaImageUrl={areaImageUrl}
-          areaImageMode={areaImageMode}
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
     </>

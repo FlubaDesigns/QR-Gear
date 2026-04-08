@@ -6,7 +6,7 @@ import { auth } from "@/lib/firebase";
 
 export type WizardStep = 'channel' | 'product' | 'placement' | 'header-footer' | 'background' | 'landing-page' | 'preview' | 'publish';
 
-export type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'compose-explainer' | 'platform-acknowledge' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-title' | 'url-description' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice' | 'compose-pick-items' | 'compose-mode' | 'compose-durations' | 'compose-order' | 'compose-hosting' | 'compose-mockup' | 'compose-preview' | 'compose-publish' | 'compose-confirm';
+export type SimpleWizardStep = 'channel' | 'product' | 'product-congrats' | 'color' | 'size' | 'type' | 'placement-count' | 'graphic-size' | 'generate' | 'layout-mode' | 'text-choice' | 'text-edit-header' | 'text-edit-footer' | 'placement-config' | 'shirt-preview' | 'canvas-fork' | 'compose-explainer' | 'platform-acknowledge' | 'url-explainer' | 'url-source-choice' | 'url-library-pick' | 'url-details' | 'url-title' | 'url-description' | 'url-preview' | 'canvas-mockup' | 'url-publish' | 'canvas-save-choice' | 'canvas-confirm' | 'qr-basic-type' | 'qr-basic-input' | 'qr-basic-mockup' | 'qr-basic-save-choice' | 'qr-basic-confirm' | 'qr-plus-mockup' | 'qr-plus-save-choice' | 'qr-plus-confirm' | 'play-video-source' | 'play-preview' | 'play-mockup' | 'play-publish' | 'play-save-choice' | 'compose-pick-items' | 'compose-mode' | 'compose-durations' | 'compose-order' | 'compose-hosting' | 'compose-mockup' | 'compose-preview' | 'compose-publish' | 'compose-confirm';
 
 export type QRBasicSaveOption = 'item' | 'graphic' | 'both' | '';
 export type QRPlusSaveOption = 'item' | 'graphic' | 'both' | '';
@@ -261,6 +261,7 @@ export const SIMPLE_WIZARD_STEPS: { id: SimpleWizardStep; label: string; icon: a
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text/Image?', icon: Wand2 },
+  { id: 'layout-mode', label: 'Layout Mode', icon: Layers },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header Text/Image', icon: Type },
   { id: 'text-edit-footer', label: 'Footer Text/Image', icon: Type },
@@ -304,6 +305,7 @@ export const QR_PLUS_STEPS: { id: SimpleWizardStep; label: string; icon: any }[]
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text/Image?', icon: Wand2 },
+  { id: 'layout-mode', label: 'Layout Mode', icon: Layers },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header Text/Image', icon: Type },
   { id: 'text-edit-footer', label: 'Footer Text/Image', icon: Type },
@@ -325,6 +327,7 @@ export const QR_PLAY_STEPS: { id: SimpleWizardStep; label: string; icon: any }[]
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text/Image?', icon: Wand2 },
+  { id: 'layout-mode', label: 'Layout Mode', icon: Layers },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header Text/Image', icon: Type },
   { id: 'text-edit-footer', label: 'Footer Text/Image', icon: Type },
@@ -348,6 +351,7 @@ export const QR_COMPOSE_STEPS: { id: SimpleWizardStep; label: string; icon: any 
   { id: 'placement-count', label: 'Placements', icon: Layers },
   { id: 'graphic-size', label: 'Graphic Size', icon: ImagePlus },
   { id: 'generate', label: 'Text/Image?', icon: Wand2 },
+  { id: 'layout-mode', label: 'Layout Mode', icon: Layers },
   { id: 'text-choice', label: 'Layout', icon: Type },
   { id: 'text-edit-header', label: 'Header Text/Image', icon: Type },
   { id: 'text-edit-footer', label: 'Footer Text/Image', icon: Type },

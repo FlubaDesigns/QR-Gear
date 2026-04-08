@@ -87,12 +87,12 @@ async function cfGenerateCompositeImage(options: {
   width?: number; height?: number; backgroundColor?: string; qrSize?: number;
   topText?: TextStyleCF | null; bottomText?: TextStyleCF | null;
   qrUrl: string; qrColor?: 'black' | 'white'; placement?: string;
-  graphicLayoutMode?: 'structured' | 'freeform';
+  graphicLayoutMode?: 'zone' | 'freeform';
 }): Promise<string> {
   const {
     width = 1200, height = 1800, backgroundColor = "#FFFFFF",
     qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black',
-    graphicLayoutMode = 'structured',
+    graphicLayoutMode = 'zone',
   } = options;
 
   const { createCanvas: cc, loadImage: li } = getCanvas();
@@ -287,7 +287,7 @@ async function cfGeneratePrintifyComposite(
   qrUrl: string, topText: TextStyleCF | null, bottomText: TextStyleCF | null,
   printWidth: number = 1200, printHeight: number = 1800,
   qrColor: 'black' | 'white' = 'black', placement?: string,
-  graphicLayoutMode?: 'structured' | 'freeform'
+  graphicLayoutMode?: 'zone' | 'freeform'
 ): Promise<string> {
   let finalWidth = printWidth;
   let finalHeight = printHeight;

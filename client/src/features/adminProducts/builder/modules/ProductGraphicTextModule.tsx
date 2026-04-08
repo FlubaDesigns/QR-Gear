@@ -651,16 +651,16 @@ export function ProductGraphicTextModule() {
         <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-layout-mode">
           <button
             type="button"
-            onClick={() => setContent({ graphicLayoutMode: "structured" })}
+            onClick={() => setContent({ graphicLayoutMode: "zone" })}
             className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
-              (state.content.graphicLayoutMode || "structured") === "structured"
+              (state.content.graphicLayoutMode || "zone") === "zone"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
-            data-testid="button-layout-structured"
+            data-testid="button-layout-zone"
           >
             <Maximize2 className="h-4 w-4" />
-            Structured
+            Zone
           </button>
           <button
             type="button"
@@ -703,7 +703,7 @@ export function ProductGraphicTextModule() {
               areaImageScale={areaSc}
               subBottomEnabled={state.content.subBottomEnabled}
               subBottomText={state.content.subBottomText}
-              graphicLayoutMode={state.content.graphicLayoutMode || "structured"}
+              graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
               This is how your product graphic will appear
@@ -837,26 +837,24 @@ export function ProductGraphicTextModule() {
                 {qrSafety.summary}
               </p>
 
-              {qrSafety.status !== "replace" && (
-                <div className="space-y-1" data-testid="bar-admin-qr-safety-score">
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>Readability Score</span>
-                    <span>{qrSafety.score}/100</span>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
-                    <div
-                      className={`h-full transition-all ${
-                        qrSafety.status === "safe"
-                          ? "bg-emerald-500"
-                          : qrSafety.status === "caution"
-                            ? "bg-amber-400"
-                            : "bg-red-500"
-                      }`}
-                      style={{ width: `${qrSafety.score}%` }}
-                    />
-                  </div>
+              <div className="space-y-1" data-testid="bar-admin-qr-safety-score">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Readability Score</span>
+                  <span>{qrSafety.score}/100</span>
                 </div>
-              )}
+                <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
+                  <div
+                    className={`h-full transition-all ${
+                      qrSafety.status === "safe"
+                        ? "bg-emerald-500"
+                        : qrSafety.status === "caution"
+                          ? "bg-amber-400"
+                          : "bg-red-500"
+                    }`}
+                    style={{ width: `${qrSafety.score}%` }}
+                  />
+                </div>
+              </div>
 
               {!!qrSafety.tips.length && (
                 <ul

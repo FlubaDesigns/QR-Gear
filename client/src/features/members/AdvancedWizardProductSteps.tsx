@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
-import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
+import { LayoutModeChoiceStep, TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { TypePickerStep, GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
 import { QRBasicTypeStep, QRBasicInputStep, QRBasicMockupStep, QRBasicSaveChoiceStep, QRBasicConfirmStep } from "@/features/shared/components/wizardSteps/QRBasicSteps";
 import { QRPlusMockupStep, QRPlusSaveChoiceStep, QRPlusConfirmStep } from "@/features/shared/components/wizardSteps/QRPlusSteps";
@@ -64,6 +64,7 @@ export function AdvancedWizardProductSteps() {
     qrSizePercent, setQrSizePercent,
     areaImageUrl, setAreaImageUrl,
     areaImageMode, setAreaImageMode,
+    graphicLayoutMode, setGraphicLayoutMode,
     publishedPacketId,
     qrCanvasMockup, qrPlayMockup, composeMockup,
     simpleTitle, setSimpleTitle,
@@ -230,7 +231,7 @@ export function AdvancedWizardProductSteps() {
             onYes={() => {
               setWantsHeaderFooter(true);
               setQrType('qr-plus');
-              setSimpleStep('text-choice');
+              setSimpleStep('layout-mode');
             }}
             onNo={() => {
               setWantsHeaderFooter(false);
@@ -241,6 +242,24 @@ export function AdvancedWizardProductSteps() {
               }
             }}
           />
+        </div>
+      )}
+
+      {simpleStep === 'layout-mode' && (
+        <div className="space-y-2">
+          <LayoutModeChoiceStep
+            selected={graphicLayoutMode}
+            onSelect={(mode) => setGraphicLayoutMode(mode)}
+          />
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setSimpleStep('text-choice')}
+              className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+              data-testid="button-layout-mode-next"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
       
@@ -415,6 +434,7 @@ export function AdvancedWizardProductSteps() {
             headerStyle={headerStyle}
             onHeaderChange={setHeaderStyle}
             earningsPerLine={textLineEarningsBonus}
+            graphicLayoutMode={graphicLayoutMode}
           />
           {(capabilities.allowFontSlider || capabilities.allowOffsets) && (
           <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-text-controls-header">
@@ -473,6 +493,7 @@ export function AdvancedWizardProductSteps() {
             onFooterChange={setFooterStyle}
             headerStyle={headerStyle}
             earningsPerLine={textLineEarningsBonus}
+            graphicLayoutMode={graphicLayoutMode}
           />
           {(capabilities.allowFontSlider || capabilities.allowOffsets) && (
           <div className="border border-blue-500/20 bg-blue-500/5 rounded-md p-3" data-testid="panel-advanced-text-controls-footer">
@@ -605,7 +626,7 @@ export function AdvancedWizardProductSteps() {
           qrPositionY={qrPositionY}
           qrSizePercent={qrSizePercent}
           areaImageUrl={areaImageUrl}
-          areaImageMode={areaImageMode}
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
     </>

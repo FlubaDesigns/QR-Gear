@@ -27,7 +27,7 @@ export interface CompositeImageOptions {
   qrUrl: string;
   qrColor?: 'black' | 'white';
   placement?: string;
-  graphicLayoutMode?: 'structured' | 'freeform';
+  graphicLayoutMode?: 'zone' | 'freeform';
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -82,7 +82,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     bottomText,
     qrUrl,
     qrColor = 'black',
-    graphicLayoutMode = 'structured',
+    graphicLayoutMode = 'zone',
   } = options;
 
   const canvas = createCanvas(width, height);

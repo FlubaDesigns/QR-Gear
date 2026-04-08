@@ -64,7 +64,7 @@ const initialContent: ContentData = {
   areaImageScale: 100,
   subBottomEnabled: false,
   subBottomText: '',
-  graphicLayoutMode: "structured" as "structured" | "freeform",
+  graphicLayoutMode: "zone" as "zone" | "freeform",
   // Compose-specific fields
   composeItems: [],
   composeMode: '',

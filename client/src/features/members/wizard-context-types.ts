@@ -102,6 +102,8 @@ export interface WizardContextType {
   setAreaImageUrl: React.Dispatch<React.SetStateAction<string>>;
   areaImageMode: "behind-qr";
   setAreaImageMode: React.Dispatch<React.SetStateAction<"behind-qr">>;
+  graphicLayoutMode: "zone" | "freeform";
+  setGraphicLayoutMode: React.Dispatch<React.SetStateAction<"zone" | "freeform">>;
   qrDestination: string;
   setQrDestination: React.Dispatch<React.SetStateAction<string>>;
   channelName: string;

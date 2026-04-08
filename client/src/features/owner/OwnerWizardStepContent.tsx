@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ShoppingCart, DollarSign, Crown, Sparkles, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2 } from "lucide-react";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
-import { TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
+import { LayoutModeChoiceStep, TextLayoutChoiceStep, HeaderTextEditStep, FooterTextEditStep } from "@/features/shared/components/wizardSteps/TextSteps";
 import { GenerateGraphicStep } from "@/features/shared/components/wizardSteps/TypeAndSurfaceSteps";
 import { QRBasicTypeStep, QRBasicInputStep, QRBasicMockupStep } from "@/features/shared/components/wizardSteps/QRBasicSteps";
 import { QRPlusMockupStep } from "@/features/shared/components/wizardSteps/QRPlusSteps";
@@ -37,6 +37,7 @@ interface OwnerWizardStepContentProps {
   qrSizePercent: number;
   areaImageUrl: string;
   areaImageMode: "behind-qr";
+  graphicLayoutMode: "zone" | "freeform";
   isGeneratingBasicMockup: boolean;
   isGeneratingPlusMockup: boolean;
   isGeneratingRealMockup: boolean;
@@ -72,6 +73,7 @@ interface OwnerWizardStepContentProps {
   setQrSizePercent: (s: number) => void;
   setAreaImageUrl: (u: string) => void;
   setAreaImageMode: (m: "behind-qr") => void;
+  setGraphicLayoutMode: (m: "zone" | "freeform") => void;
   setRunningCost: (fn: (prev: number) => number) => void;
   setCostPulse: (v: boolean) => void;
   setSimpleStep: (s: SimpleWizardStep) => void;
@@ -87,7 +89,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
     textLayoutChoice, headerStyle, footerStyle, currentPlacement,
     currentPlacementIndex, placementGraphicChoice, qrBasicInputType,
     qrBasicContent, qrBasicMockup, qrPlusMockup, qrPositionX, qrPositionY,
-    qrSizePercent, areaImageUrl, areaImageMode, isGeneratingBasicMockup,
+    qrSizePercent, areaImageUrl, areaImageMode, graphicLayoutMode, isGeneratingBasicMockup,
     isGeneratingPlusMockup, isGeneratingRealMockup, realMockupUrl,
     lifestyleMockupUrl, tempPacketId, runningCost, wantsHeaderFooter,
     pricingSettings, placementCostExtra, textLineCost, sizeCostBonuses,
@@ -96,7 +98,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
     setGraphicSize, setWantsHeaderFooter, setHeaderStyle, setFooterStyle,
     setTextLayoutChoice, setPlacementGraphicChoice, setQrBasicInputType,
     setQrBasicContent, setQrPositionX, setQrPositionY, setQrSizePercent,
-    setAreaImageUrl, setAreaImageMode, setRunningCost, setCostPulse,
+    setAreaImageUrl, setAreaImageMode, setGraphicLayoutMode, setRunningCost, setCostPulse,
     setSimpleStep, handleProductSelect, navigate,
   } = props;
 
@@ -366,7 +368,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
               if (!preSelectedType || preSelectedType === 'qr-basic' || preSelectedType === 'qr-plus') {
                 setQrType('qr-plus');
               }
-              setSimpleStep('text-choice');
+              setSimpleStep('layout-mode');
             }}
             onNo={() => {
               setWantsHeaderFooter(false);
@@ -380,6 +382,24 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
               }
             }}
           />
+        </div>
+      )}
+
+      {simpleStep === 'layout-mode' && (
+        <div className="space-y-2">
+          <LayoutModeChoiceStep
+            selected={graphicLayoutMode}
+            onSelect={(mode) => setGraphicLayoutMode(mode)}
+          />
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setSimpleStep('text-choice')}
+              className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors"
+              data-testid="button-layout-mode-next"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 
@@ -411,6 +431,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
           onHeaderChange={setHeaderStyle}
           earningsPerLine={textLineCost}
           context="owner"
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
 
@@ -424,6 +445,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
           headerStyle={headerStyle}
           earningsPerLine={textLineCost}
           context="owner"
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
 
@@ -458,7 +480,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
           qrPositionY={qrPositionY}
           qrSizePercent={qrSizePercent}
           areaImageUrl={areaImageUrl}
-          areaImageMode={areaImageMode}
+          graphicLayoutMode={graphicLayoutMode}
         />
       )}
 

@@ -25,6 +25,7 @@ export function HeaderTextEditStep({
   onHeaderChange,
   earningsPerLine,
   context = 'member',
+  graphicLayoutMode,
 }: {
   selectedColor: string;
   graphicSize: GraphicSize;
@@ -33,6 +34,7 @@ export function HeaderTextEditStep({
   onHeaderChange: (style: TextStyleConfig) => void;
   earningsPerLine: number;
   context?: 'member' | 'owner';
+  graphicLayoutMode?: "zone" | "freeform";
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +86,7 @@ export function HeaderTextEditStep({
           backgroundColor={colorHex}
           showQRCode={true}
           aspectRatio="portrait"
+          graphicLayoutMode={graphicLayoutMode}
         />
       </div>
 
@@ -295,6 +298,7 @@ export function FooterTextEditStep({
   headerStyle,
   earningsPerLine,
   context = 'member',
+  graphicLayoutMode,
 }: {
   selectedColor: string;
   graphicSize: GraphicSize;
@@ -304,6 +308,7 @@ export function FooterTextEditStep({
   headerStyle: TextStyleConfig;
   earningsPerLine: number;
   context?: 'member' | 'owner';
+  graphicLayoutMode?: "zone" | "freeform";
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -357,6 +362,7 @@ export function FooterTextEditStep({
           backgroundColor={colorHex}
           showQRCode={true}
           aspectRatio="portrait"
+          graphicLayoutMode={graphicLayoutMode}
         />
       </div>
 

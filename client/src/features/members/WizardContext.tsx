@@ -160,6 +160,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [qrSizePercent, setQrSizePercent] = useState<number>(75);
   const [areaImageUrl, setAreaImageUrl] = useState<string>('');
   const [areaImageMode, setAreaImageMode] = useState<"behind-qr">("behind-qr");
+  const [graphicLayoutMode, setGraphicLayoutMode] = useState<"zone" | "freeform">("zone");
   const [qrDestination, setQrDestination] = useState<string>('');
   const [channelName, setChannelName] = useState<string>('My Products');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -252,7 +253,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     playVideoUrl, qrBasicInputType, qrBasicContent, qrBasicMockup, qrBasicSaveChoice,
     qrPlusMockup, qrPlusSaveChoice, qrCanvasMockup, qrPlayMockup, composeMockup, composeItems,
     composeMode, composeHostingTerm, qrPositionX, qrPositionY, qrSizePercent, areaImageUrl,
-    areaImageMode, runningEarnings, currentPacketId, simpleTitle, simpleDescription, pendingVideoFile,
+    areaImageMode, graphicLayoutMode, runningEarnings, currentPacketId, simpleTitle, simpleDescription, pendingVideoFile,
     canvasSaveChoice, publishedProductGraphicUrl, publishedQrGraphicUrl, playSaveChoice,
     selectedProduct, landingPage, currentPlacement, currentPlacementIndex, wantsHeaderFooter,
     placementGraphicChoice, placementSize, isPublishing, simpleStep,
@@ -477,7 +478,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     selectedProduct, setSelectedProduct, placementConfigs, setPlacementConfigs,
     qrType, setQrType, qrPositionX, setQrPositionX, qrPositionY, setQrPositionY,
     qrSizePercent, setQrSizePercent, areaImageUrl, setAreaImageUrl,
-    areaImageMode, setAreaImageMode, qrDestination, setQrDestination,
+    areaImageMode, setAreaImageMode, graphicLayoutMode, setGraphicLayoutMode, qrDestination, setQrDestination,
     channelName, setChannelName, isPublishing, setIsPublishing,
     headerStyle, setHeaderStyle, footerStyle, setFooterStyle,
     productGraphic, setProductGraphic, originalUrlGraphic, setOriginalUrlGraphic,

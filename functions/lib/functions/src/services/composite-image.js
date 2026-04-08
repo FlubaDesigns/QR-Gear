@@ -84,7 +84,7 @@ function cfWrapText(ctx, text, maxWidth) {
     return lines;
 }
 async function cfGenerateCompositeImage(options) {
-    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'structured', } = options;
+    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'zone', } = options;
     const { createCanvas: cc, loadImage: li } = getCanvas();
     const canvas = cc(width, height);
     const ctx = canvas.getContext("2d");

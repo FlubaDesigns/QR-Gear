@@ -402,7 +402,7 @@ export function SimpleWizardStepContent({
           headerStyle={headerStyle} footerStyle={footerStyle} textLayoutChoice={textLayoutChoice}
           selectedPlacements={selectedPlacements} qrPositionX={qrPositionX}
           qrPositionY={qrPositionY} qrSizePercent={qrSizePercent}
-          areaImageUrl={areaImageUrl} areaImageMode={areaImageMode}
+          areaImageUrl={areaImageUrl}
           perPlacementConfigs={perPlacementConfigs}
         />
       )}

@@ -36,6 +36,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [qrSizePercent, setQrSizePercent] = useState(75);
   const [areaImageUrl, setAreaImageUrl] = useState('');
   const [areaImageMode, setAreaImageMode] = useState<"behind-qr">("behind-qr");
+  const [graphicLayoutMode, setGraphicLayoutMode] = useState<"zone" | "freeform">("zone");
 
   const [qrPlusMockup, setQrPlusMockup] = useState('');
   const [isGeneratingPlusMockup, setIsGeneratingPlusMockup] = useState(false);
@@ -248,6 +249,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     qrSizePercent, setQrSizePercent,
     areaImageUrl, setAreaImageUrl,
     areaImageMode, setAreaImageMode,
+    graphicLayoutMode, setGraphicLayoutMode,
     qrPlusMockup, setQrPlusMockup,
     isGeneratingPlusMockup, setIsGeneratingPlusMockup,
     showMemberPitch, setShowMemberPitch,

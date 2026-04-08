@@ -41,7 +41,7 @@ export interface GraphicPreviewViewProps {
   subBottomText?: string;
   subBottomColor?: string;
   subBottomFontSize?: string;
-  graphicLayoutMode?: "structured" | "freeform";
+  graphicLayoutMode?: "zone" | "freeform";
 }
 
 function toTextStyle(overlay?: TextOverlay): TextStyle | null {

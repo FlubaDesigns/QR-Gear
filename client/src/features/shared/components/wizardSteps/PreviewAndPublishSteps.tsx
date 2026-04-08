@@ -75,6 +75,7 @@ export function ShirtPreviewStep({
   qrSizePercent = 75,
   areaImageUrl,
   perPlacementConfigs = {},
+  graphicLayoutMode,
 }: {
   selectedColor: string;
   graphicLocation: GraphicLocation;
@@ -88,6 +89,7 @@ export function ShirtPreviewStep({
   qrSizePercent?: number;
   areaImageUrl?: string;
   perPlacementConfigs?: Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; size: GraphicSize }>;
+  graphicLayoutMode?: "zone" | "freeform";
 }) {
   const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
   
@@ -463,13 +465,15 @@ export function PreviewStep({
   qrType,
   headerStyle,
   footerStyle,
-  background
+  background,
+  graphicLayoutMode,
 }: { 
   product: ProductItem | null;
   qrType: QRType;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
   background: string;
+  graphicLayoutMode?: "zone" | "freeform";
 }) {
   const showGraphicPreview = qrType === 'qr-plus' || qrType === 'qr-canvas' || qrType === 'qr-play';
   
@@ -510,6 +514,7 @@ export function PreviewStep({
                 footerStyle={footerStyle}
                 showQRCode={true}
                 aspectRatio="portrait"
+                graphicLayoutMode={graphicLayoutMode}
               />
             ) : (
               <div className="w-48 h-48 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">

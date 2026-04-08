@@ -1,4 +1,4 @@
-export type GraphicLayoutMode = "structured" | "freeform";
+export type GraphicLayoutMode = "zone" | "freeform";
 
 export interface GraphicLayoutInput {
   canvasWidth: number;
@@ -75,7 +75,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
     qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
     qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
-    layoutMode = "structured",
+    layoutMode = "zone",
   } = input;
 
   const cfg = GRAPHIC_LAYOUT_DEFAULTS;
