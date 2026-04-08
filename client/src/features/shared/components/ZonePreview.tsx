@@ -95,6 +95,11 @@ export function ZoneLayout({
           )}
         </div>
       </div>
+      {subBottomEnabled && (
+        <div className="qr-canvas__sub-bottom qr-canvas__sub-bottom--visible">
+          <span className="text-xs text-muted-foreground">{subBottomText || "Scan Me"}</span>
+        </div>
+      )}
       <div className="qr-canvas__footer">
         <div className="zone-content" style={{ position: 'relative' }}>
           {footerText && (footerStyle as any)?.enabled && (
@@ -117,11 +122,6 @@ export function ZoneLayout({
           )}
         </div>
       </div>
-      {subBottomEnabled && (
-        <div className="qr-canvas__sub-bottom qr-canvas__sub-bottom--visible">
-          <span className="text-xs text-muted-foreground">{subBottomText || "Scan Me"}</span>
-        </div>
-      )}
     </div>
   );
 }

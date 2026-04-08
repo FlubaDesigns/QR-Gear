@@ -107,14 +107,14 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     qrRegion = { x: SX, y: SY, width: SW, height: SH };
   } else {
     const subBottomHeight = subBottomActive ? SH * cfg.subBottomPct : 0;
-    const headerHeight = SH * cfg.headerPct;
-    const footerHeight = SH * cfg.footerPct;
+    const headerHeight = headerActive ? SH * cfg.headerPct : 0;
+    const footerHeight = footerActive ? Math.max(0, SH * cfg.footerPct - subBottomHeight) : 0;
     const middleHeight = Math.max(1, SH - headerHeight - footerHeight - subBottomHeight);
 
     headerZone = { x: SX, y: SY, width: SW, height: headerHeight };
     middleZone = { x: SX, y: SY + headerHeight, width: SW, height: middleHeight };
-    footerZone = { x: SX, y: SY + headerHeight + middleHeight, width: SW, height: footerHeight };
-    subBottomZone = { x: SX, y: SY + headerHeight + middleHeight + footerHeight, width: SW, height: subBottomHeight };
+    subBottomZone = { x: SX, y: SY + headerHeight + middleHeight, width: SW, height: subBottomHeight };
+    footerZone = { x: SX, y: SY + headerHeight + middleHeight + subBottomHeight, width: SW, height: footerHeight };
     qrRegion = middleZone;
   }
 
