@@ -99,8 +99,8 @@ export function ListingsSection() {
     }
   };
 
-  const getSurfaceTitle = (id: string) => surfaces.find((s) => s.id === id)?.title || id;
-  const getAccountName = (id: string) => accounts.find((a) => a.id === id)?.accountName || id;
+  const getSurfaceTitle = (id: string) => surfaces.find((s) => s.id === id)?.title || id || "Unknown surface";
+  const getAccountName = (id: string) => accounts.find((a) => a.id === id)?.accountName || id || "Unknown account";
 
   const formatDate = (iso?: string) => {
     if (!iso) return null;
@@ -241,7 +241,7 @@ export function ListingsSection() {
                 <SelectTrigger data-testid="select-listing-surface"><SelectValue placeholder="Select a surface" /></SelectTrigger>
                 <SelectContent>
                   {surfaces.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.title || s.id}</SelectItem>
+                    <SelectItem key={s.id} value={s.id ?? ""}>{s.title || s.id}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -253,7 +253,7 @@ export function ListingsSection() {
                 <SelectContent>
                   {accounts.map((a) => {
                     const info = PLATFORM_INFO[a.platform];
-                    return <SelectItem key={a.id} value={a.id}>{info?.name} - {a.accountName}</SelectItem>;
+                    return <SelectItem key={a.id} value={a.id ?? ""}>{info?.name} - {a.accountName}</SelectItem>;
                   })}
                 </SelectContent>
               </Select>
