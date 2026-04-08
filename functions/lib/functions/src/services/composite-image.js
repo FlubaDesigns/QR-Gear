@@ -174,7 +174,7 @@ async function cfGenerateCompositeImage(options) {
     };
     const topIsImage = topText?.mode === "image" && topText?.imageUrl;
     if (topIsImage) {
-        await cfDrawImageInZone(topText.imageUrl, zoneX, headerZoneTop, zoneW, headerZoneHeight, 0, topText.horizontalOffset ?? 50, topText.verticalOffset ?? 50, topText.imageScale ?? 100);
+        await cfDrawImageInZone(topText.imageUrl, zoneX, headerZoneTop, zoneW, headerZoneHeight, 0, graphicLayoutMode === 'zone' ? 50 : (topText.horizontalOffset ?? 50), graphicLayoutMode === 'zone' ? 50 : (topText.verticalOffset ?? 50), topText.imageScale ?? 100);
     }
     else if (topText && topText.text) {
         const previewFontSize = cfGetPreviewFontSize(topText.fontSize);
@@ -191,10 +191,8 @@ async function cfGenerateCompositeImage(options) {
         }
         const lines = cfWrapText(ctx, topText.text, zoneW - 20);
         const totalTextHeight = lines.length * fontSize * 1.3;
-        const vOff = topText.verticalOffset ?? 50;
-        const hOff = topText.horizontalOffset ?? 50;
-        let currentY = headerZoneTop + (vOff / 100) * Math.max(0, headerZoneHeight - totalTextHeight);
-        const textX = zoneX + (hOff / 100) * zoneW;
+        let currentY = headerZoneTop + Math.max(0, (headerZoneHeight - totalTextHeight) / 2);
+        const textX = zoneX + zoneW / 2;
         for (const line of lines) {
             if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
                 ctx.strokeText(line, textX, currentY);
@@ -232,7 +230,7 @@ async function cfGenerateCompositeImage(options) {
     ctx.drawImage(qrImage, qrX, qrY, qrContentWidth, qrContentHeight);
     const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
     if (bottomIsImage) {
-        await cfDrawImageInZone(bottomText.imageUrl, zoneX, footerZoneTop, zoneW, footerZoneHeight, 0, bottomText.horizontalOffset ?? 50, bottomText.verticalOffset ?? 50, bottomText.imageScale ?? 100);
+        await cfDrawImageInZone(bottomText.imageUrl, zoneX, footerZoneTop, zoneW, footerZoneHeight, 0, graphicLayoutMode === 'zone' ? 50 : (bottomText.horizontalOffset ?? 50), graphicLayoutMode === 'zone' ? 50 : (bottomText.verticalOffset ?? 50), bottomText.imageScale ?? 100);
     }
     else if (bottomText && bottomText.text) {
         const previewFontSize = cfGetPreviewFontSize(bottomText.fontSize);
@@ -249,10 +247,8 @@ async function cfGenerateCompositeImage(options) {
         }
         const lines = cfWrapText(ctx, bottomText.text, zoneW - 20);
         const totalTextHeight = lines.length * fontSize * 1.3;
-        const vOff = bottomText.verticalOffset ?? 50;
-        const hOff = bottomText.horizontalOffset ?? 50;
-        let currentY = footerZoneTop + (vOff / 100) * Math.max(0, footerZoneHeight - totalTextHeight);
-        const textX = zoneX + (hOff / 100) * zoneW;
+        let currentY = footerZoneTop + Math.max(0, (footerZoneHeight - totalTextHeight) / 2);
+        const textX = zoneX + zoneW / 2;
         for (const line of lines) {
             if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
                 ctx.strokeText(line, textX, currentY);

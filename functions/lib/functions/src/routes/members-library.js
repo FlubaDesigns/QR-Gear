@@ -41,7 +41,7 @@ function registerMembersLibraryRoutes(app) {
                 return;
             }
             const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            const packetData = { packetId, memberId, kind: kind || 'qr_canvas', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
             await core_1.db.collection('memberPackets').doc(packetId).set(packetData);
             res.json({ packetId, success: true });
         }
@@ -125,7 +125,7 @@ function registerMembersLibraryRoutes(app) {
                 return;
             }
             const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            const packetData = { packetId, memberId, kind: kind || 'qr_canvas', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+            const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
             await core_1.db.collection('memberPackets').doc(packetId).set(packetData);
             res.json({ packetId, success: true });
         }
@@ -226,7 +226,7 @@ function registerMembersLibraryRoutes(app) {
             const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
             const packetData = packetDoc.data() || {};
-            const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_canvas', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
+            const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_compose', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
             await core_1.db.collection('memberTemplates').doc(templateId).set(templateData);
             await core_1.db.collection('memberPackets').doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
             res.json({ templateId });
