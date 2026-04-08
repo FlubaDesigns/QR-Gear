@@ -197,40 +197,60 @@ export function stopRetrySweep(): void {
 
 export async function executeSyncJob(jobId: string): Promise<void> {
   const jobRef = db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId);
-  const jobSnap = await jobRef.get();
-  if (!jobSnap.exists) {
-    console.error(`[MarketplaceSync] Job ${jobId} not found`);
-    return;
-  }
 
-  const job = jobSnap.data() as SyncJobDoc;
+  let job: SyncJobDoc;
+  try {
+    const claimed = await db.runTransaction(async (tx) => {
+      const jobSnap = await tx.get(jobRef);
+      if (!jobSnap.exists) return null;
 
-  if (job.status !== 'queued' && job.status !== 'failed') {
-    console.warn(`[MarketplaceSync] Job ${jobId} is ${job.status}, skipping`);
-    return;
-  }
+      const data = jobSnap.data() as SyncJobDoc;
 
-  if (job.nextRetryAt) {
-    const retryTime = new Date(job.nextRetryAt).getTime();
-    if (Date.now() < retryTime) {
-      console.warn(`[MarketplaceSync] Job ${jobId} retry not due until ${job.nextRetryAt}, skipping`);
+      if (data.status !== 'queued' && data.status !== 'failed') return null;
+
+      if (data.nextRetryAt) {
+        const retryTime = new Date(data.nextRetryAt).getTime();
+        if (Date.now() < retryTime) return null;
+      }
+
+      if (data.attempts >= data.maxAttempts) {
+        tx.update(jobRef, {
+          status: 'failed',
+          errorMessage: `Max attempts (${data.maxAttempts}) reached`,
+          updatedAt: new Date().toISOString(),
+        });
+        return { ...data, _exhausted: true } as SyncJobDoc & { _exhausted: boolean };
+      }
+
+      const now = new Date().toISOString();
+      tx.update(jobRef, {
+        status: 'running',
+        attempts: data.attempts + 1,
+        lastAttemptAt: now,
+        nextRetryAt: null,
+        updatedAt: now,
+      });
+
+      return data;
+    });
+
+    if (!claimed) {
+      console.warn(`[MarketplaceSync] Job ${jobId} not claimable (missing, wrong status, or not yet due)`);
       return;
     }
-  }
 
-  if (job.attempts >= job.maxAttempts) {
-    await updateJobStatus(jobId, 'failed', { errorMessage: `Max attempts (${job.maxAttempts}) reached` });
-    await updateListingStatus(job.listingId, { status: 'error', errorMessage: `Sync failed after ${job.maxAttempts} attempts` });
-    await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', `Job exhausted ${job.maxAttempts} attempts`);
+    if ('_exhausted' in claimed && (claimed as SyncJobDoc & { _exhausted: boolean })._exhausted) {
+      await updateListingStatus(claimed.listingId, { status: 'error', errorMessage: `Sync failed after ${claimed.maxAttempts} attempts` });
+      await writeLog(jobId, claimed.listingId, claimed.accountId, claimed.platform, 'error', `Job exhausted ${claimed.maxAttempts} attempts`);
+      return;
+    }
+
+    job = claimed;
+  } catch (txErr) {
+    console.error(`[MarketplaceSync] Transaction failed for job ${jobId}:`, txErr);
     return;
   }
 
-  const now = new Date().toISOString();
-  await updateJobStatus(jobId, 'running', {
-    attempts: job.attempts + 1,
-    lastAttemptAt: now,
-    nextRetryAt: null,
-  });
   await updateListingStatus(job.listingId, { status: 'syncing' });
   await writeLog(jobId, job.listingId, job.accountId, job.platform, 'info', `Starting ${job.action} (attempt ${job.attempts + 1}/${job.maxAttempts})`);
 
