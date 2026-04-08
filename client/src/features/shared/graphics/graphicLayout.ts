@@ -43,7 +43,7 @@ export const BLEED_SAFE_PX = 75;
 
 export const GRAPHIC_LAYOUT_DEFAULTS = {
   headerPct: 0.30,
-  footerPct: 0.30,
+  footerPct: 0.25,
   middlePct: 0.40,
   subBottomPct: 0.05,
 
@@ -108,7 +108,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
   } else {
     const subBottomHeight = subBottomActive ? SH * cfg.subBottomPct : 0;
     const headerHeight = SH * cfg.headerPct;
-    const footerHeight = Math.max(0, SH * cfg.footerPct - subBottomHeight);
+    const footerHeight = SH * cfg.footerPct;
     const middleHeight = Math.max(1, SH - headerHeight - footerHeight - subBottomHeight);
 
     headerZone = { x: SX, y: SY, width: SW, height: headerHeight };
