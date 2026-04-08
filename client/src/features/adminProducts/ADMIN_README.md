@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 7, 2026
+Last updated: April 8, 2026
 
 ---
 
@@ -450,6 +450,15 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 8, 2026 — Layout Mode & Legacy Cleanup
+
+- **"Structured" renamed to "Zone"** — All references to `'structured'` layout mode renamed to `'zone'` across client and Cloud Functions (`composite-image.ts`). No backward compatibility shim; clean rename only.
+- **"replace-qr" mode removed** — The legacy `replace-qr` QR safety status has been fully removed from all client code (`ProductGraphicTextModule.tsx`, wizard files, context types).
+- **Layout Mode Choice step added** — New `LayoutModeChoiceStep` component in `TextSteps.tsx` lets users pick between Zone (30/40/30 bands) and Freeform (full safe rect) layout modes. Wired into all 4 wizard files: `SimpleWizardProductSteps`, `AdvancedWizardProductSteps`, `wizard-steps-product`, `OwnerWizardStepContent`.
+- **`graphicLayoutMode` state threaded** — Added to `WizardContext`, `wizard-context-types`, `useOwnerWizardState`, and `OwnerWizard`. Passed through to `HeaderTextEditStep`, `FooterTextEditStep`, `ShirtPreviewStep`, and all `GraphicPreviewView` call sites.
+- **Wizard flow updated** — `generate` → `layout-mode` → `text-choice` → text editing. The `'layout-mode'` step added to `SimpleWizardStep` type and all step arrays.
+- **CF deployed** — Cloud Functions redeployed to Firebase production (`qrgear-c1ffd`) with zone rename.
+
 ### April 7, 2026 — QR Layout & Favicon
 
 - **Product graphic renderer** — Zones now size to 0 when inactive (header/footer/sub-bottom); QR middle zone gets all remaining space; sub-bottom text renders in its own zone below QR
@@ -487,4 +496,4 @@ The content-aware renderer works but the zone proportions (header 20%, footer 16
 - **Task #8:** Marketplace Domain Hardening
 - **Task #9:** Security & Trust-Boundary Pass
 - **Task #10:** Test Coverage Expansion
-- **Task #11:** Legacy Naming & Compatibility Cleanup
+- **Task #11:** Legacy Naming & Compatibility Cleanup (partially done — "structured" → "zone" rename and "replace-qr" removal completed April 8)
