@@ -242,8 +242,8 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     headerActive,
     footerActive,
     subBottomActive,
-    qrPositionX,
-    qrPositionY,
+    qrPositionX: graphicLayoutMode === "zone" ? 50 : qrPositionX,
+    qrPositionY: graphicLayoutMode === "zone" ? 50 : qrPositionY,
     qrSizePercent,
     layoutMode: graphicLayoutMode,
   });

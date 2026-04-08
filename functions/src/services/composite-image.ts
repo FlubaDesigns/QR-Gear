@@ -201,7 +201,9 @@ async function cfGenerateCompositeImage(options: {
   const topIsImage = topText?.mode === "image" && topText?.imageUrl;
   if (topIsImage) {
     await cfDrawImageInZone(topText!.imageUrl!, zoneX, headerZoneTop, zoneW, headerZoneHeight, 0,
-      topText!.horizontalOffset ?? 50, topText!.verticalOffset ?? 50, topText!.imageScale ?? 100);
+      graphicLayoutMode === 'zone' ? 50 : (topText!.horizontalOffset ?? 50),
+      graphicLayoutMode === 'zone' ? 50 : (topText!.verticalOffset ?? 50),
+      topText!.imageScale ?? 100);
   } else if (topText && topText.text) {
     const previewFontSize = cfGetPreviewFontSize(topText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
@@ -258,7 +260,9 @@ async function cfGenerateCompositeImage(options: {
   const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
   if (bottomIsImage) {
     await cfDrawImageInZone(bottomText!.imageUrl!, zoneX, footerZoneTop, zoneW, footerZoneHeight, 0,
-      bottomText!.horizontalOffset ?? 50, bottomText!.verticalOffset ?? 50, bottomText!.imageScale ?? 100);
+      graphicLayoutMode === 'zone' ? 50 : (bottomText!.horizontalOffset ?? 50),
+      graphicLayoutMode === 'zone' ? 50 : (bottomText!.verticalOffset ?? 50),
+      bottomText!.imageScale ?? 100);
   } else if (bottomText && bottomText.text) {
     const previewFontSize = cfGetPreviewFontSize(bottomText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
