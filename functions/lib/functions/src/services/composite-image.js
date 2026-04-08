@@ -84,7 +84,7 @@ function cfWrapText(ctx, text, maxWidth) {
     return lines;
 }
 async function cfGenerateCompositeImage(options) {
-    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', } = options;
+    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'structured', } = options;
     const { createCanvas: cc, loadImage: li } = getCanvas();
     const canvas = cc(width, height);
     const ctx = canvas.getContext("2d");
@@ -94,12 +94,25 @@ async function cfGenerateCompositeImage(options) {
     }
     const textColor = "#000000";
     const scaleFactor = width / CF_PREVIEW_CONTAINER_WIDTH;
-    const headerZoneTop = 0;
-    const headerZoneHeight = height * 0.25;
-    const qrZoneTop = headerZoneHeight;
-    const qrZoneHeight = height * 0.50;
-    const footerZoneTop = qrZoneTop + qrZoneHeight;
-    const footerZoneHeight = height * 0.25;
+    let headerZoneTop, headerZoneHeight;
+    let qrZoneTop, qrZoneHeight;
+    let footerZoneTop, footerZoneHeight;
+    if (graphicLayoutMode === 'freeform') {
+        headerZoneTop = 0;
+        headerZoneHeight = height;
+        qrZoneTop = 0;
+        qrZoneHeight = height;
+        footerZoneTop = 0;
+        footerZoneHeight = height;
+    }
+    else {
+        headerZoneTop = 0;
+        headerZoneHeight = height * 0.30;
+        qrZoneTop = headerZoneHeight;
+        qrZoneHeight = height * 0.40;
+        footerZoneTop = qrZoneTop + qrZoneHeight;
+        footerZoneHeight = height * 0.30;
+    }
     const cfDrawImageInZone = async (imgUrl, zoneX, zoneY, zoneW, zoneH, padding = 0.05, offsetX = 50, offsetY = 50, scale = 100) => {
         try {
             if (!imgUrl.startsWith("data:") && !imgUrl.startsWith("https://firebasestorage.googleapis.com/") && !imgUrl.startsWith("https://storage.googleapis.com/")) {
@@ -248,7 +261,7 @@ const CF_PREVIEW_WIDTH = 160;
 exports.CF_PREVIEW_WIDTH = CF_PREVIEW_WIDTH;
 const CF_PREVIEW_QR_SIZE = 36;
 exports.CF_PREVIEW_QR_SIZE = CF_PREVIEW_QR_SIZE;
-async function cfGeneratePrintifyComposite(qrUrl, topText, bottomText, printWidth = 1200, printHeight = 1800, qrColor = 'black', placement) {
+async function cfGeneratePrintifyComposite(qrUrl, topText, bottomText, printWidth = 1200, printHeight = 1800, qrColor = 'black', placement, graphicLayoutMode) {
     let finalWidth = printWidth;
     let finalHeight = printHeight;
     if (placement && CF_PLACEMENT_DIMENSIONS[placement]) {
@@ -259,7 +272,7 @@ async function cfGeneratePrintifyComposite(qrUrl, topText, bottomText, printWidt
     const qrSize = CF_PREVIEW_QR_SIZE * scaleFactor;
     return cfGenerateCompositeImage({
         width: finalWidth, height: finalHeight, backgroundColor: "transparent",
-        qrSize, topText, bottomText, qrUrl, qrColor, placement,
+        qrSize, topText, bottomText, qrUrl, qrColor, placement, graphicLayoutMode,
     });
 }
 async function cfUploadBufferToStorage(buffer, mimeType, folder = 'member-graphics') {
