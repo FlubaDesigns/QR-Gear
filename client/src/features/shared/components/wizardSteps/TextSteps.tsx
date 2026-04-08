@@ -418,25 +418,25 @@ export function TextStyleSection({
                   <span className="text-xs text-slate-400 w-12">X Pos</span>
                   <input
                     type="range" min="0" max="100"
-                    value={style.imageOffsetX ?? 50}
-                    onChange={(e) => updateStyle({ imageOffsetX: Number(e.target.value) })}
+                    value={style.horizontalOffset ?? 50}
+                    onChange={(e) => updateStyle({ horizontalOffset: Number(e.target.value) })}
                     className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
                     style={{ touchAction: 'none' }}
                     data-testid={`slider-${testIdPrefix}-image-offset-x`}
                   />
-                  <span className="text-xs text-slate-500 w-8">{style.imageOffsetX ?? 50}</span>
+                  <span className="text-xs text-slate-500 w-8">{style.horizontalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 w-12">Y Pos</span>
                   <input
                     type="range" min="0" max="100"
-                    value={style.imageOffsetY ?? 50}
-                    onChange={(e) => updateStyle({ imageOffsetY: Number(e.target.value) })}
+                    value={style.verticalOffset ?? 50}
+                    onChange={(e) => updateStyle({ verticalOffset: Number(e.target.value) })}
                     className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
                     style={{ touchAction: 'none' }}
                     data-testid={`slider-${testIdPrefix}-image-offset-y`}
                   />
-                  <span className="text-xs text-slate-500 w-8">{style.imageOffsetY ?? 50}</span>
+                  <span className="text-xs text-slate-500 w-8">{style.verticalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400 w-12">Size</span>

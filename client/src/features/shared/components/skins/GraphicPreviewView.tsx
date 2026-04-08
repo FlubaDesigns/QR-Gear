@@ -62,8 +62,8 @@ function toTextStyle(overlay?: TextOverlay): TextStyle | null {
     horizontalOffset: overlay.horizontalOffset,
     mode: overlay.mode,
     imageUrl: overlay.imageUrl,
-    imageOffsetX: overlay.imageOffsetX,
-    imageOffsetY: overlay.imageOffsetY,
+    imageOffsetX: overlay.horizontalOffset ?? overlay.imageOffsetX,
+    imageOffsetY: overlay.verticalOffset ?? overlay.imageOffsetY,
     imageScale: overlay.imageScale,
   };
 }

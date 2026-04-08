@@ -139,19 +139,19 @@ export function HeaderTextEditStep({
               <div className="space-y-2 mt-2">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold w-6">X</span>
-                  <input type="range" min="0" max="100" value={headerStyle.imageOffsetX ?? 50}
-                    onChange={(e) => updateHeader({ imageOffsetX: Number(e.target.value) })}
+                  <input type="range" min="0" max="100" value={headerStyle.horizontalOffset ?? 50}
+                    onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
                     className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                     style={{ touchAction: 'none' }} data-testid="slider-header-image-offset-x" />
-                  <span className="text-xs text-slate-500 w-8">{headerStyle.imageOffsetX ?? 50}</span>
+                  <span className="text-xs text-slate-500 w-8">{headerStyle.horizontalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold w-6">Y</span>
-                  <input type="range" min="0" max="100" value={headerStyle.imageOffsetY ?? 50}
-                    onChange={(e) => updateHeader({ imageOffsetY: Number(e.target.value) })}
+                  <input type="range" min="0" max="100" value={headerStyle.verticalOffset ?? 50}
+                    onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
                     className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                     style={{ touchAction: 'none' }} data-testid="slider-header-image-offset-y" />
-                  <span className="text-xs text-slate-500 w-8">{headerStyle.imageOffsetY ?? 50}</span>
+                  <span className="text-xs text-slate-500 w-8">{headerStyle.verticalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold w-6">Size</span>
@@ -412,19 +412,19 @@ export function FooterTextEditStep({
               <div className="space-y-2 mt-2">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold w-6">X</span>
-                  <input type="range" min="0" max="100" value={footerStyle.imageOffsetX ?? 50}
-                    onChange={(e) => updateFooter({ imageOffsetX: Number(e.target.value) })}
+                  <input type="range" min="0" max="100" value={footerStyle.horizontalOffset ?? 50}
+                    onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
                     className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                     style={{ touchAction: 'none' }} data-testid="slider-footer-image-offset-x" />
-                  <span className="text-xs text-slate-500 w-8">{footerStyle.imageOffsetX ?? 50}</span>
+                  <span className="text-xs text-slate-500 w-8">{footerStyle.horizontalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold w-6">Y</span>
-                  <input type="range" min="0" max="100" value={footerStyle.imageOffsetY ?? 50}
-                    onChange={(e) => updateFooter({ imageOffsetY: Number(e.target.value) })}
+                  <input type="range" min="0" max="100" value={footerStyle.verticalOffset ?? 50}
+                    onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
                     className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                     style={{ touchAction: 'none' }} data-testid="slider-footer-image-offset-y" />
-                  <span className="text-xs text-slate-500 w-8">{footerStyle.imageOffsetY ?? 50}</span>
+                  <span className="text-xs text-slate-500 w-8">{footerStyle.verticalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold w-6">Size</span>

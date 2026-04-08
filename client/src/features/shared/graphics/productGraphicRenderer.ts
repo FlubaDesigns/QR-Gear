@@ -343,7 +343,9 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
         0, layout.zones.header.y,
         W, layout.zones.header.height,
         0.05,
-        headerStyle?.imageOffsetX ?? 50, headerStyle?.imageOffsetY ?? 50, headerStyle?.imageScale ?? 100
+        headerStyle?.horizontalOffset ?? headerStyle?.imageOffsetX ?? 50,
+        headerStyle?.verticalOffset ?? headerStyle?.imageOffsetY ?? 50,
+        headerStyle?.imageScale ?? 100
       );
     } else if (headerStyle) {
       drawTextInZone(ctx, headerStyle, layout.zones.header.y, layout.zones.header.height, W);
@@ -373,7 +375,9 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
         0, layout.zones.footer.y,
         W, layout.zones.footer.height,
         0.05,
-        footerStyle?.imageOffsetX ?? 50, footerStyle?.imageOffsetY ?? 50, footerStyle?.imageScale ?? 100
+        footerStyle?.horizontalOffset ?? footerStyle?.imageOffsetX ?? 50,
+        footerStyle?.verticalOffset ?? footerStyle?.imageOffsetY ?? 50,
+        footerStyle?.imageScale ?? 100
       );
     } else if (footerStyle) {
       drawTextInZone(ctx, footerStyle, layout.zones.footer.y, layout.zones.footer.height, W);

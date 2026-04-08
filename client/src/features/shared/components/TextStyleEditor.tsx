@@ -281,41 +281,7 @@ export function TextStyleEditor({
                   </div>
                   {showPositionControls && (
                     <div className="pt-3 border-t border-border/50 space-y-4">
-                      <p className="text-sm font-medium text-muted-foreground">Image Position & Size</p>
-                      <div>
-                        <Label className="text-sm mb-1.5 block text-muted-foreground">
-                          Left / Right: {style.imageOffsetX ?? 50}%
-                        </Label>
-                        <div className="min-h-[48px] flex items-center py-2">
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={style.imageOffsetX ?? 50}
-                            onChange={(e) => onChange({ imageOffsetX: Number(e.target.value) })}
-                            className="w-full h-6 accent-primary cursor-pointer"
-                            style={{ touchAction: 'none' }}
-                            data-testid={`slider-${testIdPrefix}-image-offset-x`}
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-sm mb-1.5 block text-muted-foreground">
-                          Up / Down: {style.imageOffsetY ?? 50}%
-                        </Label>
-                        <div className="min-h-[48px] flex items-center py-2">
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={style.imageOffsetY ?? 50}
-                            onChange={(e) => onChange({ imageOffsetY: Number(e.target.value) })}
-                            className="w-full h-6 accent-primary cursor-pointer"
-                            style={{ touchAction: 'none' }}
-                            data-testid={`slider-${testIdPrefix}-image-offset-y`}
-                          />
-                        </div>
-                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">Image Scale</p>
                       <div>
                         <Label className="text-sm mb-1.5 block text-muted-foreground">
                           Size: {style.imageScale ?? 100}%
@@ -521,50 +487,51 @@ export function TextStyleEditor({
                 </div>
               </div>
 
-              {showPositionControls && (
-                <div className="pt-3 border-t border-border/50">
-                  <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm mb-1.5 block text-muted-foreground">
-                        Y Position: {style.verticalOffset ?? 50}% <span className="text-xs">(0=top, 100=bottom)</span>
-                      </Label>
-                      <div className="min-h-[48px] flex items-center py-2">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={style.verticalOffset ?? 50}
-                          onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
-                          className="w-full h-6 accent-primary cursor-pointer"
-                          style={{ touchAction: 'none' }}
-                          data-testid={`slider-${testIdPrefix}-vertical`}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm mb-1.5 block text-muted-foreground">
-                        X Position: {style.horizontalOffset ?? 50}% <span className="text-xs">(0=left, 100=right)</span>
-                      </Label>
-                      <div className="min-h-[48px] flex items-center py-2">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={style.horizontalOffset ?? 50}
-                          onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
-                          className="w-full h-6 accent-primary cursor-pointer"
-                          style={{ touchAction: 'none' }}
-                          data-testid={`slider-${testIdPrefix}-horizontal`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
             </>
+          )}
+
+          {showPositionControls && (
+            <div className="pt-3 border-t border-border/50">
+              <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">
+                    Left / Right: {style.horizontalOffset ?? 50}%
+                  </Label>
+                  <div className="min-h-[48px] flex items-center py-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={style.horizontalOffset ?? 50}
+                      onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
+                      className="w-full h-6 accent-primary cursor-pointer"
+                      style={{ touchAction: 'none' }}
+                      data-testid={`slider-${testIdPrefix}-horizontal`}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">
+                    Up / Down: {style.verticalOffset ?? 50}%
+                  </Label>
+                  <div className="min-h-[48px] flex items-center py-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={style.verticalOffset ?? 50}
+                      onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
+                      className="w-full h-6 accent-primary cursor-pointer"
+                      style={{ touchAction: 'none' }}
+                      data-testid={`slider-${testIdPrefix}-vertical`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
