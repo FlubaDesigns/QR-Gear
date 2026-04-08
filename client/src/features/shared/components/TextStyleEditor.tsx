@@ -282,14 +282,14 @@ export function TextStyleEditor({
                         <Label className="text-sm mb-1.5 block text-muted-foreground">
                           Size: {style.imageScale ?? 100}%
                         </Label>
-                        <div className="min-h-[48px] flex items-center py-2">
+                        <div className="min-h-[52px] flex items-center py-3">
                           <input
                             type="range"
                             min="20"
                             max="200"
                             value={style.imageScale ?? 100}
                             onChange={(e) => onChange({ imageScale: Number(e.target.value) })}
-                            className="w-full h-6 accent-primary cursor-pointer"
+                            className="w-full touch-slider"
                             style={{ touchAction: 'none' }}
                             data-testid={`slider-${testIdPrefix}-image-scale`}
                           />
@@ -431,14 +431,14 @@ export function TextStyleEditor({
                 <Label className="text-sm mb-1.5 block text-muted-foreground">
                   Letter Spacing: {style.letterSpacing}px
                 </Label>
-                <div className="min-h-[48px] flex items-center py-2">
+                <div className="min-h-[52px] flex items-center py-3">
                   <input
                     type="range"
                     min="-10"
                     max="50"
                     value={style.letterSpacing}
                     onChange={(e) => onChange({ letterSpacing: Number(e.target.value) })}
-                    className="w-full h-6 accent-primary cursor-pointer"
+                    className="w-full touch-slider"
                     style={{ touchAction: 'none' }}
                     data-testid={`slider-${testIdPrefix}-spacing`}
                   />
@@ -468,14 +468,14 @@ export function TextStyleEditor({
                   <Label className="text-sm mb-1.5 block text-muted-foreground">
                     Stroke Width: {style.strokeWidth}px
                   </Label>
-                  <div className="min-h-[48px] flex items-center py-2">
+                  <div className="min-h-[52px] flex items-center py-3">
                     <input
                       type="range"
                       min="0"
                       max="20"
                       value={style.strokeWidth}
                       onChange={(e) => onChange({ strokeWidth: Number(e.target.value) })}
-                      className="w-full h-6 accent-primary cursor-pointer"
+                      className="w-full touch-slider"
                       style={{ touchAction: 'none' }}
                       data-testid={`slider-${testIdPrefix}-stroke`}
                     />
@@ -496,14 +496,14 @@ export function TextStyleEditor({
                   <Label className="text-sm mb-1.5 block text-muted-foreground">
                     Left / Right: {style.horizontalOffset ?? 50}%
                   </Label>
-                  <div className="min-h-[48px] flex items-center py-2">
+                  <div className="min-h-[52px] flex items-center py-3">
                     <input
                       type="range"
                       min="0"
                       max="100"
                       value={style.horizontalOffset ?? 50}
                       onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
-                      className="w-full h-6 accent-primary cursor-pointer"
+                      className="w-full touch-slider"
                       style={{ touchAction: 'none' }}
                       data-testid={`slider-${testIdPrefix}-horizontal`}
                     />
@@ -513,14 +513,14 @@ export function TextStyleEditor({
                   <Label className="text-sm mb-1.5 block text-muted-foreground">
                     Up / Down: {style.verticalOffset ?? 50}%
                   </Label>
-                  <div className="min-h-[48px] flex items-center py-2">
+                  <div className="min-h-[52px] flex items-center py-3">
                     <input
                       type="range"
                       min="0"
                       max="100"
                       value={style.verticalOffset ?? 50}
                       onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
-                      className="w-full h-6 accent-primary cursor-pointer"
+                      className="w-full touch-slider"
                       style={{ touchAction: 'none' }}
                       data-testid={`slider-${testIdPrefix}-vertical`}
                     />

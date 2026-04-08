@@ -141,7 +141,7 @@ export function HeaderTextEditStep({
                   <span className="text-[10px] text-slate-400 font-bold w-6">X</span>
                   <input type="range" min="0" max="100" value={headerStyle.horizontalOffset ?? 50}
                     onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
-                    className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }} data-testid="slider-header-image-offset-x" />
                   <span className="text-xs text-slate-500 w-8">{headerStyle.horizontalOffset ?? 50}</span>
                 </div>
@@ -149,7 +149,7 @@ export function HeaderTextEditStep({
                   <span className="text-[10px] text-slate-400 font-bold w-6">Y</span>
                   <input type="range" min="0" max="100" value={headerStyle.verticalOffset ?? 50}
                     onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
-                    className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }} data-testid="slider-header-image-offset-y" />
                   <span className="text-xs text-slate-500 w-8">{headerStyle.verticalOffset ?? 50}</span>
                 </div>
@@ -157,7 +157,7 @@ export function HeaderTextEditStep({
                   <span className="text-[10px] text-slate-400 font-bold w-6">Size</span>
                   <input type="range" min="20" max="200" value={headerStyle.imageScale ?? 100}
                     onChange={(e) => updateHeader({ imageScale: Number(e.target.value) })}
-                    className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }} data-testid="slider-header-image-scale" />
                   <span className="text-xs text-slate-500 w-8">{headerStyle.imageScale ?? 100}%</span>
                 </div>
@@ -268,7 +268,7 @@ export function HeaderTextEditStep({
               <input
                 type="range" min="0" max="100" value={vOffset}
                 onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
-                className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                className="flex-1 touch-slider"
                 style={{ touchAction: 'none' }} data-testid="slider-header-vertical" />
             </div>
             <div className="flex items-center gap-1.5">
@@ -276,7 +276,7 @@ export function HeaderTextEditStep({
               <input
                 type="range" min="0" max="100" value={hOffset}
                 onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
-                className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                className="flex-1 touch-slider"
                 style={{ touchAction: 'none' }} data-testid="slider-header-horizontal" />
             </div>
           </div>
@@ -414,7 +414,7 @@ export function FooterTextEditStep({
                   <span className="text-[10px] text-slate-400 font-bold w-6">X</span>
                   <input type="range" min="0" max="100" value={footerStyle.horizontalOffset ?? 50}
                     onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
-                    className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }} data-testid="slider-footer-image-offset-x" />
                   <span className="text-xs text-slate-500 w-8">{footerStyle.horizontalOffset ?? 50}</span>
                 </div>
@@ -422,7 +422,7 @@ export function FooterTextEditStep({
                   <span className="text-[10px] text-slate-400 font-bold w-6">Y</span>
                   <input type="range" min="0" max="100" value={footerStyle.verticalOffset ?? 50}
                     onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
-                    className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }} data-testid="slider-footer-image-offset-y" />
                   <span className="text-xs text-slate-500 w-8">{footerStyle.verticalOffset ?? 50}</span>
                 </div>
@@ -430,7 +430,7 @@ export function FooterTextEditStep({
                   <span className="text-[10px] text-slate-400 font-bold w-6">Size</span>
                   <input type="range" min="20" max="200" value={footerStyle.imageScale ?? 100}
                     onChange={(e) => updateFooter({ imageScale: Number(e.target.value) })}
-                    className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }} data-testid="slider-footer-image-scale" />
                   <span className="text-xs text-slate-500 w-8">{footerStyle.imageScale ?? 100}%</span>
                 </div>
@@ -541,7 +541,7 @@ export function FooterTextEditStep({
               <input
                 type="range" min="0" max="100" value={vOffset}
                 onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
-                className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                className="flex-1 touch-slider"
                 style={{ touchAction: 'none' }} data-testid="slider-footer-vertical" />
             </div>
             <div className="flex items-center gap-1.5">
@@ -549,7 +549,7 @@ export function FooterTextEditStep({
               <input
                 type="range" min="0" max="100" value={hOffset}
                 onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
-                className="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                className="flex-1 touch-slider"
                 style={{ touchAction: 'none' }} data-testid="slider-footer-horizontal" />
             </div>
           </div>

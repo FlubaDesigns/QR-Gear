@@ -420,7 +420,7 @@ export function TextStyleSection({
                     type="range" min="0" max="100"
                     value={style.horizontalOffset ?? 50}
                     onChange={(e) => updateStyle({ horizontalOffset: Number(e.target.value) })}
-                    className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }}
                     data-testid={`slider-${testIdPrefix}-image-offset-x`}
                   />
@@ -432,7 +432,7 @@ export function TextStyleSection({
                     type="range" min="0" max="100"
                     value={style.verticalOffset ?? 50}
                     onChange={(e) => updateStyle({ verticalOffset: Number(e.target.value) })}
-                    className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }}
                     data-testid={`slider-${testIdPrefix}-image-offset-y`}
                   />
@@ -444,7 +444,7 @@ export function TextStyleSection({
                     type="range" min="20" max="200"
                     value={style.imageScale ?? 100}
                     onChange={(e) => updateStyle({ imageScale: Number(e.target.value) })}
-                    className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+                    className="flex-1 touch-slider"
                     style={{ touchAction: 'none' }}
                     data-testid={`slider-${testIdPrefix}-image-scale`}
                   />
@@ -530,7 +530,7 @@ export function TextStyleSection({
               type="range" min="0" max="100"
               value={style.verticalOffset ?? 50}
               onChange={(e) => updateStyle({ verticalOffset: parseInt(e.target.value) })}
-              className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+              className="flex-1 touch-slider"
               data-testid={`slider-${testIdPrefix}-position`}
             />
             <span className="text-xs text-slate-500 w-8">{style.verticalOffset ?? 50}</span>
@@ -541,7 +541,7 @@ export function TextStyleSection({
               type="range" min="0" max="100"
               value={style.horizontalOffset ?? 50}
               onChange={(e) => updateStyle({ horizontalOffset: parseInt(e.target.value) })}
-              className="flex-1 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-green-500"
+              className="flex-1 touch-slider"
               data-testid={`slider-${testIdPrefix}-xposition`}
             />
             <span className="text-xs text-slate-500 w-8">{style.horizontalOffset ?? 50}</span>

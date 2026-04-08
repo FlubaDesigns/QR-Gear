@@ -229,7 +229,7 @@ export function UrlTitleStep({
                 max="90"
                 value={titleVertical}
                 onChange={(e) => onTitleVerticalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-title-vertical"
               />
@@ -244,7 +244,7 @@ export function UrlTitleStep({
                 max="100"
                 value={titleHorizontal}
                 onChange={(e) => onTitleHorizontalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-title-horizontal"
               />
@@ -395,7 +395,7 @@ export function UrlDescriptionStep({
                 max="90"
                 value={descVertical}
                 onChange={(e) => onDescVerticalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-desc-vertical"
               />
@@ -410,7 +410,7 @@ export function UrlDescriptionStep({
                 max="100"
                 value={descHorizontal}
                 onChange={(e) => onDescHorizontalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-desc-horizontal"
               />
@@ -617,7 +617,7 @@ export function UrlCreationStep({
                 max="90"
                 value={titleVertical}
                 onChange={(e) => onTitleVerticalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-title-vertical"
               />
@@ -632,7 +632,7 @@ export function UrlCreationStep({
                 max="100"
                 value={titleHorizontal}
                 onChange={(e) => onTitleHorizontalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-title-horizontal"
               />
@@ -714,7 +714,7 @@ export function UrlCreationStep({
                 max="90"
                 value={descVertical}
                 onChange={(e) => onDescVerticalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-desc-vertical"
               />
@@ -729,7 +729,7 @@ export function UrlCreationStep({
                 max="100"
                 value={descHorizontal}
                 onChange={(e) => onDescHorizontalChange(Number(e.target.value))}
-                className="w-full h-6 accent-green-500 cursor-pointer"
+                className="w-full touch-slider"
                 style={{ touchAction: 'none' }}
                 data-testid="slider-desc-horizontal"
               />

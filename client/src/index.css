@@ -560,3 +560,42 @@
   object-fit: contain;
   display: block;
 }
+
+input[type="range"].touch-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  border-radius: 9999px;
+  background: hsl(var(--secondary));
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].touch-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: hsl(var(--background));
+  border: 2px solid hsl(var(--primary));
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+
+input[type="range"].touch-slider::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: hsl(var(--background));
+  border: 2px solid hsl(var(--primary));
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+
+input[type="range"].touch-slider::-moz-range-track {
+  height: 12px;
+  border-radius: 9999px;
+  background: hsl(var(--secondary));
+}
