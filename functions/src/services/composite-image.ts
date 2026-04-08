@@ -217,10 +217,8 @@ async function cfGenerateCompositeImage(options: {
     }
     const lines = cfWrapText(ctx, topText.text, zoneW - 20);
     const totalTextHeight = lines.length * fontSize * 1.3;
-    const vOff = topText.verticalOffset ?? 50;
-    const hOff = topText.horizontalOffset ?? 50;
-    let currentY = headerZoneTop + (vOff / 100) * Math.max(0, headerZoneHeight - totalTextHeight);
-    const textX = zoneX + (hOff / 100) * zoneW;
+    let currentY = headerZoneTop + Math.max(0, (headerZoneHeight - totalTextHeight) / 2);
+    const textX = zoneX + zoneW / 2;
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
         ctx.strokeText(line, textX, currentY);
@@ -276,10 +274,8 @@ async function cfGenerateCompositeImage(options: {
     }
     const lines = cfWrapText(ctx, bottomText.text, zoneW - 20);
     const totalTextHeight = lines.length * fontSize * 1.3;
-    const vOff = bottomText.verticalOffset ?? 50;
-    const hOff = bottomText.horizontalOffset ?? 50;
-    let currentY = footerZoneTop + (vOff / 100) * Math.max(0, footerZoneHeight - totalTextHeight);
-    const textX = zoneX + (hOff / 100) * zoneW;
+    let currentY = footerZoneTop + Math.max(0, (footerZoneHeight - totalTextHeight) / 2);
+    const textX = zoneX + zoneW / 2;
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
         ctx.strokeText(line, textX, currentY);
