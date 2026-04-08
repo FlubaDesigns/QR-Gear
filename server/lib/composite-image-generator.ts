@@ -14,8 +14,6 @@ export interface TextStyle {
   horizontalOffset?: number;
   mode?: "text" | "image";
   imageUrl?: string;
-  imageOffsetX?: number;
-  imageOffsetY?: number;
   imageScale?: number;
 }
 
@@ -150,7 +148,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const topIsImage = topText?.mode === "image" && topText?.imageUrl;
   if (topIsImage) {
     await drawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0.05,
-      topText!.imageOffsetX ?? 50, topText!.imageOffsetY ?? 50, topText!.imageScale ?? 100);
+      topText!.horizontalOffset ?? 50, topText!.verticalOffset ?? 50, topText!.imageScale ?? 100);
   } else if (topText && topText.text) {
     const previewFontSize = getPreviewFontSize(topText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
@@ -220,7 +218,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
   if (bottomIsImage) {
     await drawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0.05,
-      bottomText!.imageOffsetX ?? 50, bottomText!.imageOffsetY ?? 50, bottomText!.imageScale ?? 100);
+      bottomText!.horizontalOffset ?? 50, bottomText!.verticalOffset ?? 50, bottomText!.imageScale ?? 100);
   } else if (bottomText && bottomText.text) {
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);
     const fontSize = previewFontSize * scaleFactor;

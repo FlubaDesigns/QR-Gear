@@ -12,6 +12,7 @@ const VALID_JOB_STATUSES = new Set(['queued', 'running', 'completed', 'failed', 
 const VALID_JOB_ACTIONS = new Set(['create', 'update', 'delete', 'sync_inventory', 'full_sync']);
 const VALID_LOG_LEVELS = new Set(['info', 'warn', 'error']);
 function register(app) {
+    (0, marketplace_sync_1.startRetrySweep)();
     // ============ MARKETPLACE ENDPOINTS ============
     app.get('/admin/marketplace/stores', middleware_1.requireAdmin, async (req, res) => {
         try {

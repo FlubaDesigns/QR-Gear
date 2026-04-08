@@ -103,8 +103,6 @@ export interface TextStyleConfig {
   horizontalOffset: number;
   mode?: "text" | "image";
   imageUrl?: string;
-  imageOffsetX?: number;
-  imageOffsetY?: number;
   imageScale?: number;
 }
 

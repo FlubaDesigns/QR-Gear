@@ -17,8 +17,6 @@ export interface TextStyle {
   warpPreset?: string;
   mode?: "text" | "image";
   imageUrl?: string;
-  imageOffsetX?: number;
-  imageOffsetY?: number;
   imageScale?: number;
 }
 
@@ -343,8 +341,8 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
         0, layout.zones.header.y,
         W, layout.zones.header.height,
         0.05,
-        headerStyle?.horizontalOffset ?? headerStyle?.imageOffsetX ?? 50,
-        headerStyle?.verticalOffset ?? headerStyle?.imageOffsetY ?? 50,
+        headerStyle?.horizontalOffset ?? 50,
+        headerStyle?.verticalOffset ?? 50,
         headerStyle?.imageScale ?? 100
       );
     } else if (headerStyle) {
@@ -375,8 +373,8 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
         0, layout.zones.footer.y,
         W, layout.zones.footer.height,
         0.05,
-        footerStyle?.horizontalOffset ?? footerStyle?.imageOffsetX ?? 50,
-        footerStyle?.verticalOffset ?? footerStyle?.imageOffsetY ?? 50,
+        footerStyle?.horizontalOffset ?? 50,
+        footerStyle?.verticalOffset ?? 50,
         footerStyle?.imageScale ?? 100
       );
     } else if (footerStyle) {

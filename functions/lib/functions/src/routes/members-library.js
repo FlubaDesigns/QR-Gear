@@ -310,7 +310,7 @@ function registerMembersLibraryRoutes(app) {
                 letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
                 strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
                 mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
-                imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
+                verticalOffset: headerStyle.verticalOffset, horizontalOffset: headerStyle.horizontalOffset, imageScale: headerStyle.imageScale,
             } : null;
             const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
                 text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
@@ -318,7 +318,7 @@ function registerMembersLibraryRoutes(app) {
                 letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
                 strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
                 mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
-                imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
+                verticalOffset: footerStyle.verticalOffset, horizontalOffset: footerStyle.horizontalOffset, imageScale: footerStyle.imageScale,
             } : null;
             const productGraphicDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrUrl, topText, bottomText, 1200, 1800, qrColor);
             const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -350,7 +350,7 @@ function registerMembersLibraryRoutes(app) {
                 letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
                 strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
                 mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
-                imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
+                verticalOffset: headerStyle.verticalOffset, horizontalOffset: headerStyle.horizontalOffset, imageScale: headerStyle.imageScale,
             } : null;
             const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
                 text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
@@ -358,7 +358,7 @@ function registerMembersLibraryRoutes(app) {
                 letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
                 strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
                 mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
-                imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
+                verticalOffset: footerStyle.verticalOffset, horizontalOffset: footerStyle.horizontalOffset, imageScale: footerStyle.imageScale,
             } : null;
             const productGraphicDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrUrl, topText, bottomText, 1200, 1800, qrColor);
             const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -395,7 +395,7 @@ function registerMembersLibraryRoutes(app) {
                     letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
                     strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
                     mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
-                    imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
+                    verticalOffset: headerStyle.verticalOffset, horizontalOffset: headerStyle.horizontalOffset, imageScale: headerStyle.imageScale,
                 } : null;
                 const bottomText = showFooter && cfHasFooterContent ? {
                     text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
@@ -403,7 +403,7 @@ function registerMembersLibraryRoutes(app) {
                     letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
                     strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
                     mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
-                    imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
+                    verticalOffset: footerStyle.verticalOffset, horizontalOffset: footerStyle.horizontalOffset, imageScale: footerStyle.imageScale,
                 } : null;
                 const compositeDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrUrl || 'https://example.com', topText, bottomText, 1200, 1800, qrColor);
                 const match = compositeDataUrl.match(/^data:([^;]+);base64,(.+)$/);

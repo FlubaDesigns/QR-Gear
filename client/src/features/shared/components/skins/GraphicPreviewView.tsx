@@ -16,8 +16,6 @@ interface TextOverlay {
   horizontalOffset?: number;
   mode?: "text" | "image";
   imageUrl?: string;
-  imageOffsetX?: number;
-  imageOffsetY?: number;
   imageScale?: number;
 }
 
@@ -62,8 +60,6 @@ function toTextStyle(overlay?: TextOverlay): TextStyle | null {
     horizontalOffset: overlay.horizontalOffset,
     mode: overlay.mode,
     imageUrl: overlay.imageUrl,
-    imageOffsetX: overlay.horizontalOffset ?? overlay.imageOffsetX,
-    imageOffsetY: overlay.verticalOffset ?? overlay.imageOffsetY,
     imageScale: overlay.imageScale,
   };
 }

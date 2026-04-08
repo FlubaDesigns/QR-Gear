@@ -510,8 +510,8 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
           strokeWidth: headerStyle.strokeWidth,
           mode: headerStyle.mode,
           imageUrl: headerStyle.imageUrl,
-          imageOffsetX: headerStyle.imageOffsetX,
-          imageOffsetY: headerStyle.imageOffsetY,
+          verticalOffset: headerStyle.verticalOffset,
+          horizontalOffset: headerStyle.horizontalOffset,
           imageScale: headerStyle.imageScale,
         } : null;
 
@@ -526,8 +526,8 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
           strokeWidth: footerStyle.strokeWidth,
           mode: footerStyle.mode,
           imageUrl: footerStyle.imageUrl,
-          imageOffsetX: footerStyle.imageOffsetX,
-          imageOffsetY: footerStyle.imageOffsetY,
+          verticalOffset: footerStyle.verticalOffset,
+          horizontalOffset: footerStyle.horizontalOffset,
           imageScale: footerStyle.imageScale,
         } : null;
 

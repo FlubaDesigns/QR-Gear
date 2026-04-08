@@ -33,6 +33,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.startRetrySweep = startRetrySweep;
+exports.stopRetrySweep = stopRetrySweep;
 exports.executeSyncJob = executeSyncJob;
 exports.processRetryQueue = processRetryQueue;
 exports.retryFailedJob = retryFailedJob;
@@ -96,37 +98,97 @@ function getAdapter(platform) {
 function computeNextRetryDelay(attempt) {
     return Math.min(5000 * Math.pow(2, attempt), 60000);
 }
+const pendingRetries = new Map();
+function scheduleRetryExecution(jobId, delayMs) {
+    const existing = pendingRetries.get(jobId);
+    if (existing)
+        clearTimeout(existing);
+    const timer = setTimeout(async () => {
+        pendingRetries.delete(jobId);
+        try {
+            console.log(`[MarketplaceSync] Executing scheduled retry for job ${jobId}`);
+            await executeSyncJob(jobId);
+        }
+        catch (err) {
+            console.error(`[MarketplaceSync] Scheduled retry failed for job ${jobId}:`, err);
+        }
+    }, delayMs);
+    pendingRetries.set(jobId, timer);
+    console.log(`[MarketplaceSync] Retry scheduled for job ${jobId} in ${delayMs}ms`);
+}
+let retrySweepInterval = null;
+const RETRY_SWEEP_INTERVAL_MS = 60000;
+function startRetrySweep() {
+    if (retrySweepInterval)
+        return;
+    retrySweepInterval = setInterval(async () => {
+        try {
+            const processed = await processRetryQueue();
+            if (processed > 0) {
+                console.log(`[MarketplaceSync] Sweep processed ${processed} retry job(s)`);
+            }
+        }
+        catch (err) {
+            console.error('[MarketplaceSync] Retry sweep error:', err);
+        }
+    }, RETRY_SWEEP_INTERVAL_MS);
+    console.log(`[MarketplaceSync] Retry sweep started (every ${RETRY_SWEEP_INTERVAL_MS / 1000}s)`);
+}
+function stopRetrySweep() {
+    if (retrySweepInterval) {
+        clearInterval(retrySweepInterval);
+        retrySweepInterval = null;
+    }
+}
 async function executeSyncJob(jobId) {
     const jobRef = core_1.db.collection(constants_1.MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId);
-    const jobSnap = await jobRef.get();
-    if (!jobSnap.exists) {
-        console.error(`[MarketplaceSync] Job ${jobId} not found`);
-        return;
-    }
-    const job = jobSnap.data();
-    if (job.status !== 'queued' && job.status !== 'failed') {
-        console.warn(`[MarketplaceSync] Job ${jobId} is ${job.status}, skipping`);
-        return;
-    }
-    if (job.nextRetryAt) {
-        const retryTime = new Date(job.nextRetryAt).getTime();
-        if (Date.now() < retryTime) {
-            console.warn(`[MarketplaceSync] Job ${jobId} retry not due until ${job.nextRetryAt}, skipping`);
+    let job;
+    try {
+        const claimed = await core_1.db.runTransaction(async (tx) => {
+            const jobSnap = await tx.get(jobRef);
+            if (!jobSnap.exists)
+                return null;
+            const data = jobSnap.data();
+            if (data.status !== 'queued' && data.status !== 'failed')
+                return null;
+            if (data.nextRetryAt) {
+                const retryTime = new Date(data.nextRetryAt).getTime();
+                if (Date.now() < retryTime)
+                    return null;
+            }
+            if (data.attempts >= data.maxAttempts) {
+                tx.update(jobRef, {
+                    status: 'failed',
+                    errorMessage: `Max attempts (${data.maxAttempts}) reached`,
+                    updatedAt: new Date().toISOString(),
+                });
+                return { ...data, _exhausted: true };
+            }
+            const now = new Date().toISOString();
+            tx.update(jobRef, {
+                status: 'running',
+                attempts: data.attempts + 1,
+                lastAttemptAt: now,
+                nextRetryAt: null,
+                updatedAt: now,
+            });
+            return data;
+        });
+        if (!claimed) {
+            console.warn(`[MarketplaceSync] Job ${jobId} not claimable (missing, wrong status, or not yet due)`);
             return;
         }
+        if ('_exhausted' in claimed && claimed._exhausted) {
+            await updateListingStatus(claimed.listingId, { status: 'error', errorMessage: `Sync failed after ${claimed.maxAttempts} attempts` });
+            await writeLog(jobId, claimed.listingId, claimed.accountId, claimed.platform, 'error', `Job exhausted ${claimed.maxAttempts} attempts`);
+            return;
+        }
+        job = claimed;
     }
-    if (job.attempts >= job.maxAttempts) {
-        await updateJobStatus(jobId, 'failed', { errorMessage: `Max attempts (${job.maxAttempts}) reached` });
-        await updateListingStatus(job.listingId, { status: 'error', errorMessage: `Sync failed after ${job.maxAttempts} attempts` });
-        await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', `Job exhausted ${job.maxAttempts} attempts`);
+    catch (txErr) {
+        console.error(`[MarketplaceSync] Transaction failed for job ${jobId}:`, txErr);
         return;
     }
-    const now = new Date().toISOString();
-    await updateJobStatus(jobId, 'running', {
-        attempts: job.attempts + 1,
-        lastAttemptAt: now,
-        nextRetryAt: null,
-    });
     await updateListingStatus(job.listingId, { status: 'syncing' });
     await writeLog(jobId, job.listingId, job.accountId, job.platform, 'info', `Starting ${job.action} (attempt ${job.attempts + 1}/${job.maxAttempts})`);
     const listingSnap = await core_1.db.collection(constants_1.MARKETPLACE_LISTINGS_COLLECTION).doc(job.listingId).get();
@@ -264,6 +326,8 @@ async function executeSyncJob(jobId) {
         await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', `${job.action} failed: ${result.error}`, { attempt: job.attempts + 1, maxAttempts: job.maxAttempts, canRetry, nextRetryAt });
         if (canRetry) {
             await writeLog(jobId, job.listingId, job.accountId, job.platform, 'info', `Will retry at ${nextRetryAt} (attempt ${job.attempts + 2}/${job.maxAttempts})`);
+            const delayMs = computeNextRetryDelay(job.attempts);
+            scheduleRetryExecution(jobId, delayMs);
         }
     }
 }

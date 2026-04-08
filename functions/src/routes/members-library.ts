@@ -226,7 +226,7 @@ app.post('/members/generate-product-graphic', requireAuth, async (req: Request, 
       letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
       strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
       mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
-      imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
+      verticalOffset: headerStyle.verticalOffset, horizontalOffset: headerStyle.horizontalOffset, imageScale: headerStyle.imageScale,
     } : null;
     const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
       text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
@@ -234,7 +234,7 @@ app.post('/members/generate-product-graphic', requireAuth, async (req: Request, 
       letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
       strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
       mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
-      imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
+      verticalOffset: footerStyle.verticalOffset, horizontalOffset: footerStyle.horizontalOffset, imageScale: footerStyle.imageScale,
     } : null;
     const productGraphicDataUrl = await cfGeneratePrintifyComposite(qrUrl, topText, bottomText, 1200, 1800, qrColor as 'black' | 'white');
     const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -262,7 +262,7 @@ app.post('/public/generate-product-graphic', async (req: Request, res: Response)
       letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
       strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
       mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
-      imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
+      verticalOffset: headerStyle.verticalOffset, horizontalOffset: headerStyle.horizontalOffset, imageScale: headerStyle.imageScale,
     } : null;
     const bottomText = showFooter && (footerStyle?.text || (footerStyle?.mode === 'image' && footerStyle?.imageUrl)) ? {
       text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
@@ -270,7 +270,7 @@ app.post('/public/generate-product-graphic', async (req: Request, res: Response)
       letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
       strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
       mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
-      imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
+      verticalOffset: footerStyle.verticalOffset, horizontalOffset: footerStyle.horizontalOffset, imageScale: footerStyle.imageScale,
     } : null;
     const productGraphicDataUrl = await cfGeneratePrintifyComposite(qrUrl, topText, bottomText, 1200, 1800, qrColor as 'black' | 'white');
     const match = productGraphicDataUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -309,7 +309,7 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
         letterSpacing: headerStyle.letterSpacing || 0, warpPreset: headerStyle.warpPreset || 'straight',
         strokeColor: headerStyle.strokeColor, strokeWidth: headerStyle.strokeWidth,
         mode: headerStyle.mode, imageUrl: headerStyle.imageUrl,
-        imageOffsetX: headerStyle.imageOffsetX, imageOffsetY: headerStyle.imageOffsetY, imageScale: headerStyle.imageScale,
+        verticalOffset: headerStyle.verticalOffset, horizontalOffset: headerStyle.horizontalOffset, imageScale: headerStyle.imageScale,
       } : null;
       const bottomText = showFooter && cfHasFooterContent ? {
         text: footerStyle.text || '', fontFamily: footerStyle.fontFamily || 'Arial',
@@ -317,7 +317,7 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
         letterSpacing: footerStyle.letterSpacing || 0, warpPreset: footerStyle.warpPreset || 'straight',
         strokeColor: footerStyle.strokeColor, strokeWidth: footerStyle.strokeWidth,
         mode: footerStyle.mode, imageUrl: footerStyle.imageUrl,
-        imageOffsetX: footerStyle.imageOffsetX, imageOffsetY: footerStyle.imageOffsetY, imageScale: footerStyle.imageScale,
+        verticalOffset: footerStyle.verticalOffset, horizontalOffset: footerStyle.horizontalOffset, imageScale: footerStyle.imageScale,
       } : null;
       const compositeDataUrl = await cfGeneratePrintifyComposite(
         qrUrl || 'https://example.com', topText, bottomText, 1200, 1800, qrColor as 'black' | 'white'

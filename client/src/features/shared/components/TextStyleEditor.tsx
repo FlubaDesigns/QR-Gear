@@ -22,8 +22,6 @@ export interface TextStyleConfig {
   horizontalOffset: number;
   mode?: "text" | "image";
   imageUrl?: string;
-  imageOffsetX?: number;
-  imageOffsetY?: number;
   imageScale?: number;
 }
 
@@ -64,8 +62,6 @@ export const defaultTextStyle: TextStyleConfig = {
   horizontalOffset: 50,
   mode: "text",
   imageUrl: "",
-  imageOffsetX: 50,
-  imageOffsetY: 50,
   imageScale: 100,
 };
 
