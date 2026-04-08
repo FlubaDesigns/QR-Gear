@@ -36,7 +36,7 @@ app.post('/members/:memberId/packets', async (req: Request, res: Response): Prom
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
     if (!background?.url) { res.status(400).json({ error: "background.url is required" }); return; }
     const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const packetData = { packetId, memberId, kind: kind || 'qr_canvas', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await db.collection('memberPackets').doc(packetId).set(packetData);
     res.json({ packetId, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -82,7 +82,7 @@ app.post('/member/packets', requireAuth, async (req: Request, res: Response): Pr
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     if (!background?.url) { res.status(400).json({ error: "background.url is required" }); return; }
     const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const packetData = { packetId, memberId, kind: kind || 'qr_canvas', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     await db.collection('memberPackets').doc(packetId).set(packetData);
     res.json({ packetId, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -139,7 +139,7 @@ app.post('/member/templates/save', requireAuth, async (req: Request, res: Respon
     const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetDoc = await db.collection('memberPackets').doc(packetId).get();
     const packetData = packetDoc.data() || {};
-    const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_canvas', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
+    const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_compose', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
     await db.collection('memberTemplates').doc(templateId).set(templateData);
     await db.collection('memberPackets').doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
     res.json({ templateId });
