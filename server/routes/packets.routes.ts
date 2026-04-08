@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
+import { PRODUCT_PACKETS_COLLECTION, STORE_PRODUCT_LINKS_COLLECTION } from "../lib/constants";
 
 export function registerPacketRoutes(app: Express): void {
 
@@ -101,7 +102,7 @@ export function registerPacketRoutes(app: Express): void {
         updatedAt: now,
       };
       
-      const packetRef = await firestoreDb.collection("productPackets").add(packetData);
+      const packetRef = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
       const packetId = packetRef.id;
       
       console.log(`[Packets] Created packet: ${packetId}`);
@@ -161,7 +162,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const snapshot = await firestoreDb.collection("productPackets")
+      const snapshot = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION)
         .orderBy("createdAt", "desc")
         .limit(100)
         .get();
@@ -200,7 +201,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const doc = await firestoreDb.collection("productPackets").doc(packetId).get();
+      const doc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
       
       if (!doc.exists) {
         return res.status(404).json({ error: "Packet not found" });
@@ -331,7 +332,7 @@ export function registerPacketRoutes(app: Express): void {
         updatedAt: now,
       };
       
-      const packetRef = await firestoreDb.collection("productPackets").add(packetData);
+      const packetRef = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
       const packetId = packetRef.id;
       
       console.log(`[Packets TEST] Created packet: ${packetId}`);
@@ -391,7 +392,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const snapshot = await firestoreDb.collection("productPackets")
+      const snapshot = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION)
         .orderBy("createdAt", "desc")
         .limit(100)
         .get();
@@ -430,7 +431,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const doc = await firestoreDb.collection("productPackets").doc(packetId).get();
+      const doc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
       
       if (!doc.exists) {
         return res.status(404).json({ error: "Packet not found" });
@@ -476,7 +477,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb, FieldValue } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const docRef = firestoreDb.collection("productPackets").doc(packetId);
+      const docRef = firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
       const doc = await docRef.get();
       
       if (!doc.exists) {
@@ -512,7 +513,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const docRef = firestoreDb.collection("productPackets").doc(packetId);
+      const docRef = firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
       const doc = await docRef.get();
       
       if (!doc.exists) {
@@ -541,7 +542,7 @@ export function registerPacketRoutes(app: Express): void {
         cascadeResults.templates++;
       }
       
-      const linksSnap = await firestoreDb.collection("storeProductLinks")
+      const linksSnap = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .where("packetId", "==", packetId)
         .get();
       for (const linkDoc of linksSnap.docs) {
@@ -577,7 +578,7 @@ export function registerPacketRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const snapshot = await firestoreDb.collection("productPackets")
+      const snapshot = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION)
         .where("landingPageSlug", "==", slug)
         .limit(1)
         .get();

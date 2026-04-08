@@ -10,6 +10,13 @@
 export const MOSAICS_COLLECTION = 'site_programs';
 export const MOSAIC_TEMPLATES_COLLECTION = 'dynamicsCollections';
 
+export const CHANNEL_ITEMS_COLLECTION = 'channel_items';
+export const CHANNEL_CONTENT_COLLECTION = 'dynamicsChannelContent';
+export const COLLECTION_ITEMS_COLLECTION = 'dynamicsCollectionItems';
+export const DYNAMICS_SURFACES_COLLECTION = 'qrDynamicsSurfaces';
+export const STORE_PRODUCT_LINKS_COLLECTION = 'storeProductLinks';
+export const PRODUCT_PACKETS_COLLECTION = 'productPackets';
+
 export const PLATFORM_STORE_ID = 'qr-gear';
 
 export const SURFACES_COLLECTION = 'surfaces';

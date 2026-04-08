@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../../storage";
 import { isAdmin } from "../../firebaseAuth";
+import { STORE_PRODUCT_LINKS_COLLECTION } from "../../lib/constants";
 
 export function registerStoreProductLinksRoutes(app: Express): void {
 
@@ -9,7 +10,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .orderBy("createdAt", "desc")
         .limit(100)
         .get();
@@ -78,7 +79,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
         updatedAt: now,
       };
       
-      const linkRef = await firestoreDb.collection("storeProductLinks").add(linkData);
+      const linkRef = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION).add(linkData);
       
       console.log(`[Store Links] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
 
@@ -149,7 +150,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .orderBy("createdAt", "desc")
         .limit(100)
         .get();
@@ -218,7 +219,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
         updatedAt: now,
       };
       
-      const linkRef = await firestoreDb.collection("storeProductLinks").add(linkData);
+      const linkRef = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION).add(linkData);
       
       console.log(`[Store Links TEST] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
 
@@ -244,7 +245,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channel", "==", channelId)
         .get();
@@ -293,7 +294,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb, FieldValue } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const docRef = firestoreDb.collection("storeProductLinks").doc(linkId);
+      const docRef = firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION).doc(linkId);
       const doc = await docRef.get();
       
       if (!doc.exists) {
@@ -329,7 +330,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const docRef = firestoreDb.collection("storeProductLinks").doc(linkId);
+      const docRef = firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION).doc(linkId);
       const doc = await docRef.get();
       
       if (!doc.exists) {

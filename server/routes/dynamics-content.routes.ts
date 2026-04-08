@@ -1,6 +1,13 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
-import { MOSAIC_TEMPLATES_COLLECTION } from "../lib/constants";
+import {
+  MOSAIC_TEMPLATES_COLLECTION,
+  CHANNEL_CONTENT_COLLECTION,
+  COLLECTION_ITEMS_COLLECTION,
+  DYNAMICS_SURFACES_COLLECTION,
+  STORE_PRODUCT_LINKS_COLLECTION,
+  PRODUCT_PACKETS_COLLECTION,
+} from "../lib/constants";
 
 export function registerDynamicsContentRoutes(app: Express): void {
 
@@ -15,7 +22,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const contentSnapshot = await firestoreDb.collection("dynamicsChannelContent")
+      const contentSnapshot = await firestoreDb.collection(CHANNEL_CONTENT_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
         .get();
@@ -26,13 +33,13 @@ export function registerDynamicsContentRoutes(app: Express): void {
       }));
 
       const channelIdLower = channelId.toLowerCase();
-      let packetsSnapshot = await firestoreDb.collection("productPackets")
+      let packetsSnapshot = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channelId", "==", channelId)
         .get();
 
       if (packetsSnapshot.empty && channelId !== channelIdLower) {
-        packetsSnapshot = await firestoreDb.collection("productPackets")
+        packetsSnapshot = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION)
           .where("storeId", "==", storeId)
           .where("channelId", "==", channelIdLower)
           .get();
@@ -90,7 +97,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const docRef = await firestoreDb.collection("dynamicsChannelContent").add({
+      const docRef = await firestoreDb.collection(CHANNEL_CONTENT_COLLECTION).add({
         storeId,
         channelId,
         name,
@@ -126,7 +133,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      await firestoreDb.collection("dynamicsChannelContent").doc(contentId).delete();
+      await firestoreDb.collection(CHANNEL_CONTENT_COLLECTION).doc(contentId).delete();
 
       console.log(`[ChannelContent] Deleted content ${contentId}`);
 
@@ -149,7 +156,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const existingItems = await firestoreDb.collection("dynamicsCollectionItems")
+      const existingItems = await firestoreDb.collection(COLLECTION_ITEMS_COLLECTION)
         .where("collectionId", "==", collectionId)
         .orderBy("order", "desc")
         .limit(1)
@@ -157,7 +164,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
 
       const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order || 0);
 
-      const docRef = await firestoreDb.collection("dynamicsCollectionItems").add({
+      const docRef = await firestoreDb.collection(COLLECTION_ITEMS_COLLECTION).add({
         collectionId,
         contentId,
         contentType,
@@ -193,7 +200,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const itemsSnapshot = await firestoreDb.collection("dynamicsCollectionItems")
+      const itemsSnapshot = await firestoreDb.collection(COLLECTION_ITEMS_COLLECTION)
         .where("collectionId", "==", collectionId)
         .orderBy("order", "asc")
         .get();
@@ -230,7 +237,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       if (order !== undefined) updateData.order = order;
       if (rotationInterval) updateData.rotationInterval = rotationInterval;
 
-      await firestoreDb.collection("dynamicsCollectionItems").doc(itemId).update(updateData);
+      await firestoreDb.collection(COLLECTION_ITEMS_COLLECTION).doc(itemId).update(updateData);
 
       console.log(`[CollectionItems] Updated item ${itemId}`);
 
@@ -252,7 +259,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      await firestoreDb.collection("dynamicsCollectionItems").doc(itemId).delete();
+      await firestoreDb.collection(COLLECTION_ITEMS_COLLECTION).doc(itemId).delete();
 
       console.log(`[CollectionItems] Removed item ${itemId}`);
 
@@ -278,7 +285,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const batch = firestoreDb.batch();
 
       for (const { itemId, order } of itemOrders) {
-        const docRef = firestoreDb.collection("dynamicsCollectionItems").doc(itemId);
+        const docRef = firestoreDb.collection(COLLECTION_ITEMS_COLLECTION).doc(itemId);
         batch.update(docRef, { order, updatedAt: new Date() });
       }
 
@@ -304,7 +311,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channel", "==", channelId)
         .get();
@@ -357,7 +364,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channel", "==", channelId)
         .where("collection", "==", name)
@@ -407,7 +414,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channel", "==", channelId)
         .where("collection", "==", collectionName)
@@ -468,7 +475,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
         updatedAt: FieldValue.serverTimestamp(),
       };
 
-      const surfaceRef = await firestoreDb.collection("qrDynamicsSurfaces").add(surfaceData);
+      const surfaceRef = await firestoreDb.collection(DYNAMICS_SURFACES_COLLECTION).add(surfaceData);
 
       console.log(`[Dynamics] Created surface: ${surfaceRef.id} for collection ${collectionName}`);
 
@@ -488,7 +495,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const snapshot = await firestoreDb.collection("qrDynamicsSurfaces")
+      const snapshot = await firestoreDb.collection(DYNAMICS_SURFACES_COLLECTION)
         .orderBy("createdAt", "desc")
         .limit(100)
         .get();
@@ -518,7 +525,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const surfaceDoc = await firestoreDb.collection("qrDynamicsSurfaces").doc(surfaceId).get();
+      const surfaceDoc = await firestoreDb.collection(DYNAMICS_SURFACES_COLLECTION).doc(surfaceId).get();
 
       if (!surfaceDoc.exists) {
         return res.status(404).json({ error: "Surface not found" });
@@ -538,7 +545,7 @@ export function registerDynamicsContentRoutes(app: Express): void {
 
       const { storeId, channelId, collectionName, rotationInterval, timezone } = surface;
 
-      const linksSnapshot = await firestoreDb.collection("storeProductLinks")
+      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
         .where("storeId", "==", storeId)
         .where("channel", "==", channelId)
         .where("collection", "==", collectionName)

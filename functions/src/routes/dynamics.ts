@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import Stripe from 'stripe';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { MOSAIC_TEMPLATES_COLLECTION } from '../constants';
+import { MOSAIC_TEMPLATES_COLLECTION, PRODUCT_PACKETS_COLLECTION, STORE_PRODUCT_LINKS_COLLECTION, DYNAMICS_SURFACES_COLLECTION, CHANNEL_CONTENT_COLLECTION, COLLECTION_ITEMS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -104,14 +104,14 @@ app.post('/admin/dynamics/surfaces', requireAdmin, async (req: Request, res: Res
     const { name, storeId, channelId, collectionName, rotationInterval, timezone, isEnabled } = req.body;
     if (!storeId || !channelId || !collectionName) { res.status(400).json({ error: "storeId, channelId, and collectionName are required" }); return; }
     const surfaceData = { name: name || `Dynamics - ${collectionName}`, storeId, channelId, collectionName, rotationInterval: rotationInterval || "daily", timezone: timezone || "America/New_York", isEnabled: isEnabled !== false, createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() };
-    const surfaceRef = await db.collection("qrDynamicsSurfaces").add(surfaceData);
+    const surfaceRef = await db.collection(DYNAMICS_SURFACES_COLLECTION).add(surfaceData);
     res.json({ success: true, surfaceId: surfaceRef.id, message: `Dynamics surface created for ${collectionName}` });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.get('/admin/dynamics/surfaces', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snapshot = await db.collection("qrDynamicsSurfaces").orderBy("createdAt", "desc").limit(100).get();
+    const snapshot = await db.collection(DYNAMICS_SURFACES_COLLECTION).orderBy("createdAt", "desc").limit(100).get();
     const surfaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null, updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || null }));
     res.json({ success: true, surfaces, count: surfaces.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -120,12 +120,12 @@ app.get('/admin/dynamics/surfaces', requireAdmin, async (_req: Request, res: Res
 app.get('/public/dynamics/resolve/:surfaceId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { surfaceId } = req.params;
-    const surfaceDoc = await db.collection("qrDynamicsSurfaces").doc(surfaceId).get();
+    const surfaceDoc = await db.collection(DYNAMICS_SURFACES_COLLECTION).doc(surfaceId).get();
     if (!surfaceDoc.exists) { res.status(404).json({ error: "Surface not found" }); return; }
     const surface = surfaceDoc.data() as any;
     if (!surface.isEnabled) { res.json({ success: true, surfaceId, isEnabled: false, activeItem: null, message: "Surface is disabled" }); return; }
     const { storeId, channelId, collectionName, rotationInterval, timezone } = surface;
-    const linksSnapshot = await db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).orderBy("createdAt", "asc").get();
+    const linksSnapshot = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).orderBy("createdAt", "asc").get();
     if (linksSnapshot.empty) { res.json({ success: true, surfaceId, isEnabled: true, activeItem: null, message: "No items in collection" }); return; }
     const items = linksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const now = new Date();
@@ -147,11 +147,11 @@ app.get('/public/dynamics/resolve/:surfaceId', async (req: Request, res: Respons
 app.get('/admin/stores/:storeId/channels/:channelId/content', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId, channelId } = req.params;
-    const contentSnapshot = await db.collection("dynamicsChannelContent").where("storeId", "==", storeId).where("channelId", "==", channelId).get();
+    const contentSnapshot = await db.collection(CHANNEL_CONTENT_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
     const explicitContent = contentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     const channelIdLower = channelId.toLowerCase();
-    let packetsSnapshot = await db.collection("productPackets").where("storeId", "==", storeId).where("channelId", "==", channelId).get();
-    if (packetsSnapshot.empty && channelId !== channelIdLower) packetsSnapshot = await db.collection("productPackets").where("storeId", "==", storeId).where("channelId", "==", channelIdLower).get();
+    let packetsSnapshot = await db.collection(PRODUCT_PACKETS_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
+    if (packetsSnapshot.empty && channelId !== channelIdLower) packetsSnapshot = await db.collection(PRODUCT_PACKETS_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelIdLower).get();
     const packetContent = packetsSnapshot.docs.map(doc => { const data = doc.data(); if (data.landingPageSnapshotUrl) { return { id: `packet-${doc.id}`, storeId, channelId, name: data.productName || data.landingPageTitle || 'Landing Page', contentType: 'image', url: data.landingPageSnapshotUrl, thumbnailUrl: data.landingPageSnapshotUrl, sourceType: 'packet', packetId: doc.id, landingPageSlug: data.landingPageSlug }; } return null; }).filter(Boolean);
     const content = [...explicitContent, ...packetContent];
     res.json({ success: true, content, count: content.length });
@@ -163,7 +163,7 @@ app.post('/admin/stores/:storeId/channels/:channelId/content', requireAdmin, asy
     const { storeId, channelId } = req.params;
     const { name, contentType, url, thumbnailUrl, metadata } = req.body;
     if (!name || !contentType || !url) { res.status(400).json({ error: "name, contentType, and url are required" }); return; }
-    const docRef = await db.collection("dynamicsChannelContent").add({ storeId, channelId, name, contentType, url, thumbnailUrl: thumbnailUrl || url, metadata: metadata || {}, createdAt: new Date(), updatedAt: new Date() });
+    const docRef = await db.collection(CHANNEL_CONTENT_COLLECTION).add({ storeId, channelId, name, contentType, url, thumbnailUrl: thumbnailUrl || url, metadata: metadata || {}, createdAt: new Date(), updatedAt: new Date() });
     res.json({ success: true, contentId: docRef.id, name });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -171,7 +171,7 @@ app.post('/admin/stores/:storeId/channels/:channelId/content', requireAdmin, asy
 app.delete('/admin/stores/:storeId/channels/:channelId/content/:contentId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { contentId } = req.params;
-    await db.collection("dynamicsChannelContent").doc(contentId).delete();
+    await db.collection(CHANNEL_CONTENT_COLLECTION).doc(contentId).delete();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -181,9 +181,9 @@ app.post('/admin/collections/:collectionId/items', requireAdmin, async (req: Req
     const { collectionId } = req.params;
     const { contentId, contentType, name, url, thumbnailUrl, rotationInterval } = req.body;
     if (!collectionId || !contentId || !contentType || !name || !url) { res.status(400).json({ error: "Missing required fields" }); return; }
-    const existingItems = await db.collection("dynamicsCollectionItems").where("collectionId", "==", collectionId).orderBy("order", "desc").limit(1).get();
+    const existingItems = await db.collection(COLLECTION_ITEMS_COLLECTION).where("collectionId", "==", collectionId).orderBy("order", "desc").limit(1).get();
     const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order || 0);
-    const docRef = await db.collection("dynamicsCollectionItems").add({ collectionId, contentId, contentType, name, url, thumbnailUrl: thumbnailUrl || url, order: maxOrder + 1, rotationInterval: rotationInterval || 'daily', addedAt: new Date() });
+    const docRef = await db.collection(COLLECTION_ITEMS_COLLECTION).add({ collectionId, contentId, contentType, name, url, thumbnailUrl: thumbnailUrl || url, order: maxOrder + 1, rotationInterval: rotationInterval || 'daily', addedAt: new Date() });
     res.json({ success: true, itemId: docRef.id, order: maxOrder + 1 });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -191,7 +191,7 @@ app.post('/admin/collections/:collectionId/items', requireAdmin, async (req: Req
 app.get('/admin/collections/:collectionId/items', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { collectionId } = req.params;
-    const itemsSnapshot = await db.collection("dynamicsCollectionItems").where("collectionId", "==", collectionId).orderBy("order", "asc").get();
+    const itemsSnapshot = await db.collection(COLLECTION_ITEMS_COLLECTION).where("collectionId", "==", collectionId).orderBy("order", "asc").get();
     const items = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json({ success: true, items, count: items.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -204,7 +204,7 @@ app.patch('/admin/collections/:collectionId/items/:itemId', requireAdmin, async 
     const updateData: any = { updatedAt: new Date() };
     if (order !== undefined) updateData.order = order;
     if (rotationInterval) updateData.rotationInterval = rotationInterval;
-    await db.collection("dynamicsCollectionItems").doc(itemId).update(updateData);
+    await db.collection(COLLECTION_ITEMS_COLLECTION).doc(itemId).update(updateData);
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -212,7 +212,7 @@ app.patch('/admin/collections/:collectionId/items/:itemId', requireAdmin, async 
 app.delete('/admin/collections/:collectionId/items/:itemId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { itemId } = req.params;
-    await db.collection("dynamicsCollectionItems").doc(itemId).delete();
+    await db.collection(COLLECTION_ITEMS_COLLECTION).doc(itemId).delete();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -222,7 +222,7 @@ app.put('/admin/collections/:collectionId/items/reorder', requireAdmin, async (r
     const { itemOrders } = req.body;
     if (!itemOrders || !Array.isArray(itemOrders)) { res.status(400).json({ error: "itemOrders array is required" }); return; }
     const batch = db.batch();
-    for (const { itemId, order } of itemOrders) { batch.update(db.collection("dynamicsCollectionItems").doc(itemId), { order, updatedAt: new Date() }); }
+    for (const { itemId, order } of itemOrders) { batch.update(db.collection(COLLECTION_ITEMS_COLLECTION).doc(itemId), { order, updatedAt: new Date() }); }
     await batch.commit();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -231,7 +231,7 @@ app.put('/admin/collections/:collectionId/items/reorder', requireAdmin, async (r
 app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId, channelId } = req.params;
-    const linksSnapshot = await db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).get();
+    const linksSnapshot = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).get();
     const collectionsSet = new Set<string>();
     linksSnapshot.docs.forEach(doc => { const c = doc.data().collection; if (c) collectionsSet.add(c); });
     const explicitSnapshot = await db.collection(MOSAIC_TEMPLATES_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
@@ -254,7 +254,7 @@ app.post('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin,
 app.get('/admin/stores/:storeId/channels/:channelId/collections/:collectionName/items', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId, channelId, collectionName } = req.params;
-    const linksSnapshot = await db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).get();
+    const linksSnapshot = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).get();
     const items = linksSnapshot.docs.map(doc => { const data = doc.data(); return { id: doc.id, linkId: doc.id, packetId: data.packetId || null, name: data.productName || "Untitled Product", imageUrl: data.compositeUrl || data.qrOnlyUrl || null, mockupUrl: data.mockupUrl || null, qrProductState: data.qrProductState || null, landingPageUrl: data.landingPageUrl || null, createdAt: data.createdAt?.toDate?.()?.toISOString() || null }; });
     res.json({ success: true, items, collection: collectionName, count: items.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -265,7 +265,7 @@ app.get('/dynamics/packets', async (req: Request, res: Response): Promise<void> 
     const storeId = req.query.storeId as string;
     const channelId = req.query.channelId as string;
     if (!storeId) { res.status(400).json({ error: "storeId is required" }); return; }
-    const packetsSnapshot = await db.collection("productPackets").where("storeId", "==", storeId).get();
+    const packetsSnapshot = await db.collection(PRODUCT_PACKETS_COLLECTION).where("storeId", "==", storeId).get();
     let docs = packetsSnapshot.docs;
     if (channelId) { const channelIdLower = channelId.toLowerCase(); docs = docs.filter(doc => { const d = doc.data(); return d.channelId === channelId || d.channelId === channelIdLower; }); }
     const packets = docs.map(doc => { const data = doc.data(); if (!data.landingPageSnapshotUrl) return null; let qrType: string = 'qr-canvas'; if ((data.landingPageSnapshotUrl || '').includes('/play/')) qrType = 'qr-play'; return { id: doc.id, packetId: doc.id, name: data.productName || data.landingPageTitle || 'Untitled', qrProductType: qrType, thumbnailUrl: data.landingPageSnapshotUrl, landingPageSlug: data.landingPageSlug, landingPageUrl: data.landingPageSlug ? `/p/${data.landingPageSlug}` : null, storeId: data.storeId, channelId: data.channelId }; }).filter(Boolean);
@@ -311,7 +311,7 @@ app.get('/dynamics/instances/:instanceId/preview', async (req: Request, res: Res
     let running = 0; let activeSlot = null; let activeIndex = 0;
     for (let i = 0; i < sortedSlots.length; i++) { running += sortedSlots[i].durationSeconds; if (position < running) { activeSlot = sortedSlots[i]; activeIndex = i; break; } }
     let packetDetails = null;
-    if (activeSlot) { const packetDoc = await db.collection("productPackets").doc(activeSlot.packetId).get(); if (packetDoc.exists) { const pd = packetDoc.data() as any; packetDetails = { name: pd.productName || pd.landingPageTitle || 'Untitled', thumbnailUrl: pd.landingPageSnapshotUrl, landingPageSlug: pd.landingPageSlug, qrProductType: pd.qrProductType }; } }
+    if (activeSlot) { const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get(); if (packetDoc.exists) { const pd = packetDoc.data() as any; packetDetails = { name: pd.productName || pd.landingPageTitle || 'Untitled', thumbnailUrl: pd.landingPageSnapshotUrl, landingPageSlug: pd.landingPageSlug, qrProductType: pd.qrProductType }; } }
     let timeRemainingSeconds = 0;
     if (activeSlot) { const slotStart = running - activeSlot.durationSeconds; timeRemainingSeconds = activeSlot.durationSeconds - (position - slotStart); }
     res.json({ success: true, nowEpoch, elapsed, cycleLength, position, activeIndex, totalSlots: sortedSlots.length, activeSlot: activeSlot ? { ...activeSlot, packet: packetDetails } : null, timeRemainingSeconds, nextSlotIndex: (activeIndex + 1) % sortedSlots.length });
@@ -341,7 +341,7 @@ app.get('/qr/d/:instanceId', async (req: Request, res: Response): Promise<void> 
     if (instance.composeMode === 'scan-to-reveal') {
       const slotPacketIds = sortedSlots.map((s: any) => s.packetId);
       const packetSlugs: string[] = [];
-      for (const pid of slotPacketIds) { let pDoc = await db.collection("productPackets").doc(pid).get(); if (!pDoc.exists) pDoc = await db.collection("memberPackets").doc(pid).get(); const pData = pDoc.exists ? pDoc.data() : null; packetSlugs.push((pData as any)?.landingPageSlug || ''); }
+      for (const pid of slotPacketIds) { let pDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(pid).get(); if (!pDoc.exists) pDoc = await db.collection("memberPackets").doc(pid).get(); const pData = pDoc.exists ? pDoc.data() : null; packetSlugs.push((pData as any)?.landingPageSlug || ''); }
       const validSlugs = packetSlugs.filter(s => s !== '');
       if (validSlugs.length === 0) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("No content configured"); return; }
       const slugsJson = JSON.stringify(validSlugs);
@@ -357,7 +357,7 @@ app.get('/qr/d/:instanceId', async (req: Request, res: Response): Promise<void> 
     let running = 0; let activeSlot = null;
     for (const slot of sortedSlots) { running += slot.durationSeconds; if (position < running) { activeSlot = slot; break; } }
     if (!activeSlot) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(500).send("Unable to resolve slot"); return; }
-    let packetDoc = await db.collection("productPackets").doc(activeSlot.packetId).get();
+    let packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
     if (!packetDoc.exists) packetDoc = await db.collection("memberPackets").doc(activeSlot.packetId).get();
     if (!packetDoc.exists) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("Content not available"); return; }
     const packetData = packetDoc.data() as any;

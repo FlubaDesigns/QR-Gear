@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
+import { PRODUCT_PACKETS_COLLECTION, STORE_PRODUCT_LINKS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -205,7 +206,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
       playMediaUrl: playMediaUrl || null, playMediaType: playMediaType || null,
       createdAt: now, updatedAt: now,
     };
-    const packetRef = await db.collection("productPackets").add(packetData);
+    const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
     const packetId = packetRef.id;
     console.log(`[Packets CF] Created packet: ${packetId}`);
 
@@ -271,7 +272,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
 
 app.get('/admin/packets', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snapshot = await db.collection("productPackets").orderBy("createdAt", "desc").limit(100).get();
+    const snapshot = await db.collection(PRODUCT_PACKETS_COLLECTION).orderBy("createdAt", "desc").limit(100).get();
     const packets = snapshot.docs.map(doc => {
       const data = doc.data();
       return { id: doc.id, ...data, createdAt: data?.createdAt?.toDate?.() || null, updatedAt: data?.updatedAt?.toDate?.() || null };
@@ -288,7 +289,7 @@ app.get('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Resp
   try {
     const { packetId } = req.params;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const doc = await db.collection("productPackets").doc(packetId).get();
+    const doc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const data = doc.data();
     let linkedTemplateId = null;
@@ -308,7 +309,7 @@ app.get('/public/packets/:packetId', async (req: Request, res: Response): Promis
   try {
     const { packetId } = req.params;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const doc = await db.collection("productPackets").doc(packetId).get();
+    const doc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const data = doc.data();
     let linkedTemplateId = null;
@@ -329,7 +330,7 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     const { packetId } = req.params;
     const updates = req.body;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const docRef = db.collection("productPackets").doc(packetId);
+    const docRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const cleanUpdates = stripUndef(updates);
@@ -348,7 +349,7 @@ app.delete('/admin/packets/:packetId', requireAdmin, async (req: Request, res: R
   try {
     const { packetId } = req.params;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const docRef = db.collection("productPackets").doc(packetId);
+    const docRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const cascadeResults = { graphics: 0, templates: 0, storeProductLinks: 0 };
@@ -356,7 +357,7 @@ app.delete('/admin/packets/:packetId', requireAdmin, async (req: Request, res: R
     for (const graphicDoc of graphicsSnap.docs) { await graphicDoc.ref.delete(); cascadeResults.graphics++; }
     const templatesSnap = await db.collection("productTemplates").where("packetId", "==", packetId).get();
     for (const templateDoc of templatesSnap.docs) { await templateDoc.ref.delete(); cascadeResults.templates++; }
-    const linksSnap = await db.collection("storeProductLinks").where("packetId", "==", packetId).get();
+    const linksSnap = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("packetId", "==", packetId).get();
     for (const linkDoc of linksSnap.docs) { await linkDoc.ref.delete(); cascadeResults.storeProductLinks++; }
     await docRef.delete();
     console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);

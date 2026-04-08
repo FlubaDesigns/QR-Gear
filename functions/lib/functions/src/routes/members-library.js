@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerMembersLibraryRoutes = registerMembersLibraryRoutes;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 const mockup_generator_1 = require("../services/mockup-generator");
 const composite_image_1 = require("../services/composite-image");
@@ -828,7 +829,7 @@ function registerMembersLibraryRoutes(app) {
             await core_1.db.collection('memberPackets').doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
             if (channelId) {
                 const itemId = `ci-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-                await core_1.db.collection('channel_items').doc(itemId).set({
+                await core_1.db.collection(constants_1.CHANNEL_ITEMS_COLLECTION).doc(itemId).set({
                     channelId, packetId, title: titleLayer?.text || 'Untitled Video',
                     description: metadata?.description || '', previewImageUrl: packet?.shareCardUrl || packet?.videoSource?.posterUrl || null,
                     price: metadata?.price || null, createdAt: new Date().toISOString(),

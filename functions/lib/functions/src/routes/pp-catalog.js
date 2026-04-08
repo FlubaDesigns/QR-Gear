@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 const printful_1 = require("../services/printful");
 const printify_1 = require("../services/printify");
@@ -13,7 +14,7 @@ function register(app) {
     // ============ PRODUCTS PAGE: STORE-PRODUCT-LINKS CRUD ============
     app.get('/admin/store-product-links', middleware_1.requireAdmin, async (_req, res) => {
         try {
-            const linksSnapshot = await core_1.db.collection("storeProductLinks").orderBy("createdAt", "desc").limit(100).get();
+            const linksSnapshot = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).orderBy("createdAt", "desc").limit(100).get();
             const links = linksSnapshot.docs.map(doc => ({
                 id: doc.id, ...doc.data(),
                 createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
@@ -49,7 +50,7 @@ function register(app) {
                 qrProductState: qrProductState || null, landingPageUrl: landingPageUrl || null,
                 mockupUrl: mockupUrl || null, createdAt: now, updatedAt: now,
             };
-            const linkRef = await core_1.db.collection("storeProductLinks").add(linkData);
+            const linkRef = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).add(linkData);
             console.log(`[Store Links] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
             res.json({ success: true, linkId: linkRef.id, message: `Product linked to ${storeName || storeId} / ${channel}` });
         }
@@ -65,7 +66,7 @@ function register(app) {
                 res.status(400).json({ error: "storeId and channelId are required" });
                 return;
             }
-            const linksSnapshot = await core_1.db.collection("storeProductLinks")
+            const linksSnapshot = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION)
                 .where("storeId", "==", storeId).where("channel", "==", channelId).get();
             const products = linksSnapshot.docs.map(doc => {
                 const data = doc.data();
@@ -97,7 +98,7 @@ function register(app) {
                 res.status(400).json({ error: "linkId is required" });
                 return;
             }
-            const docRef = core_1.db.collection("storeProductLinks").doc(linkId);
+            const docRef = core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).doc(linkId);
             const doc = await docRef.get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Link not found" });
@@ -119,7 +120,7 @@ function register(app) {
                 res.status(400).json({ error: "linkId is required" });
                 return;
             }
-            const docRef = core_1.db.collection("storeProductLinks").doc(linkId);
+            const docRef = core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).doc(linkId);
             const doc = await docRef.get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Link not found" });

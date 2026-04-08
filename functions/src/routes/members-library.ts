@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { PLATFORM_STORE_ID } from '../constants';
+import { PLATFORM_STORE_ID, CHANNEL_ITEMS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -625,7 +625,7 @@ app.post('/member/play-packets/:packetId/publish', requireAuth, async (req: Requ
     await db.collection('memberPackets').doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
     if (channelId) {
       const itemId = `ci-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      await db.collection('channel_items').doc(itemId).set({
+      await db.collection(CHANNEL_ITEMS_COLLECTION).doc(itemId).set({
         channelId, packetId, title: titleLayer?.text || 'Untitled Video',
         description: metadata?.description || '', previewImageUrl: packet?.shareCardUrl || packet?.videoSource?.posterUrl || null,
         price: metadata?.price || null, createdAt: new Date().toISOString(),

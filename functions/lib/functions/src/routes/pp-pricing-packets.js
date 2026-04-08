@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 const printify_1 = require("../services/printify");
 const printful_1 = require("../services/printful");
@@ -185,7 +186,7 @@ function register(app) {
                 playMediaUrl: playMediaUrl || null, playMediaType: playMediaType || null,
                 createdAt: now, updatedAt: now,
             };
-            const packetRef = await core_1.db.collection("productPackets").add(packetData);
+            const packetRef = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).add(packetData);
             const packetId = packetRef.id;
             console.log(`[Packets CF] Created packet: ${packetId}`);
             let mockupJobsQueued = 0;
@@ -251,7 +252,7 @@ function register(app) {
     });
     app.get('/admin/packets', middleware_1.requireAdmin, async (_req, res) => {
         try {
-            const snapshot = await core_1.db.collection("productPackets").orderBy("createdAt", "desc").limit(100).get();
+            const snapshot = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).orderBy("createdAt", "desc").limit(100).get();
             const packets = snapshot.docs.map(doc => {
                 const data = doc.data();
                 return { id: doc.id, ...data, createdAt: data?.createdAt?.toDate?.() || null, updatedAt: data?.updatedAt?.toDate?.() || null };
@@ -271,7 +272,7 @@ function register(app) {
                 res.status(400).json({ error: "packetId is required" });
                 return;
             }
-            const doc = await core_1.db.collection("productPackets").doc(packetId).get();
+            const doc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -299,7 +300,7 @@ function register(app) {
                 res.status(400).json({ error: "packetId is required" });
                 return;
             }
-            const doc = await core_1.db.collection("productPackets").doc(packetId).get();
+            const doc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -328,7 +329,7 @@ function register(app) {
                 res.status(400).json({ error: "packetId is required" });
                 return;
             }
-            const docRef = core_1.db.collection("productPackets").doc(packetId);
+            const docRef = core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(packetId);
             const doc = await docRef.get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Packet not found" });
@@ -355,7 +356,7 @@ function register(app) {
                 res.status(400).json({ error: "packetId is required" });
                 return;
             }
-            const docRef = core_1.db.collection("productPackets").doc(packetId);
+            const docRef = core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(packetId);
             const doc = await docRef.get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Packet not found" });
@@ -372,7 +373,7 @@ function register(app) {
                 await templateDoc.ref.delete();
                 cascadeResults.templates++;
             }
-            const linksSnap = await core_1.db.collection("storeProductLinks").where("packetId", "==", packetId).get();
+            const linksSnap = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).where("packetId", "==", packetId).get();
             for (const linkDoc of linksSnap.docs) {
                 await linkDoc.ref.delete();
                 cascadeResults.storeProductLinks++;

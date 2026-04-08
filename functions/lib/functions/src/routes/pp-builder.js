@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
 const mockup_generator_1 = require("../services/mockup-generator");
 function register(app) {
@@ -199,7 +200,7 @@ function register(app) {
                 updateData.dynamicsMediaUrl = publicUrl;
                 updateData.dynamicsMediaType = actualMimeType;
             }
-            await core_1.db.collection("productPackets").doc(packetId).update(updateData);
+            await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(packetId).update(updateData);
             console.log(`[Content Upload CF] Uploaded ${mode} content for packet ${packetId}`);
             res.json({ success: true, publicUrl, storagePath, mimeType: actualMimeType, message: `${mode} content uploaded successfully` });
         }

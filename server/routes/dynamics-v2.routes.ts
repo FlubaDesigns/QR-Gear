@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { PRODUCT_PACKETS_COLLECTION } from "../lib/constants";
 
 export function registerDynamicsV2Routes(app: Express): void {
 
@@ -15,7 +16,7 @@ export function registerDynamicsV2Routes(app: Express): void {
 
       const channelIdLower = channelId ? (channelId as string).toLowerCase() : null;
 
-      let packetsSnapshot = await firestoreDb.collection("productPackets")
+      let packetsSnapshot = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION)
         .where("storeId", "==", storeId)
         .get();
 
@@ -192,7 +193,7 @@ export function registerDynamicsV2Routes(app: Express): void {
 
       let packetDetails = null;
       if (activeSlot) {
-        const packetDoc = await firestoreDb.collection("productPackets").doc(activeSlot.packetId).get();
+        const packetDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
         if (packetDoc.exists) {
           const packetData = packetDoc.data() as any;
           packetDetails = {
@@ -298,7 +299,7 @@ export function registerDynamicsV2Routes(app: Express): void {
         const packetSlugs: string[] = [];
 
         for (const pid of slotPacketIds) {
-          let pDoc = await firestoreDb.collection("productPackets").doc(pid).get();
+          let pDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(pid).get();
           if (!pDoc.exists) {
             pDoc = await firestoreDb.collection("memberPackets").doc(pid).get();
           }
@@ -367,7 +368,7 @@ export function registerDynamicsV2Routes(app: Express): void {
         return res.status(500).send("Unable to resolve slot");
       }
 
-      let packetDoc = await firestoreDb.collection("productPackets").doc(activeSlot.packetId).get();
+      let packetDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
       if (!packetDoc.exists) {
         packetDoc = await firestoreDb.collection("memberPackets").doc(activeSlot.packetId).get();
       }
@@ -379,7 +380,7 @@ export function registerDynamicsV2Routes(app: Express): void {
         const nextSlot = sortedSlots[nextSlotIndex];
 
         if (nextSlot && nextSlot.packetId !== activeSlot.packetId) {
-          const nextPacketDoc = await firestoreDb.collection("productPackets").doc(nextSlot.packetId).get();
+          const nextPacketDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(nextSlot.packetId).get();
           if (nextPacketDoc.exists) {
             const nextPacketData = nextPacketDoc.data() as any;
             if (nextPacketData.landingPageSlug) {

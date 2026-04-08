@@ -3,6 +3,7 @@ import { storage } from "../../storage";
 import { isAdmin } from "../../firebaseAuth";
 import { fsCount, fsGetAll } from "../../lib/firestore-crud";
 import { normalizePlacements } from '../../../shared/placements';
+import { PRODUCT_PACKETS_COLLECTION } from "../../lib/constants";
 
 export function registerFontsAndTestRoutes(app: Express): void {
 
@@ -413,7 +414,7 @@ export function registerFontsAndTestRoutes(app: Express): void {
         updateData.dynamicsMediaType = result.mimeType;
       }
       
-      await firestoreDb.collection("productPackets").doc(packetId).update(updateData);
+      await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update(updateData);
 
       console.log(`[Content Upload] Uploaded ${mode} content for packet ${packetId}`);
 

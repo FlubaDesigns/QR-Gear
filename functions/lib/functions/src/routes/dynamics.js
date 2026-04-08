@@ -144,7 +144,7 @@ function register(app) {
                 return;
             }
             const surfaceData = { name: name || `Dynamics - ${collectionName}`, storeId, channelId, collectionName, rotationInterval: rotationInterval || "daily", timezone: timezone || "America/New_York", isEnabled: isEnabled !== false, createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(), updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() };
-            const surfaceRef = await core_1.db.collection("qrDynamicsSurfaces").add(surfaceData);
+            const surfaceRef = await core_1.db.collection(constants_1.DYNAMICS_SURFACES_COLLECTION).add(surfaceData);
             res.json({ success: true, surfaceId: surfaceRef.id, message: `Dynamics surface created for ${collectionName}` });
         }
         catch (error) {
@@ -153,7 +153,7 @@ function register(app) {
     });
     app.get('/admin/dynamics/surfaces', middleware_1.requireAdmin, async (_req, res) => {
         try {
-            const snapshot = await core_1.db.collection("qrDynamicsSurfaces").orderBy("createdAt", "desc").limit(100).get();
+            const snapshot = await core_1.db.collection(constants_1.DYNAMICS_SURFACES_COLLECTION).orderBy("createdAt", "desc").limit(100).get();
             const surfaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null, updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || null }));
             res.json({ success: true, surfaces, count: surfaces.length });
         }
@@ -164,7 +164,7 @@ function register(app) {
     app.get('/public/dynamics/resolve/:surfaceId', async (req, res) => {
         try {
             const { surfaceId } = req.params;
-            const surfaceDoc = await core_1.db.collection("qrDynamicsSurfaces").doc(surfaceId).get();
+            const surfaceDoc = await core_1.db.collection(constants_1.DYNAMICS_SURFACES_COLLECTION).doc(surfaceId).get();
             if (!surfaceDoc.exists) {
                 res.status(404).json({ error: "Surface not found" });
                 return;
@@ -175,7 +175,7 @@ function register(app) {
                 return;
             }
             const { storeId, channelId, collectionName, rotationInterval, timezone } = surface;
-            const linksSnapshot = await core_1.db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).orderBy("createdAt", "asc").get();
+            const linksSnapshot = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).orderBy("createdAt", "asc").get();
             if (linksSnapshot.empty) {
                 res.json({ success: true, surfaceId, isEnabled: true, activeItem: null, message: "No items in collection" });
                 return;
@@ -209,12 +209,12 @@ function register(app) {
     app.get('/admin/stores/:storeId/channels/:channelId/content', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { storeId, channelId } = req.params;
-            const contentSnapshot = await core_1.db.collection("dynamicsChannelContent").where("storeId", "==", storeId).where("channelId", "==", channelId).get();
+            const contentSnapshot = await core_1.db.collection(constants_1.CHANNEL_CONTENT_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
             const explicitContent = contentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             const channelIdLower = channelId.toLowerCase();
-            let packetsSnapshot = await core_1.db.collection("productPackets").where("storeId", "==", storeId).where("channelId", "==", channelId).get();
+            let packetsSnapshot = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelId).get();
             if (packetsSnapshot.empty && channelId !== channelIdLower)
-                packetsSnapshot = await core_1.db.collection("productPackets").where("storeId", "==", storeId).where("channelId", "==", channelIdLower).get();
+                packetsSnapshot = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).where("storeId", "==", storeId).where("channelId", "==", channelIdLower).get();
             const packetContent = packetsSnapshot.docs.map(doc => { const data = doc.data(); if (data.landingPageSnapshotUrl) {
                 return { id: `packet-${doc.id}`, storeId, channelId, name: data.productName || data.landingPageTitle || 'Landing Page', contentType: 'image', url: data.landingPageSnapshotUrl, thumbnailUrl: data.landingPageSnapshotUrl, sourceType: 'packet', packetId: doc.id, landingPageSlug: data.landingPageSlug };
             } return null; }).filter(Boolean);
@@ -233,7 +233,7 @@ function register(app) {
                 res.status(400).json({ error: "name, contentType, and url are required" });
                 return;
             }
-            const docRef = await core_1.db.collection("dynamicsChannelContent").add({ storeId, channelId, name, contentType, url, thumbnailUrl: thumbnailUrl || url, metadata: metadata || {}, createdAt: new Date(), updatedAt: new Date() });
+            const docRef = await core_1.db.collection(constants_1.CHANNEL_CONTENT_COLLECTION).add({ storeId, channelId, name, contentType, url, thumbnailUrl: thumbnailUrl || url, metadata: metadata || {}, createdAt: new Date(), updatedAt: new Date() });
             res.json({ success: true, contentId: docRef.id, name });
         }
         catch (error) {
@@ -243,7 +243,7 @@ function register(app) {
     app.delete('/admin/stores/:storeId/channels/:channelId/content/:contentId', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { contentId } = req.params;
-            await core_1.db.collection("dynamicsChannelContent").doc(contentId).delete();
+            await core_1.db.collection(constants_1.CHANNEL_CONTENT_COLLECTION).doc(contentId).delete();
             res.json({ success: true });
         }
         catch (error) {
@@ -258,9 +258,9 @@ function register(app) {
                 res.status(400).json({ error: "Missing required fields" });
                 return;
             }
-            const existingItems = await core_1.db.collection("dynamicsCollectionItems").where("collectionId", "==", collectionId).orderBy("order", "desc").limit(1).get();
+            const existingItems = await core_1.db.collection(constants_1.COLLECTION_ITEMS_COLLECTION).where("collectionId", "==", collectionId).orderBy("order", "desc").limit(1).get();
             const maxOrder = existingItems.empty ? 0 : (existingItems.docs[0].data().order || 0);
-            const docRef = await core_1.db.collection("dynamicsCollectionItems").add({ collectionId, contentId, contentType, name, url, thumbnailUrl: thumbnailUrl || url, order: maxOrder + 1, rotationInterval: rotationInterval || 'daily', addedAt: new Date() });
+            const docRef = await core_1.db.collection(constants_1.COLLECTION_ITEMS_COLLECTION).add({ collectionId, contentId, contentType, name, url, thumbnailUrl: thumbnailUrl || url, order: maxOrder + 1, rotationInterval: rotationInterval || 'daily', addedAt: new Date() });
             res.json({ success: true, itemId: docRef.id, order: maxOrder + 1 });
         }
         catch (error) {
@@ -270,7 +270,7 @@ function register(app) {
     app.get('/admin/collections/:collectionId/items', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { collectionId } = req.params;
-            const itemsSnapshot = await core_1.db.collection("dynamicsCollectionItems").where("collectionId", "==", collectionId).orderBy("order", "asc").get();
+            const itemsSnapshot = await core_1.db.collection(constants_1.COLLECTION_ITEMS_COLLECTION).where("collectionId", "==", collectionId).orderBy("order", "asc").get();
             const items = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             res.json({ success: true, items, count: items.length });
         }
@@ -287,7 +287,7 @@ function register(app) {
                 updateData.order = order;
             if (rotationInterval)
                 updateData.rotationInterval = rotationInterval;
-            await core_1.db.collection("dynamicsCollectionItems").doc(itemId).update(updateData);
+            await core_1.db.collection(constants_1.COLLECTION_ITEMS_COLLECTION).doc(itemId).update(updateData);
             res.json({ success: true });
         }
         catch (error) {
@@ -297,7 +297,7 @@ function register(app) {
     app.delete('/admin/collections/:collectionId/items/:itemId', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { itemId } = req.params;
-            await core_1.db.collection("dynamicsCollectionItems").doc(itemId).delete();
+            await core_1.db.collection(constants_1.COLLECTION_ITEMS_COLLECTION).doc(itemId).delete();
             res.json({ success: true });
         }
         catch (error) {
@@ -313,7 +313,7 @@ function register(app) {
             }
             const batch = core_1.db.batch();
             for (const { itemId, order } of itemOrders) {
-                batch.update(core_1.db.collection("dynamicsCollectionItems").doc(itemId), { order, updatedAt: new Date() });
+                batch.update(core_1.db.collection(constants_1.COLLECTION_ITEMS_COLLECTION).doc(itemId), { order, updatedAt: new Date() });
             }
             await batch.commit();
             res.json({ success: true });
@@ -325,7 +325,7 @@ function register(app) {
     app.get('/admin/stores/:storeId/channels/:channelId/collections', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { storeId, channelId } = req.params;
-            const linksSnapshot = await core_1.db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).get();
+            const linksSnapshot = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).get();
             const collectionsSet = new Set();
             linksSnapshot.docs.forEach(doc => { const c = doc.data().collection; if (c)
                 collectionsSet.add(c); });
@@ -357,7 +357,7 @@ function register(app) {
     app.get('/admin/stores/:storeId/channels/:channelId/collections/:collectionName/items', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { storeId, channelId, collectionName } = req.params;
-            const linksSnapshot = await core_1.db.collection("storeProductLinks").where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).get();
+            const linksSnapshot = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).get();
             const items = linksSnapshot.docs.map(doc => { const data = doc.data(); return { id: doc.id, linkId: doc.id, packetId: data.packetId || null, name: data.productName || "Untitled Product", imageUrl: data.compositeUrl || data.qrOnlyUrl || null, mockupUrl: data.mockupUrl || null, qrProductState: data.qrProductState || null, landingPageUrl: data.landingPageUrl || null, createdAt: data.createdAt?.toDate?.()?.toISOString() || null }; });
             res.json({ success: true, items, collection: collectionName, count: items.length });
         }
@@ -373,7 +373,7 @@ function register(app) {
                 res.status(400).json({ error: "storeId is required" });
                 return;
             }
-            const packetsSnapshot = await core_1.db.collection("productPackets").where("storeId", "==", storeId).get();
+            const packetsSnapshot = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).where("storeId", "==", storeId).get();
             let docs = packetsSnapshot.docs;
             if (channelId) {
                 const channelIdLower = channelId.toLowerCase();
@@ -456,7 +456,7 @@ function register(app) {
             }
             let packetDetails = null;
             if (activeSlot) {
-                const packetDoc = await core_1.db.collection("productPackets").doc(activeSlot.packetId).get();
+                const packetDoc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
                 if (packetDoc.exists) {
                     const pd = packetDoc.data();
                     packetDetails = { name: pd.productName || pd.landingPageTitle || 'Untitled', thumbnailUrl: pd.landingPageSnapshotUrl, landingPageSlug: pd.landingPageSlug, qrProductType: pd.qrProductType };
@@ -512,7 +512,7 @@ function register(app) {
                 const slotPacketIds = sortedSlots.map((s) => s.packetId);
                 const packetSlugs = [];
                 for (const pid of slotPacketIds) {
-                    let pDoc = await core_1.db.collection("productPackets").doc(pid).get();
+                    let pDoc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(pid).get();
                     if (!pDoc.exists)
                         pDoc = await core_1.db.collection("memberPackets").doc(pid).get();
                     const pData = pDoc.exists ? pDoc.data() : null;
@@ -563,7 +563,7 @@ function register(app) {
                 res.status(500).send("Unable to resolve slot");
                 return;
             }
-            let packetDoc = await core_1.db.collection("productPackets").doc(activeSlot.packetId).get();
+            let packetDoc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
             if (!packetDoc.exists)
                 packetDoc = await core_1.db.collection("memberPackets").doc(activeSlot.packetId).get();
             if (!packetDoc.exists) {

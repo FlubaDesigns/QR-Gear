@@ -71,7 +71,7 @@ export function firestoreDocToCollection(id: string, data: Record<string, any>):
   };
 }
 
-export function firestoreProgramToMosaic(id: string, data: Record<string, any>): MosaicRecord {
+export function firestoreDocToMosaic(id: string, data: Record<string, any>): MosaicRecord {
   return {
     mosaicId: id,
     collectionId: data.collectionId,
@@ -86,3 +86,6 @@ export function firestoreProgramToMosaic(id: string, data: Record<string, any>):
     updatedAt: data.updatedAt?.toDate?.()?.toISOString?.(),
   };
 }
+
+/** @deprecated Use firestoreDocToMosaic — kept for backward compat with existing tests */
+export const firestoreProgramToMosaic = firestoreDocToMosaic;

@@ -1,11 +1,7 @@
 import { getFirestoreDb } from './firebase-admin';
+import { PLATFORM_STORE_ID, CHANNEL_ITEMS_COLLECTION } from './constants';
 
-/**
- * Platform-level store identifier.
- * Exported so callers pass it explicitly — no hidden defaults.
- * Future multi-tenant: each store will have its own ID.
- */
-export const PLATFORM_STORE_ID = 'qr-gear';
+export { PLATFORM_STORE_ID };
 
 export interface ChannelItem {
   itemId: string;
@@ -70,7 +66,7 @@ export async function getChannelItems(options: {
   const db = getFirestoreDb();
   const { storeId, channelId, limit = 12, includeInactive = false } = options;
   
-  let query = db.collection('channel_items')
+  let query = db.collection(CHANNEL_ITEMS_COLLECTION)
     .where('storeId', '==', storeId)
     .where('channelId', '==', channelId);
   
@@ -110,7 +106,7 @@ export async function getChannelItems(options: {
 
 export async function getChannelItem(itemId: string): Promise<ChannelItem | null> {
   const db = getFirestoreDb();
-  const doc = await db.collection('channel_items').doc(itemId).get();
+  const doc = await db.collection(CHANNEL_ITEMS_COLLECTION).doc(itemId).get();
   
   if (!doc.exists) {
     return null;
@@ -145,7 +141,7 @@ export async function upsertChannelItem(input: ChannelItemInput & { storeId: str
   const storeId = input.storeId;
   const collectionValue = input.collectionId || null;
   
-  const existingQuery = await db.collection('channel_items')
+  const existingQuery = await db.collection(CHANNEL_ITEMS_COLLECTION)
     .where('storeId', '==', storeId)
     .where('channelId', '==', input.channelId)
     .where('packetId', '==', input.packetId)
@@ -176,7 +172,7 @@ export async function upsertChannelItem(input: ChannelItemInput & { storeId: str
     if (input.shareImageLinkUrl) updateData.shareImageLinkUrl = input.shareImageLinkUrl;
     if (input.shareImageStoryUrl) updateData.shareImageStoryUrl = input.shareImageStoryUrl;
     
-    await db.collection('channel_items').doc(existingDoc.id).update(updateData);
+    await db.collection(CHANNEL_ITEMS_COLLECTION).doc(existingDoc.id).update(updateData);
     
     return {
       itemId: existingDoc.id,
@@ -200,7 +196,7 @@ export async function upsertChannelItem(input: ChannelItemInput & { storeId: str
     };
   }
   
-  const countSnapshot = await db.collection('channel_items')
+  const countSnapshot = await db.collection(CHANNEL_ITEMS_COLLECTION)
     .where('storeId', '==', storeId)
     .where('channelId', '==', input.channelId)
     .count()
@@ -229,7 +225,7 @@ export async function upsertChannelItem(input: ChannelItemInput & { storeId: str
   if (input.shareImageLinkUrl) newData.shareImageLinkUrl = input.shareImageLinkUrl;
   if (input.shareImageStoryUrl) newData.shareImageStoryUrl = input.shareImageStoryUrl;
   
-  const docRef = await db.collection('channel_items').add(newData);
+  const docRef = await db.collection(CHANNEL_ITEMS_COLLECTION).add(newData);
   
   return {
     itemId: docRef.id,
@@ -261,7 +257,7 @@ export async function setChannelItemActive(itemId: string, isActive: boolean): P
   const db = getFirestoreDb();
   
   try {
-    await db.collection('channel_items').doc(itemId).update({
+    await db.collection(CHANNEL_ITEMS_COLLECTION).doc(itemId).update({
       isActive,
       updatedAt: new Date(),
     });
@@ -276,7 +272,7 @@ export async function updateChannelItemOrder(itemId: string, sortOrder: number):
   const db = getFirestoreDb();
   
   try {
-    await db.collection('channel_items').doc(itemId).update({
+    await db.collection(CHANNEL_ITEMS_COLLECTION).doc(itemId).update({
       sortOrder,
       updatedAt: new Date(),
     });

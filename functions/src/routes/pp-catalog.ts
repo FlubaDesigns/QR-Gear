@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
+import { STORE_PRODUCT_LINKS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -22,7 +23,7 @@ import { registerPpCatalogBrowseRoutes } from './pp-catalog-browse';
 
 app.get('/admin/store-product-links', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const linksSnapshot = await db.collection("storeProductLinks").orderBy("createdAt", "desc").limit(100).get();
+    const linksSnapshot = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).orderBy("createdAt", "desc").limit(100).get();
     const links = linksSnapshot.docs.map(doc => ({
       id: doc.id, ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || null,
@@ -57,7 +58,7 @@ app.post('/admin/store-product-links', requireAdmin, async (req: Request, res: R
       qrProductState: qrProductState || null, landingPageUrl: landingPageUrl || null,
       mockupUrl: mockupUrl || null, createdAt: now, updatedAt: now,
     };
-    const linkRef = await db.collection("storeProductLinks").add(linkData);
+    const linkRef = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).add(linkData);
     console.log(`[Store Links] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);
     res.json({ success: true, linkId: linkRef.id, message: `Product linked to ${storeName || storeId} / ${channel}` });
   } catch (error: any) {
@@ -70,7 +71,7 @@ app.get('/admin/stores/:storeId/channels/:channelId/products', requireAdmin, asy
   try {
     const { storeId, channelId } = req.params;
     if (!storeId || !channelId) { res.status(400).json({ error: "storeId and channelId are required" }); return; }
-    const linksSnapshot = await db.collection("storeProductLinks")
+    const linksSnapshot = await db.collection(STORE_PRODUCT_LINKS_COLLECTION)
       .where("storeId", "==", storeId).where("channel", "==", channelId).get();
     const products = linksSnapshot.docs.map(doc => {
       const data = doc.data();
@@ -99,7 +100,7 @@ app.patch('/admin/store-product-links/:linkId', requireAdmin, async (req: Reques
     const { linkId } = req.params;
     const updates = req.body;
     if (!linkId) { res.status(400).json({ error: "linkId is required" }); return; }
-    const docRef = db.collection("storeProductLinks").doc(linkId);
+    const docRef = db.collection(STORE_PRODUCT_LINKS_COLLECTION).doc(linkId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Link not found" }); return; }
     await docRef.update({ ...stripUndef(updates), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -115,7 +116,7 @@ app.delete('/admin/store-product-links/:linkId', requireAdmin, async (req: Reque
   try {
     const { linkId } = req.params;
     if (!linkId) { res.status(400).json({ error: "linkId is required" }); return; }
-    const docRef = db.collection("storeProductLinks").doc(linkId);
+    const docRef = db.collection(STORE_PRODUCT_LINKS_COLLECTION).doc(linkId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Link not found" }); return; }
     await docRef.delete();

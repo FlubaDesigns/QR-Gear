@@ -203,8 +203,18 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 
 ### Name Translation (COMPLETED)
 - `collectionTag` → `collectionId` — FULLY REMOVED. No dual-write, no fallback reads. Only `collectionId` exists.
-- `site_programs` → `MOSAICS_COLLECTION` constant — centralized in `functions/src/constants.ts` and `server/lib/constants.ts`. All consumers import from these files. No raw string outside constant definitions.
-- `dynamicsCollections` → `MOSAIC_TEMPLATES_COLLECTION` constant — centralized in `functions/src/constants.ts` and `server/lib/constants.ts`. All consumers import from these files. No raw string outside constant definitions.
+- All Firestore collection names centralized behind named constants in `functions/src/constants.ts` and `server/lib/constants.ts`. No raw collection-name strings in route files:
+  - `MOSAICS_COLLECTION` = `'site_programs'`
+  - `MOSAIC_TEMPLATES_COLLECTION` = `'dynamicsCollections'`
+  - `CHANNEL_ITEMS_COLLECTION` = `'channel_items'`
+  - `CHANNEL_CONTENT_COLLECTION` = `'dynamicsChannelContent'`
+  - `COLLECTION_ITEMS_COLLECTION` = `'dynamicsCollectionItems'`
+  - `DYNAMICS_SURFACES_COLLECTION` = `'qrDynamicsSurfaces'`
+  - `STORE_PRODUCT_LINKS_COLLECTION` = `'storeProductLinks'`
+  - `PRODUCT_PACKETS_COLLECTION` = `'productPackets'`
+  - `PLATFORM_STORE_ID` = `'qr-gear'`
+- `channelItemsService.ts` — Now imports `PLATFORM_STORE_ID` and `CHANNEL_ITEMS_COLLECTION` from constants; re-exports `PLATFORM_STORE_ID` for backward compat.
+- `domain-mappers.ts` — `firestoreProgramToMosaic` renamed to `firestoreDocToMosaic`; old name kept as deprecated re-export for test compat.
 - `program_series` → `mosaic_series` — FULLY REMOVED. ViewType is `'channel_products' | 'mosaic_series' | 'create_product'` only.
 - `DEFAULT_STORE_ID` → `PLATFORM_STORE_ID` — COMPLETED. Value changed from `'kingdom_connects'` to `'qr-gear'`. `LEGACY_STORE_ID = 'kingdom_connects'` exported for backward-compat queries. New writes use `'qr-gear'`. Firestore data migration pending.
 - `KC_ISSUER` → `PLATFORM_ISSUER` — COMPLETED in `widget-auth.ts`. Value changed from `'kingdom_connects'` to `'qrgear'`. Verification accepts both via `VALID_ISSUERS` array. New tokens signed as `'qrgear'`.

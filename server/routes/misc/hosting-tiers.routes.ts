@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "../../storage";
 import { isAdmin } from "../../firebaseAuth";
 import { z } from "zod";
+import { CHANNEL_ITEMS_COLLECTION } from "../../lib/constants";
 
 export function registerHostingTiersRoutes(app: Express): void {
 
@@ -119,7 +120,7 @@ export function registerHostingTiersRoutes(app: Express): void {
       const shareCaption = generateShareCaption(item.title, item.description, fullShareUrl);
       
       const fsDb = getFirestoreDb();
-      await fsDb.collection('channel_items').doc(itemId).update({
+      await fsDb.collection(CHANNEL_ITEMS_COLLECTION).doc(itemId).update({
         shareImageSquareUrl: socialImages.squareUrl || null,
         shareImageLinkUrl: socialImages.linkPreviewUrl || null,
         shareCaption,
