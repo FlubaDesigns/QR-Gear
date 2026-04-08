@@ -478,14 +478,14 @@
   height: 100%;
 }
 
-/* Zone proportions — single source of truth: shared/constants/zoneLayout.ts */
-/* Header: 25%, Middle: 40% (50% when sub-bottom hidden), Sub-bottom: 10% (hidden by default), Footer: 25% */
-.qr-canvas__header { flex: 0 0 25%; min-height: 0; }
-.qr-canvas__middle { flex: 0 0 50%; min-height: 0; }
-.qr-canvas--sub-visible .qr-canvas__middle { flex: 0 0 40%; }
-.qr-canvas__sub-bottom { flex: 0 0 10%; min-height: 0; display: none; }
+/* Zone proportions — must match graphicLayout.ts: header 30%, middle 40%, footer 30% */
+/* With sub-bottom visible: sub-bottom 5% between QR and footer, footer shrinks to 25% */
+.qr-canvas__header { flex: 0 0 30%; min-height: 0; }
+.qr-canvas__middle { flex: 0 0 40%; min-height: 0; }
+.qr-canvas__sub-bottom { flex: 0 0 5%; min-height: 0; display: none; }
 .qr-canvas__sub-bottom--visible { display: flex; }
-.qr-canvas__footer { flex: 0 0 25%; min-height: 0; }
+.qr-canvas__footer { flex: 0 0 30%; min-height: 0; }
+.qr-canvas--sub-visible .qr-canvas__footer { flex: 0 0 25%; }
 
 .qr-canvas__header,
 .qr-canvas__footer {
@@ -530,16 +530,6 @@
   min-height: 0;
 }
 
-.qr-canvas__middle::before,
-.qr-canvas__middle::after {
-  content: "";
-  flex: 0 0 15%;
-}
-
-.qr-canvas--sub-visible .qr-canvas__middle::before,
-.qr-canvas--sub-visible .qr-canvas__middle::after {
-  flex: 0 0 10%;
-}
 
 .qr-canvas__middle .qr-area {
   flex: 1 1 auto;

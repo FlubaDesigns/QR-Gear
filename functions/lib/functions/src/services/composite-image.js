@@ -54,11 +54,14 @@ const CF_FONT_MAP = {
 };
 exports.CF_FONT_MAP = CF_FONT_MAP;
 function cfGetPreviewFontSize(fontSize) {
-    if (fontSize === '12px' || fontSize === 'sm')
+    const num = parseInt(fontSize, 10);
+    if (!isNaN(num) && num > 0)
+        return num;
+    if (fontSize === 'sm')
         return 10;
-    if (fontSize === '24px' || fontSize === 'lg')
+    if (fontSize === 'lg')
         return 16;
-    if (fontSize === '32px' || fontSize === 'xl')
+    if (fontSize === 'xl')
         return 22;
     return 12;
 }
@@ -84,7 +87,7 @@ function cfWrapText(ctx, text, maxWidth) {
     return lines;
 }
 async function cfGenerateCompositeImage(options) {
-    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'zone', } = options;
+    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'zone', subBottomEnabled = false, subBottomText = 'Scan Me', subBottomColor = '#666666', subBottomFontSize = '14', } = options;
     const { createCanvas: cc, loadImage: li } = getCanvas();
     const canvas = cc(width, height);
     const ctx = canvas.getContext("2d");
@@ -102,8 +105,10 @@ async function cfGenerateCompositeImage(options) {
     let headerZoneTop, headerZoneHeight;
     let qrZoneTop, qrZoneHeight;
     let footerZoneTop, footerZoneHeight;
+    let subBottomZoneTop, subBottomZoneHeight;
     let zoneX;
     let zoneW;
+    const subBottomActive = subBottomEnabled && subBottomText?.trim();
     if (graphicLayoutMode === 'freeform') {
         zoneX = safeX;
         zoneW = safeW;
@@ -113,16 +118,22 @@ async function cfGenerateCompositeImage(options) {
         qrZoneHeight = safeH;
         footerZoneTop = safeY;
         footerZoneHeight = safeH;
+        subBottomZoneTop = safeY;
+        subBottomZoneHeight = 0;
     }
     else {
         zoneX = safeX;
         zoneW = safeW;
+        const subBottomPct = subBottomActive ? 0.05 : 0;
+        const footerPct = subBottomActive ? 0.25 : 0.30;
         headerZoneTop = safeY;
         headerZoneHeight = safeH * 0.30;
         qrZoneTop = headerZoneTop + headerZoneHeight;
         qrZoneHeight = safeH * 0.40;
-        footerZoneTop = qrZoneTop + qrZoneHeight;
-        footerZoneHeight = safeH * 0.30;
+        subBottomZoneTop = qrZoneTop + qrZoneHeight;
+        subBottomZoneHeight = safeH * subBottomPct;
+        footerZoneTop = subBottomZoneTop + subBottomZoneHeight;
+        footerZoneHeight = safeH * footerPct;
     }
     const cfDrawImageInZone = async (imgUrl, zoneX, zoneY, zoneW, zoneH, _padding = 0, offsetX = 50, offsetY = 50, scale = 100) => {
         try {
@@ -194,7 +205,6 @@ async function cfGenerateCompositeImage(options) {
     }
     const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
     const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF";
-    const qrMarginY = qrZoneHeight * 0.10;
     const qrAreaHeight = qrZoneHeight * 0.80;
     const bgPadding = 20;
     const bgRadius = 16;
@@ -207,7 +217,7 @@ async function cfGenerateCompositeImage(options) {
     const qrImage = await li(qrDataUrl);
     const qrBgWidth = qrContentWidth + bgPadding * 2;
     const qrBgX = zoneX + (zoneW - qrBgWidth) / 2;
-    const qrBgY = qrZoneTop + qrMarginY;
+    const qrBgY = qrZoneTop + (qrZoneHeight - qrAreaHeight) / 2;
     const qrX = zoneX + (zoneW - qrContentWidth) / 2;
     const qrY = qrBgY + bgPadding;
     ctx.fillStyle = qrLight;
@@ -250,6 +260,14 @@ async function cfGenerateCompositeImage(options) {
             ctx.fillText(line, textX, currentY);
             currentY += fontSize * 1.3;
         }
+    }
+    if (subBottomActive && subBottomZoneHeight > 0) {
+        const sbFontSize = cfGetPreviewFontSize(subBottomFontSize) * scaleFactor;
+        ctx.fillStyle = subBottomColor || '#666666';
+        ctx.font = `${sbFontSize}px "Arial"`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(subBottomText.trim(), zoneX + zoneW / 2, subBottomZoneTop + subBottomZoneHeight / 2);
     }
     return canvas.toDataURL("image/png");
 }
