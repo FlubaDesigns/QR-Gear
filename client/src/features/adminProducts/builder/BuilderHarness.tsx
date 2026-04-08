@@ -22,7 +22,7 @@ function BuilderModules() {
         <PlacementModule />
       </InlineDebugBoundary>
       
-      {/* Step 3: Product Graphic Text (Header/Footer for Canvas, Play, Compose - NOT Basics) */}
+      {/* Step 3: Graphic Design (Header/Footer, QR, images, layout modes) */}
       <InlineDebugBoundary label="ProductGraphicTextModule">
         <ProductGraphicTextModule />
       </InlineDebugBoundary>

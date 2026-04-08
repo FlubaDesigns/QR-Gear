@@ -640,7 +640,7 @@ export function ProductGraphicTextModule() {
 
   return (
     <CollapsibleModule
-      title="Product Graphic Text"
+      title="Graphic Design"
       icon={<Type className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
