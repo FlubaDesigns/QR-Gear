@@ -122,7 +122,7 @@ export function GraphicPreviewView({
 
   return (
     <div
-      className={`relative w-[120px] sm:w-[160px] ${aspectClass} rounded-lg overflow-hidden border-2 border-border shadow-lg ${className}`}
+      className={`relative w-full max-w-[280px] sm:max-w-[200px] mx-auto ${aspectClass} rounded-lg overflow-hidden border-2 border-border shadow-lg ${className}`}
       style={
         backgroundImage
           ? { background: `url(${backgroundImage}) center/cover` }
