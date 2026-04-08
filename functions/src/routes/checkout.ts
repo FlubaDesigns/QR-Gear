@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
   import { freezePacketPricing, createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
+import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import Stripe from 'stripe';
 
   export function register(app: express.Express): void {
@@ -18,7 +19,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
       else { console.warn(`[PacketCheckout] Invalid referrerId '${rawReferrerId}' — not a real user, ignoring`); }
     }
 
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
     const packet = packetDoc.data()!;
     if (packet.status !== 'published' && packet.status !== 'active') {
@@ -103,7 +104,7 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
       return;
     }
 
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     const packet = packetDoc.exists ? packetDoc.data()! : {};
 
     const buyerEmail = (session.customer_details as any)?.email || '';

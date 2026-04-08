@@ -397,7 +397,7 @@ function register(app) {
             }
             const nowEpoch = Math.floor(Date.now() / 1000);
             const instanceData = { orderId: orderId || null, collectionId: collectionId || null, createdAt: nowEpoch, startTimestamp: nowEpoch, mode: 'loop', fallbackUrl: fallbackUrl || null, slots: slots.map((slot, index) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })) };
-            const docRef = await core_1.db.collection("qr_dynamics_instances").add(instanceData);
+            const docRef = await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
             res.json({ success: true, instanceId: docRef.id, resolverUrl: `/qr/d/${docRef.id}` });
         }
         catch (error) {
@@ -407,7 +407,7 @@ function register(app) {
     app.get('/dynamics/instances/:instanceId', async (req, res) => {
         try {
             const { instanceId } = req.params;
-            const doc = await core_1.db.collection("qr_dynamics_instances").doc(instanceId).get();
+            const doc = await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Instance not found" });
                 return;
@@ -421,7 +421,7 @@ function register(app) {
     app.get('/dynamics/instances/:instanceId/preview', async (req, res) => {
         try {
             const { instanceId } = req.params;
-            const doc = await core_1.db.collection("qr_dynamics_instances").doc(instanceId).get();
+            const doc = await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Instance not found" });
                 return;
@@ -482,7 +482,7 @@ function register(app) {
                 return;
             }
             const nowEpoch = Math.floor(Date.now() / 1000);
-            await core_1.db.collection("qr_dynamics_instances").doc(instanceId).update({ slots: slots.map((slot, index) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })), startTimestamp: nowEpoch });
+            await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).update({ slots: slots.map((slot, index) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })), startTimestamp: nowEpoch });
             res.json({ success: true, instanceId, newStartTimestamp: nowEpoch });
         }
         catch (error) {
@@ -492,7 +492,7 @@ function register(app) {
     app.get('/qr/d/:instanceId', async (req, res) => {
         try {
             const { instanceId } = req.params;
-            const doc = await core_1.db.collection("qr_dynamics_instances").doc(instanceId).get();
+            const doc = await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
             if (!doc.exists) {
                 res.status(404).send("QR Dynamics instance not found");
                 return;
@@ -514,7 +514,7 @@ function register(app) {
                 for (const pid of slotPacketIds) {
                     let pDoc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(pid).get();
                     if (!pDoc.exists)
-                        pDoc = await core_1.db.collection("memberPackets").doc(pid).get();
+                        pDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(pid).get();
                     const pData = pDoc.exists ? pDoc.data() : null;
                     packetSlugs.push(pData?.landingPageSlug || '');
                 }
@@ -565,7 +565,7 @@ function register(app) {
             }
             let packetDoc = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
             if (!packetDoc.exists)
-                packetDoc = await core_1.db.collection("memberPackets").doc(activeSlot.packetId).get();
+                packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
             if (!packetDoc.exists) {
                 if (instance.fallbackUrl) {
                     res.redirect(302, instance.fallbackUrl);

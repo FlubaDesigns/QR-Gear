@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
+import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -44,7 +45,7 @@ app.get('/p/:packetId', async (req: Request, res: Response, next: NextFunction):
     const userAgent = req.headers['user-agent'] || '';
     const isCrawler = /facebookexternalhit|Twitterbot|LinkedInBot|Discordbot|Slackbot|TelegramBot|WhatsApp/i.test(userAgent);
     if (!isCrawler) { next(); return; }
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     let title = 'QR Gear - Dynamic QR Experience';
     let description = 'Scan to discover personalized content';
     let ogImage = 'https://qrgear-c1ffd.web.app/og-default.png';

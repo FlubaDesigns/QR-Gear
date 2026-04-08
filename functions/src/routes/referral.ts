@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
+import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -59,7 +60,7 @@ app.get('/public/member-packet/:packetId', async (req: Request, res: Response): 
   try {
     const { packetId } = req.params;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    let doc = await db.collection('memberPackets').doc(packetId).get();
+    let doc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!doc.exists) {
       doc = await db.collection('productPackets').doc(packetId).get();
     }

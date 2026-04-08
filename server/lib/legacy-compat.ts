@@ -50,6 +50,8 @@
  * DYNAMICS_SURFACES_COLLECTION    → 'qrDynamicsSurfaces'
  * STORE_PRODUCT_LINKS_COLLECTION  → 'storeProductLinks'
  * PRODUCT_PACKETS_COLLECTION      → 'productPackets'
+ * QR_DYNAMICS_INSTANCES_COLLECTION→ 'qr_dynamics_instances'
+ * MEMBER_PACKETS_COLLECTION       → 'memberPackets'
  *
  * Renaming the actual Firestore collections is OUT OF SCOPE.
  * The constant layer is the compatibility adapter.
@@ -80,6 +82,8 @@ export {
   DYNAMICS_SURFACES_COLLECTION,
   STORE_PRODUCT_LINKS_COLLECTION,
   PRODUCT_PACKETS_COLLECTION,
+  QR_DYNAMICS_INSTANCES_COLLECTION,
+  MEMBER_PACKETS_COLLECTION,
   PLATFORM_STORE_ID,
 } from './constants';
 

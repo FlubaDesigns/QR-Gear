@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 function register(app) {
     // ============ SEO & SOCIAL SHARE ROUTES ============
     function escapeHtml(str) {
@@ -36,7 +37,7 @@ function register(app) {
                 next();
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             let title = 'QR Gear - Dynamic QR Experience';
             let description = 'Scan to discover personalized content';
             let ogImage = 'https://qrgear-c1ffd.web.app/og-default.png';

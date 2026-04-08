@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { lookupPrintifyCosts } from "../lib/printify-cost-lookup";
 import { verifyMemberAuth } from "./member-auth";
+import { QR_DYNAMICS_INSTANCES_COLLECTION, MEMBER_PACKETS_COLLECTION } from "../lib/constants";
 
 export function registerMemberPacketsRoutes(app: Express): void {
   app.post("/api/members/:memberId/channels", async (req: any, res) => {
@@ -145,7 +146,7 @@ export function registerMemberPacketsRoutes(app: Express): void {
           const blueprintId = boundProduct?.blueprintId || null;
           if (blueprintId && selectedColor) {
             try {
-              const existingSnapshot = await firestoreDb.collection('memberPackets')
+              const existingSnapshot = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION)
                 .where('memberId', '==', memberId)
                 .where('packetType', '==', packetType)
                 .where('boundProduct.blueprintId', '==', blueprintId)
@@ -344,7 +345,7 @@ export function registerMemberPacketsRoutes(app: Express): void {
           console.error(`[UnifiedPublish] Pricing snapshot failed (non-fatal) for packet ${packetId}:`, pricingErr.message || pricingErr);
         }
 
-        await firestoreDb.collection("memberPackets").doc(packetId).set(packetData);
+        await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
         console.log(`[UnifiedPublish] Saved complete ${packetType} packet ${packetId} for member ${memberId}`);
 
         if (packetType === 'qr-compose' && body.composeItems && Array.isArray(body.composeItems)) {
@@ -369,8 +370,8 @@ export function registerMemberPacketsRoutes(app: Express): void {
                 order: item.order ?? index + 1,
               })),
             };
-            const instanceRef = await firestoreDb.collection("qr_dynamics_instances").add(instanceData);
-            await firestoreDb.collection("memberPackets").doc(packetId).update({
+            const instanceRef = await firestoreDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
+            await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
               composeInstanceId: instanceRef.id,
               destinationUrl: `/qr/d/${instanceRef.id}`,
             });
@@ -438,7 +439,7 @@ export function registerMemberPacketsRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const snapshot = await firestoreDb.collection('memberPackets')
+      const snapshot = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION)
         .where('memberId', '==', memberId)
         .where('status', '==', 'published')
         .get();

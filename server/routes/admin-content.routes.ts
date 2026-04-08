@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
 import { z } from "zod";
 import { fsGetAll, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/firestore-crud";
+import { QR_DYNAMICS_INSTANCES_COLLECTION } from "../lib/constants";
 import { registerAdminCatalogsShelfRoutes } from "./admin-catalogs-shelf.routes";
 
 export function registerAdminContentRoutes(app: Express): void {
@@ -342,7 +343,7 @@ export function registerAdminContentRoutes(app: Express): void {
           order: item.order ?? index + 1,
         })),
       };
-      const docRef = await fsDb.collection("qr_dynamics_instances").add(instanceData);
+      const docRef = await fsDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
       console.log(`[ComposePublish] Created instance ${docRef.id} with ${composeItems.length} slots`);
       res.json({ success: true, instanceId: docRef.id, composeInstanceId: docRef.id });
     } catch (error: any) {

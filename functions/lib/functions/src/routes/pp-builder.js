@@ -243,7 +243,7 @@ function register(app) {
                     order: item.order ?? index + 1,
                 })),
             };
-            const docRef = await core_1.db.collection("qr_dynamics_instances").add(instanceData);
+            const docRef = await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
             console.log(`[ComposePublish CF] Created instance ${docRef.id} with ${composeItems.length} slots`);
             res.json({ success: true, instanceId: docRef.id, composeInstanceId: docRef.id });
         }

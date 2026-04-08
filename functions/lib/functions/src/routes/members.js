@@ -133,7 +133,7 @@ function register(app) {
                 res.status(400).json({ error: `cadence must be one of: ${validCadences.join(', ')}` });
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!packetDoc.exists) {
                 res.status(404).json({ error: 'Packet not found' });
                 return;
@@ -173,7 +173,7 @@ function register(app) {
             const packetIds = [...new Set(schedules.map((s) => s.packetId).filter(Boolean))];
             const packetMap = {};
             for (const pid of packetIds) {
-                const pdoc = await core_1.db.collection('memberPackets').doc(pid).get();
+                const pdoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(pid).get();
                 if (pdoc.exists) {
                     const pd = pdoc.data();
                     packetMap[pid] = { id: pid, title: pd?.title || pd?.simpleTitle || 'Untitled', itemImage: pd?.socialPacket?.itemImage || pd?.itemImage || null, retailPrice: pd?.socialPacket?.retailPrice || pd?.retailPrice || null, shareUrl: pd?.socialPacket?.shareUrl || `/p/${pid}`, referralUrl: pd?.socialPacket?.referralUrl || null, shareCaption: pd?.socialPacket?.shareCaption || null, shareImageSquareUrl: pd?.socialPacket?.shareImageSquareUrl || null, shareImageLinkUrl: pd?.socialPacket?.shareImageLinkUrl || null, qrType: pd?.qrType || pd?.packetType || null };
@@ -310,7 +310,7 @@ function register(app) {
             for (const doc of snapshot.docs) {
                 const data = doc.data();
                 if (new Date(data.nextPostAt) <= now) {
-                    const packetDoc = await core_1.db.collection('memberPackets').doc(data.packetId).get();
+                    const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(data.packetId).get();
                     const pd = packetDoc.data();
                     dueItems.push({
                         title: pd?.title || pd?.simpleTitle || 'Your Product',
@@ -433,7 +433,7 @@ function register(app) {
                 return;
             }
             const productsSnap = await core_1.db.collection('memberProducts').where('channelId', '==', channelId).get();
-            const packetsSnap = await core_1.db.collection('memberPackets').where('channelId', '==', channelId).where('memberId', '==', memberId).get();
+            const packetsSnap = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).where('channelId', '==', channelId).where('memberId', '==', memberId).get();
             const batch = core_1.db.batch();
             productsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
             packetsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
@@ -455,7 +455,7 @@ function register(app) {
                 res.status(401).json({ error: auth.error });
                 return;
             }
-            const collection = itemType === 'packet' ? 'memberPackets' : 'memberProducts';
+            const collection = itemType === 'packet' ? constants_1.MEMBER_PACKETS_COLLECTION : 'memberProducts';
             const doc = await core_1.db.collection(collection).doc(itemId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: 'Item not found' });
@@ -491,7 +491,7 @@ function register(app) {
                 res.status(400).json({ error: 'memberPacketDescription is required' });
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!packetDoc.exists) {
                 res.status(404).json({ error: 'Packet not found' });
                 return;
@@ -505,7 +505,7 @@ function register(app) {
             const providerDesc = boundProduct.providerDescription || '';
             const adminDesc = boundProduct.adminCatalogDescription || '';
             const effectiveDescription = memberPacketDescription || adminDesc || providerDesc || '';
-            await core_1.db.collection('memberPackets').doc(packetId).update({
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({
                 'boundProduct.memberPacketDescription': memberPacketDescription,
                 'boundProduct.effectiveDescription': effectiveDescription,
                 'boundProduct.description': effectiveDescription,
@@ -537,9 +537,9 @@ function register(app) {
             }
             const packetId = doc.data()?.packetId;
             if (packetId) {
-                const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+                const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
                 if (packetDoc.exists && packetDoc.data()?.memberId === memberId) {
-                    await core_1.db.collection('memberPackets').doc(packetId).delete();
+                    await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).delete();
                 }
             }
             await core_1.db.collection('memberProducts').doc(productId).delete();
@@ -646,13 +646,13 @@ function register(app) {
                     memberId,
                     createdAt: new Date().toISOString(),
                 };
-                await core_1.db.collection("memberPackets").doc(packetId).set(packetData);
+                await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
                 if (packetType === 'qr-compose' && body.composeItems && Array.isArray(body.composeItems)) {
                     try {
                         const nowEpoch = Math.floor(Date.now() / 1000);
                         const instanceData = { memberId, packetId, createdAt: nowEpoch, startTimestamp: nowEpoch, mode: 'loop', composeMode: body.composeMode || 'auto-rotate', hostingTerm: body.composeHostingTerm || '1-year', fallbackUrl: null, slots: body.composeItems.map((item, index) => ({ slotId: `slot-${Date.now()}-${index}`, packetId: item.packetId, name: item.name || 'Untitled', thumbnailUrl: item.thumbnailUrl || null, type: item.type || 'qr-canvas', durationSeconds: item.durationSeconds || 86400, order: item.order ?? index + 1 })) };
-                        const instanceRef = await core_1.db.collection("qr_dynamics_instances").add(instanceData);
-                        await core_1.db.collection("memberPackets").doc(packetId).update({ composeInstanceId: instanceRef.id, destinationUrl: `/qr/d/${instanceRef.id}` });
+                        const instanceRef = await core_1.db.collection(constants_1.QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
+                        await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ composeInstanceId: instanceRef.id, destinationUrl: `/qr/d/${instanceRef.id}` });
                         packetData.composeInstanceId = instanceRef.id;
                         packetData.destinationUrl = `/qr/d/${instanceRef.id}`;
                     }
@@ -692,7 +692,7 @@ function register(app) {
             const requestedTypes = types
                 ? types.split(',').map((t) => normalizeType(t.trim()))
                 : [];
-            const snapshot = await core_1.db.collection('memberPackets').where('memberId', '==', memberId).where('status', '==', 'published').get();
+            const snapshot = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId).where('status', '==', 'published').get();
             const items = [];
             snapshot.forEach(doc => {
                 const data = doc.data();

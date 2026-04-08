@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
-import { PRODUCT_PACKETS_COLLECTION } from '../constants';
+import { PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -240,7 +240,7 @@ app.post('/admin/compose/publish', requireAdmin, async (req: Request, res: Respo
         order: item.order ?? index + 1,
       })),
     };
-    const docRef = await db.collection("qr_dynamics_instances").add(instanceData);
+    const docRef = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
     console.log(`[ComposePublish CF] Created instance ${docRef.id} with ${composeItems.length} slots`);
     res.json({ success: true, instanceId: docRef.id, composeInstanceId: docRef.id });
   } catch (error: any) {

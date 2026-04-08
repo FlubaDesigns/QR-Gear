@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { PLATFORM_STORE_ID, CHANNEL_ITEMS_COLLECTION } from '../constants';
+import { PLATFORM_STORE_ID, CHANNEL_ITEMS_COLLECTION, MEMBER_PACKETS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -37,7 +37,7 @@ app.post('/members/:memberId/packets', async (req: Request, res: Response): Prom
     if (!background?.url) { res.status(400).json({ error: "background.url is required" }); return; }
     const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    await db.collection('memberPackets').doc(packetId).set(packetData);
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
     res.json({ packetId, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -49,13 +49,13 @@ app.patch('/members/:memberId/packets/:packetId', async (req: Request, res: Resp
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const updates = req.body;
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
-    const doc = await db.collection('memberPackets').doc(packetId).get();
+    const doc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
     const memberClean = stripUndef(updates);
     if (memberClean.headerStyle) memberClean.headerStyle = sanitizeStyleForFirestore(memberClean.headerStyle);
     if (memberClean.footerStyle) memberClean.footerStyle = sanitizeStyleForFirestore(memberClean.footerStyle);
-    await db.collection('memberPackets').doc(packetId).update({ ...memberClean, updatedAt: new Date().toISOString() });
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ ...memberClean, updatedAt: new Date().toISOString() });
     res.json({ success: true, packetId });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -83,7 +83,7 @@ app.post('/member/packets', requireAuth, async (req: Request, res: Response): Pr
     if (!background?.url) { res.status(400).json({ error: "background.url is required" }); return; }
     const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    await db.collection('memberPackets').doc(packetId).set(packetData);
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
     res.json({ packetId, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -93,7 +93,7 @@ app.get('/member/packets', requireAuth, async (req: Request, res: Response): Pro
     const memberId = req.query.memberId as string;
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
-    const snapshot = await db.collection('memberPackets').where('memberId', '==', memberId as string).limit(100).get();
+    const snapshot = await db.collection(MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId as string).limit(100).get();
     const packets = snapshot.docs.map(doc => doc.data());
     res.json({ packets });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -105,10 +105,10 @@ app.delete('/member/packets/:packetId', requireAuth, async (req: Request, res: R
     const { memberId } = req.body;
     if (!packetId || !memberId) { res.status(400).json({ error: "packetId and memberId are required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
-    const doc = await db.collection('memberPackets').doc(packetId).get();
+    const doc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
-    await db.collection('memberPackets').doc(packetId).delete();
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).delete();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -118,7 +118,7 @@ app.post('/member/graphics/create', requireAuth, async (req: Request, res: Respo
     const { memberId, packetId } = req.body;
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const packet = packetDoc.data();
     if (!packet || packet.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
@@ -126,7 +126,7 @@ app.post('/member/graphics/create', requireAuth, async (req: Request, res: Respo
     const compositeUrl = packet.background?.url || null;
     const graphicsData = { graphicsId, packetId, memberId, compositeUrl, qrOnlyUrl: null, status: 'generated', createdAt: new Date().toISOString() };
     await db.collection('memberGraphics').doc(graphicsId).set(graphicsData);
-    await db.collection('memberPackets').doc(packetId).update({ status: 'graphics_ready', graphicsId, updatedAt: new Date().toISOString() });
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'graphics_ready', graphicsId, updatedAt: new Date().toISOString() });
     res.json({ graphicsId, compositeUrl, qrOnlyUrl: null });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -137,11 +137,11 @@ app.post('/member/templates/save', requireAuth, async (req: Request, res: Respon
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     const packetData = packetDoc.data() || {};
     const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_compose', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
     await db.collection('memberTemplates').doc(templateId).set(templateData);
-    await db.collection('memberPackets').doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
     res.json({ templateId });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -154,7 +154,7 @@ app.post('/member/library-links', requireAuth, async (req: Request, res: Respons
     const libraryLinkId = `lib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const linkData = { libraryLinkId, packetId, channelId: channelId || null, storeId: memberId, templateId: templateId || null, memberId, compositeUrl: compositeUrl || null, qrOnlyUrl: qrOnlyUrl || null, boundProduct: boundProduct || null, metadata: metadata || null, status: status || 'active', shareUrl: `/share/${packetId}`, createdAt: new Date().toISOString() };
     await db.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
-    await db.collection('memberPackets').doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
     res.json({ libraryLinkId, shareUrl: `/share/${packetId}` });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -193,7 +193,7 @@ app.post('/member/play-packets', requireAuth, async (req: Request, res: Response
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const packetId = `pkt-play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const packetData = { packetId, memberId, packetType: 'qr-play', videoUrl: videoUrl || null, title: title || 'Untitled', description: description || '', background: background || null, thumbnailUrl: thumbnailUrl || null, metadata: metadata || null, storeId: storeId || memberId, channelId: channelId || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    await db.collection('memberPackets').doc(packetId).set(packetData);
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
     res.json({ packetId, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -589,12 +589,12 @@ app.post('/member/play-packets/:packetId/share-card', requireAuth, async (req: R
     const { memberId } = req.body;
     if (!packetId || !memberId) { res.status(400).json({ error: "packetId and memberId are required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const packet = packetDoc.data();
     if (packet?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
     const shareCardUrl = packet?.videoSource?.posterUrl || null;
-    await db.collection('memberPackets').doc(packetId).update({ shareCardUrl, updatedAt: new Date().toISOString() });
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ shareCardUrl, updatedAt: new Date().toISOString() });
     console.log(`[CF QR Play] Generated share card for ${packetId}`);
     res.json({ shareCardUrl, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -606,7 +606,7 @@ app.post('/member/play-packets/:packetId/publish', requireAuth, async (req: Requ
     const { memberId, channelId, metadata } = req.body;
     if (!packetId || !memberId) { res.status(400).json({ error: "packetId and memberId are required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     const packet = packetDoc.data();
     if (packet?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
@@ -622,7 +622,7 @@ app.post('/member/play-packets/:packetId/publish', requireAuth, async (req: Requ
       shareUrl: `/play/${packetId}`, createdAt: new Date().toISOString(),
     };
     await db.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
-    await db.collection('memberPackets').doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
     if (channelId) {
       const itemId = `ci-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       await db.collection(CHANNEL_ITEMS_COLLECTION).doc(itemId).set({

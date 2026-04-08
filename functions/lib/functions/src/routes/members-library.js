@@ -43,7 +43,7 @@ function registerMembersLibraryRoutes(app) {
             }
             const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-            await core_1.db.collection('memberPackets').doc(packetId).set(packetData);
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
             res.json({ packetId, success: true });
         }
         catch (error) {
@@ -63,7 +63,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(400).json({ error: "memberId and packetId are required" });
                 return;
             }
-            const doc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const doc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -77,7 +77,7 @@ function registerMembersLibraryRoutes(app) {
                 memberClean.headerStyle = (0, core_1.sanitizeStyleForFirestore)(memberClean.headerStyle);
             if (memberClean.footerStyle)
                 memberClean.footerStyle = (0, core_1.sanitizeStyleForFirestore)(memberClean.footerStyle);
-            await core_1.db.collection('memberPackets').doc(packetId).update({ ...memberClean, updatedAt: new Date().toISOString() });
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ ...memberClean, updatedAt: new Date().toISOString() });
             res.json({ success: true, packetId });
         }
         catch (error) {
@@ -127,7 +127,7 @@ function registerMembersLibraryRoutes(app) {
             }
             const packetId = `pkt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             const packetData = { packetId, memberId, kind: kind || 'qr_compose', urlContent: urlContent || null, background: { url: background.url, crop: background.crop || null, assetId: background.assetId || null }, textLayers: textLayers || [], boundProduct: boundProduct || null, metadata: metadata || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-            await core_1.db.collection('memberPackets').doc(packetId).set(packetData);
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
             res.json({ packetId, success: true });
         }
         catch (error) {
@@ -145,7 +145,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(403).json({ error: "Forbidden" });
                 return;
             }
-            const snapshot = await core_1.db.collection('memberPackets').where('memberId', '==', memberId).limit(100).get();
+            const snapshot = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId).limit(100).get();
             const packets = snapshot.docs.map(doc => doc.data());
             res.json({ packets });
         }
@@ -165,7 +165,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(403).json({ error: "Forbidden" });
                 return;
             }
-            const doc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const doc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -174,7 +174,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(403).json({ error: "Not authorized" });
                 return;
             }
-            await core_1.db.collection('memberPackets').doc(packetId).delete();
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).delete();
             res.json({ success: true });
         }
         catch (error) {
@@ -192,7 +192,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(403).json({ error: "Forbidden" });
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!packetDoc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -206,7 +206,7 @@ function registerMembersLibraryRoutes(app) {
             const compositeUrl = packet.background?.url || null;
             const graphicsData = { graphicsId, packetId, memberId, compositeUrl, qrOnlyUrl: null, status: 'generated', createdAt: new Date().toISOString() };
             await core_1.db.collection('memberGraphics').doc(graphicsId).set(graphicsData);
-            await core_1.db.collection('memberPackets').doc(packetId).update({ status: 'graphics_ready', graphicsId, updatedAt: new Date().toISOString() });
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'graphics_ready', graphicsId, updatedAt: new Date().toISOString() });
             res.json({ graphicsId, compositeUrl, qrOnlyUrl: null });
         }
         catch (error) {
@@ -225,11 +225,11 @@ function registerMembersLibraryRoutes(app) {
                 return;
             }
             const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             const packetData = packetDoc.data() || {};
             const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_compose', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
             await core_1.db.collection('memberTemplates').doc(templateId).set(templateData);
-            await core_1.db.collection('memberPackets').doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
             res.json({ templateId });
         }
         catch (error) {
@@ -250,7 +250,7 @@ function registerMembersLibraryRoutes(app) {
             const libraryLinkId = `lib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             const linkData = { libraryLinkId, packetId, channelId: channelId || null, storeId: memberId, templateId: templateId || null, memberId, compositeUrl: compositeUrl || null, qrOnlyUrl: qrOnlyUrl || null, boundProduct: boundProduct || null, metadata: metadata || null, status: status || 'active', shareUrl: `/share/${packetId}`, createdAt: new Date().toISOString() };
             await core_1.db.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
-            await core_1.db.collection('memberPackets').doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
             res.json({ libraryLinkId, shareUrl: `/share/${packetId}` });
         }
         catch (error) {
@@ -304,7 +304,7 @@ function registerMembersLibraryRoutes(app) {
             }
             const packetId = `pkt-play-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             const packetData = { packetId, memberId, packetType: 'qr-play', videoUrl: videoUrl || null, title: title || 'Untitled', description: description || '', background: background || null, thumbnailUrl: thumbnailUrl || null, metadata: metadata || null, storeId: storeId || memberId, channelId: channelId || null, source: source || { entryPoint: 'wizard' }, status: status || 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-            await core_1.db.collection('memberPackets').doc(packetId).set(packetData);
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
             res.json({ packetId, success: true });
         }
         catch (error) {
@@ -773,7 +773,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(403).json({ error: "Forbidden" });
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!packetDoc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -784,7 +784,7 @@ function registerMembersLibraryRoutes(app) {
                 return;
             }
             const shareCardUrl = packet?.videoSource?.posterUrl || null;
-            await core_1.db.collection('memberPackets').doc(packetId).update({ shareCardUrl, updatedAt: new Date().toISOString() });
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ shareCardUrl, updatedAt: new Date().toISOString() });
             console.log(`[CF QR Play] Generated share card for ${packetId}`);
             res.json({ shareCardUrl, success: true });
         }
@@ -804,7 +804,7 @@ function registerMembersLibraryRoutes(app) {
                 res.status(403).json({ error: "Forbidden" });
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!packetDoc.exists) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
@@ -826,7 +826,7 @@ function registerMembersLibraryRoutes(app) {
                 shareUrl: `/play/${packetId}`, createdAt: new Date().toISOString(),
             };
             await core_1.db.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
-            await core_1.db.collection('memberPackets').doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
             if (channelId) {
                 const itemId = `ci-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
                 await core_1.db.collection(constants_1.CHANNEL_ITEMS_COLLECTION).doc(itemId).set({

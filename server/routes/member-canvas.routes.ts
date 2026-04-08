@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { verifyFirebaseToken } from "../lib/firebase-admin";
+import { MEMBER_PACKETS_COLLECTION } from "../lib/constants";
 
 export function registerMemberCanvasRoutes(app: Express): void {
   app.post("/api/members/:memberId/packets", async (req: any, res) => {
@@ -38,7 +39,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
         updatedAt: new Date().toISOString(),
       };
 
-      await firestoreDb.collection('memberPackets').doc(packetId).set(packetData);
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
       
       console.log(`[MemberPackets] Created packet ${packetId} for member ${memberId}`);
       res.json({ packetId, success: true });
@@ -193,7 +194,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
         updatedAt: new Date().toISOString(),
       };
 
-      await firestoreDb.collection('memberPackets').doc(packetId).set(packetData);
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
       
       console.log(`[MemberPackets] Created packet ${packetId} for member ${memberId}`);
       res.json({ packetId, success: true });
@@ -214,7 +215,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const snapshot = await firestoreDb.collection('memberPackets')
+      const snapshot = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION)
         .where('memberId', '==', memberId)
         .limit(100)
         .get();
@@ -239,7 +240,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const doc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const doc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       if (!doc.exists) {
         return res.status(404).json({ error: "Packet not found" });
       }
@@ -247,7 +248,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
         return res.status(403).json({ error: "Not authorized to delete this packet" });
       }
 
-      await firestoreDb.collection('memberPackets').doc(packetId).delete();
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).delete();
       
       console.log(`[MemberPackets] Deleted packet ${packetId}`);
       res.json({ success: true });
@@ -269,7 +270,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const doc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const doc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       if (!doc.exists) {
         return res.status(404).json({ error: "Packet not found" });
       }
@@ -282,7 +283,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
         updatedAt: new Date().toISOString(),
       };
 
-      await firestoreDb.collection('memberPackets').doc(packetId).update(updateData);
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update(updateData);
       
       console.log(`[MemberPackets] Updated packet ${packetId} for member ${memberId}`, Object.keys(updates));
       res.json({ success: true, packetId });
@@ -303,7 +304,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
       const { getFirestoreDb, getStorageBucket } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const packetDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       if (!packetDoc.exists) {
         return res.status(404).json({ error: "Packet not found" });
       }
@@ -329,7 +330,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
 
       await firestoreDb.collection('memberGraphics').doc(graphicsId).set(graphicsData);
       
-      await firestoreDb.collection('memberPackets').doc(packetId).update({
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
         status: 'graphics_ready',
         graphicsId,
         updatedAt: new Date().toISOString(),
@@ -356,7 +357,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
       
       const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       
-      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const packetDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       const packetData = packetDoc.data() || {};
       
       const templateData = {
@@ -375,7 +376,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
 
       await firestoreDb.collection('memberTemplates').doc(templateId).set(templateData);
       
-      await firestoreDb.collection('memberPackets').doc(packetId).update({
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
         templateId,
         updatedAt: new Date().toISOString(),
       });
@@ -419,7 +420,7 @@ export function registerMemberCanvasRoutes(app: Express): void {
 
       await firestoreDb.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
       
-      await firestoreDb.collection('memberPackets').doc(packetId).update({
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
         status: 'published',
         libraryLinkId,
         updatedAt: new Date().toISOString(),

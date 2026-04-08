@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { PLATFORM_STORE_ID } from '../constants';
+import { PLATFORM_STORE_ID, QR_DYNAMICS_INSTANCES_COLLECTION, MEMBER_PACKETS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -101,7 +101,7 @@ app.post('/members/:memberId/social-schedule', async (req: Request, res: Respons
     if (!packetId) { res.status(400).json({ error: 'packetId is required' }); return; }
     const validCadences = ['daily', 'every-3-days', 'weekly', 'bi-weekly', 'monthly'];
     if (!cadence || !validCadences.includes(cadence)) { res.status(400).json({ error: `cadence must be one of: ${validCadences.join(', ')}` }); return; }
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: 'Packet not found' }); return; }
     const packetData = packetDoc.data();
     if (packetData?.memberId !== memberId) { res.status(403).json({ error: 'Not your packet' }); return; }
@@ -127,7 +127,7 @@ app.get('/members/:memberId/social-schedule', async (req: Request, res: Response
     const packetIds = [...new Set(schedules.map((s: any) => s.packetId).filter(Boolean))];
     const packetMap: Record<string, any> = {};
     for (const pid of packetIds) {
-      const pdoc = await db.collection('memberPackets').doc(pid as string).get();
+      const pdoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(pid as string).get();
       if (pdoc.exists) {
         const pd = pdoc.data();
         packetMap[pid as string] = { id: pid, title: pd?.title || pd?.simpleTitle || 'Untitled', itemImage: pd?.socialPacket?.itemImage || pd?.itemImage || null, retailPrice: pd?.socialPacket?.retailPrice || pd?.retailPrice || null, shareUrl: pd?.socialPacket?.shareUrl || `/p/${pid}`, referralUrl: pd?.socialPacket?.referralUrl || null, shareCaption: pd?.socialPacket?.shareCaption || null, shareImageSquareUrl: pd?.socialPacket?.shareImageSquareUrl || null, shareImageLinkUrl: pd?.socialPacket?.shareImageLinkUrl || null, qrType: pd?.qrType || pd?.packetType || null };
@@ -217,7 +217,7 @@ app.post('/members/:memberId/social-schedule/send-reminders', async (req: Reques
     for (const doc of snapshot.docs) {
       const data = doc.data();
       if (new Date(data.nextPostAt) <= now) {
-        const packetDoc = await db.collection('memberPackets').doc(data.packetId).get();
+        const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(data.packetId).get();
         const pd = packetDoc.data();
         dueItems.push({
           title: pd?.title || pd?.simpleTitle || 'Your Product',
@@ -312,7 +312,7 @@ app.delete('/members/:memberId/channels/:channelId', async (req: Request, res: R
     if (!channelDoc.exists) { res.status(404).json({ error: 'Channel not found' }); return; }
     if (channelDoc.data()?.ownerId !== memberId) { res.status(403).json({ error: 'Not authorized' }); return; }
     const productsSnap = await db.collection('memberProducts').where('channelId', '==', channelId).get();
-    const packetsSnap = await db.collection('memberPackets').where('channelId', '==', channelId).where('memberId', '==', memberId).get();
+    const packetsSnap = await db.collection(MEMBER_PACKETS_COLLECTION).where('channelId', '==', channelId).where('memberId', '==', memberId).get();
     const batch = db.batch();
     productsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
     packetsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
@@ -329,7 +329,7 @@ app.put('/members/:memberId/channels/:channelId/remove-item', async (req: Reques
     const { itemId, itemType } = req.body;
     const auth = await verifyMemberAuthCF(req, memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
-    const collection = itemType === 'packet' ? 'memberPackets' : 'memberProducts';
+    const collection = itemType === 'packet' ? MEMBER_PACKETS_COLLECTION : 'memberProducts';
     const doc = await db.collection(collection).doc(itemId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Item not found' }); return; }
     const data = doc.data();
@@ -348,7 +348,7 @@ app.patch('/members/:memberId/packets/:packetId/description', async (req: Reques
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { memberPacketDescription } = req.body;
     if (typeof memberPacketDescription !== 'string') { res.status(400).json({ error: 'memberPacketDescription is required' }); return; }
-    const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: 'Packet not found' }); return; }
     const packetData = packetDoc.data();
     if (packetData?.memberId !== memberId) { res.status(403).json({ error: 'Not your packet' }); return; }
@@ -356,7 +356,7 @@ app.patch('/members/:memberId/packets/:packetId/description', async (req: Reques
     const providerDesc = boundProduct.providerDescription || '';
     const adminDesc = boundProduct.adminCatalogDescription || '';
     const effectiveDescription = memberPacketDescription || adminDesc || providerDesc || '';
-    await db.collection('memberPackets').doc(packetId).update({
+    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
       'boundProduct.memberPacketDescription': memberPacketDescription,
       'boundProduct.effectiveDescription': effectiveDescription,
       'boundProduct.description': effectiveDescription,
@@ -379,9 +379,9 @@ app.delete('/members/:memberId/products/:productId', async (req: Request, res: R
     if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: 'Not authorized' }); return; }
     const packetId = doc.data()?.packetId;
     if (packetId) {
-      const packetDoc = await db.collection('memberPackets').doc(packetId).get();
+      const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       if (packetDoc.exists && packetDoc.data()?.memberId === memberId) {
-        await db.collection('memberPackets').doc(packetId).delete();
+        await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).delete();
       }
     }
     await db.collection('memberProducts').doc(productId).delete();
@@ -477,14 +477,14 @@ app.post('/members/:memberId/products', async (req: Request, res: Response): Pro
         createdAt: new Date().toISOString(),
       };
 
-      await db.collection("memberPackets").doc(packetId).set(packetData);
+      await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
 
       if (packetType === 'qr-compose' && body.composeItems && Array.isArray(body.composeItems)) {
         try {
           const nowEpoch = Math.floor(Date.now() / 1000);
           const instanceData = { memberId, packetId, createdAt: nowEpoch, startTimestamp: nowEpoch, mode: 'loop', composeMode: body.composeMode || 'auto-rotate', hostingTerm: body.composeHostingTerm || '1-year', fallbackUrl: null, slots: body.composeItems.map((item: any, index: number) => ({ slotId: `slot-${Date.now()}-${index}`, packetId: item.packetId, name: item.name || 'Untitled', thumbnailUrl: item.thumbnailUrl || null, type: item.type || 'qr-canvas', durationSeconds: item.durationSeconds || 86400, order: item.order ?? index + 1 })) };
-          const instanceRef = await db.collection("qr_dynamics_instances").add(instanceData);
-          await db.collection("memberPackets").doc(packetId).update({ composeInstanceId: instanceRef.id, destinationUrl: `/qr/d/${instanceRef.id}` });
+          const instanceRef = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
+          await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ composeInstanceId: instanceRef.id, destinationUrl: `/qr/d/${instanceRef.id}` });
           packetData.composeInstanceId = instanceRef.id;
           packetData.destinationUrl = `/qr/d/${instanceRef.id}`;
         } catch (instanceErr: any) { console.error('[QR Compose CF] Instance creation failed:', instanceErr); }
@@ -517,7 +517,7 @@ app.get('/members/:memberId/published-items', async (req: Request, res: Response
       ? types.split(',').map((t: string) => normalizeType(t.trim()))
       : [];
 
-    const snapshot = await db.collection('memberPackets').where('memberId', '==', memberId).where('status', '==', 'published').get();
+    const snapshot = await db.collection(MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId).where('status', '==', 'published').get();
 
     const items: any[] = [];
     snapshot.forEach(doc => {

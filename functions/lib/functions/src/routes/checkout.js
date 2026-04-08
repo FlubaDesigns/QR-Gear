@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const order_service_1 = require("../services/order-service");
+const constants_1 = require("../constants");
 const stripe_1 = __importDefault(require("stripe"));
 function register(app) {
     app.post('/public/packet-checkout', async (req, res) => {
@@ -25,7 +26,7 @@ function register(app) {
                     console.warn(`[PacketCheckout] Invalid referrerId '${rawReferrerId}' — not a real user, ignoring`);
                 }
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!packetDoc.exists) {
                 res.status(404).json({ error: "Product not found" });
                 return;
@@ -114,7 +115,7 @@ function register(app) {
                 res.json({ success: true, alreadyProcessed: true, order: { id: existingOrderQuery.docs[0].id, ...existingOrder } });
                 return;
             }
-            const packetDoc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             const packet = packetDoc.exists ? packetDoc.data() : {};
             const buyerEmail = session.customer_details?.email || '';
             const buyerName = session.customer_details?.name || '';

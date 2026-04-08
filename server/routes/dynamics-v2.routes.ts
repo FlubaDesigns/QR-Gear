@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { PRODUCT_PACKETS_COLLECTION } from "../lib/constants";
+import { PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION, MEMBER_PACKETS_COLLECTION } from "../lib/constants";
 
 export function registerDynamicsV2Routes(app: Express): void {
 
@@ -97,7 +97,7 @@ export function registerDynamicsV2Routes(app: Express): void {
         })),
       };
 
-      const docRef = await firestoreDb.collection("qr_dynamics_instances").add(instanceData);
+      const docRef = await firestoreDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
 
       console.log(`[Dynamics Instance] Created instance ${docRef.id} with ${slots.length} slots`);
 
@@ -119,7 +119,7 @@ export function registerDynamicsV2Routes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const doc = await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).get();
+      const doc = await firestoreDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
 
       if (!doc.exists) {
         return res.status(404).json({ error: "Instance not found" });
@@ -145,7 +145,7 @@ export function registerDynamicsV2Routes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const doc = await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).get();
+      const doc = await firestoreDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
 
       if (!doc.exists) {
         return res.status(404).json({ error: "Instance not found" });
@@ -246,7 +246,7 @@ export function registerDynamicsV2Routes(app: Express): void {
 
       const nowEpoch = Math.floor(Date.now() / 1000);
 
-      await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).update({
+      await firestoreDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).update({
         slots: slots.map((slot: any, index: number) => ({
           slotId: slot.slotId || `slot-${Date.now()}-${index}`,
           packetId: slot.packetId,
@@ -276,7 +276,7 @@ export function registerDynamicsV2Routes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
 
-      const doc = await firestoreDb.collection("qr_dynamics_instances").doc(instanceId).get();
+      const doc = await firestoreDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
 
       if (!doc.exists) {
         return res.status(404).send("QR Dynamics instance not found");
@@ -301,7 +301,7 @@ export function registerDynamicsV2Routes(app: Express): void {
         for (const pid of slotPacketIds) {
           let pDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(pid).get();
           if (!pDoc.exists) {
-            pDoc = await firestoreDb.collection("memberPackets").doc(pid).get();
+            pDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(pid).get();
           }
           const pData = pDoc.exists ? (pDoc.data() as any) : null;
           packetSlugs.push(pData?.landingPageSlug || '');
@@ -370,7 +370,7 @@ export function registerDynamicsV2Routes(app: Express): void {
 
       let packetDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
       if (!packetDoc.exists) {
-        packetDoc = await firestoreDb.collection("memberPackets").doc(activeSlot.packetId).get();
+        packetDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
       }
 
       if (!packetDoc.exists) {

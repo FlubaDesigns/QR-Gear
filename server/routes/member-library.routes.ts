@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { uploadToFirebaseStorage } from "../lib/firebase-storage-service";
+import { MEMBER_PACKETS_COLLECTION } from "../lib/constants";
 
 export function registerMemberLibraryRoutes(app: Express): void {
   app.get("/api/members/common-library", async (req: any, res) => {
@@ -363,7 +364,7 @@ export function registerMemberLibraryRoutes(app: Express): void {
         updatedAt: new Date().toISOString(),
       };
 
-      await firestoreDb.collection('memberPackets').doc(packetId).set(packetData);
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
       
       console.log(`[QR Play] Created play packet ${packetId} for member ${memberId}`);
       res.json({ packetId, success: true });
@@ -385,7 +386,7 @@ export function registerMemberLibraryRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const packetDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       if (!packetDoc.exists) {
         return res.status(404).json({ error: "Packet not found" });
       }
@@ -397,7 +398,7 @@ export function registerMemberLibraryRoutes(app: Express): void {
       
       const shareCardUrl = packet?.videoSource?.posterUrl || null;
       
-      await firestoreDb.collection('memberPackets').doc(packetId).update({
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
         shareCardUrl,
         updatedAt: new Date().toISOString(),
       });
@@ -422,7 +423,7 @@ export function registerMemberLibraryRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       
-      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const packetDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       if (!packetDoc.exists) {
         return res.status(404).json({ error: "Packet not found" });
       }
@@ -457,7 +458,7 @@ export function registerMemberLibraryRoutes(app: Express): void {
 
       await firestoreDb.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
       
-      await firestoreDb.collection('memberPackets').doc(packetId).update({
+      await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({
         status: 'published',
         libraryLinkId,
         updatedAt: new Date().toISOString(),

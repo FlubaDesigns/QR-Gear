@@ -24,4 +24,7 @@ export const DYNAMICS_SURFACES_COLLECTION = 'qrDynamicsSurfaces';
 export const STORE_PRODUCT_LINKS_COLLECTION = 'storeProductLinks';
 export const PRODUCT_PACKETS_COLLECTION = 'productPackets';
 
+export const QR_DYNAMICS_INSTANCES_COLLECTION = 'qr_dynamics_instances';
+export const MEMBER_PACKETS_COLLECTION = 'memberPackets';
+
 export const PLATFORM_STORE_ID = 'qr-gear';

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import Stripe from 'stripe';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { MOSAIC_TEMPLATES_COLLECTION, PRODUCT_PACKETS_COLLECTION, STORE_PRODUCT_LINKS_COLLECTION, DYNAMICS_SURFACES_COLLECTION, CHANNEL_CONTENT_COLLECTION, COLLECTION_ITEMS_COLLECTION } from '../constants';
+import { MOSAIC_TEMPLATES_COLLECTION, PRODUCT_PACKETS_COLLECTION, STORE_PRODUCT_LINKS_COLLECTION, DYNAMICS_SURFACES_COLLECTION, CHANNEL_CONTENT_COLLECTION, COLLECTION_ITEMS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION, MEMBER_PACKETS_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -279,7 +279,7 @@ app.post('/dynamics/instances', async (req: Request, res: Response): Promise<voi
     if (!slots || !Array.isArray(slots) || slots.length === 0) { res.status(400).json({ error: "slots array is required" }); return; }
     const nowEpoch = Math.floor(Date.now() / 1000);
     const instanceData = { orderId: orderId || null, collectionId: collectionId || null, createdAt: nowEpoch, startTimestamp: nowEpoch, mode: 'loop', fallbackUrl: fallbackUrl || null, slots: slots.map((slot: any, index: number) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })) };
-    const docRef = await db.collection("qr_dynamics_instances").add(instanceData);
+    const docRef = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
     res.json({ success: true, instanceId: docRef.id, resolverUrl: `/qr/d/${docRef.id}` });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -287,7 +287,7 @@ app.post('/dynamics/instances', async (req: Request, res: Response): Promise<voi
 app.get('/dynamics/instances/:instanceId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { instanceId } = req.params;
-    const doc = await db.collection("qr_dynamics_instances").doc(instanceId).get();
+    const doc = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
     if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
     res.json({ success: true, instance: { id: doc.id, ...doc.data() } });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -296,7 +296,7 @@ app.get('/dynamics/instances/:instanceId', async (req: Request, res: Response): 
 app.get('/dynamics/instances/:instanceId/preview', async (req: Request, res: Response): Promise<void> => {
   try {
     const { instanceId } = req.params;
-    const doc = await db.collection("qr_dynamics_instances").doc(instanceId).get();
+    const doc = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
     if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
     const instance = doc.data() as any;
     const slots = instance.slots || [];
@@ -324,7 +324,7 @@ app.put('/dynamics/instances/:instanceId/slots', async (req: Request, res: Respo
     const { slots } = req.body;
     if (!slots || !Array.isArray(slots)) { res.status(400).json({ error: "slots array is required" }); return; }
     const nowEpoch = Math.floor(Date.now() / 1000);
-    await db.collection("qr_dynamics_instances").doc(instanceId).update({ slots: slots.map((slot: any, index: number) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })), startTimestamp: nowEpoch });
+    await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).update({ slots: slots.map((slot: any, index: number) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })), startTimestamp: nowEpoch });
     res.json({ success: true, instanceId, newStartTimestamp: nowEpoch });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -332,7 +332,7 @@ app.put('/dynamics/instances/:instanceId/slots', async (req: Request, res: Respo
 app.get('/qr/d/:instanceId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { instanceId } = req.params;
-    const doc = await db.collection("qr_dynamics_instances").doc(instanceId).get();
+    const doc = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
     if (!doc.exists) { res.status(404).send("QR Dynamics instance not found"); return; }
     const instance = doc.data() as any;
     const slots = instance.slots || [];
@@ -341,7 +341,7 @@ app.get('/qr/d/:instanceId', async (req: Request, res: Response): Promise<void> 
     if (instance.composeMode === 'scan-to-reveal') {
       const slotPacketIds = sortedSlots.map((s: any) => s.packetId);
       const packetSlugs: string[] = [];
-      for (const pid of slotPacketIds) { let pDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(pid).get(); if (!pDoc.exists) pDoc = await db.collection("memberPackets").doc(pid).get(); const pData = pDoc.exists ? pDoc.data() : null; packetSlugs.push((pData as any)?.landingPageSlug || ''); }
+      for (const pid of slotPacketIds) { let pDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(pid).get(); if (!pDoc.exists) pDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(pid).get(); const pData = pDoc.exists ? pDoc.data() : null; packetSlugs.push((pData as any)?.landingPageSlug || ''); }
       const validSlugs = packetSlugs.filter(s => s !== '');
       if (validSlugs.length === 0) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("No content configured"); return; }
       const slugsJson = JSON.stringify(validSlugs);
@@ -358,7 +358,7 @@ app.get('/qr/d/:instanceId', async (req: Request, res: Response): Promise<void> 
     for (const slot of sortedSlots) { running += slot.durationSeconds; if (position < running) { activeSlot = slot; break; } }
     if (!activeSlot) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(500).send("Unable to resolve slot"); return; }
     let packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
-    if (!packetDoc.exists) packetDoc = await db.collection("memberPackets").doc(activeSlot.packetId).get();
+    if (!packetDoc.exists) packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
     if (!packetDoc.exists) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("Content not available"); return; }
     const packetData = packetDoc.data() as any;
     if (!packetData.landingPageSlug) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("Landing page not configured"); return; }

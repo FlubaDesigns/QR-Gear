@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "../../storage";
 import { escapeHtml } from "../route-helpers";
 import { generateSitemap } from "../../lib/sitemap";
+import { MEMBER_PACKETS_COLLECTION } from "../../lib/constants";
 
 export function registerSeoGalleryRoutes(app: Express): void {
 
@@ -30,7 +31,7 @@ export function registerSeoGalleryRoutes(app: Express): void {
       
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
-      const packetDoc = await firestoreDb.collection('memberPackets').doc(packetId).get();
+      const packetDoc = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
       
       let title = 'QR Gear - Dynamic QR Experience';
       let description = 'Scan to discover personalized content';

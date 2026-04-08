@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const constants_1 = require("../constants");
 function register(app) {
     // ============ REFERRAL TRACKING (Share & Earn — Forever) ============
     app.post('/public/referral/capture', async (req, res) => {
@@ -66,7 +67,7 @@ function register(app) {
                 res.status(400).json({ error: "packetId is required" });
                 return;
             }
-            let doc = await core_1.db.collection('memberPackets').doc(packetId).get();
+            let doc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
             if (!doc.exists) {
                 doc = await core_1.db.collection('productPackets').doc(packetId).get();
             }

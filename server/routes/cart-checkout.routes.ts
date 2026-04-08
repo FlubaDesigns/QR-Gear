@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { fsInsert, fsQuery } from "../lib/firestore-crud";
 import { isAuthenticated, isAdmin } from "../firebaseAuth";
 import { insertCartItemSchema, insertOrderSchema, insertOrderItemSchema } from "@shared/schema";
+import { MEMBER_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from "../lib/constants";
 import { uploadToFirebaseStorage } from "../lib/firebase-storage-service";
 import { verifyFirebaseToken } from "../lib/firebase-admin";
 import { sendOrderConfirmationEmail } from "../lib/email";
@@ -230,7 +231,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
           if (customization.packetId && selectedSize) {
             try {
               const { getFirestoreDb: getDb } = await import("../lib/firebase-admin");
-              const packetDoc = await getDb().collection("memberPackets").doc(customization.packetId).get();
+              const packetDoc = await getDb().collection(MEMBER_PACKETS_COLLECTION).doc(customization.packetId).get();
               if (packetDoc.exists) {
                 const snap = packetDoc.data()?.pricingSnapshot;
                 if (snap?.printifyCostVariants?.[selectedSize]) {
@@ -759,7 +760,7 @@ export function registerCartCheckoutRoutes(app: Express): void {
       let instanceId: string | null = null;
 
       if (data.packetId) {
-        const instanceRef = fsDb.collection('qr_dynamics_instances').doc();
+        const instanceRef = fsDb.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc();
         instanceId = instanceRef.id;
         await instanceRef.set({
           packetId: data.packetId,
