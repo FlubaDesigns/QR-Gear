@@ -478,52 +478,6 @@
   height: 100%;
 }
 
-/* Zone proportions — must match graphicLayout.ts: header 30%, middle 40%, footer 30% */
-/* With sub-bottom visible: sub-bottom 5% between QR and footer, footer shrinks to 25% */
-.qr-canvas__header { flex: 0 0 30%; min-height: 0; }
-.qr-canvas__middle { flex: 0 0 40%; min-height: 0; }
-.qr-canvas__sub-bottom { flex: 0 0 5%; min-height: 0; display: none; }
-.qr-canvas__sub-bottom--visible { display: flex; }
-.qr-canvas__footer { flex: 0 0 30%; min-height: 0; }
-.qr-canvas--sub-visible .qr-canvas__footer { flex: 0 0 25%; }
-
-.qr-canvas__header,
-.qr-canvas__footer {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.qr-canvas__header::before,
-.qr-canvas__header::after,
-.qr-canvas__footer::before,
-.qr-canvas__footer::after {
-  content: "";
-  flex: 0 0 1%;
-}
-
-.qr-canvas__header .zone-content,
-.qr-canvas__footer .zone-content {
-  flex: 0 0 98%;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 2%;
-  overflow: hidden;
-  line-height: 1.05;
-}
-
-.qr-canvas__sub-bottom {
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 0 4%;
-  overflow: hidden;
-}
-
 input[type="range"].touch-slider {
   -webkit-appearance: none;
   appearance: none;
