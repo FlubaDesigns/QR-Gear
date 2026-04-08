@@ -107,24 +107,36 @@ async function cfGenerateCompositeImage(options: {
   const textColor = "#000000";
   const scaleFactor = width / CF_PREVIEW_CONTAINER_WIDTH;
 
+  const BLEED_SAFE_PX = 75;
+  const safeX = BLEED_SAFE_PX;
+  const safeY = BLEED_SAFE_PX;
+  const safeW = Math.max(1, width - 2 * BLEED_SAFE_PX);
+  const safeH = Math.max(1, height - 2 * BLEED_SAFE_PX);
+
   let headerZoneTop: number, headerZoneHeight: number;
   let qrZoneTop: number, qrZoneHeight: number;
   let footerZoneTop: number, footerZoneHeight: number;
+  let zoneX: number;
+  let zoneW: number;
 
   if (graphicLayoutMode === 'freeform') {
-    headerZoneTop = 0;
-    headerZoneHeight = height;
-    qrZoneTop = 0;
-    qrZoneHeight = height;
-    footerZoneTop = 0;
-    footerZoneHeight = height;
+    zoneX = safeX;
+    zoneW = safeW;
+    headerZoneTop = safeY;
+    headerZoneHeight = safeH;
+    qrZoneTop = safeY;
+    qrZoneHeight = safeH;
+    footerZoneTop = safeY;
+    footerZoneHeight = safeH;
   } else {
-    headerZoneTop = 0;
-    headerZoneHeight = height * 0.30;
-    qrZoneTop = headerZoneHeight;
-    qrZoneHeight = height * 0.40;
+    zoneX = safeX;
+    zoneW = safeW;
+    headerZoneTop = safeY;
+    headerZoneHeight = safeH * 0.30;
+    qrZoneTop = headerZoneTop + headerZoneHeight;
+    qrZoneHeight = safeH * 0.40;
     footerZoneTop = qrZoneTop + qrZoneHeight;
-    footerZoneHeight = height * 0.30;
+    footerZoneHeight = safeH * 0.30;
   }
 
   const cfDrawImageInZone = async (
@@ -175,7 +187,7 @@ async function cfGenerateCompositeImage(options: {
 
   const topIsImage = topText?.mode === "image" && topText?.imageUrl;
   if (topIsImage) {
-    await cfDrawImageInZone(topText!.imageUrl!, 0, headerZoneTop, width, headerZoneHeight, 0,
+    await cfDrawImageInZone(topText!.imageUrl!, zoneX, headerZoneTop, zoneW, headerZoneHeight, 0,
       topText!.horizontalOffset ?? 50, topText!.verticalOffset ?? 50, topText!.imageScale ?? 100);
   } else if (topText && topText.text) {
     const previewFontSize = cfGetPreviewFontSize(topText.fontSize);
@@ -190,12 +202,12 @@ async function cfGenerateCompositeImage(options: {
       ctx.strokeStyle = topText.strokeColor;
       ctx.lineWidth = topText.strokeWidth * scaleFactor;
     }
-    const lines = cfWrapText(ctx, topText.text, width - 120);
+    const lines = cfWrapText(ctx, topText.text, zoneW - 20);
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = topText.verticalOffset ?? 50;
     const hOff = topText.horizontalOffset ?? 50;
     let currentY = headerZoneTop + (vOff / 100) * Math.max(0, headerZoneHeight - totalTextHeight);
-    const textX = (hOff / 100) * width;
+    const textX = zoneX + (hOff / 100) * zoneW;
     for (const line of lines) {
       if (topText.strokeColor && topText.strokeWidth && topText.strokeWidth > 0) {
         ctx.strokeText(line, textX, currentY);
@@ -219,9 +231,9 @@ async function cfGenerateCompositeImage(options: {
   });
   const qrImage = await li(qrDataUrl);
   const qrBgWidth = qrContentWidth + bgPadding * 2;
-  const qrBgX = (width - qrBgWidth) / 2;
+  const qrBgX = zoneX + (zoneW - qrBgWidth) / 2;
   const qrBgY = qrZoneTop + qrMarginY;
-  const qrX = (width - qrContentWidth) / 2;
+  const qrX = zoneX + (zoneW - qrContentWidth) / 2;
   const qrY = qrBgY + bgPadding;
   ctx.fillStyle = qrLight;
   ctx.beginPath();
@@ -235,7 +247,7 @@ async function cfGenerateCompositeImage(options: {
 
   const bottomIsImage = bottomText?.mode === "image" && bottomText?.imageUrl;
   if (bottomIsImage) {
-    await cfDrawImageInZone(bottomText!.imageUrl!, 0, footerZoneTop, width, footerZoneHeight, 0,
+    await cfDrawImageInZone(bottomText!.imageUrl!, zoneX, footerZoneTop, zoneW, footerZoneHeight, 0,
       bottomText!.horizontalOffset ?? 50, bottomText!.verticalOffset ?? 50, bottomText!.imageScale ?? 100);
   } else if (bottomText && bottomText.text) {
     const previewFontSize = cfGetPreviewFontSize(bottomText.fontSize);
@@ -250,12 +262,12 @@ async function cfGenerateCompositeImage(options: {
       ctx.strokeStyle = bottomText.strokeColor;
       ctx.lineWidth = bottomText.strokeWidth * scaleFactor;
     }
-    const lines = cfWrapText(ctx, bottomText.text, width - 120);
+    const lines = cfWrapText(ctx, bottomText.text, zoneW - 20);
     const totalTextHeight = lines.length * fontSize * 1.3;
     const vOff = bottomText.verticalOffset ?? 50;
     const hOff = bottomText.horizontalOffset ?? 50;
     let currentY = footerZoneTop + (vOff / 100) * Math.max(0, footerZoneHeight - totalTextHeight);
-    const textX = (hOff / 100) * width;
+    const textX = zoneX + (hOff / 100) * zoneW;
     for (const line of lines) {
       if (bottomText.strokeColor && bottomText.strokeWidth && bottomText.strokeWidth > 0) {
         ctx.strokeText(line, textX, currentY);

@@ -21,6 +21,7 @@ export interface Rect {
 
 export interface GraphicLayoutResult {
   canvas: { width: number; height: number };
+  safeRect: Rect;
   zones: {
     header: Rect;
     middle: Rect;
@@ -37,6 +38,8 @@ export interface GraphicLayoutResult {
     logoImg: Rect;
   };
 }
+
+export const BLEED_SAFE_PX = 75;
 
 export const GRAPHIC_LAYOUT_DEFAULTS = {
   headerPct: 0.30,
@@ -77,28 +80,41 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
 
   const cfg = GRAPHIC_LAYOUT_DEFAULTS;
 
+  const bleed = BLEED_SAFE_PX;
+  const safeRect: Rect = {
+    x: bleed,
+    y: bleed,
+    width: Math.max(1, W - 2 * bleed),
+    height: Math.max(1, H - 2 * bleed),
+  };
+
+  const SX = safeRect.x;
+  const SY = safeRect.y;
+  const SW = safeRect.width;
+  const SH = safeRect.height;
+
   let headerZone: Rect;
   let middleZone: Rect;
   let subBottomZone: Rect;
   let footerZone: Rect;
-  let qrRegion: { width: number; height: number; x: number; y: number };
+  let qrRegion: Rect;
 
   if (layoutMode === "freeform") {
-    headerZone = { x: 0, y: 0, width: W, height: H };
-    middleZone = { x: 0, y: 0, width: W, height: H };
-    subBottomZone = { x: 0, y: 0, width: W, height: 0 };
-    footerZone = { x: 0, y: 0, width: W, height: H };
-    qrRegion = { x: 0, y: 0, width: W, height: H };
+    headerZone = { x: SX, y: SY, width: SW, height: SH };
+    middleZone = { x: SX, y: SY, width: SW, height: SH };
+    subBottomZone = { x: SX, y: SY, width: SW, height: 0 };
+    footerZone = { x: SX, y: SY, width: SW, height: SH };
+    qrRegion = { x: SX, y: SY, width: SW, height: SH };
   } else {
-    const subBottomHeight = subBottomActive ? H * cfg.subBottomPct : 0;
-    const headerHeight = headerActive ? H * cfg.headerPct : 0;
-    const footerHeight = footerActive ? Math.max(0, H * cfg.footerPct - subBottomHeight) : 0;
-    const middleHeight = Math.max(1, H - headerHeight - footerHeight - subBottomHeight);
+    const subBottomHeight = subBottomActive ? SH * cfg.subBottomPct : 0;
+    const headerHeight = headerActive ? SH * cfg.headerPct : 0;
+    const footerHeight = footerActive ? Math.max(0, SH * cfg.footerPct - subBottomHeight) : 0;
+    const middleHeight = Math.max(1, SH - headerHeight - footerHeight - subBottomHeight);
 
-    headerZone = { x: 0, y: 0, width: W, height: headerHeight };
-    middleZone = { x: 0, y: headerHeight, width: W, height: middleHeight };
-    subBottomZone = { x: 0, y: headerHeight + middleHeight, width: W, height: subBottomHeight };
-    footerZone = { x: 0, y: headerHeight + middleHeight + subBottomHeight, width: W, height: footerHeight };
+    headerZone = { x: SX, y: SY, width: SW, height: headerHeight };
+    middleZone = { x: SX, y: SY + headerHeight, width: SW, height: middleHeight };
+    subBottomZone = { x: SX, y: SY + headerHeight + middleHeight, width: SW, height: subBottomHeight };
+    footerZone = { x: SX, y: SY + headerHeight + middleHeight + subBottomHeight, width: SW, height: footerHeight };
     qrRegion = middleZone;
   }
 
@@ -130,7 +146,6 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
 
   const logoImgSize = qrSize * cfg.logoSizePct;
   const logoBgSize = logoImgSize * cfg.logoBgScale;
-  const logoBgRadius = logoBgSize * cfg.logoBgRadiusPct;
 
   const logoBg: Rect = {
     x: qrSquare.x + (qrSize - logoBgSize) / 2,
@@ -148,6 +163,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
 
   return {
     canvas: { width: W, height: H },
+    safeRect,
     zones: { header: headerZone, middle: middleZone, subBottom: subBottomZone, footer: footerZone },
     qr: {
       square: qrSquare,
