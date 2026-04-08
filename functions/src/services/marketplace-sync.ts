@@ -150,6 +150,51 @@ function computeNextRetryDelay(attempt: number): number {
   return Math.min(5000 * Math.pow(2, attempt), 60000);
 }
 
+const pendingRetries = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleRetryExecution(jobId: string, delayMs: number): void {
+  const existing = pendingRetries.get(jobId);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(async () => {
+    pendingRetries.delete(jobId);
+    try {
+      console.log(`[MarketplaceSync] Executing scheduled retry for job ${jobId}`);
+      await executeSyncJob(jobId);
+    } catch (err) {
+      console.error(`[MarketplaceSync] Scheduled retry failed for job ${jobId}:`, err);
+    }
+  }, delayMs);
+
+  pendingRetries.set(jobId, timer);
+  console.log(`[MarketplaceSync] Retry scheduled for job ${jobId} in ${delayMs}ms`);
+}
+
+let retrySweepInterval: ReturnType<typeof setInterval> | null = null;
+const RETRY_SWEEP_INTERVAL_MS = 60_000;
+
+export function startRetrySweep(): void {
+  if (retrySweepInterval) return;
+  retrySweepInterval = setInterval(async () => {
+    try {
+      const processed = await processRetryQueue();
+      if (processed > 0) {
+        console.log(`[MarketplaceSync] Sweep processed ${processed} retry job(s)`);
+      }
+    } catch (err) {
+      console.error('[MarketplaceSync] Retry sweep error:', err);
+    }
+  }, RETRY_SWEEP_INTERVAL_MS);
+  console.log(`[MarketplaceSync] Retry sweep started (every ${RETRY_SWEEP_INTERVAL_MS / 1000}s)`);
+}
+
+export function stopRetrySweep(): void {
+  if (retrySweepInterval) {
+    clearInterval(retrySweepInterval);
+    retrySweepInterval = null;
+  }
+}
+
 export async function executeSyncJob(jobId: string): Promise<void> {
   const jobRef = db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId);
   const jobSnap = await jobRef.get();
@@ -345,6 +390,9 @@ export async function executeSyncJob(jobId: string): Promise<void> {
       await writeLog(jobId, job.listingId, job.accountId, job.platform, 'info',
         `Will retry at ${nextRetryAt} (attempt ${job.attempts + 2}/${job.maxAttempts})`
       );
+
+      const delayMs = computeNextRetryDelay(job.attempts);
+      scheduleRetryExecution(jobId, delayMs);
     }
   }
 }

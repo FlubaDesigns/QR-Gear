@@ -12,7 +12,7 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { executeSyncJob, retryFailedJob, processRetryQueue } from '../services/marketplace-sync';
+import { executeSyncJob, retryFailedJob, processRetryQueue, startRetrySweep } from '../services/marketplace-sync';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -31,6 +31,9 @@ const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_i
 const VALID_LOG_LEVELS = new Set<string>(['info', 'warn', 'error']);
 
   export function register(app: express.Express): void {
+
+  startRetrySweep();
+
   // ============ MARKETPLACE ENDPOINTS ============
 
 app.get('/admin/marketplace/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {

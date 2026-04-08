@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
+const marketplace_sync_1 = require("../services/marketplace-sync");
 const constants_1 = require("../constants");
 const VALID_PLATFORMS = new Set(constants_1.MARKETPLACE_PLATFORMS);
 const VALID_SURFACE_STATUSES = new Set(['draft', 'ready', 'published', 'archived']);
@@ -706,6 +707,7 @@ function register(app) {
             const docRef = await core_1.db.collection(constants_1.MARKETPLACE_SYNC_JOBS_COLLECTION).add(data);
             await core_1.db.collection(constants_1.MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).update({ status: 'syncing', lastSyncJobId: docRef.id, updatedAt: now });
             res.json({ id: docRef.id, ...data });
+            (0, marketplace_sync_1.executeSyncJob)(docRef.id).catch((err) => console.error(`[Surfaces] Async sync execution failed for job ${docRef.id}:`, err));
         }
         catch (error) {
             console.error('[Surfaces] POST job error:', error);
@@ -737,6 +739,32 @@ function register(app) {
         catch (error) {
             console.error('[Surfaces] PATCH job error:', error);
             res.status(500).json({ error: error.message });
+        }
+    });
+    app.post('/admin/surfaces/jobs/:jobId/retry', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { jobId } = req.params;
+            const result = await (0, marketplace_sync_1.retryFailedJob)(jobId);
+            if (!result.success) {
+                res.status(400).json({ error: result.error });
+                return;
+            }
+            res.json({ id: jobId, status: 'queued', message: 'Job re-queued for retry' });
+        }
+        catch (error) {
+            console.error('[Surfaces] POST job retry error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.post('/admin/surfaces/jobs/process-retries', middleware_1.requireAdmin, async (_req, res) => {
+        try {
+            const processed = await (0, marketplace_sync_1.processRetryQueue)();
+            res.json({ processed, message: `Processed ${processed} retry job(s)` });
+        }
+        catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            console.error('[Surfaces] POST process-retries error:', error);
+            res.status(500).json({ error: msg });
         }
     });
     // --- Sync Logs ---
