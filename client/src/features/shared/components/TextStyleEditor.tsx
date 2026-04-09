@@ -80,6 +80,7 @@ interface TextStyleEditorProps {
   fonts?: string[];
   onPickFromLibrary?: () => void;
   onSaveToLibrary?: () => void;
+  inline?: boolean;
 }
 
 export function TextStyleEditor({ 
@@ -97,9 +98,16 @@ export function TextStyleEditor({
   fonts: fontsProp,
   onPickFromLibrary,
   onSaveToLibrary,
+  inline = false,
 }: TextStyleEditorProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [controlsOpen, setControlsOpen] = useState(false);
+
+  useEffect(() => {
+    if (inline && !style.enabled) {
+      onChange({ enabled: true });
+    }
+  }, [inline]);
   const { fonts: dynamicFonts } = useFonts();
   const activeFonts = fontsProp || dynamicFonts;
 
@@ -123,75 +131,17 @@ export function TextStyleEditor({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  return (
-    <div className="bg-background rounded-lg border overflow-hidden">
-      <div 
-        className="flex items-center justify-between min-h-[48px] px-4 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        data-testid={`toggle-${testIdPrefix}-collapse`}
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          {isCollapsed ? (
-            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          )}
-          <div className="min-w-0 flex-1">
-            <span className="font-semibold text-base">{label}</span>
-            {sublabel && (
-              <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">{sublabel}</span>
-            )}
-          </div>
-          {hasContent && (
-            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex-shrink-0 max-w-[80px] truncate">
-              {currentMode === "image" ? "Image" : style.text.substring(0, 15)}{currentMode === "text" && style.text.length > 15 ? "..." : ""}
-            </span>
-          )}
-        </div>
-        <div 
-          className="min-w-[48px] min-h-[48px] flex items-center justify-center"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Switch
-            id={`${testIdPrefix}-enabled`}
-            checked={style.enabled}
-            onCheckedChange={(checked) => {
-              onChange({ enabled: checked });
-              if (checked && isCollapsed) {
-                setIsCollapsed(false);
-              }
-            }}
-            className="scale-125"
-            data-testid={`switch-${testIdPrefix}`}
-          />
-        </div>
-      </div>
-      
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageUpload}
-        className="hidden"
-        data-testid={`input-${testIdPrefix}-file`}
-      />
-
-      {style.enabled && style.mode === "image" && style.imageUrl && isCollapsed && (
-        <div className="px-4 pb-3">
-          <div className="border rounded-md p-2 bg-muted/30">
-            <img
-              src={style.imageUrl}
-              alt="Zone graphic"
-              className="w-full max-h-[100px] object-contain rounded"
-              style={{ pointerEvents: "none" }}
-              data-testid={`img-${testIdPrefix}-collapsed-preview`}
-            />
-          </div>
-        </div>
-      )}
-
-      {!isCollapsed && style.enabled && (
-        <div className="space-y-4 p-4 pt-0">
+  if (inline) {
+    return (
+      <div className="space-y-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+          data-testid={`input-${testIdPrefix}-file`}
+        />
           <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid={`toggle-${testIdPrefix}-mode`}>
             <button
               type="button"
@@ -563,6 +513,176 @@ export function TextStyleEditor({
                       className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
                       data-testid={`input-${testIdPrefix}-vertical-num`}
                     />
+                    <span className="text-xs text-muted-foreground w-4">%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-background rounded-lg border overflow-hidden">
+      <div
+        className="flex items-center justify-between min-h-[48px] px-4 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        data-testid={`toggle-${testIdPrefix}-collapse`}
+      >
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          )}
+          <div className="min-w-0 flex-1">
+            <span className="font-semibold text-base">{label}</span>
+            {sublabel && (
+              <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">{sublabel}</span>
+            )}
+          </div>
+          {hasContent && (
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full flex-shrink-0 max-w-[80px] truncate">
+              {currentMode === "image" ? "Image" : style.text.substring(0, 15)}{currentMode === "text" && style.text.length > 15 ? "..." : ""}
+            </span>
+          )}
+        </div>
+        <div
+          className="min-w-[48px] min-h-[48px] flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Switch
+            id={`${testIdPrefix}-enabled`}
+            checked={style.enabled}
+            onCheckedChange={(checked) => {
+              onChange({ enabled: checked });
+              if (checked && isCollapsed) setIsCollapsed(false);
+            }}
+            className="scale-125"
+            data-testid={`switch-${testIdPrefix}`}
+          />
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+        data-testid={`input-${testIdPrefix}-file`}
+      />
+
+      {style.enabled && style.mode === "image" && style.imageUrl && isCollapsed && (
+        <div className="px-4 pb-3">
+          <div className="border rounded-md p-2 bg-muted/30">
+            <img
+              src={style.imageUrl}
+              alt="Zone graphic"
+              className="w-full max-h-[100px] object-contain rounded"
+              style={{ pointerEvents: "none" }}
+              data-testid={`img-${testIdPrefix}-collapsed-preview`}
+            />
+          </div>
+        </div>
+      )}
+
+      {!isCollapsed && style.enabled && (
+        <div className="space-y-4 p-4 pt-0">
+          <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid={`toggle-${testIdPrefix}-mode`}>
+            <button
+              type="button"
+              onClick={() => onChange({ mode: "text" })}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${currentMode === "text" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid={`button-${testIdPrefix}-mode-text`}
+            >
+              <Type className="h-4 w-4" />
+              Text
+            </button>
+            <button
+              type="button"
+              onClick={() => onChange({ mode: "image" })}
+              className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${currentMode === "image" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              data-testid={`button-${testIdPrefix}-mode-image`}
+            >
+              <ImageIcon className="h-4 w-4" />
+              Image
+            </button>
+          </div>
+
+          {currentMode === "image" ? (
+            <div className="space-y-3">
+              {style.imageUrl ? (
+                <div className="relative">
+                  <div className="border rounded-md p-2 bg-muted/30">
+                    <img src={style.imageUrl} alt="Uploaded" className="w-full max-h-[150px] object-contain rounded" data-testid={`img-${testIdPrefix}-preview`} />
+                  </div>
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} data-testid={`button-${testIdPrefix}-replace-image`}><Upload className="h-4 w-4 mr-1" />Upload</Button>
+                    {onPickFromLibrary && <Button variant="outline" size="sm" onClick={onPickFromLibrary} data-testid={`button-${testIdPrefix}-library-image`}><FolderOpen className="h-4 w-4 mr-1" />Library</Button>}
+                    {onSaveToLibrary && style.imageUrl?.startsWith("data:") && <Button variant="outline" size="sm" onClick={onSaveToLibrary} data-testid={`button-${testIdPrefix}-save-to-library`}><Save className="h-4 w-4 mr-1" />Save</Button>}
+                    <Button variant="outline" size="sm" onClick={() => onChange({ imageUrl: "", mode: "text" })} data-testid={`button-${testIdPrefix}-remove-image`}><X className="h-4 w-4 mr-1" />Remove</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div onClick={() => fileInputRef.current?.click()} className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors" data-testid={`dropzone-${testIdPrefix}-upload`}>
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground font-medium">Upload</p>
+                    <p className="text-xs text-muted-foreground/60">PNG, JPG, SVG</p>
+                  </div>
+                  {onPickFromLibrary && (
+                    <div onClick={onPickFromLibrary} className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors" data-testid={`dropzone-${testIdPrefix}-library`}>
+                      <FolderOpen className="h-6 w-6 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground font-medium">Library</p>
+                      <p className="text-xs text-muted-foreground/60">Our images</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {showPreview && <TextStyleViewer style={style} backgroundColor={previewBackgroundColor} backgroundImage={previewBackgroundImage} />}
+              <textarea
+                name={`${testIdPrefix}-text`}
+                id={`${testIdPrefix}-text-input`}
+                placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
+                value={style.text}
+                onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
+                maxLength={maxLength}
+                inputMode="text"
+                enterKeyHint="done"
+                autoComplete="on"
+                autoCorrect="on"
+                autoCapitalize="sentences"
+                spellCheck={true}
+                rows={2}
+                style={{ touchAction: 'manipulation' }}
+                className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                data-testid={`input-${testIdPrefix}-text`}
+              />
+            </>
+          )}
+
+          {showPositionControls && (
+            <div className="pt-3 border-t border-border/50">
+              <p className="text-sm font-medium mb-3 text-muted-foreground">Position</p>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Left / Right</Label>
+                  <div className="flex items-center gap-2 min-h-[52px] py-3">
+                    <input type="range" min="0" max="100" value={style.horizontalOffset ?? 50} onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })} className="flex-1 touch-slider" style={{ touchAction: 'none' }} data-testid={`slider-${testIdPrefix}-horizontal`} />
+                    <input type="number" min="0" max="100" value={style.horizontalOffset ?? 50} onChange={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, Number(e.target.value))) })} className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background" data-testid={`input-${testIdPrefix}-horizontal-num`} />
+                    <span className="text-xs text-muted-foreground w-4">%</span>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block text-muted-foreground">Up / Down</Label>
+                  <div className="flex items-center gap-2 min-h-[52px] py-3">
+                    <input type="range" min="0" max="100" value={style.verticalOffset ?? 50} onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })} className="flex-1 touch-slider" style={{ touchAction: 'none' }} data-testid={`slider-${testIdPrefix}-vertical`} />
+                    <input type="number" min="0" max="100" value={style.verticalOffset ?? 50} onChange={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, Number(e.target.value))) })} className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background" data-testid={`input-${testIdPrefix}-vertical-num`} />
                     <span className="text-xs text-muted-foreground w-4">%</span>
                   </div>
                 </div>

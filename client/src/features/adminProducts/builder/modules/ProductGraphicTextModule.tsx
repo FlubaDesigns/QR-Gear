@@ -563,6 +563,7 @@ function ZoneEditor({
           const img = currentStyle?.imageUrl;
           if (img?.startsWith("data:")) setSaveImageDataUrl(img);
         }}
+        inline={true}
       />
     </div>
   );
