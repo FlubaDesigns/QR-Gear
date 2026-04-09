@@ -17,8 +17,8 @@ import type {
 const ProductsContext = createContext<ProductsContextValue | null>(null);
 
 const FALLBACK_PROVIDERS: FulfillmentProvider[] = [
+  { id: "printful", name: "Printful", configured: true, role: "fulfillment" },
   { id: "printify", name: "Printify", configured: true, role: "fulfillment" },
-  { id: "printful", name: "Printful", configured: false, role: "fulfillment" },
   { id: "apliiq", name: "Apliiq", configured: false, role: "fulfillment" },
 ];
 
@@ -35,7 +35,7 @@ interface ProductsProviderProps {
 
 export function ProductsProvider({ children }: ProductsProviderProps) {
   const { requiresAuth, getAuthHeaders, apiBase } = useAdminAuth();
-  const [selectedProviders, setSelectedProvidersState] = useState<string[]>(["printify"]);
+  const [selectedProviders, setSelectedProvidersState] = useState<string[]>(["printful"]);
   const [selectedRole, setSelectedRoleState] = useState<RoleType | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<Store | null>(null);
   const [selectedChannel, setSelectedChannelState] = useState<Channel | null>(null);

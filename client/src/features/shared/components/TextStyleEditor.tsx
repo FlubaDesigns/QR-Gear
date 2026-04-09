@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { FontPicker } from "@/components/ui/font-picker";
-import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X, FolderOpen, Save } from "lucide-react";
+import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X, FolderOpen, Save, Mic, MicOff } from "lucide-react";
 import { TextStyleViewer } from "./TextStyleViewer";
 import { useFonts, loadGoogleFonts } from "@/hooks/use-fonts";
 
@@ -102,12 +102,37 @@ export function TextStyleEditor({
 }: TextStyleEditorProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (inline && !style.enabled) {
       onChange({ enabled: true });
     }
   }, [inline]);
+
+  const startVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      onChange({ text: (style.text + (style.text ? ' ' : '') + transcript).slice(0, maxLength) });
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  };
   const { fonts: dynamicFonts } = useFonts();
   const activeFonts = fontsProp || dynamicFonts;
 
@@ -243,10 +268,9 @@ export function TextStyleEditor({
                           />
                           <input
                             type="number"
-                            min="20"
-                            max="200"
                             value={style.imageScale ?? 100}
-                            onChange={(e) => onChange({ imageScale: Math.min(200, Math.max(20, Number(e.target.value))) })}
+                            onChange={(e) => onChange({ imageScale: Number(e.target.value) })}
+                            onBlur={(e) => onChange({ imageScale: Math.min(200, Math.max(20, Number(e.target.value) || 20)) })}
                             className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
                             data-testid={`input-${testIdPrefix}-image-scale-num`}
                           />
@@ -291,37 +315,47 @@ export function TextStyleEditor({
                 />
               )}
 
-              <textarea
-                name={`${testIdPrefix}-text`}
-                id={`${testIdPrefix}-text-input`}
-                placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
-                value={style.text}
-                onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
-                maxLength={maxLength}
-                inputMode="text"
-                enterKeyHint="done"
-                autoComplete="on"
-                autoCorrect="on"
-                autoCapitalize="sentences"
-                spellCheck={true}
-                rows={2}
-                style={{ touchAction: 'manipulation' }}
-                className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-testid={`input-${testIdPrefix}-text`}
-              />
+              <div className="relative">
+                <textarea
+                  name={`${testIdPrefix}-text`}
+                  id={`${testIdPrefix}-text-input`}
+                  placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
+                  value={style.text}
+                  onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
+                  maxLength={maxLength}
+                  inputMode="text"
+                  enterKeyHint="done"
+                  autoComplete="on"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck={true}
+                  rows={2}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full text-base min-h-[48px] px-3 py-2 pr-10 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid={`input-${testIdPrefix}-text`}
+                />
+                <button
+                  type="button"
+                  onClick={startVoiceInput}
+                  className={`absolute right-2 top-2 p-1.5 rounded-md transition-colors ${isListening ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                  data-testid={`button-${testIdPrefix}-voice`}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+              </div>
 
-              <div 
+              <div
                 className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
                 onClick={() => setControlsOpen(!controlsOpen)}
                 data-testid={`toggle-${testIdPrefix}-controls`}
               >
-            {controlsOpen ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
-            <span className="text-sm font-medium text-muted-foreground">Style Controls</span>
-          </div>
+                {controlsOpen ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-sm font-medium text-muted-foreground">Style Controls</span>
+              </div>
 
           {controlsOpen && (
             <div className="space-y-4">
@@ -484,7 +518,8 @@ export function TextStyleEditor({
                       min="0"
                       max="100"
                       value={style.horizontalOffset ?? 50}
-                      onChange={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                      onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
+                      onBlur={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
                       className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
                       data-testid={`input-${testIdPrefix}-horizontal-num`}
                     />
@@ -509,7 +544,8 @@ export function TextStyleEditor({
                       min="0"
                       max="100"
                       value={style.verticalOffset ?? 50}
-                      onChange={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                      onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
+                      onBlur={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
                       className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
                       data-testid={`input-${testIdPrefix}-vertical-num`}
                     />
@@ -645,24 +681,34 @@ export function TextStyleEditor({
           ) : (
             <>
               {showPreview && <TextStyleViewer style={style} backgroundColor={previewBackgroundColor} backgroundImage={previewBackgroundImage} />}
-              <textarea
-                name={`${testIdPrefix}-text`}
-                id={`${testIdPrefix}-text-input`}
-                placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
-                value={style.text}
-                onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
-                maxLength={maxLength}
-                inputMode="text"
-                enterKeyHint="done"
-                autoComplete="on"
-                autoCorrect="on"
-                autoCapitalize="sentences"
-                spellCheck={true}
-                rows={2}
-                style={{ touchAction: 'manipulation' }}
-                className="w-full text-base min-h-[48px] px-3 py-2 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                data-testid={`input-${testIdPrefix}-text`}
-              />
+              <div className="relative">
+                <textarea
+                  name={`${testIdPrefix}-text`}
+                  id={`${testIdPrefix}-text-input`}
+                  placeholder={`Enter ${label.toLowerCase()} (max ${maxLength} chars). Press Enter for new line.`}
+                  value={style.text}
+                  onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
+                  maxLength={maxLength}
+                  inputMode="text"
+                  enterKeyHint="done"
+                  autoComplete="on"
+                  autoCorrect="on"
+                  autoCapitalize="sentences"
+                  spellCheck={true}
+                  rows={2}
+                  style={{ touchAction: 'manipulation' }}
+                  className="w-full text-base min-h-[48px] px-3 py-2 pr-10 border rounded-md bg-background resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  data-testid={`input-${testIdPrefix}-text`}
+                />
+                <button
+                  type="button"
+                  onClick={startVoiceInput}
+                  className={`absolute right-2 top-2 p-1.5 rounded-md transition-colors ${isListening ? 'text-red-500 bg-red-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                  data-testid={`button-${testIdPrefix}-voice`}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </button>
+              </div>
             </>
           )}
 
