@@ -133,12 +133,12 @@ export function useCreatePacket({
         channelId: selectedChannel?.id || null,
         channelName: selectedChannel?.name || null,
         fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-        subBottomEnabled: state.content?.subBottomEnabled || false,
-        subBottomText: state.content?.subBottomText || '',
-        subBottomFontFamily: state.content?.subBottomFontFamily || 'Arial',
-        subBottomFontSize: state.content?.subBottomFontSize || '14',
-        subBottomFontWeight: state.content?.subBottomFontWeight || '400',
-        subBottomColor: state.content?.subBottomColor || '#666666',
+        subBottomEnabled: state.content?.subBottomStyle?.enabled || false,
+        subBottomText: state.content?.subBottomStyle?.text || '',
+        subBottomFontFamily: state.content?.subBottomStyle?.fontFamily || 'Arial',
+        subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
+        subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
+        subBottomColor: state.content?.subBottomStyle?.color || '#666666',
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
@@ -247,12 +247,12 @@ export function useCreatePacket({
           qrSizePercent: state.content.qrSizePercent,
           areaImageUrl: state.content.areaImageUrl || undefined,
           areaImageMode: state.content.areaImageMode || "behind-qr",
-          subBottomEnabled: state.content.subBottomEnabled || false,
-          subBottomText: state.content.subBottomText || "",
-          subBottomFontFamily: state.content.subBottomFontFamily || 'Arial',
-          subBottomFontSize: state.content.subBottomFontSize || '14',
-          subBottomFontWeight: state.content.subBottomFontWeight || '400',
-          subBottomColor: state.content.subBottomColor || '#666666',
+          subBottomEnabled: state.content.subBottomStyle?.enabled || false,
+          subBottomText: state.content.subBottomStyle?.text || "",
+          subBottomFontFamily: state.content.subBottomStyle?.fontFamily || 'Arial',
+          subBottomFontSize: state.content.subBottomStyle?.fontSize || '14',
+          subBottomFontWeight: state.content.subBottomStyle?.fontWeight || '400',
+          subBottomColor: state.content.subBottomStyle?.color || '#666666',
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

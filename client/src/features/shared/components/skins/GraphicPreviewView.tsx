@@ -37,12 +37,14 @@ export interface GraphicPreviewViewProps {
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;
-  subBottomEnabled?: boolean;
-  subBottomText?: string;
-  subBottomColor?: string;
-  subBottomFontSize?: string;
-  subBottomFontFamily?: string;
-  subBottomFontWeight?: string;
+  subBottomStyle?: {
+    enabled?: boolean;
+    text?: string;
+    color?: string;
+    fontSize?: string;
+    fontFamily?: string;
+    fontWeight?: string;
+  };
   graphicLayoutMode?: "zone" | "freeform";
 }
 
@@ -85,12 +87,7 @@ export function GraphicPreviewView({
   areaImageOffsetX,
   areaImageOffsetY,
   areaImageScale,
-  subBottomEnabled,
-  subBottomText,
-  subBottomColor,
-  subBottomFontSize,
-  subBottomFontFamily,
-  subBottomFontWeight,
+  subBottomStyle,
   graphicLayoutMode,
 }: GraphicPreviewViewProps) {
   const aspectClass =
@@ -115,14 +112,9 @@ export function GraphicPreviewView({
     areaImageOffsetX,
     areaImageOffsetY,
     areaImageScale,
-    subBottomEnabled,
-    subBottomText,
-    subBottomColor,
-    subBottomFontSize,
-    subBottomFontFamily,
-    subBottomFontWeight,
+    subBottomStyle,
     graphicLayoutMode,
-    enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl || subBottomEnabled,
+    enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl || subBottomStyle?.enabled,
     debounceMs: 300,
   });
 

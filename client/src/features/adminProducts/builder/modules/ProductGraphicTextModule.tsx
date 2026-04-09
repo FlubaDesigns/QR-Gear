@@ -1,18 +1,16 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save, ArrowUp, ArrowDown } from "lucide-react";
+import { Type, Move, Maximize2, Upload, X, ImageIcon, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save, ArrowUp, ArrowDown } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
-import { TextStyleEditor, type TextStyleConfig, defaultTextStyle, FONT_FAMILIES } from "@/features/shared/components/TextStyleEditor";
+import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import {
@@ -625,14 +623,14 @@ export function ProductGraphicTextModule() {
 
   const hasHeaderContent = (state.content.headerStyle as TextStyleConfig)?.enabled;
   const hasFooterContent = (state.content.footerStyle as TextStyleConfig)?.enabled;
-  const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomEnabled;
+  const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomStyle?.enabled;
 
   const isZoneMode = state.content.graphicLayoutMode === "zone";
   const effectiveQrSizePercent = isZoneMode ? 40 : sizeVal;
 
   const qrSafety = getQrSafetyAssessment({
     qrSizePercent: effectiveQrSizePercent,
-    subBottomEnabled: state.content.subBottomEnabled,
+    subBottomEnabled: state.content.subBottomStyle?.enabled || false,
     headerEnabled: !!hasHeaderContent,
     footerEnabled: !!hasFooterContent,
   });
@@ -699,123 +697,17 @@ export function ProductGraphicTextModule() {
               setSaveImageDataUrl={setSaveImageDataUrl}
             />
             <div className="pt-3 border-t">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-1.5">
-                  <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                  <Label className="text-sm font-medium">Sub-Bottom CTA</Label>
-                </div>
-                <Switch
-                  checked={state.content.subBottomEnabled ?? false}
-                  onCheckedChange={(checked) => setContent({ subBottomEnabled: checked })}
-                  data-testid="switch-sub-bottom-enabled"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Small label below the QR code (max 20 chars)
-              </p>
-              {state.content.subBottomEnabled && (
-                <div className="space-y-3">
-                  <div>
-                    <Input
-                      value={state.content.subBottomText || ''}
-                      onChange={(e) => setContent({ subBottomText: e.target.value.slice(0, 20) })}
-                      placeholder="Scan Me"
-                      maxLength={20}
-                      data-testid="input-sub-bottom-text"
-                    />
-                    <div className="flex justify-end mt-1">
-                      <span className="text-xs text-muted-foreground">{(state.content.subBottomText || '').length} / 20</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
-                    <select
-                      value={state.content.subBottomFontFamily || 'Arial'}
-                      onChange={(e) => setContent({ subBottomFontFamily: e.target.value })}
-                      className="w-full min-h-[48px] text-base border rounded-md px-3 bg-background"
-                      data-testid="select-sub-bottom-font"
-                    >
-                      {FONT_FAMILIES.map((f) => (
-                        <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
-                    <div className="flex items-center gap-2">
-                      <NumericInput
-                        value={parseInt(state.content.subBottomFontSize || '14', 10)}
-                        onChange={(v) => setContent({ subBottomFontSize: String(v) })}
-                        min={10}
-                        max={48}
-                        defaultValue={14}
-                        className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background flex-shrink-0"
-                        data-testid="input-sub-bottom-size-num"
-                      />
-                      <span className="text-xs text-muted-foreground flex-shrink-0">pt</span>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button size="icon" variant="outline" data-testid="button-sub-bottom-size-slider">
-                            <Maximize2 className="w-4 h-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-4" side="right" align="center">
-                          <div className="flex flex-col items-center gap-2">
-                            <span className="text-xs text-muted-foreground">48pt</span>
-                            <input
-                              type="range"
-                              min="10"
-                              max="48"
-                              value={parseInt(state.content.subBottomFontSize || '14', 10)}
-                              onChange={(e) => setContent({ subBottomFontSize: e.target.value })}
-                              style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '120px', cursor: 'pointer', touchAction: 'none' } as React.CSSProperties}
-                              data-testid="slider-sub-bottom-size"
-                            />
-                            <span className="text-xs text-muted-foreground">10pt</span>
-                            <span className="text-sm font-semibold">{parseInt(state.content.subBottomFontSize || '14', 10)}pt</span>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm mb-1.5 block text-muted-foreground">Weight</Label>
-                    <div className="flex items-center gap-2 min-h-[52px] py-1">
-                      <input
-                        type="range"
-                        min="100"
-                        max="900"
-                        step="100"
-                        value={parseInt(state.content.subBottomFontWeight || '400', 10)}
-                        onChange={(e) => setContent({ subBottomFontWeight: e.target.value })}
-                        className="flex-1 touch-slider"
-                        style={{ touchAction: 'none' }}
-                        data-testid="slider-sub-bottom-weight"
-                      />
-                      <span className="w-12 text-center text-base font-semibold tabular-nums" data-testid="text-sub-bottom-weight">
-                        {parseInt(state.content.subBottomFontWeight || '400', 10)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm text-muted-foreground shrink-0">Color</Label>
-                    <input
-                      type="color"
-                      value={state.content.subBottomColor || '#666666'}
-                      onChange={(e) => setContent({ subBottomColor: e.target.value })}
-                      className="w-10 min-h-[44px] border rounded-md cursor-pointer flex-shrink-0"
-                      data-testid="input-sub-bottom-color"
-                    />
-                    <Input
-                      value={state.content.subBottomColor || '#666666'}
-                      onChange={(e) => setContent({ subBottomColor: e.target.value })}
-                      className="flex-1 min-h-[44px] font-mono text-sm"
-                      placeholder="#666666"
-                      data-testid="input-sub-bottom-color-hex"
-                    />
-                  </div>
-                </div>
-              )}
+              <TextStyleEditor
+                label="Sub-Bottom CTA"
+                sublabel="Small label below QR code (max 20 chars)"
+                maxLength={20}
+                style={state.content.subBottomStyle}
+                onChange={(updates) => setContent({ subBottomStyle: { ...state.content.subBottomStyle, ...updates } })}
+                testIdPrefix="sub-bottom"
+                showPositionControls={false}
+                showPreview={false}
+                defaultCollapsed={false}
+              />
             </div>
           </div>
         )}
@@ -976,12 +868,7 @@ export function ProductGraphicTextModule() {
               areaImageOffsetX={areaOffX}
               areaImageOffsetY={areaOffY}
               areaImageScale={areaSc}
-              subBottomEnabled={state.content.subBottomEnabled}
-              subBottomText={state.content.subBottomText}
-              subBottomColor={state.content.subBottomColor || '#666666'}
-              subBottomFontSize={state.content.subBottomFontSize || '14'}
-              subBottomFontFamily={state.content.subBottomFontFamily || 'Arial'}
-              subBottomFontWeight={state.content.subBottomFontWeight || '400'}
+              subBottomStyle={state.content.subBottomStyle}
               graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">

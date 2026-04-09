@@ -146,12 +146,7 @@ export interface ContentData {
   areaImageOffsetX: number;
   areaImageOffsetY: number;
   areaImageScale: number;
-  subBottomEnabled: boolean;
-  subBottomText: string;
-  subBottomFontFamily: string;
-  subBottomFontSize: string;
-  subBottomFontWeight: string;
-  subBottomColor: string;
+  subBottomStyle: TextStyleConfig;
   graphicLayoutMode: "" | "zone" | "freeform";
   composeItems: Array<{
     packetId: string;

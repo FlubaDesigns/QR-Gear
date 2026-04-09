@@ -23,12 +23,14 @@ interface UseProductGraphicPreviewOptions {
   areaImageOffsetX?: number;
   areaImageOffsetY?: number;
   areaImageScale?: number;
-  subBottomEnabled?: boolean;
-  subBottomText?: string;
-  subBottomColor?: string;
-  subBottomFontSize?: string;
-  subBottomFontFamily?: string;
-  subBottomFontWeight?: string;
+  subBottomStyle?: {
+    enabled?: boolean;
+    text?: string;
+    color?: string;
+    fontSize?: string;
+    fontFamily?: string;
+    fontWeight?: string;
+  };
   graphicLayoutMode?: "zone" | "freeform";
   enabled?: boolean;
   debounceMs?: number;
@@ -61,12 +63,7 @@ export function useProductGraphicPreview(
     areaImageOffsetX,
     areaImageOffsetY,
     areaImageScale,
-    subBottomEnabled,
-    subBottomText,
-    subBottomColor,
-    subBottomFontSize,
-    subBottomFontFamily,
-    subBottomFontWeight,
+    subBottomStyle,
     graphicLayoutMode = "zone",
     enabled = true,
     debounceMs = 400,
@@ -126,12 +123,12 @@ export function useProductGraphicPreview(
           areaImageOffsetX,
           areaImageOffsetY,
           areaImageScale,
-          subBottomEnabled,
-          subBottomText,
-          subBottomColor,
-          subBottomFontSize,
-          subBottomFontFamily,
-          subBottomFontWeight,
+          subBottomEnabled: subBottomStyle?.enabled,
+          subBottomText: subBottomStyle?.text,
+          subBottomColor: subBottomStyle?.color,
+          subBottomFontSize: subBottomStyle?.fontSize,
+          subBottomFontFamily: subBottomStyle?.fontFamily,
+          subBottomFontWeight: subBottomStyle?.fontWeight,
           graphicLayoutMode,
         };
 
@@ -194,12 +191,12 @@ export function useProductGraphicPreview(
     areaImageOffsetX,
     areaImageOffsetY,
     areaImageScale,
-    subBottomEnabled,
-    subBottomText,
-    subBottomColor,
-    subBottomFontSize,
-    subBottomFontFamily,
-    subBottomFontWeight,
+    subBottomStyle?.enabled,
+    subBottomStyle?.text,
+    subBottomStyle?.color,
+    subBottomStyle?.fontSize,
+    subBottomStyle?.fontFamily,
+    subBottomStyle?.fontWeight,
     graphicLayoutMode,
     enabled,
     debounceMs,

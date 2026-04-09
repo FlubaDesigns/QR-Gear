@@ -14,6 +14,7 @@ export interface TextStyleConfig {
   enabled: boolean;
   fontFamily: string;
   fontSize: string;
+  fontWeight?: string;
   color: string;
   warpPreset: string;
   letterSpacing: number;
@@ -54,6 +55,7 @@ export const defaultTextStyle: TextStyleConfig = {
   enabled: false,
   fontFamily: "Arial",
   fontSize: DEFAULT_FONT_SIZE,
+  fontWeight: "400",
   color: "#FFFFFF",
   warpPreset: "straight",
   letterSpacing: 0,
@@ -65,6 +67,115 @@ export const defaultTextStyle: TextStyleConfig = {
   imageUrl: "",
   imageScale: 100,
 };
+
+const PRESET_COLORS = [
+  '#ffffff', '#f0f0eb', '#d4d4d4', '#888888', '#444444', '#000000', '#dc2626', '#ea580c',
+  '#ca8a04', '#16a34a', '#0d9488', '#2563eb', '#1e3a5f', '#7c3aed', '#db2777', '#b7952a',
+];
+
+function isValidHex(v: string): boolean {
+  return /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(v);
+}
+
+function normalizeHex(v: string): string {
+  let s = v.trim();
+  if (!s.startsWith('#')) s = '#' + s;
+  if (/^#[0-9A-Fa-f]{3}$/.test(s)) {
+    s = '#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+  }
+  return s.toLowerCase();
+}
+
+interface ColorPickerRowProps {
+  value: string;
+  onChange: (hex: string) => void;
+  testIdPrefix: string;
+  label?: string;
+}
+
+function ColorPickerRow({ value, onChange, testIdPrefix, label = "Color" }: ColorPickerRowProps) {
+  const [hexText, setHexText] = useState(value || '#000000');
+  const isFocused = useRef(false);
+  const nativeRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isFocused.current) {
+      setHexText(value || '#000000');
+    }
+  }, [value]);
+
+  const handleHexChange = (raw: string) => {
+    setHexText(raw);
+    const norm = normalizeHex(raw);
+    if (isValidHex(norm)) onChange(norm);
+  };
+
+  const handleHexBlur = () => {
+    isFocused.current = false;
+    const norm = normalizeHex(hexText);
+    if (isValidHex(norm)) {
+      onChange(norm);
+      setHexText(norm);
+    } else {
+      setHexText(value || '#000000');
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm text-muted-foreground block">{label}</Label>
+      <div className="grid grid-cols-8 gap-1.5">
+        {PRESET_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            title={c}
+            onClick={() => { onChange(c); setHexText(c); }}
+            className={`w-full aspect-square rounded-sm border transition-transform hover:scale-110 ${
+              (value || '').toLowerCase() === c ? 'ring-2 ring-ring ring-offset-1' : 'border-border/60'
+            }`}
+            style={{ backgroundColor: c }}
+            data-testid={`swatch-${testIdPrefix}-${c.replace('#', '')}`}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          ref={nativeRef}
+          type="color"
+          value={isValidHex(value || '') ? value : '#000000'}
+          onChange={(e) => { onChange(e.target.value); setHexText(e.target.value); }}
+          className="sr-only"
+          data-testid={`input-${testIdPrefix}-native-color`}
+        />
+        <button
+          type="button"
+          onClick={() => nativeRef.current?.click()}
+          className="flex items-center gap-1.5 shrink-0 min-h-[36px] px-3 border rounded-md text-sm bg-background hover-elevate"
+          data-testid={`button-${testIdPrefix}-custom-color`}
+        >
+          <span
+            className="w-4 h-4 rounded-sm border border-border/60 flex-shrink-0"
+            style={{ backgroundColor: isValidHex(value || '') ? value : '#000000' }}
+          />
+          Custom
+        </button>
+        <input
+          type="text"
+          value={hexText}
+          onChange={(e) => handleHexChange(e.target.value)}
+          onFocus={() => { isFocused.current = true; }}
+          onBlur={handleHexBlur}
+          maxLength={7}
+          spellCheck={false}
+          placeholder="#000000"
+          className="flex-1 min-h-[36px] px-3 border rounded-md font-mono text-sm bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid={`input-${testIdPrefix}-hex`}
+        />
+      </div>
+    </div>
+  );
+}
 
 interface TextStyleEditorProps {
   label: string;
@@ -350,22 +461,11 @@ export function TextStyleEditor({
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <Label className="text-sm text-muted-foreground shrink-0">Color</Label>
-                <input
-                  type="color"
-                  value={style.color}
-                  onChange={(e) => onChange({ color: e.target.value })}
-                  className="w-10 min-h-[44px] border rounded-md cursor-pointer flex-shrink-0"
-                  data-testid={`input-${testIdPrefix}-color`}
-                />
-                <Input
-                  value={style.color}
-                  onChange={(e) => onChange({ color: e.target.value })}
-                  className="flex-1 min-h-[44px] font-mono text-sm"
-                  placeholder="#000000"
-                />
-              </div>
+              <ColorPickerRow
+                value={style.color}
+                onChange={(c) => onChange({ color: c })}
+                testIdPrefix={testIdPrefix}
+              />
 
               <div
                 className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
@@ -460,24 +560,34 @@ export function TextStyleEditor({
                 </div>
               </div>
               
+              <div>
+                <Label className="text-sm mb-1.5 block text-muted-foreground">Weight</Label>
+                <div className="flex items-center gap-2 min-h-[52px] py-3">
+                  <input
+                    type="range"
+                    min="100"
+                    max="900"
+                    step="100"
+                    value={parseInt(style.fontWeight || '400', 10)}
+                    onChange={(e) => onChange({ fontWeight: e.target.value })}
+                    className="flex-1 touch-slider"
+                    style={{ touchAction: 'none' }}
+                    data-testid={`slider-${testIdPrefix}-weight`}
+                  />
+                  <span className="w-12 text-center text-base font-semibold tabular-nums" data-testid={`text-${testIdPrefix}-weight`}>
+                    {parseInt(style.fontWeight || '400', 10)}
+                  </span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Color</Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={style.strokeColor || "#ffffff"}
-                      onChange={(e) => onChange({ strokeColor: e.target.value })}
-                      className="w-12 min-h-[48px] border rounded-md cursor-pointer"
-                      data-testid={`input-${testIdPrefix}-stroke-color`}
-                    />
-                    <Input
-                      value={style.strokeColor}
-                      onChange={(e) => onChange({ strokeColor: e.target.value })}
-                      className="flex-1 min-h-[48px] font-mono text-sm"
-                      placeholder="None"
-                    />
-                  </div>
+                  <ColorPickerRow
+                    value={style.strokeColor || '#ffffff'}
+                    onChange={(c) => onChange({ strokeColor: c })}
+                    testIdPrefix={`${testIdPrefix}-stroke`}
+                    label="Stroke Color"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Width</Label>
@@ -727,6 +837,156 @@ export function TextStyleEditor({
                   {style.text.length} / {maxLength}
                 </span>
               </div>
+              <ColorPickerRow
+                value={style.color}
+                onChange={(c) => onChange({ color: c })}
+                testIdPrefix={testIdPrefix}
+              />
+              <div
+                className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
+                onClick={() => setControlsOpen(!controlsOpen)}
+                data-testid={`toggle-${testIdPrefix}-controls`}
+              >
+                {controlsOpen ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="text-sm font-medium text-muted-foreground">More Styles</span>
+              </div>
+              {controlsOpen && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
+                      <FontPicker
+                        value={style.fontFamily}
+                        onChange={(font) => onChange({ fontFamily: font })}
+                        fonts={activeFonts}
+                        previewText={style.text || "QR Gear"}
+                        data-testid={`select-${testIdPrefix}-font`}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
+                      <div className="flex flex-col items-center gap-2 py-1">
+                        <NumericInput
+                          value={parseInt(style.fontSize, 10) || 36}
+                          onChange={(v) => onChange({ fontSize: String(v) })}
+                          min={12}
+                          max={72}
+                          defaultValue={36}
+                          className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
+                          data-testid={`input-${testIdPrefix}-size-num`}
+                        />
+                        <input
+                          type="range"
+                          min="12"
+                          max="72"
+                          value={parseInt(style.fontSize, 10) || 36}
+                          onChange={(e) => onChange({ fontSize: e.target.value })}
+                          style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '120px', cursor: 'pointer', touchAction: 'none' } as React.CSSProperties}
+                          data-testid={`slider-${testIdPrefix}-size`}
+                        />
+                        <span className="text-xs text-muted-foreground">pt</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
+                    <select
+                      className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
+                      value={style.warpPreset}
+                      onChange={(e) => onChange({ warpPreset: e.target.value })}
+                      data-testid={`select-${testIdPrefix}-warp`}
+                    >
+                      {WARP_PRESETS.map((preset) => (
+                        <option key={preset.value} value={preset.value}>{preset.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block text-muted-foreground">Letter Spacing</Label>
+                    <div className="flex items-center gap-2 min-h-[52px] py-3">
+                      <input
+                        type="range"
+                        min="-10"
+                        max="50"
+                        value={style.letterSpacing}
+                        onChange={(e) => onChange({ letterSpacing: Number(e.target.value) })}
+                        className="flex-1 touch-slider"
+                        style={{ touchAction: 'none' }}
+                        data-testid={`slider-${testIdPrefix}-spacing`}
+                      />
+                      <NumericInput
+                        value={style.letterSpacing}
+                        onChange={(v) => onChange({ letterSpacing: v })}
+                        min={-10}
+                        max={50}
+                        defaultValue={0}
+                        allowNegative={true}
+                        className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
+                        data-testid={`input-${testIdPrefix}-spacing-num`}
+                      />
+                      <span className="text-xs text-muted-foreground w-5">px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block text-muted-foreground">Weight</Label>
+                    <div className="flex items-center gap-2 min-h-[52px] py-3">
+                      <input
+                        type="range"
+                        min="100"
+                        max="900"
+                        step="100"
+                        value={parseInt(style.fontWeight || '400', 10)}
+                        onChange={(e) => onChange({ fontWeight: e.target.value })}
+                        className="flex-1 touch-slider"
+                        style={{ touchAction: 'none' }}
+                        data-testid={`slider-${testIdPrefix}-weight`}
+                      />
+                      <span className="w-12 text-center text-base font-semibold tabular-nums" data-testid={`text-${testIdPrefix}-weight`}>
+                        {parseInt(style.fontWeight || '400', 10)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <ColorPickerRow
+                        value={style.strokeColor || '#ffffff'}
+                        onChange={(c) => onChange({ strokeColor: c })}
+                        testIdPrefix={`${testIdPrefix}-stroke`}
+                        label="Stroke Color"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm mb-1.5 block text-muted-foreground">Stroke Width</Label>
+                      <div className="flex items-center gap-2 min-h-[52px] py-3">
+                        <input
+                          type="range"
+                          min="0"
+                          max="20"
+                          value={style.strokeWidth}
+                          onChange={(e) => onChange({ strokeWidth: Number(e.target.value) })}
+                          className="flex-1 touch-slider"
+                          style={{ touchAction: 'none' }}
+                          data-testid={`slider-${testIdPrefix}-stroke`}
+                        />
+                        <NumericInput
+                          value={style.strokeWidth}
+                          onChange={(v) => onChange({ strokeWidth: v })}
+                          min={0}
+                          max={20}
+                          defaultValue={0}
+                          className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
+                          data-testid={`input-${testIdPrefix}-stroke-num`}
+                        />
+                        <span className="text-xs text-muted-foreground w-5">px</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

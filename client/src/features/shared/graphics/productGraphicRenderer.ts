@@ -8,6 +8,7 @@ export interface TextStyle {
   enabled?: boolean;
   fontFamily: string;
   fontSize: string;
+  fontWeight?: string;
   color: string;
   letterSpacing?: number;
   strokeColor?: string;
@@ -164,7 +165,7 @@ function drawTextInZone(
 ) {
   const fSize = scaledFontSize(style.fontSize, canvasW);
   ctx.fillStyle = style.color || "#000";
-  ctx.font = `bold ${fSize}px ${style.fontFamily}`;
+  ctx.font = `${style.fontWeight || 'bold'} ${fSize}px ${style.fontFamily}`;
   ctx.textBaseline = "top";
   ctx.textAlign = "center";
 
