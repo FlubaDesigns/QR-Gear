@@ -625,8 +625,11 @@ export function ProductGraphicTextModule() {
   const hasFooterContent = (state.content.footerStyle as TextStyleConfig)?.enabled;
   const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomEnabled;
 
+  const isZoneMode = state.content.graphicLayoutMode === "zone";
+  const effectiveQrSizePercent = isZoneMode ? 40 : sizeVal;
+
   const qrSafety = getQrSafetyAssessment({
-    qrSizePercent: sizeVal,
+    qrSizePercent: effectiveQrSizePercent,
     subBottomEnabled: state.content.subBottomEnabled,
     headerEnabled: !!hasHeaderContent,
     footerEnabled: !!hasFooterContent,
