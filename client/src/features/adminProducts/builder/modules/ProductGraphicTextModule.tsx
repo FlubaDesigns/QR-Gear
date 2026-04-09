@@ -880,6 +880,7 @@ export function ProductGraphicTextModule() {
           )}
         </div>
 
+        {state.content.graphicLayoutMode === "freeform" && (
         <div className="mt-4 pt-4 border-t">
           <div className="pt-3 space-y-3">
             <input
@@ -1021,6 +1022,7 @@ export function ProductGraphicTextModule() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       <ImageLibraryDialog
