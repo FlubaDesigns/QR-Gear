@@ -498,14 +498,14 @@ function ZoneEditor({
     icon: typeof ArrowUp;
   }> = {
     top: {
-      label: "Top Text",
+      label: "Top Zone",
       sublabel: "Appears at top of graphic",
       stateKey: "headerStyle",
       libraryTarget: "header",
       icon: ArrowUp,
     },
     bottom: {
-      label: "Bottom Text",
+      label: "Bottom Zone",
       sublabel: "Appears at bottom of graphic",
       stateKey: "footerStyle",
       libraryTarget: "footer",

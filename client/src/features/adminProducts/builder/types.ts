@@ -148,7 +148,7 @@ export interface ContentData {
   areaImageScale: number;
   subBottomEnabled: boolean;
   subBottomText: string;
-  graphicLayoutMode: "zone" | "freeform";
+  graphicLayoutMode: "" | "zone" | "freeform";
   composeItems: Array<{
     packetId: string;
     name: string;
