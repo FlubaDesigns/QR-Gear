@@ -517,8 +517,8 @@ function ZoneEditor({
   const currentStyle = (state.content?.[zone.stateKey] as TextStyleConfig) || headerDefaultStyle;
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-zone-selector">
+    <div className="flex flex-row gap-3 sm:flex-col sm:gap-3">
+      <div className="flex flex-col gap-1 p-1 bg-muted rounded-md sm:flex-row" data-testid="toggle-zone-selector">
         {(Object.keys(zoneConfig) as ZoneId[]).map((id) => {
           const z = zoneConfig[id];
           const Icon = z.icon;
@@ -529,7 +529,7 @@ function ZoneEditor({
               key={id}
               type="button"
               onClick={() => setActiveZone(id)}
-              className={`flex-1 flex items-center justify-center gap-2 min-h-[36px] rounded-sm text-sm font-medium transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1 w-14 min-h-[56px] rounded-sm font-medium transition-colors sm:flex-row sm:w-auto sm:flex-1 sm:min-h-[36px] sm:gap-2 ${
                 activeZone === id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -537,33 +537,35 @@ function ZoneEditor({
               data-testid={`button-zone-${id}`}
             >
               <Icon className="h-3.5 w-3.5" />
-              {z.label}
+              <span className="text-xs sm:text-sm">{z.label}</span>
               {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
             </button>
           );
         })}
       </div>
 
-      <TextStyleEditor
-        label={zone.label}
-        sublabel={zone.sublabel}
-        maxLength={40}
-        style={currentStyle}
-        onChange={(updates) => setContent({
-          [zone.stateKey]: {
-            ...currentStyle,
-            ...updates,
-          },
-        })}
-        testIdPrefix={zone.libraryTarget}
-        showPositionControls={true}
-        previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-        onPickFromLibrary={() => openLibraryFor(zone.libraryTarget)}
-        onSaveToLibrary={() => {
-          const img = currentStyle?.imageUrl;
-          if (img?.startsWith("data:")) setSaveImageDataUrl(img);
-        }}
-      />
+      <div className="flex-1 min-w-0">
+        <TextStyleEditor
+          label={zone.label}
+          sublabel={zone.sublabel}
+          maxLength={40}
+          style={currentStyle}
+          onChange={(updates) => setContent({
+            [zone.stateKey]: {
+              ...currentStyle,
+              ...updates,
+            },
+          })}
+          testIdPrefix={zone.libraryTarget}
+          showPositionControls={true}
+          previewBackgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+          onPickFromLibrary={() => openLibraryFor(zone.libraryTarget)}
+          onSaveToLibrary={() => {
+            const img = currentStyle?.imageUrl;
+            if (img?.startsWith("data:")) setSaveImageDataUrl(img);
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -648,51 +650,55 @@ export function ProductGraphicTextModule() {
           Add styled text to the top or bottom of your product graphic (+$2 per line)
         </p>
 
-        <div className="flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-layout-mode">
-          <button
-            type="button"
-            onClick={() => setContent({ graphicLayoutMode: "zone" })}
-            className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
-              state.content.graphicLayoutMode === "zone"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="button-layout-zone"
-          >
-            <Maximize2 className="h-4 w-4" />
-            Zone
-          </button>
-          <button
-            type="button"
-            onClick={() => setContent({ graphicLayoutMode: "freeform" })}
-            className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
-              state.content.graphicLayoutMode === "freeform"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            data-testid="button-layout-freeform"
-          >
-            <Move className="h-4 w-4" />
-            Canvas
-          </button>
-        </div>
+        <div className="flex flex-row gap-3 sm:flex-col sm:gap-4">
+          {/* Toggle — vertical column on mobile (left-hand reach), horizontal bar on desktop */}
+          <div className="flex flex-col gap-1 p-1 bg-muted rounded-md sm:flex-row" data-testid="toggle-layout-mode">
+            <button
+              type="button"
+              onClick={() => setContent({ graphicLayoutMode: "zone" })}
+              className={`flex flex-col items-center justify-center gap-1 w-14 min-h-[56px] rounded-sm font-medium transition-colors sm:flex-row sm:w-auto sm:flex-1 sm:min-h-[40px] sm:gap-2 sm:text-sm ${
+                state.content.graphicLayoutMode === "zone"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid="button-layout-zone"
+            >
+              <Maximize2 className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">Zone</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setContent({ graphicLayoutMode: "freeform" })}
+              className={`flex flex-col items-center justify-center gap-1 w-14 min-h-[56px] rounded-sm font-medium transition-colors sm:flex-row sm:w-auto sm:flex-1 sm:min-h-[40px] sm:gap-2 sm:text-sm ${
+                state.content.graphicLayoutMode === "freeform"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid="button-layout-freeform"
+            >
+              <Move className="h-4 w-4" />
+              <span className="text-xs sm:text-sm">Canvas</span>
+            </button>
+          </div>
 
-        {!state.content.graphicLayoutMode && (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            Pick a layout mode above to continue.
-          </p>
-        )}
+          {/* Content — fills space to the right on mobile, below on desktop */}
+          <div className="flex-1 min-w-0">
+            {!state.content.graphicLayoutMode && (
+              <p className="text-xs text-muted-foreground py-2">
+                Pick a layout mode to continue.
+              </p>
+            )}
 
-        {state.content.graphicLayoutMode === "zone" && (
-          <ZoneEditor
-            state={state}
-            setContent={setContent}
-            openLibraryFor={openLibraryFor}
-            setSaveImageDataUrl={setSaveImageDataUrl}
-          />
-        )}
+            {state.content.graphicLayoutMode === "zone" && (
+              <ZoneEditor
+                state={state}
+                setContent={setContent}
+                openLibraryFor={openLibraryFor}
+                setSaveImageDataUrl={setSaveImageDataUrl}
+              />
+            )}
 
-        {state.content.graphicLayoutMode === "freeform" && (
+            {state.content.graphicLayoutMode === "freeform" && (
           <div className="space-y-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -825,7 +831,9 @@ export function ProductGraphicTextModule() {
               </p>
             </div>
           </div>
-        )}
+            )}
+          </div>
+        </div>
 
         {showPreview && (
           <div className="flex flex-col items-center py-2">
