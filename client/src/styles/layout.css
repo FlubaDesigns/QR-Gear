@@ -69,14 +69,14 @@ body {
 
 /* ===== Mobile-Compact Spacing ===== */
 .mobile-compact {
-  padding: 2px;
-  gap: 4px;
+  padding: 6px;
+  gap: 8px;
 }
 
 .mobile-compact-stack {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .mobile-compact-module {
@@ -84,12 +84,13 @@ body {
 }
 
 .mobile-compact-module-header {
-  padding: 4px 6px;
-  gap: 4px;
+  padding: 12px 12px;
+  gap: 8px;
+  min-height: 48px;
 }
 
 .mobile-compact-module-content {
-  padding: 6px 8px 8px;
+  padding: 12px 12px 14px;
 }
 
 @media (min-width: 640px) {
@@ -109,6 +110,7 @@ body {
   .mobile-compact-module-header {
     padding: 12px 16px;
     gap: 8px;
+    min-height: unset;
   }
   
   .mobile-compact-module-content {
