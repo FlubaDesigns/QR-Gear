@@ -23,10 +23,12 @@ npm run build 2>&1 | tail -20
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json npx firebase deploy --only hosting --project qrgear-c1ffd --force 2>&1
 ```
 
-### Step 3 — Deploy functions (backend) if you changed anything in `functions/`
+### Step 3 — Deploy functions (always required)
 ```bash
 GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json npx firebase deploy --only functions --project qrgear-c1ffd --force 2>&1 | tail -20
 ```
+
+> **Note:** If functions deploy fails with a GCP infrastructure error (e.g. "Compute Engine API not enabled"), this is a known platform-level issue unrelated to your code. Report it to the user but do not block the task on it.
 
 ## Restoring the Service Account Key
 
@@ -55,5 +57,5 @@ Deploy after ANY of these:
 
 - [ ] `npm run build` succeeded with no errors
 - [ ] Hosting deployed successfully
-- [ ] Functions deployed (or confirmed no changes)
+- [ ] Functions deployed successfully (or infra error noted to user)
 - [ ] Production URL verified: https://qrgear-c1ffd.web.app
