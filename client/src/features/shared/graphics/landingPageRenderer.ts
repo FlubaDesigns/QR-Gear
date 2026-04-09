@@ -1,4 +1,9 @@
 import { DEFAULT_FONT_SIZE_NUM } from "../components/TextStyleEditor";
+import {
+  landingPageBlockContext,
+  computeTextX,
+  wrapTextMeasured,
+} from "@/features/shared/graphics/textRenderEngine";
 
 export interface LandingPageTextStyle {
   text: string;
@@ -36,26 +41,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let currentLine = "";
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-  return lines.length > 0 ? lines : [""];
-}
+// Text wrapping delegated to the shared engine — see textRenderEngine.ts
 
 function drawAutoFitText(
   ctx: CanvasRenderingContext2D,
@@ -102,7 +88,7 @@ function drawAutoFitText(
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
   } else {
-    const lines = wrapText(ctx, text, maxWidth);
+    const lines = wrapTextMeasured(ctx, text, maxWidth);
     const totalHeight = lines.length * currentFontSize * lineHeight;
     const startY = y - totalHeight / 2 + (currentFontSize * lineHeight) / 2;
 
@@ -127,32 +113,28 @@ function renderBlock(
   defaultColor: string
 ) {
   if (!block || block.enabled === false || !block.text) return;
-  const fontSize = parseInt(block.fontSize) || DEFAULT_FONT_SIZE_NUM;
-  const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
-  const verticalOffset = block.verticalOffset ?? defaultVertical;
-  const horizontalOffset = block.horizontalOffset ?? defaultHorizontal;
-  const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
-  const maxWidth = CANVAS_WIDTH * 0.9;
 
-  // Map hOffset 0–100 to full left→right range:
-  // at 0 the left edge of the text sits at the left bleed boundary,
-  // at 100 the right edge sits at the right bleed boundary.
-  // textAlign is "center" inside drawAutoFitText, so textX is the center point.
+  const zone           = landingPageBlockContext();
+  const fontSize       = parseInt(block.fontSize) || DEFAULT_FONT_SIZE_NUM;
+  const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
+  const verticalOffset   = block.verticalOffset   ?? defaultVertical;
+  const horizontalOffset = block.horizontalOffset ?? defaultHorizontal;
+
+  // Vertical: landing page measures from bottom (vOffset=0 → bottom, 100 → top)
+  const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
+
+  // Horizontal: full edge-to-edge range via the shared engine
   ctx.font = `bold ${scaledFontSize}px ${block.fontFamily || "Arial"}`;
-  const measuredW = Math.min(ctx.measureText(block.text).width, maxWidth);
-  const halfText = measuredW / 2;
-  const leftBleed = CANVAS_WIDTH * 0.05;
-  const rightBleed = CANVAS_WIDTH - leftBleed;
-  const leftCenter  = Math.min(leftBleed + halfText, CANVAS_WIDTH / 2);
-  const rightCenter = Math.max(rightBleed - halfText, CANVAS_WIDTH / 2);
-  const textX = leftCenter + (horizontalOffset / 100) * (rightCenter - leftCenter);
+  const measuredW = Math.min(ctx.measureText(block.text).width, zone.maxTextWidth);
+  const halfText  = measuredW / 2;
+  const textX     = computeTextX(horizontalOffset, halfText, zone);
 
   drawAutoFitText(
     ctx,
     block.text,
     textX,
     textY,
-    maxWidth,
+    zone.maxTextWidth,
     scaledFontSize,
     block.fontFamily || "Arial",
     block.color || defaultColor,

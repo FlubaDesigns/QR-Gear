@@ -1,4 +1,10 @@
 import { getGraphicLayout, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
+import {
+  productGraphicZoneContext,
+  computeTextX,
+  computeTextStartY,
+  wrapTextApprox,
+} from "@/features/shared/graphics/textRenderEngine";
 import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
 
 interface TextStyleProp {
@@ -34,34 +40,11 @@ interface UnifiedGraphicProps {
 const CANVAS_W = 1200;
 const CANVAS_H = 1800;
 const SCALE_FACTOR = 7.5;
-const MAX_TEXT_WIDTH = CANVAS_W * 0.9;
 
 export function getUnifiedFontSize(fontSize: string): number {
   const num = parseInt(fontSize, 10);
   if (!isNaN(num) && num > 0) return Math.round(num * (CANVAS_W / 1200) * 2.5);
   return Math.round(144 * (CANVAS_W / 1200) * 2.5);
-}
-
-function wrapText(text: string, fontSize: number): string[] {
-  const charWidth = 0.55 * fontSize;
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let currentLine = "";
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const testWidth = testLine.length * charWidth;
-
-    if (testWidth > MAX_TEXT_WIDTH && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-
-  if (currentLine) lines.push(currentLine);
-  return lines;
 }
 
 function StylizedQRCode({
@@ -150,18 +133,16 @@ function renderTextInZone(
 ): JSX.Element[] {
   if (!style.enabled || !style.text) return [];
 
-  // Split on explicit newlines first, then word-wrap each segment so pressing
-  // Enter in the text field forces a line break in the rendered graphic.
-  const segments = style.text.split('\n');
-  const lines: string[] = [];
-  for (const seg of segments) {
-    const wrapped = wrapText(seg, fontSize);
-    if (wrapped.length === 0) {
-      lines.push(''); // preserve intentional blank lines
-    } else {
-      lines.push(...wrapped);
-    }
-  }
+  const ctx = productGraphicZoneContext(
+    CANVAS_W * 0.06,          // zoneX — left bleed boundary
+    zoneTop,
+    CANVAS_W * 0.88,          // zoneWidth — bleed-to-bleed span
+    zoneHeight,
+    CANVAS_W,
+    CANVAS_H,
+  );
+
+  const lines = wrapTextApprox(style.text, fontSize, ctx.maxTextWidth);
 
   const fontFamily = style.fontFamily || "Arial";
   const fillColor = style.color || "#000000";
@@ -173,26 +154,11 @@ function renderTextInZone(
   const hOffset = style.horizontalOffset ?? 50;
 
   const totalTextHeight = lines.length * fontSize * 1.3;
-  const marginY = zoneHeight * 0.01;
-  const usableHeight = zoneHeight - 2 * marginY;
-  const startY = zoneTop + marginY + (vOffset / 100) * (usableHeight - totalTextHeight);
+  const charWidth = 0.55 * fontSize;
+  const halfText  = Math.max(...lines.map(l => (l.length || 0) * charWidth), 1) / 2;
 
-  // Compute X position so the slider's full 0–100 range maps to left-bleed →
-  // right-bleed, regardless of text width.  We estimate the widest line's
-  // pixel width using the same char-width approximation as wrapText, then
-  // position the center so the text edge lands on the bleed boundary at the
-  // extremes.  textAnchor stays "middle" throughout.
-  const leftBleed  = CANVAS_W * 0.06;           // ~72 px on a 1200-wide canvas
-  const rightBleed = CANVAS_W - leftBleed;       // ~1128 px
-  const charWidth  = 0.55 * fontSize;
-  const maxLineW   = Math.max(...lines.map(l => (l.length || 0) * charWidth), 1);
-  const halfText   = maxLineW / 2;
-  // At hOffset=0 the left edge should sit at leftBleed;  center = leftBleed + halfText.
-  // At hOffset=100 the right edge should sit at rightBleed; center = rightBleed - halfText.
-  // Clamp so very wide text stays centered rather than going backward.
-  const leftCenter  = Math.min(leftBleed  + halfText, CANVAS_W / 2);
-  const rightCenter = Math.max(rightBleed - halfText, CANVAS_W / 2);
-  const textXPos = leftCenter + (hOffset / 100) * (rightCenter - leftCenter);
+  const textXPos = computeTextX(hOffset, halfText, ctx);
+  const startY   = computeTextStartY(vOffset, totalTextHeight, ctx);
 
   for (let i = 0; i < lines.length; i++) {
     const textY = startY + i * fontSize * 1.3 + fontSize * 0.85;

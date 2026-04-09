@@ -1,6 +1,12 @@
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
+import {
+  productGraphicZoneContext,
+  computeTextX,
+  computeTextStartY,
+  wrapTextMeasured,
+} from "@/features/shared/graphics/textRenderEngine";
 import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
 
 export interface TextStyle {
@@ -71,28 +77,7 @@ function scaledFontSize(fontSize: string, canvasWidth: number): number {
   return Math.round(base * (canvasWidth / 1200) * 2.5);
 }
 
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let currentLine = "";
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-
-  if (currentLine) lines.push(currentLine);
-  return lines.length > 0 ? lines : [""];
-}
+// Text wrapping and layout delegated to the shared engine — see textRenderEngine.ts
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -161,10 +146,10 @@ function drawTextInZone(
   zoneY: number,
   zoneW: number,
   zoneHeight: number,
-  canvasW: number
+  canvasW: number,
+  canvasH: number,
 ) {
   const fSize = scaledFontSize(style.fontSize, canvasW);
-  ctx.fillStyle = style.color || "#000";
   ctx.font = `${style.fontWeight || 'bold'} ${fSize}px ${style.fontFamily}`;
   ctx.textBaseline = "top";
   ctx.textAlign = "center";
@@ -172,38 +157,22 @@ function drawTextInZone(
   const vOffset = style.verticalOffset ?? 50;
   const hOffset = style.horizontalOffset ?? 50;
 
-  // Split on explicit newlines first so Enter-key line breaks render correctly,
-  // then word-wrap each segment within the zone width.
-  const segments = style.text.split('\n');
-  const lines: string[] = [];
-  for (const seg of segments) {
-    const wrapped = wrapText(ctx, seg, zoneW * 0.95);
-    if (wrapped.length === 0 || (wrapped.length === 1 && wrapped[0] === '')) {
-      lines.push('');
-    } else {
-      lines.push(...wrapped);
-    }
-  }
+  const zone = productGraphicZoneContext(zoneX, zoneY, zoneW, zoneHeight, canvasW, canvasH);
+  const lines = wrapTextMeasured(ctx, style.text, zone.maxTextWidth);
 
-  const lineHeight = fSize * 1.3;
+  const lineHeight      = fSize * 1.3;
   const totalTextHeight = lines.length * lineHeight;
 
-  const startY = zoneY + (vOffset / 100) * Math.max(0, zoneHeight - totalTextHeight);
-
-  // Compute X so hOffset 0 puts the text left edge at zoneX (bleed boundary)
-  // and hOffset 100 puts the right edge at zoneX+zoneW, giving full range.
-  // textAlign stays "center" so textX is the center point.
   const measuredWidths = lines.map(l => ctx.measureText(l).width);
-  const maxLineW = Math.max(...measuredWidths, 1);
-  const halfText = maxLineW / 2;
-  const leftCenter  = Math.min(zoneX + halfText, zoneX + zoneW / 2);
-  const rightCenter = Math.max(zoneX + zoneW - halfText, zoneX + zoneW / 2);
-  const textX = leftCenter + (hOffset / 100) * (rightCenter - leftCenter);
+  const halfText = Math.max(...measuredWidths, 1) / 2;
+
+  const textX  = computeTextX(hOffset, halfText, zone);
+  const startY = computeTextStartY(vOffset, totalTextHeight, zone);
 
   if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
     ctx.strokeStyle = style.strokeColor;
-    ctx.lineWidth = style.strokeWidth * 7.5;
-    ctx.lineJoin = "round";
+    ctx.lineWidth   = style.strokeWidth * 7.5;
+    ctx.lineJoin    = "round";
     for (let i = 0; i < lines.length; i++) {
       ctx.strokeText(lines[i], textX, startY + i * lineHeight);
     }
@@ -353,7 +322,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
         headerStyle?.imageScale ?? 100
       );
     } else if (headerStyle) {
-      drawTextInZone(ctx, headerStyle, layout.zones.header.x, layout.zones.header.y, layout.zones.header.width, layout.zones.header.height, W);
+      drawTextInZone(ctx, headerStyle, layout.zones.header.x, layout.zones.header.y, layout.zones.header.width, layout.zones.header.height, W, H);
     }
   }
 
@@ -384,7 +353,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
         footerStyle?.imageScale ?? 100
       );
     } else if (footerStyle) {
-      drawTextInZone(ctx, footerStyle, layout.zones.footer.x, layout.zones.footer.y, layout.zones.footer.width, layout.zones.footer.height, W);
+      drawTextInZone(ctx, footerStyle, layout.zones.footer.x, layout.zones.footer.y, layout.zones.footer.width, layout.zones.footer.height, W, H);
     }
   }
 
