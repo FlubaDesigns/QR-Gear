@@ -529,14 +529,14 @@ function ZoneEditor({
               key={id}
               type="button"
               onClick={() => setActiveZone(id)}
-              className={`flex items-center justify-center gap-2 px-3 min-h-[36px] rounded-sm text-sm font-medium transition-colors ${
+              className={`flex items-center justify-center gap-2 px-4 min-h-[44px] rounded-sm text-sm font-medium transition-colors ${
                 activeZone === id
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               data-testid={`button-zone-${id}`}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-4 w-4" />
               {z.label}
               {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
             </button>
@@ -645,14 +645,14 @@ export function ProductGraphicTextModule() {
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Add styled text to the top or bottom of your product graphic (+$2 per line)
+          Choose how to design your product graphic. Zone locks text to top/bottom. Canvas lets you freely position the QR and add an image.
         </p>
 
-        <div className="inline-flex gap-1 p-1 bg-muted rounded-md" data-testid="toggle-layout-mode">
+        <div className="inline-flex gap-1 p-1 bg-muted rounded-md w-full" data-testid="toggle-layout-mode">
           <button
             type="button"
             onClick={() => setContent({ graphicLayoutMode: "zone" })}
-            className={`flex items-center gap-2 px-3 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-3 min-h-[44px] rounded-sm text-sm font-medium transition-colors ${
               state.content.graphicLayoutMode === "zone"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -665,7 +665,7 @@ export function ProductGraphicTextModule() {
           <button
             type="button"
             onClick={() => setContent({ graphicLayoutMode: "freeform" })}
-            className={`flex items-center gap-2 px-3 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
+            className={`flex-1 flex items-center justify-center gap-2 px-3 min-h-[44px] rounded-sm text-sm font-medium transition-colors ${
               state.content.graphicLayoutMode === "freeform"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
@@ -678,78 +678,104 @@ export function ProductGraphicTextModule() {
         </div>
 
         {!state.content.graphicLayoutMode && (
-          <p className="text-xs text-muted-foreground py-2">
-            Pick a layout mode to continue.
+          <p className="text-sm text-muted-foreground py-1">
+            Tap Zone or Canvas to get started.
           </p>
         )}
 
         {state.content.graphicLayoutMode === "zone" && (
-          <ZoneEditor
-            state={state}
-            setContent={setContent}
-            openLibraryFor={openLibraryFor}
-            setSaveImageDataUrl={setSaveImageDataUrl}
-          />
+          <div className="space-y-4">
+            <ZoneEditor
+              state={state}
+              setContent={setContent}
+              openLibraryFor={openLibraryFor}
+              setSaveImageDataUrl={setSaveImageDataUrl}
+            />
+            <div className="pt-3 border-t">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                  <Label className="text-sm font-medium">Sub-Bottom CTA</Label>
+                </div>
+                <Switch
+                  checked={state.content.subBottomEnabled ?? false}
+                  onCheckedChange={(checked) => setContent({ subBottomEnabled: checked })}
+                  data-testid="switch-sub-bottom-enabled"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Small label below the QR code (e.g. "Scan Me")
+              </p>
+              {state.content.subBottomEnabled && (
+                <Input
+                  value={state.content.subBottomText || ''}
+                  onChange={(e) => setContent({ subBottomText: e.target.value })}
+                  placeholder="Scan Me"
+                  maxLength={30}
+                  data-testid="input-sub-bottom-text"
+                />
+              )}
+            </div>
+          </div>
         )}
 
         {state.content.graphicLayoutMode === "freeform" && (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Move className="w-3.5 h-3.5" /> Left / Right
-                </Label>
-                <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-pos-x">{posX}%</span>
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">QR Position</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <Move className="w-3.5 h-3.5" /> Left / Right
+                  </Label>
+                  <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-pos-x">{posX}%</span>
+                </div>
+                <Slider
+                  value={[posX]}
+                  onValueChange={([v]) => setContent({ qrPositionX: v })}
+                  min={0}
+                  max={100}
+                  step={1}
+                  data-testid="slider-admin-qr-position-x"
+                />
               </div>
-              <Slider
-                value={[posX]}
-                onValueChange={([v]) => setContent({ qrPositionX: v })}
-                min={0}
-                max={100}
-                step={1}
-                data-testid="slider-admin-qr-position-x"
-              />
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <Move className="w-3.5 h-3.5" /> Up / Down
+                  </Label>
+                  <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-pos-y">{posY}%</span>
+                </div>
+                <Slider
+                  value={[posY]}
+                  onValueChange={([v]) => setContent({ qrPositionY: v })}
+                  min={0}
+                  max={100}
+                  step={1}
+                  data-testid="slider-admin-qr-position-y"
+                />
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 50, qrSizePercent: 75 })}
+                data-testid="button-admin-reset-qr-position"
+              >
+                Reset Position
+              </Button>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Move className="w-3.5 h-3.5" /> Up / Down
-                </Label>
-                <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-pos-y">{posY}%</span>
-              </div>
-              <Slider
-                value={[posY]}
-                onValueChange={([v]) => setContent({ qrPositionY: v })}
-                min={0}
-                max={100}
-                step={1}
-                data-testid="slider-admin-qr-position-y"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Maximize2 className="w-3.5 h-3.5" /> QR Size: {sizeVal <= 50 ? 'Small' : sizeVal <= 60 ? 'Medium' : sizeVal <= 68 ? 'Large' : 'XL'}
-                </Label>
-                <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-size">{sizeVal}%</span>
-              </div>
-              <Slider
-                value={[sizeVal]}
-                onValueChange={([v]) => safeSetContent({ qrSizePercent: v })}
-                min={30}
-                max={55}
-                step={1}
-                data-testid="slider-admin-qr-size"
-              />
-              <div className="flex gap-1.5 pt-1">
+            <div className="space-y-3 pt-3 border-t">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">QR Size</p>
+              <div className="flex gap-2">
                 {([['S', 32], ['M', 38], ['L', 42], ['XL', 50]] as const).map(([label, val]) => (
                   <Button
                     key={label}
                     variant={sizeVal === val ? 'default' : 'outline'}
-                    size="sm"
-                    className="flex-1 text-xs"
+                    size="default"
+                    className="flex-1"
                     onClick={() => safeSetContent({ qrSizePercent: val })}
                     data-testid={`button-qr-preset-${label.toLowerCase()}`}
                   >
@@ -757,17 +783,22 @@ export function ProductGraphicTextModule() {
                   </Button>
                 ))}
               </div>
-            </div>
-
-            <div className="text-center pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => safeSetContent({ qrPositionX: 50, qrPositionY: 50, qrSizePercent: 75 })}
-                data-testid="button-admin-reset-qr-position"
-              >
-                Reset to Default
-              </Button>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <Maximize2 className="w-3.5 h-3.5" /> Custom
+                  </Label>
+                  <span className="text-xs text-muted-foreground" data-testid="text-admin-qr-size">{sizeVal}%</span>
+                </div>
+                <Slider
+                  value={[sizeVal]}
+                  onValueChange={([v]) => safeSetContent({ qrSizePercent: v })}
+                  min={30}
+                  max={55}
+                  step={1}
+                  data-testid="slider-admin-qr-size"
+                />
+              </div>
             </div>
 
             <div
@@ -853,32 +884,6 @@ export function ProductGraphicTextModule() {
             </p>
           </div>
         )}
-
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-              <Label className="text-sm font-medium">Sub-Bottom CTA</Label>
-            </div>
-            <Switch
-              checked={state.content.subBottomEnabled ?? false}
-              onCheckedChange={(checked) => setContent({ subBottomEnabled: checked })}
-              data-testid="switch-sub-bottom-enabled"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mb-2">
-            Small call-to-action text below the QR code (e.g. "Scan Me")
-          </p>
-          {state.content.subBottomEnabled && (
-            <Input
-              value={state.content.subBottomText || ''}
-              onChange={(e) => setContent({ subBottomText: e.target.value })}
-              placeholder="Scan Me"
-              maxLength={30}
-              data-testid="input-sub-bottom-text"
-            />
-          )}
-        </div>
 
         {state.content.graphicLayoutMode === "freeform" && (
         <div className="mt-4 pt-4 border-t">
