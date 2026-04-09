@@ -108,7 +108,13 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     // 3. Fixed gap between QR and surrounding zones (print-safe, minimal)
     const zonePadding = 20;
 
-    // 4. Sub-bottom strip hugs directly below QR (only when enabled)
+    // 3a. QR background padding — must be computed before zones so sub-bottom
+    //     can start at the actual bottom of the white QR background box, not
+    //     just the bottom of the raw QR square (which sits inside the white box).
+    const bgPadding = Math.max(cfg.qrBgPaddingMin, qrSize * cfg.qrBgPaddingPct);
+    const qrBgBottom = qrBottom + bgPadding; // true visual bottom of the white box
+
+    // 4. Sub-bottom strip hugs directly below QR background box (only when enabled)
     const subBottomHeight = subBottomActive ? Math.max(24, qrSize * 0.12) : 0;
 
     // 5. Header zone: fills from bleed top down to just above QR
@@ -125,24 +131,23 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
       height: qrSize,
     };
 
-    // 7. Sub-bottom zone: immediately below QR
+    // 7. Sub-bottom zone: immediately below the QR background box
     const subBottomZone: Rect = {
-      x: SX, y: qrBottom,
+      x: SX, y: qrBgBottom,
       width: SW,
       height: subBottomHeight,
     };
 
-    // 8. Footer zone: below sub-bottom (or QR) down to bleed bottom
+    // 8. Footer zone: below sub-bottom (or QR bg) down to bleed bottom
     const footerPad = zonePadding;
-    const footerY   = qrBottom + subBottomHeight + footerPad;
+    const footerY   = qrBgBottom + subBottomHeight + footerPad;
     const footerZone: Rect = {
       x: SX, y: footerY,
       width: SW,
       height: Math.max(0, (SY + SH) - footerY),
     };
 
-    // 9. QR geometry
-    const bgPadding = Math.max(cfg.qrBgPaddingMin, qrSize * cfg.qrBgPaddingPct);
+    // 9. QR geometry (bgPadding already computed above)
     const bgRadius  = Math.max(cfg.qrBgRadiusMin,  qrSize * cfg.qrBgRadiusPct);
 
     const qrSquare: Rect     = { x: qrLeft, y: qrTop, width: qrSize, height: qrSize };
