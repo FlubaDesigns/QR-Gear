@@ -545,6 +545,7 @@ function ZoneEditor({
       </div>
 
       <TextStyleEditor
+        key={zone.stateKey}
         label={zone.label}
         sublabel={zone.sublabel}
         maxLength={40}
