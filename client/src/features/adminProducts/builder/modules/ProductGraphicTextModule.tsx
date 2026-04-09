@@ -677,68 +677,14 @@ export function ProductGraphicTextModule() {
           </button>
         </div>
 
-        <ZoneEditor
-          state={state}
-          setContent={setContent}
-          openLibraryFor={openLibraryFor}
-          setSaveImageDataUrl={setSaveImageDataUrl}
-        />
-
-        {showPreview && (
-          <div className="flex flex-col items-center py-2">
-            <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
-            <GraphicPreviewView
-              backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
-              headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
-              footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
-              showQRCode={true}
-              aspectRatio="portrait"
-              qrPositionX={posX}
-              qrPositionY={posY}
-              qrSizePercent={sizeVal}
-              areaImageUrl={adminAreaImageUrl}
-              areaImageMode={adminAreaImageMode}
-              areaImageOffsetX={areaOffX}
-              areaImageOffsetY={areaOffY}
-              areaImageScale={areaSc}
-              subBottomEnabled={state.content.subBottomEnabled}
-              subBottomText={state.content.subBottomText}
-              graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
-            />
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              This is how your product graphic will appear
-            </p>
-          </div>
-        )}
-
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-              <Label className="text-sm font-medium">Sub-Bottom CTA</Label>
-            </div>
-            <Switch
-              checked={state.content.subBottomEnabled ?? false}
-              onCheckedChange={(checked) => setContent({ subBottomEnabled: checked })}
-              data-testid="switch-sub-bottom-enabled"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mb-2">
-            Small call-to-action text below the QR code (e.g. "Scan Me")
-          </p>
-          {state.content.subBottomEnabled && (
-            <Input
-              value={state.content.subBottomText || ''}
-              onChange={(e) => setContent({ subBottomText: e.target.value })}
-              placeholder="Scan Me"
-              maxLength={30}
-              data-testid="input-sub-bottom-text"
-            />
-          )}
-        </div>
-
-        <div className="mt-4 pt-4 border-t">
-          <p className="text-xs text-muted-foreground mb-3 font-medium">QR Code Position & Size</p>
+        {(state.content.graphicLayoutMode || "zone") === "zone" ? (
+          <ZoneEditor
+            state={state}
+            setContent={setContent}
+            openLibraryFor={openLibraryFor}
+            setSaveImageDataUrl={setSaveImageDataUrl}
+          />
+        ) : (
           <div className="space-y-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -829,14 +775,12 @@ export function ProductGraphicTextModule() {
                   {qrSafety.label}
                 </span>
               </div>
-
               <p
                 className={`text-xs ${qrSafetyClasses.text}`}
                 data-testid="text-admin-qr-safety-summary"
               >
                 {qrSafety.summary}
               </p>
-
               <div className="space-y-1" data-testid="bar-admin-qr-safety-score">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>Readability Score</span>
@@ -855,7 +799,6 @@ export function ProductGraphicTextModule() {
                   />
                 </div>
               </div>
-
               {!!qrSafety.tips.length && (
                 <ul
                   className="list-disc pl-4 space-y-1 text-[11px] text-muted-foreground"
@@ -874,8 +817,63 @@ export function ProductGraphicTextModule() {
               </p>
             </div>
           </div>
+        )}
 
-          <div className="pt-3 border-t space-y-3">
+        {showPreview && (
+          <div className="flex flex-col items-center py-2">
+            <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
+            <GraphicPreviewView
+              backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
+              headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
+              footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
+              showQRCode={true}
+              aspectRatio="portrait"
+              qrPositionX={posX}
+              qrPositionY={posY}
+              qrSizePercent={sizeVal}
+              areaImageUrl={adminAreaImageUrl}
+              areaImageMode={adminAreaImageMode}
+              areaImageOffsetX={areaOffX}
+              areaImageOffsetY={areaOffY}
+              areaImageScale={areaSc}
+              subBottomEnabled={state.content.subBottomEnabled}
+              subBottomText={state.content.subBottomText}
+              graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
+            />
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              This is how your product graphic will appear
+            </p>
+          </div>
+        )}
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+              <Label className="text-sm font-medium">Sub-Bottom CTA</Label>
+            </div>
+            <Switch
+              checked={state.content.subBottomEnabled ?? false}
+              onCheckedChange={(checked) => setContent({ subBottomEnabled: checked })}
+              data-testid="switch-sub-bottom-enabled"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Small call-to-action text below the QR code (e.g. "Scan Me")
+          </p>
+          {state.content.subBottomEnabled && (
+            <Input
+              value={state.content.subBottomText || ''}
+              onChange={(e) => setContent({ subBottomText: e.target.value })}
+              placeholder="Scan Me"
+              maxLength={30}
+              data-testid="input-sub-bottom-text"
+            />
+          )}
+        </div>
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="pt-3 space-y-3">
             <input
               ref={adminAreaFileRef}
               type="file"
