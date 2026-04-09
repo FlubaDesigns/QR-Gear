@@ -42,6 +42,7 @@ export interface RenderOptions {
   subBottomText?: string;
   subBottomColor?: string;
   subBottomFontSize?: string;
+  subBottomFontFamily?: string;
   graphicLayoutMode?: "zone" | "freeform";
 }
 
@@ -211,6 +212,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomText = "Scan Me",
     subBottomColor = "#666666",
     subBottomFontSize = "14px",
+    subBottomFontFamily = "sans-serif",
     graphicLayoutMode = "zone",
   } = options;
 
@@ -334,7 +336,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   if (subBottomActive) {
     const sbFSize = scaledFontSize(subBottomFontSize, W);
     ctx.fillStyle = subBottomColor;
-    ctx.font = `${sbFSize}px sans-serif`;
+    ctx.font = `${sbFSize}px ${subBottomFontFamily || "sans-serif"}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(

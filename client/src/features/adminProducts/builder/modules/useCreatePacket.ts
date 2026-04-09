@@ -135,6 +135,9 @@ export function useCreatePacket({
         fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
         subBottomEnabled: state.content?.subBottomEnabled || false,
         subBottomText: state.content?.subBottomText || '',
+        subBottomFontFamily: state.content?.subBottomFontFamily || 'Arial',
+        subBottomFontSize: state.content?.subBottomFontSize || '14',
+        subBottomColor: state.content?.subBottomColor || '#666666',
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
@@ -245,6 +248,9 @@ export function useCreatePacket({
           areaImageMode: state.content.areaImageMode || "behind-qr",
           subBottomEnabled: state.content.subBottomEnabled || false,
           subBottomText: state.content.subBottomText || "",
+          subBottomFontFamily: state.content.subBottomFontFamily || 'Arial',
+          subBottomFontSize: state.content.subBottomFontSize || '14',
+          subBottomColor: state.content.subBottomColor || '#666666',
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

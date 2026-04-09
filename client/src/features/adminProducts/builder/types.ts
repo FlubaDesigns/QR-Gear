@@ -148,6 +148,9 @@ export interface ContentData {
   areaImageScale: number;
   subBottomEnabled: boolean;
   subBottomText: string;
+  subBottomFontFamily: string;
+  subBottomFontSize: string;
+  subBottomColor: string;
   graphicLayoutMode: "" | "zone" | "freeform";
   composeItems: Array<{
     packetId: string;

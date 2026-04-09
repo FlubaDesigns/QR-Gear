@@ -27,6 +27,7 @@ interface UseProductGraphicPreviewOptions {
   subBottomText?: string;
   subBottomColor?: string;
   subBottomFontSize?: string;
+  subBottomFontFamily?: string;
   graphicLayoutMode?: "zone" | "freeform";
   enabled?: boolean;
   debounceMs?: number;
@@ -63,6 +64,7 @@ export function useProductGraphicPreview(
     subBottomText,
     subBottomColor,
     subBottomFontSize,
+    subBottomFontFamily,
     graphicLayoutMode = "zone",
     enabled = true,
     debounceMs = 400,
@@ -126,6 +128,7 @@ export function useProductGraphicPreview(
           subBottomText,
           subBottomColor,
           subBottomFontSize,
+          subBottomFontFamily,
           graphicLayoutMode,
         };
 
@@ -192,6 +195,7 @@ export function useProductGraphicPreview(
     subBottomText,
     subBottomColor,
     subBottomFontSize,
+    subBottomFontFamily,
     graphicLayoutMode,
     enabled,
     debounceMs,

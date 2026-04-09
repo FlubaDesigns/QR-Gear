@@ -271,7 +271,7 @@ export function TextStyleEditor({
                             value={style.imageScale ?? 100}
                             onChange={(e) => onChange({ imageScale: Number(e.target.value) })}
                             onBlur={(e) => onChange({ imageScale: Math.min(200, Math.max(20, Number(e.target.value) || 20)) })}
-                            className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
+                            className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
                             data-testid={`input-${testIdPrefix}-image-scale-num`}
                           />
                           <span className="text-xs text-muted-foreground w-4">%</span>
@@ -343,6 +343,11 @@ export function TextStyleEditor({
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
               </div>
+              <div className="flex justify-end">
+                <span className="text-xs text-muted-foreground" data-testid={`text-${testIdPrefix}-charcount`}>
+                  {style.text.length} / {maxLength}
+                </span>
+              </div>
 
               <div className="flex items-center gap-2 pt-1">
                 <Label className="text-sm text-muted-foreground shrink-0">Color</Label>
@@ -389,16 +394,28 @@ export function TextStyleEditor({
                 </div>
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
-                  <select
-                    className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
-                    value={style.fontSize}
-                    onChange={(e) => onChange({ fontSize: e.target.value })}
-                    data-testid={`select-${testIdPrefix}-size`}
-                  >
-                    {FONT_SIZES.map((size) => (
-                      <option key={size} value={size}>{size}pt</option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col items-center gap-2 py-1">
+                    <input
+                      type="number"
+                      min="12"
+                      max="72"
+                      value={parseInt(style.fontSize, 10) || 36}
+                      onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) onChange({ fontSize: String(v) }); }}
+                      onBlur={(e) => { const v = Math.min(72, Math.max(12, parseInt(e.target.value, 10) || 12)); onChange({ fontSize: String(v) }); }}
+                      className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
+                      data-testid={`input-${testIdPrefix}-size-num`}
+                    />
+                    <input
+                      type="range"
+                      min="12"
+                      max="72"
+                      value={parseInt(style.fontSize, 10) || 36}
+                      onChange={(e) => onChange({ fontSize: e.target.value })}
+                      style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '120px', cursor: 'pointer', touchAction: 'none' } as React.CSSProperties}
+                      data-testid={`slider-${testIdPrefix}-size`}
+                    />
+                    <span className="text-xs text-muted-foreground">pt</span>
+                  </div>
                 </div>
               </div>
               
@@ -435,7 +452,7 @@ export function TextStyleEditor({
                     max="50"
                     value={style.letterSpacing}
                     onChange={(e) => onChange({ letterSpacing: Math.min(50, Math.max(-10, Number(e.target.value))) })}
-                    className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
+                    className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
                     data-testid={`input-${testIdPrefix}-spacing-num`}
                   />
                   <span className="text-xs text-muted-foreground w-5">px</span>
@@ -480,7 +497,7 @@ export function TextStyleEditor({
                       max="20"
                       value={style.strokeWidth}
                       onChange={(e) => onChange({ strokeWidth: Math.min(20, Math.max(0, Number(e.target.value))) })}
-                      className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
+                      className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
                       data-testid={`input-${testIdPrefix}-stroke-num`}
                     />
                     <span className="text-xs text-muted-foreground w-5">px</span>
@@ -505,7 +522,7 @@ export function TextStyleEditor({
                       min="0"
                       max="100"
                       value={style.horizontalOffset ?? 50}
-                      onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
+                      onChange={(e) => onChange({ horizontalOffset: parseInt(e.target.value, 10) || 0 })}
                       className="flex-1 touch-slider"
                       style={{ touchAction: 'none' }}
                       data-testid={`slider-${testIdPrefix}-horizontal`}
@@ -515,9 +532,9 @@ export function TextStyleEditor({
                       min="0"
                       max="100"
                       value={style.horizontalOffset ?? 50}
-                      onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })}
-                      onBlur={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-                      className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
+                      onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) onChange({ horizontalOffset: v }); }}
+                      onBlur={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)) })}
+                      className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
                       data-testid={`input-${testIdPrefix}-horizontal-num`}
                     />
                     <span className="text-xs text-muted-foreground w-4">%</span>
@@ -531,7 +548,7 @@ export function TextStyleEditor({
                       min="0"
                       max="100"
                       value={style.verticalOffset ?? 50}
-                      onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
+                      onChange={(e) => onChange({ verticalOffset: parseInt(e.target.value, 10) || 0 })}
                       className="flex-1 touch-slider"
                       style={{ touchAction: 'none' }}
                       data-testid={`slider-${testIdPrefix}-vertical`}
@@ -541,9 +558,9 @@ export function TextStyleEditor({
                       min="0"
                       max="100"
                       value={style.verticalOffset ?? 50}
-                      onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })}
-                      onBlur={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })}
-                      className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background"
+                      onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) onChange({ verticalOffset: v }); }}
+                      onBlur={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)) })}
+                      className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
                       data-testid={`input-${testIdPrefix}-vertical-num`}
                     />
                     <span className="text-xs text-muted-foreground w-4">%</span>
@@ -706,6 +723,11 @@ export function TextStyleEditor({
                   {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                 </button>
               </div>
+              <div className="flex justify-end">
+                <span className="text-xs text-muted-foreground" data-testid={`text-${testIdPrefix}-charcount`}>
+                  {style.text.length} / {maxLength}
+                </span>
+              </div>
             </>
           )}
 
@@ -716,16 +738,16 @@ export function TextStyleEditor({
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Left / Right</Label>
                   <div className="flex items-center gap-2 min-h-[52px] py-3">
-                    <input type="range" min="0" max="100" value={style.horizontalOffset ?? 50} onChange={(e) => onChange({ horizontalOffset: Number(e.target.value) })} className="flex-1 touch-slider" style={{ touchAction: 'none' }} data-testid={`slider-${testIdPrefix}-horizontal`} />
-                    <input type="number" min="0" max="100" value={style.horizontalOffset ?? 50} onChange={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, Number(e.target.value))) })} className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background" data-testid={`input-${testIdPrefix}-horizontal-num`} />
+                    <input type="range" min="0" max="100" value={style.horizontalOffset ?? 50} onChange={(e) => onChange({ horizontalOffset: parseInt(e.target.value, 10) || 0 })} className="flex-1 touch-slider" style={{ touchAction: 'none' }} data-testid={`slider-${testIdPrefix}-horizontal`} />
+                    <input type="number" min="0" max="100" value={style.horizontalOffset ?? 50} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) onChange({ horizontalOffset: v }); }} onBlur={(e) => onChange({ horizontalOffset: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)) })} className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background" data-testid={`input-${testIdPrefix}-horizontal-num`} />
                     <span className="text-xs text-muted-foreground w-4">%</span>
                   </div>
                 </div>
                 <div>
                   <Label className="text-sm mb-1.5 block text-muted-foreground">Up / Down</Label>
                   <div className="flex items-center gap-2 min-h-[52px] py-3">
-                    <input type="range" min="0" max="100" value={style.verticalOffset ?? 50} onChange={(e) => onChange({ verticalOffset: Number(e.target.value) })} className="flex-1 touch-slider" style={{ touchAction: 'none' }} data-testid={`slider-${testIdPrefix}-vertical`} />
-                    <input type="number" min="0" max="100" value={style.verticalOffset ?? 50} onChange={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, Number(e.target.value))) })} className="w-14 text-center text-sm border rounded-md px-1 py-1 bg-background" data-testid={`input-${testIdPrefix}-vertical-num`} />
+                    <input type="range" min="0" max="100" value={style.verticalOffset ?? 50} onChange={(e) => onChange({ verticalOffset: parseInt(e.target.value, 10) || 0 })} className="flex-1 touch-slider" style={{ touchAction: 'none' }} data-testid={`slider-${testIdPrefix}-vertical`} />
+                    <input type="number" min="0" max="100" value={style.verticalOffset ?? 50} onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) onChange({ verticalOffset: v }); }} onBlur={(e) => onChange({ verticalOffset: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)) })} className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background" data-testid={`input-${testIdPrefix}-vertical-num`} />
                     <span className="text-xs text-muted-foreground w-4">%</span>
                   </div>
                 </div>

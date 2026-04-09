@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { Type, Move, Maximize2, Upload, X, ImageIcon, MessageSquare, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save, ArrowUp, ArrowDown } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
-import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { TextStyleEditor, type TextStyleConfig, defaultTextStyle, FONT_FAMILIES } from "@/features/shared/components/TextStyleEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ModalView } from "@/features/shared/components/views/ModalView";
@@ -709,16 +709,78 @@ export function ProductGraphicTextModule() {
                 />
               </div>
               <p className="text-xs text-muted-foreground mb-2">
-                Small label below the QR code (e.g. "Scan Me")
+                Small label below the QR code (max 15 chars)
               </p>
               {state.content.subBottomEnabled && (
-                <Input
-                  value={state.content.subBottomText || ''}
-                  onChange={(e) => setContent({ subBottomText: e.target.value })}
-                  placeholder="Scan Me"
-                  maxLength={30}
-                  data-testid="input-sub-bottom-text"
-                />
+                <div className="space-y-3">
+                  <div>
+                    <Input
+                      value={state.content.subBottomText || ''}
+                      onChange={(e) => setContent({ subBottomText: e.target.value.slice(0, 15) })}
+                      placeholder="Scan Me"
+                      maxLength={15}
+                      data-testid="input-sub-bottom-text"
+                    />
+                    <div className="flex justify-end mt-1">
+                      <span className="text-xs text-muted-foreground">{(state.content.subBottomText || '').length} / 15</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block text-muted-foreground">Font</Label>
+                    <select
+                      value={state.content.subBottomFontFamily || 'Arial'}
+                      onChange={(e) => setContent({ subBottomFontFamily: e.target.value })}
+                      className="w-full min-h-[48px] text-base border rounded-md px-3 bg-background"
+                      data-testid="select-sub-bottom-font"
+                    >
+                      {FONT_FAMILIES.map((f) => (
+                        <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
+                    <div className="flex flex-col items-center gap-2 py-1">
+                      <input
+                        type="number"
+                        min="10"
+                        max="48"
+                        value={parseInt(state.content.subBottomFontSize || '14', 10)}
+                        onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setContent({ subBottomFontSize: String(v) }); }}
+                        onBlur={(e) => { const v = Math.min(48, Math.max(10, parseInt(e.target.value, 10) || 14)); setContent({ subBottomFontSize: String(v) }); }}
+                        className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
+                        data-testid="input-sub-bottom-size-num"
+                      />
+                      <input
+                        type="range"
+                        min="10"
+                        max="48"
+                        value={parseInt(state.content.subBottomFontSize || '14', 10)}
+                        onChange={(e) => setContent({ subBottomFontSize: e.target.value })}
+                        style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '100px', cursor: 'pointer', touchAction: 'none' } as React.CSSProperties}
+                        data-testid="slider-sub-bottom-size"
+                      />
+                      <span className="text-xs text-muted-foreground">pt</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground shrink-0">Color</Label>
+                    <input
+                      type="color"
+                      value={state.content.subBottomColor || '#666666'}
+                      onChange={(e) => setContent({ subBottomColor: e.target.value })}
+                      className="w-10 min-h-[44px] border rounded-md cursor-pointer flex-shrink-0"
+                      data-testid="input-sub-bottom-color"
+                    />
+                    <Input
+                      value={state.content.subBottomColor || '#666666'}
+                      onChange={(e) => setContent({ subBottomColor: e.target.value })}
+                      className="flex-1 min-h-[44px] font-mono text-sm"
+                      placeholder="#666666"
+                      data-testid="input-sub-bottom-color-hex"
+                    />
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -882,6 +944,9 @@ export function ProductGraphicTextModule() {
               areaImageScale={areaSc}
               subBottomEnabled={state.content.subBottomEnabled}
               subBottomText={state.content.subBottomText}
+              subBottomColor={state.content.subBottomColor || '#666666'}
+              subBottomFontSize={state.content.subBottomFontSize || '14'}
+              subBottomFontFamily={state.content.subBottomFontFamily || 'Arial'}
               graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
