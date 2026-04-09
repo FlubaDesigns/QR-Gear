@@ -93,9 +93,9 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
 
   // ── ZONE MODE: QR-anchored ──────────────────────────────────────────────
   if (layoutMode === "zone") {
-    // 1. QR size is fixed at 40% of safe width in Zone mode — gives balanced
+    // 1. QR size is fixed at 38% of safe width in Zone mode — gives balanced
     //    space to header/footer text zones while staying well above scan threshold.
-    const ZONE_QR_SIZE_PERCENT = 40;
+    const ZONE_QR_SIZE_PERCENT = 38;
     const qrSize = clamp(SW * (ZONE_QR_SIZE_PERCENT / 100), 180, SW);
 
     // 2. QR always at canvas center — consistent position across all shirt types
@@ -106,7 +106,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     const qrBottom = qrTop + qrSize;
 
     // 3. Fixed gap between QR and surrounding zones (print-safe, minimal)
-    const zonePadding = 20;
+    const zonePadding = 8;
 
     // 3a. QR background padding — must be computed before zones so sub-bottom
     //     can start at the actual bottom of the white QR background box, not
