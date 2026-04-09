@@ -344,6 +344,23 @@ export function TextStyleEditor({
                 </button>
               </div>
 
+              <div className="flex items-center gap-2 pt-1">
+                <Label className="text-sm text-muted-foreground shrink-0">Color</Label>
+                <input
+                  type="color"
+                  value={style.color}
+                  onChange={(e) => onChange({ color: e.target.value })}
+                  className="w-10 min-h-[44px] border rounded-md cursor-pointer flex-shrink-0"
+                  data-testid={`input-${testIdPrefix}-color`}
+                />
+                <Input
+                  value={style.color}
+                  onChange={(e) => onChange({ color: e.target.value })}
+                  className="flex-1 min-h-[44px] font-mono text-sm"
+                  placeholder="#000000"
+                />
+              </div>
+
               <div
                 className="flex items-center gap-2 cursor-pointer select-none py-2 border-t border-border/50"
                 onClick={() => setControlsOpen(!controlsOpen)}
@@ -354,7 +371,7 @@ export function TextStyleEditor({
                 ) : (
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 )}
-                <span className="text-sm font-medium text-muted-foreground">Style Controls</span>
+                <span className="text-sm font-medium text-muted-foreground">More Styles</span>
               </div>
 
           {controlsOpen && (
@@ -385,38 +402,18 @@ export function TextStyleEditor({
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-sm mb-1.5 block text-muted-foreground">Color</Label>
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={style.color}
-                      onChange={(e) => onChange({ color: e.target.value })}
-                      className="w-12 min-h-[48px] border rounded-md cursor-pointer"
-                      data-testid={`input-${testIdPrefix}-color`}
-                    />
-                    <Input
-                      value={style.color}
-                      onChange={(e) => onChange({ color: e.target.value })}
-                      className="flex-1 min-h-[48px] font-mono text-sm"
-                      placeholder="#000000"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
-                  <select
-                    className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
-                    value={style.warpPreset}
-                    onChange={(e) => onChange({ warpPreset: e.target.value })}
-                    data-testid={`select-${testIdPrefix}-warp`}
-                  >
-                    {WARP_PRESETS.map((preset) => (
-                      <option key={preset.value} value={preset.value}>{preset.label}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <Label className="text-sm mb-1.5 block text-muted-foreground">Warp Style</Label>
+                <select
+                  className="w-full min-h-[48px] px-3 border rounded-md text-sm bg-background"
+                  value={style.warpPreset}
+                  onChange={(e) => onChange({ warpPreset: e.target.value })}
+                  data-testid={`select-${testIdPrefix}-warp`}
+                >
+                  {WARP_PRESETS.map((preset) => (
+                    <option key={preset.value} value={preset.value}>{preset.label}</option>
+                  ))}
+                </select>
               </div>
               
               <div>
