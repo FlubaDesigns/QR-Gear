@@ -137,6 +137,7 @@ export function useCreatePacket({
         subBottomText: state.content?.subBottomText || '',
         subBottomFontFamily: state.content?.subBottomFontFamily || 'Arial',
         subBottomFontSize: state.content?.subBottomFontSize || '14',
+        subBottomFontWeight: state.content?.subBottomFontWeight || '400',
         subBottomColor: state.content?.subBottomColor || '#666666',
       };
 
@@ -250,6 +251,7 @@ export function useCreatePacket({
           subBottomText: state.content.subBottomText || "",
           subBottomFontFamily: state.content.subBottomFontFamily || 'Arial',
           subBottomFontSize: state.content.subBottomFontSize || '14',
+          subBottomFontWeight: state.content.subBottomFontWeight || '400',
           subBottomColor: state.content.subBottomColor || '#666666',
         });
       } catch (e) {

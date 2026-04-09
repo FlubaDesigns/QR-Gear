@@ -150,6 +150,7 @@ export interface ContentData {
   subBottomText: string;
   subBottomFontFamily: string;
   subBottomFontSize: string;
+  subBottomFontWeight: string;
   subBottomColor: string;
   graphicLayoutMode: "" | "zone" | "freeform";
   composeItems: Array<{

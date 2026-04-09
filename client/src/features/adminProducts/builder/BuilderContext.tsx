@@ -65,6 +65,7 @@ const initialContent: ContentData = {
   subBottomEnabled: false,
   subBottomText: '',
   subBottomFontFamily: 'Arial',
+  subBottomFontWeight: '400',
   subBottomFontSize: '14',
   subBottomColor: '#666666',
   graphicLayoutMode: "" as "" | "zone" | "freeform",

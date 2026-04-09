@@ -43,6 +43,7 @@ export interface RenderOptions {
   subBottomColor?: string;
   subBottomFontSize?: string;
   subBottomFontFamily?: string;
+  subBottomFontWeight?: string;
   graphicLayoutMode?: "zone" | "freeform";
 }
 
@@ -213,6 +214,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomColor = "#666666",
     subBottomFontSize = "14px",
     subBottomFontFamily = "sans-serif",
+    subBottomFontWeight = "400",
     graphicLayoutMode = "zone",
   } = options;
 
@@ -336,7 +338,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   if (subBottomActive) {
     const sbFSize = scaledFontSize(subBottomFontSize, W);
     ctx.fillStyle = subBottomColor;
-    ctx.font = `${sbFSize}px ${subBottomFontFamily || "sans-serif"}`;
+    ctx.font = `${subBottomFontWeight || "400"} ${sbFSize}px ${subBottomFontFamily || "sans-serif"}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(

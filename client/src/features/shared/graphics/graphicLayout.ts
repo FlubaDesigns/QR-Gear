@@ -115,7 +115,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     const qrBgBottom = qrBottom + bgPadding; // true visual bottom of the white box
 
     // 4. Sub-bottom strip hugs directly below QR background box (only when enabled)
-    const subBottomHeight = subBottomActive ? Math.max(24, qrSize * 0.12) : 0;
+    const subBottomHeight = subBottomActive ? Math.max(20, qrSize * 0.08) : 0;
 
     // 5. Header zone: fills from bleed top down to just above QR
     const headerZone: Rect = {
@@ -139,7 +139,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     };
 
     // 8. Footer zone: below sub-bottom (or QR bg) down to bleed bottom
-    const footerPad = zonePadding;
+    const footerPad = subBottomActive ? 6 : zonePadding;
     const footerY   = qrBgBottom + subBottomHeight + footerPad;
     const footerZone: Rect = {
       x: SX, y: footerY,

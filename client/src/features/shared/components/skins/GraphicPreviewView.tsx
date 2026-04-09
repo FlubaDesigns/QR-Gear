@@ -42,6 +42,7 @@ export interface GraphicPreviewViewProps {
   subBottomColor?: string;
   subBottomFontSize?: string;
   subBottomFontFamily?: string;
+  subBottomFontWeight?: string;
   graphicLayoutMode?: "zone" | "freeform";
 }
 
@@ -89,6 +90,7 @@ export function GraphicPreviewView({
   subBottomColor,
   subBottomFontSize,
   subBottomFontFamily,
+  subBottomFontWeight,
   graphicLayoutMode,
 }: GraphicPreviewViewProps) {
   const aspectClass =
@@ -118,6 +120,7 @@ export function GraphicPreviewView({
     subBottomColor,
     subBottomFontSize,
     subBottomFontFamily,
+    subBottomFontWeight,
     graphicLayoutMode,
     enabled: showQRCode || !!(headerStyle?.enabled || footerStyle?.enabled) || !!areaImageUrl || subBottomEnabled,
     debounceMs: 300,

@@ -778,6 +778,25 @@ export function ProductGraphicTextModule() {
                       </Popover>
                     </div>
                   </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block text-muted-foreground">Weight</Label>
+                    <div className="flex items-center gap-2 min-h-[52px] py-1">
+                      <input
+                        type="range"
+                        min="100"
+                        max="900"
+                        step="100"
+                        value={parseInt(state.content.subBottomFontWeight || '400', 10)}
+                        onChange={(e) => setContent({ subBottomFontWeight: e.target.value })}
+                        className="flex-1 touch-slider"
+                        style={{ touchAction: 'none' }}
+                        data-testid="slider-sub-bottom-weight"
+                      />
+                      <span className="w-12 text-center text-base font-semibold tabular-nums" data-testid="text-sub-bottom-weight">
+                        {parseInt(state.content.subBottomFontWeight || '400', 10)}
+                      </span>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-sm text-muted-foreground shrink-0">Color</Label>
                     <input
@@ -962,6 +981,7 @@ export function ProductGraphicTextModule() {
               subBottomColor={state.content.subBottomColor || '#666666'}
               subBottomFontSize={state.content.subBottomFontSize || '14'}
               subBottomFontFamily={state.content.subBottomFontFamily || 'Arial'}
+              subBottomFontWeight={state.content.subBottomFontWeight || '400'}
               graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
             />
             <p className="text-xs text-muted-foreground mt-2 text-center">
