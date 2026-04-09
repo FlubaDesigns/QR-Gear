@@ -759,22 +759,20 @@ export function ProductGraphicTextModule() {
                             <Maximize2 className="w-4 h-4" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-60 p-4" side="top" align="start">
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-muted-foreground">10pt</span>
-                              <span className="text-sm font-semibold">{parseInt(state.content.subBottomFontSize || '14', 10)}pt</span>
-                              <span className="text-xs text-muted-foreground">48pt</span>
-                            </div>
+                        <PopoverContent className="w-auto p-4" side="right" align="center">
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-xs text-muted-foreground">48pt</span>
                             <input
                               type="range"
                               min="10"
                               max="48"
                               value={parseInt(state.content.subBottomFontSize || '14', 10)}
                               onChange={(e) => setContent({ subBottomFontSize: e.target.value })}
-                              className="w-full"
+                              style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '120px', cursor: 'pointer', touchAction: 'none' } as React.CSSProperties}
                               data-testid="slider-sub-bottom-size"
                             />
+                            <span className="text-xs text-muted-foreground">10pt</span>
+                            <span className="text-sm font-semibold">{parseInt(state.content.subBottomFontSize || '14', 10)}pt</span>
                           </div>
                         </PopoverContent>
                       </Popover>
