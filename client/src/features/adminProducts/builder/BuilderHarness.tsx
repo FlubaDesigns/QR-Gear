@@ -7,11 +7,17 @@ import { PlayContentModule } from "./modules/PlayContentModule";
 import { BasicsContentModule } from "./modules/BasicsContentModule";
 import { ComposeContentModule } from "./modules/ComposeContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
+import { LoadTemplateModule } from "./modules/LoadTemplateModule";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
 function BuilderModules() {
   return (
     <div className="mobile-compact-stack">
+      {/* Template loader — above everything so it populates all steps */}
+      <InlineDebugBoundary label="LoadTemplateModule">
+        <LoadTemplateModule />
+      </InlineDebugBoundary>
+
       {/* Step 1: Product Type & QR State Selection */}
       <InlineDebugBoundary label="StateModule">
         <StateModule />

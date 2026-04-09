@@ -8,6 +8,7 @@ import { renderLandingPage } from "@/features/shared/graphics/landingPageRendere
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import type { PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
+import { useBuilderContext } from "../BuilderContext";
 
 interface PricingSettings {
   markupPercent: number;
@@ -38,6 +39,7 @@ export function useCreatePacket({
   const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { hasChangesFromBaseline } = useBuilderContext();
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
@@ -69,6 +71,14 @@ export function useCreatePacket({
   const handleCreatePacket = async () => {
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
+
+    if (state.templateBaseline && !hasChangesFromBaseline()) {
+      toast({
+        title: "No changes detected",
+        description: "You loaded a template but haven't changed anything yet. Edit something first to save a new packet.",
+      });
+      return;
+    }
 
     setIsCreating(true);
     setError(null);

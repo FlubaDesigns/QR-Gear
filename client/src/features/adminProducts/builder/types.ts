@@ -203,6 +203,14 @@ export interface SelectedColor {
 
 export type PrintMethodSelection = Record<string, 'dtg' | 'dtf'>;
 
+export interface TemplateProductHint {
+  blueprintId: number | null;
+  printProviderId: number | null;
+  productId: number | null;
+  productName: string | null;
+  fulfillmentProvider: string | null;
+}
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -222,4 +230,6 @@ export interface BuilderState {
   placementSizes: _PlacementSizeConfig;
   placementMethods: PrintMethodSelection;
   activePacketId: string | null;
+  templateBaseline: string | null;
+  templateProductHint: TemplateProductHint | null;
 }

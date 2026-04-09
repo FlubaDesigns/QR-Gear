@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint } from "./types";
 import type { RoleType, Store, Channel } from "../shared/types";
 import { defaultTextStyle } from "./types";
 
@@ -28,6 +28,9 @@ interface BuilderContextValue {
   setSelectedColor: (color: SelectedColor | null) => void;
   setActivePacketId: (id: string | null) => void;
   resetBuilder: () => void;
+  loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
+  hasChangesFromBaseline: () => boolean;
+  setTemplateProductResolved: (product: CatalogProduct | null) => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
 
@@ -105,6 +108,8 @@ const initialState: BuilderState = {
   placementSizes: {},
   placementMethods: {},
   activePacketId: null,
+  templateBaseline: null,
+  templateProductHint: null,
 };
 
 interface BuilderProviderProps {
@@ -373,6 +378,182 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const buildBaselineSnapshot = (
+    packetData: Record<string, any>,
+    content: Partial<ContentData>,
+    selectedPlacements: string[],
+    selectedColorName: string | null,
+    backgroundUrl: string | null,
+    blueprintId: number | null,
+  ): string => {
+    const h = (packetData.headerStyle as any) || content.headerStyle || {};
+    const f = (packetData.footerStyle as any) || content.footerStyle || {};
+    const sb = content.subBottomStyle as any || {};
+    return JSON.stringify({
+      blueprintId,
+      qrProductState: packetData.qrProductState || null,
+      selectedPlacements: [...selectedPlacements].sort(),
+      placementConfig: packetData.placementConfig || {},
+      placementSizes: packetData.placementSizes || {},
+      selectedColorName,
+      url: content.url || '',
+      title: content.title || '',
+      description: content.description || '',
+      headerEnabled: h.enabled || false,
+      headerText: h.text || '',
+      headerColor: h.color || '',
+      headerFontFamily: h.fontFamily || '',
+      headerFontSize: h.fontSize || '',
+      footerEnabled: f.enabled || false,
+      footerText: f.text || '',
+      footerColor: f.color || '',
+      footerFontFamily: f.fontFamily || '',
+      footerFontSize: f.fontSize || '',
+      subBottomEnabled: sb.enabled || false,
+      subBottomText: sb.text || '',
+      subBottomColor: sb.color || '',
+      qrPositionX: content.qrPositionX ?? 50,
+      qrPositionY: content.qrPositionY ?? 50,
+      qrSizePercent: content.qrSizePercent ?? 75,
+      backgroundUrl,
+    });
+  };
+
+  const loadFromPacketData = useCallback((packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => {
+    const snapshot = packetData.builderSnapshot?.content as Partial<ContentData> | undefined;
+
+    const headerStyle = packetData.headerStyle
+      ? { ...initialContent.headerStyle, ...(packetData.headerStyle as object) }
+      : (snapshot?.headerStyle ? { ...initialContent.headerStyle, ...snapshot.headerStyle } : initialContent.headerStyle);
+
+    const footerStyle = packetData.footerStyle
+      ? { ...initialContent.footerStyle, ...(packetData.footerStyle as object) }
+      : (snapshot?.footerStyle ? { ...initialContent.footerStyle, ...snapshot.footerStyle } : initialContent.footerStyle);
+
+    const subBottomStyle = snapshot?.subBottomStyle || {
+      ...defaultTextStyle,
+      enabled: packetData.subBottomEnabled || false,
+      text: packetData.subBottomText || '',
+      fontFamily: packetData.subBottomFontFamily || 'Arial',
+      fontSize: packetData.subBottomFontSize || '14',
+      fontWeight: packetData.subBottomFontWeight || '400',
+      color: packetData.subBottomColor || '#666666',
+      mode: 'text' as const,
+    };
+
+    const newContent: Partial<ContentData> = {
+      url: packetData.qrContent || snapshot?.url || '',
+      title: packetData.landingPageTitle || snapshot?.title || '',
+      description: packetData.landingPageDescription || snapshot?.description || '',
+      headerStyle,
+      footerStyle,
+      subBottomStyle,
+      qrPositionX: snapshot?.qrPositionX ?? 50,
+      qrPositionY: snapshot?.qrPositionY ?? 50,
+      qrSizePercent: snapshot?.qrSizePercent ?? 75,
+      areaImageUrl: snapshot?.areaImageUrl || '',
+      areaImageMode: (snapshot?.areaImageMode || 'behind-qr') as "behind-qr",
+      areaImageOffsetX: snapshot?.areaImageOffsetX ?? 50,
+      areaImageOffsetY: snapshot?.areaImageOffsetY ?? 50,
+      areaImageScale: snapshot?.areaImageScale ?? 100,
+      landingTextBlocks: snapshot?.landingTextBlocks || (packetData.landingTextBlocks as any[]) || [],
+      graphicLayoutMode: (snapshot?.graphicLayoutMode || '') as "" | "zone" | "freeform",
+    };
+
+    const selectedColor: SelectedColor | null = packetData.defaultColor
+      ? { name: packetData.defaultColor, hex: packetData.defaultColorHex || '#000000' }
+      : null;
+
+    const bgUrl = packetData.backgroundUrl || packetData.landingPageBackgroundUrl || null;
+    const loadedBackground = bgUrl
+      ? { id: 'template-bg', name: 'Template Background', url: bgUrl }
+      : null;
+
+    const selectedPlacements: string[] = Array.isArray(packetData.placements) ? packetData.placements : [];
+    const blueprintId: number | null = packetData.blueprintId ? Number(packetData.blueprintId) : null;
+
+    const hint: TemplateProductHint = {
+      blueprintId,
+      printProviderId: packetData.printProviderId ? Number(packetData.printProviderId) : null,
+      productId: packetData.productId ? Number(packetData.productId) : null,
+      productName: packetData.productName || null,
+      fulfillmentProvider: packetData.fulfillmentProvider || 'printify',
+    };
+
+    const baseline = buildBaselineSnapshot(
+      packetData,
+      newContent,
+      selectedPlacements,
+      selectedColor?.name || null,
+      bgUrl,
+      blueprintId,
+    );
+
+    setState(prev => ({
+      ...prev,
+      qrProductState: (packetData.qrProductState as QRProductState) || 'qr_canvas',
+      selectedPlacements,
+      placementConfig: (packetData.placementConfig as Record<string, any>) || {},
+      placementSizes: (packetData.placementSizes as Record<string, any>) || {},
+      placementMethods: (packetData.placementMethods as Record<string, any>) || {},
+      selectedColor,
+      loadedBackground,
+      fulfillmentProvider: packetData.fulfillmentProvider || 'printify',
+      content: { ...initialContent, ...newContent },
+      activePacketId: null,
+      templateBaseline: baseline,
+      templateProductHint: hint,
+      selectedProduct: resolvedProduct ?? null,
+      placementsLoading: false,
+    }));
+  }, []);
+
+  const hasChangesFromBaseline = useCallback((): boolean => {
+    if (!state.templateBaseline) return true;
+    const s = state;
+    const c = s.content;
+    const h = c.headerStyle as any;
+    const f = c.footerStyle as any;
+    const sb = c.subBottomStyle as any;
+    const current = JSON.stringify({
+      blueprintId: s.selectedProduct?.blueprintId ?? null,
+      qrProductState: s.qrProductState || null,
+      selectedPlacements: [...(s.selectedPlacements || [])].sort(),
+      placementConfig: s.placementConfig || {},
+      placementSizes: s.placementSizes || {},
+      selectedColorName: s.selectedColor?.name || null,
+      url: c.url || '',
+      title: c.title || '',
+      description: c.description || '',
+      headerEnabled: h?.enabled || false,
+      headerText: h?.text || '',
+      headerColor: h?.color || '',
+      headerFontFamily: h?.fontFamily || '',
+      headerFontSize: h?.fontSize || '',
+      footerEnabled: f?.enabled || false,
+      footerText: f?.text || '',
+      footerColor: f?.color || '',
+      footerFontFamily: f?.fontFamily || '',
+      footerFontSize: f?.fontSize || '',
+      subBottomEnabled: sb?.enabled || false,
+      subBottomText: sb?.text || '',
+      subBottomColor: sb?.color || '',
+      qrPositionX: c.qrPositionX ?? 50,
+      qrPositionY: c.qrPositionY ?? 50,
+      qrSizePercent: c.qrSizePercent ?? 75,
+      backgroundUrl: s.loadedBackground?.url || null,
+    });
+    return current !== state.templateBaseline;
+  }, [state]);
+
+  const setTemplateProductResolved = useCallback((product: CatalogProduct | null) => {
+    setState(prev => ({
+      ...prev,
+      selectedProduct: product,
+      templateProductHint: product ? null : prev.templateProductHint,
+    }));
+  }, []);
+
   const resetBuilder = useCallback(() => {
     setState(initialState);
   }, []);
@@ -401,8 +582,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setSelectedColor,
     setActivePacketId,
     resetBuilder,
+    loadFromPacketData,
+    hasChangesFromBaseline,
+    setTemplateProductResolved,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, resetBuilder, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>
