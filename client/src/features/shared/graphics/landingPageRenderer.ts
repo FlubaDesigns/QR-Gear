@@ -132,8 +132,21 @@ function renderBlock(
   const verticalOffset = block.verticalOffset ?? defaultVertical;
   const horizontalOffset = block.horizontalOffset ?? defaultHorizontal;
   const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
-  const textX = CANVAS_WIDTH / 2 + horizontalOffset * 5;
   const maxWidth = CANVAS_WIDTH * 0.9;
+
+  // Map hOffset 0–100 to full left→right range:
+  // at 0 the left edge of the text sits at the left bleed boundary,
+  // at 100 the right edge sits at the right bleed boundary.
+  // textAlign is "center" inside drawAutoFitText, so textX is the center point.
+  ctx.font = `bold ${scaledFontSize}px ${block.fontFamily || "Arial"}`;
+  const measuredW = Math.min(ctx.measureText(block.text).width, maxWidth);
+  const halfText = measuredW / 2;
+  const leftBleed = CANVAS_WIDTH * 0.05;
+  const rightBleed = CANVAS_WIDTH - leftBleed;
+  const leftCenter  = Math.min(leftBleed + halfText, CANVAS_WIDTH / 2);
+  const rightCenter = Math.max(rightBleed - halfText, CANVAS_WIDTH / 2);
+  const textX = leftCenter + (horizontalOffset / 100) * (rightCenter - leftCenter);
+
   drawAutoFitText(
     ctx,
     block.text,
