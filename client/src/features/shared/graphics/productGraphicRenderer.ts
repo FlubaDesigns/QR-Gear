@@ -172,12 +172,33 @@ function drawTextInZone(
   const vOffset = style.verticalOffset ?? 50;
   const hOffset = style.horizontalOffset ?? 50;
 
-  const lines = wrapText(ctx, style.text, zoneW * 0.95);
+  // Split on explicit newlines first so Enter-key line breaks render correctly,
+  // then word-wrap each segment within the zone width.
+  const segments = style.text.split('\n');
+  const lines: string[] = [];
+  for (const seg of segments) {
+    const wrapped = wrapText(ctx, seg, zoneW * 0.95);
+    if (wrapped.length === 0 || (wrapped.length === 1 && wrapped[0] === '')) {
+      lines.push('');
+    } else {
+      lines.push(...wrapped);
+    }
+  }
+
   const lineHeight = fSize * 1.3;
   const totalTextHeight = lines.length * lineHeight;
 
   const startY = zoneY + (vOffset / 100) * Math.max(0, zoneHeight - totalTextHeight);
-  const textX = zoneX + (hOffset / 100) * zoneW;
+
+  // Compute X so hOffset 0 puts the text left edge at zoneX (bleed boundary)
+  // and hOffset 100 puts the right edge at zoneX+zoneW, giving full range.
+  // textAlign stays "center" so textX is the center point.
+  const measuredWidths = lines.map(l => ctx.measureText(l).width);
+  const maxLineW = Math.max(...measuredWidths, 1);
+  const halfText = maxLineW / 2;
+  const leftCenter  = Math.min(zoneX + halfText, zoneX + zoneW / 2);
+  const rightCenter = Math.max(zoneX + zoneW - halfText, zoneX + zoneW / 2);
+  const textX = leftCenter + (hOffset / 100) * (rightCenter - leftCenter);
 
   if (style.strokeColor && style.strokeWidth && style.strokeWidth > 0) {
     ctx.strokeStyle = style.strokeColor;

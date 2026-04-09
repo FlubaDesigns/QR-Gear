@@ -436,7 +436,7 @@ export function TextStyleEditor({
                   onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
                   maxLength={maxLength}
                   inputMode="text"
-                  enterKeyHint="done"
+                  enterKeyHint="enter"
                   autoComplete="on"
                   autoCorrect="on"
                   autoCapitalize="sentences"
@@ -813,7 +813,7 @@ export function TextStyleEditor({
                   onChange={(e) => onChange({ text: e.target.value.slice(0, maxLength) })}
                   maxLength={maxLength}
                   inputMode="text"
-                  enterKeyHint="done"
+                  enterKeyHint="enter"
                   autoComplete="on"
                   autoCorrect="on"
                   autoCapitalize="sentences"

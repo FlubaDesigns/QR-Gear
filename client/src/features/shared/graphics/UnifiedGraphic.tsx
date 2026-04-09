@@ -150,7 +150,19 @@ function renderTextInZone(
 ): JSX.Element[] {
   if (!style.enabled || !style.text) return [];
 
-  const lines = wrapText(style.text, fontSize);
+  // Split on explicit newlines first, then word-wrap each segment so pressing
+  // Enter in the text field forces a line break in the rendered graphic.
+  const segments = style.text.split('\n');
+  const lines: string[] = [];
+  for (const seg of segments) {
+    const wrapped = wrapText(seg, fontSize);
+    if (wrapped.length === 0) {
+      lines.push(''); // preserve intentional blank lines
+    } else {
+      lines.push(...wrapped);
+    }
+  }
+
   const fontFamily = style.fontFamily || "Arial";
   const fillColor = style.color || "#000000";
   const hasStroke = !!(style.strokeColor && style.strokeWidth && style.strokeWidth > 0);
@@ -162,11 +174,25 @@ function renderTextInZone(
 
   const totalTextHeight = lines.length * fontSize * 1.3;
   const marginY = zoneHeight * 0.01;
-  const marginX = CANVAS_W * 0.01;
   const usableHeight = zoneHeight - 2 * marginY;
-  const usableWidth = CANVAS_W - 2 * marginX;
   const startY = zoneTop + marginY + (vOffset / 100) * (usableHeight - totalTextHeight);
-  const textXPos = marginX + (hOffset / 100) * usableWidth;
+
+  // Compute X position so the slider's full 0–100 range maps to left-bleed →
+  // right-bleed, regardless of text width.  We estimate the widest line's
+  // pixel width using the same char-width approximation as wrapText, then
+  // position the center so the text edge lands on the bleed boundary at the
+  // extremes.  textAnchor stays "middle" throughout.
+  const leftBleed  = CANVAS_W * 0.06;           // ~72 px on a 1200-wide canvas
+  const rightBleed = CANVAS_W - leftBleed;       // ~1128 px
+  const charWidth  = 0.55 * fontSize;
+  const maxLineW   = Math.max(...lines.map(l => (l.length || 0) * charWidth), 1);
+  const halfText   = maxLineW / 2;
+  // At hOffset=0 the left edge should sit at leftBleed;  center = leftBleed + halfText.
+  // At hOffset=100 the right edge should sit at rightBleed; center = rightBleed - halfText.
+  // Clamp so very wide text stays centered rather than going backward.
+  const leftCenter  = Math.min(leftBleed  + halfText, CANVAS_W / 2);
+  const rightCenter = Math.max(rightBleed - halfText, CANVAS_W / 2);
+  const textXPos = leftCenter + (hOffset / 100) * (rightCenter - leftCenter);
 
   for (let i = 0; i < lines.length; i++) {
     const textY = startY + i * fontSize * 1.3 + fontSize * 0.85;
