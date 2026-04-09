@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import {
   MIN_SAFE_QR_SIZE_PERCENT,
@@ -742,13 +743,12 @@ export function ProductGraphicTextModule() {
                   <div>
                     <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="10"
-                        max="48"
+                      <NumericInput
                         value={parseInt(state.content.subBottomFontSize || '14', 10)}
-                        onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setContent({ subBottomFontSize: String(v) }); }}
-                        onBlur={(e) => { const v = Math.min(48, Math.max(10, parseInt(e.target.value, 10) || 14)); setContent({ subBottomFontSize: String(v) }); }}
+                        onChange={(v) => setContent({ subBottomFontSize: String(v) })}
+                        min={10}
+                        max={48}
+                        defaultValue={14}
                         className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background flex-shrink-0"
                         data-testid="input-sub-bottom-size-num"
                       />
