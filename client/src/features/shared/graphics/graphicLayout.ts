@@ -69,8 +69,6 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
   const {
     canvasWidth: W,
     canvasHeight: H,
-    headerActive,
-    footerActive,
     subBottomActive,
     qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
     qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
@@ -93,39 +91,111 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
   const SW = safeRect.width;
   const SH = safeRect.height;
 
-  let headerZone: Rect;
-  let middleZone: Rect;
-  let subBottomZone: Rect;
-  let footerZone: Rect;
-  let qrRegion: Rect;
+  // ── ZONE MODE: QR-anchored ──────────────────────────────────────────────
+  if (layoutMode === "zone") {
+    // 1. QR size from safe width (width is always the constraining dimension)
+    const qrSize = clamp(SW * (qrSizePercent / 100), 180, SW);
 
-  if (layoutMode === "freeform") {
-    headerZone = { x: SX, y: SY, width: SW, height: SH };
-    middleZone = { x: SX, y: SY, width: SW, height: SH };
-    subBottomZone = { x: SX, y: SY, width: SW, height: 0 };
-    footerZone = { x: SX, y: SY, width: SW, height: SH };
-    qrRegion = { x: SX, y: SY, width: SW, height: SH };
-  } else {
-    const subBottomHeight = subBottomActive ? SH * cfg.subBottomPct : 0;
-    const headerHeight = SH * cfg.headerPct;
-    const footerPct = subBottomActive ? (cfg.footerPct - cfg.subBottomPct) : cfg.footerPct;
-    const footerHeight = SH * footerPct;
-    const middleHeight = Math.max(1, SH - headerHeight - footerHeight - subBottomHeight);
+    // 2. QR always at canvas center — consistent position across all shirt types
+    const qrCenterX = SX + SW / 2;
+    const qrCenterY = SY + SH / 2;
+    const qrLeft   = qrCenterX - qrSize / 2;
+    const qrTop    = qrCenterY - qrSize / 2;
+    const qrBottom = qrTop + qrSize;
 
-    headerZone = { x: SX, y: SY, width: SW, height: headerHeight };
-    middleZone = { x: SX, y: SY + headerHeight, width: SW, height: middleHeight };
-    subBottomZone = { x: SX, y: SY + headerHeight + middleHeight, width: SW, height: subBottomHeight };
-    footerZone = { x: SX, y: SY + headerHeight + middleHeight + subBottomHeight, width: SW, height: footerHeight };
-    qrRegion = middleZone;
+    // 3. Consistent gap between QR and surrounding zones
+    const zonePadding = Math.max(16, qrSize * 0.10);
+
+    // 4. Sub-bottom strip hugs directly below QR (only when enabled)
+    const subBottomHeight = subBottomActive ? Math.max(24, qrSize * 0.12) : 0;
+
+    // 5. Header zone: fills from bleed top down to just above QR
+    const headerZone: Rect = {
+      x: SX, y: SY,
+      width: SW,
+      height: Math.max(0, qrTop - SY - zonePadding),
+    };
+
+    // 6. Middle zone: exactly the QR square area
+    const middleZone: Rect = {
+      x: SX, y: qrTop,
+      width: SW,
+      height: qrSize,
+    };
+
+    // 7. Sub-bottom zone: immediately below QR
+    const subBottomZone: Rect = {
+      x: SX, y: qrBottom,
+      width: SW,
+      height: subBottomHeight,
+    };
+
+    // 8. Footer zone: below sub-bottom (or QR) down to bleed bottom
+    //    Use half-padding gap when sub-bottom is active (it's already a separator)
+    const footerPad = subBottomActive ? zonePadding * 0.5 : zonePadding;
+    const footerY   = qrBottom + subBottomHeight + footerPad;
+    const footerZone: Rect = {
+      x: SX, y: footerY,
+      width: SW,
+      height: Math.max(0, (SY + SH) - footerY),
+    };
+
+    // 9. QR geometry
+    const bgPadding = Math.max(cfg.qrBgPaddingMin, qrSize * cfg.qrBgPaddingPct);
+    const bgRadius  = Math.max(cfg.qrBgRadiusMin,  qrSize * cfg.qrBgRadiusPct);
+
+    const qrSquare: Rect     = { x: qrLeft, y: qrTop, width: qrSize, height: qrSize };
+    const qrBackground: Rect = {
+      x: qrLeft - bgPadding,
+      y: qrTop  - bgPadding,
+      width:  qrSize + bgPadding * 2,
+      height: qrSize + bgPadding * 2,
+    };
+
+    const logoImgSize = qrSize * cfg.logoSizePct;
+    const logoBgSize  = logoImgSize * cfg.logoBgScale;
+
+    const logoBg: Rect = {
+      x: qrLeft + (qrSize - logoBgSize) / 2,
+      y: qrTop  + (qrSize - logoBgSize) / 2,
+      width: logoBgSize, height: logoBgSize,
+    };
+    const logoImg: Rect = {
+      x: qrLeft + (qrSize - logoImgSize) / 2,
+      y: qrTop  + (qrSize - logoImgSize) / 2,
+      width: logoImgSize, height: logoImgSize,
+    };
+
+    return {
+      canvas: { width: W, height: H },
+      safeRect,
+      zones: { header: headerZone, middle: middleZone, subBottom: subBottomZone, footer: footerZone },
+      qr: {
+        square: qrSquare,
+        background: qrBackground,
+        size: qrSize,
+        bgPadding,
+        bgRadius,
+        logoBg: { ...logoBg, height: logoBgSize },
+        logoImg,
+      },
+    };
   }
 
+  // ── FREEFORM MODE: full-canvas, position-driven ─────────────────────────
+  const headerZone:    Rect = { x: SX, y: SY, width: SW, height: SH };
+  const middleZone:    Rect = { x: SX, y: SY, width: SW, height: SH };
+  const subBottomZone: Rect = { x: SX, y: SY, width: SW, height: 0  };
+  const footerZone:    Rect = { x: SX, y: SY, width: SW, height: SH };
+  const qrRegion:      Rect = { x: SX, y: SY, width: SW, height: SH };
+
   const qrMaxDim = Math.min(qrRegion.width, qrRegion.height);
-  const qrSize = clamp(qrMaxDim * (qrSizePercent / 100), 180, qrMaxDim);
+  const qrSize   = clamp(qrMaxDim * (qrSizePercent / 100), 180, qrMaxDim);
 
   const clampedX = clamp(qrPositionX, 0, 100);
   const clampedY = clamp(qrPositionY, 0, 100);
 
-  const availX = Math.max(0, qrRegion.width - qrSize);
+  const availX = Math.max(0, qrRegion.width  - qrSize);
   const availY = Math.max(0, qrRegion.height - qrSize);
 
   const qrSquare: Rect = {
@@ -136,30 +206,27 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
   };
 
   const bgPadding = Math.max(cfg.qrBgPaddingMin, qrSize * cfg.qrBgPaddingPct);
-  const bgRadius = Math.max(cfg.qrBgRadiusMin, qrSize * cfg.qrBgRadiusPct);
+  const bgRadius  = Math.max(cfg.qrBgRadiusMin,  qrSize * cfg.qrBgRadiusPct);
 
   const qrBackground: Rect = {
     x: qrSquare.x - bgPadding,
     y: qrSquare.y - bgPadding,
-    width: qrSize + bgPadding * 2,
+    width:  qrSize + bgPadding * 2,
     height: qrSize + bgPadding * 2,
   };
 
   const logoImgSize = qrSize * cfg.logoSizePct;
-  const logoBgSize = logoImgSize * cfg.logoBgScale;
+  const logoBgSize  = logoImgSize * cfg.logoBgScale;
 
   const logoBg: Rect = {
     x: qrSquare.x + (qrSize - logoBgSize) / 2,
     y: qrSquare.y + (qrSize - logoBgSize) / 2,
-    width: logoBgSize,
-    height: logoBgSize,
+    width: logoBgSize, height: logoBgSize,
   };
-
   const logoImg: Rect = {
     x: qrSquare.x + (qrSize - logoImgSize) / 2,
     y: qrSquare.y + (qrSize - logoImgSize) / 2,
-    width: logoImgSize,
-    height: logoImgSize,
+    width: logoImgSize, height: logoImgSize,
   };
 
   return {

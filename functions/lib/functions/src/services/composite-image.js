@@ -122,18 +122,32 @@ async function cfGenerateCompositeImage(options) {
         subBottomZoneHeight = 0;
     }
     else {
+        // Zone mode: QR-anchored — QR is always at canvas center, zones hug outward
         zoneX = safeX;
         zoneW = safeW;
-        const subBottomPct = subBottomActive ? 0.05 : 0;
-        const footerPct = subBottomActive ? 0.25 : 0.30;
+        const bgPaddingZone = 20;
+        // QR content size: 45% of safe width keeps visual parity with previous layout
+        const qrContentSizeZone = Math.round(safeW * 0.45);
+        const qrBgSizeZone = qrContentSizeZone + bgPaddingZone * 2;
+        // QR background box centered on canvas
+        const qrBgTopZone = Math.round(safeY + safeH / 2 - qrBgSizeZone / 2);
+        const qrBgBottomZone = qrBgTopZone + qrBgSizeZone;
+        // Consistent gap between QR box and header/footer content
+        const zonePaddingZone = Math.max(16, Math.round(qrBgSizeZone * 0.08));
+        const subBottomHeightZone = subBottomActive
+            ? Math.max(24, Math.round(qrBgSizeZone * 0.12))
+            : 0;
         headerZoneTop = safeY;
-        headerZoneHeight = safeH * 0.30;
-        qrZoneTop = headerZoneTop + headerZoneHeight;
-        qrZoneHeight = safeH * 0.40;
-        subBottomZoneTop = qrZoneTop + qrZoneHeight;
-        subBottomZoneHeight = safeH * subBottomPct;
-        footerZoneTop = subBottomZoneTop + subBottomZoneHeight;
-        footerZoneHeight = safeH * footerPct;
+        headerZoneHeight = Math.max(0, qrBgTopZone - safeY - zonePaddingZone);
+        qrZoneTop = qrBgTopZone;
+        qrZoneHeight = qrBgSizeZone; // = full background box size
+        subBottomZoneTop = qrBgBottomZone;
+        subBottomZoneHeight = subBottomHeightZone;
+        const footerPadZone = subBottomActive
+            ? Math.round(zonePaddingZone * 0.5)
+            : zonePaddingZone;
+        footerZoneTop = qrBgBottomZone + subBottomHeightZone + footerPadZone;
+        footerZoneHeight = Math.max(0, (safeY + safeH) - footerZoneTop);
     }
     const cfDrawImageInZone = async (imgUrl, zoneX, zoneY, zoneW, zoneH, _padding = 0, offsetX = 50, offsetY = 50, scale = 100) => {
         try {
@@ -203,28 +217,45 @@ async function cfGenerateCompositeImage(options) {
     }
     const qrDark = qrColor === 'white' ? "#FFFFFF" : "#000000";
     const qrLight = qrColor === 'white' ? "#000000" : "#FFFFFF";
-    const qrAreaHeight = qrZoneHeight * 0.80;
     const bgPadding = 20;
     const bgRadius = 16;
-    const qrContentHeight = qrAreaHeight - bgPadding * 2;
-    const qrContentWidth = qrContentHeight;
+    let qrBgX, qrBgY, qrBgDrawW, qrBgDrawH;
+    let qrX, qrY, qrContentWidth, qrContentHeight;
+    if (graphicLayoutMode !== 'freeform') {
+        // Zone mode: qrZoneHeight IS the background box size (content + 2 * bgPadding)
+        qrContentWidth = qrZoneHeight - bgPadding * 2;
+        qrContentHeight = qrContentWidth;
+        qrBgDrawW = qrZoneHeight;
+        qrBgDrawH = qrZoneHeight;
+        qrBgX = zoneX + (zoneW - qrBgDrawW) / 2;
+        qrBgY = qrZoneTop;
+        qrX = qrBgX + bgPadding;
+        qrY = qrBgY + bgPadding;
+    }
+    else {
+        // Freeform mode: scale QR to 80% of zone height
+        const qrAreaHeight = qrZoneHeight * 0.80;
+        qrContentHeight = qrAreaHeight - bgPadding * 2;
+        qrContentWidth = qrContentHeight;
+        qrBgDrawW = qrContentWidth + bgPadding * 2;
+        qrBgDrawH = qrAreaHeight;
+        qrBgX = zoneX + (zoneW - qrBgDrawW) / 2;
+        qrBgY = qrZoneTop + (qrZoneHeight - qrAreaHeight) / 2;
+        qrX = zoneX + (zoneW - qrContentWidth) / 2;
+        qrY = qrBgY + bgPadding;
+    }
     const qrDataUrl = await getQRCode().toDataURL(qrUrl, {
         width: qrContentWidth, margin: 2,
         color: { dark: qrDark, light: qrLight },
     });
     const qrImage = await li(qrDataUrl);
-    const qrBgWidth = qrContentWidth + bgPadding * 2;
-    const qrBgX = zoneX + (zoneW - qrBgWidth) / 2;
-    const qrBgY = qrZoneTop + (qrZoneHeight - qrAreaHeight) / 2;
-    const qrX = zoneX + (zoneW - qrContentWidth) / 2;
-    const qrY = qrBgY + bgPadding;
     ctx.fillStyle = qrLight;
     ctx.beginPath();
     if (ctx.roundRect) {
-        ctx.roundRect(qrBgX, qrBgY, qrBgWidth, qrAreaHeight, bgRadius);
+        ctx.roundRect(qrBgX, qrBgY, qrBgDrawW, qrBgDrawH, bgRadius);
     }
     else {
-        ctx.rect(qrBgX, qrBgY, qrBgWidth, qrAreaHeight);
+        ctx.rect(qrBgX, qrBgY, qrBgDrawW, qrBgDrawH);
     }
     ctx.fill();
     ctx.drawImage(qrImage, qrX, qrY, qrContentWidth, qrContentHeight);
