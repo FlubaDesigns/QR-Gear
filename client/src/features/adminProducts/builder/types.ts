@@ -126,8 +126,9 @@ export interface ContentData {
   overlayFontFamily: string;
   headerStyle: TextStyleConfig;
   footerStyle: TextStyleConfig;
-  titleStyle: TextStyleConfig;        // Styled title for landing page
-  descriptionStyle: TextStyleConfig;  // Styled description for landing page
+  titleStyle: TextStyleConfig;        // Styled title for landing page (legacy — use landingTextBlocks)
+  descriptionStyle: TextStyleConfig;  // Styled description for landing page (legacy — use landingTextBlocks)
+  landingTextBlocks: TextStyleConfig[]; // Dynamic text blocks for landing page
   hostingTierCode: string;
   // Play-specific fields
   playMediaSource: "url" | "upload" | null;
@@ -221,4 +222,5 @@ export interface BuilderState {
   placementConfig: _PlacementConfig;
   placementSizes: _PlacementSizeConfig;
   placementMethods: PrintMethodSelection;
+  activePacketId: string | null;
 }

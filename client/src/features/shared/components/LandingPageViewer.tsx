@@ -4,6 +4,7 @@ import type { TextStyleConfig } from "./TextStyleEditor";
 export interface LandingPageViewerProps {
   titleStyle?: TextStyleConfig;
   descriptionStyle?: TextStyleConfig;
+  textBlocks?: TextStyleConfig[];
   backgroundImage?: string;
   className?: string;
   caption?: string;
@@ -12,6 +13,7 @@ export interface LandingPageViewerProps {
 export function LandingPageViewer({ 
   titleStyle,
   descriptionStyle,
+  textBlocks,
   backgroundImage,
   className = "",
   caption,
@@ -22,6 +24,7 @@ export function LandingPageViewer({
         <LandingPageView
           titleStyle={titleStyle}
           descriptionStyle={descriptionStyle}
+          textBlocks={textBlocks}
           backgroundImage={backgroundImage}
         />
       </div>

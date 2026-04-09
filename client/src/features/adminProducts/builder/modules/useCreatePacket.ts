@@ -125,6 +125,7 @@ export function useCreatePacket({
         landingPageTitle: state.content?.title || null,
         landingPageDescription: state.content?.description || null,
         landingPageBackgroundUrl: state.loadedBackground?.url || null,
+        landingTextBlocks: state.content?.landingTextBlocks || [],
         landingPageSlug,
         roleType: selectedRole || null,
         storeId: selectedStore?.id || null,
@@ -253,10 +254,26 @@ export function useCreatePacket({
       let landingPageSnapshotUrl: string = "";
       if (isLandingPageMode) {
         try {
+          const rawBlocks = (state.content?.landingTextBlocks || []) as any[];
+          const rendererBlocks = rawBlocks
+            .filter((b: any) => b.enabled && b.text)
+            .map((b: any) => ({
+              text: b.text,
+              enabled: b.enabled,
+              fontFamily: b.fontFamily,
+              fontSize: b.fontSize,
+              color: b.color,
+              letterSpacing: b.letterSpacing,
+              strokeColor: b.strokeColor,
+              strokeWidth: b.strokeWidth,
+              verticalOffset: b.verticalOffset,
+              horizontalOffset: b.horizontalOffset,
+            }));
           landingPageSnapshotUrl = await renderLandingPage({
             backgroundUrl,
-            titleStyle,
-            descriptionStyle,
+            textBlocks: rendererBlocks.length > 0 ? rendererBlocks : null,
+            titleStyle: rendererBlocks.length === 0 ? titleStyle : null,
+            descriptionStyle: rendererBlocks.length === 0 ? descriptionStyle : null,
           });
         } catch (e) {
           console.warn('Landing page snapshot generation failed:', e);

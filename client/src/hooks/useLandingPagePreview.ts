@@ -8,6 +8,7 @@ interface UseLandingPagePreviewOptions {
   backgroundUrl?: string | null;
   titleStyle?: LandingPageTextStyle | null;
   descriptionStyle?: LandingPageTextStyle | null;
+  textBlocks?: LandingPageTextStyle[] | null;
   enabled?: boolean;
   debounceMs?: number;
 }
@@ -25,6 +26,7 @@ export function useLandingPagePreview(
     backgroundUrl,
     titleStyle,
     descriptionStyle,
+    textBlocks,
     enabled = true,
     debounceMs = 400,
   } = options;
@@ -35,6 +37,20 @@ export function useLandingPagePreview(
   const generationId = useRef(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const textBlocksKey = JSON.stringify(
+    textBlocks?.map((b) => ({
+      text: b?.text,
+      enabled: b?.enabled,
+      fontSize: b?.fontSize,
+      fontFamily: b?.fontFamily,
+      color: b?.color,
+      strokeColor: b?.strokeColor,
+      strokeWidth: b?.strokeWidth,
+      verticalOffset: b?.verticalOffset,
+      horizontalOffset: b?.horizontalOffset,
+    }))
+  );
+
   useEffect(() => {
     if (!enabled) {
       setDataUrl(null);
@@ -42,7 +58,9 @@ export function useLandingPagePreview(
       return;
     }
 
+    const activeBlocks = textBlocks?.filter((b) => b?.enabled && b?.text);
     const hasContent =
+      (activeBlocks && activeBlocks.length > 0) ||
       (titleStyle?.enabled !== false && titleStyle?.text) ||
       (descriptionStyle?.enabled !== false && descriptionStyle?.text) ||
       backgroundUrl;
@@ -65,12 +83,17 @@ export function useLandingPagePreview(
       try {
         const result = await renderLandingPage({
           backgroundUrl,
+          textBlocks: textBlocks && textBlocks.length > 0 ? textBlocks : null,
           titleStyle:
-            titleStyle?.enabled !== false && titleStyle?.text
+            (!textBlocks || textBlocks.length === 0) &&
+            titleStyle?.enabled !== false &&
+            titleStyle?.text
               ? titleStyle
               : null,
           descriptionStyle:
-            descriptionStyle?.enabled !== false && descriptionStyle?.text
+            (!textBlocks || textBlocks.length === 0) &&
+            descriptionStyle?.enabled !== false &&
+            descriptionStyle?.text
               ? descriptionStyle
               : null,
         });
@@ -112,6 +135,7 @@ export function useLandingPagePreview(
     descriptionStyle?.strokeWidth,
     descriptionStyle?.verticalOffset,
     descriptionStyle?.horizontalOffset,
+    textBlocksKey,
     enabled,
     debounceMs,
   ]);

@@ -17,6 +17,7 @@ export interface LandingPageRenderOptions {
   backgroundUrl?: string | null;
   titleStyle?: LandingPageTextStyle | null;
   descriptionStyle?: LandingPageTextStyle | null;
+  textBlocks?: LandingPageTextStyle[] | null;
 }
 
 const CANVAS_WIDTH = 2700;
@@ -118,10 +119,39 @@ function drawAutoFitText(
   }
 }
 
+function renderBlock(
+  ctx: CanvasRenderingContext2D,
+  block: LandingPageTextStyle,
+  defaultVertical: number,
+  defaultHorizontal: number,
+  defaultColor: string
+) {
+  if (!block || block.enabled === false || !block.text) return;
+  const fontSize = parseInt(block.fontSize) || DEFAULT_FONT_SIZE_NUM;
+  const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
+  const verticalOffset = block.verticalOffset ?? defaultVertical;
+  const horizontalOffset = block.horizontalOffset ?? defaultHorizontal;
+  const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
+  const textX = CANVAS_WIDTH / 2 + horizontalOffset * 5;
+  const maxWidth = CANVAS_WIDTH * 0.9;
+  drawAutoFitText(
+    ctx,
+    block.text,
+    textX,
+    textY,
+    maxWidth,
+    scaledFontSize,
+    block.fontFamily || "Arial",
+    block.color || defaultColor,
+    block.strokeColor,
+    block.strokeWidth
+  );
+}
+
 export async function renderLandingPage(
   options: LandingPageRenderOptions
 ): Promise<string> {
-  const { backgroundUrl, titleStyle, descriptionStyle } = options;
+  const { backgroundUrl, titleStyle, descriptionStyle, textBlocks } = options;
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_WIDTH;
@@ -152,52 +182,18 @@ export async function renderLandingPage(
   ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
   ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  if (titleStyle && titleStyle.enabled !== false && titleStyle.text) {
-    const fontSize = parseInt(titleStyle.fontSize) || DEFAULT_FONT_SIZE_NUM;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
-    const verticalOffset = titleStyle.verticalOffset ?? 84;
-    const horizontalOffset = titleStyle.horizontalOffset ?? 8;
-    const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
-    const textX = CANVAS_WIDTH / 2 + horizontalOffset * 5;
-    const maxWidth = CANVAS_WIDTH * 0.9;
-    drawAutoFitText(
-      ctx,
-      titleStyle.text,
-      textX,
-      textY,
-      maxWidth,
-      scaledFontSize,
-      titleStyle.fontFamily || "Arial",
-      titleStyle.color || "#ffffff",
-      titleStyle.strokeColor,
-      titleStyle.strokeWidth
-    );
-  }
-
-  if (
-    descriptionStyle &&
-    descriptionStyle.enabled !== false &&
-    descriptionStyle.text
-  ) {
-    const fontSize = parseInt(descriptionStyle.fontSize) || DEFAULT_FONT_SIZE_NUM;
-    const scaledFontSize = Math.round(fontSize * (CANVAS_WIDTH / 360));
-    const verticalOffset = descriptionStyle.verticalOffset ?? 72;
-    const horizontalOffset = descriptionStyle.horizontalOffset ?? 10;
-    const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
-    const textX = CANVAS_WIDTH / 2 + horizontalOffset * 5;
-    const maxWidth = CANVAS_WIDTH * 0.9;
-    drawAutoFitText(
-      ctx,
-      descriptionStyle.text,
-      textX,
-      textY,
-      maxWidth,
-      scaledFontSize,
-      descriptionStyle.fontFamily || "Arial",
-      descriptionStyle.color || "#cccccc",
-      descriptionStyle.strokeColor,
-      descriptionStyle.strokeWidth
-    );
+  if (textBlocks && textBlocks.length > 0) {
+    textBlocks.forEach((block, i) => {
+      const defaultV = 84 - i * 12;
+      renderBlock(ctx, block, defaultV, 8, i === 0 ? "#ffffff" : "#cccccc");
+    });
+  } else {
+    if (titleStyle && titleStyle.enabled !== false && titleStyle.text) {
+      renderBlock(ctx, titleStyle, 84, 8, "#ffffff");
+    }
+    if (descriptionStyle && descriptionStyle.enabled !== false && descriptionStyle.text) {
+      renderBlock(ctx, descriptionStyle, 72, 10, "#cccccc");
+    }
   }
 
   return canvas.toDataURL("image/png");

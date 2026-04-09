@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
 import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection } from "./types";
 import type { RoleType, Store, Channel } from "../shared/types";
@@ -7,7 +7,6 @@ import { defaultTextStyle } from "./types";
 interface BuilderContextValue {
   state: BuilderState;
   activeProviders: string[];
-  // Role/Store/Channel from ProductsContext
   selectedRole: RoleType | null;
   selectedStore: Store | null;
   selectedChannel: Channel | null;
@@ -27,6 +26,7 @@ interface BuilderContextValue {
   setPlacementSize: (placementId: string, size: PlacementSize) => void;
   setPlacementMethod: (placementId: string, method: 'dtg' | 'dtf') => void;
   setSelectedColor: (color: SelectedColor | null) => void;
+  setActivePacketId: (id: string | null) => void;
   resetBuilder: () => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
@@ -46,8 +46,8 @@ const initialContent: ContentData = {
   footerStyle: { ...defaultTextStyle, verticalOffset: 80, horizontalOffset: 50 },
   titleStyle: { ...defaultTextStyle, text: "", verticalOffset: 84, horizontalOffset: 8 },
   descriptionStyle: { ...defaultTextStyle, text: "", verticalOffset: 72, horizontalOffset: 10 },
+  landingTextBlocks: [],
   hostingTierCode: "1_year",
-  // Play-specific fields
   playMediaSource: null,
   playMediaUrl: "",
   playMediaFile: null,
@@ -65,7 +65,6 @@ const initialContent: ContentData = {
   subBottomEnabled: false,
   subBottomText: '',
   graphicLayoutMode: "zone" as "zone" | "freeform",
-  // Compose-specific fields
   composeItems: [],
   composeMode: '',
   composeHostingTerm: '',
@@ -84,8 +83,8 @@ const initialState: BuilderState = {
   originFilter: { showUSA: true, showOther: false },
   genderFilter: "mens",
   selectedProduct: null,
-  selectedColor: { name: "Black", hex: "#000000" },  // Default to black
-  qrProductState: "qr_canvas",  // Default to QR Canvas mode
+  selectedColor: { name: "Black", hex: "#000000" },
+  qrProductState: "qr_canvas",
   content: {
     ...initialContent,
     headerStyle: {
@@ -106,6 +105,7 @@ const initialState: BuilderState = {
   placementConfig: {},
   placementSizes: {},
   placementMethods: {},
+  activePacketId: null,
 };
 
 interface BuilderProviderProps {
@@ -115,19 +115,51 @@ interface BuilderProviderProps {
 export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync fulfillmentProvider with selectedProviders from ProductsContext
-  // This ensures the mockup service knows which provider (printify/printful) to use
   useEffect(() => {
     const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
     setState(prev => {
       if (prev.fulfillmentProvider !== activeProvider) {
-        console.log(`[BuilderContext] Syncing fulfillmentProvider: ${prev.fulfillmentProvider} -> ${activeProvider}`);
         return { ...prev, fulfillmentProvider: activeProvider };
       }
       return prev;
     });
   }, [selectedProviders]);
+
+  useEffect(() => {
+    if (!state.activePacketId) return;
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const headers = await api.getAuthHeaders();
+        const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
+        await fetch(`${api.baseUrl}/admin/packets/${state.activePacketId}`, {
+          method: "PATCH",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            builderSnapshot: {
+              content: serializableContent,
+              loadedBackground: state.loadedBackground,
+            },
+          }),
+        });
+        console.log(`[BuilderContext] Auto-saved to packet ${state.activePacketId}`);
+      } catch (e) {
+        console.warn("[BuilderContext] Auto-save failed:", e);
+      }
+    }, 1500);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [state.content, state.loadedBackground, state.activePacketId]);
 
   const setSourceType = useCallback((type: SourceType) => {
     setState(prev => ({
@@ -187,15 +219,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const setGenderFilter = useCallback((filter: GenderFilter) => {
-    console.log("[BuilderContext] setGenderFilter called with:", filter);
-    setState(prev => {
-      console.log("[BuilderContext] Previous genderFilter:", prev.genderFilter, "New:", filter);
-      return {
-        ...prev,
-        genderFilter: filter,
-        selectedProduct: null,
-      };
-    });
+    setState(prev => ({
+      ...prev,
+      genderFilter: filter,
+      selectedProduct: null,
+    }));
   }, []);
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
@@ -276,7 +304,6 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         ? prev.selectedPlacements.filter(p => p !== placementId)
         : [...prev.selectedPlacements, placementId];
       
-      // Also update placementConfig - default new placements to "qr"
       const newConfig = { ...prev.placementConfig };
       const newSizes = { ...prev.placementSizes };
       const newMethods = { ...prev.placementMethods };
@@ -340,6 +367,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const setActivePacketId = useCallback((id: string | null) => {
+    setState(prev => ({
+      ...prev,
+      activePacketId: id,
+    }));
+  }, []);
+
   const resetBuilder = useCallback(() => {
     setState(initialState);
   }, []);
@@ -366,9 +400,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setPlacementSize,
     setPlacementMethod,
     setSelectedColor,
+    setActivePacketId,
     resetBuilder,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, resetBuilder, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, resetBuilder, api]);
 
   return (
     <BuilderContext.Provider value={value}>

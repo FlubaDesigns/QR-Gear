@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Package, Loader2, Check } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -36,7 +36,7 @@ export interface PacketResult {
 }
 
 export function CreateGraphicsModule() {
-  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder } = useBuilderContext();
+  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder, setActivePacketId } = useBuilderContext();
   const { apiBase } = useAdminAuth();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
 
@@ -63,6 +63,12 @@ export function CreateGraphicsModule() {
     state, selectedRole, selectedStore, selectedChannel,
     loadGraphic, resetBuilder, pricingSettings,
   });
+
+  useEffect(() => {
+    if (packetResult?.packetId) {
+      setActivePacketId(packetResult.packetId);
+    }
+  }, [packetResult?.packetId]);
 
   if (!state.selectedProduct || !state.qrProductState || !state.content) {
     return null;

@@ -6,6 +6,7 @@ import type { LandingPageTextStyle } from "@/features/shared/graphics/landingPag
 export interface LandingPageViewProps {
   titleStyle?: TextStyleConfig;
   descriptionStyle?: TextStyleConfig;
+  textBlocks?: TextStyleConfig[];
   backgroundImage?: string;
   className?: string;
 }
@@ -29,15 +30,40 @@ function toRendererStyle(style?: TextStyleConfig): LandingPageTextStyle | null {
 export function LandingPageView({ 
   titleStyle,
   descriptionStyle,
+  textBlocks,
   backgroundImage,
   className = "",
 }: LandingPageViewProps) {
-  const hasContent = !!(titleStyle?.text || descriptionStyle?.text || backgroundImage);
+  const rendererBlocks: LandingPageTextStyle[] | null =
+    textBlocks && textBlocks.length > 0
+      ? textBlocks
+          .filter((b) => b.enabled && b.text)
+          .map((b) => ({
+            text: b.text,
+            enabled: b.enabled,
+            fontFamily: b.fontFamily,
+            fontSize: b.fontSize,
+            color: b.color,
+            letterSpacing: b.letterSpacing,
+            strokeColor: b.strokeColor,
+            strokeWidth: b.strokeWidth,
+            verticalOffset: b.verticalOffset,
+            horizontalOffset: b.horizontalOffset,
+          }))
+      : null;
+
+  const hasContent = !!(
+    (rendererBlocks && rendererBlocks.length > 0) ||
+    titleStyle?.text ||
+    descriptionStyle?.text ||
+    backgroundImage
+  );
 
   const { dataUrl, isLoading } = useLandingPagePreview({
     backgroundUrl: backgroundImage || null,
-    titleStyle: toRendererStyle(titleStyle),
-    descriptionStyle: toRendererStyle(descriptionStyle),
+    textBlocks: rendererBlocks,
+    titleStyle: rendererBlocks ? null : toRendererStyle(titleStyle),
+    descriptionStyle: rendererBlocks ? null : toRendererStyle(descriptionStyle),
     enabled: hasContent,
   });
 

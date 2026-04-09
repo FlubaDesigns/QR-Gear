@@ -8,6 +8,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-04-09 | Added Collections sub-level within channels (Section 14) and Packet Auto-Save / Builder State Persistence (Section 15) |
 | 2026-03-07 | Added Four Store Types architecture — split "external" into marketplace + partner (Section 13) |
 | 2026-02-10 | Added Public Wizard Stripe Checkout & Post-Sale Flow (Section 12) |
 | 2026-02-07 | Added QR Architecture Decision: Two-Tier QR System (Section 11) |
@@ -713,6 +714,68 @@ The previous "external" store type has been split to properly represent two fund
 - **Partner** = they pull IN (your UX, your tools) and you enable their surface
 
 Trying to manage both through one "external" type would create a confusing admin experience and tangled data models.
+
+---
+
+### 14. Collections — Channel Sub-Grouping
+**Established: 2026-04-09**
+
+Collections provide a fourth level of product organization within the admin system.
+
+**Hierarchy:** Role → Store → Channel → Collection
+
+A Collection is a named group of products within a specific Channel. They allow the admin to organize inventory into logical product families or campaign groupings without creating separate channels.
+
+**Admin UI:** The Store/Channel dropdown module includes a Collection selector that appears after a Channel is selected. The admin can:
+- Select an existing collection for that channel
+- Create a new collection on the fly with a name
+- Leave it unset (products sit at the channel root level)
+
+**Data:** Collections are stored as Firestore documents scoped to their parent Channel. A product is tagged to a collection at save time.
+
+**Rule:** Collections are channel-scoped. A collection named "Summer 2026" in Channel A and a collection with the same name in Channel B are independent records. No cross-channel collection references.
+
+**API pattern:** `GET /api/admin/collections?channelId=...` returns collection list. `POST /api/admin/collections` creates one.
+
+---
+
+### 15. Packet Auto-Save & Builder State Persistence
+**Established: 2026-04-09**
+
+#### The Problem
+Previously, closing or navigating away from the builder lost all unsaved settings. Every admin session started from scratch — slider positions, text blocks, font choices, and background selections had to be re-entered.
+
+#### The Solution
+Every change the admin makes in the builder is automatically written back to the active packet (debounced 1.5 seconds after the last change). This makes the packet a live session checkpoint. Return to a packet and the builder restores exactly where you left off — X at 54%, Y at 30%, every setting intact.
+
+#### What Is Saved
+All `content` fields are persisted in a `builderSnapshot` object on the packet document:
+- Landing page text blocks (position, font, color, size, stroke)
+- Graphic zone text (header/footer position and style)
+- Background reference
+- QR position, size, and offset settings
+- Area image settings
+- All other `ContentData` fields
+
+**Excluded from snapshot:** Non-serializable runtime fields (`playMediaFile: File`) and large data URLs (`playMediaPreview`) are stripped before writing.
+
+#### When Auto-Save Activates
+Auto-save begins only after a packet document exists. The flow:
+1. Admin configures builder settings
+2. Admin clicks "Create Packet"
+3. Packet document is created in Firestore and `activePacketId` is set in BuilderContext
+4. From that point forward, every content change triggers the 1.5s debounced PATCH to `builderSnapshot`
+
+Before a packet exists, nothing is written. This avoids creating orphan snapshots.
+
+#### Restoring State
+When an admin opens an existing packet, the `builderSnapshot` is read and hydrated back into the builder context. All positions, text blocks, font choices, background — everything is restored exactly as left.
+
+#### Intentional Fork ("Save as New Instance")
+Auto-save updates the same packet continuously. When the admin wants a deliberate variation, a "save as new instance" action creates a new packet document seeded from the current `builderSnapshot`. The two packets are then independent — changes to one do not affect the other.
+
+#### Design Rule
+The packet is the working state, not just the output artifact. The admin should never lose work between sessions. The builder is stateful from the moment a packet is created.
 
 ---
 
