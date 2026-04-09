@@ -1,7 +1,10 @@
-import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer } from "lucide-react";
+import { useState } from "react";
+import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer, ChevronDown, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { QR_ONLY_PLACEMENTS, BRANDING_PLACEMENTS, type PlacementSize, type ProductColor, type PlacementMethodOption } from "../types";
 
 const SIZE_OPTIONS: { value: PlacementSize; label: string }[] = [
@@ -20,71 +23,61 @@ const METHOD_DESCRIPTIONS: Record<string, string> = {
   dtf: "Direct-to-Film (heat transfer, more vibrant)",
 };
 
-export function PlacementModule() {
-  const { state, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor } = useBuilderContext();
-  
-  if (!state.qrProductState || !state.selectedProduct) {
-    return null;
-  }
+function ColorSection({
+  availableColors,
+  selectedColor,
+  onSelect,
+}: {
+  availableColors: ProductColor[];
+  selectedColor: { name: string; hex: string } | null;
+  onSelect: (color: ProductColor) => void;
+}) {
+  const [open, setOpen] = useState(false);
 
-  const productPlacements = state.selectedProduct.placements;
-  const hasApiPlacements = productPlacements && productPlacements.length > 0;
-  const isLoading = state.placementsLoading;
-  
-  const allPlacementOptions = hasApiPlacements
-    ? productPlacements.map(p => ({
-        id: p.id || p.type,
-        label: p.title || p.id?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        additionalPrice: p.additionalPrice || 0,
-        methods: p.methods || [] as PlacementMethodOption[],
-      }))
-    : [];
-  
-  const placementOptions = allPlacementOptions.filter(
-    p => !(BRANDING_PLACEMENTS as string[]).includes(p.id)
-  );
-  const hasBrandingPlacement = allPlacementOptions.some(
-    p => (BRANDING_PLACEMENTS as string[]).includes(p.id)
-  );
-  
-  const selectedPlacements = state.selectedPlacements || [];
-  const placementConfig = state.placementConfig || {};
-  const placementSizes = state.placementSizes || {};
-  const selectedCount = selectedPlacements.length;
-  const isQrBasics = state.qrProductState === "qr_basics";
-  // Graphic toggle for Plus/Canvas/Play/Dynamics - NOT for Basics
-  const showPlacementTypeToggle = !isQrBasics;
-  
-  const availableColors: ProductColor[] = state.selectedProduct?.availableColors || [];
-  const selectedColor = state.selectedColor;
+  if (availableColors.length === 0) return null;
 
   return (
-    <CollapsibleModule
-      title="Placement"
-      icon={<MapPin className="h-4 w-4" />}
-      className="bg-muted/30"
-      defaultOpen
-    >
-      <div className="space-y-4">
-        {availableColors.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Shirt Background Color</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {availableColors.slice(0, 12).map((color) => {
+    <div className="rounded-md border bg-muted/30 overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center gap-2 px-3 py-2.5 text-left"
+        onClick={() => setOpen(o => !o)}
+        data-testid="button-color-accordion"
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        )}
+        <Palette className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <span className="text-sm font-medium flex-1">Background Color</span>
+        {selectedColor && (
+          <span className="flex items-center gap-1.5 flex-shrink-0">
+            <span
+              className="inline-block w-4 h-4 rounded-sm border border-border"
+              style={{ backgroundColor: selectedColor.hex }}
+            />
+            <span className="text-xs text-muted-foreground">{selectedColor.name}</span>
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 pt-1 border-t">
+          <div className="overflow-x-auto -mx-1 pb-1">
+            <div className="flex gap-2 px-1 w-max">
+              {availableColors.map((color) => {
                 const isSelected = selectedColor?.hex === color.hex;
                 return (
                   <button
                     key={color.hex}
                     type="button"
-                    onClick={() => setSelectedColor(color)}
+                    onClick={() => onSelect(color)}
                     className={`
-                      w-10 h-10 rounded-lg border-2 transition-all
-                      ${isSelected 
-                        ? "border-primary ring-2 ring-primary/30 scale-110" 
-                        : "border-border hover:border-primary/50 hover:scale-105"
+                      w-9 h-9 rounded-md border-2 flex-shrink-0 transition-all
+                      ${isSelected
+                        ? "border-primary ring-2 ring-primary/30 scale-110"
+                        : "border-border hover:border-primary/50"
                       }
                     `}
                     style={{ backgroundColor: color.hex }}
@@ -93,55 +86,124 @@ export function PlacementModule() {
                   />
                 );
               })}
-              {availableColors.length > 12 && (
-                <span className="text-xs text-muted-foreground self-center ml-1">
-                  +{availableColors.length - 12} more
-                </span>
-              )}
             </div>
-            {selectedColor && (
-              <p className="text-xs text-muted-foreground">
-                Selected: <span className="font-medium">{selectedColor.name}</span>
-              </p>
-            )}
           </div>
-        )}
+          <p className="text-xs text-muted-foreground mt-2">
+            {availableColors.length} colors — swipe to see all
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function PlacementModule() {
+  const { state, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor } = useBuilderContext();
+  const isMobile = useIsMobile();
+
+  if (!state.qrProductState || !state.selectedProduct) {
+    return null;
+  }
+
+  const productPlacements = state.selectedProduct.placements;
+  const hasApiPlacements = productPlacements && productPlacements.length > 0;
+  const isLoading = state.placementsLoading;
+
+  const allPlacementOptions = hasApiPlacements
+    ? productPlacements.map(p => ({
+        id: p.id || p.type,
+        label: p.title || p.id?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        additionalPrice: p.additionalPrice || 0,
+        methods: p.methods || [] as PlacementMethodOption[],
+      }))
+    : [];
+
+  const placementOptions = allPlacementOptions.filter(
+    p => !(BRANDING_PLACEMENTS as string[]).includes(p.id)
+  );
+  const hasBrandingPlacement = allPlacementOptions.some(
+    p => (BRANDING_PLACEMENTS as string[]).includes(p.id)
+  );
+
+  const selectedPlacements = state.selectedPlacements || [];
+  const placementConfig = state.placementConfig || {};
+  const placementSizes = state.placementSizes || {};
+  const selectedCount = selectedPlacements.length;
+  const isQrBasics = state.qrProductState === "qr_basics";
+  const showPlacementTypeToggle = !isQrBasics;
+
+  const availableColors: ProductColor[] = state.selectedProduct?.availableColors || [];
+  const selectedColor = state.selectedColor;
+
+  const badge = (
+    <div className="flex items-center gap-1.5">
+      {selectedCount > 0 && (
+        <Badge variant="secondary" className="text-xs">
+          {selectedCount} placement{selectedCount !== 1 ? "s" : ""}
+        </Badge>
+      )}
+      {selectedColor && (
+        <span className="flex items-center gap-1 flex-shrink-0">
+          <span
+            className="inline-block w-3.5 h-3.5 rounded-sm border border-border"
+            style={{ backgroundColor: selectedColor.hex }}
+          />
+          <span className="text-xs text-muted-foreground hidden sm:inline">{selectedColor.name}</span>
+        </span>
+      )}
+    </div>
+  );
+
+  return (
+    <CollapsibleModule
+      title="Placement"
+      icon={<MapPin className="h-4 w-4" />}
+      badge={badge}
+      className="bg-muted/30"
+      defaultOpen={!isMobile}
+    >
+      <div className="space-y-4">
+        <ColorSection
+          availableColors={availableColors}
+          selectedColor={selectedColor}
+          onSelect={setSelectedColor}
+        />
 
         <p className="text-sm text-muted-foreground">
-          {showPlacementTypeToggle 
+          {showPlacementTypeToggle
             ? "Select placement locations, choose Graphic or QR, and pick the size for each spot."
-            : "Select where to place your design and pick the size. You can select multiple locations."
+            : "Select where to place your design and pick the size."
           }
         </p>
-        
+
         {isLoading && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>Loading placements from {state.selectedProduct.fulfillmentProvider || 'provider'}...</span>
           </div>
         )}
-        
+
         {!isLoading && hasApiPlacements && (
           <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
             <Check className="h-3 w-3" />
             <span>{placementOptions.length} placement{placementOptions.length !== 1 ? 's' : ''} from {state.selectedProduct.fulfillmentProvider || 'provider'}</span>
           </div>
         )}
-        
+
         {!isLoading && !hasApiPlacements && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
             <AlertCircle className="h-3 w-3" />
             <span>No placements found from printer — this product may not support custom printing</span>
           </div>
         )}
-        
+
         {!isLoading && hasBrandingPlacement && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <QrCode className="h-3 w-3" />
             <span>QR Gear neck tag auto-included on this product</span>
           </div>
         )}
-        
+
         <div className="space-y-3">
           {placementOptions.map((placement) => {
             const isSelected = selectedPlacements.includes(placement.id);
@@ -150,27 +212,25 @@ export function PlacementModule() {
             const isQrOnly = (QR_ONLY_PLACEMENTS as string[]).includes(placement.id);
             const hasMethods = placement.methods && placement.methods.length > 1;
             const selectedMethod = state.placementMethods[placement.id] || (placement.methods?.[0]?.method ?? 'dtg');
-            
+
             return (
               <div key={placement.id} className="space-y-2">
                 <button
                   type="button"
                   onClick={() => togglePlacement(placement.id)}
                   className={`
-                    w-full relative flex items-center justify-between gap-2 
-                    min-h-[48px] px-4 py-3 rounded-lg border-2 
+                    w-full relative flex items-center justify-between gap-2
+                    min-h-[48px] px-4 py-3 rounded-lg border-2
                     text-sm font-medium transition-all
-                    ${isSelected 
-                      ? "border-primary bg-primary/10 text-primary" 
+                    ${isSelected
+                      ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-background hover:border-primary/50 hover:bg-muted/50"
                     }
                   `}
                   data-testid={`button-placement-${placement.id}`}
                 >
                   <div className="flex items-center gap-2">
-                    {isSelected && (
-                      <Check className="h-4 w-4 flex-shrink-0" />
-                    )}
+                    {isSelected && <Check className="h-4 w-4 flex-shrink-0" />}
                     <span>{placement.label}</span>
                   </div>
                   {isSelected && (
@@ -186,7 +246,7 @@ export function PlacementModule() {
                     </div>
                   )}
                 </button>
-                
+
                 {isSelected && (
                   <div className="ml-4 space-y-2">
                     {showPlacementTypeToggle && !isQrOnly && (
@@ -215,14 +275,14 @@ export function PlacementModule() {
                         </Button>
                       </div>
                     )}
-                    
+
                     {showPlacementTypeToggle && isQrOnly && (
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
                         <QrCode className="h-3 w-3" />
                         This placement only supports QR codes
                       </div>
                     )}
-                    
+
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">Size:</span>
                       <div className="flex gap-1">
