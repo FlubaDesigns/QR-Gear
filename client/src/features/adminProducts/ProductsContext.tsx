@@ -10,7 +10,8 @@ import type {
   Role,
   RoleType,
   Store,
-  Channel
+  Channel,
+  Collection
 } from "./shared/types";
 
 const ProductsContext = createContext<ProductsContextValue | null>(null);
@@ -38,6 +39,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const [selectedRole, setSelectedRoleState] = useState<RoleType | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<Store | null>(null);
   const [selectedChannel, setSelectedChannelState] = useState<Channel | null>(null);
+  const [selectedCollection, setSelectedCollectionState] = useState<Collection | null>(null);
 
   // Fetch actual provider configuration from API
   const { data: apiProviders } = useQuery<FulfillmentProvider[]>({
@@ -76,6 +78,11 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
   const setSelectedChannel = useCallback((channel: Channel | null) => {
     setSelectedChannelState(channel);
+    setSelectedCollectionState(null);
+  }, []);
+
+  const setSelectedCollection = useCallback((collection: Collection | null) => {
+    setSelectedCollectionState(collection);
   }, []);
 
   useEffect(() => {
@@ -159,6 +166,29 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
         return res.json();
       },
 
+      fetchCollections: async (storeId: string, channelId: string): Promise<Collection[]> => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channelId}/collections`, { headers });
+        if (!res.ok) {
+          if (res.status === 404) return [];
+          throw new Error(`Failed to fetch collections: ${res.status}`);
+        }
+        const data = await res.json();
+        return (data.collections || []).map((name: string) => ({ name }));
+      },
+
+      createCollection: async (storeId: string, channelId: string, name: string): Promise<Collection> => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channelId}/collections`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        if (!res.ok) throw new Error(`Failed to create collection: ${res.status}`);
+        const data = await res.json();
+        return { name: data.name || name };
+      },
+
       fetchLibraryAssets: async (assetType: string): Promise<any[]> => {
         const headers = await getAuthHeaders();
         const res = await fetch(`${apiBase}/background-assets?type=${assetType}`, { headers });
@@ -185,6 +215,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       setSelectedStore,
       selectedChannel,
       setSelectedChannel,
+      selectedCollection,
+      setSelectedCollection,
     }),
     [
       requiresAuth, 
@@ -198,6 +230,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       setSelectedStore,
       selectedChannel,
       setSelectedChannel,
+      selectedCollection,
+      setSelectedCollection,
     ]
   );
 

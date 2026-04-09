@@ -46,6 +46,10 @@ export interface Channel {
   productCount?: number;
 }
 
+export interface Collection {
+  name: string;
+}
+
 export interface LibraryAsset {
   id: string;
   name: string;
@@ -67,6 +71,8 @@ export interface ProductsApi {
   syncCatalog: (provider?: string) => Promise<{ synced: number }>;
   fetchStores: (roleType: RoleType) => Promise<Store[]>;
   fetchChannels: (storeId: string) => Promise<Channel[]>;
+  fetchCollections: (storeId: string, channelId: string) => Promise<Collection[]>;
+  createCollection: (storeId: string, channelId: string, name: string) => Promise<Collection>;
   fetchLibraryAssets: (assetType: string) => Promise<LibraryAsset[]>;
 }
 
@@ -82,5 +88,7 @@ export interface ProductsContextValue {
   setSelectedStore: (store: Store | null) => void;
   selectedChannel: Channel | null;
   setSelectedChannel: (channel: Channel | null) => void;
+  selectedCollection: Collection | null;
+  setSelectedCollection: (collection: Collection | null) => void;
   roles: Role[];
 }

@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Store, Plus, Trash2, Loader2, Hash, Users } from "lucide-react";
+import { Store, Plus, Trash2, Loader2, Hash, Users, Layers } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useProductsContext } from "../ProductsContext";
-import type { Store as StoreType, Channel, RoleType } from "../shared/types";
+import type { Store as StoreType, Channel, Collection, RoleType } from "../shared/types";
 
 export function StoreChannelDropdownModule() {
   const { 
@@ -13,13 +13,17 @@ export function StoreChannelDropdownModule() {
     selectedStore,
     setSelectedStore, 
     selectedChannel, 
-    setSelectedChannel 
+    setSelectedChannel,
+    selectedCollection,
+    setSelectedCollection,
   } = useProductsContext();
 
   const [showAddStore, setShowAddStore] = useState(false);
   const [showAddChannel, setShowAddChannel] = useState(false);
+  const [showAddCollection, setShowAddCollection] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
   const [newChannelName, setNewChannelName] = useState("");
+  const [newCollectionName, setNewCollectionName] = useState("");
 
   const queryClient = useQueryClient();
 
@@ -50,6 +54,15 @@ export function StoreChannelDropdownModule() {
     enabled: !!selectedStore,
   });
 
+  const { data: collections = [], isLoading: loadingCollections } = useQuery<Collection[]>({
+    queryKey: ["collections", selectedStore?.id, selectedChannel?.id],
+    queryFn: () =>
+      selectedStore && selectedChannel
+        ? api.fetchCollections(selectedStore.id, selectedChannel.id)
+        : Promise.resolve([]),
+    enabled: !!selectedStore && !!selectedChannel,
+  });
+
   const isLoading = loadingInternal || loadingExternal || loadingMember;
 
   const filteredStores = useMemo(() => {
@@ -77,6 +90,12 @@ export function StoreChannelDropdownModule() {
     icon: <Hash className="h-4 w-4 flex-shrink-0" />,
   }));
 
+  const collectionOptions = collections.map(col => ({
+    value: col.name,
+    label: col.name,
+    icon: <Layers className="h-4 w-4 flex-shrink-0" />,
+  }));
+
   const handleRoleChange = (role: string) => {
     setSelectedRole(role as RoleType);
     setSelectedStore(null);
@@ -96,6 +115,14 @@ export function StoreChannelDropdownModule() {
     const channel = channels.find(c => c.id === channelId);
     if (channel) {
       setSelectedChannel(channel);
+    }
+  };
+
+  const handleCollectionChange = (name: string) => {
+    if (!name) {
+      setSelectedCollection(null);
+    } else {
+      setSelectedCollection({ name });
     }
   };
 
@@ -175,6 +202,17 @@ export function StoreChannelDropdownModule() {
     },
   });
 
+  const createCollectionMutation = useMutation({
+    mutationFn: async ({ storeId, channelId, name }: { storeId: string; channelId: string; name: string }) =>
+      api.createCollection(storeId, channelId, name),
+    onSuccess: (newCollection) => {
+      queryClient.invalidateQueries({ queryKey: ["collections", selectedStore?.id, selectedChannel?.id] });
+      setNewCollectionName("");
+      setShowAddCollection(false);
+      setSelectedCollection(newCollection);
+    },
+  });
+
   const handleAddStore = () => {
     if (!newStoreName.trim() || !selectedRole) return;
     createStoreMutation.mutate({ name: newStoreName.trim(), roleType: selectedRole });
@@ -188,6 +226,11 @@ export function StoreChannelDropdownModule() {
   const handleAddChannel = () => {
     if (!newChannelName.trim() || !selectedStore) return;
     createChannelMutation.mutate({ storeId: selectedStore.id, name: newChannelName.trim() });
+  };
+
+  const handleAddCollection = () => {
+    if (!newCollectionName.trim() || !selectedStore || !selectedChannel) return;
+    createCollectionMutation.mutate({ storeId: selectedStore.id, channelId: selectedChannel.id, name: newCollectionName.trim() });
   };
 
   const handleDeleteChannel = () => {
@@ -287,6 +330,31 @@ export function StoreChannelDropdownModule() {
             )}
           </div>
         </div>
+
+        {selectedChannel && (
+          <div className="flex-1 min-w-[180px]">
+            <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Collection</label>
+            <div className="flex gap-2">
+              <CustomDropdown
+                value={selectedCollection?.name || ""}
+                onChange={handleCollectionChange}
+                options={collectionOptions}
+                placeholder="All products..."
+                loading={loadingCollections}
+                className="flex-1"
+                data-testid="select-collection"
+              />
+              <button
+                onClick={() => setShowAddCollection(!showAddCollection)}
+                className="qr-btn qr-btn--icon-touch qr-btn--outline"
+                title="Add Collection"
+                data-testid="button-add-collection"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showAddStore && selectedRole && (
@@ -371,6 +439,47 @@ export function StoreChannelDropdownModule() {
         </div>
       )}
 
+      {showAddCollection && selectedStore && selectedChannel && (
+        <div className="flex flex-col gap-3 p-4 glass-button rounded-lg">
+          <p className="glass-subtitle text-sm">
+            Add collection to #{selectedChannel.name}:
+          </p>
+          <input
+            type="text"
+            placeholder="Collection name..."
+            value={newCollectionName}
+            onChange={(e) => setNewCollectionName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddCollection()}
+            className="w-full min-h-12 text-base px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-ice-2"
+            inputMode="text"
+            autoComplete="off"
+            autoCapitalize="words"
+            spellCheck="false"
+            enterKeyHint="done"
+            data-testid="input-new-collection"
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={handleAddCollection}
+              disabled={!newCollectionName.trim() || createCollectionMutation.isPending}
+              className="qr-btn qr-btn--primary qr-btn--touch flex-1"
+              data-testid="button-save-collection"
+            >
+              {createCollectionMutation.isPending ? (
+                <><Loader2 className="h-5 w-5 animate-spin mr-2" /> Saving...</>
+              ) : "Save Collection"}
+            </button>
+            <button
+              onClick={() => { setShowAddCollection(false); setNewCollectionName(""); }}
+              className="qr-btn qr-btn--ghost qr-btn--touch flex-1"
+              data-testid="button-cancel-collection"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {(selectedRole || selectedStore || selectedChannel) && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
           {selectedRole && (
@@ -386,6 +495,11 @@ export function StoreChannelDropdownModule() {
           {selectedChannel && (
             <span className="px-3 py-1 rounded-full bg-ice-3/20 text-sm glass-body">
               #{selectedChannel.name}
+            </span>
+          )}
+          {selectedCollection && (
+            <span className="px-3 py-1 rounded-full bg-purple-500/20 text-sm glass-body">
+              <Layers className="h-3 w-3 inline mr-1" />{selectedCollection.name}
             </span>
           )}
         </div>
