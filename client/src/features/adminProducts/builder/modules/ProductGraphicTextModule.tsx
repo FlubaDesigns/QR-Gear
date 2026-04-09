@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import {
   MIN_SAFE_QR_SIZE_PERCENT,
@@ -709,20 +710,20 @@ export function ProductGraphicTextModule() {
                 />
               </div>
               <p className="text-xs text-muted-foreground mb-2">
-                Small label below the QR code (max 15 chars)
+                Small label below the QR code (max 20 chars)
               </p>
               {state.content.subBottomEnabled && (
                 <div className="space-y-3">
                   <div>
                     <Input
                       value={state.content.subBottomText || ''}
-                      onChange={(e) => setContent({ subBottomText: e.target.value.slice(0, 15) })}
+                      onChange={(e) => setContent({ subBottomText: e.target.value.slice(0, 20) })}
                       placeholder="Scan Me"
-                      maxLength={15}
+                      maxLength={20}
                       data-testid="input-sub-bottom-text"
                     />
                     <div className="flex justify-end mt-1">
-                      <span className="text-xs text-muted-foreground">{(state.content.subBottomText || '').length} / 15</span>
+                      <span className="text-xs text-muted-foreground">{(state.content.subBottomText || '').length} / 20</span>
                     </div>
                   </div>
                   <div>
@@ -740,7 +741,7 @@ export function ProductGraphicTextModule() {
                   </div>
                   <div>
                     <Label className="text-sm mb-1.5 block text-muted-foreground">Size</Label>
-                    <div className="flex flex-col items-center gap-2 py-1">
+                    <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="10"
@@ -748,19 +749,35 @@ export function ProductGraphicTextModule() {
                         value={parseInt(state.content.subBottomFontSize || '14', 10)}
                         onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) setContent({ subBottomFontSize: String(v) }); }}
                         onBlur={(e) => { const v = Math.min(48, Math.max(10, parseInt(e.target.value, 10) || 14)); setContent({ subBottomFontSize: String(v) }); }}
-                        className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
+                        className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background flex-shrink-0"
                         data-testid="input-sub-bottom-size-num"
                       />
-                      <input
-                        type="range"
-                        min="10"
-                        max="48"
-                        value={parseInt(state.content.subBottomFontSize || '14', 10)}
-                        onChange={(e) => setContent({ subBottomFontSize: e.target.value })}
-                        style={{ writingMode: 'vertical-lr', direction: 'rtl', height: '100px', cursor: 'pointer', touchAction: 'none' } as React.CSSProperties}
-                        data-testid="slider-sub-bottom-size"
-                      />
-                      <span className="text-xs text-muted-foreground">pt</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">pt</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button size="icon" variant="outline" data-testid="button-sub-bottom-size-slider">
+                            <Maximize2 className="w-4 h-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-60 p-4" side="top" align="start">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">10pt</span>
+                              <span className="text-sm font-semibold">{parseInt(state.content.subBottomFontSize || '14', 10)}pt</span>
+                              <span className="text-xs text-muted-foreground">48pt</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="10"
+                              max="48"
+                              value={parseInt(state.content.subBottomFontSize || '14', 10)}
+                              onChange={(e) => setContent({ subBottomFontSize: e.target.value })}
+                              className="w-full"
+                              data-testid="slider-sub-bottom-size"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
