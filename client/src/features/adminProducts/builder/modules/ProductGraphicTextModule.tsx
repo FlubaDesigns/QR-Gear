@@ -653,7 +653,7 @@ export function ProductGraphicTextModule() {
             type="button"
             onClick={() => setContent({ graphicLayoutMode: "zone" })}
             className={`flex-1 flex items-center justify-center gap-2 min-h-[40px] rounded-sm text-sm font-medium transition-colors ${
-              (state.content.graphicLayoutMode || "zone") === "zone"
+              state.content.graphicLayoutMode === "zone"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
@@ -677,14 +677,22 @@ export function ProductGraphicTextModule() {
           </button>
         </div>
 
-        {(state.content.graphicLayoutMode || "zone") === "zone" ? (
+        {!state.content.graphicLayoutMode && (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            Pick a layout mode above to continue.
+          </p>
+        )}
+
+        {state.content.graphicLayoutMode === "zone" && (
           <ZoneEditor
             state={state}
             setContent={setContent}
             openLibraryFor={openLibraryFor}
             setSaveImageDataUrl={setSaveImageDataUrl}
           />
-        ) : (
+        )}
+
+        {state.content.graphicLayoutMode === "freeform" && (
           <div className="space-y-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
