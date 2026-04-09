@@ -103,8 +103,8 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     const qrTop    = qrCenterY - qrSize / 2;
     const qrBottom = qrTop + qrSize;
 
-    // 3. Consistent gap between QR and surrounding zones
-    const zonePadding = Math.max(16, qrSize * 0.10);
+    // 3. Fixed gap between QR and surrounding zones (print-safe, minimal)
+    const zonePadding = 20;
 
     // 4. Sub-bottom strip hugs directly below QR (only when enabled)
     const subBottomHeight = subBottomActive ? Math.max(24, qrSize * 0.12) : 0;
@@ -131,8 +131,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     };
 
     // 8. Footer zone: below sub-bottom (or QR) down to bleed bottom
-    //    Use half-padding gap when sub-bottom is active (it's already a separator)
-    const footerPad = subBottomActive ? zonePadding * 0.5 : zonePadding;
+    const footerPad = zonePadding;
     const footerY   = qrBottom + subBottomHeight + footerPad;
     const footerZone: Rect = {
       x: SX, y: footerY,

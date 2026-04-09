@@ -132,8 +132,8 @@ async function cfGenerateCompositeImage(options) {
         // QR background box centered on canvas
         const qrBgTopZone = Math.round(safeY + safeH / 2 - qrBgSizeZone / 2);
         const qrBgBottomZone = qrBgTopZone + qrBgSizeZone;
-        // Consistent gap between QR box and header/footer content
-        const zonePaddingZone = Math.max(16, Math.round(qrBgSizeZone * 0.08));
+        // Fixed gap between QR box and header/footer content (print-safe, minimal)
+        const zonePaddingZone = 20;
         const subBottomHeightZone = subBottomActive
             ? Math.max(24, Math.round(qrBgSizeZone * 0.12))
             : 0;
@@ -143,9 +143,7 @@ async function cfGenerateCompositeImage(options) {
         qrZoneHeight = qrBgSizeZone; // = full background box size
         subBottomZoneTop = qrBgBottomZone;
         subBottomZoneHeight = subBottomHeightZone;
-        const footerPadZone = subBottomActive
-            ? Math.round(zonePaddingZone * 0.5)
-            : zonePaddingZone;
+        const footerPadZone = zonePaddingZone;
         footerZoneTop = qrBgBottomZone + subBottomHeightZone + footerPadZone;
         footerZoneHeight = Math.max(0, (safeY + safeH) - footerZoneTop);
     }
