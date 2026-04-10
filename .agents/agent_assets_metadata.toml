@@ -24,3 +24,9 @@ id = "zZM-ngc-PqvNmOytKfNA6"
 uri = "file://downloads/qr-gear-full-project.zip"
 type = "unspecified"
 title = "QR Gear Full Project"
+
+[[outputs]]
+id = "cu3a2sIGvRvwooslCnuFQ"
+uri = "file://docs/DESCRIPTION_TITLE_PRESERVATION.md"
+type = "text"
+title = "Description & Title Preservation — Task Spec"
