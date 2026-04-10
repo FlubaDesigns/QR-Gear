@@ -32,6 +32,7 @@ import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
+import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
 
 interface AdminCatalog {
   id: string;
@@ -122,7 +123,7 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, api } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
 
@@ -158,15 +159,13 @@ export function ProductsModule() {
   const { data: masterCatalogAllProducts = [], isLoading: loadingCatalogProducts } = useQuery<CatalogProduct[]>({
     queryKey: ["all-catalog-products", "master"],
     queryFn: async () => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/master-catalog`, { headers });
-      if (!res.ok) return [];
+      const res = await apiRequest("GET", "/api/master-catalog");
       const data = (await res.json()) as CatalogCategoryResponse[];
       const items: CatalogProduct[] = [];
       const seen = new Set<string>();
       for (const cat of data) {
         for (const item of (cat.items || [])) {
-          const key = item.fulfillmentProvider === 'printful' ? `pf:${item.id}` : String(item.id);
+          const key = getCanonicalBlankKey(item);
           if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }
@@ -177,11 +176,8 @@ export function ProductsModule() {
   });
 
   const catalogModeProducts = useMemo(() => {
-    const catalogSet = new Set(activeCatalog?.blankIds.map(String) || []);
-    return masterCatalogAllProducts.filter(p => {
-      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
-      return catalogSet.has(blankKey);
-    });
+    const catalogSet = new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id)));
+    return masterCatalogAllProducts.filter(p => catalogSet.has(getCanonicalBlankKey(p)));
   }, [masterCatalogAllProducts, activeCatalog]);
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
@@ -208,9 +204,7 @@ export function ProductsModule() {
   const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
     queryKey: ["catalog-categories", "master"],
     queryFn: async () => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/master-catalog`, { headers });
-      if (!res.ok) return [];
+      const res = await apiRequest("GET", "/api/master-catalog");
       const data = await res.json();
       return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
         name: cat.name,
@@ -239,10 +233,8 @@ export function ProductsModule() {
     queryKey: ["catalog-products", "master", state.category],
     queryFn: async () => {
       if (!state.category) return null;
-      const headers = await api.getAuthHeaders();
       try {
-        const res = await fetch(`${api.baseUrl}/master-catalog`, { headers });
-        if (res.status === 401 || res.status === 403) return null;
+        const res = await apiRequest("GET", "/api/master-catalog");
         if (!res.ok) return null;
         const data = (await res.json()) as CatalogCategoryResponse[];
         return data.find((cat) => cat.name === state.category) || null;
@@ -252,10 +244,6 @@ export function ProductsModule() {
       }
     },
     enabled: !!state.category,
-    retry: (failureCount, err) => {
-      if (err instanceof Error && err.message.includes("Authorization")) return false;
-      return failureCount < 2;
-    },
   });
 
   const products = categoryData?.items || [];
