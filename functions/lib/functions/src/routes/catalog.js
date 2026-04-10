@@ -148,6 +148,8 @@ function register(app) {
                 newCatalog.tierConfig = src.tierConfig;
             if (src.blankDescriptions)
                 newCatalog.blankDescriptions = src.blankDescriptions;
+            if (src.blankTitles)
+                newCatalog.blankTitles = src.blankTitles;
             const doc = await core_1.db.collection('catalogs').add(newCatalog);
             console.log(`[Catalogs] Duplicated catalog "${src.name}" → "${newName}" (${doc.id}), ${(src.blankIds || []).length} blanks`);
             res.json({ id: doc.id, name: newName, description: src.description || '', blankIds: src.blankIds || [], createdAt: new Date().toISOString() });

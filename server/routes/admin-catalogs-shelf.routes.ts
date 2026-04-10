@@ -336,6 +336,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
         blankTiers: {},
         tierConfig: {},
         blankDescriptions: {},
+        blankTitles: {},
       });
       res.json(catalog);
     } catch (error: any) {
@@ -379,6 +380,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
         blankTiers: source.blankTiers || {},
         tierConfig: source.tierConfig || {},
         blankDescriptions: source.blankDescriptions || {},
+        blankTitles: source.blankTitles || {},
       });
       res.json(duplicate);
     } catch (error: any) {
@@ -414,8 +416,9 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       const remaining = (catalog.blankIds || []).filter((id: string) => !removeSet.has(id));
       const blankTiers = { ...(catalog.blankTiers || {}) };
       const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
-      blankIds.forEach((id: string) => { delete blankTiers[String(id)]; delete blankDescriptions[String(id)]; });
-      await fsUpdate("catalogs", req.params.id, { blankIds: remaining, blankTiers, blankDescriptions });
+      const blankTitles = { ...(catalog.blankTitles || {}) };
+      blankIds.forEach((id: string) => { delete blankTiers[String(id)]; delete blankDescriptions[String(id)]; delete blankTitles[String(id)]; });
+      await fsUpdate("catalogs", req.params.id, { blankIds: remaining, blankTiers, blankDescriptions, blankTitles });
       res.json({ success: true, removed: blankIds.length, total: remaining.length });
     } catch (error: any) {
       console.error("[Catalogs] Remove blanks error:", error);
@@ -476,6 +479,26 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, blankDescriptions });
     } catch (error: any) {
       console.error("[Catalogs] Set blank description error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/catalogs/:id/blank-title", isAdmin, async (req: any, res) => {
+    try {
+      const { blankId, title } = req.body;
+      if (!blankId) return res.status(400).json({ error: "blankId is required" });
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const blankTitles = { ...(catalog.blankTitles || {}) };
+      if (title) {
+        blankTitles[String(blankId)] = title;
+      } else {
+        delete blankTitles[String(blankId)];
+      }
+      await fsUpdate("catalogs", req.params.id, { blankTitles });
+      res.json({ success: true, blankTitles });
+    } catch (error: any) {
+      console.error("[Catalogs] Set blank title error:", error);
       res.status(500).json({ error: error.message });
     }
   });

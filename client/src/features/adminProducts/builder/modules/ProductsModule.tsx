@@ -29,6 +29,7 @@ interface AdminCatalog {
   name: string;
   blankIds: string[];
   blankDescriptions?: Record<string, string>;
+  blankTitles?: Record<string, string>;
 }
 
 type LocationFilter = "all" | "usa" | "other";
@@ -68,18 +69,26 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
 function catalogToSelectItem(
   p: CatalogProduct,
   adminCatalogDescription?: string | null,
+  adminCatalogTitle?: string | null,
 ): ProductSelectItem {
   const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
   const raw = p as any;
   const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
   const providerDescription = p.description || null;
-  const normalizedAdmin = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
+  const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
     ? adminCatalogDescription
     : null;
-  const effectiveDescription = normalizedAdmin ?? providerDescription;
+  const effectiveDescription = normalizedAdminDesc ?? providerDescription;
+  const providerTitle = p.title || raw.name || "";
+  const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0
+    ? adminCatalogTitle
+    : null;
+  const effectiveTitle = normalizedAdminTitle ?? providerTitle;
   return {
     id: String(p.id),
-    name: p.title || raw.name || "",
+    name: effectiveTitle,
+    providerTitle,
+    adminCatalogTitle: normalizedAdminTitle,
     price: minPrice,
     cost: null,
     manufacturer: p.brand || raw.manufacturer || null,
@@ -96,10 +105,6 @@ function catalogToSelectItem(
   };
 }
 
-function parseBlankId(blankId: string): { provider: string; id: string } {
-  if (blankId.startsWith("pf:")) return { provider: "printful", id: blankId.slice(3) };
-  return { provider: "printify", id: blankId };
-}
 
 interface CatalogCategoryResponse {
   name: string;
@@ -128,25 +133,6 @@ export function ProductsModule() {
     ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
     : null;
 
-  const catalogProviders = useMemo(() => {
-    if (!activeCatalog) return new Set<string>();
-    const providers = new Set<string>();
-    for (const blankId of activeCatalog.blankIds) {
-      providers.add(parseBlankId(blankId).provider);
-    }
-    return providers;
-  }, [activeCatalog]);
-
-  const catalogBlanksByProvider = useMemo(() => {
-    if (!activeCatalog) return new Map<string, Set<string>>();
-    const map = new Map<string, Set<string>>();
-    for (const blankId of activeCatalog.blankIds) {
-      const { provider: prov, id } = parseBlankId(blankId);
-      if (!map.has(prov)) map.set(prov, new Set());
-      map.get(prov)!.add(id);
-    }
-    return map;
-  }, [activeCatalog]);
 
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
@@ -158,71 +144,34 @@ export function ProductsModule() {
     }
   }, [selectProduct]);
 
-  const { data: printfulCatalogProducts = [], isLoading: loadingPrintful } = useQuery<CatalogProduct[]>({
-    queryKey: ["all-catalog-products", "printful"],
+  const { data: masterCatalogAllProducts = [], isLoading: loadingCatalogProducts } = useQuery<CatalogProduct[]>({
+    queryKey: ["all-catalog-products", "master"],
     queryFn: async () => {
       const headers = await api.getAuthHeaders();
-      const endpoint = `${api.baseUrl}/catalog/printful-products`;
-      const res = await fetch(endpoint, { headers });
+      const res = await fetch(`${api.baseUrl}/master-catalog`, { headers });
       if (!res.ok) return [];
       const data = (await res.json()) as CatalogCategoryResponse[];
       const items: CatalogProduct[] = [];
-      const seen = new Set<number>();
+      const seen = new Set<string>();
       for (const cat of data) {
         for (const item of (cat.items || [])) {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            items.push({ ...item, fulfillmentProvider: 'printful' as any });
-          }
+          const key = item.fulfillmentProvider === 'printful' ? `pf:${item.id}` : String(item.id);
+          if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }
       return items;
     },
-    enabled: dataMode === "catalog" && catalogProviders.has("printful"),
+    enabled: dataMode === "catalog",
     staleTime: 60000,
   });
 
-  const { data: printifyCatalogProducts = [], isLoading: loadingPrintify } = useQuery<CatalogProduct[]>({
-    queryKey: ["all-catalog-products", "printify"],
-    queryFn: async () => {
-      const headers = await api.getAuthHeaders();
-      const endpoint = `${api.baseUrl}/printify/catalog`;
-      const res = await fetch(endpoint, { headers });
-      if (!res.ok) return [];
-      const data = (await res.json()) as CatalogCategoryResponse[];
-      const items: CatalogProduct[] = [];
-      const seen = new Set<number>();
-      for (const cat of data) {
-        for (const item of (cat.items || [])) {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            items.push(item);
-          }
-        }
-      }
-      return items;
-    },
-    enabled: dataMode === "catalog" && catalogProviders.has("printify"),
-  });
-
-  const loadingCatalogProducts = loadingPrintful || loadingPrintify;
-
   const catalogModeProducts = useMemo(() => {
-    const results: CatalogProduct[] = [];
-    const printfulIds = catalogBlanksByProvider.get("printful");
-    const printifyIds = catalogBlanksByProvider.get("printify");
-    if (printfulIds) {
-      for (const p of printfulCatalogProducts) {
-        if (printfulIds.has(String(p.id))) results.push(p);
-      }
-    }
-    if (printifyIds) {
-      for (const p of printifyCatalogProducts) {
-        if (printifyIds.has(String(p.id))) results.push(p);
-      }
-    }
-    return results;
-  }, [printfulCatalogProducts, printifyCatalogProducts, catalogBlanksByProvider]);
+    const catalogSet = new Set(activeCatalog?.blankIds.map(String) || []);
+    return masterCatalogAllProducts.filter(p => {
+      const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.id}` : String(p.id);
+      return catalogSet.has(blankKey);
+    });
+  }, [masterCatalogAllProducts, activeCatalog]);
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
     setLocationFilter(loc);
@@ -246,14 +195,10 @@ export function ProductsModule() {
   }, [provider, setCategory, selectProduct]);
 
   const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
-    queryKey: ["catalog-categories", provider],
+    queryKey: ["catalog-categories", "master"],
     queryFn: async () => {
       const headers = await api.getAuthHeaders();
-      let endpoint = "";
-      if (provider === "printify") endpoint = `${api.baseUrl}/printify/catalog`;
-      else if (provider === "printful") endpoint = `${api.baseUrl}/catalog/printful-products`;
-      if (!endpoint) return [];
-      const res = await fetch(endpoint, { headers });
+      const res = await fetch(`${api.baseUrl}/master-catalog`, { headers });
       if (!res.ok) return [];
       const data = await res.json();
       return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
@@ -280,16 +225,12 @@ export function ProductsModule() {
   }));
 
   const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
-    queryKey: ["catalog-products", provider, state.category],
+    queryKey: ["catalog-products", "master", state.category],
     queryFn: async () => {
       if (!state.category) return null;
       const headers = await api.getAuthHeaders();
-      let endpoint = "";
-      if (provider === "printify") endpoint = `${api.baseUrl}/printify/catalog`;
-      else if (provider === "printful") endpoint = `${api.baseUrl}/catalog/printful-products`;
-      if (!endpoint) return null;
       try {
-        const res = await fetch(endpoint, { headers });
+        const res = await fetch(`${api.baseUrl}/master-catalog`, { headers });
         if (res.status === 401 || res.status === 403) return null;
         if (!res.ok) return null;
         const data = (await res.json()) as CatalogCategoryResponse[];
@@ -345,6 +286,7 @@ export function ProductsModule() {
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : filteredProducts;
 
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
+  const blankTitles = activeCatalog?.blankTitles || {};
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
@@ -352,10 +294,11 @@ export function ProductsModule() {
       const withGender = { ...p, gender: detectGender(p.title) };
       const blankKey = p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id);
       const adminDesc = blankDescriptions[blankKey] || null;
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc), catalog: withGender, blankKey });
+      const adminTitle = blankTitles[blankKey] || null;
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts, blankDescriptions]);
+  }, [activeProducts, blankDescriptions, blankTitles]);
 
   const saveDescriptionMutation = useMutation({
     mutationFn: async ({ catalogId, blankId, description }: { catalogId: string; blankId: string; description: string }) => {
@@ -367,6 +310,18 @@ export function ProductsModule() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
     },
     onError: (err: any) => toast({ title: "Error saving description", description: err.message, variant: "destructive" }),
+  });
+
+  const saveTitleMutation = useMutation({
+    mutationFn: async ({ catalogId, blankId, title }: { catalogId: string; blankId: string; title: string }) => {
+      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-title`, { blankId, title });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Title saved" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error saving title", description: err.message, variant: "destructive" }),
   });
 
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
@@ -381,6 +336,16 @@ export function ProductsModule() {
       setProductDescription(description || null);
     }
   }, [activeCatalog, selectItemMap, saveDescriptionMutation, toast, state.selectedProduct, setProductDescription]);
+
+  const handleTitleSave = useCallback(async (id: string, title: string) => {
+    if (!activeCatalog) {
+      toast({ title: "Select a catalog first", variant: "destructive" });
+      return;
+    }
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    await saveTitleMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, title });
+  }, [activeCatalog, selectItemMap, saveTitleMutation, toast]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
@@ -421,10 +386,13 @@ export function ProductsModule() {
           editableDescription={!!activeCatalog}
           onDescriptionSave={handleDescriptionSave}
           descriptionSaving={saveDescriptionMutation.isPending}
+          editableTitle={!!activeCatalog}
+          onTitleSave={handleTitleSave}
+          titleSaving={saveTitleMutation.isPending}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, activeCatalog, handleDescriptionSave, saveDescriptionMutation.isPending]
+    [selectItemMap, selectedProductId, handleCardSelect, activeCatalog, handleDescriptionSave, saveDescriptionMutation.isPending, handleTitleSave, saveTitleMutation.isPending]
   );
 
   return (

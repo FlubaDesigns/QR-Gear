@@ -435,9 +435,9 @@ export default function AdminBlanks() {
     search, setSearch, categoryFilter, setCategoryFilter,
     locationFilter, setLocationFilter, categoryNames,
     catalogItems, sourceItemMap, scrollItems, blankTiers,
-    onToggleItem, onSaveDescription, onTierChange,
+    onToggleItem, onSaveDescription, onSaveTitle, onTierChange,
     isItemInCatalog, getItemMappingBadge, resolveBlankKey,
-    allProductMap, catalogBlankSet, removeBlanksMutation, saveDescriptionMutation,
+    allProductMap, catalogBlankSet, removeBlanksMutation, saveDescriptionMutation, saveTitleMutation,
     totalProductCount, filteredCount, categoryCounts,
   } = ctrl;
 
@@ -464,6 +464,9 @@ export default function AdminBlanks() {
             editableDescription={!!validSelectedCatalogId}
             onDescriptionSave={(id: string, desc: string) => onSaveDescription(id, desc, blankKey)}
             descriptionSaving={saveDescriptionMutation.isPending}
+            editableTitle={!!validSelectedCatalogId}
+            onTitleSave={(id: string, title: string) => onSaveTitle(id, title, blankKey)}
+            titleSaving={saveTitleMutation.isPending}
           />
           {hasMappingBadge && (
             <div className="absolute top-2 right-2 z-10">
@@ -476,7 +479,7 @@ export default function AdminBlanks() {
         </div>
       );
     },
-    [sourceItemMap, allProductMap, catalogBlankSet, onToggleItem, blankTiers, onTierChange, validSelectedCatalogId, getItemMappingBadge, onSaveDescription, saveDescriptionMutation.isPending, resolveBlankKey]
+    [sourceItemMap, allProductMap, catalogBlankSet, onToggleItem, blankTiers, onTierChange, validSelectedCatalogId, getItemMappingBadge, onSaveDescription, saveDescriptionMutation.isPending, onSaveTitle, saveTitleMutation.isPending, resolveBlankKey]
   );
 
   const handleOpenCatalog = useCallback((catalogId: string) => {

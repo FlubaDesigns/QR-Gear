@@ -66,26 +66,15 @@ export function ProductCatalogPicker({
   gridHeight = "min(60vh, 500px)",
 }: ProductCatalogPickerProps) {
   const { data: categories = [], isLoading: loadingCategories } = useQuery<{ name: string; itemCount: number }[]>({
-    queryKey: ["shared-catalog-categories", provider, apiBase],
+    queryKey: ["shared-catalog-categories", "master", apiBase],
     queryFn: async () => {
-      const endpoint = provider === "printify" 
-        ? `${apiBase}/printify/catalog` 
-        : `${apiBase}/catalog/printful-products`;
-      const res = await fetch(endpoint);
+      const res = await fetch(`${apiBase}/master-catalog`);
       if (!res.ok) return [];
       const data = await res.json();
-      
-      if (provider === "printify") {
-        return data.map((cat: { name: string; items?: { id: number }[] }) => ({
-          name: cat.name,
-          itemCount: cat.items?.length || 0,
-        }));
-      } else {
-        return data.map((cat: { name: string; items?: unknown[]; count?: number }) => ({
-          name: cat.name,
-          itemCount: cat.count || cat.items?.length || 0,
-        }));
-      }
+      return data.map((cat: { name: string; items?: unknown[]; count?: number }) => ({
+        name: cat.name,
+        itemCount: cat.count || (cat.items as unknown[])?.length || 0,
+      }));
     },
   });
 
@@ -106,13 +95,10 @@ export function ProductCatalogPicker({
   }));
 
   const { data: categoryData, isLoading: loadingProducts } = useQuery<{ items: CatalogProduct[] } | null>({
-    queryKey: ["shared-catalog-products", provider, category, apiBase],
+    queryKey: ["shared-catalog-products", "master", category, apiBase],
     queryFn: async () => {
       if (!category) return null;
-      const endpoint = provider === "printify" 
-        ? `${apiBase}/printify/catalog` 
-        : `${apiBase}/catalog/printful-products`;
-      const res = await fetch(endpoint);
+      const res = await fetch(`${apiBase}/master-catalog`);
       if (!res.ok) return null;
       const data = await res.json();
       return data.find((cat: { name: string }) => cat.name === category) || null;

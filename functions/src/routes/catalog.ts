@@ -123,6 +123,7 @@ app.post('/admin/catalogs/:catalogId/duplicate', requireAdmin, async (req: Reque
     if (src.blankTiers) newCatalog.blankTiers = src.blankTiers;
     if (src.tierConfig) newCatalog.tierConfig = src.tierConfig;
     if (src.blankDescriptions) newCatalog.blankDescriptions = src.blankDescriptions;
+    if (src.blankTitles) newCatalog.blankTitles = src.blankTitles;
     const doc = await db.collection('catalogs').add(newCatalog);
     console.log(`[Catalogs] Duplicated catalog "${src.name}" → "${newName}" (${doc.id}), ${(src.blankIds || []).length} blanks`);
     res.json({ id: doc.id, name: newName, description: src.description || '', blankIds: src.blankIds || [], createdAt: new Date().toISOString() });

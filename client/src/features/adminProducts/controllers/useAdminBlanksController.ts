@@ -39,6 +39,7 @@ interface AdminCatalog {
   blankTiers?: Record<string, string>;
   tierConfig?: Record<string, { displayName?: string; description?: string; tagline?: string }>;
   blankDescriptions?: Record<string, string>;
+  blankTitles?: Record<string, string>;
   createdAt: string;
   updatedAt?: string;
 }
@@ -71,6 +72,8 @@ interface ProviderMapping {
 export interface NormalizedSourceBlank {
   id: string;
   name: string;
+  providerTitle?: string;
+  adminCatalogTitle?: string | null;
   price: number | null;
   cost: number | null;
   manufacturer: string | null;
@@ -88,7 +91,7 @@ export interface NormalizedSourceBlank {
 export type ProviderFilter = "printify" | "printful";
 export type LocationFilter = "all" | "usa" | "other";
 
-function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, adminCatalogDesc?: string): NormalizedSourceBlank {
+function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, adminCatalogDesc?: string, adminCatalogTitle?: string): NormalizedSourceBlank {
   const cost = p.minPrice ? parseFloat(p.minPrice) : null;
   const retailPrice = cost !== null
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
@@ -96,9 +99,14 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
   const providerDesc = p.description || null;
   const effectiveDesc = adminCatalogDesc || providerDesc;
+  const providerTitle = p.title || "";
+  const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0 ? adminCatalogTitle : null;
+  const effectiveTitle = normalizedAdminTitle ?? providerTitle;
   return {
     id: String(p.id),
-    name: p.title || "",
+    name: effectiveTitle,
+    providerTitle,
+    adminCatalogTitle: normalizedAdminTitle,
     price: retailPrice,
     cost,
     manufacturer: p.brand || null,
@@ -124,9 +132,9 @@ export function useAdminBlanksController() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
 
   const { data: categories = [], isLoading: loadingPrintifyCatalog } = useQuery<CatalogCategory[]>({
-    queryKey: ["/api/printify/catalog", "blanks"],
+    queryKey: ["/api/master-catalog", "blanks"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/printify/catalog");
+      const res = await apiRequest("GET", "/api/master-catalog");
       const d = await res.json();
       return Array.isArray(d) ? d : [];
     },
@@ -174,6 +182,7 @@ export function useAdminBlanksController() {
   const catalogBlankSet = useMemo(() => new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id))), [activeCatalog]);
   const blankTiers = activeCatalog?.blankTiers || {};
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
+  const blankTitles = activeCatalog?.blankTitles || {};
   const hasCatalogSelected = !!validSelectedCatalogId;
 
   const mappedPrintifyIds = useMemo(() => {
@@ -307,6 +316,18 @@ export function useAdminBlanksController() {
     onError: (err: any) => toast({ title: "Error saving description", description: err.message, variant: "destructive" }),
   });
 
+  const saveTitleMutation = useMutation({
+    mutationFn: async ({ catalogId, blankId, title }: { catalogId: string; blankId: string; title: string }) => {
+      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-title`, { blankId, title });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Title saved" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error saving title", description: err.message, variant: "destructive" }),
+  });
+
   const filtered = useMemo(() => {
     let items = allProducts;
     if (categoryFilter !== "all") {
@@ -361,15 +382,17 @@ export function useAdminBlanksController() {
     filtered.forEach(p => {
       const blankKey = getCanonicalBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
-      map.set(String(p.id), normalizeSourceBlank(p, pricing, customDesc));
+      const customTitle = blankTitles[blankKey];
+      map.set(String(p.id), normalizeSourceBlank(p, pricing, customDesc, customTitle));
     });
     catalogProducts.forEach(p => {
       const blankKey = getCanonicalBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
-      map.set(String(p.id), normalizeSourceBlank(p, pricing, customDesc));
+      const customTitle = blankTitles[blankKey];
+      map.set(String(p.id), normalizeSourceBlank(p, pricing, customDesc, customTitle));
     });
     return map;
-  }, [filtered, catalogItems, allProductMap, pricing, blankDescriptions]);
+  }, [filtered, catalogItems, allProductMap, pricing, blankDescriptions, blankTitles]);
 
   const scrollItems = useMemo(() =>
     filtered.map(p => ({
@@ -420,6 +443,15 @@ export function useAdminBlanksController() {
     await saveDescriptionMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, description });
   }, [validSelectedCatalogId, resolveBlankKey, saveDescriptionMutation, toast]);
 
+  const onSaveTitle = useCallback(async (id: string, title: string, canonicalKey?: string) => {
+    if (!validSelectedCatalogId) {
+      toast({ title: "Select a catalog first", variant: "destructive" });
+      return;
+    }
+    const blankKey = canonicalKey || resolveBlankKey(id);
+    await saveTitleMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, title });
+  }, [validSelectedCatalogId, resolveBlankKey, saveTitleMutation, toast]);
+
   const onTierChange = useCallback((blankId: string, tier: string | null) => {
     if (!validSelectedCatalogId) return;
     setBlankTierMutation.mutate({ catalogId: validSelectedCatalogId, blankId, tier });
@@ -464,11 +496,13 @@ export function useAdminBlanksController() {
     sourceItemMap,
     scrollItems,
     blankTiers,
+    blankTitles,
 
     onAddToCatalog,
     onRemoveFromCatalog,
     onToggleItem,
     onSaveDescription,
+    onSaveTitle,
     onTierChange,
     isItemInCatalog,
     getItemMappingBadge,
@@ -478,6 +512,7 @@ export function useAdminBlanksController() {
     catalogBlankSet,
     removeBlanksMutation,
     saveDescriptionMutation,
+    saveTitleMutation,
     pricing,
 
     totalProductCount,

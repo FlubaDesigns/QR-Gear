@@ -632,6 +632,7 @@ export function registerMemberSandboxRoutes(app: Express): void {
       }
 
       const blankDescriptions = catalog.blankDescriptions || {};
+      const blankTitleOverrides = catalog.blankTitles || {};
       const tiers: Record<string, Record<string, any>> = {};
       const category = "all";
       tiers[category] = {};
@@ -673,6 +674,9 @@ export function registerMemberSandboxRoutes(app: Express): void {
         const providerDescription = bp.description || bp.model || null;
         const adminCatalogDescription = blankDescriptions[canonicalKey] || null;
         const effectiveDescription = adminCatalogDescription ?? providerDescription ?? null;
+        const providerTitle = bp.title || bp.name || `Product ${rawId}`;
+        const adminCatalogTitle = blankTitleOverrides[canonicalKey] || null;
+        const effectiveTitle = adminCatalogTitle || providerTitle;
 
         const colors = bp.colors || bp.availableColors || [];
         const sizes = bp.sizes || bp.availableSizes || [];
@@ -681,7 +685,9 @@ export function registerMemberSandboxRoutes(app: Express): void {
           blueprintId: typeof bp.id === "string" ? parseInt(bp.id, 10) || bp.id : bp.id,
           canonicalBlankKey: canonicalKey,
           provider,
-          title: bp.title || bp.name || `Product ${rawId}`,
+          title: effectiveTitle,
+          providerTitle,
+          adminCatalogTitle,
           imageUrl: bp.images?.[0] || bp.imageUrl || bp.image_url || "",
           brand: bp.brand || "",
           category: bp.category || "",

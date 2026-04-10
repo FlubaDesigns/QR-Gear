@@ -88,6 +88,26 @@ app.put('/admin/catalogs/:catalogId/blank-description', requireAdmin, async (req
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.put('/admin/catalogs/:catalogId/blank-title', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const { blankId, title } = req.body;
+    if (!blankId) { res.status(400).json({ error: 'blankId is required' }); return; }
+    const docRef = db.collection('catalogs').doc(catalogId);
+    const doc = await docRef.get();
+    if (!doc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
+    const blankTitles = doc.data()?.blankTitles || {};
+    if (title === null || title === '') {
+      delete blankTitles[String(blankId)];
+    } else {
+      blankTitles[String(blankId)] = title;
+    }
+    await docRef.update({ blankTitles, updatedAt: new Date().toISOString() });
+    console.log(`[Catalogs] Updated title for blank ${blankId} in catalog ${catalogId}`);
+    res.json({ success: true, blankTitles });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 app.get('/members/tier-products', async (req: Request, res: Response): Promise<void> => {
   try {
     const section = (req.query.section as string) || 'member';

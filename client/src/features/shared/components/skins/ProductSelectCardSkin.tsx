@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import UsaFlag from "@/components/UsaFlag";
 import {
   Check,
@@ -24,6 +25,8 @@ import {
 export interface ProductSelectItem {
   id: string;
   name: string;
+  providerTitle?: string | null;
+  adminCatalogTitle?: string | null;
   price: number | null;
   cost: number | null;
   manufacturer: string | null;
@@ -50,6 +53,9 @@ export interface ProductSelectCardSkinProps {
   onDescriptionSave?: (id: string, description: string) => Promise<void>;
   descriptionSaving?: boolean;
   editableDescription?: boolean;
+  onTitleSave?: (id: string, title: string) => Promise<void>;
+  titleSaving?: boolean;
+  editableTitle?: boolean;
 }
 
 function PreviewModal({
@@ -61,6 +67,9 @@ function PreviewModal({
   onDescriptionSave,
   descriptionSaving,
   editableDescription,
+  onTitleSave,
+  titleSaving,
+  editableTitle,
 }: {
   item: ProductSelectItem;
   open: boolean;
@@ -70,15 +79,26 @@ function PreviewModal({
   onDescriptionSave?: (id: string, description: string) => Promise<void>;
   descriptionSaving?: boolean;
   editableDescription?: boolean;
+  onTitleSave?: (id: string, title: string) => Promise<void>;
+  titleSaving?: boolean;
+  editableTitle?: boolean;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
   const [draftDesc, setDraftDesc] = useState(item.description || "");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(item.name || "");
 
   const handleSaveDesc = async () => {
     if (!onDescriptionSave) return;
     await onDescriptionSave(item.id, draftDesc);
     setEditingDesc(false);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!onTitleSave) return;
+    await onTitleSave(item.id, draftTitle);
+    setEditingTitle(false);
   };
 
   return (
@@ -131,9 +151,60 @@ function PreviewModal({
 
             <div className="p-4 space-y-4">
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg leading-tight" data-testid={`text-preview-name-${item.id}`}>
-                  {item.name}
-                </h3>
+                {editableTitle && onTitleSave ? (
+                  <div data-testid={`title-edit-area-${item.id}`}>
+                    {editingTitle ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={draftTitle}
+                          onChange={(e) => setDraftTitle(e.target.value)}
+                          className="text-base font-semibold"
+                          placeholder="Enter a custom title..."
+                          data-testid={`input-title-${item.id}`}
+                        />
+                        {item.providerTitle && item.providerTitle !== draftTitle && (
+                          <button
+                            type="button"
+                            className="text-xs text-blue-400 hover:text-blue-300 underline"
+                            onClick={() => setDraftTitle(item.providerTitle || "")}
+                            data-testid={`button-reset-to-provider-title-${item.id}`}
+                          >
+                            Reset to provider title
+                          </button>
+                        )}
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveTitle} disabled={titleSaving} data-testid={`button-save-title-${item.id}`}>
+                            {titleSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setEditingTitle(false); setDraftTitle(item.name || ""); }} data-testid={`button-cancel-title-${item.id}`}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
+                        onClick={() => { setDraftTitle(item.name || ""); setEditingTitle(true); }}
+                        data-testid={`button-edit-title-${item.id}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <Pencil className="w-3.5 h-3.5 mt-1 text-muted-foreground shrink-0" />
+                          <h3 className="font-semibold text-lg leading-tight" data-testid={`text-preview-name-${item.id}`}>
+                            {item.name}
+                          </h3>
+                        </div>
+                        {item.adminCatalogTitle && (
+                          <span className="ml-6 text-xs text-blue-400">Custom title</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <h3 className="font-semibold text-lg leading-tight" data-testid={`text-preview-name-${item.id}`}>
+                    {item.name}
+                  </h3>
+                )}
 
                 <div className="flex items-center gap-3 flex-wrap">
                   {item.price != null && (
@@ -312,7 +383,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -476,6 +547,9 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onDescriptionSave={onDescriptionSave}
         descriptionSaving={descriptionSaving}
         editableDescription={editableDescription}
+        onTitleSave={onTitleSave}
+        titleSaving={titleSaving}
+        editableTitle={editableTitle}
       />
     </>
   );

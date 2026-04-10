@@ -140,17 +140,19 @@ export function LoadTemplateModule() {
 
     try {
       const headers = await getAuthHeaders();
-      const endpoint = provider === 'printful'
-        ? `${apiBase}/catalog/printful-products`
-        : `${apiBase}/printify/catalog`;
-
-      const res = await fetch(endpoint, { headers });
+      const res = await fetch(`${apiBase}/master-catalog`, { headers });
       if (!res.ok) return null;
       const data = await res.json();
-
-      const products: CatalogProduct[] = Array.isArray(data) ? data : (data.products || data.items || []);
-      const match = products.find((p: CatalogProduct) => Number(p.blueprintId) === Number(blueprintId));
-      return match || null;
+      const allCategories: Array<{ items: CatalogProduct[] }> = Array.isArray(data) ? data : [];
+      for (const cat of allCategories) {
+        const items: CatalogProduct[] = cat.items || [];
+        const match = items.find(p => {
+          if (provider === 'printful') return p.fulfillmentProvider === 'printful' && Number(p.id) === Number(blueprintId);
+          return (!p.fulfillmentProvider || p.fulfillmentProvider === 'printify') && Number(p.blueprintId || p.id) === Number(blueprintId);
+        });
+        if (match) return match;
+      }
+      return null;
     } catch {
       return null;
     }

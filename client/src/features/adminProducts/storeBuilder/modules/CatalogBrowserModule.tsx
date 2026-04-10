@@ -44,12 +44,21 @@ export function CatalogBrowserModule() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
-    queryKey: [`${apiBase}/printify/catalog`, { provider: providerFilter }],
+    queryKey: [`${apiBase}/master-catalog`, { provider: providerFilter }],
     queryFn: async () => {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/printify/catalog?provider=${providerFilter}`, { headers });
+      const res = await fetch(`${apiBase}/master-catalog`, { headers });
       if (!res.ok) throw new Error('Failed to load catalog');
-      return res.json();
+      const data = await res.json() as CatalogCategory[];
+      if (providerFilter === 'all') return data;
+      return data.map(cat => ({
+        ...cat,
+        items: cat.items.filter((item: any) =>
+          providerFilter === 'printful'
+            ? item.fulfillmentProvider === 'printful'
+            : (!item.fulfillmentProvider || item.fulfillmentProvider === 'printify')
+        ),
+      })).filter(cat => cat.items.length > 0);
     },
     enabled: !!currentChannel,
   });
