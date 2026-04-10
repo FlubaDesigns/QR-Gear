@@ -1,6 +1,6 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Layers,
@@ -13,15 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollVerticalView } from "@/features/shared/components/views/ScrollVerticalView";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import {
@@ -133,8 +125,6 @@ export function ProductsModule() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [dataMode, setDataMode] = useState<DataMode>("all");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
-  const [pendingSave, setPendingSave] = useState<{ id: string; value: string; type: "title" | "description" } | null>(null);
-  const [pendingCatalogId, setPendingCatalogId] = useState<string>("");
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -306,113 +296,38 @@ export function ProductsModule() {
 
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
 
-  const blankDescriptions = activeCatalog?.blankDescriptions || {};
-  const blankTitles = activeCatalog?.blankTitles || {};
-
-  // Merge descriptions/titles from ALL catalogs as fallback so they always show,
-  // regardless of which catalog is selected (fixes Printful products with no provider description)
-  const allBlankDescriptions = useMemo(() => {
-    const merged: Record<string, string> = {};
-    for (const catalog of adminCatalogs) {
-      for (const [key, val] of Object.entries(catalog.blankDescriptions || {})) {
-        if (val && !merged[key]) merged[key] = val as string;
-      }
-    }
-    return merged;
-  }, [adminCatalogs]);
-
-  const allBlankTitles = useMemo(() => {
-    const merged: Record<string, string> = {};
-    for (const catalog of adminCatalogs) {
-      for (const [key, val] of Object.entries(catalog.blankTitles || {})) {
-        if (val && !merged[key]) merged[key] = val as string;
-      }
-    }
-    return merged;
-  }, [adminCatalogs]);
-
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
     activeProducts.forEach(p => {
       const withGender = { ...p, gender: detectGender(p.title) };
       const blankKey = p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id);
-      // Active catalog takes priority; fall back to any catalog that has a value
-      const adminDesc = blankDescriptions[blankKey] || allBlankDescriptions[blankKey] || null;
-      const adminTitle = blankTitles[blankKey] || allBlankTitles[blankKey] || null;
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle), catalog: withGender, blankKey });
+      // Master catalog is the source of truth — no catalog-level overrides here.
+      // Admin overrides go into the packet state only.
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p, null, null), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts, blankDescriptions, blankTitles, allBlankDescriptions, allBlankTitles]);
+  }, [activeProducts]);
 
-  const saveDescriptionMutation = useMutation({
-    mutationFn: async ({ catalogId, blankId, description }: { catalogId: string; blankId: string; description: string }) => {
-      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-description`, { blankId, description });
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Description saved" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-    },
-    onError: (err: any) => toast({ title: "Error saving description", description: err.message, variant: "destructive" }),
-  });
-
-  const saveTitleMutation = useMutation({
-    mutationFn: async ({ catalogId, blankId, title }: { catalogId: string; blankId: string; title: string }) => {
-      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-title`, { blankId, title });
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Title saved" });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-    },
-    onError: (err: any) => toast({ title: "Error saving title", description: err.message, variant: "destructive" }),
-  });
-
+  // Admin title/description edits go into the packet builder state only — never saved back to master or catalog.
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
-    if (!activeCatalog) {
-      setPendingSave({ id, value: description, type: "description" });
-      setPendingCatalogId(adminCatalogs[0]?.id || "");
-      return;
-    }
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    await saveDescriptionMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, description });
-    if (state.selectedProduct && String(state.selectedProduct.id) === id) {
-      setProductDescription(description || null);
+    if (!state.selectedProduct || String(state.selectedProduct.id) !== id) {
+      selectProduct(entry.catalog);
     }
-  }, [activeCatalog, adminCatalogs, selectItemMap, saveDescriptionMutation, state.selectedProduct, setProductDescription]);
+    setProductDescription(description || null);
+    toast({ title: "Description set for this packet" });
+  }, [selectItemMap, state.selectedProduct, selectProduct, setProductDescription, toast]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
-    if (!activeCatalog) {
-      setPendingSave({ id, value: title, type: "title" });
-      setPendingCatalogId(adminCatalogs[0]?.id || "");
-      return;
-    }
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    await saveTitleMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, title });
-    if (state.selectedProduct && String(state.selectedProduct.id) === id) {
-      setProductTitle(title || null);
+    if (!state.selectedProduct || String(state.selectedProduct.id) !== id) {
+      selectProduct(entry.catalog);
     }
-  }, [activeCatalog, adminCatalogs, selectItemMap, saveTitleMutation, state.selectedProduct, setProductTitle]);
-
-  const handlePendingConfirm = useCallback(async () => {
-    if (!pendingSave || !pendingCatalogId) return;
-    const entry = selectItemMap.get(pendingSave.id);
-    if (!entry) return;
-    if (pendingSave.type === "title") {
-      await saveTitleMutation.mutateAsync({ catalogId: pendingCatalogId, blankId: entry.blankKey, title: pendingSave.value });
-      if (state.selectedProduct && String(state.selectedProduct.id) === pendingSave.id) {
-        setProductTitle(pendingSave.value || null);
-      }
-    } else {
-      await saveDescriptionMutation.mutateAsync({ catalogId: pendingCatalogId, blankId: entry.blankKey, description: pendingSave.value });
-      if (state.selectedProduct && String(state.selectedProduct.id) === pendingSave.id) {
-        setProductDescription(pendingSave.value || null);
-      }
-    }
-    setPendingSave(null);
-  }, [pendingSave, pendingCatalogId, selectItemMap, saveTitleMutation, saveDescriptionMutation, state.selectedProduct, setProductDescription, setProductTitle]);
+    setProductTitle(title || null);
+    toast({ title: "Title set for this packet" });
+  }, [selectItemMap, state.selectedProduct, selectProduct, setProductTitle, toast]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
@@ -438,14 +353,8 @@ export function ProductsModule() {
         setSelectedProviders([catalogProduct.fulfillmentProvider]);
       }
       selectProduct(entry.catalog);
-      if (entry.selectItem.adminCatalogTitle) {
-        setProductTitle(entry.selectItem.adminCatalogTitle);
-      }
-      if (entry.selectItem.adminCatalogDescription) {
-        setProductDescription(entry.selectItem.adminCatalogDescription);
-      }
     }
-  }, [selectItemMap, selectProduct, setProductTitle, setProductDescription, provider, setSelectedProviders]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
@@ -458,48 +367,16 @@ export function ProductsModule() {
           onSelect={handleCardSelect}
           editableDescription={true}
           onDescriptionSave={handleDescriptionSave}
-          descriptionSaving={saveDescriptionMutation.isPending}
           editableTitle={true}
           onTitleSave={handleTitleSave}
-          titleSaving={saveTitleMutation.isPending}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, activeCatalog, handleDescriptionSave, saveDescriptionMutation.isPending, handleTitleSave, saveTitleMutation.isPending]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave]
   );
 
   return (
     <>
-    <Dialog open={!!pendingSave} onOpenChange={(open) => { if (!open) setPendingSave(null); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Choose a catalog to save to</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Select which catalog this {pendingSave?.type} override should apply to.
-        </p>
-        <Select value={pendingCatalogId} onValueChange={setPendingCatalogId}>
-          <SelectTrigger data-testid="select-pending-catalog">
-            <SelectValue placeholder="Select a catalog..." />
-          </SelectTrigger>
-          <SelectContent>
-            {adminCatalogs.map(cat => (
-              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setPendingSave(null)} data-testid="button-pending-cancel">Cancel</Button>
-          <Button
-            onClick={handlePendingConfirm}
-            disabled={!pendingCatalogId || saveTitleMutation.isPending || saveDescriptionMutation.isPending}
-            data-testid="button-pending-confirm"
-          >
-            {(saveTitleMutation.isPending || saveDescriptionMutation.isPending) ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
     <div className="space-y-4">
       <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md" data-testid="active-provider-indicator">
         <span className="text-xs text-muted-foreground">Browsing:</span>

@@ -533,35 +533,17 @@ export function registerProductRoutes(app: Express): void {
       const fsDb = getFirestoreDb();
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
 
-      // Build merged admin description/title overrides from ALL catalogs
-      const catalogSnap = await fsDb.collection('catalogs').get();
-      const adminDescriptions: Record<string, string> = {};
-      const adminTitles: Record<string, string> = {};
-      for (const catDoc of catalogSnap.docs) {
-        const catData = catDoc.data();
-        for (const [key, val] of Object.entries(catData.blankDescriptions || {})) {
-          if (val && !adminDescriptions[key]) adminDescriptions[key] = val as string;
-        }
-        for (const [key, val] of Object.entries(catData.blankTitles || {})) {
-          if (val && !adminTitles[key]) adminTitles[key] = val as string;
-        }
-      }
-
       const snap = await fsDb.collection('master_products').get();
       const categories: Record<string, any[]> = {};
 
       for (const doc of snap.docs) {
         const p = doc.data() as any;
-        const blankKey = p.fulfillmentProvider === 'printful' ? `pf:${p.printfulId}` : String(p.printifyId);
         const category = p.category || 'Other';
         if (!categories[category]) categories[category] = [];
-        // Admin override takes priority over provider description/title
-        const effectiveDescription = (adminDescriptions[blankKey] || (p.description || "").trim()) || null;
-        const effectiveTitle = (adminTitles[blankKey] || (p.title || "")).trim();
         categories[category].push({
           id: p.printifyId || p.printfulId,
-          title: effectiveTitle,
-          description: effectiveDescription,
+          title: (p.title || "").trim(),
+          description: (p.description || "").trim() || null,
           brand: p.brand,
           model: p.model,
           imageUrl: p.imageUrl,
