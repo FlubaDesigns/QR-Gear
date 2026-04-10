@@ -416,86 +416,48 @@ function registerPpCatalogBrowseRoutes(app) {
     });
     app.get('/master-catalog', async (_req, res) => {
         try {
-            const [bpSnap, provSnap, pfProductsSnap, pfVariantsSnap] = await Promise.all([
-                core_1.db.collection('printify_blueprints').get(),
-                core_1.db.collection('printifyPrintProviders').get(),
-                core_1.db.collection('printful_products').get(),
-                core_1.db.collection('printful_variants').get(),
-            ]);
-            const blueprints = bpSnap.docs.map(doc => {
-                const d = doc.data();
-                const rawDesc = d.richDescription || d.description || '';
-                const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                return { id: parseInt(doc.id) || d.id, title: d.title || '', description: cleanDesc, brand: d.brand || '', model: (d.model || '').toLowerCase().trim(), images: d.images || [] };
-            });
-            const providersByBlueprint = new Map();
-            for (const prov of provSnap.docs.map(d => d.data())) {
-                const existing = providersByBlueprint.get(prov.blueprintId);
-                const colors = Array.isArray(prov.availableColors) ? prov.availableColors : [];
-                const sizes = Array.isArray(prov.availableSizes) ? prov.availableSizes : [];
-                if (!existing || colors.length > existing.colors.length) {
-                    providersByBlueprint.set(prov.blueprintId, { colors, sizes, minCost: prov.minCost || 0, maxCost: prov.maxCost || 0, providerId: prov.providerId });
-                }
-            }
-            const allVariants = pfVariantsSnap.docs.map(d => d.data());
-            const variantLookup = cfBuildPrintfulVariantLookup(allVariants);
-            const printfulByModel = new Map();
-            for (const doc of pfProductsSnap.docs) {
-                const p = { id: parseInt(doc.id) || doc.data().id, ...doc.data() };
-                const model = (p.model || '').toLowerCase().trim();
-                if (!model)
-                    continue;
-                const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
-                if (!printfulByModel.has(model)) {
-                    printfulByModel.set(model, { pfId: p.id, title: p.title || '', brand: p.brand || '', imageUrl: p.image || null, madeInUSA: (p.originCountry || '').toUpperCase() === 'US', minPrice: p.minPrice || null, maxPrice: p.maxPrice || null, colors: vData.colors, sizes: vData.sizes });
-                }
-            }
-            const USA_BRANDS = ['american apparel', 'royal apparel', 'bayside', 'los angeles apparel', 'bella+canvas', 'bella canvas', 'lane seven', 'cotton heritage', 'shaka wear', 'backpacks usa', 'american giant', 'next level'];
+            const snap = await core_1.db.collection('master_products').get();
             const categories = {};
-            const usedPrintfulModels = new Set();
-            for (const bp of blueprints) {
-                const provData = providersByBlueprint.get(bp.id);
-                const madeInUSAFromBrand = USA_BRANDS.some(b => bp.brand.toLowerCase().includes(b));
-                const pfMatch = bp.model ? printfulByModel.get(bp.model) : null;
-                if (pfMatch)
-                    usedPrintfulModels.add(bp.model);
-                const colors = provData?.colors?.length ? provData.colors : (pfMatch?.colors || []);
-                const sizes = provData?.sizes?.length ? provData.sizes : (pfMatch?.sizes || []);
-                const category = cfCategorizeProduct(bp.title);
+            for (const doc of snap.docs) {
+                const p = doc.data();
+                const category = p.category || 'Other';
                 if (!categories[category])
                     categories[category] = [];
                 categories[category].push({
-                    id: bp.id, title: bp.title, description: bp.description, brand: bp.brand, model: bp.model,
-                    imageUrl: bp.images?.[0] || pfMatch?.imageUrl || null,
-                    madeInUSA: madeInUSAFromBrand || (pfMatch?.madeInUSA || false),
-                    blueprintId: bp.id, printProviderId: provData?.providerId || null,
-                    minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : (pfMatch?.minPrice || null),
-                    maxPrice: provData?.maxCost ? (provData.maxCost / 100).toFixed(2) : (pfMatch?.maxPrice || null),
-                    colorCount: colors.length, availableColors: colors, availableSizes: sizes,
-                    fulfillmentProvider: 'printify',
-                    availableVia: pfMatch ? ['printify', 'printful'] : ['printify'],
-                    printfulId: pfMatch?.pfId || null,
+                    id: p.printifyId || p.printfulId,
+                    title: p.title,
+                    description: p.description || null,
+                    brand: p.brand,
+                    model: p.model,
+                    imageUrl: p.imageUrl,
+                    madeInUSA: p.madeInUSA,
+                    blueprintId: p.blueprintId,
+                    printProviderId: p.printProviderId,
+                    minPrice: p.minPrice,
+                    maxPrice: p.maxPrice,
+                    colorCount: p.colorCount,
+                    availableColors: p.availableColors || [],
+                    availableSizes: p.availableSizes || [],
+                    fulfillmentProvider: p.fulfillmentProvider,
+                    availableVia: p.availableVia || [p.fulfillmentProvider],
+                    printfulId: p.printfulId,
+                    providers: p.providers || [p.fulfillmentProvider],
                 });
             }
-            for (const [model, pf] of Array.from(printfulByModel.entries())) {
-                if (usedPrintfulModels.has(model))
-                    continue;
-                const category = cfClassifyPrintfulProduct(pf.title);
-                if (!categories[category])
-                    categories[category] = [];
-                categories[category].push({
-                    id: pf.pfId, title: pf.title, description: null, brand: pf.brand, model: model,
-                    imageUrl: pf.imageUrl, madeInUSA: pf.madeInUSA, blueprintId: pf.pfId, printProviderId: null,
-                    minPrice: pf.minPrice, maxPrice: pf.maxPrice,
-                    colorCount: pf.colors.length, availableColors: pf.colors, availableSizes: pf.sizes,
-                    fulfillmentProvider: 'printful', availableVia: ['printful'], printfulId: pf.pfId,
-                });
-            }
+            const CATEGORY_ORDER = ["T-Shirts & Tops", "Sweatshirts & Hoodies", "Hats & Caps", "Drinkware", "Bags & Accessories", "Phone Cases & Tech", "Stickers & Magnets", "Wall Art & Posters", "Home & Living", "Stationery & Paper", "Activewear & Specialty", "Accessories", "Pet Products", "Holiday & Seasonal", "Other"];
             const result = Object.entries(categories)
-                .map(([name, items]) => ({ name, items, count: items.length }))
-                .sort((a, b) => { if (a.name === 'T-Shirts & Tops')
-                return -1; if (b.name === 'T-Shirts & Tops')
-                return 1; return a.name.localeCompare(b.name); });
+                .map(([name, items]) => ({ name, items: items.sort((a, b) => a.title.localeCompare(b.title)), count: items.length }))
+                .sort((a, b) => {
+                const ai = CATEGORY_ORDER.indexOf(a.name);
+                const bi = CATEGORY_ORDER.indexOf(b.name);
+                if (ai === -1 && bi === -1)
+                    return a.name.localeCompare(b.name);
+                if (ai === -1)
+                    return 1;
+                if (bi === -1)
+                    return -1;
+                return ai - bi;
+            });
             res.json(result);
         }
         catch (e) {

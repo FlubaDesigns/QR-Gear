@@ -367,11 +367,32 @@ export function registerProductRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/master-catalog", async (req, res) => {
+  // ── Master catalog sync ──────────────────────────────────────────────────
+  app.post("/api/admin/sync-master-products", async (req, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
+
+      const USA_BRANDS_SYNC = ['american apparel','royal apparel','bayside','los angeles apparel','bella+canvas','bella canvas','lane seven','cotton heritage','shaka wear','backpacks usa','american giant','next level'];
+      const categorizeMC = (title: string) => {
+        const t = title.toLowerCase();
+        if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie') || t.includes('baby tee')) return "T-Shirts & Tops";
+        if (t.includes('hoodie') || t.includes('sweatshirt') || t.includes('crew neck') || t.includes('pullover') || t.includes('crewneck')) return "Sweatshirts & Hoodies";
+        if (t.includes('hat') || t.includes('cap') || t.includes('beanie') || t.includes('visor') || t.includes('bucket')) return "Hats & Caps";
+        if (t.includes('mug') || t.includes('tumbler') || t.includes('bottle') || t.includes('cup') || t.includes('glass') || t.includes('can cooler')) return "Drinkware";
+        if (t.includes('bag') || t.includes('tote') || t.includes('backpack') || t.includes('pouch') || t.includes('clutch') || t.includes('duffel') || t.includes('weekender') || t.includes('fanny') || t.includes('cosmetic')) return "Bags & Accessories";
+        if (t.includes('phone') || t.includes('case') || t.includes('airpod') || t.includes('laptop sleeve')) return "Phone Cases & Tech";
+        if (t.includes('sticker') || t.includes('magnet') || t.includes('pin button') || t.includes('bumper') || t.includes('decal')) return "Stickers & Magnets";
+        if (t.includes('poster') || t.includes('canvas') || t.includes('art print') || t.includes('framed') || t.includes('wall') || t.includes('tapestry')) return "Wall Art & Posters";
+        if (t.includes('pillow') || t.includes('blanket') || t.includes('comforter') || t.includes('shower') || t.includes('bath') || t.includes('rug') || t.includes('coaster') || t.includes('placemat') || t.includes('towel')) return "Home & Living";
+        if (t.includes('journal') || t.includes('notebook') || t.includes('card') || t.includes('postcard') || t.includes('calendar') || t.includes('puzzle')) return "Stationery & Paper";
+        if (t.includes('legging') || t.includes('jogger') || t.includes('shorts') || t.includes('skirt') || t.includes('dress') || t.includes('swimsuit') || t.includes('bikini') || t.includes('swim trunk') || t.includes('boxer') || t.includes('bra') || t.includes('jacket') || t.includes('windbreaker') || t.includes('pants') || t.includes('pajama') || t.includes('sneaker') || t.includes('shoe')) return "Activewear & Specialty";
+        if (t.includes('pet') || t.includes('dog')) return "Pet Products";
+        if (t.includes('ornament') || t.includes('stocking') || t.includes('tree skirt')) return "Holiday & Seasonal";
+        if (t.includes('sock') || t.includes('scarf') || t.includes('apron') || t.includes('bandana') || t.includes('headband') || t.includes('gaiter') || t.includes('mask') || t.includes('necktie')) return "Accessories";
+        return "Other";
+      };
 
       const [bpSnap, provSnap, pfProductsSnap, pfVariantsSnap] = await Promise.all([
         fsDb.collection('printify_blueprints').get(),
@@ -380,13 +401,7 @@ export function registerProductRoutes(app: Express): void {
         fsDb.collection('printful_variants').get(),
       ]);
 
-      const blueprints = bpSnap.docs.map((doc: any) => {
-        const d = doc.data();
-        const rawDesc = d.richDescription || d.description || '';
-        const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        return { id: parseInt(doc.id) || d.id, title: d.title || '', description: cleanDesc, brand: d.brand || '', model: (d.model || '').toLowerCase().trim(), images: d.images || [] };
-      });
-
+      // Build Printify provider lookup (colors/sizes/pricing)
       const providersByBlueprint = new Map<number, any>();
       for (const prov of provSnap.docs.map((d: any) => d.data())) {
         const existing = providersByBlueprint.get(prov.blueprintId);
@@ -396,9 +411,9 @@ export function registerProductRoutes(app: Express): void {
         }
       }
 
-      const allVariants = pfVariantsSnap.docs.map((d: any) => d.data());
+      // Build Printful variant lookup (colors/sizes)
       const variantLookup = new Map<number, { colors: Array<{name: string; hex: string}>; sizes: string[] }>();
-      for (const v of allVariants) {
+      for (const v of pfVariantsSnap.docs.map((d: any) => d.data())) {
         const pid = v.productId; if (!pid) continue;
         if (!variantLookup.has(pid)) variantLookup.set(pid, { colors: [], sizes: [] });
         const entry = variantLookup.get(pid)!;
@@ -406,6 +421,7 @@ export function registerProductRoutes(app: Express): void {
         if (v.size && !entry.sizes.includes(v.size)) entry.sizes.push(v.size);
       }
 
+      // Build Printful by-model lookup
       const printfulByModel = new Map<string, any>();
       for (const doc of pfProductsSnap.docs) {
         const p = { id: parseInt((doc as any).id) || (doc.data() as any).id, ...doc.data() } as any;
@@ -415,67 +431,146 @@ export function registerProductRoutes(app: Express): void {
         printfulByModel.set(model, { pfId: p.id, title: p.title || '', brand: p.brand || '', imageUrl: p.image || null, madeInUSA: ((p.originCountry || '') as string).toUpperCase() === 'US', minPrice: p.minPrice || null, maxPrice: p.maxPrice || null, colors: vData.colors, sizes: vData.sizes });
       }
 
-      const USA_BRANDS_MC = ['american apparel', 'royal apparel', 'bayside', 'los angeles apparel', 'bella+canvas', 'bella canvas', 'lane seven', 'cotton heritage', 'shaka wear', 'backpacks usa', 'american giant', 'next level'];
-      const categorize = (title: string) => {
-        const t = title.toLowerCase();
-        if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie')) return "T-Shirts & Tops";
-        if (t.includes('hoodie') || t.includes('sweatshirt') || t.includes('crew neck') || t.includes('pullover') || t.includes('crewneck')) return "Sweatshirts & Hoodies";
-        if (t.includes('hat') || t.includes('cap') || t.includes('beanie') || t.includes('visor') || t.includes('bucket')) return "Hats & Caps";
-        if (t.includes('mug') || t.includes('tumbler') || t.includes('bottle') || t.includes('cup') || t.includes('glass') || t.includes('can cooler')) return "Drinkware";
-        if (t.includes('bag') || t.includes('tote') || t.includes('backpack') || t.includes('pouch') || t.includes('duffel') || t.includes('weekender') || t.includes('fanny')) return "Bags & Accessories";
-        if (t.includes('phone') || t.includes('case') || t.includes('airpod') || t.includes('laptop sleeve')) return "Phone Cases & Tech";
-        if (t.includes('sticker') || t.includes('magnet') || t.includes('pin button') || t.includes('decal')) return "Stickers & Magnets";
-        if (t.includes('poster') || t.includes('canvas') || t.includes('art print') || t.includes('framed') || t.includes('wall') || t.includes('tapestry')) return "Wall Art & Posters";
-        if (t.includes('pillow') || t.includes('blanket') || t.includes('comforter') || t.includes('shower') || t.includes('bath') || t.includes('rug') || t.includes('coaster') || t.includes('towel')) return "Home & Living";
-        if (t.includes('journal') || t.includes('notebook') || t.includes('calendar') || t.includes('puzzle')) return "Stationery & Paper";
-        if (t.includes('legging') || t.includes('jogger') || t.includes('shorts') || t.includes('skirt') || t.includes('dress') || t.includes('swimsuit') || t.includes('jacket') || t.includes('pants') || t.includes('sneaker') || t.includes('shoe')) return "Activewear & Specialty";
-        if (t.includes('pet') || t.includes('dog')) return "Pet Products";
-        if (t.includes('sock') || t.includes('scarf') || t.includes('apron') || t.includes('bandana') || t.includes('headband') || t.includes('gaiter') || t.includes('mask')) return "Accessories";
-        return "Other";
-      };
-
-      const categories: Record<string, any[]> = {};
+      const records: Array<{ docId: string; data: any }> = [];
       const usedPrintfulModels = new Set<string>();
+      const now = new Date().toISOString();
 
-      for (const bp of blueprints) {
-        const provData = providersByBlueprint.get(bp.id);
-        const madeInUSAFromBrand = USA_BRANDS_MC.some((b: string) => bp.brand.toLowerCase().includes(b));
-        const pfMatch = bp.model ? printfulByModel.get(bp.model) : null;
-        if (pfMatch) usedPrintfulModels.add(bp.model);
+      // Printify blueprints → master records (with optional Printful match)
+      for (const doc of bpSnap.docs) {
+        const d = doc.data() as any;
+        const rawDesc = d.richDescription || d.description || '';
+        const description = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || null;
+        const id = parseInt(doc.id) || d.id;
+        const modelKey = ((d.model || '') as string).toLowerCase().trim();
+        const pfMatch = modelKey ? printfulByModel.get(modelKey) : null;
+        if (pfMatch) usedPrintfulModels.add(modelKey);
+        const provData = providersByBlueprint.get(id);
         const colors = provData?.colors?.length ? provData.colors : (pfMatch?.colors || []);
         const sizes = provData?.sizes?.length ? provData.sizes : (pfMatch?.sizes || []);
-        const category = categorize(bp.title);
-        if (!categories[category]) categories[category] = [];
-        categories[category].push({
-          id: bp.id, title: bp.title, description: bp.description, brand: bp.brand, model: bp.model,
-          imageUrl: bp.images?.[0] || pfMatch?.imageUrl || null,
-          madeInUSA: madeInUSAFromBrand || (pfMatch?.madeInUSA || false),
-          blueprintId: bp.id, printProviderId: provData?.providerId || null,
-          minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : (pfMatch?.minPrice || null),
-          maxPrice: provData?.maxCost ? (provData.maxCost / 100).toFixed(2) : (pfMatch?.maxPrice || null),
-          colorCount: colors.length, availableColors: colors, availableSizes: sizes,
-          fulfillmentProvider: 'printify',
-          availableVia: pfMatch ? ['printify', 'printful'] : ['printify'],
-          printfulId: pfMatch?.pfId || null,
+        const brandLower = (d.brand || '').toLowerCase();
+        const madeInUSA = USA_BRANDS_SYNC.some(b => brandLower.includes(b)) || (pfMatch?.madeInUSA || false);
+        records.push({
+          docId: String(id),
+          data: {
+            id: String(id),
+            providers: pfMatch ? ['printify', 'printful'] : ['printify'],
+            fulfillmentProvider: 'printify',
+            printifyId: id,
+            printfulId: pfMatch?.pfId || null,
+            title: d.title || '',
+            description,
+            brand: d.brand || null,
+            model: d.model || null,
+            imageUrl: (d.images || [])[0] || pfMatch?.imageUrl || null,
+            madeInUSA,
+            minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : (pfMatch?.minPrice || null),
+            maxPrice: provData?.maxCost ? (provData.maxCost / 100).toFixed(2) : (pfMatch?.maxPrice || null),
+            availableColors: colors,
+            availableSizes: sizes,
+            colorCount: colors.length,
+            category: categorizeMC(d.title || ''),
+            blueprintId: id,
+            printProviderId: provData?.providerId || null,
+            availableVia: pfMatch ? ['printify', 'printful'] : ['printify'],
+            lastSyncedAt: now,
+          },
         });
       }
 
+      // Printful-only products (no Printify match)
       for (const [model, pf] of Array.from(printfulByModel.entries())) {
         if (usedPrintfulModels.has(model)) continue;
-        const category = categorize(pf.title);
-        if (!categories[category]) categories[category] = [];
-        categories[category].push({
-          id: pf.pfId, title: pf.title, description: null, brand: pf.brand, model: pf.model || model,
-          imageUrl: pf.imageUrl, madeInUSA: pf.madeInUSA, blueprintId: pf.pfId, printProviderId: null,
-          minPrice: pf.minPrice, maxPrice: pf.maxPrice,
-          colorCount: pf.colors.length, availableColors: pf.colors, availableSizes: pf.sizes,
-          fulfillmentProvider: 'printful', availableVia: ['printful'], printfulId: pf.pfId,
+        records.push({
+          docId: `pf:${pf.pfId}`,
+          data: {
+            id: `pf:${pf.pfId}`,
+            providers: ['printful'],
+            fulfillmentProvider: 'printful',
+            printifyId: null,
+            printfulId: pf.pfId,
+            title: pf.title,
+            description: null,
+            brand: pf.brand || null,
+            model: pf.model || model,
+            imageUrl: pf.imageUrl,
+            madeInUSA: pf.madeInUSA,
+            minPrice: pf.minPrice,
+            maxPrice: pf.maxPrice,
+            availableColors: pf.colors,
+            availableSizes: pf.sizes,
+            colorCount: pf.colors.length,
+            category: categorizeMC(pf.title),
+            blueprintId: null,
+            printProviderId: null,
+            availableVia: ['printful'],
+            lastSyncedAt: now,
+          },
         });
       }
 
+      // Batch write to master_products (500 per batch limit)
+      const BATCH_SIZE = 400;
+      for (let i = 0; i < records.length; i += BATCH_SIZE) {
+        const batch = fsDb.batch();
+        for (const { docId, data } of records.slice(i, i + BATCH_SIZE)) {
+          batch.set(fsDb.collection('master_products').doc(docId), data);
+        }
+        await batch.commit();
+      }
+
+      console.log(`[SyncMasterProducts] Wrote ${records.length} records to master_products`);
+      res.json({ success: true, total: records.length, printify: bpSnap.size, printfulOnly: records.filter(r => r.data.fulfillmentProvider === 'printful').length });
+    } catch (error: any) {
+      console.error("[SyncMasterProducts] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Master catalog read (from master_products collection) ────────────────
+  app.get("/api/master-catalog", async (req, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
+
+      const snap = await fsDb.collection('master_products').get();
+      const categories: Record<string, any[]> = {};
+
+      for (const doc of snap.docs) {
+        const p = doc.data() as any;
+        const category = p.category || 'Other';
+        if (!categories[category]) categories[category] = [];
+        categories[category].push({
+          id: p.printifyId || p.printfulId,
+          title: p.title,
+          description: p.description || null,
+          brand: p.brand,
+          model: p.model,
+          imageUrl: p.imageUrl,
+          madeInUSA: p.madeInUSA,
+          blueprintId: p.blueprintId,
+          printProviderId: p.printProviderId,
+          minPrice: p.minPrice,
+          maxPrice: p.maxPrice,
+          colorCount: p.colorCount,
+          availableColors: p.availableColors || [],
+          availableSizes: p.availableSizes || [],
+          fulfillmentProvider: p.fulfillmentProvider,
+          availableVia: p.availableVia || [p.fulfillmentProvider],
+          printfulId: p.printfulId,
+          providers: p.providers || [p.fulfillmentProvider],
+        });
+      }
+
+      const CATEGORY_ORDER = ["T-Shirts & Tops","Sweatshirts & Hoodies","Hats & Caps","Drinkware","Bags & Accessories","Phone Cases & Tech","Stickers & Magnets","Wall Art & Posters","Home & Living","Stationery & Paper","Activewear & Specialty","Accessories","Pet Products","Holiday & Seasonal","Other"];
       const result = Object.entries(categories)
-        .map(([name, items]) => ({ name, items, count: items.length }))
-        .sort((a, b) => { if (a.name === "T-Shirts & Tops") return -1; if (b.name === "T-Shirts & Tops") return 1; return a.name.localeCompare(b.name); });
+        .map(([name, items]) => ({ name, items: items.sort((a, b) => a.title.localeCompare(b.title)), count: items.length }))
+        .sort((a, b) => {
+          const ai = CATEGORY_ORDER.indexOf(a.name); const bi = CATEGORY_ORDER.indexOf(b.name);
+          if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+          if (ai === -1) return 1; if (bi === -1) return -1;
+          return ai - bi;
+        });
 
       res.json(result);
     } catch (error: any) {
