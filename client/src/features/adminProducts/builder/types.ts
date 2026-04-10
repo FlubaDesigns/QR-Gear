@@ -221,6 +221,7 @@ export interface BuilderState {
   originFilter: OriginFilter;
   genderFilter: GenderFilter;
   selectedProduct: CatalogProduct | null;
+  productDescription: string | null;
   selectedColor: SelectedColor | null;
   qrProductState: QRProductState;
   content: ContentData;

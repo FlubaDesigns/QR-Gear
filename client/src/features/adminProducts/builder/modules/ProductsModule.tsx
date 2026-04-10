@@ -105,7 +105,7 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, api } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, api } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
 
@@ -375,7 +375,10 @@ export function ProductsModule() {
     const entry = selectItemMap.get(id);
     if (!entry) return;
     await saveDescriptionMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, description });
-  }, [activeCatalog, selectItemMap, saveDescriptionMutation, toast]);
+    if (state.selectedProduct && String(state.selectedProduct.id) === id) {
+      setProductDescription(description || null);
+    }
+  }, [activeCatalog, selectItemMap, saveDescriptionMutation, toast, state.selectedProduct, setProductDescription]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({

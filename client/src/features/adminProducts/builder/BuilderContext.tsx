@@ -27,6 +27,7 @@ interface BuilderContextValue {
   setPlacementMethod: (placementId: string, method: 'dtg' | 'dtf') => void;
   setSelectedColor: (color: SelectedColor | null) => void;
   setActivePacketId: (id: string | null) => void;
+  setProductDescription: (description: string | null) => void;
   resetBuilder: () => void;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   hasChangesFromBaseline: () => boolean;
@@ -85,6 +86,7 @@ const initialState: BuilderState = {
   originFilter: { showUSA: true, showOther: false },
   genderFilter: "mens",
   selectedProduct: null,
+  productDescription: null,
   selectedColor: { name: "Black", hex: "#000000" },
   qrProductState: "qr_canvas",
   content: {
@@ -230,18 +232,22 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const setProductDescription = useCallback((description: string | null) => {
+    setState(prev => ({ ...prev, productDescription: description }));
+  }, []);
+
   const selectProduct = useCallback((product: CatalogProduct | null) => {
     if (!product) {
-      setState(prev => ({ ...prev, selectedProduct: null, placementsLoading: false }));
+      setState(prev => ({ ...prev, selectedProduct: null, productDescription: null, placementsLoading: false }));
       return;
     }
 
     if (product.placements && product.placements.length > 0) {
-      setState(prev => ({ ...prev, selectedProduct: product, placementsLoading: false }));
+      setState(prev => ({ ...prev, selectedProduct: product, productDescription: product.description ?? prev.productDescription, placementsLoading: false }));
       return;
     }
 
-    setState(prev => ({ ...prev, selectedProduct: product, placementsLoading: true }));
+    setState(prev => ({ ...prev, selectedProduct: product, productDescription: product.description ?? null, placementsLoading: true }));
 
     const provider = product.fulfillmentProvider || 'printify';
     const params = new URLSearchParams({ provider });
@@ -581,12 +587,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setPlacementMethod,
     setSelectedColor,
     setActivePacketId,
+    setProductDescription,
     resetBuilder,
     loadFromPacketData,
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setProductDescription, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

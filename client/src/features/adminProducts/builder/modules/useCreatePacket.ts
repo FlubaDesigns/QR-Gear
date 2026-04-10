@@ -112,7 +112,7 @@ export function useCreatePacket({
         pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
-        productDescription: product?.description || null,
+        productDescription: state.productDescription ?? product?.description ?? null,
         productImageUrl: product?.imageUrl || null,
         blueprintId: product?.blueprintId || null,
         printProviderId: product?.printProviderId || null,
