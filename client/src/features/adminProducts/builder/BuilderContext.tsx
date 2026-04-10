@@ -510,6 +510,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       templateBaseline: baseline,
       templateProductHint: hint,
       selectedProduct: resolvedProduct ?? null,
+      productDescription: packetData.productDescription ?? resolvedProduct?.description ?? null,
       placementsLoading: false,
     }));
   }, []);
