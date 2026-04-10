@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ function PreviewModal({
   descriptionSaving?: boolean;
   editableDescription?: boolean;
 }) {
+  const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
   const [draftDesc, setDraftDesc] = useState(item.description || "");
 
@@ -251,11 +253,11 @@ function PreviewModal({
                         <Palette className="w-3.5 h-3.5" />
                         <span>{item.colorsAvailable.length} colors</span>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className={`flex flex-wrap gap-1.5 ${isMobile ? "max-h-[52px] overflow-hidden" : ""}`}>
                         {item.colorsAvailable.map((c, i) => (
                           <div
                             key={i}
-                            className="w-5 h-5 rounded-full border border-border"
+                            className="w-5 h-5 rounded-full border border-border flex-shrink-0"
                             style={{ backgroundColor: c.hex || "#888" }}
                             title={c.name}
                             data-testid={`preview-swatch-${item.id}-${i}`}
@@ -314,6 +316,7 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription }: ProductSelectCardSkinProps) {
+  const isMobile = useIsMobile();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -461,21 +464,35 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                   <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
                     <Palette className="w-3 h-3" /> Colors ({item.colorsAvailable.length})
                   </span>
-                  <div className="flex flex-wrap gap-1">
-                    {item.colorsAvailable.map((c, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-1 py-0.5"
-                        data-testid={`detail-color-${item.id}-${i}`}
-                      >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
+                  {isMobile ? (
+                    <div className="flex flex-wrap gap-1 max-h-[44px] overflow-hidden">
+                      {item.colorsAvailable.map((c, i) => (
+                        <div
+                          key={i}
+                          className="w-4 h-4 rounded-full border border-border flex-shrink-0"
                           style={{ backgroundColor: c.hex || "#888" }}
+                          title={c.name}
+                          data-testid={`detail-color-${item.id}-${i}`}
                         />
-                        <span className="truncate max-w-[70px]">{c.name}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {item.colorsAvailable.map((c, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-1 py-0.5"
+                          data-testid={`detail-color-${item.id}-${i}`}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
+                            style={{ backgroundColor: c.hex || "#888" }}
+                          />
+                          <span className="truncate max-w-[70px]">{c.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
