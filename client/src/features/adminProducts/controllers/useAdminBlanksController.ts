@@ -23,6 +23,9 @@ interface CatalogProduct {
   availableColors?: Array<{ name: string; hex?: string }>;
   availableSizes?: string[];
   fulfillmentProvider?: string;
+  availableVia?: string[];
+  printfulId?: number;
+  providers?: string[];
 }
 
 interface CatalogCategory {
@@ -48,19 +51,6 @@ interface PricingSettings {
   markupPercent: number;
   markupFixed: number;
   memberProfitShare: number;
-}
-
-interface PrintfulProduct {
-  docId: string;
-  id: number;
-  title: string;
-  brand: string | null;
-  model: string | null;
-  image: string | null;
-  variantCount: number;
-  category: string;
-  description: string | null;
-  type: string | null;
 }
 
 interface ProviderMapping {
@@ -131,22 +121,15 @@ export function useAdminBlanksController() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
 
-  const { data: categories = [], isLoading: loadingPrintifyCatalog } = useQuery<CatalogCategory[]>({
-    queryKey: ["/api/printify/catalog", "blanks"],
+  // Single source of truth: master_products collection
+  const { data: masterCategories = [], isLoading: loadingMasterCatalog } = useQuery<CatalogCategory[]>({
+    queryKey: ["/api/master-catalog"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/printify/catalog");
+      const res = await apiRequest("GET", "/api/master-catalog");
       const d = await res.json();
       return Array.isArray(d) ? d : [];
     },
-  });
-
-  const { data: printfulProducts = [], isLoading: loadingPrintfulCatalog } = useQuery<PrintfulProduct[]>({
-    queryKey: ["/api/admin/catalog/printful"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/catalog/printful");
-      const d = await res.json();
-      return Array.isArray(d) ? d : [];
-    },
+    staleTime: 60000,
   });
 
   const { data: mappingsData } = useQuery<{ firestoreMappings: ProviderMapping[]; hardcodedMappings: ProviderMapping[] }>({
@@ -175,7 +158,7 @@ export function useAdminBlanksController() {
   });
 
   const pricing: PricingSettings = pricingData || { markupPercent: 25, markupFixed: 0, memberProfitShare: 0.25 };
-  const loadingCatalog = providerFilter === "printify" ? loadingPrintifyCatalog : loadingPrintfulCatalog;
+  const loadingCatalog = loadingMasterCatalog;
   const catalogs = catalogsData?.catalogs || [];
   const activeCatalog = selectedCatalogId ? catalogs.find(c => c.id === selectedCatalogId) : null;
   const validSelectedCatalogId = activeCatalog ? selectedCatalogId : null;
@@ -203,57 +186,68 @@ export function useAdminBlanksController() {
     return set;
   }, [mappingsData]);
 
+  // Derive flat product lists from master-catalog by provider
   const printifyProducts = useMemo(() => {
     const items: CatalogProduct[] = [];
     const seen = new Set<number>();
-    for (const cat of categories) {
+    for (const cat of masterCategories) {
       for (const item of (cat.items || [])) {
-        if (!seen.has(item.id)) {
+        if (item.fulfillmentProvider === "printify" && !seen.has(item.id)) {
           seen.add(item.id);
-          items.push({ ...item, fulfillmentProvider: 'printify' });
+          items.push(item);
         }
       }
     }
     return items;
-  }, [categories]);
+  }, [masterCategories]);
 
-  const printfulAsCatalogProducts = useMemo(() => {
-    return printfulProducts.map((p): CatalogProduct => ({
-      id: p.id,
-      title: p.title,
-      description: p.description || undefined,
-      brand: p.brand || undefined,
-      model: p.model || undefined,
-      imageUrl: p.image || undefined,
-      minPrice: (p as any).minPrice || undefined,
-      maxPrice: (p as any).maxPrice || undefined,
-      fulfillmentProvider: 'printful',
-    }));
-  }, [printfulProducts]);
+  const printfulProducts = useMemo(() => {
+    const items: CatalogProduct[] = [];
+    const seen = new Set<number>();
+    for (const cat of masterCategories) {
+      for (const item of (cat.items || [])) {
+        if (item.fulfillmentProvider === "printful" && !seen.has(item.id)) {
+          seen.add(item.id);
+          items.push(item);
+        }
+      }
+    }
+    return items;
+  }, [masterCategories]);
+
+  // Derive per-provider category lists from master-catalog
+  const printifyCategories = useMemo(() => {
+    return masterCategories
+      .map(cat => ({
+        name: cat.name,
+        items: cat.items.filter(i => i.fulfillmentProvider === "printify"),
+        count: cat.items.filter(i => i.fulfillmentProvider === "printify").length,
+      }))
+      .filter(c => c.count > 0);
+  }, [masterCategories]);
+
+  const printfulCategories = useMemo(() => {
+    return masterCategories
+      .map(cat => ({
+        name: cat.name,
+        items: cat.items.filter(i => i.fulfillmentProvider === "printful"),
+        count: cat.items.filter(i => i.fulfillmentProvider === "printful").length,
+      }))
+      .filter(c => c.count > 0);
+  }, [masterCategories]);
+
+  const activeCategories = providerFilter === "printful" ? printfulCategories : printifyCategories;
 
   const allProducts = useMemo(() => {
-    return providerFilter === "printful" ? printfulAsCatalogProducts : printifyProducts;
-  }, [providerFilter, printifyProducts, printfulAsCatalogProducts]);
+    return providerFilter === "printful" ? printfulProducts : printifyProducts;
+  }, [providerFilter, printifyProducts, printfulProducts]);
 
   const allProductMap = useMemo(() => {
     const map = new Map<string, CatalogProduct>();
     printifyProducts.forEach(p => map.set(String(p.id), p));
-    printfulAsCatalogProducts.forEach(p => map.set(`pf:${p.id}`, p));
+    printfulProducts.forEach(p => map.set(`pf:${p.id}`, p));
     return map;
-  }, [printifyProducts, printfulAsCatalogProducts]);
-
-  const printfulCategories = useMemo(() => {
-    const catMap = new Map<string, CatalogProduct[]>();
-    printfulAsCatalogProducts.forEach(p => {
-      const pf = printfulProducts.find(pp => pp.id === p.id);
-      const cat = pf?.category || 'Other';
-      if (!catMap.has(cat)) catMap.set(cat, []);
-      catMap.get(cat)!.push(p);
-    });
-    return Array.from(catMap.entries()).map(([name, items]) => ({ name, items, count: items.length }));
-  }, [printfulAsCatalogProducts, printfulProducts]);
-
-  const activeCategories = providerFilter === "printful" ? printfulCategories : categories;
+  }, [printifyProducts, printfulProducts]);
 
   const categoryNames = useMemo(() => {
     return ["all", ...activeCategories.map(c => c.name)];
@@ -521,4 +515,4 @@ export function useAdminBlanksController() {
   };
 }
 
-export type { CatalogProduct, AdminCatalog, PricingSettings, PrintfulProduct, ProviderMapping, CatalogCategory };
+export type { CatalogProduct, AdminCatalog, PricingSettings, CatalogCategory };

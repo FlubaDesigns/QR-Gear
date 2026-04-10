@@ -21,7 +21,7 @@ import {
   AdminCatalogBlankSkin,
 } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
-import { useAdminBlanksController, type CatalogProduct, type AdminCatalog, type PricingSettings, type PrintfulProduct, type ProviderMapping, type CatalogCategory, type LocationFilter, type ProviderFilter } from "@/features/adminProducts/controllers/useAdminBlanksController";
+import { useAdminBlanksController, type CatalogProduct, type AdminCatalog, type PricingSettings, type CatalogCategory, type LocationFilter, type ProviderFilter } from "@/features/adminProducts/controllers/useAdminBlanksController";
 
 interface CatalogAssignments {
   member: string | null;
