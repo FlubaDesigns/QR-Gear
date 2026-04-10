@@ -247,7 +247,7 @@ class AutoRepricerService {
       return results;
     }
 
-    const products = await fsGetAll('master_products');
+    const products = await fsGetAll('master_catalog');
 
     for (const product of products) {
       const baseCost = parseFloat(product.baseCost || "0");
@@ -307,7 +307,7 @@ class AutoRepricerService {
             results.push(result);
 
             if (!dryRun) {
-              await fsUpdate('master_products', product.id, { 
+              await fsUpdate('master_catalog', product.id, { 
                 retailPrice: newPrice.toFixed(2),
                 updatedAt: new Date().toISOString() 
               });
@@ -345,7 +345,7 @@ class AutoRepricerService {
 
     const products: any[] = [];
     for (const pid of productIds) {
-      const p = await fsGet('master_products', pid as string);
+      const p = await fsGet('master_catalog', pid as string);
       if (p) products.push(p);
     }
     const productMap = new Map(products.map(p => [p.id, p.title]));
@@ -420,7 +420,7 @@ class AutoRepricerService {
     if (!rule) return [];
 
     const results: RepricingResult[] = [];
-    const products = await fsGetAll('master_products');
+    const products = await fsGetAll('master_catalog');
     const conditions = rule.conditions as RepricingConditions || {};
     const actionParams = rule.actionParams as RepricingActionParams || {};
     const appliesTo = rule.appliesTo || "all";

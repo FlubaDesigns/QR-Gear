@@ -416,7 +416,7 @@ function registerPpCatalogBrowseRoutes(app) {
     });
     app.get('/master-catalog', async (_req, res) => {
         try {
-            const snap = await core_1.db.collection('master_products').get();
+            const snap = await core_1.db.collection('master_catalog').get();
             const categories = {};
             for (const doc of snap.docs) {
                 const p = doc.data();
@@ -468,7 +468,7 @@ function registerPpCatalogBrowseRoutes(app) {
     app.get('/master-catalog/joint', async (_req, res) => {
         try {
             const [masterSnap, catalogsSnap] = await Promise.all([
-                core_1.db.collection('master_products').get(),
+                core_1.db.collection('master_catalog').get(),
                 core_1.db.collection('catalogs').get(),
             ]);
             const adminDescribedKeys = new Set();

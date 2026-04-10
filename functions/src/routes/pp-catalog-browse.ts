@@ -368,7 +368,7 @@ app.get('/admin/catalog/printful-status', requireAdmin, async (_req: Request, re
 
 app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snap = await db.collection('master_products').get();
+    const snap = await db.collection('master_catalog').get();
     const categories: Record<string, any[]> = {};
 
     for (const doc of snap.docs) {
@@ -417,7 +417,7 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
 app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<void> => {
   try {
     const [masterSnap, catalogsSnap] = await Promise.all([
-      db.collection('master_products').get(),
+      db.collection('master_catalog').get(),
       db.collection('catalogs').get(),
     ]);
 

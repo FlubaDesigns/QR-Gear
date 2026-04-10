@@ -115,7 +115,7 @@ app.post('/bundles/:id/calculate', async (req: Request, res: Response): Promise<
       const item = itemDoc.data() as any;
       if (selectedItems && !selectedItems.includes(itemDoc.id)) continue;
       let itemPrice = 0, itemName = '';
-      if (item.masterProductId) { const mp = await db.collection('master_products').doc(item.masterProductId).get(); if (mp.exists) { const d = mp.data() as any; itemPrice = parseFloat(d.retailPrice || 0); itemName = d.title; } }
+      if (item.masterProductId) { const mp = await db.collection('master_catalog').doc(item.masterProductId).get(); if (mp.exists) { const d = mp.data() as any; itemPrice = parseFloat(d.retailPrice || 0); itemName = d.title; } }
       else if (item.productId) { const p = await db.collection('products').doc(String(item.productId)).get(); if (p.exists) { const d = p.data() as any; itemPrice = parseFloat(d.basePrice || 0); itemName = d.name; } }
       const qty = item.quantity || 1;
       const disc = item.itemDiscountPercent ? parseFloat(item.itemDiscountPercent) / 100 : 0;

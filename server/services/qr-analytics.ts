@@ -198,7 +198,7 @@ class QrAnalyticsService {
     const productIds = sorted.map(([id]) => id);
     const products: any[] = [];
     for (const pid of productIds) {
-      const p = await fsGet('master_products', pid);
+      const p = await fsGet('master_catalog', pid);
       if (p) products.push(p);
     }
     const productMap = new Map(products.map((p) => [p.id, p.title]));
@@ -258,7 +258,7 @@ class QrAnalyticsService {
     const products: any[] = [];
     const uniqueIds = Array.from(new Set(productIds));
     for (const pid of uniqueIds) {
-      const p = await fsGet('master_products', pid);
+      const p = await fsGet('master_catalog', pid);
       if (p) products.push(p);
     }
     const productMap = new Map(products.map((p) => [p.id, p.title]));

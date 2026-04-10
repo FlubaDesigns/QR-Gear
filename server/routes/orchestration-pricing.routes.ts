@@ -392,7 +392,7 @@ export async function registerOrchestrationPricingRoutes(app: Express): Promise<
         let itemName = "";
         
         if (item.masterProductId) {
-          const mp = await fsGet('master_products', item.masterProductId);
+          const mp = await fsGet('master_catalog', item.masterProductId);
           if (mp && mp.retailPrice) {
             itemPrice = parseFloat(mp.retailPrice);
             itemName = mp.title;

@@ -63,7 +63,7 @@ app.post('/admin/graphic-sets/:id/use', requireAdmin, async (req: Request, res: 
 
 app.get('/admin/designs/:id/publish-status', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('master_products').doc(req.params.id).get();
+    const doc = await db.collection('master_catalog').doc(req.params.id).get();
     if (!doc.exists) { res.status(404).json({ error: "Design not found" }); return; }
     const data = doc.data() as any;
     res.json({ id: doc.id, publishStatus: data.publishStatus || 'draft', lastPublishedAt: data.lastPublishedAt || null });

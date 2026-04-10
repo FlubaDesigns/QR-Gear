@@ -287,7 +287,7 @@ app.delete('/admin/custom-designs/:id', requireAdmin, async (req: Request, res: 
 
 app.get('/admin/orchestration/master-products', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snapshot = await db.collection('master_products').orderBy('createdAt', 'desc').get();
+    const snapshot = await db.collection('master_catalog').orderBy('createdAt', 'desc').get();
     const products = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     res.json({ products });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -295,7 +295,7 @@ app.get('/admin/orchestration/master-products', requireAdmin, async (_req: Reque
 
 app.get('/admin/orchestration/master-products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('master_products').doc(req.params.id).get();
+    const doc = await db.collection('master_catalog').doc(req.params.id).get();
     if (!doc.exists) { res.status(404).json({ error: "Not found" }); return; }
     res.json({ id: doc.id, ...doc.data() });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -303,21 +303,21 @@ app.get('/admin/orchestration/master-products/:id', requireAdmin, async (req: Re
 
 app.post('/admin/orchestration/master-products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const docRef = await db.collection('master_products').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    const docRef = await db.collection('master_catalog').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     res.json({ id: docRef.id, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.patch('/admin/orchestration/master-products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('master_products').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
+    await db.collection('master_catalog').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.delete('/admin/orchestration/master-products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('master_products').doc(req.params.id).delete();
+    await db.collection('master_catalog').doc(req.params.id).delete();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });

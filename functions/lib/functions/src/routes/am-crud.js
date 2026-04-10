@@ -337,7 +337,7 @@ function register(app) {
     // ============ BATCH: ORCHESTRATION ROUTES ============
     app.get('/admin/orchestration/master-products', middleware_1.requireAdmin, async (_req, res) => {
         try {
-            const snapshot = await core_1.db.collection('master_products').orderBy('createdAt', 'desc').get();
+            const snapshot = await core_1.db.collection('master_catalog').orderBy('createdAt', 'desc').get();
             const products = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
             res.json({ products });
         }
@@ -347,7 +347,7 @@ function register(app) {
     });
     app.get('/admin/orchestration/master-products/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const doc = await core_1.db.collection('master_products').doc(req.params.id).get();
+            const doc = await core_1.db.collection('master_catalog').doc(req.params.id).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Not found" });
                 return;
@@ -360,7 +360,7 @@ function register(app) {
     });
     app.post('/admin/orchestration/master-products', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const docRef = await core_1.db.collection('master_products').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+            const docRef = await core_1.db.collection('master_catalog').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
             res.json({ id: docRef.id, success: true });
         }
         catch (error) {
@@ -369,7 +369,7 @@ function register(app) {
     });
     app.patch('/admin/orchestration/master-products/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            await core_1.db.collection('master_products').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
+            await core_1.db.collection('master_catalog').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
             res.json({ success: true });
         }
         catch (error) {
@@ -378,7 +378,7 @@ function register(app) {
     });
     app.delete('/admin/orchestration/master-products/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            await core_1.db.collection('master_products').doc(req.params.id).delete();
+            await core_1.db.collection('master_catalog').doc(req.params.id).delete();
             res.json({ success: true });
         }
         catch (error) {

@@ -399,10 +399,10 @@ export function registerProductRoutes(app: Express): void {
         fsDb.collection('printifyPrintProviders').get(),
         fsDb.collection('printful_products').get(),
         fsDb.collection('printful_variants').get(),
-        fsDb.collection('master_products').get(),
+        fsDb.collection('master_catalog').get(),
       ]);
 
-      // Build map of existing master_products so we can preserve title/description on re-sync
+      // Build map of existing master_catalog so we can preserve title/description on re-sync
       const existingDocs = new Map<string, any>();
       for (const doc of existingSnap.docs) {
         existingDocs.set(doc.id, doc.data());
@@ -537,17 +537,17 @@ export function registerProductRoutes(app: Express): void {
         });
       }
 
-      // Batch write to master_products (500 per batch limit)
+      // Batch write to master_catalog (500 per batch limit)
       const BATCH_SIZE = 400;
       for (let i = 0; i < records.length; i += BATCH_SIZE) {
         const batch = fsDb.batch();
         for (const { docId, data } of records.slice(i, i + BATCH_SIZE)) {
-          batch.set(fsDb.collection('master_products').doc(docId), data);
+          batch.set(fsDb.collection('master_catalog').doc(docId), data);
         }
         await batch.commit();
       }
 
-      console.log(`[SyncMasterProducts] Wrote ${records.length} records to master_products`);
+      console.log(`[SyncMasterProducts] Wrote ${records.length} records to master_catalog`);
       res.json({ success: true, total: records.length, printify: bpSnap.size, printfulOnly: records.filter(r => r.data.fulfillmentProvider === 'printful').length });
     } catch (error: any) {
       console.error("[SyncMasterProducts] Error:", error);
@@ -555,39 +555,52 @@ export function registerProductRoutes(app: Express): void {
     }
   });
 
-  // ── Master catalog read (from master_products collection) ────────────────
+  // ── Master catalog read ───────────────────────────────────────────────────
   app.get("/api/master-catalog", async (req, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
 
-      const snap = await fsDb.collection('master_products').get();
+      const snap = await fsDb.collection('master_catalog').get();
       const categories: Record<string, any[]> = {};
 
       for (const doc of snap.docs) {
         const p = doc.data() as any;
         const category = p.category || 'Other';
         if (!categories[category]) categories[category] = [];
+
+        // Resolve fields — handle both CF schema (printifyBlueprintId/printfulProductId/colors/images)
+        // and legacy Express schema (printifyId/printfulId/availableColors/imageUrl)
+        const blueprintId = p.printifyBlueprintId ?? p.blueprintId ?? null;
+        const printfulId = p.printfulProductId ?? p.printfulId ?? null;
+        const resolvedId = blueprintId ?? printfulId;
+        const colors = p.colors ?? p.availableColors ?? [];
+        const sizes = p.sizes ?? p.availableSizes ?? [];
+        const imageUrl = (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null) ?? p.imageUrl ?? null;
+        const madeInUSA = p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US');
+        const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
+        const providers = p.providers ?? (printfulId != null && blueprintId != null ? ['printify', 'printful'] : [fulfillmentProvider]);
+
         categories[category].push({
-          id: p.printifyId || p.printfulId,
+          id: resolvedId,
           title: (p.title || "").trim(),
           description: (p.description || "").trim() || null,
-          brand: p.brand,
-          model: p.model,
-          imageUrl: p.imageUrl,
-          madeInUSA: p.madeInUSA,
-          blueprintId: p.blueprintId,
-          printProviderId: p.printProviderId,
-          minPrice: p.minPrice,
-          maxPrice: p.maxPrice,
-          colorCount: p.colorCount,
-          availableColors: p.availableColors || [],
-          availableSizes: p.availableSizes || [],
-          fulfillmentProvider: p.fulfillmentProvider,
-          availableVia: p.availableVia || [p.fulfillmentProvider],
-          printfulId: p.printfulId,
-          providers: p.providers || [p.fulfillmentProvider],
+          brand: p.brand ?? null,
+          model: p.model ?? null,
+          imageUrl,
+          madeInUSA,
+          blueprintId,
+          printProviderId: p.printProviderId ?? null,
+          minPrice: p.minPrice != null ? String(p.minPrice) : null,
+          maxPrice: p.maxPrice != null ? String(p.maxPrice) : null,
+          colorCount: colors.length,
+          availableColors: colors,
+          availableSizes: sizes,
+          fulfillmentProvider,
+          availableVia: p.availableVia ?? providers,
+          printfulId,
+          providers,
         });
       }
 
@@ -616,7 +629,7 @@ export function registerProductRoutes(app: Express): void {
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
 
       const [masterSnap, catalogsSnap] = await Promise.all([
-        fsDb.collection('master_products').get(),
+        fsDb.collection('master_catalog').get(),
         fsDb.collection('catalogs').get(),
       ]);
 
@@ -635,33 +648,43 @@ export function registerProductRoutes(app: Express): void {
       for (const doc of masterSnap.docs) {
         const p = doc.data() as any;
         const masterDesc = (p.description || "").trim();
-        if (!masterDesc) continue; // must have master description
+        if (!masterDesc) continue;
 
-        const blankKey = p.printifyId ? String(p.printifyId) : (p.printfulId ? `pf:${p.printfulId}` : null);
+        // Resolve fields for both CF and legacy schema
+        const blueprintId = p.printifyBlueprintId ?? p.blueprintId ?? p.printifyId ?? null;
+        const printfulId = p.printfulProductId ?? p.printfulId ?? null;
+        const blankKey = blueprintId ? String(blueprintId) : (printfulId ? `pf:${printfulId}` : null);
         if (!blankKey) continue;
-        if (!adminDescribedKeys.has(blankKey)) continue; // must have admin description
+        if (!adminDescribedKeys.has(blankKey)) continue;
+
+        const colors = p.colors ?? p.availableColors ?? [];
+        const sizes = p.sizes ?? p.availableSizes ?? [];
+        const imageUrl = (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null) ?? p.imageUrl ?? null;
+        const madeInUSA = p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US');
+        const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
+        const providers = p.providers ?? (printfulId != null && blueprintId != null ? ['printify', 'printful'] : [fulfillmentProvider]);
 
         const category = p.category || 'Other';
         if (!categories[category]) categories[category] = [];
         categories[category].push({
-          id: p.printifyId || p.printfulId,
+          id: blueprintId ?? printfulId,
           title: (p.title || "").trim(),
           description: masterDesc,
-          brand: p.brand,
-          model: p.model,
-          imageUrl: p.imageUrl,
-          madeInUSA: p.madeInUSA,
-          blueprintId: p.blueprintId,
-          printProviderId: p.printProviderId,
-          minPrice: p.minPrice,
-          maxPrice: p.maxPrice,
-          colorCount: p.colorCount,
-          availableColors: p.availableColors || [],
-          availableSizes: p.availableSizes || [],
-          fulfillmentProvider: p.fulfillmentProvider,
-          availableVia: p.availableVia || [p.fulfillmentProvider],
-          printfulId: p.printfulId,
-          providers: p.providers || [p.fulfillmentProvider],
+          brand: p.brand ?? null,
+          model: p.model ?? null,
+          imageUrl,
+          madeInUSA,
+          blueprintId,
+          printProviderId: p.printProviderId ?? null,
+          minPrice: p.minPrice != null ? String(p.minPrice) : null,
+          maxPrice: p.maxPrice != null ? String(p.maxPrice) : null,
+          colorCount: colors.length,
+          availableColors: colors,
+          availableSizes: sizes,
+          fulfillmentProvider,
+          availableVia: p.availableVia ?? providers,
+          printfulId,
+          providers,
         });
       }
 

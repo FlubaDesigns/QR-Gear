@@ -136,7 +136,7 @@ function register(app) {
                     continue;
                 let itemPrice = 0, itemName = '';
                 if (item.masterProductId) {
-                    const mp = await core_1.db.collection('master_products').doc(item.masterProductId).get();
+                    const mp = await core_1.db.collection('master_catalog').doc(item.masterProductId).get();
                     if (mp.exists) {
                         const d = mp.data();
                         itemPrice = parseFloat(d.retailPrice || 0);

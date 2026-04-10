@@ -99,7 +99,7 @@ function register(app) {
     });
     app.get('/admin/designs/:id/publish-status', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const doc = await core_1.db.collection('master_products').doc(req.params.id).get();
+            const doc = await core_1.db.collection('master_catalog').doc(req.params.id).get();
             if (!doc.exists) {
                 res.status(404).json({ error: "Design not found" });
                 return;
