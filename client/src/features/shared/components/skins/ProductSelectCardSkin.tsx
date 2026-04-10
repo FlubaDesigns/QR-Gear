@@ -10,14 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import UsaFlag from "@/components/UsaFlag";
 import {
   Check,
-  ChevronDown,
-  ChevronUp,
   Factory,
   Package,
-  Palette,
-  Ruler,
   X,
-  Info,
   Eye,
   Pencil,
   Save,
@@ -316,8 +311,6 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription }: ProductSelectCardSkinProps) {
-  const isMobile = useIsMobile();
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -435,87 +428,6 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`text-desc-${item.id}`}>
               {item.description}
             </p>
-          )}
-
-          <button
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-            onClick={() => setDetailsOpen(!detailsOpen)}
-            data-testid={`toggle-details-${item.id}`}
-          >
-            <Info className="w-3 h-3" />
-            More info
-            {detailsOpen ? (
-              <ChevronUp className="w-3 h-3" />
-            ) : (
-              <ChevronDown className="w-3 h-3" />
-            )}
-          </button>
-
-          {detailsOpen && (
-            <div className="space-y-2 pt-1 border-t" data-testid={`details-panel-${item.id}`}>
-              {item.description && <p className="text-xs text-muted-foreground line-clamp-3">{item.description}</p>}
-
-              {!item.description && item.colorsAvailable.length === 0 && item.sizesAvailable.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">No additional details available for this product yet.</p>
-              )}
-
-              {item.colorsAvailable.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-                    <Palette className="w-3 h-3" /> Colors ({item.colorsAvailable.length})
-                  </span>
-                  {isMobile ? (
-                    <div className="flex flex-wrap gap-1 max-h-[44px] overflow-hidden">
-                      {item.colorsAvailable.map((c, i) => (
-                        <div
-                          key={i}
-                          className="w-4 h-4 rounded-full border border-border flex-shrink-0"
-                          style={{ backgroundColor: c.hex || "#888" }}
-                          title={c.name}
-                          data-testid={`detail-color-${item.id}-${i}`}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {item.colorsAvailable.map((c, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-1 text-[10px] bg-muted/50 rounded px-1 py-0.5"
-                          data-testid={`detail-color-${item.id}-${i}`}
-                        >
-                          <span
-                            className="w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
-                            style={{ backgroundColor: c.hex || "#888" }}
-                          />
-                          <span className="truncate max-w-[70px]">{c.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {item.sizesAvailable.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-                    <Ruler className="w-3 h-3" /> Sizes ({item.sizesAvailable.length})
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {item.sizesAvailable.map((s, i) => (
-                      <Badge
-                        key={i}
-                        variant="outline"
-                        className="text-[10px]"
-                        data-testid={`detail-size-${item.id}-${i}`}
-                      >
-                        {s}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           )}
 
           <Button
