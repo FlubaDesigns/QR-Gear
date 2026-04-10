@@ -394,12 +394,19 @@ export function registerProductRoutes(app: Express): void {
         return "Other";
       };
 
-      const [bpSnap, provSnap, pfProductsSnap, pfVariantsSnap] = await Promise.all([
+      const [bpSnap, provSnap, pfProductsSnap, pfVariantsSnap, existingSnap] = await Promise.all([
         fsDb.collection('printify_blueprints').get(),
         fsDb.collection('printifyPrintProviders').get(),
         fsDb.collection('printful_products').get(),
         fsDb.collection('printful_variants').get(),
+        fsDb.collection('master_products').get(),
       ]);
+
+      // Build map of existing master_products so we can preserve title/description on re-sync
+      const existingDocs = new Map<string, any>();
+      for (const doc of existingSnap.docs) {
+        existingDocs.set(doc.id, doc.data());
+      }
 
       // Build Printify provider lookup (colors/sizes/pricing)
       const providersByBlueprint = new Map<number, any>();
@@ -449,22 +456,37 @@ export function registerProductRoutes(app: Express): void {
         const sizes = provData?.sizes?.length ? provData.sizes : (pfMatch?.sizes || []);
         const brandLower = (d.brand || '').toLowerCase();
         const madeInUSA = USA_BRANDS_SYNC.some(b => brandLower.includes(b)) || (pfMatch?.madeInUSA || false);
+        const docId = String(id);
+        const existing = existingDocs.get(docId);
+
+        // Printify wins for title/description. Preserve if already set in master (write-once).
+        const masterTitle = existing?.title || d.title || '';
+        const masterDescription = existing?.description !== undefined ? existing.description : description;
+
+        // Price: use highest across providers so we never under-charge
+        const pyMinPrice = provData?.minCost ? parseFloat((provData.minCost / 100).toFixed(2)) : null;
+        const pyMaxPrice = provData?.maxCost ? parseFloat((provData.maxCost / 100).toFixed(2)) : null;
+        const pfMinPrice = pfMatch?.minPrice ? parseFloat(pfMatch.minPrice) : null;
+        const pfMaxPrice = pfMatch?.maxPrice ? parseFloat(pfMatch.maxPrice) : null;
+        const finalMinPrice = pyMinPrice !== null && pfMinPrice !== null ? Math.max(pyMinPrice, pfMinPrice) : (pyMinPrice ?? pfMinPrice);
+        const finalMaxPrice = pyMaxPrice !== null && pfMaxPrice !== null ? Math.max(pyMaxPrice, pfMaxPrice) : (pyMaxPrice ?? pfMaxPrice);
+
         records.push({
-          docId: String(id),
+          docId,
           data: {
-            id: String(id),
+            id: docId,
             providers: pfMatch ? ['printify', 'printful'] : ['printify'],
             fulfillmentProvider: 'printify',
             printifyId: id,
             printfulId: pfMatch?.pfId || null,
-            title: d.title || '',
-            description,
+            title: masterTitle,
+            description: masterDescription,
             brand: d.brand || null,
             model: d.model || null,
             imageUrl: (d.images || [])[0] || pfMatch?.imageUrl || null,
             madeInUSA,
-            minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : (pfMatch?.minPrice || null),
-            maxPrice: provData?.maxCost ? (provData.maxCost / 100).toFixed(2) : (pfMatch?.maxPrice || null),
+            minPrice: finalMinPrice !== null ? String(finalMinPrice) : null,
+            maxPrice: finalMaxPrice !== null ? String(finalMaxPrice) : null,
             availableColors: colors,
             availableSizes: sizes,
             colorCount: colors.length,
@@ -480,16 +502,23 @@ export function registerProductRoutes(app: Express): void {
       // Printful-only products (no Printify match)
       for (const [model, pf] of Array.from(printfulByModel.entries())) {
         if (usedPrintfulModels.has(model)) continue;
+        const pfDocId = `pf:${pf.pfId}`;
+        const pfExisting = existingDocs.get(pfDocId);
+
+        // Preserve title if already set; never write description for Printful-only (no source for it)
+        const pfMasterTitle = pfExisting?.title || pf.title;
+        const pfMasterDescription = pfExisting?.description !== undefined ? pfExisting.description : null;
+
         records.push({
-          docId: `pf:${pf.pfId}`,
+          docId: pfDocId,
           data: {
-            id: `pf:${pf.pfId}`,
+            id: pfDocId,
             providers: ['printful'],
             fulfillmentProvider: 'printful',
             printifyId: null,
             printfulId: pf.pfId,
-            title: pf.title,
-            description: null,
+            title: pfMasterTitle,
+            description: pfMasterDescription,
             brand: pf.brand || null,
             model: pf.model || model,
             imageUrl: pf.imageUrl,

@@ -107,7 +107,7 @@ export function registerPacketRoutes(app: Express): void {
         storeName: storeName || null,
         channelId: channelId || null,
         channelName: channelName || null,
-        fulfillmentProvider: fulfillmentProvider || 'printify',
+        fulfillmentProvider: fulfillmentProvider || 'printful',
         playMediaUrl: playMediaUrl || null,
         playMediaType: playMediaType || null,
         createdAt: now,
@@ -144,7 +144,7 @@ export function registerPacketRoutes(app: Express): void {
               printProviderId: printProviderId ? parseInt(printProviderId) : 0,
               artworkUrl,
               artworkVariant: "black",
-              fulfillmentProvider: fulfillmentProvider || 'printify',
+              fulfillmentProvider: fulfillmentProvider || 'printful',
             });
             
             mockupJobsQueued = jobs.length;
@@ -349,7 +349,7 @@ export function registerPacketRoutes(app: Express): void {
         storeName: storeName || null,
         channelId: channelId || null,
         channelName: channelName || null,
-        fulfillmentProvider: fulfillmentProvider || 'printify',
+        fulfillmentProvider: fulfillmentProvider || 'printful',
         playMediaUrl: playMediaUrl || null,
         playMediaType: playMediaType || null,
         createdAt: now,
@@ -386,7 +386,7 @@ export function registerPacketRoutes(app: Express): void {
               printProviderId: printProviderId ? parseInt(printProviderId) : 0,
               artworkUrl,
               artworkVariant: "black",
-              fulfillmentProvider: fulfillmentProvider || 'printify',
+              fulfillmentProvider: fulfillmentProvider || 'printful',
             });
             
             mockupJobsQueued = jobs.length;
