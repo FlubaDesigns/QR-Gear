@@ -37,6 +37,18 @@ export function ProductsControlBar() {
     }
   }, []);
 
+  const rebuildMasterProducts = useCallback(async () => {
+    try {
+      const headers = await api.getAuthHeaders();
+      await fetch("/api/admin/sync-master-products", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    } catch (e) {
+      console.error("[rebuildMasterProducts] Failed:", e);
+    }
+  }, [api]);
+
   const pollSyncStatus = useCallback(
     async (syncId?: string) => {
       try {
@@ -59,6 +71,7 @@ export function ProductsControlBar() {
               ? `Blueprints: ${s.blueprints?.added || 0} new, ${s.blueprints?.updated || 0} updated, ${s.blueprints?.skipped || 0} unchanged`
               : "Sync completed successfully";
             toast({ title: "Smart Sync Complete", description: desc });
+            rebuildMasterProducts();
           } else {
             toast({
               title: "Sync Failed",
@@ -69,7 +82,7 @@ export function ProductsControlBar() {
         }
       } catch {}
     },
-    [api, toast, stopPolling]
+    [api, toast, stopPolling, rebuildMasterProducts]
   );
 
   useEffect(() => {
@@ -116,6 +129,7 @@ export function ProductsControlBar() {
           title: "Sync Started",
           description: data.message || "Sync is running in the background",
         });
+        rebuildMasterProducts();
       }
     } catch (e: any) {
       toast({ title: "Sync Error", description: e.message, variant: "destructive" });

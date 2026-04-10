@@ -28,6 +28,7 @@ interface BuilderContextValue {
   setSelectedColor: (color: SelectedColor | null) => void;
   setActivePacketId: (id: string | null) => void;
   setProductDescription: (description: string | null) => void;
+  setProductTitle: (title: string | null) => void;
   resetBuilder: () => void;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   hasChangesFromBaseline: () => boolean;
@@ -234,6 +235,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   const setProductDescription = useCallback((description: string | null) => {
     setState(prev => ({ ...prev, productDescription: description }));
+  }, []);
+
+  const setProductTitle = useCallback((title: string | null) => {
+    setState(prev => {
+      if (!prev.selectedProduct) return prev;
+      return { ...prev, selectedProduct: { ...prev.selectedProduct, title: title ?? prev.selectedProduct.title } };
+    });
   }, []);
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
@@ -589,12 +597,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setSelectedColor,
     setActivePacketId,
     setProductDescription,
+    setProductTitle,
     resetBuilder,
     loadFromPacketData,
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setProductDescription, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

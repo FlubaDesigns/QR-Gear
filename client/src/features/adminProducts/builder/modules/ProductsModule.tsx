@@ -123,7 +123,7 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
 
@@ -346,7 +346,10 @@ export function ProductsModule() {
     const entry = selectItemMap.get(id);
     if (!entry) return;
     await saveTitleMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, title });
-  }, [activeCatalog, adminCatalogs, selectItemMap, saveTitleMutation]);
+    if (state.selectedProduct && String(state.selectedProduct.id) === id) {
+      setProductTitle(title || null);
+    }
+  }, [activeCatalog, adminCatalogs, selectItemMap, saveTitleMutation, state.selectedProduct, setProductTitle]);
 
   const handlePendingConfirm = useCallback(async () => {
     if (!pendingSave || !pendingCatalogId) return;
@@ -354,6 +357,9 @@ export function ProductsModule() {
     if (!entry) return;
     if (pendingSave.type === "title") {
       await saveTitleMutation.mutateAsync({ catalogId: pendingCatalogId, blankId: entry.blankKey, title: pendingSave.value });
+      if (state.selectedProduct && String(state.selectedProduct.id) === pendingSave.id) {
+        setProductTitle(pendingSave.value || null);
+      }
     } else {
       await saveDescriptionMutation.mutateAsync({ catalogId: pendingCatalogId, blankId: entry.blankKey, description: pendingSave.value });
       if (state.selectedProduct && String(state.selectedProduct.id) === pendingSave.id) {
@@ -361,7 +367,7 @@ export function ProductsModule() {
       }
     }
     setPendingSave(null);
-  }, [pendingSave, pendingCatalogId, selectItemMap, saveTitleMutation, saveDescriptionMutation, state.selectedProduct, setProductDescription]);
+  }, [pendingSave, pendingCatalogId, selectItemMap, saveTitleMutation, saveDescriptionMutation, state.selectedProduct, setProductDescription, setProductTitle]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
