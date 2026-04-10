@@ -6,34 +6,32 @@ import { syncMasterCatalog, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLL
 
 export function register(app: express.Express): void {
 
-  // POST /admin/master-catalog/sync — trigger a full sync
+  // POST /admin/master-catalog/sync — trigger a full sync (runs synchronously)
   app.post('/admin/master-catalog/sync', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    const startedAt = new Date().toISOString();
     try {
       const forceRefresh = req.body?.forceRefresh === true;
-      const startedAt = new Date().toISOString();
+      console.log('[MasterCatalog] Sync requested, running synchronously...');
 
-      // Respond immediately; run sync in background
-      res.json({ success: true, message: 'Master catalog sync started in background', startedAt });
+      const result = await syncMasterCatalog({ forceRefresh });
 
-      try {
-        const result = await syncMasterCatalog({ forceRefresh });
-        await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
-          status: 'completed',
-          ...result,
-          startedAt,
-          completedAt: new Date().toISOString(),
-        });
-        console.log('[MasterCatalog] Background sync complete:', result);
-      } catch (err: any) {
-        console.error('[MasterCatalog] Background sync error:', err.message);
-        await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
-          status: 'failed',
-          error: err.message,
-          startedAt,
-          completedAt: new Date().toISOString(),
-        });
-      }
+      await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
+        status: 'completed',
+        ...result,
+        startedAt,
+        completedAt: new Date().toISOString(),
+      });
+
+      console.log('[MasterCatalog] Sync complete:', result);
+      res.json({ success: true, message: 'Master catalog sync complete', startedAt, completedAt: new Date().toISOString(), ...result });
     } catch (error: any) {
+      console.error('[MasterCatalog] Sync error:', error.message);
+      await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
+        status: 'failed',
+        error: error.message,
+        startedAt,
+        completedAt: new Date().toISOString(),
+      }).catch(() => {});
       res.status(500).json({ error: error.message });
     }
   });

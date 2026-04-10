@@ -3,7 +3,7 @@ import { db } from '../core';
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
 const MASTER_CATALOG_SYNCS_COLLECTION = 'master_catalog_syncs';
 const PRINTIFY_BLUEPRINTS_COLLECTION = 'printify_blueprints';
-const PRINTIFY_PROVIDERS_COLLECTION = 'printify_print_providers';
+const PRINTIFY_PROVIDERS_COLLECTION = 'printifyPrintProviders';
 const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 const MAPPING_COLLECTION = 'printify_printful_mapping';

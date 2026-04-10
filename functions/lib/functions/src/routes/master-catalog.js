@@ -5,34 +5,30 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const master_catalog_1 = require("../services/master-catalog");
 function register(app) {
-    // POST /admin/master-catalog/sync — trigger a full sync
+    // POST /admin/master-catalog/sync — trigger a full sync (runs synchronously)
     app.post('/admin/master-catalog/sync', middleware_1.requireAdmin, async (req, res) => {
+        const startedAt = new Date().toISOString();
         try {
             const forceRefresh = req.body?.forceRefresh === true;
-            const startedAt = new Date().toISOString();
-            // Respond immediately; run sync in background
-            res.json({ success: true, message: 'Master catalog sync started in background', startedAt });
-            try {
-                const result = await (0, master_catalog_1.syncMasterCatalog)({ forceRefresh });
-                await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
-                    status: 'completed',
-                    ...result,
-                    startedAt,
-                    completedAt: new Date().toISOString(),
-                });
-                console.log('[MasterCatalog] Background sync complete:', result);
-            }
-            catch (err) {
-                console.error('[MasterCatalog] Background sync error:', err.message);
-                await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
-                    status: 'failed',
-                    error: err.message,
-                    startedAt,
-                    completedAt: new Date().toISOString(),
-                });
-            }
+            console.log('[MasterCatalog] Sync requested, running synchronously...');
+            const result = await (0, master_catalog_1.syncMasterCatalog)({ forceRefresh });
+            await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
+                status: 'completed',
+                ...result,
+                startedAt,
+                completedAt: new Date().toISOString(),
+            });
+            console.log('[MasterCatalog] Sync complete:', result);
+            res.json({ success: true, message: 'Master catalog sync complete', startedAt, completedAt: new Date().toISOString(), ...result });
         }
         catch (error) {
+            console.error('[MasterCatalog] Sync error:', error.message);
+            await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
+                status: 'failed',
+                error: error.message,
+                startedAt,
+                completedAt: new Date().toISOString(),
+            }).catch(() => { });
             res.status(500).json({ error: error.message });
         }
     });

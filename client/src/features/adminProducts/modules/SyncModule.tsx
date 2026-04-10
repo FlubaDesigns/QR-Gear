@@ -47,12 +47,15 @@ export function SyncModule({ selectedProviders }: SyncModuleProps) {
         throw err;
       }
 
-      // Phase 2: master catalog sync
+      // Phase 2: master catalog sync (synchronous — waits for completion)
       setPhase(1, { status: "pending" });
       try {
         const res = await apiRequest("POST", "/api/admin/master-catalog/sync", {});
         const data = await res.json().catch(() => ({}));
-        setPhase(1, { status: "done", detail: data.message || "started in background" });
+        const detail = data.created !== undefined
+          ? `${data.created + (data.updated || 0)} products, ${data.matched || 0} matched`
+          : (data.message || "complete");
+        setPhase(1, { status: "done", detail });
       } catch (err: any) {
         setPhase(1, { status: "error", detail: err.message });
         throw err;
@@ -60,7 +63,7 @@ export function SyncModule({ selectedProviders }: SyncModuleProps) {
     },
     onSuccess: () => {
       setLastSynced(new Date());
-      toast({ title: "Sync started", description: "Provider and master catalog syncs are running in the background." });
+      toast({ title: "Sync complete", description: "Provider and master catalog are up to date." });
       api.invalidateProducts();
     },
     onError: (error: Error) => {
