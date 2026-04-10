@@ -12,6 +12,8 @@ import {
   Check,
   Factory,
   Package,
+  Palette,
+  Ruler,
   X,
   Eye,
   Pencil,
