@@ -11,10 +11,16 @@ title = "QR Gear Full Source Backup"
 id = "LpkDWMxG1f-h35YkcrvEo"
 uri = "file://downloads/QR_Gear_Full_Website.zip"
 type = "unspecified"
-title = "QR Gear Full Website — Content-Aware Renderer (April 7, 2026)"
+title = "QR Gear Full Website"
 
 [[outputs]]
 id = "VCcE20W2Vqioz2fz1HEQl"
 uri = "file://layout-unification-export.zip"
 type = "unspecified"
 title = "Layout Unification — All Changed Files"
+
+[[outputs]]
+id = "zZM-ngc-PqvNmOytKfNA6"
+uri = "file://downloads/qr-gear-full-project.zip"
+type = "unspecified"
+title = "QR Gear Full Project"
