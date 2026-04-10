@@ -177,7 +177,7 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
     if (!printfulClient.isConfigured) {
       let fallbackUrl: string | null = null;
       try {
-        const bpDoc = await db.collection('printifyBlueprints').doc(String(product.blueprintId)).get();
+        const bpDoc = await db.collection('printify_blueprints').doc(String(product.blueprintId)).get();
         if (bpDoc.exists) {
           const bpData = bpDoc.data()!;
           fallbackUrl = bpData.images?.[0] || bpData.image || null;
@@ -234,7 +234,7 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
       console.error(`[StorefrontMockup] Printful generation failed:`, genError.message);
       let fallbackUrl: string | null = null;
       try {
-        const bpDoc = await db.collection('printifyBlueprints').doc(String(product.blueprintId)).get();
+        const bpDoc = await db.collection('printify_blueprints').doc(String(product.blueprintId)).get();
         if (bpDoc.exists) {
           const bpData = bpDoc.data()!;
           fallbackUrl = bpData.images?.[0] || bpData.image || null;

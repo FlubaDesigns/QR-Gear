@@ -84,7 +84,7 @@ app.patch('/admin/variants/:id/toggle', requireAdmin, async (req: Request, res: 
 
 app.get('/admin/catalog/blueprints', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snapshot = await db.collection('printifyBlueprints').get();
+    const snapshot = await db.collection('printify_blueprints').get();
     res.json(docsToArray(snapshot));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -93,7 +93,7 @@ app.get('/admin/catalog/blueprints', requireAdmin, async (_req: Request, res: Re
 
 app.get('/admin/catalog/blueprints/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('printifyBlueprints').doc(req.params.id).get();
+    const doc = await db.collection('printify_blueprints').doc(req.params.id).get();
     if (!doc.exists) {
       res.status(404).json({ error: 'Blueprint not found' });
       return;

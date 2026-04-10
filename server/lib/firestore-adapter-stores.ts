@@ -153,18 +153,18 @@ export async function syncPartnerStoreProducts(db: Firestore, partnerStoreId: st
 }
 
 export async function getPrintifyBlueprints(db: Firestore): Promise<PrintifyBlueprint[]> {
-  const snapshot = await db.collection('printifyBlueprints').get();
+  const snapshot = await db.collection('printify_blueprints').get();
   return snapshot.docs.map(doc => docToPrintifyBlueprint(doc));
 }
 
 export async function getPrintifyBlueprint(db: Firestore, id: number): Promise<PrintifyBlueprint | undefined> {
-  const doc = await db.collection('printifyBlueprints').doc(String(id)).get();
+  const doc = await db.collection('printify_blueprints').doc(String(id)).get();
   if (!doc.exists) return undefined;
   return docToPrintifyBlueprint(doc);
 }
 
 export async function upsertPrintifyBlueprint(db: Firestore, blueprint: InsertPrintifyBlueprint): Promise<PrintifyBlueprint> {
-  const docRef = db.collection('printifyBlueprints').doc(String(blueprint.id));
+  const docRef = db.collection('printify_blueprints').doc(String(blueprint.id));
   const now = new Date();
   const data = prepareForFirestore({ ...blueprint, syncedAt: now });
   await docRef.set(data, { merge: true });
@@ -172,11 +172,11 @@ export async function upsertPrintifyBlueprint(db: Firestore, blueprint: InsertPr
 }
 
 export async function deletePrintifyBlueprint(db: Firestore, id: number): Promise<void> {
-  await db.collection('printifyBlueprints').doc(String(id)).delete();
+  await db.collection('printify_blueprints').doc(String(id)).delete();
 }
 
 export async function clearPrintifyBlueprints(db: Firestore): Promise<void> {
-  const snapshot = await db.collection('printifyBlueprints').get();
+  const snapshot = await db.collection('printify_blueprints').get();
   const batch = db.batch();
   snapshot.docs.forEach(doc => batch.delete(doc.ref));
   await batch.commit();

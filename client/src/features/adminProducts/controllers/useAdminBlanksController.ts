@@ -94,7 +94,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
-  const providerDesc = p.description || p.model || null;
+  const providerDesc = p.description || null;
   const effectiveDesc = adminCatalogDesc || providerDesc;
   return {
     id: String(p.id),

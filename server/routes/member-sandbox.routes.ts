@@ -428,7 +428,7 @@ export function registerMemberSandboxRoutes(app: Express): void {
         if ((!imageUrl || imageUrl.includes('/api/files/')) && p.blueprintId) {
           try {
             if (!blueprintCache.has(p.blueprintId)) {
-              const bpDoc = await firestoreDb.collection("printifyBlueprints").doc(String(p.blueprintId)).get();
+              const bpDoc = await firestoreDb.collection("printify_blueprints").doc(String(p.blueprintId)).get();
               if (bpDoc.exists) blueprintCache.set(p.blueprintId, bpDoc.data());
             }
             const bpData = blueprintCache.get(p.blueprintId);
@@ -620,7 +620,7 @@ export function registerMemberSandboxRoutes(app: Express): void {
       const markupFixed = pricingSettings?.markupFixed ?? 0;
 
       const blueprintCache = new Map<string, any>();
-      const allBlueprints = await fsGetAll("printifyBlueprints");
+      const allBlueprints = await fsGetAll("printify_blueprints");
       for (const bp of allBlueprints) {
         blueprintCache.set(String(bp.id), bp);
       }

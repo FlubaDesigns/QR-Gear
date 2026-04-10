@@ -188,8 +188,8 @@ function register(app) {
     app.get('/printify/catalog', async (req, res) => {
         try {
             const [bpSnap, provSnap] = await Promise.all([
-                core_1.db.collection('printifyBlueprints').get(),
-                core_1.db.collection('printifyProviders').get(),
+                core_1.db.collection('printify_blueprints').get(),
+                core_1.db.collection('printifyPrintProviders').get(),
             ]);
             const blueprints = bpSnap.docs.map(d => ({ id: parseInt(d.id) || d.data().id, ...d.data() }));
             const allProviders = provSnap.docs.map(d => d.data());
@@ -244,7 +244,7 @@ function register(app) {
                 const brandLower = (bp.brand || '').toLowerCase();
                 const madeInUSA = USA_BRANDS.some(b => brandLower.includes(b));
                 const provData = providersByBlueprint.get(bp.id);
-                const rawDesc = bp.description || '';
+                const rawDesc = bp.richDescription || bp.description || '';
                 const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
                 categories[category].push({
                     id: bp.id, title: bp.title, description: cleanDesc, brand: bp.brand, model: bp.model,
@@ -311,7 +311,7 @@ function register(app) {
     });
     app.get('/printify/local-blueprints', async (req, res) => {
         try {
-            const snap = await core_1.db.collection('printifyBlueprints').get();
+            const snap = await core_1.db.collection('printify_blueprints').get();
             const blueprints = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             res.json({ blueprints });
         }

@@ -373,7 +373,7 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
     const bid = parseInt(req.body.blueprintId);
     let fallbackUrl: string | null = null;
     try {
-      const bpDoc = await db.collection('printifyBlueprints').doc(String(bid)).get();
+      const bpDoc = await db.collection('printify_blueprints').doc(String(bid)).get();
       if (bpDoc.exists) {
         const bpData = bpDoc.data()!;
         fallbackUrl = bpData.images?.[0] || bpData.image || null;

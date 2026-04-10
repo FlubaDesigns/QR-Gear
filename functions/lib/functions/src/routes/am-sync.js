@@ -574,7 +574,7 @@ function register(app) {
             const bid = parseInt(req.body.blueprintId);
             let fallbackUrl = null;
             try {
-                const bpDoc = await core_1.db.collection('printifyBlueprints').doc(String(bid)).get();
+                const bpDoc = await core_1.db.collection('printify_blueprints').doc(String(bid)).get();
                 if (bpDoc.exists) {
                     const bpData = bpDoc.data();
                     fallbackUrl = bpData.images?.[0] || bpData.image || null;

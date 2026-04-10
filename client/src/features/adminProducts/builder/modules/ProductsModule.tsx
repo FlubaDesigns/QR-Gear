@@ -72,7 +72,7 @@ function catalogToSelectItem(
   const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
   const raw = p as any;
   const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
-  const providerDescription = p.description || p.model || null;
+  const providerDescription = p.description || null;
   const effectiveDescription = adminCatalogDescription ?? providerDescription;
   return {
     id: String(p.id),

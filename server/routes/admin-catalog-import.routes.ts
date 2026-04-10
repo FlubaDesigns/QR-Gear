@@ -307,7 +307,7 @@ export function registerAdminCatalogImportRoutes(app: Express): void {
           .map(p => `${p.blueprintId}_${p.printProviderId}`)
       );
 
-      const blueprintsSnap = await fsDb.collection('printifyBlueprints').get();
+      const blueprintsSnap = await fsDb.collection('printify_blueprints').get();
       const blueprintMap = new Map<number, any>();
       blueprintsSnap.docs.forEach(doc => {
         const d = doc.data();

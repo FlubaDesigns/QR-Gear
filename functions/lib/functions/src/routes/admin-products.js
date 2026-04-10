@@ -76,7 +76,7 @@ function register(app) {
     // ============ ADMIN CATALOG ============
     app.get('/admin/catalog/blueprints', middleware_1.requireAdmin, async (_req, res) => {
         try {
-            const snapshot = await core_1.db.collection('printifyBlueprints').get();
+            const snapshot = await core_1.db.collection('printify_blueprints').get();
             res.json((0, core_1.docsToArray)(snapshot));
         }
         catch (error) {
@@ -85,7 +85,7 @@ function register(app) {
     });
     app.get('/admin/catalog/blueprints/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const doc = await core_1.db.collection('printifyBlueprints').doc(req.params.id).get();
+            const doc = await core_1.db.collection('printify_blueprints').doc(req.params.id).get();
             if (!doc.exists) {
                 res.status(404).json({ error: 'Blueprint not found' });
                 return;

@@ -115,8 +115,8 @@ app.get('/admin/printify/blueprints/:blueprintId/providers/:providerId/variants'
 app.get('/printify/catalog', async (req: Request, res: Response): Promise<void> => {
   try {
     const [bpSnap, provSnap] = await Promise.all([
-      db.collection('printifyBlueprints').get(),
-      db.collection('printifyProviders').get(),
+      db.collection('printify_blueprints').get(),
+      db.collection('printifyPrintProviders').get(),
     ]);
     const blueprints = bpSnap.docs.map(d => ({ id: parseInt(d.id) || d.data().id, ...d.data() }));
     const allProviders = provSnap.docs.map(d => d.data());
@@ -155,7 +155,7 @@ app.get('/printify/catalog', async (req: Request, res: Response): Promise<void> 
       const brandLower = ((bp as any).brand || '').toLowerCase();
       const madeInUSA = USA_BRANDS.some(b => brandLower.includes(b));
       const provData = providersByBlueprint.get(bp.id);
-      const rawDesc = (bp as any).description || '';
+      const rawDesc = (bp as any).richDescription || (bp as any).description || '';
       const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       categories[category].push({
         id: bp.id, title: (bp as any).title, description: cleanDesc, brand: (bp as any).brand, model: (bp as any).model,
@@ -201,7 +201,7 @@ app.get('/printify/products', async (req: Request, res: Response): Promise<void>
 
 app.get('/printify/local-blueprints', async (req: Request, res: Response): Promise<void> => {
   try {
-    const snap = await db.collection('printifyBlueprints').get();
+    const snap = await db.collection('printify_blueprints').get();
     const blueprints = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     res.json({ blueprints });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
