@@ -612,4 +612,28 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ── Master Catalog Sync proxy → Cloud Functions ──────────────────────────
+  // Forwards to CF with the caller's Firebase ID token so requireAdmin passes.
+  const CF_BASE = process.env.FUNCTIONS_BASE_URL || 'https://api-b3rye3vhuq-uc.a.run.app';
+
+  app.post('/api/admin/master-catalog/sync', isAdmin, async (req: any, res) => {
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const response = await fetch(`${CF_BASE}/admin/master-catalog/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+        },
+        body: JSON.stringify(req.body || {}),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      res.status(response.status).json(data);
+    } catch (error: any) {
+      console.error('[MasterCatalogProxy] Error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
 }
