@@ -555,39 +555,50 @@ export function registerProductRoutes(app: Express): void {
     }
   });
 
-  // ── Master catalog read (from master_products collection) ────────────────
+  // ── Master catalog read (from master_catalog collection) ────────────────
   app.get("/api/master-catalog", async (req, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
 
-      const snap = await fsDb.collection('master_products').get();
+      const snap = await fsDb.collection('master_catalog').get();
       const categories: Record<string, any[]> = {};
 
       for (const doc of snap.docs) {
         const p = doc.data() as any;
+        const docId = doc.id;
+        const isPrintful = docId.startsWith('pf_');
+        const fulfillmentProvider = isPrintful ? 'printful' : 'printify';
+        const id = isPrintful ? p.printfulProductId : p.printifyBlueprintId;
+        if (!id) continue;
+        const imageUrl = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null;
+        const availableColors = Array.isArray(p.colors) ? p.colors : [];
+        const availableSizes = Array.isArray(p.sizes) ? p.sizes : [];
+        const rawDesc = (p.description || "").trim();
+        const description = rawDesc ? rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : null;
+        const madeInUSA = p.originCountry ? p.originCountry.toLowerCase().includes('united states') : false;
         const category = p.category || 'Other';
         if (!categories[category]) categories[category] = [];
         categories[category].push({
-          id: p.printifyId || p.printfulId,
+          id,
           title: (p.title || "").trim(),
-          description: (p.description || "").trim() || null,
-          brand: p.brand,
-          model: p.model,
-          imageUrl: p.imageUrl,
-          madeInUSA: p.madeInUSA,
-          blueprintId: p.blueprintId,
-          printProviderId: p.printProviderId,
+          description,
+          brand: p.brand || null,
+          model: p.model || null,
+          imageUrl,
+          madeInUSA,
+          blueprintId: p.printifyBlueprintId || null,
+          printProviderId: null,
           minPrice: p.minPrice,
           maxPrice: p.maxPrice,
-          colorCount: p.colorCount,
-          availableColors: p.availableColors || [],
-          availableSizes: p.availableSizes || [],
-          fulfillmentProvider: p.fulfillmentProvider,
-          availableVia: p.availableVia || [p.fulfillmentProvider],
-          printfulId: p.printfulId,
-          providers: p.providers || [p.fulfillmentProvider],
+          colorCount: availableColors.length,
+          availableColors,
+          availableSizes,
+          fulfillmentProvider,
+          availableVia: [fulfillmentProvider],
+          printfulId: p.printfulProductId || null,
+          providers: [fulfillmentProvider],
         });
       }
 
