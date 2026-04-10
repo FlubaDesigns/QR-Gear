@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260408-subbottom-v2';
+const _BUILD_ID = '20260410-master-catalog-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -38,6 +38,7 @@ import { register as registerSeo } from './routes/seo';
 import { register as registerMarketplace } from './routes/marketplace';
 import { register as registerExternalSites } from './routes/external-sites';
 import { register as registerCoreRoutes } from './routes/core-routes';
+import { register as registerMasterCatalog } from './routes/master-catalog';
 
 const app = express();
 
@@ -80,6 +81,7 @@ registerSeo(app);
 registerMarketplace(app);
 registerExternalSites(app);
 registerCoreRoutes(app);
+registerMasterCatalog(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

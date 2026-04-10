@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-const _BUILD_ID = '20260408-subbottom-v2';
+const _BUILD_ID = '20260410-master-catalog-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -43,6 +43,7 @@ const seo_1 = require("./routes/seo");
 const marketplace_1 = require("./routes/marketplace");
 const external_sites_1 = require("./routes/external-sites");
 const core_routes_1 = require("./routes/core-routes");
+const master_catalog_1 = require("./routes/master-catalog");
 const app = (0, express_1.default)();
 app.use(middleware_1.corsMiddleware);
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -82,6 +83,7 @@ app.use(middleware_1.apiPrefixMiddleware);
 (0, marketplace_1.register)(app);
 (0, external_sites_1.register)(app);
 (0, core_routes_1.register)(app);
+(0, master_catalog_1.register)(app);
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });

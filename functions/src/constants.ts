@@ -66,3 +66,11 @@ export const BUILDER_HOST_STATUSES: BuilderHostStatus[] = ['active', 'paused', '
 export const BUILDER_PROFILE_STATUSES: BuilderProfileStatus[] = ['active', 'draft', 'archived'];
 export const BUILDER_PLACEMENT_STATUSES: BuilderPlacementStatus[] = ['active', 'paused', 'disabled'];
 export const PAYOUT_STATUSES: PayoutStatus[] = ['pending', 'approved', 'paid', 'reversed'];
+
+export const MASTER_CATALOG_COLLECTION = 'master_catalog';
+export const MASTER_CATALOG_SYNCS_COLLECTION = 'master_catalog_syncs';
+export const PRINTIFY_BLUEPRINTS_COLLECTION = 'printify_blueprints';
+export const PRINTIFY_PROVIDERS_COLLECTION = 'printify_print_providers';
+export const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
+export const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
+export const PROVIDER_MAPPING_COLLECTION = 'printify_printful_mapping';
