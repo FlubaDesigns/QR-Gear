@@ -414,6 +414,71 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
   }
 });
 
+app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [masterSnap, catalogsSnap] = await Promise.all([
+      db.collection('master_products').get(),
+      db.collection('catalogs').get(),
+    ]);
+
+    const adminDescribedKeys = new Set<string>();
+    for (const catDoc of catalogsSnap.docs) {
+      const blankDescriptions = (catDoc.data().blankDescriptions || {}) as Record<string, string>;
+      for (const [key, val] of Object.entries(blankDescriptions)) {
+        if (val && String(val).trim().length > 0) adminDescribedKeys.add(key);
+      }
+    }
+
+    const CATEGORY_ORDER = ["T-Shirts & Tops","Sweatshirts & Hoodies","Hats & Caps","Drinkware","Bags & Accessories","Phone Cases & Tech","Stickers & Magnets","Wall Art & Posters","Home & Living","Stationery & Paper","Activewear & Specialty","Accessories","Pet Products","Holiday & Seasonal","Other"];
+    const categories: Record<string, any[]> = {};
+
+    for (const doc of masterSnap.docs) {
+      const p = doc.data() as any;
+      const masterDesc = (p.description || "").trim();
+      if (!masterDesc) continue;
+      const blankKey = p.printifyId ? String(p.printifyId) : (p.printfulId ? `pf:${p.printfulId}` : null);
+      if (!blankKey || !adminDescribedKeys.has(blankKey)) continue;
+
+      const category = p.category || 'Other';
+      if (!categories[category]) categories[category] = [];
+      categories[category].push({
+        id: p.printifyId || p.printfulId,
+        title: (p.title || "").trim(),
+        description: masterDesc,
+        brand: p.brand,
+        model: p.model,
+        imageUrl: p.imageUrl,
+        madeInUSA: p.madeInUSA,
+        blueprintId: p.blueprintId,
+        printProviderId: p.printProviderId,
+        minPrice: p.minPrice,
+        maxPrice: p.maxPrice,
+        colorCount: p.colorCount,
+        availableColors: p.availableColors || [],
+        availableSizes: p.availableSizes || [],
+        fulfillmentProvider: p.fulfillmentProvider,
+        availableVia: p.availableVia || [p.fulfillmentProvider],
+        printfulId: p.printfulId,
+        providers: p.providers || [p.fulfillmentProvider],
+      });
+    }
+
+    const result = Object.entries(categories)
+      .map(([name, items]) => ({ name, items: (items as any[]).sort((a, b) => a.title.localeCompare(b.title)), count: items.length }))
+      .sort((a, b) => {
+        const ai = CATEGORY_ORDER.indexOf(a.name); const bi = CATEGORY_ORDER.indexOf(b.name);
+        if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+        if (ai === -1) return 1; if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+    res.json(result);
+  } catch (e: any) {
+    console.error('[JointCatalog] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/catalog/printful-products', async (_req: Request, res: Response): Promise<void> => {
   try {
     const productsSnapshot = await db.collection("printful_products").get();

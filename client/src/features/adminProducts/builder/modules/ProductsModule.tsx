@@ -43,7 +43,7 @@ interface AdminCatalog {
 }
 
 type LocationFilter = "all" | "usa" | "other";
-type DataMode = "all" | "catalog";
+type DataMode = "all" | "catalog" | "joint";
 
 function detectGender(title: string): "mens" | "womens" | "unisex" {
   const lowerTitle = title.toLowerCase();
@@ -148,11 +148,14 @@ export function ProductsModule() {
 
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
-    if (catalogId !== "all") {
-      setDataMode("catalog");
+    if (catalogId === "all") {
+      setDataMode("all");
+    } else if (catalogId === "joint") {
+      setDataMode("joint");
       selectProduct(null);
     } else {
-      setDataMode("all");
+      setDataMode("catalog");
+      selectProduct(null);
     }
   }, [selectProduct]);
 
@@ -179,6 +182,25 @@ export function ProductsModule() {
     const catalogSet = new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id)));
     return masterCatalogAllProducts.filter(p => catalogSet.has(getCanonicalBlankKey(p)));
   }, [masterCatalogAllProducts, activeCatalog]);
+
+  const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
+    queryKey: ["joint-catalog-products"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/master-catalog/joint");
+      const data = (await res.json()) as CatalogCategoryResponse[];
+      const items: CatalogProduct[] = [];
+      const seen = new Set<string>();
+      for (const cat of data) {
+        for (const item of (cat.items || [])) {
+          const key = getCanonicalBlankKey(item);
+          if (!seen.has(key)) { seen.add(key); items.push(item); }
+        }
+      }
+      return items;
+    },
+    enabled: dataMode === "joint",
+    staleTime: 60000,
+  });
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
     setLocationFilter(loc);
@@ -282,7 +304,7 @@ export function ProductsModule() {
 
   const selectedProductId = state.selectedProduct ? String(state.selectedProduct.id) : null;
 
-  const activeProducts = dataMode === "catalog" ? catalogModeProducts : filteredProducts;
+  const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
 
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
   const blankTitles = activeCatalog?.blankTitles || {};
@@ -473,6 +495,7 @@ export function ProductsModule() {
           data-testid="select-catalog"
         >
           <option value="all">All Products (by category)</option>
+          <option value="joint">⭐ Joint Catalog (master + admin descriptions)</option>
           {adminCatalogs.map(cat => (
             <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0} blanks)</option>
           ))}
@@ -502,6 +525,41 @@ export function ProductsModule() {
               footer={
                 <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
                   {scrollItems.length} products available
+                </p>
+              }
+            />
+          )}
+        </>
+      )}
+
+      {dataMode === "joint" && (
+        <>
+          <div className="flex items-center gap-2 py-1">
+            <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+              Joint Catalog — {loadingJointProducts ? "loading…" : `${jointCatalogProducts.length} products with verified descriptions`}
+            </span>
+          </div>
+          {loadingJointProducts ? (
+            <div className="flex gap-3 overflow-hidden">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="flex-shrink-0 w-[calc(50vw-3rem)] max-w-[180px] aspect-[9/16] rounded-lg" />
+              ))}
+            </div>
+          ) : jointCatalogProducts.length === 0 ? (
+            <div className="p-6 text-center space-y-2 border rounded-md bg-muted/20">
+              <p className="text-sm text-muted-foreground">
+                No products have both a master description and an admin description yet. Add admin descriptions to products in a catalog first.
+              </p>
+            </div>
+          ) : (
+            <ScrollVerticalView
+              items={scrollItems}
+              renderItem={(item) => renderProductCard(item as ScrollViewItem)}
+              height="calc(100vh - 160px)"
+              emptyMessage="No products in joint catalog."
+              footer={
+                <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+                  {scrollItems.length} verified products
                 </p>
               }
             />

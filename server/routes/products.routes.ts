@@ -579,6 +579,81 @@ export function registerProductRoutes(app: Express): void {
     }
   });
 
+  // ── Joint catalog: products where BOTH master description AND at least one admin catalog description exist ──
+  app.get("/api/master-catalog/joint", async (req, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
+
+      const [masterSnap, catalogsSnap] = await Promise.all([
+        fsDb.collection('master_products').get(),
+        fsDb.collection('catalogs').get(),
+      ]);
+
+      // Build a set of all blankIds that have an admin description in any catalog
+      const adminDescribedKeys = new Set<string>();
+      for (const catDoc of catalogsSnap.docs) {
+        const blankDescriptions = catDoc.data().blankDescriptions || {};
+        for (const [key, val] of Object.entries(blankDescriptions)) {
+          if (val && String(val).trim().length > 0) adminDescribedKeys.add(key);
+        }
+      }
+
+      const CATEGORY_ORDER = ["T-Shirts & Tops","Sweatshirts & Hoodies","Hats & Caps","Drinkware","Bags & Accessories","Phone Cases & Tech","Stickers & Magnets","Wall Art & Posters","Home & Living","Stationery & Paper","Activewear & Specialty","Accessories","Pet Products","Holiday & Seasonal","Other"];
+      const categories: Record<string, any[]> = {};
+
+      for (const doc of masterSnap.docs) {
+        const p = doc.data() as any;
+        const masterDesc = (p.description || "").trim();
+        if (!masterDesc) continue; // must have master description
+
+        const blankKey = p.printifyId ? String(p.printifyId) : (p.printfulId ? `pf:${p.printfulId}` : null);
+        if (!blankKey) continue;
+        if (!adminDescribedKeys.has(blankKey)) continue; // must have admin description
+
+        const category = p.category || 'Other';
+        if (!categories[category]) categories[category] = [];
+        categories[category].push({
+          id: p.printifyId || p.printfulId,
+          title: (p.title || "").trim(),
+          description: masterDesc,
+          brand: p.brand,
+          model: p.model,
+          imageUrl: p.imageUrl,
+          madeInUSA: p.madeInUSA,
+          blueprintId: p.blueprintId,
+          printProviderId: p.printProviderId,
+          minPrice: p.minPrice,
+          maxPrice: p.maxPrice,
+          colorCount: p.colorCount,
+          availableColors: p.availableColors || [],
+          availableSizes: p.availableSizes || [],
+          fulfillmentProvider: p.fulfillmentProvider,
+          availableVia: p.availableVia || [p.fulfillmentProvider],
+          printfulId: p.printfulId,
+          providers: p.providers || [p.fulfillmentProvider],
+        });
+      }
+
+      const result = Object.entries(categories)
+        .map(([name, items]) => ({ name, items: items.sort((a: any, b: any) => a.title.localeCompare(b.title)), count: items.length }))
+        .sort((a, b) => {
+          const ai = CATEGORY_ORDER.indexOf(a.name); const bi = CATEGORY_ORDER.indexOf(b.name);
+          if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+          if (ai === -1) return 1; if (bi === -1) return -1;
+          return ai - bi;
+        });
+
+      const total = result.reduce((sum, c) => sum + c.count, 0);
+      console.log(`[JointCatalog] ${total} products with both master + admin descriptions across ${result.length} categories`);
+      res.json(result);
+    } catch (error: any) {
+      console.error("[JointCatalog] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/printify/catalog/:blueprintId", async (req, res) => {
     try {
       if (!printify.isConfigured) {
