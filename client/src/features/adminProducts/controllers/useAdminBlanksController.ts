@@ -132,9 +132,9 @@ export function useAdminBlanksController() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
 
   const { data: categories = [], isLoading: loadingPrintifyCatalog } = useQuery<CatalogCategory[]>({
-    queryKey: ["/api/master-catalog", "blanks"],
+    queryKey: ["/api/printify/catalog", "blanks"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/master-catalog");
+      const res = await apiRequest("GET", "/api/printify/catalog");
       const d = await res.json();
       return Array.isArray(d) ? d : [];
     },
