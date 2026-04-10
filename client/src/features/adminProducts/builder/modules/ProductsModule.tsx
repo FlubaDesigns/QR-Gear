@@ -309,17 +309,40 @@ export function ProductsModule() {
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
   const blankTitles = activeCatalog?.blankTitles || {};
 
+  // Merge descriptions/titles from ALL catalogs as fallback so they always show,
+  // regardless of which catalog is selected (fixes Printful products with no provider description)
+  const allBlankDescriptions = useMemo(() => {
+    const merged: Record<string, string> = {};
+    for (const catalog of adminCatalogs) {
+      for (const [key, val] of Object.entries(catalog.blankDescriptions || {})) {
+        if (val && !merged[key]) merged[key] = val as string;
+      }
+    }
+    return merged;
+  }, [adminCatalogs]);
+
+  const allBlankTitles = useMemo(() => {
+    const merged: Record<string, string> = {};
+    for (const catalog of adminCatalogs) {
+      for (const [key, val] of Object.entries(catalog.blankTitles || {})) {
+        if (val && !merged[key]) merged[key] = val as string;
+      }
+    }
+    return merged;
+  }, [adminCatalogs]);
+
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
     activeProducts.forEach(p => {
       const withGender = { ...p, gender: detectGender(p.title) };
       const blankKey = p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id);
-      const adminDesc = blankDescriptions[blankKey] || null;
-      const adminTitle = blankTitles[blankKey] || null;
+      // Active catalog takes priority; fall back to any catalog that has a value
+      const adminDesc = blankDescriptions[blankKey] || allBlankDescriptions[blankKey] || null;
+      const adminTitle = blankTitles[blankKey] || allBlankTitles[blankKey] || null;
       map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts, blankDescriptions, blankTitles]);
+  }, [activeProducts, blankDescriptions, blankTitles, allBlankDescriptions, allBlankTitles]);
 
   const saveDescriptionMutation = useMutation({
     mutationFn: async ({ catalogId, blankId, description }: { catalogId: string; blankId: string; description: string }) => {
