@@ -13,6 +13,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollVerticalView } from "@/features/shared/components/views/ScrollVerticalView";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import {
@@ -123,6 +132,8 @@ export function ProductsModule() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [dataMode, setDataMode] = useState<DataMode>("all");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
+  const [pendingSave, setPendingSave] = useState<{ id: string; value: string; type: "title" | "description" } | null>(null);
+  const [pendingCatalogId, setPendingCatalogId] = useState<string>("");
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -326,7 +337,8 @@ export function ProductsModule() {
 
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     if (!activeCatalog) {
-      toast({ title: "Select a catalog first", variant: "destructive" });
+      setPendingSave({ id, value: description, type: "description" });
+      setPendingCatalogId(adminCatalogs[0]?.id || "");
       return;
     }
     const entry = selectItemMap.get(id);
@@ -335,17 +347,33 @@ export function ProductsModule() {
     if (state.selectedProduct && String(state.selectedProduct.id) === id) {
       setProductDescription(description || null);
     }
-  }, [activeCatalog, selectItemMap, saveDescriptionMutation, toast, state.selectedProduct, setProductDescription]);
+  }, [activeCatalog, adminCatalogs, selectItemMap, saveDescriptionMutation, state.selectedProduct, setProductDescription]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
     if (!activeCatalog) {
-      toast({ title: "Select a catalog first", variant: "destructive" });
+      setPendingSave({ id, value: title, type: "title" });
+      setPendingCatalogId(adminCatalogs[0]?.id || "");
       return;
     }
     const entry = selectItemMap.get(id);
     if (!entry) return;
     await saveTitleMutation.mutateAsync({ catalogId: activeCatalog.id, blankId: entry.blankKey, title });
-  }, [activeCatalog, selectItemMap, saveTitleMutation, toast]);
+  }, [activeCatalog, adminCatalogs, selectItemMap, saveTitleMutation]);
+
+  const handlePendingConfirm = useCallback(async () => {
+    if (!pendingSave || !pendingCatalogId) return;
+    const entry = selectItemMap.get(pendingSave.id);
+    if (!entry) return;
+    if (pendingSave.type === "title") {
+      await saveTitleMutation.mutateAsync({ catalogId: pendingCatalogId, blankId: entry.blankKey, title: pendingSave.value });
+    } else {
+      await saveDescriptionMutation.mutateAsync({ catalogId: pendingCatalogId, blankId: entry.blankKey, description: pendingSave.value });
+      if (state.selectedProduct && String(state.selectedProduct.id) === pendingSave.id) {
+        setProductDescription(pendingSave.value || null);
+      }
+    }
+    setPendingSave(null);
+  }, [pendingSave, pendingCatalogId, selectItemMap, saveTitleMutation, saveDescriptionMutation, state.selectedProduct, setProductDescription]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
@@ -383,10 +411,10 @@ export function ProductsModule() {
           item={entry.selectItem}
           isSelected={selectedProductId === String(scrollItem.id)}
           onSelect={handleCardSelect}
-          editableDescription={!!activeCatalog}
+          editableDescription={true}
           onDescriptionSave={handleDescriptionSave}
           descriptionSaving={saveDescriptionMutation.isPending}
-          editableTitle={!!activeCatalog}
+          editableTitle={true}
           onTitleSave={handleTitleSave}
           titleSaving={saveTitleMutation.isPending}
         />
@@ -396,6 +424,37 @@ export function ProductsModule() {
   );
 
   return (
+    <>
+    <Dialog open={!!pendingSave} onOpenChange={(open) => { if (!open) setPendingSave(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Choose a catalog to save to</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Select which catalog this {pendingSave?.type} override should apply to.
+        </p>
+        <Select value={pendingCatalogId} onValueChange={setPendingCatalogId}>
+          <SelectTrigger data-testid="select-pending-catalog">
+            <SelectValue placeholder="Select a catalog..." />
+          </SelectTrigger>
+          <SelectContent>
+            {adminCatalogs.map(cat => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setPendingSave(null)} data-testid="button-pending-cancel">Cancel</Button>
+          <Button
+            onClick={handlePendingConfirm}
+            disabled={!pendingCatalogId || saveTitleMutation.isPending || saveDescriptionMutation.isPending}
+            data-testid="button-pending-confirm"
+          >
+            {(saveTitleMutation.isPending || saveDescriptionMutation.isPending) ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <div className="space-y-4">
       <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md" data-testid="active-provider-indicator">
         <span className="text-xs text-muted-foreground">Browsing:</span>
@@ -567,5 +626,6 @@ export function ProductsModule() {
         </div>
       )}
     </div>
+    </>
   );
 }
