@@ -73,7 +73,10 @@ function catalogToSelectItem(
   const raw = p as any;
   const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
   const providerDescription = p.description || null;
-  const effectiveDescription = adminCatalogDescription ?? providerDescription;
+  const normalizedAdmin = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
+    ? adminCatalogDescription
+    : null;
+  const effectiveDescription = normalizedAdmin ?? providerDescription;
   return {
     id: String(p.id),
     name: p.title || raw.name || "",
