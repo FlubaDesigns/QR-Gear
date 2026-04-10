@@ -200,7 +200,6 @@ export function ProductsModule() {
       return items;
     },
     enabled: dataMode === "catalog" && catalogProviders.has("printify"),
-    staleTime: 60000,
   });
 
   const loadingCatalogProducts = loadingPrintful || loadingPrintify;
