@@ -497,11 +497,9 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             )}
           </div>
 
-          {item.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`text-desc-${item.id}`}>
-              {item.description}
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`text-desc-${item.id}`}>
+            {item.description || "No description set."}
+          </p>
 
           <Button
             variant={isSelected ? "secondary" : "default"}

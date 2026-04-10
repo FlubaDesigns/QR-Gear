@@ -542,8 +542,8 @@ export function registerProductRoutes(app: Express): void {
         if (!categories[category]) categories[category] = [];
         categories[category].push({
           id: p.printifyId || p.printfulId,
-          title: p.title,
-          description: p.description || null,
+          title: (p.title || "").trim(),
+          description: (p.description || "").trim() || null,
           brand: p.brand,
           model: p.model,
           imageUrl: p.imageUrl,

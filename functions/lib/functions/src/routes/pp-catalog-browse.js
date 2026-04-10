@@ -425,8 +425,8 @@ function registerPpCatalogBrowseRoutes(app) {
                     categories[category] = [];
                 categories[category].push({
                     id: p.printifyId || p.printfulId,
-                    title: p.title,
-                    description: p.description || null,
+                    title: (p.title || "").trim(),
+                    description: (p.description || "").trim() || null,
                     brand: p.brand,
                     model: p.model,
                     imageUrl: p.imageUrl,

@@ -87,7 +87,11 @@ const initialState: BuilderState = {
   originFilter: { showUSA: true, showOther: false },
   genderFilter: "mens",
   selectedProduct: null,
+  masterTitle: null,
+  adminCatalogTitle: null,
+  masterDescription: null,
   productDescription: null,
+  adminCatalogDescription: null,
   selectedColor: { name: "Black", hex: "#000000" },
   qrProductState: "qr_canvas",
   content: {
@@ -234,28 +238,35 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const setProductDescription = useCallback((description: string | null) => {
-    setState(prev => ({ ...prev, productDescription: description }));
+    setState(prev => ({ ...prev, productDescription: description, adminCatalogDescription: description }));
   }, []);
 
   const setProductTitle = useCallback((title: string | null) => {
     setState(prev => {
       if (!prev.selectedProduct) return prev;
-      return { ...prev, selectedProduct: { ...prev.selectedProduct, title: title ?? prev.selectedProduct.title } };
+      return {
+        ...prev,
+        adminCatalogTitle: title,
+        selectedProduct: { ...prev.selectedProduct, title: title ?? prev.masterTitle ?? prev.selectedProduct.title },
+      };
     });
   }, []);
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
     if (!product) {
-      setState(prev => ({ ...prev, selectedProduct: null, productDescription: null, placementsLoading: false }));
+      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false }));
       return;
     }
+
+    const masterTitle = (product.title || "").trim() || null;
+    const masterDescription = (product.description || "").trim() || null;
 
     if (product.placements && product.placements.length > 0) {
-      setState(prev => ({ ...prev, selectedProduct: product, productDescription: product.description ?? prev.productDescription, placementsLoading: false }));
+      setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false }));
       return;
     }
 
-    setState(prev => ({ ...prev, selectedProduct: product, productDescription: product.description ?? null, placementsLoading: true }));
+    setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true }));
 
     const provider = product.fulfillmentProvider || 'printify';
     const params = new URLSearchParams({ provider });

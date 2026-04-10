@@ -106,7 +106,7 @@ function catalogToSelectItem(
     primaryImageUrl: imageUrl,
     description: effectiveDescription,
     providerDescription,
-    adminCatalogDescription: adminCatalogDescription ?? null,
+    adminCatalogDescription: normalizedAdminDesc,
     colorsAvailable: (p.availableColors || raw.colors || []).map((c: any) => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || raw.sizes || [],
     defaultColor: (p.availableColors || raw.colors || []).length > 0
@@ -393,8 +393,14 @@ export function ProductsModule() {
         setSelectedProviders([catalogProduct.fulfillmentProvider]);
       }
       selectProduct(entry.catalog);
+      if (entry.selectItem.adminCatalogTitle) {
+        setProductTitle(entry.selectItem.adminCatalogTitle);
+      }
+      if (entry.selectItem.adminCatalogDescription) {
+        setProductDescription(entry.selectItem.adminCatalogDescription);
+      }
     }
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders]);
+  }, [selectItemMap, selectProduct, setProductTitle, setProductDescription, provider, setSelectedProviders]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {

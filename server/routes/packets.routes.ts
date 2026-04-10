@@ -17,6 +17,12 @@ export function registerPacketRoutes(app: Express): void {
         pricing,
         productId,
         productName,
+        masterTitle,
+        adminCatalogTitle,
+        effectiveTitle,
+        masterDescription,
+        adminCatalogDescription,
+        effectiveDescription,
         productDescription,
         productImageUrl,
         blueprintId,
@@ -66,6 +72,12 @@ export function registerPacketRoutes(app: Express): void {
         pricing: pricing || null,
         productId: productId || null,
         productName: productName || null,
+        masterTitle: masterTitle || null,
+        adminCatalogTitle: adminCatalogTitle || null,
+        effectiveTitle: effectiveTitle || productName || null,
+        masterDescription: masterDescription || null,
+        adminCatalogDescription: adminCatalogDescription || null,
+        effectiveDescription: effectiveDescription || productDescription || null,
         productDescription: productDescription || null,
         productImageUrl: productImageUrl || null,
         blueprintId: blueprintId || null,
@@ -247,6 +259,12 @@ export function registerPacketRoutes(app: Express): void {
         pricing,
         productId,
         productName,
+        masterTitle,
+        adminCatalogTitle,
+        effectiveTitle,
+        masterDescription,
+        adminCatalogDescription,
+        effectiveDescription,
         productDescription,
         productImageUrl,
         blueprintId,
@@ -296,6 +314,12 @@ export function registerPacketRoutes(app: Express): void {
         pricing: pricing || null,
         productId: productId || null,
         productName: productName || null,
+        masterTitle: masterTitle || null,
+        adminCatalogTitle: adminCatalogTitle || null,
+        effectiveTitle: effectiveTitle || productName || null,
+        masterDescription: masterDescription || null,
+        adminCatalogDescription: adminCatalogDescription || null,
+        effectiveDescription: effectiveDescription || productDescription || null,
         productDescription: productDescription || null,
         productImageUrl: productImageUrl || null,
         blueprintId: blueprintId || null,
@@ -621,6 +645,57 @@ export function registerPacketRoutes(app: Express): void {
       });
     } catch (error: any) {
       console.error("[Landing Page] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== MEMBER PRODUCT OVERRIDE =====
+  // Allows a member to save their own title/description override per packet product.
+  app.patch("/api/packets/:packetId/member-product", async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+      const { memberPacketTitle, memberPacketDescription } = req.body;
+
+      if (!packetId) {
+        return res.status(400).json({ error: "Missing packetId" });
+      }
+
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const firestoreDb = getFirestoreDb();
+
+      const docRef = firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Packet not found" });
+      }
+
+      const data = doc.data() as any;
+      const adminCatalogDesc = data.adminCatalogDescription || null;
+      const masterDesc = data.masterDescription || data.productDescription || null;
+      const adminCatalogTitleVal = data.adminCatalogTitle || null;
+      const masterTitleVal = data.masterTitle || data.productName || null;
+
+      const updates: Record<string, any> = {
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      if (memberPacketTitle !== undefined) {
+        updates.memberPacketTitle = memberPacketTitle || null;
+        updates.effectiveTitle = memberPacketTitle || adminCatalogTitleVal || masterTitleVal || "Untitled Product";
+      }
+
+      if (memberPacketDescription !== undefined) {
+        updates.memberPacketDescription = memberPacketDescription || null;
+        updates.effectiveDescription = memberPacketDescription || adminCatalogDesc || masterDesc || null;
+      }
+
+      await docRef.update(updates);
+
+      console.log(`[Packets Member] Updated member overrides for packet ${packetId}`);
+      res.json({ success: true, updates });
+    } catch (error: any) {
+      console.error("[Packets Member] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
