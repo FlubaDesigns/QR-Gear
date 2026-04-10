@@ -249,28 +249,30 @@ export function registerProductRoutes(app: Express): void {
 
   app.get("/api/printify/catalog", async (req, res) => {
     try {
-      if (!printify.isConfigured) {
-        return res.status(503).json({ error: "Printify not configured" });
-      }
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
 
-      const [localBlueprints, allProviders] = await Promise.all([
-        storage.getPrintifyBlueprints(),
-        storage.getAllPrintifyProviders(),
+      const [bpSnap, provSnap] = await Promise.all([
+        fsDb.collection('printify_blueprints').get(),
+        fsDb.collection('printifyPrintProviders').get(),
       ]);
 
-      let blueprints: any[];
-      if (localBlueprints.length > 0) {
-        blueprints = localBlueprints.map(bp => ({
-          id: bp.id,
-          title: bp.title,
-          description: (bp as any).description || '',
-          brand: bp.brand,
-          model: bp.model,
-          images: bp.images || [],
-        }));
-      } else {
-        blueprints = await printify.getCatalogBlueprints();
-      }
+      const blueprints: any[] = bpSnap.docs.map(doc => {
+        const d = doc.data();
+        const rawDesc = d.richDescription || d.description || '';
+        const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        return {
+          id: parseInt(doc.id) || d.id,
+          title: d.title || '',
+          description: cleanDesc,
+          brand: d.brand || '',
+          model: d.model || '',
+          images: d.images || [],
+        };
+      });
+
+      const allProviders: any[] = provSnap.docs.map(doc => doc.data());
 
       const providersByBlueprint = new Map<number, { colors: Array<{name: string; hex?: string}>; sizes: string[]; minCost: number; maxCost: number; providerId: number }>();
       for (const prov of allProviders) {
