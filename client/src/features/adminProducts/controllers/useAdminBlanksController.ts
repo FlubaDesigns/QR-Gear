@@ -246,6 +246,9 @@ export function useAdminBlanksController() {
     const map = new Map<string, CatalogProduct>();
     printifyProducts.forEach(p => map.set(String(p.id), p));
     printfulProducts.forEach(p => map.set(`pf:${p.id}`, p));
+    // Also index Printify products by their Printful counterpart ID so that
+    // catalog entries stored as "pf:456" resolve to the cross-provider matched item
+    printifyProducts.forEach(p => { if (p.printfulId) map.set(`pf:${p.printfulId}`, p); });
     return map;
   }, [printifyProducts, printfulProducts]);
 
