@@ -79,6 +79,25 @@ const CF_USA_MADE_BRANDS = [
   'shaka wear', 'backpacks usa', 'american giant', 'next level',
 ];
 
+function classifyCategory(title: string): string {
+  const t = (title || '').toLowerCase();
+  if (/christmas|holiday|ornament|halloween|easter|thanksgiving|valentine|xmas/.test(t)) return 'Holiday & Seasonal';
+  if (/\bpet\b|\bdog\b|\bcat\b|puppy|kitten|\banimal\b/.test(t)) return 'Pet Products';
+  if (/notebook|journal|planner|stationery|greeting card|postcard|notepad/.test(t)) return 'Stationery & Paper';
+  if (/acrylic print|acrylic sign|metal print|gallery wrap|art board|canvas wrap|canvas gallery|canvas print|wall art|poster|framed|tapestry|\bbanner\b|\bflag\b|art print/.test(t)) return 'Wall Art & Posters';
+  if (/tote bag|backpack|fanny pack|drawstring bag|duffel|duffle|messenger bag|crossbody|\bpouch\b|shopping bag|laptop bag/.test(t)) return 'Bags & Accessories';
+  if (/phone case|iphone|samsung case|airpod|laptop sleeve|mouse pad|mousepad|tablet case/.test(t)) return 'Phone Cases & Tech';
+  if (/sticker|magnet|decal|\bpatch\b/.test(t)) return 'Stickers & Magnets';
+  if (/mugs?|tumbler|water bottle|wine glass|beer stein|beer mug|\bflask\b|thermos|travel mug|\bpint\b|drinkware|insulated bottle|insulated tumbler|shot glass/.test(t)) return 'Drinkware';
+  if (/snapback|trucker hat|dad hat|baseball cap|bucket hat|\bbeanie\b|\bvisor\b|\bcap\b|\bhat\b/.test(t)) return 'Hats & Caps';
+  if (/hoodie|hoody|sweatshirt|pullover|\bfleece\b|zip.?up|crewneck|crew neck|\bsweater\b/.test(t)) return 'Sweatshirts & Hoodies';
+  if (/swimsuit|bikini|rash guard|windbreaker|biker short|boxer brief|bodycon|legging|yoga|jogger|sweatpant|sport bra|compression|activewear|athletic short/.test(t)) return 'Activewear & Specialty';
+  if (/t-shirt|tshirt|\btee\b|tank top|\bpolo\b|v-neck|\bhenley\b|long sleeve|\bjersey\b|raglan|crop top|camisole|\bblouse\b|\bshirt\b/.test(t)) return 'T-Shirts & Tops';
+  if (/\bpillow\b|blanket|\btowel\b|\bapron\b|\brug\b|doormat|table runner|cushion|coaster|shower curtain|duvet|bedding|\bbath\b|face mask|\bbandana\b|\bsock\b|calendar|\bclock\b|\bcandle\b|keychain|\bwallet\b|serving tray|phone stand/.test(t)) return 'Home & Living';
+  if (/bracelet|necklace|earring|\bring\b|\bwatch\b|sunglasse|\bscarf\b|\bglove\b|\bbelt\b|headband|neck gaiter|hair/.test(t)) return 'Accessories';
+  return 'Other';
+}
+
 function cfCategorizeProduct(title: string): string {
   const t = title.toLowerCase();
   if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie') || t.includes('baby tee')) return "T-Shirts & Tops";
@@ -373,27 +392,33 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
 
     for (const doc of snap.docs) {
       const p = doc.data() as any;
-      const category = p.category || 'Other';
+      const category = (p.category && p.category !== 'Other') ? p.category : classifyCategory(p.title || '');
       if (!categories[category]) categories[category] = [];
+      const blueprintId = p.printifyBlueprintId ?? p.blueprintId ?? null;
+      const printfulId = p.printfulProductId ?? p.printfulId ?? null;
+      const colors = p.colors ?? p.availableColors ?? [];
+      const sizes = p.sizes ?? p.availableSizes ?? [];
+      const imageUrl = (Array.isArray(p.images) ? p.images[0] : null) ?? p.imageUrl ?? null;
+      const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
       categories[category].push({
-        id: p.printifyId || p.printfulId,
+        id: blueprintId ?? printfulId,
         title: (p.title || "").trim(),
         description: (p.description || "").trim() || null,
-        brand: p.brand,
-        model: p.model,
-        imageUrl: p.imageUrl,
-        madeInUSA: p.madeInUSA,
-        blueprintId: p.blueprintId,
-        printProviderId: p.printProviderId,
-        minPrice: p.minPrice,
-        maxPrice: p.maxPrice,
-        colorCount: p.colorCount,
-        availableColors: p.availableColors || [],
-        availableSizes: p.availableSizes || [],
-        fulfillmentProvider: p.fulfillmentProvider,
-        availableVia: p.availableVia || [p.fulfillmentProvider],
-        printfulId: p.printfulId,
-        providers: p.providers || [p.fulfillmentProvider],
+        brand: p.brand ?? null,
+        model: p.model ?? null,
+        imageUrl,
+        madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
+        blueprintId,
+        printProviderId: p.printProviderId ?? null,
+        minPrice: p.minPrice ?? null,
+        maxPrice: p.maxPrice ?? null,
+        colorCount: colors.length,
+        availableColors: colors,
+        availableSizes: sizes,
+        fulfillmentProvider,
+        availableVia: p.availableVia ?? [fulfillmentProvider],
+        printfulId,
+        providers: p.providers ?? [fulfillmentProvider],
       });
     }
 
@@ -436,30 +461,36 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
       const p = doc.data() as any;
       const masterDesc = (p.description || "").trim();
       if (!masterDesc) continue;
-      const blankKey = p.printifyId ? String(p.printifyId) : (p.printfulId ? `pf:${p.printfulId}` : null);
+      const blueprintId = p.printifyBlueprintId ?? p.blueprintId ?? null;
+      const printfulId = p.printfulProductId ?? p.printfulId ?? null;
+      const blankKey = blueprintId ? String(blueprintId) : (printfulId ? `pf:${printfulId}` : null);
       if (!blankKey || !adminDescribedKeys.has(blankKey)) continue;
 
-      const category = p.category || 'Other';
+      const category = (p.category && p.category !== 'Other') ? p.category : classifyCategory(p.title || '');
       if (!categories[category]) categories[category] = [];
+      const colors = p.colors ?? p.availableColors ?? [];
+      const sizes = p.sizes ?? p.availableSizes ?? [];
+      const imageUrl = (Array.isArray(p.images) ? p.images[0] : null) ?? p.imageUrl ?? null;
+      const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
       categories[category].push({
-        id: p.printifyId || p.printfulId,
+        id: blueprintId ?? printfulId,
         title: (p.title || "").trim(),
         description: masterDesc,
-        brand: p.brand,
-        model: p.model,
-        imageUrl: p.imageUrl,
-        madeInUSA: p.madeInUSA,
-        blueprintId: p.blueprintId,
-        printProviderId: p.printProviderId,
-        minPrice: p.minPrice,
-        maxPrice: p.maxPrice,
-        colorCount: p.colorCount,
-        availableColors: p.availableColors || [],
-        availableSizes: p.availableSizes || [],
-        fulfillmentProvider: p.fulfillmentProvider,
-        availableVia: p.availableVia || [p.fulfillmentProvider],
-        printfulId: p.printfulId,
-        providers: p.providers || [p.fulfillmentProvider],
+        brand: p.brand ?? null,
+        model: p.model ?? null,
+        imageUrl,
+        madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
+        blueprintId,
+        printProviderId: p.printProviderId ?? null,
+        minPrice: p.minPrice ?? null,
+        maxPrice: p.maxPrice ?? null,
+        colorCount: colors.length,
+        availableColors: colors,
+        availableSizes: sizes,
+        fulfillmentProvider,
+        availableVia: p.availableVia ?? [fulfillmentProvider],
+        printfulId,
+        providers: p.providers ?? [fulfillmentProvider],
       });
     }
 
