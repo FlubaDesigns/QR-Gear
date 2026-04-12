@@ -170,7 +170,12 @@ export function ProductsModule() {
 
   const catalogModeProducts = useMemo(() => {
     const catalogSet = new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id)));
-    return masterCatalogAllProducts.filter(p => catalogSet.has(getCanonicalBlankKey(p)));
+    return masterCatalogAllProducts.filter(p => {
+      if (catalogSet.has(getCanonicalBlankKey(p))) return true;
+      // Cross-provider matched items (e.g. stored as "pf:456" but id is Printify blueprint)
+      if ((p as any).printfulId) return catalogSet.has(`pf:${(p as any).printfulId}`);
+      return false;
+    });
   }, [masterCatalogAllProducts, activeCatalog]);
 
   const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
