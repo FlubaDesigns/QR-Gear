@@ -56,6 +56,9 @@ export interface ProductSelectCardSkinProps {
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  selectLabel?: React.ReactNode;
+  selectedLabel?: React.ReactNode;
+  disableWhenSelected?: boolean;
 }
 
 function PreviewModal({
@@ -383,7 +386,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -505,15 +508,18 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             variant={isSelected ? "secondary" : "default"}
             className="w-full min-h-11 text-sm"
             onClick={() => onSelect(item.id, item)}
+            disabled={isSelected && !!disableWhenSelected}
             data-testid={`button-select-${item.id}`}
           >
             {isSelected ? (
-              <>
-                <Check className="w-4 h-4 mr-1.5" />
-                Selected
-              </>
+              selectedLabel ?? (
+                <>
+                  <Check className="w-4 h-4 mr-1.5" />
+                  Selected
+                </>
+              )
             ) : (
-              "Select Product"
+              selectLabel ?? "Select Product"
             )}
           </Button>
 

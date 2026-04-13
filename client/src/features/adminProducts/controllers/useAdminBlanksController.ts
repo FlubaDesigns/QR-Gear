@@ -115,6 +115,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
 export function useAdminBlanksController() {
   const { toast } = useToast();
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
+  const [sourceCatalogId, setSourceCatalogId] = useState<string | null>(null);
   const [defaultLoaded, setDefaultLoaded] = useState(false);
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>("printify");
   const [search, setSearch] = useState("");
@@ -256,15 +257,23 @@ export function useAdminBlanksController() {
     return ["all", ...activeCategories.map(c => c.name)];
   }, [activeCategories]);
 
+  // Auto-load default catalog as SOURCE on first load
   useEffect(() => {
     if (!defaultLoaded && defaultsData?.defaultCatalogId && catalogs.length > 0) {
       const exists = catalogs.find(c => c.id === defaultsData.defaultCatalogId);
       if (exists) {
-        setSelectedCatalogId(defaultsData.defaultCatalogId);
+        setSourceCatalogId(defaultsData.defaultCatalogId);
       }
       setDefaultLoaded(true);
     }
   }, [defaultsData, catalogs, defaultLoaded]);
+
+  // Source catalog derivations
+  const sourceCatalog = sourceCatalogId ? catalogs.find(c => c.id === sourceCatalogId) ?? null : null;
+  const sourceBlankSet = useMemo(
+    () => new Set((sourceCatalog?.blankIds || []).map(id => safeBlankId(id))),
+    [sourceCatalog]
+  );
 
   const addBlanksMutation = useMutation({
     mutationFn: async ({ catalogId, blankIds }: { catalogId: string; blankIds: string[] }) => {
@@ -327,6 +336,10 @@ export function useAdminBlanksController() {
 
   const filtered = useMemo(() => {
     let items = allProducts;
+    // Narrow to source catalog items when source is selected
+    if (sourceCatalogId && sourceBlankSet.size > 0) {
+      items = items.filter(p => sourceBlankSet.has(getCanonicalBlankKey(p)));
+    }
     if (categoryFilter !== "all") {
       const cat = activeCategories.find(c => c.name === categoryFilter);
       if (cat) {
@@ -345,7 +358,7 @@ export function useAdminBlanksController() {
       );
     }
     return items;
-  }, [allProducts, activeCategories, categoryFilter, locationFilter, search]);
+  }, [allProducts, sourceCatalogId, sourceBlankSet, activeCategories, categoryFilter, locationFilter, search]);
 
   const resolveBlankKey = useCallback((id: string, product?: CatalogProduct) => {
     if (product) return getCanonicalBlankKey(product);
@@ -479,6 +492,10 @@ export function useAdminBlanksController() {
     hasCatalogSelected,
     selectedCatalogId,
     setSelectedCatalogId,
+    sourceCatalogId,
+    setSourceCatalogId,
+    sourceCatalog,
+    sourceBlankSet,
     providerFilter,
     setProviderFilter,
     search,

@@ -431,17 +431,19 @@ export default function AdminBlanks() {
   const {
     loadingCatalog, catalogs, activeCatalog, hasCatalogSelected,
     selectedCatalogId, setSelectedCatalogId,
+    sourceCatalogId, setSourceCatalogId, sourceCatalog,
     providerFilter, setProviderFilter,
     search, setSearch, categoryFilter, setCategoryFilter,
     locationFilter, setLocationFilter, categoryNames,
     catalogItems, sourceItemMap, scrollItems, blankTiers,
-    onToggleItem, onSaveDescription, onSaveTitle, onTierChange,
-    isItemInCatalog, getItemMappingBadge, resolveBlankKey,
+    onAddToCatalog, onToggleItem, onSaveDescription, onSaveTitle, onTierChange,
+    getItemMappingBadge, resolveBlankKey,
     allProductMap, catalogBlankSet, removeBlanksMutation, saveDescriptionMutation, saveTitleMutation,
     totalProductCount, filteredCount, categoryCounts,
   } = ctrl;
 
   const validSelectedCatalogId = hasCatalogSelected ? selectedCatalogId : null;
+  const targetName = activeCatalog?.name ?? "target";
 
   const renderCatalogCard = useCallback(
     (scrollItem: ScrollViewItem) => {
@@ -449,24 +451,37 @@ export default function AdminBlanks() {
       if (!selectItem) return null;
       const product = allProductMap.get(String(scrollItem.id)) || allProductMap.get(`pf:${scrollItem.id}`);
       const blankKey = product ? resolveBlankKey(String(scrollItem.id), product) : String(scrollItem.id);
-      const selected = catalogBlankSet.has(blankKey);
+      const inTarget = catalogBlankSet.has(blankKey);
       const itemTier = blankTiers[blankKey] as "good" | "better" | "best" | undefined;
       const hasMappingBadge = getItemMappingBadge(String(scrollItem.id));
+
+      const handleSelect = () => {
+        if (validSelectedCatalogId) {
+          if (!inTarget) onAddToCatalog(blankKey);
+          // Already in target — do nothing; remove via the strip below
+        } else {
+          onToggleItem(String(scrollItem.id), product);
+        }
+      };
+
       return (
         <div className="relative">
           <AdminSourceBlankSkin
             item={selectItem as any}
-            isSelected={selected}
-            onSelect={() => onToggleItem(String(scrollItem.id), product)}
+            isSelected={inTarget}
+            onSelect={handleSelect}
             tier={itemTier || null}
             onTierChange={(_blankId: string, tier: string | null) => onTierChange(blankKey, tier)}
-            showTierControls={!!validSelectedCatalogId}
+            showTierControls={!!validSelectedCatalogId && inTarget}
             editableDescription={!!validSelectedCatalogId}
             onDescriptionSave={(id: string, desc: string) => onSaveDescription(id, desc, blankKey)}
             descriptionSaving={saveDescriptionMutation.isPending}
             editableTitle={!!validSelectedCatalogId}
             onTitleSave={(id: string, title: string) => onSaveTitle(id, title, blankKey)}
             titleSaving={saveTitleMutation.isPending}
+            selectLabel={validSelectedCatalogId ? `Add to ${targetName}` : undefined}
+            selectedLabel={validSelectedCatalogId ? `✓ In ${targetName}` : undefined}
+            disableWhenSelected={!!validSelectedCatalogId}
           />
           {hasMappingBadge && (
             <div className="absolute top-2 right-2 z-10">
@@ -479,7 +494,9 @@ export default function AdminBlanks() {
         </div>
       );
     },
-    [sourceItemMap, allProductMap, catalogBlankSet, onToggleItem, blankTiers, onTierChange, validSelectedCatalogId, getItemMappingBadge, onSaveDescription, saveDescriptionMutation.isPending, onSaveTitle, saveTitleMutation.isPending, resolveBlankKey]
+    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, onToggleItem, blankTiers, onTierChange,
+     validSelectedCatalogId, targetName, getItemMappingBadge, onSaveDescription, saveDescriptionMutation.isPending,
+     onSaveTitle, saveTitleMutation.isPending, resolveBlankKey]
   );
 
   const handleOpenCatalog = useCallback((catalogId: string) => {
@@ -511,7 +528,8 @@ export default function AdminBlanks() {
           <CatalogsTab onOpenCatalog={handleOpenCatalog} />
         ) : (
           <>
-            <div className="flex items-center gap-2">
+            {/* Provider filter */}
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium text-muted-foreground">Provider:</span>
               <Button
                 variant={providerFilter === "printify" ? "default" : "outline"}
@@ -536,46 +554,75 @@ export default function AdminBlanks() {
               )}
             </div>
 
+            {/* Source → Target selectors */}
             {catalogs.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-base font-medium text-muted-foreground">
-                  {validSelectedCatalogId ? "Switch catalog:" : "Select a catalog to edit:"}
-                </p>
-                <select
-                  value={selectedCatalogId || ""}
-                  onChange={e => setSelectedCatalogId(e.target.value || null)}
-                  className="text-base bg-background border rounded-md px-3 py-2.5 w-full"
-                  data-testid="select-catalog-dropdown"
-                >
-                  <option value="">Browse all blanks (no catalog selected)</option>
-                  {catalogs.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0} blanks)</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Browse from:</p>
+                  <select
+                    value={sourceCatalogId || ""}
+                    onChange={e => setSourceCatalogId(e.target.value || null)}
+                    className="text-base bg-background border rounded-md px-3 py-2.5 w-full"
+                    data-testid="select-source-catalog"
+                  >
+                    <option value="">All Products</option>
+                    {catalogs.map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} ({cat.blankIds?.length || 0})
+                      </option>
+                    ))}
+                  </select>
+                  {sourceCatalog && (
+                    <p className="text-xs text-muted-foreground">
+                      Showing {filteredCount} of {sourceCatalog.blankIds?.length || 0} blanks
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Adding to:</p>
+                  <select
+                    value={selectedCatalogId || ""}
+                    onChange={e => setSelectedCatalogId(e.target.value || null)}
+                    className="text-base bg-background border rounded-md px-3 py-2.5 w-full"
+                    data-testid="select-target-catalog"
+                  >
+                    <option value="">Select a catalog…</option>
+                    {catalogs.map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} ({cat.blankIds?.length || 0})
+                      </option>
+                    ))}
+                  </select>
+                  {validSelectedCatalogId && (
+                    <p className="text-xs text-muted-foreground">
+                      {catalogBlankSet.size} blank{catalogBlankSet.size !== 1 ? "s" : ""} in this catalog
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
+            {/* Target catalog strip */}
             {validSelectedCatalogId && activeCatalog && (
               <Card className="border-primary/30 bg-primary/5">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <Layers className="h-6 w-6 text-primary" />
-                      <span className="text-lg font-semibold">{activeCatalog.name}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Layers className="h-5 w-5 text-primary" />
+                      <span className="text-base font-semibold">{activeCatalog.name}</span>
                       <Badge variant="secondary" className="text-sm">{activeCatalog.blankIds?.length || 0} blanks</Badge>
                     </div>
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => setSelectedCatalogId(null)}
                       data-testid="button-clear-catalog"
                     >
-                      <X className="h-5 w-5" /> Done
+                      <X className="h-4 w-4" /> Clear
                     </Button>
                   </div>
-                  <p className="text-base text-muted-foreground">
-                    Tap any blank below to add or remove it from this catalog.
-                  </p>
-                  {catalogItems.length > 0 && (
+                  {catalogItems.length > 0 ? (
                     <ScrollArea className="w-full">
                       <div className="flex gap-2 pb-2">
                         {catalogItems.map((item) => (
@@ -592,11 +639,24 @@ export default function AdminBlanks() {
                       </div>
                       <ScrollBar orientation="horizontal" />
                     </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No blanks yet — tap "Add to {activeCatalog.name}" on any item below.
+                    </p>
                   )}
                 </CardContent>
               </Card>
             )}
 
+            {/* No target selected hint */}
+            {!validSelectedCatalogId && catalogs.length > 0 && (
+              <div className="flex items-center gap-2 p-3 rounded-md border bg-muted/30 text-sm text-muted-foreground">
+                <ArrowRight className="h-4 w-4 shrink-0" />
+                Select a target catalog above to start adding blanks.
+              </div>
+            )}
+
+            {/* Search + filters */}
             <div className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -642,50 +702,13 @@ export default function AdminBlanks() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-3 flex-wrap">
-                <Badge variant="secondary" className="text-sm py-1 px-3">{filteredCount} blanks shown</Badge>
-                {validSelectedCatalogId && (
-                  <Badge variant="default" className="text-sm py-1 px-3">{catalogBlankSet.size} in catalog</Badge>
-                )}
-                {!validSelectedCatalogId && (
-                  <p className="text-sm text-muted-foreground">Select a catalog above to start adding blanks</p>
-                )}
-              </div>
+              <Badge variant="secondary" className="text-sm py-1 px-3">
+                {filteredCount} blank{filteredCount !== 1 ? "s" : ""} shown
+              </Badge>
             </div>
 
-            {validSelectedCatalogId ? (
-              loadingCatalog ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-28 w-full rounded-md" />
-                  ))}
-                </div>
-              ) : catalogItems.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <p className="text-lg text-muted-foreground">No items in this catalog.</p>
-                </Card>
-              ) : (
-                <ScrollGridView
-                  items={catalogItems.map(c => {
-                    const product = allProductMap.get(c.catalogKey);
-                    return {
-                      id: c.id,
-                      imageUrl: c.imageUrl || "",
-                      title: c.title || "",
-                      subtitle: product?.brand,
-                      minPrice: product?.minPrice,
-                      maxPrice: product?.maxPrice,
-                      colorCount: product?.colorCount,
-                      madeInUSA: product?.madeInUSA,
-                    };
-                  })}
-                  renderItem={(item) => renderCatalogCard(item as ScrollViewItem)}
-                  height="calc(100vh - 200px)"
-                  emptyMessage="No items in catalog."
-                  footer={null}
-                />
-              )
-            ) : loadingCatalog ? (
+            {/* Item grid — always shows scrollItems, card action changes based on target */}
+            {loadingCatalog ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-28 w-full rounded-md" />
