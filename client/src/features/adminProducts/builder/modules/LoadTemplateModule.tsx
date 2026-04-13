@@ -202,7 +202,7 @@ export function LoadTemplateModule() {
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3 p-4 bg-muted/40 rounded-md border">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/40 rounded-md border">
         <div className="flex items-center gap-2 min-w-0">
           <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           <div className="min-w-0">
@@ -217,7 +217,7 @@ export function LoadTemplateModule() {
           size="default"
           onClick={() => setOpen(true)}
           data-testid="button-load-template"
-          className="flex-shrink-0"
+          className="w-full sm:w-auto flex-shrink-0"
         >
           <FolderOpen className="h-4 w-4 mr-2" />
           Load Template

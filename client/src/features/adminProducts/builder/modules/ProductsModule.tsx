@@ -9,6 +9,7 @@ import {
   Flag,
   Globe,
   BookOpen,
+  Plus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
+import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
   id: string;
@@ -125,6 +127,7 @@ export function ProductsModule() {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [dataMode, setDataMode] = useState<DataMode>("all");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -389,9 +392,20 @@ export function ProductsModule() {
       </div>
 
       <div data-testid="module-catalog-select">
-        <div className="flex items-center gap-2 mb-2">
-          <BookOpen className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium">Product Source</p>
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-medium">Product Source</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setPickerOpen(true)}
+            data-testid="button-open-blank-picker"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add Blank
+          </Button>
         </div>
         <select
           value={selectedCatalogId}
@@ -589,6 +603,10 @@ export function ProductsModule() {
         </div>
       )}
     </div>
+
+    {pickerOpen && (
+      <BlankPickerModal open={pickerOpen} onOpenChange={setPickerOpen} />
+    )}
     </>
   );
 }
