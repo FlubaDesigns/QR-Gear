@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO from "@/components/SEO";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { Link } from "wouter";
 import { Sparkles, ArrowRight, Flag } from "lucide-react";
 import type { QrDesign, Product } from "@shared/schema";
@@ -146,6 +147,7 @@ export default function Gallery() {
           </Link>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

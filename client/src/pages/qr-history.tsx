@@ -1,6 +1,8 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
 import { ArrowLeft, Calendar, Car, Smartphone, ShoppingBag, Sparkles } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const timeline = [
   {
@@ -46,7 +48,8 @@ const funFacts = [
 export default function QRHistory() {
   return (
     <div className="page-container">
-<section className="hero-section">
+      <Navbar />
+      <section className="hero-section">
         <div className="container">
           <Link href="/">
             <QRButton variant="ghost" size="small" className="back-link">
@@ -118,6 +121,7 @@ export default function QRHistory() {
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
