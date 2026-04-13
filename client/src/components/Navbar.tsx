@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { QRButton } from "@/components/QRButton";
 import { useAuth } from "@/hooks/useAuth";
-import { useGuestCart } from "@/hooks/useGuestCart";
+import { useCart } from "@/contexts/CartContext";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -20,7 +20,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { user, isAuthenticated, isAdmin, isLoading } = useAuth();
-  const { itemCount: guestCartCount } = useGuestCart();
+  const { itemCount: guestCartCount } = useCart();
 
   const handleSignOut = async () => {
     try {

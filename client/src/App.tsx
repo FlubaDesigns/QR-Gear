@@ -95,6 +95,7 @@ import BuildPage from "@/pages/build";
 import EarnPage from "@/pages/earn";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   return (
@@ -210,12 +211,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <ScrollToTop />
-        <Toaster />
-        <BreadcrumbTrail />
-        <Router />
-      </TooltipProvider>
+      <CartProvider>
+        <TooltipProvider>
+          <ScrollToTop />
+          <Toaster />
+          <BreadcrumbTrail />
+          <Router />
+        </TooltipProvider>
+      </CartProvider>
     </QueryClientProvider>
   );
 }

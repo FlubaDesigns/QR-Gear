@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Gift, Sparkles, Package, Clock, Heart, Check, Copy, ArrowLeft } from "lucide-react";
 import type { GiftPackage } from "@shared/schema";
+import StorefrontLayout from "@/components/StorefrontLayout";
 
 export default function GiftShopPage() {
   const [, navigate] = useLocation();
@@ -78,15 +79,18 @@ export default function GiftShopPage() {
 
   if (isLoading) {
     return (
-      <div className="container max-w-6xl py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-pulse text-muted-foreground">Loading gift options...</div>
+      <StorefrontLayout>
+        <div className="container max-w-6xl py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-pulse text-muted-foreground">Loading gift options...</div>
+          </div>
         </div>
-      </div>
+      </StorefrontLayout>
     );
   }
 
   return (
+    <StorefrontLayout>
     <div className="container max-w-6xl py-8 px-4">
 <Button
         variant="ghost"
@@ -344,5 +348,6 @@ export default function GiftShopPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </StorefrontLayout>
   );
 }

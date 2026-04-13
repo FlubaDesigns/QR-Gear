@@ -8,12 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 import { useAuth } from "@/hooks/useAuth";
-import { useGuestCart } from "@/hooks/useGuestCart";
+import { useCart } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -68,7 +68,7 @@ export default function ShopProductPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
-  const { addItem: addGuestItem } = useGuestCart();
+  const { addItem } = useCart();
 
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export default function ShopProductPage() {
         await apiRequest("POST", "/api/cart", cartData);
         queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
       } else {
-        addGuestItem(cartData);
+        addItem(cartData);
       }
 
       toast({
@@ -157,52 +157,48 @@ export default function ShopProductPage() {
 
   if (!match || !linkId) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
+      <StorefrontLayout>
         <div className="container max-w-4xl py-16 px-4 text-center">
           <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h1 className="text-2xl font-bold mb-2">Product Not Found</h1>
           <Link href="/"><Button data-testid="button-go-home"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Button></Link>
         </div>
-      </div>
+      </StorefrontLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
+      <StorefrontLayout>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading product...</span>
         </div>
-      </div>
+      </StorefrontLayout>
     );
   }
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
+      <StorefrontLayout>
         <div className="container max-w-4xl py-16 px-4 text-center">
           <Package className="h-16 w-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-2">Product Not Found</h1>
           <p className="text-muted-foreground mb-4">{(error as Error)?.message || "This product could not be loaded."}</p>
           <Link href="/"><Button data-testid="button-go-home-error"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Button></Link>
         </div>
-      </div>
+      </StorefrontLayout>
     );
   }
 
   const typeInfo = QR_PRODUCT_TYPE_LABELS[product.qrProductType];
 
   return (
-    <div className="min-h-screen bg-background">
+    <StorefrontLayout>
       <SEO
         title={`${product.name} | QR Gear`}
         description={product.description || `Custom QR merchandise - ${product.name}`}
       />
-      <Navbar />
       <div className="container max-w-6xl py-6 px-4">
         <Button
           variant="ghost"
@@ -397,6 +393,6 @@ export default function ShopProductPage() {
           </div>
         </div>
       </div>
-    </div>
+    </StorefrontLayout>
   );
 }

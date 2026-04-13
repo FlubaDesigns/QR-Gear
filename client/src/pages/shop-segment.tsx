@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { Loader2, ArrowLeft, Store, Star, Sparkles, QrCode, ShoppingCart } from 
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 import { useAuth } from "@/hooks/useAuth";
-import { useGuestCart } from "@/hooks/useGuestCart";
+import { useCart } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import StorefrontLayout from "@/components/StorefrontLayout";
 
 interface MockupsByColor {
   [color: string]: {
@@ -94,7 +95,7 @@ function StoreProductCard({ product }: { product: StoreProduct }) {
   const [addingToCart, setAddingToCart] = useState(false);
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
-  const { addItem: addGuestItem } = useGuestCart();
+  const { addItem } = useCart();
   const [, setLocation] = useLocation();
 
   const availableColors = product.selectedColors || 
@@ -147,7 +148,7 @@ function StoreProductCard({ product }: { product: StoreProduct }) {
         await apiRequest("POST", "/api/cart", cartData);
         queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
       } else {
-        addGuestItem(cartData);
+        addItem(cartData);
       }
 
       toast({
@@ -316,15 +317,19 @@ export default function ShopSegmentPage() {
     enabled: !!storeName,
   });
 
+  const displayTitle = segment ? `${storeName} - ${segment}` : storeName;
+
+  let content: ReactNode;
+
   if (!storeName) {
-    return (
+    content = (
       <div className="container max-w-6xl py-8 px-4">
         <div className="text-center py-16">
           <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h1 className="text-2xl font-bold mb-2">Store Not Found</h1>
           <p className="text-muted-foreground mb-4">Please select a valid store to browse.</p>
           <Link href="/">
-            <Button className="h-12" data-testid="button-go-home">
+            <Button data-testid="button-go-home">
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to Home
             </Button>
@@ -332,10 +337,8 @@ export default function ShopSegmentPage() {
         </div>
       </div>
     );
-  }
-
-  if (isLoading) {
-    return (
+  } else if (isLoading) {
+    content = (
       <div className="container max-w-6xl py-8 px-4">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -343,17 +346,15 @@ export default function ShopSegmentPage() {
         </div>
       </div>
     );
-  }
-
-  if (error) {
-    return (
+  } else if (error) {
+    content = (
       <div className="container max-w-6xl py-8 px-4">
         <div className="text-center py-16">
           <Store className="h-16 w-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-2">Error Loading Store</h1>
           <p className="text-muted-foreground mb-4">{(error as Error).message}</p>
           <Link href="/">
-            <Button className="h-12" data-testid="button-go-home-error">
+            <Button data-testid="button-go-home-error">
               <ArrowLeft className="mr-2 h-5 w-5" />
               Back to Home
             </Button>
@@ -361,56 +362,58 @@ export default function ShopSegmentPage() {
         </div>
       </div>
     );
-  }
+  } else {
+    content = (
+      <div className="container max-w-6xl py-8 px-4">
+        <Link href="/">
+          <Button
+            variant="ghost"
+            className="mb-6"
+            data-testid="button-back-home"
+          >
+            <ArrowLeft className="mr-2 h-5 w-5" />
+            Back to Home
+          </Button>
+        </Link>
 
-  const displayTitle = segment 
-    ? `${storeName} - ${segment}` 
-    : storeName;
-
-  return (
-    <div className="container max-w-6xl py-8 px-4">
-<Link href="/">
-        <Button 
-          variant="ghost" 
-          className="mb-6 h-12 px-4"
-          data-testid="button-back-home"
-        >
-          <ArrowLeft className="mr-2 h-5 w-5" />
-          Back to Home
-        </Button>
-      </Link>
-
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-3 mb-4">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <Store className="h-6 w-6 text-primary" />
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-3 mb-4">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Store className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold">{displayTitle}</h1>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold">{displayTitle}</h1>
+          {segment && (
+            <p className="text-muted-foreground">
+              Showing products in the &ldquo;{segment}&rdquo; section
+            </p>
+          )}
         </div>
-        {segment && (
-          <p className="text-muted-foreground">
-            Showing products in the "{segment}" section
-          </p>
+
+        {data?.products.length === 0 ? (
+          <Card className="max-w-md mx-auto">
+            <CardContent className="py-12 text-center">
+              <QrCode className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-lg text-muted-foreground mb-2">No products available yet</p>
+              <p className="text-sm text-muted-foreground">
+                Check back soon for new QR Gear products!
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data?.products.map((product) => (
+              <StoreProductCard key={product.id} product={product} />
+            ))}
+          </div>
         )}
       </div>
+    );
+  }
 
-      {data?.products.length === 0 ? (
-        <Card className="max-w-md mx-auto">
-          <CardContent className="py-12 text-center">
-            <QrCode className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-lg text-muted-foreground mb-2">No products available yet</p>
-            <p className="text-sm text-muted-foreground">
-              Check back soon for new QR Gear products!
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data?.products.map((product) => (
-            <StoreProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      )}
-    </div>
+  return (
+    <StorefrontLayout>
+      {content}
+    </StorefrontLayout>
   );
 }

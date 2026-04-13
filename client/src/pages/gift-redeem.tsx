@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Gift, ArrowLeft, Search, Check, Package, Sparkles, Palette, Ruler, QrCode, Heart } from "lucide-react";
+import StorefrontLayout from "@/components/StorefrontLayout";
 
 interface GiftDetails {
   giftCodeId: string;
@@ -118,32 +119,35 @@ export default function GiftRedeemPage() {
 
   if (redeemSuccess) {
     return (
-      <div className="container max-w-lg py-12 px-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check className="h-8 w-8 text-green-600" />
-            </div>
-            <h1 className="text-2xl font-bold mb-2">Gift Redeemed!</h1>
-            <p className="text-muted-foreground mb-6">
-              {giftDetails?.giftType === "product" 
-                ? "Your personalized item is being created and will ship soon."
-                : "Your QR Dynamics subscription is now active."}
-            </p>
-            <Button 
-              className="h-12 px-6"
-              onClick={() => navigate("/")}
-              data-testid="button-go-home"
-            >
-              Go to Home
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <StorefrontLayout>
+        <div className="container max-w-lg py-12 px-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="h-8 w-8 text-green-600" />
+              </div>
+              <h1 className="text-2xl font-bold mb-2">Gift Redeemed!</h1>
+              <p className="text-muted-foreground mb-6">
+                {giftDetails?.giftType === "product"
+                  ? "Your personalized item is being created and will ship soon."
+                  : "Your QR Dynamics subscription is now active."}
+              </p>
+              <Button
+                className="h-12 px-6"
+                onClick={() => navigate("/")}
+                data-testid="button-go-home"
+              >
+                Go to Home
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </StorefrontLayout>
     );
   }
 
   return (
+    <StorefrontLayout>
     <div className="container max-w-2xl py-8 px-4">
 <Button
         variant="ghost"
@@ -385,5 +389,6 @@ export default function GiftRedeemPage() {
         </div>
       )}
     </div>
+    </StorefrontLayout>
   );
 }

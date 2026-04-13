@@ -1,15 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Trash2, Plus, Minus, Loader2, ShoppingBag, ArrowRight, LogIn, Tag } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import Navbar from "@/components/Navbar";
+import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
-import { useGuestCart, mergeGuestCartOnLogin, type GuestCartItem } from "@/hooks/useGuestCart";
+import { useCart, mergeGuestCartOnLogin, type GuestCartItem } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { CartItem } from "@shared/schema";
@@ -17,8 +16,10 @@ import type { CartItem } from "@shared/schema";
 export default function Cart() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { guestItems, removeItem: removeGuestItem, updateQuantity: updateGuestQuantity, clearCart: clearGuestCart } = useGuestCart();
+  const { items: guestItems, removeItem, updateQuantity, clearCart } = useCart();
   const [, setLocation] = useLocation();
+  const [isMerging, setIsMerging] = useState(false);
+  const mergeAttemptedRef = useRef(false);
 
   const { data: serverCartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
     queryKey: ["/api/cart"],
@@ -54,103 +55,113 @@ export default function Cart() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
-      toast({
-        title: "Item removed",
-        description: "The item has been removed from your cart",
-      });
+      toast({ title: "Item removed", description: "The item has been removed from your cart" });
     },
   });
 
   useEffect(() => {
-    const handleMerge = async () => {
-      if (isAuthenticated && guestItems.length > 0) {
+    if (!isAuthenticated) {
+      mergeAttemptedRef.current = false;
+      return;
+    }
+    if (mergeAttemptedRef.current || guestItems.length === 0) return;
+
+    mergeAttemptedRef.current = true;
+    let cancelled = false;
+
+    const runMerge = async () => {
+      setIsMerging(true);
+      try {
         const addToServer = async (item: Omit<GuestCartItem, "id" | "addedAt">) => {
           await apiRequest("POST", "/api/cart", item);
         };
         const result = await mergeGuestCartOnLogin(guestItems, addToServer);
+        if (cancelled) return;
         if (result.merged > 0) {
           queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+          clearCart();
           toast({
             title: "Cart merged",
-            description: `${result.merged} item(s) from your guest cart have been added`,
+            description: `${result.merged} item${result.merged > 1 ? "s" : ""} from your guest cart have been added`,
           });
-          clearGuestCart();
         }
+      } finally {
+        if (!cancelled) setIsMerging(false);
       }
     };
-    handleMerge();
-  }, [isAuthenticated, guestItems.length]);
 
-  
-  const isLoading = authLoading || (isAuthenticated && cartLoading);
+    runMerge();
+    return () => { cancelled = true; };
+  }, [isAuthenticated]);
 
-  const displayItems = isAuthenticated ? serverCartItems : guestItems;
+  const isLoadingState = authLoading || (isAuthenticated && cartLoading) || isMerging;
+
+  const displayItems = isAuthenticated && !isMerging ? serverCartItems : guestItems;
   const hasItems = displayItems.length > 0;
 
   const total = displayItems.reduce((sum, item) => {
-    const price = parseFloat(item.price);
-    const qty = item.quantity;
-    return sum + price * qty;
+    const price = Number(item.price);
+    return sum + (Number.isFinite(price) ? price : 0) * item.quantity;
   }, 0);
 
   const handleRemove = (id: string) => {
     if (isAuthenticated) {
       removeItemMutation.mutate(id);
     } else {
-      removeGuestItem(id);
-      toast({
-        title: "Item removed",
-        description: "The item has been removed from your cart",
-      });
+      removeItem(id);
+      toast({ title: "Item removed", description: "The item has been removed from your cart" });
     }
   };
 
   const handleQuantityChange = (id: string, delta: number, currentQty: number) => {
-    const newQty = Math.max(1, currentQty + delta);
+    const newQty = currentQty + delta;
+    if (newQty <= 0) {
+      handleRemove(id);
+      return;
+    }
     if (isAuthenticated) {
       updateQuantityMutation.mutate({ id, quantity: newQty });
     } else {
-      updateGuestQuantity(id, newQty);
+      updateQuantity(id, newQty);
     }
   };
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to complete your purchase",
-      });
+      toast({ title: "Sign in required", description: "Please sign in to complete your purchase" });
       setLocation("/login?redirect=/checkout");
       return;
     }
     setLocation("/checkout");
   };
 
-  if (isLoading) {
+  if (isLoadingState) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-<div className="container mx-auto px-4 py-16 text-center">
+      <StorefrontLayout>
+        <div className="container mx-auto px-4 py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading cart...</p>
+          <p className="mt-4 text-muted-foreground">
+            {isMerging ? "Syncing your cart…" : "Loading cart…"}
+          </p>
         </div>
-      </div>
+      </StorefrontLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <SEO 
+    <StorefrontLayout>
+      <SEO
         title="Your Cart | QR Gear"
         description="Review your custom QR code merchandise before checkout."
       />
-      <Navbar />
-<div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="w-8 h-8 text-primary" />
           <h1 className="text-3xl font-bold">Your Cart</h1>
           {hasItems && (
-            <span className="text-muted-foreground">({displayItems.length} item{displayItems.length > 1 ? "s" : ""})</span>
+            <span className="text-muted-foreground">
+              ({displayItems.length} item{displayItems.length > 1 ? "s" : ""})
+            </span>
           )}
         </div>
 
@@ -181,15 +192,17 @@ export default function Cart() {
                 const placement = customization?.placement as string;
                 const color = customization?.productColor as string;
                 const size = customization?.productSize as string;
-                
+                const unitPrice = Number(item.price);
+                const safePrice = Number.isFinite(unitPrice) ? unitPrice : 0;
+
                 return (
                   <Card key={item.id} data-testid={`card-cart-item-${item.id}`}>
                     <CardContent className="p-4">
                       <div className="flex gap-4">
                         {productImage && (
                           <div className="w-20 h-20 rounded-md bg-muted flex-shrink-0 overflow-hidden">
-                            <img 
-                              src={productImage} 
+                            <img
+                              src={productImage}
                               alt={productName}
                               className="w-full h-full object-cover"
                             />
@@ -205,13 +218,12 @@ export default function Cart() {
                           </div>
                         </div>
                         <div className="text-right flex flex-col items-end gap-2">
-                          <p className="font-bold text-lg">${parseFloat(item.price).toFixed(2)}</p>
+                          <p className="font-bold text-lg">${safePrice.toFixed(2)}</p>
                           <div className="flex items-center gap-2">
                             <Button
                               size="icon"
                               variant="outline"
                               onClick={() => handleQuantityChange(item.id, -1, item.quantity)}
-                              disabled={item.quantity <= 1}
                               data-testid={`button-decrease-${item.id}`}
                             >
                               <Minus className="w-4 h-4" />
@@ -231,7 +243,7 @@ export default function Cart() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-destructive hover:text-destructive"
+                            className="text-destructive"
                             onClick={() => handleRemove(item.id)}
                             data-testid={`button-remove-${item.id}`}
                           >
@@ -253,9 +265,14 @@ export default function Cart() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {isMember && (
-                    <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800" data-testid="badge-member-discount">
+                    <div
+                      className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800"
+                      data-testid="badge-member-discount"
+                    >
                       <Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{discountLabel} Creator Discount applied</span>
+                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                        {discountLabel} Creator Discount applied
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between">
@@ -275,9 +292,11 @@ export default function Cart() {
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span data-testid="text-cart-total">${isMember ? (total * (1 - CREATOR_DISCOUNT)).toFixed(2) : total.toFixed(2)}</span>
+                    <span data-testid="text-cart-total">
+                      ${isMember ? (total * (1 - CREATOR_DISCOUNT)).toFixed(2) : total.toFixed(2)}
+                    </span>
                   </div>
-                  
+
                   {!isAuthenticated && (
                     <Card className="bg-muted/50">
                       <CardContent className="p-4 text-center">
@@ -294,8 +313,8 @@ export default function Cart() {
                     </Card>
                   )}
 
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     size="lg"
                     onClick={handleCheckout}
                     disabled={!isAuthenticated}
@@ -316,6 +335,6 @@ export default function Cart() {
           </div>
         )}
       </div>
-    </div>
+    </StorefrontLayout>
   );
 }
