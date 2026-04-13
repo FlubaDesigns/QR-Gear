@@ -1,6 +1,28 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { QrCode, Mail, MapPin } from "lucide-react";
+import { QrCode, Mail, MapPin, ChevronDown } from "lucide-react";
 import { SiFacebook, SiInstagram, SiX, SiTiktok, SiYoutube } from "react-icons/si";
+
+function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="footer__col footer__accordion">
+      <button
+        className={`footer__accordion-btn${open ? " footer__accordion-btn--open" : ""}`}
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        data-testid={`footer-accordion-${title.toLowerCase().replace(/\s+/g, "-")}`}
+      >
+        <h4 className="footer__heading">{title}</h4>
+        <ChevronDown className="footer__accordion-chevron" aria-hidden="true" />
+      </button>
+      <div className={`footer__accordion-content${open ? " footer__accordion-content--open" : ""}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,7 +31,8 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="container footer__content">
         <div className="footer__grid">
-          <div className="footer__col">
+
+          <div className="footer__col footer__col--brand">
             <div className="footer__brand">
               <QrCode className="w-6 h-6 text-ice" />
               <span>QRGear.com</span>
@@ -36,27 +59,24 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="footer__col">
-            <h4 className="footer__heading">Shop</h4>
+          <FooterSection title="Shop">
             <nav className="footer__nav">
               <Link href="/store" className="footer__link" data-testid="footer-link-store">All Products</Link>
               <Link href="/build" className="footer__link" data-testid="footer-link-creator">Create Custom</Link>
               <Link href="/gallery" className="footer__link" data-testid="footer-link-gallery">Gallery</Link>
             </nav>
-          </div>
+          </FooterSection>
 
-          <div className="footer__col">
-            <h4 className="footer__heading">Learn More</h4>
+          <FooterSection title="Learn More">
             <nav className="footer__nav">
               <Link href="/qr-basics" className="footer__link" data-testid="footer-link-qr-basics">QR Basics</Link>
               <Link href="/qr-plus" className="footer__link" data-testid="footer-link-qr-plus">QR Plus</Link>
               <Link href="/qr-canvas" className="footer__link" data-testid="footer-link-qr-canvas">QR Canvas</Link>
               <Link href="/qr-play" className="footer__link" data-testid="footer-link-qr-play">QR Play</Link>
             </nav>
-          </div>
+          </FooterSection>
 
-          <div className="footer__col">
-            <h4 className="footer__heading">Connect</h4>
+          <FooterSection title="Connect">
             <div className="footer__contact">
               <div className="footer__contact-item">
                 <Mail className="w-4 h-4" />
@@ -73,7 +93,8 @@ export default function Footer() {
                 Kingdom Connects
               </a>
             </div>
-          </div>
+          </FooterSection>
+
         </div>
 
         <div className="footer__bottom">
