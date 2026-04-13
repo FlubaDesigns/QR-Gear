@@ -38,7 +38,7 @@ export default function Footer() {
               <span>QRGear.com</span>
             </div>
             <p className="footer__tagline">
-              Custom QR code merchandise with USA options. Bridge the physical and digital world.
+              Physical gear. Digital world.
             </p>
             <div className="footer__social">
               <a href="https://www.facebook.com/ShopQRGear" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="footer__social-link" data-testid="link-facebook">
