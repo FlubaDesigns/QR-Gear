@@ -115,6 +115,7 @@ interface SkinActions {
 | CroppedImageSkin | CroppedImageCardSkin | CroppedImageDetailSkin | delete | CroppedImagesTab |
 | TemplatePickerSkin | - | Gallery lightbox | select | StoreBuilderHarness |
 | StoreProductSkin | ProductCard | - | select | ProductGridModule, test-stores |
+| BlankPickerRowSkin | Compact row | - | add, tier | BlankPickerModal |
 
 ### StoreProductSkin
 

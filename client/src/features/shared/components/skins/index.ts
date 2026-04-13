@@ -17,3 +17,4 @@ export * from "./CollectionItemSkinV2";
 export * from "./QRDynamicsScanSkin";
 export * from "./ProductCanvasSkin";
 export * from "./ProductSelectCardSkin";
+export * from "./BlankPickerRowSkin";
