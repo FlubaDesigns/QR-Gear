@@ -70,8 +70,8 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
           tier={itemTier}
           onTierChange={validTargetId ? (tier) => onTierChange(blankKey, tier) : undefined}
           showTierControls={!!validTargetId && inTarget}
-          selectLabel={validTargetId ? `Add to ${targetName}` : undefined}
-          selectedLabel={validTargetId ? `In ${targetName}` : undefined}
+          selectLabel={validTargetId ? "Add" : undefined}
+          selectedLabel={validTargetId ? "Added" : undefined}
           disableWhenSelected={!!validTargetId}
         />
       );

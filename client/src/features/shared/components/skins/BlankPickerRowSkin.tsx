@@ -61,14 +61,26 @@ export function BlankPickerRowSkin({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-start gap-1.5">
             <p
-              className="text-sm font-medium leading-tight line-clamp-1"
+              className="text-sm font-medium leading-snug line-clamp-2"
               data-testid={`text-row-name-${item.id}`}
             >
               {item.name}
             </p>
-            {item.madeInUSA && <UsaFlag className="w-3 h-2 flex-shrink-0" />}
+            {item.madeInUSA && <UsaFlag className="w-3 h-2 flex-shrink-0 mt-1" />}
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            {item.manufacturer && (
+              <p className="text-xs text-muted-foreground" data-testid={`text-row-manufacturer-${item.id}`}>
+                {item.manufacturer}
+              </p>
+            )}
+            {item.price != null && (
+              <p className="text-xs text-muted-foreground" data-testid={`text-row-price-${item.id}`}>
+                · ${item.price.toFixed(2)}
+              </p>
+            )}
             {tier && (
               <Badge
                 className={`text-[10px] px-1.5 py-0 ${TIER_COLORS[tier]}`}
@@ -78,12 +90,6 @@ export function BlankPickerRowSkin({
               </Badge>
             )}
           </div>
-          {item.price != null && (
-            <p className="text-xs text-muted-foreground mt-0.5" data-testid={`text-row-price-${item.id}`}>
-              ${item.price.toFixed(2)}
-              {item.cost != null && ` · cost $${item.cost.toFixed(2)}`}
-            </p>
-          )}
         </div>
 
         <Button
