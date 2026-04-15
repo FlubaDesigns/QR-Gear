@@ -93,6 +93,7 @@ import RenewPage from "@/pages/renew";
 import ClaimPage from "@/pages/claim";
 import BuildPage from "@/pages/build";
 import EarnPage from "@/pages/earn";
+import DevAuth from "@/pages/dev-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -203,6 +204,7 @@ function Router() {
       <Route path="/logo-preview" component={LogoPreview} />
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
+      <Route path="/dev-auth" component={DevAuth} />
       <Route component={NotFound} />
     </Switch>
   );
