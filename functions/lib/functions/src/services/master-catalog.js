@@ -4,6 +4,7 @@ exports.MASTER_CATALOG_SYNCS_COLLECTION = exports.MASTER_CATALOG_COLLECTION = vo
 exports.syncMasterCatalog = syncMasterCatalog;
 const core_1 = require("../core");
 const safeAssign_1 = require("../safeAssign");
+const instance_resolver_1 = require("./instance-resolver");
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
 exports.MASTER_CATALOG_COLLECTION = MASTER_CATALOG_COLLECTION;
 const MASTER_CATALOG_SYNCS_COLLECTION = 'master_catalog_syncs';
@@ -203,14 +204,14 @@ async function syncMasterCatalog(options = {}) {
         // Brand: Printful wins if matched; existing preserved over empty
         const providerBrand = printfulProduct?.brand || bp.brand || null;
         const newBrand = (0, safeAssign_1.safeAssign)(existing?.brand, providerBrand);
-        // Images: combine both, never remove existing
-        const pyImages = Array.isArray(bp.images) ? bp.images : (bp.primaryImageUrl ? [bp.primaryImageUrl] : []);
-        const pfImages = printfulProduct
+        // Images: union-merge existing + Printify + Printful by URL; prefer richer metadata
+        const pyImagesRaw = Array.isArray(bp.images) ? bp.images : (bp.primaryImageUrl ? [bp.primaryImageUrl] : []);
+        const pfImagesRaw = printfulProduct
             ? (Array.isArray(printfulProduct.images) ? printfulProduct.images : (printfulProduct.image ? [printfulProduct.image] : []))
             : [];
-        const combinedImages = Array.from(new Set([...(existing?.images || []), ...pyImages, ...pfImages])).filter(Boolean);
-        // Colors: Printful variants first, else Printify provider
-        let newColors = [];
+        const combinedImages = (0, instance_resolver_1.mergeImagesByUrl)(existing?.images ?? [], [...pyImagesRaw, ...pfImagesRaw]);
+        // Colors: Printful variants first, else Printify provider, else preserve existing
+        let incomingColors = [];
         if (printfulProduct) {
             const pfId = Number(printfulProduct.id || printfulProduct._docId);
             const pfVars = variantsByPrintfulId.get(pfId) || [];
@@ -220,13 +221,15 @@ async function syncMasterCatalog(options = {}) {
                     colorMap.set(v.color, v.colorCode || v.color_code || '#888888');
                 }
             }
-            newColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+            incomingColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
         }
-        if (newColors.length === 0 && Array.isArray(provider?.availableColors)) {
-            newColors = provider.availableColors;
+        if (incomingColors.length === 0 && Array.isArray(provider?.availableColors)) {
+            incomingColors = provider.availableColors;
         }
-        // Sizes: Printful variants first, else Printify provider
-        let newSizes = [];
+        // Preserve existing colors if incoming is empty
+        const newColors = (0, instance_resolver_1.isMeaningfulValue)(incomingColors) ? incomingColors : (existing?.colors ?? []);
+        // Sizes: Printful variants first, else Printify provider; union with existing so no size is ever lost
+        let incomingSizes = [];
         if (printfulProduct) {
             const pfId = Number(printfulProduct.id || printfulProduct._docId);
             const pfVars = variantsByPrintfulId.get(pfId) || [];
@@ -235,11 +238,12 @@ async function syncMasterCatalog(options = {}) {
                 if (v.size)
                     sizeSet.add(v.size);
             }
-            newSizes = Array.from(sizeSet);
+            incomingSizes = Array.from(sizeSet);
         }
-        if (newSizes.length === 0 && Array.isArray(provider?.availableSizes)) {
-            newSizes = provider.availableSizes;
+        if (incomingSizes.length === 0 && Array.isArray(provider?.availableSizes)) {
+            incomingSizes = provider.availableSizes;
         }
+        const newSizes = (0, instance_resolver_1.mergeArrayUnionStrings)(existing?.sizes ?? [], incomingSizes);
         // Origin country: Printful wins
         const newOriginCountry = printfulProduct?.originCountry || printfulProduct?.origin_country || provider?.country || null;
         // Price: take the higher of the two
@@ -298,19 +302,23 @@ async function syncMasterCatalog(options = {}) {
             if (v.size)
                 sizeSet.add(v.size);
         }
-        const pfImages = Array.isArray(pf.images) ? pf.images : (pf.image ? [pf.image] : []);
-        const combinedImages = Array.from(new Set([...(existing?.images || []), ...pfImages])).filter(Boolean);
+        // Images: union-merge existing + Printful by URL; prefer richer metadata
+        const pfImagesRaw = Array.isArray(pf.images) ? pf.images : (pf.image ? [pf.image] : []);
+        const combinedImages = (0, instance_resolver_1.mergeImagesByUrl)(existing?.images ?? [], pfImagesRaw);
         // Description: Printful never provides it — preserve existing (manually set) or null
         const newDescription = (0, safeAssign_1.safeAssign)(existing?.description, null);
         const pfMin = pf.minPrice ? parseFloat(String(pf.minPrice)) : null;
         const pfMax = pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null;
+        const incomingPfColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+        const incomingPfSizes = Array.from(sizeSet);
         const entry = {
             title: (0, safeAssign_1.safeAssignRequired)(existing?.title, pf.title || pf.typeName || null),
             description: newDescription,
             brand: (0, safeAssign_1.safeAssign)(existing?.brand, pf.brand || null),
             images: combinedImages,
-            colors: Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex })),
-            sizes: Array.from(sizeSet),
+            // Preserve existing colors/sizes if provider returns nothing
+            colors: (0, instance_resolver_1.isMeaningfulValue)(incomingPfColors) ? incomingPfColors : (existing?.colors ?? []),
+            sizes: (0, instance_resolver_1.mergeArrayUnionStrings)(existing?.sizes ?? [], incomingPfSizes),
             originCountry: pf.originCountry || pf.origin_country || existing?.originCountry || null,
             category: pf.category || existing?.category || classifyCategory(pf.title || pf.typeName || ''),
             printifyBlueprintId: null,
