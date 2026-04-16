@@ -13,9 +13,6 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
-  Loader2,
-  CheckCircle2,
-  Clock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -653,46 +650,9 @@ export function ProductsModule() {
       )}
 
       {state.selectedProduct && (
-        <div className="p-3 bg-primary/5 rounded-md border space-y-2" data-testid="selected-product-panel">
-          <div className="flex items-start justify-between gap-2 flex-wrap">
-            <div>
-              <p className="text-sm font-medium" data-testid="text-selected-product-title">
-                {state.selectedProduct.title}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {state.selectedProduct.brand}
-              </p>
-            </div>
-            {/* Session status badge */}
-            {state.activeSessionId === null && (
-              <Badge variant="outline" className="text-xs gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Starting session…
-              </Badge>
-            )}
-            {state.activeSessionId && state.sessionStatus === 'working' && (
-              <Badge variant="outline" className="text-xs gap-1" data-testid="status-session-working">
-                <Clock className="h-3 w-3 text-amber-500" />
-                Build session active
-              </Badge>
-            )}
-            {state.activeSessionId && state.sessionStatus === 'artifact_ready' && (
-              <Badge variant="outline" className="text-xs gap-1 border-green-500/40" data-testid="status-session-artifact-ready">
-                <CheckCircle2 className="h-3 w-3 text-green-500" />
-                Artifact ready
-              </Badge>
-            )}
-            {state.activeSessionId && state.sessionStatus === 'committed' && (
-              <Badge variant="outline" className="text-xs gap-1 border-blue-500/40" data-testid="status-session-committed">
-                <CheckCircle2 className="h-3 w-3 text-blue-500" />
-                Saved as instance
-              </Badge>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Choose your QR product type below, then create a packet.
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground px-1" data-testid="selected-product-hint">
+          Product selected — choose your QR type below.
+        </p>
       )}
     </div>
 

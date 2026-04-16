@@ -8,11 +8,15 @@ import { BasicsContentModule } from "./modules/BasicsContentModule";
 import { ComposeContentModule } from "./modules/ComposeContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { LoadTemplateModule } from "./modules/LoadTemplateModule";
+import { BuilderStickyBar } from "./modules/BuilderStickyBar";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 
 function BuilderModules() {
   return (
     <div className="mobile-compact-stack">
+      {/* Sticky bar — selected product name + session badge, always visible */}
+      <BuilderStickyBar />
+
       {/* Template loader — above everything so it populates all steps */}
       <InlineDebugBoundary label="LoadTemplateModule">
         <LoadTemplateModule />
