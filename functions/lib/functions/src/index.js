@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-const _BUILD_ID = '20260416-instance-resolver-v3-bugfixes';
+const _BUILD_ID = '20260416-print-placements-firestore-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -46,6 +46,7 @@ const core_routes_1 = require("./routes/core-routes");
 const master_catalog_1 = require("./routes/master-catalog");
 const admin_catalog_instances_1 = require("./routes/admin-catalog-instances");
 const member_catalog_instances_1 = require("./routes/member-catalog-instances");
+const print_placements_1 = require("./routes/print-placements");
 const app = (0, express_1.default)();
 app.use(middleware_1.corsMiddleware);
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -88,6 +89,7 @@ app.use(middleware_1.apiPrefixMiddleware);
 (0, master_catalog_1.register)(app);
 (0, admin_catalog_instances_1.register)(app);
 (0, member_catalog_instances_1.register)(app);
+(0, print_placements_1.register)(app);
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });

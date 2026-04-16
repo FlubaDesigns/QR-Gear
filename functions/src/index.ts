@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260416-instance-resolver-v3-bugfixes';
+const _BUILD_ID = '20260416-print-placements-firestore-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -41,6 +41,7 @@ import { register as registerCoreRoutes } from './routes/core-routes';
 import { register as registerMasterCatalog } from './routes/master-catalog';
 import { register as registerAdminCatalogInstances } from './routes/admin-catalog-instances';
 import { register as registerMemberCatalogInstances } from './routes/member-catalog-instances';
+import { register as registerPrintPlacements } from './routes/print-placements';
 
 const app = express();
 
@@ -86,6 +87,7 @@ registerCoreRoutes(app);
 registerMasterCatalog(app);
 registerAdminCatalogInstances(app);
 registerMemberCatalogInstances(app);
+registerPrintPlacements(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);
