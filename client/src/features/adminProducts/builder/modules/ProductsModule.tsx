@@ -309,12 +309,13 @@ export function ProductsModule() {
     activeProducts.forEach(p => {
       const withGender = { ...p, gender: detectGender(p.title) };
       const blankKey = p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id);
-      // Master catalog is the source of truth — no catalog-level overrides here.
-      // Admin overrides go into the packet state only.
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p, null, null), catalog: withGender, blankKey });
+      // Load catalog-level admin overrides so cards always show the admin's version
+      const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
+      const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts]);
+  }, [activeProducts, activeCatalog]);
 
   // Admin title/description edits go into the packet builder state only — never saved back to master or catalog.
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
@@ -361,8 +362,14 @@ export function ProductsModule() {
         setSelectedProviders([catalogProduct.fulfillmentProvider]);
       }
       selectProduct(entry.catalog);
+      // Immediately load the catalog's admin overrides into builder state so the
+      // description and title the admin saved always appear — never revert to master
+      const adminDesc = activeCatalog?.blankDescriptions?.[entry.blankKey] ?? null;
+      const adminTitle = activeCatalog?.blankTitles?.[entry.blankKey] ?? null;
+      if (adminDesc) setProductDescription(adminDesc);
+      if (adminTitle) setProductTitle(adminTitle);
     }
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
