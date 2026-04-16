@@ -30,3 +30,9 @@ id = "cu3a2sIGvRvwooslCnuFQ"
 uri = "file://docs/DESCRIPTION_TITLE_PRESERVATION.md"
 type = "text"
 title = "Description & Title Preservation — Task Spec"
+
+[[outputs]]
+id = "DCp5hc_SeF_E6_e6KY_LJ"
+uri = "file://qrgear-changes.zip"
+type = "unspecified"
+title = "BlankPickerModal + BlankPickerRowSkin changes"
