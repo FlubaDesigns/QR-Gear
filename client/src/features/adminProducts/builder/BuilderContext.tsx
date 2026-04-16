@@ -244,11 +244,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const setProductDescription = useCallback((description: string | null) => {
     setState(prev => {
       if (!prev.selectedProduct) {
-        return {
-          ...prev,
-          productDescription: description,
-          adminCatalogDescription: description,
-        };
+        return { ...prev, productDescription: description, adminCatalogDescription: description } as BuilderState;
       }
       return {
         ...prev,
@@ -256,9 +252,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         adminCatalogDescription: description,
         selectedProduct: {
           ...prev.selectedProduct,
-          description: description ?? prev.selectedProduct.description ?? null,
+          description: description ?? prev.selectedProduct.description ?? undefined,
         },
-      };
+      } as BuilderState;
     });
   }, []);
 
