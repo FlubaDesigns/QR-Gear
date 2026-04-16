@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-const _BUILD_ID = '20260416-print-placements-firestore-v2';
+const _BUILD_ID = '20260416-desc-sync-v3';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
