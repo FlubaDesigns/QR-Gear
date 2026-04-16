@@ -29,8 +29,12 @@ export interface AdminBlankDetailSkinProps {
 export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving }: AdminBlankDetailSkinProps) {
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState(item.adminCatalogDescription || "");
+  // Local mirror so the UI reflects the saved value immediately without waiting for the parent query to refetch
+  const [localAdminDesc, setLocalAdminDesc] = useState<string | null>(item.adminCatalogDescription);
 
-  const effectiveDescription = item.effectiveDescription;
+  const effectiveDescription = (localAdminDesc && localAdminDesc.trim())
+    ? localAdminDesc
+    : (item.providerDescription || item.effectiveDescription);
 
   return (
     <div
@@ -94,7 +98,7 @@ export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving 
                   variant="ghost"
                   className="text-slate-400 text-xs"
                   onClick={() => {
-                    setDescDraft(item.adminCatalogDescription || "");
+                    setDescDraft(localAdminDesc || "");
                     setEditingDesc(true);
                   }}
                   data-testid="button-edit-admin-desc"
@@ -120,6 +124,7 @@ export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving 
                     onClick={async () => {
                       if (onSaveDescription) {
                         await onSaveDescription(item.id, descDraft);
+                        setLocalAdminDesc(descDraft);
                       }
                       setEditingDesc(false);
                     }}
@@ -134,7 +139,7 @@ export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving 
                 </div>
               </>
             ) : (
-              <p className="text-sm text-slate-300">{item.adminCatalogDescription || "Not set — using provider description"}</p>
+              <p className="text-sm text-slate-300">{localAdminDesc || "Not set — using provider description"}</p>
             )}
           </div>
 
