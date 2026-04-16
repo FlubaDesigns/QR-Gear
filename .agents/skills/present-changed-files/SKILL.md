@@ -31,7 +31,7 @@ cd /home/runner/workspace && zip -u public/QR_Gear_Full_Website.zip \
 - Use `zip -u` — never recreate the zip from scratch, only update it
 - Run from `/home/runner/workspace` so paths inside the zip match the project structure
 - **Only files touched this session** — do not add the entire codebase
-- Do NOT include: files you only read, `package-lock.json`, `node_modules/`, `functions/lib/`, `.firebase/*.cache`, nested zip files, `attached_assets/`
+- Do NOT include: files you only read, `package-lock.json`, `node_modules/`, `functions/lib/`, `.firebase/*.cache`, nested zip files, `attached_assets/`, `downloads/**`
 - Do this **before** telling the user the task is complete
 
 ## What Counts as a Touched File

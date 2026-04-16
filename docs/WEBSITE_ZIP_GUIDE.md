@@ -54,6 +54,7 @@ zip -d public/QR_Gear_Full_Website.zip "path/to/deleted-file.ts"
 | `docs/**`, `*.md` at root | |
 | `.agents/skills/**` — skill definitions | |
 | `functions/package.json`, `functions/tsconfig.json` | |
+| | `downloads/**` — kept as a local folder, never goes in the zip |
 
 ---
 
