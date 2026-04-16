@@ -45,6 +45,17 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
     - **NEVER REMOVE FEATURES** - Do NOT remove any feature, toggle, module, or functionality unless the user EXPLICITLY tells you to remove it. Adding features is fine. Removing features without explicit permission is FORBIDDEN.
     - **NEVER CHANGE WORKING CODE** - Do NOT modify any existing working behavior, logic, values, or data flow unless the user EXPLICITLY tells you to change it. Only touch exactly what was asked. If a task says "add X", do NOT also change Y. If something is already working, leave it alone.
 
+## Standing Rules — Mandatory Skills
+These four rules apply to every task, every session, no exceptions. Read them before starting any work.
+
+1. **Ask Before Starting** — Before writing a single line of code or making any change, ask clarifying questions. Confirm: what exactly is the problem, where is it, what behavior is wanted, what must NOT change, and the scope. Do not assume. Do not start a build or deploy until the user confirms the plan.
+
+2. **Always Deploy** — Every code change — no matter how small — must be deployed to Firebase production before the task is considered done. The dev server is NOT the production environment. Order: (1) `npm run build`, (2) `firebase deploy --only hosting`, (3) `firebase deploy --only functions`. If functions deploy hits a GCP infra error, note it but do not block. Checklist: build clean, hosting live, functions deployed, production URL verified at https://qrgear-c1ffd.web.app.
+
+3. **Fail Loudly** — When something fails to load, fetch, or initialize, surface the error explicitly — in the UI, in the console, and in the API response. No silent fallbacks. No swallowed errors. No `return []` when the real cause is a failure. Every caught error must log: which module failed, what it was trying to do, and the actual error message. Always handle TanStack Query `error` state, not just `isLoading`.
+
+4. **Present Changed Files** — After every fix, feature, or update — before marking done — add only the files created or modified during that task into `downloads/QR_Gear_Full_Website.zip` using `zip -u`. Never recreate the zip from scratch. Never include build output, node_modules, lock files, or the downloads folder itself. Tell the user which files were added or updated.
+
 ## System Architecture
 
 ### UI/UX Decisions
