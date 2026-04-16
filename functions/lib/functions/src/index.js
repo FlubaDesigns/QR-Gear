@@ -44,6 +44,8 @@ const marketplace_1 = require("./routes/marketplace");
 const external_sites_1 = require("./routes/external-sites");
 const core_routes_1 = require("./routes/core-routes");
 const master_catalog_1 = require("./routes/master-catalog");
+const admin_catalog_instances_1 = require("./routes/admin-catalog-instances");
+const member_catalog_instances_1 = require("./routes/member-catalog-instances");
 const app = (0, express_1.default)();
 app.use(middleware_1.corsMiddleware);
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -84,6 +86,8 @@ app.use(middleware_1.apiPrefixMiddleware);
 (0, external_sites_1.register)(app);
 (0, core_routes_1.register)(app);
 (0, master_catalog_1.register)(app);
+(0, admin_catalog_instances_1.register)(app);
+(0, member_catalog_instances_1.register)(app);
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });

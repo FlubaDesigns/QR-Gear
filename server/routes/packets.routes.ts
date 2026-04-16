@@ -55,6 +55,12 @@ export function registerPacketRoutes(app: Express): void {
         fulfillmentProvider,
         playMediaUrl,
         playMediaType,
+        // Lineage fields — preserved on every packet so nothing becomes ambiguous
+        ownerType,
+        ownerInstanceId,
+        sourceMasterId,
+        sourceAdminInstanceId,
+        sourceMemberInstanceId,
       } = req.body;
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
@@ -64,6 +70,13 @@ export function registerPacketRoutes(app: Express): void {
       const now = FieldValue.serverTimestamp();
       
       const packetData = {
+        // Lineage — mandatory on every packet
+        ownerType: ownerType || null,
+        ownerInstanceId: ownerInstanceId || null,
+        sourceMasterId: sourceMasterId || null,
+        sourceAdminInstanceId: sourceAdminInstanceId || null,
+        sourceMemberInstanceId: sourceMemberInstanceId || null,
+
         qrOnlyUrl: qrOnlyUrl || null,
         compositeUrl: compositeUrl || null,
         qrContent: qrContent || null,

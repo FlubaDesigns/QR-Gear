@@ -1,4 +1,5 @@
 import { db } from '../core';
+import { safeAssign, safeAssignRequired } from '../safeAssign';
 
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
 const MASTER_CATALOG_SYNCS_COLLECTION = 'master_catalog_syncs';
@@ -215,21 +216,20 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
     const existing = existingMaster.get(masterId);
 
     // ── MERGE RULES ────────────────────────────────────────────────────────────
+    // safeAssign is used for every human-curated field so that null/empty
+    // provider payloads can NEVER wipe out previously-good catalog data.
 
-    // Title: Printful wins if matched, else Printify
-    const newTitle = printfulProduct?.title || printfulProduct?.typeName || bp.title || '';
+    // Title: Printful wins if matched, else Printify; existing always wins over empty
+    const providerTitle = printfulProduct?.title || printfulProduct?.typeName || bp.title || null;
+    const newTitle = safeAssignRequired(existing?.title, providerTitle);
 
     // Description: Printify only. NEVER overwrite if already set.
-    let newDescription: string | null;
-    const existingDesc = existing?.description;
-    if (existingDesc && String(existingDesc).trim()) {
-      newDescription = existingDesc; // Already set — preserve it
-    } else {
-      newDescription = bp.description || null; // Seed from Printify
-    }
+    const providerDesc = bp.description || null;
+    const newDescription = safeAssign(existing?.description, providerDesc);
 
-    // Brand: Printful wins if matched
-    const newBrand = printfulProduct?.brand || bp.brand || null;
+    // Brand: Printful wins if matched; existing preserved over empty
+    const providerBrand = printfulProduct?.brand || bp.brand || null;
+    const newBrand = safeAssign(existing?.brand, providerBrand);
 
     // Images: combine both, never remove existing
     const pyImages: string[] = Array.isArray(bp.images) ? bp.images : (bp.primaryImageUrl ? [bp.primaryImageUrl] : []);
@@ -333,17 +333,15 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
     const combinedImages = Array.from(new Set([...(existing?.images || []), ...pfImages])).filter(Boolean);
 
     // Description: Printful never provides it — preserve existing (manually set) or null
-    const newDescription: string | null = existing?.description && String(existing.description).trim()
-      ? existing.description
-      : null;
+    const newDescription: string | null = safeAssign(existing?.description, null);
 
     const pfMin: number | null = pf.minPrice ? parseFloat(String(pf.minPrice)) : null;
     const pfMax: number | null = pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null;
 
     const entry: any = {
-      title: pf.title || pf.typeName || existing?.title || '',
+      title: safeAssignRequired(existing?.title, pf.title || pf.typeName || null),
       description: newDescription,
-      brand: pf.brand || existing?.brand || null,
+      brand: safeAssign(existing?.brand, pf.brand || null),
       images: combinedImages,
       colors: Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex })),
       sizes: Array.from(sizeSet),

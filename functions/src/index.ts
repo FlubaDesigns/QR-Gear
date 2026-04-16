@@ -39,6 +39,8 @@ import { register as registerMarketplace } from './routes/marketplace';
 import { register as registerExternalSites } from './routes/external-sites';
 import { register as registerCoreRoutes } from './routes/core-routes';
 import { register as registerMasterCatalog } from './routes/master-catalog';
+import { register as registerAdminCatalogInstances } from './routes/admin-catalog-instances';
+import { register as registerMemberCatalogInstances } from './routes/member-catalog-instances';
 
 const app = express();
 
@@ -82,6 +84,8 @@ registerMarketplace(app);
 registerExternalSites(app);
 registerCoreRoutes(app);
 registerMasterCatalog(app);
+registerAdminCatalogInstances(app);
+registerMemberCatalogInstances(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

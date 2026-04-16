@@ -1,5 +1,6 @@
 import { getFirestoreDb } from './firebase-admin';
 import { PLATFORM_STORE_ID, CHANNEL_ITEMS_COLLECTION } from './constants';
+import { safeAssign } from './safeAssign';
 
 export { PLATFORM_STORE_ID };
 
@@ -156,9 +157,9 @@ export async function upsertChannelItem(input: ChannelItemInput & { storeId: str
     const shareCaption = input.shareCaption || generateShareCaption(input.title, input.description, shareUrl);
     
     const updateData: Record<string, any> = {
-      title: input.title,
-      description: input.description || null,
-      previewImageUrl: input.previewImageUrl || null,
+      title: safeAssign(existingData.title, input.title) ?? input.title,
+      description: safeAssign(existingData.description, input.description),
+      previewImageUrl: input.previewImageUrl || existingData.previewImageUrl || null,
       shareUrl,
       price: input.price || null,
       collectionId: collectionValue,

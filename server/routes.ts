@@ -25,6 +25,8 @@ import { registerPricingRoutes } from "./routes/pricing.routes";
 import { registerMiscRoutes } from "./routes/misc.routes";
 import { registerBackgroundAssetsRoutes } from "./routes/background-assets.routes";
 import { registerBrainRoutes } from "./routes/brain.routes";
+import { registerAdminCatalogInstanceRoutes } from "./routes/admin-catalog-instances.routes";
+import { registerMemberCatalogInstanceRoutes } from "./routes/member-catalog-instances.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -51,6 +53,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerPricingRoutes(app);
   registerMiscRoutes(app);
   registerBrainRoutes(app);
+  registerAdminCatalogInstanceRoutes(app);
+  registerMemberCatalogInstanceRoutes(app);
 
   startCronJobs();
 
