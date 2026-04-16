@@ -238,7 +238,24 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const setProductDescription = useCallback((description: string | null) => {
-    setState(prev => ({ ...prev, productDescription: description, adminCatalogDescription: description }));
+    setState(prev => {
+      if (!prev.selectedProduct) {
+        return {
+          ...prev,
+          productDescription: description,
+          adminCatalogDescription: description,
+        };
+      }
+      return {
+        ...prev,
+        productDescription: description,
+        adminCatalogDescription: description,
+        selectedProduct: {
+          ...prev.selectedProduct,
+          description: description ?? prev.selectedProduct.description ?? null,
+        },
+      };
+    });
   }, []);
 
   const setProductTitle = useCallback((title: string | null) => {
@@ -247,7 +264,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return {
         ...prev,
         adminCatalogTitle: title,
-        selectedProduct: { ...prev.selectedProduct, title: title ?? prev.masterTitle ?? prev.selectedProduct.title },
+        selectedProduct: {
+          ...prev.selectedProduct,
+          title: title ?? prev.selectedProduct.title,
+        },
       };
     });
   }, []);

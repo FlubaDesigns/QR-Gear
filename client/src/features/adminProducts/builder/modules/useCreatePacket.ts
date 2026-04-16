@@ -118,7 +118,11 @@ export function useCreatePacket({
         masterDescription: state.masterDescription || null,
         adminCatalogDescription: state.adminCatalogDescription || null,
         effectiveDescription: state.adminCatalogDescription ?? state.masterDescription ?? product?.description ?? null,
-        productDescription: state.adminCatalogDescription ?? state.masterDescription ?? product?.description ?? null,
+        productDescription:
+          state.productDescription ??
+          state.selectedProduct?.description ??
+          product?.description ??
+          null,
         productImageUrl: product?.imageUrl || null,
         blueprintId: product?.blueprintId || null,
         printProviderId: product?.printProviderId || null,
