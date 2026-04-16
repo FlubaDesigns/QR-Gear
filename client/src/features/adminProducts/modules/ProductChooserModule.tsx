@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Package, Search, Filter, Flag, Globe } from "lucide-react";
@@ -97,6 +98,7 @@ export function ProductChooserModule({
   onProductSelected,
   showControlBar = true,
 }: ProductChooserModuleProps) {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all");
@@ -252,7 +254,7 @@ export function ProductChooserModule({
         <ScrollVerticalView
           items={scrollViewItems}
           renderItem={(item) => renderCard(item as ScrollViewItem)}
-          height="calc(100vh - 160px)"
+          height={isMobile ? undefined : "calc(100vh - 160px)"}
           emptyMessage="No products match your filters"
           footer={
             <p className="text-sm text-muted-foreground text-center mt-3 font-medium">

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -10,6 +11,8 @@ import {
   Globe,
   BookOpen,
   Plus,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +123,7 @@ export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
 
@@ -128,6 +132,7 @@ export function ProductsModule() {
   const [dataMode, setDataMode] = useState<DataMode>("all");
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -446,7 +451,7 @@ export function ProductsModule() {
             <ScrollVerticalView
               items={scrollItems}
               renderItem={(item) => renderProductCard(item as ScrollViewItem)}
-              height="calc(100vh - 160px)"
+              height={isMobile ? undefined : "calc(100vh - 160px)"}
               emptyMessage="No products in this catalog."
               footer={
                 <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
@@ -481,7 +486,7 @@ export function ProductsModule() {
             <ScrollVerticalView
               items={scrollItems}
               renderItem={(item) => renderProductCard(item as ScrollViewItem)}
-              height="calc(100vh - 160px)"
+              height={isMobile ? undefined : "calc(100vh - 160px)"}
               emptyMessage="No products in joint catalog."
               footer={
                 <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
@@ -523,47 +528,68 @@ export function ProductsModule() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Filter className="h-3 w-3 text-muted-foreground" />
-                  <Badge
-                    variant={locationFilter === "all" ? "default" : "outline"}
-                    className="cursor-pointer text-xs"
-                    onClick={() => applyLocationFilter("all")}
-                    data-testid="filter-location-all"
-                  >
-                    <Globe className="w-3 h-3 mr-1" /> All ({products.length})
-                  </Badge>
-                  <Badge
-                    variant={locationFilter === "usa" ? "default" : "outline"}
-                    className="cursor-pointer text-xs"
-                    onClick={() => applyLocationFilter("usa")}
-                    data-testid="filter-location-usa"
-                  >
-                    <Flag className="w-3 h-3 mr-1" /> USA ({usaCount})
-                  </Badge>
-                  <Badge
-                    variant={locationFilter === "other" ? "default" : "outline"}
-                    className="cursor-pointer text-xs"
-                    onClick={() => applyLocationFilter("other")}
-                    data-testid="filter-location-other"
-                  >
-                    Other ({otherCount})
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {(["all", "mens", "womens", "unisex"] as const).map((g) => (
-                    <Badge
-                      key={g}
-                      variant={state.genderFilter === g ? "default" : "outline"}
-                      className="cursor-pointer text-xs capitalize"
-                      onClick={() => setGenderFilter(g)}
-                      data-testid={`filter-gender-${g}`}
-                    >
-                      {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({genderCounts[g]})
-                    </Badge>
-                  ))}
-                </div>
+              <div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setMoreFiltersOpen(o => !o)}
+                  data-testid="button-toggle-more-filters"
+                >
+                  <Filter className="h-3 w-3" />
+                  {moreFiltersOpen ? "Hide filters" : "More filters"}
+                  {(locationFilter !== "all" || state.genderFilter !== "all") && (
+                    <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                      {(locationFilter !== "all" ? 1 : 0) + (state.genderFilter !== "all" ? 1 : 0)}
+                    </span>
+                  )}
+                  {moreFiltersOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+
+                {moreFiltersOpen && (
+                  <div className="mt-2 space-y-2 pl-1" data-testid="more-filters-panel">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-14">Location</span>
+                      <Badge
+                        variant={locationFilter === "all" ? "default" : "outline"}
+                        className="cursor-pointer text-xs"
+                        onClick={() => applyLocationFilter("all")}
+                        data-testid="filter-location-all"
+                      >
+                        <Globe className="w-3 h-3 mr-1" /> All ({products.length})
+                      </Badge>
+                      <Badge
+                        variant={locationFilter === "usa" ? "default" : "outline"}
+                        className="cursor-pointer text-xs"
+                        onClick={() => applyLocationFilter("usa")}
+                        data-testid="filter-location-usa"
+                      >
+                        <Flag className="w-3 h-3 mr-1" /> USA ({usaCount})
+                      </Badge>
+                      <Badge
+                        variant={locationFilter === "other" ? "default" : "outline"}
+                        className="cursor-pointer text-xs"
+                        onClick={() => applyLocationFilter("other")}
+                        data-testid="filter-location-other"
+                      >
+                        Other ({otherCount})
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-14">Gender</span>
+                      {(["all", "mens", "womens", "unisex"] as const).map((g) => (
+                        <Badge
+                          key={g}
+                          variant={state.genderFilter === g ? "default" : "outline"}
+                          className="cursor-pointer text-xs capitalize"
+                          onClick={() => setGenderFilter(g)}
+                          data-testid={`filter-gender-${g}`}
+                        >
+                          {g === "all" ? "All" : g === "mens" ? "Men" : g === "womens" ? "Women" : "Unisex"} ({genderCounts[g]})
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {error ? (
@@ -582,7 +608,7 @@ export function ProductsModule() {
                 <ScrollVerticalView
                   items={scrollItems}
                   renderItem={(item) => renderProductCard(item as ScrollViewItem)}
-                  height="calc(100vh - 160px)"
+                  height={isMobile ? undefined : "calc(100vh - 160px)"}
                   emptyMessage="No products match the current filters."
                   footer={
                     <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
