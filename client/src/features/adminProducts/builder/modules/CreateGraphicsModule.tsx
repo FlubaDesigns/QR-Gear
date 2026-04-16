@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Package, Loader2, Check } from "lucide-react";
+import { Package, Loader2, Check, BookmarkCheck, CheckCircle2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { PricingBreakdown } from "../types";
@@ -40,6 +41,9 @@ export function CreateGraphicsModule() {
   const { apiBase } = useAdminAuth();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
 
+  const hasActiveSession = !!state.activeSessionId;
+  const sessionStatus = state.sessionStatus;
+
   const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: [`${apiBase}/pricing-settings`],
     queryFn: async () => {
@@ -58,7 +62,8 @@ export function CreateGraphicsModule() {
 
   const {
     isCreating, packetResult, error, isDeleting,
-    handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    isCommitting, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    handleCommitSession,
   } = useCreatePacket({
     state, selectedRole, selectedStore, selectedChannel,
     loadGraphic, resetBuilder, pricingSettings,
@@ -148,6 +153,47 @@ export function CreateGraphicsModule() {
             onReset={handleReset}
             onDelete={handleDeletePacket}
           />
+        )}
+
+        {/* Build session commit — only shown when session artifact is ready */}
+        {packetResult && hasActiveSession && sessionStatus === 'artifact_ready' && (
+          <div className="pt-2 border-t space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Packet is ready. Save this as a permanent admin catalog instance.
+            </p>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleCommitSession}
+              disabled={isCommitting}
+              data-testid="button-commit-session"
+            >
+              {isCommitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <BookmarkCheck className="h-4 w-4 mr-2" />
+                  Save as Admin Instance
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Committed confirmation */}
+        {packetResult && hasActiveSession && sessionStatus === 'committed' && (
+          <div className="pt-2 border-t">
+            <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-2" data-testid="status-committed-confirm">
+              <CheckCircle2 className="h-4 w-4" />
+              Saved as admin catalog instance
+              {state.committedInstanceId && (
+                <span className="text-xs text-muted-foreground ml-1">({state.committedInstanceId.slice(0, 8)}…)</span>
+              )}
+            </p>
+          </div>
         )}
 
         <ImageModalView

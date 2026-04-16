@@ -27,6 +27,7 @@ interface BuilderContextValue {
   setPlacementMethod: (placementId: string, method: 'dtg' | 'dtf') => void;
   setSelectedColor: (color: SelectedColor | null) => void;
   setActivePacketId: (id: string | null) => void;
+  setActiveSession: (id: string | null, status: 'working' | 'artifact_ready' | 'committed' | null, instanceId: string | null) => void;
   setProductDescription: (description: string | null) => void;
   setProductTitle: (title: string | null) => void;
   resetBuilder: () => void;
@@ -117,6 +118,9 @@ const initialState: BuilderState = {
   activePacketId: null,
   templateBaseline: null,
   templateProductHint: null,
+  activeSessionId: null,
+  sessionStatus: null,
+  committedInstanceId: null,
 };
 
 interface BuilderProviderProps {
@@ -423,6 +427,19 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const setActiveSession = useCallback((
+    id: string | null,
+    status: 'working' | 'artifact_ready' | 'committed' | null,
+    instanceId: string | null,
+  ) => {
+    setState(prev => ({
+      ...prev,
+      activeSessionId: id,
+      sessionStatus: status,
+      committedInstanceId: instanceId,
+    }));
+  }, []);
+
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
     content: Partial<ContentData>,
@@ -627,6 +644,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setPlacementMethod,
     setSelectedColor,
     setActivePacketId,
+    setActiveSession,
     setProductDescription,
     setProductTitle,
     resetBuilder,
@@ -634,7 +652,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

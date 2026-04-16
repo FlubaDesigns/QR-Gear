@@ -295,40 +295,54 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
 
       const now = FieldValue.serverTimestamp();
 
-      // Build packet data from session working state + caller-supplied fields
-      const packetData = {
-        ownerType: "admin_build_session",
-        buildSessionId: id,
-        sourceMasterId: session.sourceMasterId,
-        sourceAdminInstanceId: null, // not committed yet
-
-        masterTitle: session.working?.title || null,
-        adminCatalogTitle: session.working?.title || null,
-        effectiveTitle: session.working?.title || null,
-        masterDescription: session.working?.description || null,
-        adminCatalogDescription: session.working?.description || null,
-        effectiveDescription: session.working?.description || null,
-        productImageUrl: session.working?.images?.[0] || null,
-
-        // Caller-supplied fields (QR config, graphics, layout, etc.)
-        ...packetFields,
-
-        createdAt: now,
-        updatedAt: now,
-      };
-
       let packetId: string;
-      if (session.generated?.packetId) {
-        // Regenerate — update existing packet
-        await db.collection(PRODUCT_PACKETS_COLLECTION)
-          .doc(session.generated.packetId)
-          .update({ ...packetData, createdAt: FieldValue.delete(), updatedAt: now });
-        packetId = session.generated.packetId;
-        console.log(`[BuildSessions] Regenerated packet ${packetId} for session ${id}`);
+
+      if (packetFields.existingPacketId) {
+        // Caller already created the packet via POST /api/packets — just link it to this session
+        packetId = packetFields.existingPacketId;
+        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
+          ownerType: "admin_build_session",
+          buildSessionId: id,
+          sourceMasterId: session.sourceMasterId,
+          sourceAdminInstanceId: null,
+          updatedAt: now,
+        });
+        console.log(`[BuildSessions] Linked existing packet ${packetId} to session ${id}`);
       } else {
-        const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
-        packetId = packetRef.id;
-        console.log(`[BuildSessions] Created packet ${packetId} for session ${id}`);
+        // Build packet data from session working state + caller-supplied fields
+        const packetData = {
+          ownerType: "admin_build_session",
+          buildSessionId: id,
+          sourceMasterId: session.sourceMasterId,
+          sourceAdminInstanceId: null, // not committed yet
+
+          masterTitle: session.working?.title || null,
+          adminCatalogTitle: session.working?.title || null,
+          effectiveTitle: session.working?.title || null,
+          masterDescription: session.working?.description || null,
+          adminCatalogDescription: session.working?.description || null,
+          effectiveDescription: session.working?.description || null,
+          productImageUrl: session.working?.images?.[0] || null,
+
+          // Caller-supplied fields (QR config, graphics, layout, etc.)
+          ...packetFields,
+
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        if (session.generated?.packetId) {
+          // Regenerate — update existing packet
+          await db.collection(PRODUCT_PACKETS_COLLECTION)
+            .doc(session.generated.packetId)
+            .update({ ...packetData, createdAt: FieldValue.delete(), updatedAt: now });
+          packetId = session.generated.packetId;
+          console.log(`[BuildSessions] Regenerated packet ${packetId} for session ${id}`);
+        } else {
+          const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
+          packetId = packetRef.id;
+          console.log(`[BuildSessions] Created packet ${packetId} for session ${id}`);
+        }
       }
 
       // Update session with generated refs and flip to artifact_ready

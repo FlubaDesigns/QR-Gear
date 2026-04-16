@@ -237,4 +237,7 @@ export interface BuilderState {
   activePacketId: string | null;
   templateBaseline: string | null;
   templateProductHint: TemplateProductHint | null;
+  activeSessionId: string | null;
+  sessionStatus: 'working' | 'artifact_ready' | 'committed' | null;
+  committedInstanceId: string | null;
 }

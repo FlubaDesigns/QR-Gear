@@ -10,6 +10,12 @@ import type { PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
 import { useBuilderContext } from "../BuilderContext";
 
+interface CommitResult {
+  instanceId: string;
+  sessionId: string;
+  packetId: string | null;
+}
+
 interface PricingSettings {
   markupPercent: number;
   markupFixed: number;
@@ -39,7 +45,9 @@ export function useCreatePacket({
   const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { hasChangesFromBaseline } = useBuilderContext();
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
+  const { hasChangesFromBaseline, setActiveSession } = useBuilderContext();
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
@@ -445,6 +453,30 @@ export function useCreatePacket({
         }
       }
 
+      // Link packet to build session and flip session to artifact_ready
+      if (state.activeSessionId) {
+        try {
+          const sessionHeaders = await getAuthHeaders();
+          const artifactRes = await fetch(
+            `${apiBase}/admin/build-sessions/${state.activeSessionId}/generate-artifact`,
+            {
+              method: "POST",
+              headers: { ...sessionHeaders, "Content-Type": "application/json" },
+              body: JSON.stringify({ existingPacketId: packetId }),
+            },
+          );
+          if (artifactRes.ok) {
+            setActiveSession(state.activeSessionId, 'artifact_ready', null);
+            console.log(`[CreatePacket] Session ${state.activeSessionId} → artifact_ready (packet ${packetId})`);
+          } else {
+            const errData = await artifactRes.json().catch(() => ({}));
+            console.error("[CreatePacket] generate-artifact failed:", errData.error || artifactRes.status);
+          }
+        } catch (sessionErr: any) {
+          console.error("[CreatePacket] generate-artifact request failed:", sessionErr.message || sessionErr);
+        }
+      }
+
       loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl });
 
       const initialResult: PacketResult = {
@@ -538,9 +570,61 @@ export function useCreatePacket({
     }
   };
 
+  const handleCommitSession = async () => {
+    if (!state.activeSessionId || isCommitting) return;
+    if (state.sessionStatus !== 'artifact_ready') {
+      toast({
+        title: "Cannot commit yet",
+        description: "Generate a packet first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCommitting(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/admin/build-sessions/${state.activeSessionId}/commit`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Commit failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const result: CommitResult = {
+        instanceId: data.instanceId,
+        sessionId: data.sessionId,
+        packetId: data.packetId || null,
+      };
+      setCommitResult(result);
+      setActiveSession(state.activeSessionId, 'committed', data.instanceId);
+      console.log(`[CreatePacket] Committed session ${state.activeSessionId} → instance ${data.instanceId}`);
+      toast({
+        title: "Saved as Admin Instance",
+        description: `Instance ${data.instanceId.slice(0, 8)}… created successfully.`,
+      });
+    } catch (err: any) {
+      console.error("[CreatePacket] Commit session failed:", err.message || err);
+      toast({
+        title: "Commit Failed",
+        description: err.message || "Could not save admin instance.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCommitting(false);
+    }
+  };
+
   return {
     isCreating, packetResult, error, isDeleting,
+    isCommitting, commitResult,
     calculatePricing, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    handleCommitSession,
     setPacketResult, setError,
   };
 }

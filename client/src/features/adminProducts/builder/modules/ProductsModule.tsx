@@ -13,6 +13,9 @@ import {
   Plus,
   ChevronDown,
   ChevronUp,
+  Loader2,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +29,7 @@ import {
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
@@ -120,8 +124,9 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -360,21 +365,46 @@ export function ProductsModule() {
 
   const handleCardSelect = useCallback((id: string, _item: ProductSelectItem) => {
     const entry = selectItemMap.get(id);
-    if (entry) {
-      const catalogProduct = entry.catalog as any;
-      if (catalogProduct.fulfillmentProvider && catalogProduct.fulfillmentProvider !== provider) {
-        internalProviderSwitch.current = true;
-        setSelectedProviders([catalogProduct.fulfillmentProvider]);
-      }
-      selectProduct(entry.catalog);
-      // Immediately load the catalog's admin overrides into builder state so the
-      // description and title the admin saved always appear — never revert to master
-      const adminDesc = activeCatalog?.blankDescriptions?.[entry.blankKey] ?? null;
-      const adminTitle = activeCatalog?.blankTitles?.[entry.blankKey] ?? null;
-      if (adminDesc) setProductDescription(adminDesc);
-      if (adminTitle) setProductTitle(adminTitle);
+    if (!entry) return;
+
+    const catalogProduct = entry.catalog as any;
+    if (catalogProduct.fulfillmentProvider && catalogProduct.fulfillmentProvider !== provider) {
+      internalProviderSwitch.current = true;
+      setSelectedProviders([catalogProduct.fulfillmentProvider]);
     }
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle]);
+    selectProduct(entry.catalog);
+
+    // Immediately load the catalog's admin overrides into builder state so the
+    // description and title the admin saved always appear — never revert to master
+    const adminDesc = activeCatalog?.blankDescriptions?.[entry.blankKey] ?? null;
+    const adminTitle = activeCatalog?.blankTitles?.[entry.blankKey] ?? null;
+    if (adminDesc) setProductDescription(adminDesc);
+    if (adminTitle) setProductTitle(adminTitle);
+
+    // Clear any previous session then start/resume a build session for this master product
+    setActiveSession(null, null, null);
+    const sourceMasterId = String(entry.catalog.id);
+    getAuthHeaders().then(headers =>
+      fetch(`${apiBase}/admin/build-sessions/from-master`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceMasterId }),
+      })
+    )
+      .then(r => r.json())
+      .then(data => {
+        if (!data.sessionId) {
+          console.error("[ProductsModule] from-master returned no sessionId:", data);
+          return;
+        }
+        const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
+        setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null);
+        console.log(`[ProductsModule] Build session ${data.isExisting ? 'resumed' : 'started'}: ${data.sessionId} (${status})`);
+      })
+      .catch(err => {
+        console.error("[ProductsModule] Failed to start build session:", err.message || err);
+      });
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, apiBase, getAuthHeaders]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
@@ -623,15 +653,44 @@ export function ProductsModule() {
       )}
 
       {state.selectedProduct && (
-        <div className="p-3 bg-primary/5 rounded-md border space-y-3">
-          <div>
-            <p className="text-sm font-medium">Selected: {state.selectedProduct.title}</p>
-            <p className="text-xs text-muted-foreground">
-              {state.selectedProduct.brand} - {state.selectedProduct.model}
-            </p>
+        <div className="p-3 bg-primary/5 rounded-md border space-y-2" data-testid="selected-product-panel">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div>
+              <p className="text-sm font-medium" data-testid="text-selected-product-title">
+                {state.selectedProduct.title}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {state.selectedProduct.brand}
+              </p>
+            </div>
+            {/* Session status badge */}
+            {state.activeSessionId === null && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Starting session…
+              </Badge>
+            )}
+            {state.activeSessionId && state.sessionStatus === 'working' && (
+              <Badge variant="outline" className="text-xs gap-1" data-testid="status-session-working">
+                <Clock className="h-3 w-3 text-amber-500" />
+                Build session active
+              </Badge>
+            )}
+            {state.activeSessionId && state.sessionStatus === 'artifact_ready' && (
+              <Badge variant="outline" className="text-xs gap-1 border-green-500/40" data-testid="status-session-artifact-ready">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                Artifact ready
+              </Badge>
+            )}
+            {state.activeSessionId && state.sessionStatus === 'committed' && (
+              <Badge variant="outline" className="text-xs gap-1 border-blue-500/40" data-testid="status-session-committed">
+                <CheckCircle2 className="h-3 w-3 text-blue-500" />
+                Saved as instance
+              </Badge>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Now choose your QR product type below
+          <p className="text-xs text-muted-foreground">
+            Choose your QR product type below, then create a packet.
           </p>
         </div>
       )}
