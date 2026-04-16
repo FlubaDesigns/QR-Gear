@@ -89,8 +89,10 @@ function PreviewModal({
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
   const [draftDesc, setDraftDesc] = useState(item.description || "");
+  const [confirmResetDesc, setConfirmResetDesc] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(item.name || "");
+  const [confirmResetTitle, setConfirmResetTitle] = useState(false);
 
   const handleSaveDesc = async () => {
     if (!onDescriptionSave) return;
@@ -166,14 +168,36 @@ function PreviewModal({
                           data-testid={`input-title-${item.id}`}
                         />
                         {item.providerTitle && item.providerTitle !== draftTitle && (
-                          <button
-                            type="button"
-                            className="text-xs text-blue-400 hover:text-blue-300 underline"
-                            onClick={() => setDraftTitle(item.providerTitle || "")}
-                            data-testid={`button-reset-to-provider-title-${item.id}`}
-                          >
-                            Reset to provider title
-                          </button>
+                          confirmResetTitle ? (
+                            <div className="flex items-center gap-2 text-xs" data-testid={`confirm-reset-title-${item.id}`}>
+                              <span className="text-muted-foreground">Reset to original — are you sure?</span>
+                              <button
+                                type="button"
+                                className="text-red-400 hover:text-red-300 underline font-medium"
+                                onClick={() => { setDraftTitle(item.providerTitle || ""); setConfirmResetTitle(false); }}
+                                data-testid={`button-confirm-yes-reset-title-${item.id}`}
+                              >
+                                Yes, reset
+                              </button>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground underline"
+                                onClick={() => setConfirmResetTitle(false)}
+                                data-testid={`button-confirm-cancel-reset-title-${item.id}`}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-xs text-blue-400 hover:text-blue-300 underline"
+                              onClick={() => setConfirmResetTitle(true)}
+                              data-testid={`button-reset-to-provider-title-${item.id}`}
+                            >
+                              Reset to original title
+                            </button>
+                          )
                         )}
                         <div className="flex gap-2">
                           <Button size="sm" onClick={handleSaveTitle} disabled={titleSaving} data-testid={`button-save-title-${item.id}`}>
@@ -261,14 +285,36 @@ function PreviewModal({
                           data-testid={`textarea-desc-${item.id}`}
                         />
                         {(item.providerDescription || item.providerDescriptionRaw) && (item.providerDescription || item.providerDescriptionRaw) !== draftDesc && (
-                          <button
-                            type="button"
-                            className="text-xs text-blue-400 hover:text-blue-300 underline"
-                            onClick={() => setDraftDesc(item.providerDescription || item.providerDescriptionRaw || "")}
-                            data-testid={`button-reset-to-provider-${item.id}`}
-                          >
-                            Reset to provider description
-                          </button>
+                          confirmResetDesc ? (
+                            <div className="flex items-center gap-2 text-xs" data-testid={`confirm-reset-desc-${item.id}`}>
+                              <span className="text-muted-foreground">Reset to original — are you sure?</span>
+                              <button
+                                type="button"
+                                className="text-red-400 hover:text-red-300 underline font-medium"
+                                onClick={() => { setDraftDesc(item.providerDescription || item.providerDescriptionRaw || ""); setConfirmResetDesc(false); }}
+                                data-testid={`button-confirm-yes-reset-desc-${item.id}`}
+                              >
+                                Yes, reset
+                              </button>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground underline"
+                                onClick={() => setConfirmResetDesc(false)}
+                                data-testid={`button-confirm-cancel-reset-desc-${item.id}`}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-xs text-blue-400 hover:text-blue-300 underline"
+                              onClick={() => setConfirmResetDesc(true)}
+                              data-testid={`button-reset-to-provider-${item.id}`}
+                            >
+                              Reset to original description
+                            </button>
+                          )
                         )}
                         <div className="flex gap-2">
                           <Button
