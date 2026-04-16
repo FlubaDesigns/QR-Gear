@@ -89,12 +89,16 @@ function register(app) {
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
             // Normalize images into ImageRecord[] at creation time
             const normalizedImages = (0, instance_resolver_1.mergeImagesByUrl)(master.images ?? [], []);
+            // Normalize master colors to strings — master_catalog stores {name, hex} objects
+            const normalizedColors = (master.colors ?? [])
+                .map((c) => (typeof c === 'string' ? c : (c?.name ?? c?.hex ?? '')))
+                .filter(Boolean);
             const baseSnapshot = {
                 title: master.title ?? '',
                 description: master.description ?? null,
                 images: normalizedImages,
                 brand: master.brand ?? null,
-                colors: master.colors ?? [],
+                colors: normalizedColors,
                 sizes: master.sizes ?? [],
                 category: master.category ?? null,
                 originCountry: master.originCountry ?? null,
@@ -136,7 +140,14 @@ function register(app) {
     // Save admin overrides. resolveInstance is recomputed. Master is NEVER touched.
     app.patch('/admin/catalog-instances/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { overrides: incomingOverrides, status, metadata } = req.body;
+            // Callers may pass overrides directly, or include metadata inside overrides.
+            // metadata as a top-level convenience param is folded into overrides so
+            // resolveInstance always sees the full picture.
+            const { overrides: rawOverrides = {}, status } = req.body;
+            const topLevelMetadata = req.body.metadata;
+            const incomingOverrides = topLevelMetadata !== undefined
+                ? { ...rawOverrides, metadata: topLevelMetadata }
+                : rawOverrides;
             const ref = core_1.db.collection(ADMIN_INSTANCES).doc(req.params.id);
             const doc = await ref.get();
             if (!doc.exists) {
@@ -146,7 +157,7 @@ function register(app) {
             const existing = doc.data();
             // Merge incoming overrides on top of stored overrides (object-level merge)
             const mergedOverrides = { ...existing.overrides, ...incomingOverrides };
-            // Single source of truth for resolved state
+            // Single source of truth for resolved state — resolveInstance handles metadata
             const resolved = (0, instance_resolver_1.resolveInstance)(existing.baseSnapshot, mergedOverrides);
             const update = {
                 overrides: mergedOverrides,
@@ -157,8 +168,6 @@ function register(app) {
             };
             if (status !== undefined)
                 update.status = status;
-            if (metadata !== undefined)
-                update.resolved.metadata = metadata;
             await ref.update(update);
             console.log(`[AdminInstances] Updated ${req.params.id} → v${update.version}`);
             res.json({ success: true, instanceId: req.params.id, resolved, version: update.version });
