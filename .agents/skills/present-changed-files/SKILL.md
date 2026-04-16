@@ -5,12 +5,12 @@ description: After completing any fix, update, or build task, present only the f
 
 # Save Changed Files to QR_Gear_Full_Website.zip After Every Fix or Update
 
-After completing any fix, feature, or update — before marking a task done — add only the files that were created or modified during that task into `public/QR_Gear_Full_Website.zip`.
+After completing any fix, feature, or update — before marking a task done — add only the files that were created or modified during that task into `downloads/QR_Gear_Full_Website.zip`.
 
 ## Target
 
 ```
-public/QR_Gear_Full_Website.zip
+downloads/QR_Gear_Full_Website.zip
 ```
 
 ## Steps After Every Task
@@ -19,7 +19,7 @@ public/QR_Gear_Full_Website.zip
 2. Add them to the zip using the `-u` (update) flag — adds new files and updates changed ones, never removes existing zip contents:
 
 ```bash
-cd /home/runner/workspace && zip -u public/QR_Gear_Full_Website.zip \
+cd /home/runner/workspace && zip -u downloads/QR_Gear_Full_Website.zip \
   functions/src/routes/print-placements.ts \
   functions/src/index.ts
 ```
@@ -51,7 +51,7 @@ docs/WEBSITE_ZIP_GUIDE.md
 Task: added `print-placements.ts`, updated `index.ts`.
 
 ```bash
-cd /home/runner/workspace && zip -u public/QR_Gear_Full_Website.zip \
+cd /home/runner/workspace && zip -u downloads/QR_Gear_Full_Website.zip \
   functions/src/routes/print-placements.ts \
   functions/src/index.ts
 ```

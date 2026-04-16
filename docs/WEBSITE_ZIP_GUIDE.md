@@ -7,12 +7,7 @@ This document tells future agent instances how to keep `public/QR_Gear_Full_Webs
 ## Where the ZIP Lives
 
 ```
-public/QR_Gear_Full_Website.zip
-```
-
-This is Firebase Hosting's public directory. The zip is served publicly at:
-```
-https://qrgear-c1ffd.web.app/QR_Gear_Full_Website.zip
+downloads/QR_Gear_Full_Website.zip
 ```
 
 ---
@@ -22,7 +17,7 @@ https://qrgear-c1ffd.web.app/QR_Gear_Full_Website.zip
 Use `zip -u` to add or update only the files you touched. Never recreate the zip from scratch.
 
 ```bash
-cd /home/runner/workspace && zip -u public/QR_Gear_Full_Website.zip \
+cd /home/runner/workspace && zip -u downloads/QR_Gear_Full_Website.zip \
   path/to/file-you-touched.ts \
   path/to/another-file.tsx
 ```
@@ -36,7 +31,7 @@ The `-u` flag updates existing entries and adds new ones. It never removes files
 If a file was deleted from the project, remove it from the zip:
 
 ```bash
-zip -d public/QR_Gear_Full_Website.zip "path/to/deleted-file.ts"
+zip -d downloads/QR_Gear_Full_Website.zip "path/to/deleted-file.ts"
 ```
 
 ---
@@ -87,8 +82,8 @@ comm -13 /tmp/project_files.txt /tmp/zip_files.txt
 ## Checking the Zip Size
 
 ```bash
-ls -lh public/QR_Gear_Full_Website.zip
-unzip -l public/QR_Gear_Full_Website.zip | tail -1
+ls -lh downloads/QR_Gear_Full_Website.zip
+unzip -l downloads/QR_Gear_Full_Website.zip | tail -1
 ```
 
 ---
