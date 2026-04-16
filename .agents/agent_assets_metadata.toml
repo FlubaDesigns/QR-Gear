@@ -42,3 +42,15 @@ id = "4tnmQGFJqFZ39DS--lTcN"
 uri = "file://.agents/skills/present-changed-files/SKILL.md"
 type = "text"
 title = "present-changed-files skill (new)"
+
+[[outputs]]
+id = "20ejYZXhVbWIQ3OPg4l39"
+uri = "file://public/QR_Gear_Full_Website.zip"
+type = "unspecified"
+title = "QR_Gear_Full_Website.zip — 866 files, 4.4MB (moved to public/)"
+
+[[outputs]]
+id = "9oqXgEB_AFybgLCjHDQEG"
+uri = "file://docs/WEBSITE_ZIP_GUIDE.md"
+type = "text"
+title = "WEBSITE_ZIP_GUIDE.md — how future sessions maintain the zip"
