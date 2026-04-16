@@ -55,6 +55,12 @@ zip -d public/QR_Gear_Full_Website.zip "path/to/deleted-file.ts"
 | `.agents/skills/**` — skill definitions | |
 | `functions/package.json`, `functions/tsconfig.json` | |
 | | `downloads/**` — kept as a local folder, never goes in the zip |
+| | `node_modules/**` — any and all node_modules directories |
+| | `functions/node_modules/**` — functions dependencies |
+| | `functions/lib/**` — compiled TypeScript output |
+| | `functions/package-lock.json` — dependency lock file |
+| | `package-lock.json` — root lock file |
+| | Any `*.lock` files — yarn, pnpm, etc. |
 
 ---
 
