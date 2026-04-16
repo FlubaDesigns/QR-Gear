@@ -117,7 +117,11 @@ export function useCreatePacket({
         effectiveTitle: state.selectedProduct?.title || state.masterTitle || product?.name || "Untitled Product",
         masterDescription: state.masterDescription || null,
         adminCatalogDescription: state.adminCatalogDescription || null,
-        effectiveDescription: state.adminCatalogDescription ?? state.masterDescription ?? product?.description ?? null,
+        effectiveDescription:
+          state.productDescription ??
+          state.selectedProduct?.description ??
+          product?.description ??
+          null,
         productDescription:
           state.productDescription ??
           state.selectedProduct?.description ??

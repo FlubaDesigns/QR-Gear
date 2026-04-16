@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +31,13 @@ export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving 
   const [descDraft, setDescDraft] = useState(item.adminCatalogDescription || "");
   // Local mirror so the UI reflects the saved value immediately without waiting for the parent query to refetch
   const [localAdminDesc, setLocalAdminDesc] = useState<string | null>(item.adminCatalogDescription);
+
+  // Sync when the parent query refetches while the modal is still open
+  useEffect(() => {
+    if (!editingDesc) {
+      setLocalAdminDesc(item.adminCatalogDescription);
+    }
+  }, [item.adminCatalogDescription]);
 
   const effectiveDescription = (localAdminDesc && localAdminDesc.trim())
     ? localAdminDesc
