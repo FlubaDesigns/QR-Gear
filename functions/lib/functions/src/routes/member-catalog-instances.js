@@ -1,57 +1,61 @@
 "use strict";
 /**
- * Member Catalog Instances — Production Routes
+ * Member Library Instances — Production Routes
  *
- * Member instances are derived from admin instances.
- * Members can customize their own copy without mutating:
- *   - the master catalog
- *   - the admin instance it was derived from
+ * Member instances are derived from admin instances (or directly from master
+ * when admin allows it). Members customise their own copy without touching:
+ *   - the master_catalog
+ *   - the admin_catalog_instance they were derived from
  *
- * Lineage is always preserved:
- *   sourceMasterId + sourceAdminInstanceId on every member instance and its packets.
+ * Lineage is always preserved on every write.
+ *
+ * Endpoint prefix: /member/library-instances (Firestore: member_library_instances)
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
+const instance_resolver_1 = require("../services/instance-resolver");
 const MEMBER_INSTANCES = 'member_library_instances';
 const PACKETS = 'productPackets';
-function resolveFields(base, overrides) {
-    const resolved = { ...base };
-    for (const [k, v] of Object.entries(overrides)) {
-        if (v !== null && v !== undefined && v !== '')
-            resolved[k] = v;
-    }
-    return resolved;
+function toSerializable(doc) {
+    const data = doc.data();
+    return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.() ?? null,
+        updatedAt: data.updatedAt?.toDate?.() ?? null,
+    };
 }
 function register(app) {
-    // ── List member instances (own, or all if admin) ─────────────────────────
-    app.get('/member/catalog-instances', middleware_1.requireAuth, async (req, res) => {
+    // ── GET /member/library-instances ───────────────────────────────────────────
+    // Returns the authenticated member's own instances.
+    // Admin can additionally filter by memberId.
+    app.get('/member/library-instances', middleware_1.requireAuth, async (req, res) => {
         try {
             const uid = req.user?.uid;
             const isAdmin = req.user?.admin === true;
             let q = core_1.db.collection(MEMBER_INSTANCES).orderBy('createdAt', 'desc');
-            if (!isAdmin) {
-                q = q.where('ownerMemberId', '==', uid);
-            }
-            else if (req.query.memberId) {
+            if (isAdmin && req.query.memberId) {
                 q = q.where('ownerMemberId', '==', req.query.memberId);
+            }
+            else if (!isAdmin) {
+                q = q.where('ownerMemberId', '==', uid);
             }
             if (req.query.sourceAdminInstanceId)
                 q = q.where('sourceAdminInstanceId', '==', req.query.sourceAdminInstanceId);
+            if (req.query.status)
+                q = q.where('status', '==', req.query.status);
             const snap = await q.limit(200).get();
-            const instances = snap.docs.map((d) => {
-                const data = d.data();
-                return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null };
-            });
+            const instances = snap.docs.map(toSerializable);
             res.json({ success: true, instances, count: instances.length });
         }
         catch (e) {
             res.status(500).json({ error: e.message });
         }
     });
-    // ── Get single member instance ───────────────────────────────────────────
-    app.get('/member/catalog-instances/:id', middleware_1.requireAuth, async (req, res) => {
+    // ── GET /member/library-instances/:id ───────────────────────────────────────
+    app.get('/member/library-instances/:id', middleware_1.requireAuth, async (req, res) => {
         try {
             const doc = await core_1.db.collection(MEMBER_INSTANCES).doc(req.params.id).get();
             if (!doc.exists) {
@@ -59,21 +63,22 @@ function register(app) {
                 return;
             }
             const data = doc.data();
-            const uid = req.user?.uid;
-            if (req.user?.admin !== true && data.ownerMemberId !== uid) {
+            if (req.user?.admin !== true && data.ownerMemberId !== req.user?.uid) {
                 res.status(403).json({ error: 'Access denied' });
                 return;
             }
-            res.json({ success: true, instance: { id: doc.id, ...data, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null } });
+            res.json({ success: true, instance: toSerializable(doc) });
         }
         catch (e) {
             res.status(500).json({ error: e.message });
         }
     });
-    // ── Save member overrides — NEVER touches admin instance or master ─────────
-    app.patch('/member/catalog-instances/:id', middleware_1.requireAuth, async (req, res) => {
+    // ── PATCH /member/library-instances/:id ─────────────────────────────────────
+    // Save member overrides. resolveInstance is recomputed.
+    // Admin instance and master catalog are NEVER touched.
+    app.patch('/member/library-instances/:id', middleware_1.requireAuth, async (req, res) => {
         try {
-            const { overrides, metadata, status } = req.body;
+            const { overrides: incomingOverrides, status } = req.body;
             const ref = core_1.db.collection(MEMBER_INSTANCES).doc(req.params.id);
             const doc = await ref.get();
             if (!doc.exists) {
@@ -85,27 +90,28 @@ function register(app) {
                 res.status(403).json({ error: 'Access denied' });
                 return;
             }
-            const mergedOverrides = { ...existing.overrides, ...overrides };
-            const resolved = resolveFields(existing.baseSnapshot, mergedOverrides);
+            const mergedOverrides = { ...existing.overrides, ...incomingOverrides };
+            const resolved = (0, instance_resolver_1.resolveInstance)(existing.baseSnapshot, mergedOverrides);
             const update = {
                 overrides: mergedOverrides,
                 resolved,
+                version: (existing.version ?? 1) + 1,
                 updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                updatedBy: req.user?.uid ?? 'system',
             };
-            if (metadata !== undefined)
-                update.metadata = metadata;
             if (status !== undefined)
                 update.status = status;
             await ref.update(update);
-            res.json({ success: true, instanceId: req.params.id, resolved });
+            res.json({ success: true, instanceId: req.params.id, resolved, version: update.version });
         }
         catch (e) {
             res.status(500).json({ error: e.message });
         }
     });
-    // ── Create or update packet from member instance ──────────────────────────
-    // Packet is an attached artifact. Lineage is written back onto the instance.
-    app.post('/member/catalog-instances/:id/create-packet', middleware_1.requireAuth, async (req, res) => {
+    // ── POST /member/library-instances/:id/create-packet ────────────────────────
+    // Create or update a packet attached to this member instance.
+    // Packet carries full lineage: master + admin instance + member instance.
+    app.post('/member/library-instances/:id/create-packet', middleware_1.requireAuth, async (req, res) => {
         try {
             const { id } = req.params;
             const packetFields = req.body;
@@ -120,39 +126,45 @@ function register(app) {
                 res.status(403).json({ error: 'Access denied' });
                 return;
             }
+            const resolved = instance.resolved ?? {};
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
             const packetData = (0, core_1.stripUndef)({
-                // Lineage — mandatory
+                // ── Lineage — mandatory on every packet ────────────────────────────
                 ownerType: 'member',
                 ownerInstanceId: id,
                 sourceMasterId: instance.sourceMasterId,
-                sourceAdminInstanceId: instance.sourceAdminInstanceId,
+                sourceAdminInstanceId: instance.sourceAdminInstanceId ?? null,
                 sourceMemberInstanceId: id,
-                // Identity from member resolved state
-                masterTitle: instance.baseSnapshot?.title || null,
-                effectiveTitle: instance.resolved?.title || instance.baseSnapshot?.title || null,
-                masterDescription: instance.baseSnapshot?.description || null,
-                effectiveDescription: instance.resolved?.description || instance.baseSnapshot?.description || null,
-                productImageUrl: instance.resolved?.images?.[0] || null,
-                category: instance.resolved?.category || null,
-                colors: instance.resolved?.colors || [],
-                sizes: instance.resolved?.sizes || [],
-                // Caller-supplied packet fields
+                // ── Effective identity from member resolved state ───────────────────
+                effectiveTitle: resolved.title ?? null,
+                effectiveDescription: resolved.description ?? null,
+                productImageUrl: resolved.images?.[0]?.url ?? resolved.images?.[0] ?? null,
+                category: resolved.category ?? null,
+                colors: resolved.colors ?? [],
+                sizes: resolved.sizes ?? [],
+                // ── Caller-supplied packet fields ────────────────────────────────────
                 ...packetFields,
                 updatedAt: now,
+                updatedBy: req.user?.uid ?? 'system',
             });
             let packetId;
             if (instance.currentPacketId) {
-                const { createdAt: _omit, ...updateFields } = packetData;
+                const { createdAt: _omit, createdBy: _omit2, ...updateFields } = packetData;
                 await core_1.db.collection(PACKETS).doc(instance.currentPacketId).update({ ...updateFields, updatedAt: now });
                 packetId = instance.currentPacketId;
             }
             else {
                 packetData.createdAt = now;
+                packetData.createdBy = req.user?.uid ?? 'system';
                 const packetRef = await core_1.db.collection(PACKETS).add(packetData);
                 packetId = packetRef.id;
             }
-            await instanceRef.update({ currentPacketId: packetId, updatedAt: now });
+            await instanceRef.update({
+                currentPacketId: packetId,
+                updatedAt: now,
+                updatedBy: req.user?.uid ?? 'system',
+                version: core_1.admin.firestore.FieldValue.increment(1),
+            });
             console.log(`[MemberInstances] Packet ${packetId} linked to member instance ${id}`);
             res.json({ success: true, packetId, instanceId: id });
         }
@@ -160,7 +172,8 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
-    // ── Admin: view all member instances across all members ───────────────────
+    // ── GET /admin/member-catalog-instances ─────────────────────────────────────
+    // Admin-only: view all member instances across all members.
     app.get('/admin/member-catalog-instances', middleware_1.requireAdmin, async (req, res) => {
         try {
             let q = core_1.db.collection(MEMBER_INSTANCES).orderBy('createdAt', 'desc');
@@ -168,11 +181,10 @@ function register(app) {
                 q = q.where('ownerMemberId', '==', req.query.memberId);
             if (req.query.sourceAdminInstanceId)
                 q = q.where('sourceAdminInstanceId', '==', req.query.sourceAdminInstanceId);
+            if (req.query.sourceMasterId)
+                q = q.where('sourceMasterId', '==', req.query.sourceMasterId);
             const snap = await q.limit(200).get();
-            const instances = snap.docs.map((d) => {
-                const data = d.data();
-                return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null };
-            });
+            const instances = snap.docs.map(toSerializable);
             res.json({ success: true, instances, count: instances.length });
         }
         catch (e) {

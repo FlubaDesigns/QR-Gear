@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260410-master-catalog-v4-fix';
+const _BUILD_ID = '20260416-instance-resolver-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
