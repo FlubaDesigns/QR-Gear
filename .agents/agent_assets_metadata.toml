@@ -36,3 +36,9 @@ id = "DCp5hc_SeF_E6_e6KY_LJ"
 uri = "file://qrgear-changes.zip"
 type = "unspecified"
 title = "BlankPickerModal + BlankPickerRowSkin changes"
+
+[[outputs]]
+id = "4tnmQGFJqFZ39DS--lTcN"
+uri = "file://.agents/skills/present-changed-files/SKILL.md"
+type = "text"
+title = "present-changed-files skill (new)"
