@@ -19,6 +19,7 @@ import {
   Save,
   Loader2,
   Trash2,
+  RotateCcw,
   ChevronLeft,
   ChevronRight,
   Images,
@@ -65,6 +66,8 @@ export interface ProductSelectCardSkinProps {
   onDelete?: (id: string) => Promise<void>;
   deleting?: boolean;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
+  onImageRestore?: (id: string) => Promise<void>;
+  masterCatalogImages?: string[];
 }
 
 function PreviewModal({
@@ -93,6 +96,8 @@ function PreviewModal({
   titleSaving?: boolean;
   editableTitle?: boolean;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
+  onImageRestore?: (id: string) => Promise<void>;
+  masterCatalogImages?: string[];
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -152,6 +157,24 @@ function PreviewModal({
     if (!onTitleSave) return;
     await onTitleSave(item.id, draftTitle);
     setEditingTitle(false);
+  };
+
+  const [restoringImages, setRestoringImages] = useState(false);
+  const imagesAreModified = masterCatalogImages !== undefined
+    && localImages.join(",") !== masterCatalogImages.join(",");
+
+  const handleRestoreImages = async () => {
+    if (!onImageRestore || restoringImages) return;
+    setRestoringImages(true);
+    try {
+      await onImageRestore(item.id);
+      if (masterCatalogImages) {
+        setLocalImages(masterCatalogImages);
+        setCurrentIndex(0);
+      }
+    } finally {
+      setRestoringImages(false);
+    }
   };
 
   return (
@@ -219,23 +242,6 @@ function PreviewModal({
                 </div>
               )}
 
-              {/* Remove current image from catalog (admin only) */}
-              {onImageDelete && currentImage && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute bottom-2 right-2 bg-black/50 text-white"
-                  onClick={() => handleDeleteImage(currentImage)}
-                  disabled={!!deletingImageUrl}
-                  title="Remove this image from catalog"
-                  data-testid={`button-delete-img-${item.id}`}
-                >
-                  {deletingImageUrl === currentImage
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <Trash2 className="h-4 w-4" />
-                  }
-                </Button>
-              )}
 
               {item.madeInUSA && (
                 <div className="absolute top-3 left-3">
@@ -276,6 +282,46 @@ function PreviewModal({
               </div>
             )}
 
+            {/* Image action row — delete + restore, always below the image for easy access */}
+            {(onImageDelete || onImageRestore) && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/20 border-b">
+                <div className="flex-1">
+                  {onImageRestore && imagesAreModified && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5 text-muted-foreground"
+                      onClick={handleRestoreImages}
+                      disabled={restoringImages}
+                      data-testid={`button-restore-images-${item.id}`}
+                    >
+                      {restoringImages
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <RotateCcw className="h-4 w-4" />
+                      }
+                      Restore all
+                    </Button>
+                  )}
+                </div>
+                {onImageDelete && currentImage && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 text-destructive/80"
+                    onClick={() => handleDeleteImage(currentImage)}
+                    disabled={!!deletingImageUrl}
+                    data-testid={`button-delete-img-${item.id}`}
+                  >
+                    {deletingImageUrl === currentImage
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Trash2 className="h-4 w-4" />
+                    }
+                    Remove this image
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Thumbnail strip — horizontal scrollable rail */}
             {localImages.length > 1 && (
               <div className="bg-muted/50 px-3 py-2 border-t" data-testid={`gallery-strip-${item.id}`}>
@@ -301,12 +347,15 @@ function PreviewModal({
               </div>
             )}
 
-            {/* Image count hint when admin curation is available */}
-            {onImageDelete && localImages.length > 0 && (
+            {/* Image count indicator when admin curation is available */}
+            {onImageDelete && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground border-t">
                 <Images className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>
-                  {localImages.length} image{localImages.length !== 1 ? "s" : ""} forwarded to members — tap trash to remove
+                  {localImages.length > 0
+                    ? `${localImages.length} image${localImages.length !== 1 ? "s" : ""} forwarded to members`
+                    : "No images — use Restore all to reset"
+                  }
                 </span>
               </div>
             )}
@@ -581,7 +630,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -764,6 +813,8 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         titleSaving={titleSaving}
         editableTitle={editableTitle}
         onImageDelete={onImageDelete}
+        onImageRestore={onImageRestore}
+        masterCatalogImages={masterCatalogImages}
       />
     </>
   );

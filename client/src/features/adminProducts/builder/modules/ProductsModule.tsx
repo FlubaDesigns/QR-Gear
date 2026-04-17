@@ -451,6 +451,33 @@ export function ProductsModule() {
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
+  const handleImageRestore = useCallback(async (id: string) => {
+    if (!activeCatalog) return;
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    const blankKey = entry.blankKey;
+    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
+      if (!old?.catalogs) return old;
+      return {
+        ...old,
+        catalogs: old.catalogs.map((cat: any) => {
+          if (cat.id !== activeCatalog.id) return cat;
+          const blankImages = { ...(cat.blankImages || {}) };
+          delete blankImages[blankKey];
+          return { ...cat, blankImages };
+        }),
+      };
+    });
+    try {
+      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images: [] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: "Images restored from master catalog" });
+    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: "Could not restore images", description: err?.message || "Unknown error", variant: "destructive" });
+    }
+  }, [activeCatalog, selectItemMap, queryClient, toast]);
+
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
       id: String(p.id),
@@ -508,6 +535,10 @@ export function ProductsModule() {
       const entry = selectItemMap.get(String(scrollItem.id));
       if (!entry) return null;
       const cardId = String(scrollItem.id);
+      const rawProduct = entry.catalog as any;
+      const rawImages: string[] = rawProduct.images?.length
+        ? rawProduct.images
+        : rawProduct.imageUrl ? [rawProduct.imageUrl] : [];
       return (
         <ProductSelectCardSkin
           item={entry.selectItem}
@@ -520,10 +551,12 @@ export function ProductsModule() {
           onDelete={activeCatalog ? handleDelete : undefined}
           deleting={deletingId === cardId}
           onImageDelete={activeCatalog ? handleImageDelete : undefined}
+          onImageRestore={activeCatalog ? handleImageRestore : undefined}
+          masterCatalogImages={rawImages}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore]
   );
 
   return (
