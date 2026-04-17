@@ -97,12 +97,26 @@ app.delete('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Reques
     const docRef = db.collection('catalogs').doc(catalogId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
-    const existing: string[] = doc.data()?.blankIds || [];
+    const catalog = doc.data()!;
+    const existing: string[] = catalog.blankIds || [];
     const removeSet = new Set(blankIds.map(String));
-    const filtered = existing.filter(id => !removeSet.has(String(id)));
-    await docRef.update({ blankIds: filtered, updatedAt: new Date().toISOString() });
-    console.log(`[Catalogs] Removed ${blankIds.length} blanks from catalog ${catalogId}. Remaining: ${filtered.length}`);
-    res.json({ success: true, count: filtered.length });
+    const remaining = existing.filter(id => !removeSet.has(String(id)));
+    const removedCount = existing.length - remaining.length;
+    const blankTiers = { ...(catalog.blankTiers || {}) };
+    const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
+    const blankTitles = { ...(catalog.blankTitles || {}) };
+    for (const id of blankIds) {
+      delete blankTiers[String(id)];
+      delete blankDescriptions[String(id)];
+      delete blankTitles[String(id)];
+    }
+    await docRef.update({ blankIds: remaining, blankTiers, blankDescriptions, blankTitles, updatedAt: new Date().toISOString() });
+    if (removedCount === 0) {
+      console.warn(`[Catalogs] WARNING: Delete for [${blankIds.join(', ')}] in catalog ${catalogId} matched nothing. Existing keys: [${existing.slice(0, 20).join(', ')}]`);
+    } else {
+      console.log(`[Catalogs] Removed ${removedCount} blanks from catalog ${catalogId}. Remaining: ${remaining.length}`);
+    }
+    res.json({ success: true, removed: removedCount, total: remaining.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

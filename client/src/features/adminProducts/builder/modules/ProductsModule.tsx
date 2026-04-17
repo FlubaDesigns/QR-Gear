@@ -177,14 +177,24 @@ export function ProductsModule() {
     staleTime: 60000,
   });
 
-  const catalogModeProducts = useMemo(() => {
+  const { catalogModeProducts, catalogKeyMap } = useMemo(() => {
     const catalogSet = new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id)));
-    return masterCatalogAllProducts.filter(p => {
-      if (catalogSet.has(getCanonicalBlankKey(p))) return true;
-      // Cross-provider matched items (e.g. stored as "pf:456" but id is Printify blueprint)
-      if ((p as any).printfulId) return catalogSet.has(`pf:${(p as any).printfulId}`);
-      return false;
-    });
+    const products: CatalogProduct[] = [];
+    const keyMap = new Map<string, string>();
+    for (const p of masterCatalogAllProducts) {
+      const canonKey = getCanonicalBlankKey(p);
+      if (catalogSet.has(canonKey)) {
+        products.push(p);
+        keyMap.set(String(p.id), canonKey);
+      } else if ((p as any).printfulId) {
+        const pfKey = `pf:${(p as any).printfulId}`;
+        if (catalogSet.has(pfKey)) {
+          products.push(p);
+          keyMap.set(String(p.id), pfKey);
+        }
+      }
+    }
+    return { catalogModeProducts: products, catalogKeyMap: keyMap };
   }, [masterCatalogAllProducts, activeCatalog]);
 
   const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
@@ -315,14 +325,17 @@ export function ProductsModule() {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
     activeProducts.forEach(p => {
       const withGender = { ...p, gender: detectGender(p.title) };
-      const blankKey = p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id);
+      // Use the exact key that matched this product into the catalog, so delete/description/title
+      // always targets the same entry that caused it to appear — never a guessed derived key
+      const blankKey = catalogKeyMap.get(String(p.id))
+        ?? (p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id));
       // Load catalog-level admin overrides so cards always show the admin's version
       const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
       const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
       map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts, activeCatalog]);
+  }, [activeProducts, activeCatalog, catalogKeyMap]);
 
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     const entry = selectItemMap.get(id);
@@ -387,9 +400,14 @@ export function ProductsModule() {
     });
 
     try {
-      await apiRequest("DELETE", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds: [removedKey] });
+      const res = await apiRequest("DELETE", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds: [removedKey] });
+      const data = await res.json().catch(() => null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-      toast({ title: "Removed from catalog" });
+      if (data?.removed === 0) {
+        toast({ title: "Nothing removed", description: `Key "${removedKey}" did not match any entry in this catalog`, variant: "destructive" });
+      } else {
+        toast({ title: "Removed from catalog" });
+      }
     } catch (err: any) {
       // Roll back optimistic update on failure
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
