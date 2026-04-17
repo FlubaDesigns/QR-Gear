@@ -26,7 +26,6 @@ import {
 } from "@/features/shared/components/skins/ProductSelectCardSkin";
 import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
@@ -123,7 +122,6 @@ interface CatalogCategoryResponse {
 export function ProductsModule() {
   const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -334,15 +332,9 @@ export function ProductsModule() {
     }
     setProductDescription(description || null);
 
-    // Persist to the selected catalog in Firestore so it survives navigation
     if (activeCatalog) {
       try {
-        const headers = await getAuthHeaders();
-        await fetch(`${apiBase}/catalogs/${activeCatalog.id}/blank-description`, {
-          method: "PUT",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ blankId: entry.blankKey, description: description || "" }),
-        });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description || "" });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Description saved to catalog" });
       } catch {
@@ -351,7 +343,7 @@ export function ProductsModule() {
     } else {
       toast({ title: "Description set for this session" });
     }
-  }, [selectItemMap, state.selectedProduct, selectProduct, setProductDescription, activeCatalog, apiBase, getAuthHeaders, queryClient, toast]);
+  }, [selectItemMap, state.selectedProduct, selectProduct, setProductDescription, activeCatalog, queryClient, toast]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
     const entry = selectItemMap.get(id);
@@ -361,15 +353,9 @@ export function ProductsModule() {
     }
     setProductTitle(title || null);
 
-    // Persist to the selected catalog in Firestore
     if (activeCatalog) {
       try {
-        const headers = await getAuthHeaders();
-        await fetch(`${apiBase}/catalogs/${activeCatalog.id}/blank-title`, {
-          method: "PUT",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ blankId: entry.blankKey, title: title || "" }),
-        });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-title`, { blankId: entry.blankKey, title: title || "" });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Title saved to catalog" });
       } catch {
@@ -378,7 +364,7 @@ export function ProductsModule() {
     } else {
       toast({ title: "Title set for this session" });
     }
-  }, [selectItemMap, state.selectedProduct, selectProduct, setProductTitle, activeCatalog, apiBase, getAuthHeaders, queryClient, toast]);
+  }, [selectItemMap, state.selectedProduct, selectProduct, setProductTitle, activeCatalog, queryClient, toast]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!activeCatalog) return;
@@ -386,22 +372,15 @@ export function ProductsModule() {
     if (!entry) return;
     setDeletingId(id);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/catalogs/${activeCatalog.id}/blanks`, {
-        method: "DELETE",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ blankIds: [entry.blankKey] }),
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      await apiRequest("DELETE", `/api/admin/catalogs/${activeCatalog.id}/blanks`, { blankIds: [entry.blankKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-      queryClient.invalidateQueries({ queryKey: ["all-catalog-products", "master"] });
       toast({ title: "Removed from catalog" });
-    } catch {
-      toast({ title: "Could not remove item", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Could not remove item", description: err?.message || "Unknown error", variant: "destructive" });
     } finally {
       setDeletingId(null);
     }
-  }, [activeCatalog, selectItemMap, apiBase, getAuthHeaders, queryClient, toast]);
+  }, [activeCatalog, selectItemMap, queryClient, toast]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
@@ -439,13 +418,7 @@ export function ProductsModule() {
     // Clear any previous session then start/resume a build session for this master product
     setActiveSession(null, null, null);
     const sourceMasterId = String(entry.catalog.id);
-    getAuthHeaders().then(headers =>
-      fetch(`${apiBase}/build-sessions/from-master`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceMasterId }),
-      })
-    )
+    apiRequest("POST", "/api/admin/build-sessions/from-master", { sourceMasterId })
       .then(r => r.json())
       .then(data => {
         if (!data.sessionId) {
@@ -459,7 +432,7 @@ export function ProductsModule() {
       .catch(err => {
         console.error("[ProductsModule] Failed to start build session:", err.message || err);
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, apiBase, getAuthHeaders]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
