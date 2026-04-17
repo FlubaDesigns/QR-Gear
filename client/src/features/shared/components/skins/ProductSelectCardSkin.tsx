@@ -140,6 +140,10 @@ function PreviewModal({
 
   const handleSaveDesc = async () => {
     if (!onDescriptionSave) return;
+    if (editingTitle && onTitleSave) {
+      await onTitleSave(item.id, draftTitle);
+      setEditingTitle(false);
+    }
     await onDescriptionSave(item.id, draftDesc);
     setEditingDesc(false);
   };
@@ -216,7 +220,7 @@ function PreviewModal({
               )}
 
               {/* Remove current image from catalog (admin only) */}
-              {onImageDelete && currentImage && localImages.length > 1 && (
+              {onImageDelete && currentImage && (
                 <Button
                   size="icon"
                   variant="ghost"
@@ -302,8 +306,7 @@ function PreviewModal({
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground border-t">
                 <Images className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>
-                  {localImages.length} image{localImages.length !== 1 ? "s" : ""} forwarded to members
-                  {localImages.length > 1 ? " — tap trash to remove one" : ""}
+                  {localImages.length} image{localImages.length !== 1 ? "s" : ""} forwarded to members — tap trash to remove
                 </span>
               </div>
             )}
@@ -353,15 +356,7 @@ function PreviewModal({
                             </button>
                           )
                         )}
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleSaveTitle} disabled={titleSaving} data-testid={`button-save-title-${item.id}`}>
-                            {titleSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            Save
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => { setEditingTitle(false); setDraftTitle(item.name || ""); }} data-testid={`button-cancel-title-${item.id}`}>
-                            Cancel
-                          </Button>
-                        </div>
+                        <p className="text-xs text-muted-foreground">Title will save with description below.</p>
                       </div>
                     ) : (
                       <div
