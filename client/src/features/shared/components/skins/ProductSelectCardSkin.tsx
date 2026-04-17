@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import UsaFlag from "@/components/UsaFlag";
@@ -15,7 +14,6 @@ import {
   Package,
   Palette,
   Ruler,
-  X,
   Eye,
   Pencil,
   Save,
@@ -162,20 +160,14 @@ function PreviewModal({
           <DialogTitle>{item.name}</DialogTitle>
         </VisuallyHidden>
 
-        <ScrollArea className="max-h-[90vh]">
+        <div className="max-h-[90vh] overflow-y-auto">
           <div className="relative">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="absolute top-2 right-2 z-10 bg-black/40 text-white"
-              onClick={() => onOpenChange(false)}
-              data-testid={`button-close-preview-${item.id}`}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-
             {/* Main image gallery */}
-            <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
+            <div
+              className={`relative bg-muted flex items-center justify-center overflow-hidden ${
+                isMobile ? "min-h-[220px] max-h-[45vh]" : "aspect-square"
+              }`}
+            >
               {currentImage ? (
                 <img
                   key={currentImage}
@@ -183,15 +175,15 @@ function PreviewModal({
                   alt={`${item.name} ${currentIndex + 1} of ${localImages.length}`}
                   loading="lazy"
                   decoding="async"
-                  className="w-full h-full object-contain p-3"
+                  className={`max-w-full max-h-full object-contain ${isMobile ? "p-2" : "p-3"}`}
                   data-testid={`img-preview-large-${item.id}`}
                 />
               ) : (
                 <Package className="h-24 w-24 text-muted-foreground" />
               )}
 
-              {/* Prev / Next navigation */}
-              {localImages.length > 1 && (
+              {/* Prev / Next navigation — desktop only, overlaid on image */}
+              {!isMobile && localImages.length > 1 && (
                 <>
                   <Button
                     size="icon"
@@ -216,8 +208,8 @@ function PreviewModal({
                 </>
               )}
 
-              {/* Counter */}
-              {localImages.length > 1 && (
+              {/* Counter — desktop only inside image */}
+              {!isMobile && localImages.length > 1 && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
                   {currentIndex + 1} / {localImages.length}
                 </div>
@@ -253,26 +245,55 @@ function PreviewModal({
               )}
             </div>
 
-            {/* Thumbnail strip — shows when there are multiple images */}
+            {/* Mobile prev/next row — below the image, easy one-thumb reach */}
+            {isMobile && localImages.length > 1 && (
+              <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handlePrev}
+                  disabled={currentIndex === 0}
+                  data-testid={`button-img-prev-${item.id}`}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {currentIndex + 1} / {localImages.length}
+                </span>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={handleNext}
+                  disabled={currentIndex === localImages.length - 1}
+                  data-testid={`button-img-next-${item.id}`}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
+
+            {/* Thumbnail strip — horizontal scrollable rail */}
             {localImages.length > 1 && (
-              <div className="flex gap-1.5 px-3 py-2 overflow-x-auto bg-muted/50" data-testid={`gallery-strip-${item.id}`}>
-                {localImages.map((imgUrl, idx) => (
-                  <button
-                    key={imgUrl}
-                    type="button"
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-colors ${
-                      idx === currentIndex ? "border-primary" : "border-transparent"
-                    }`}
-                    data-testid={`button-thumb-${item.id}-${idx}`}
-                  >
-                    <img
-                      src={imgUrl}
-                      alt={`Thumbnail ${idx + 1}`}
-                      className="w-full h-full object-contain bg-background p-0.5"
-                    />
-                  </button>
-                ))}
+              <div className="bg-muted/50 px-3 py-2 border-t" data-testid={`gallery-strip-${item.id}`}>
+                <div className="flex gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap touch-pan-x snap-x snap-mandatory pb-1">
+                  {localImages.map((imgUrl, idx) => (
+                    <button
+                      key={imgUrl}
+                      type="button"
+                      onClick={() => setCurrentIndex(idx)}
+                      className={`relative snap-start flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors ${
+                        idx === currentIndex ? "border-primary" : "border-transparent"
+                      }`}
+                      data-testid={`button-thumb-${item.id}-${idx}`}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="w-full h-full object-contain bg-background p-0.5"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -547,7 +568,7 @@ function PreviewModal({
               </Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
