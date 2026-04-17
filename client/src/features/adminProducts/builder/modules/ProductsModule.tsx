@@ -371,11 +371,28 @@ export function ProductsModule() {
     const entry = selectItemMap.get(id);
     if (!entry) return;
     setDeletingId(id);
+
+    // Optimistic update — immediately remove from local cache so UI responds instantly
+    const catalogId = activeCatalog.id;
+    const removedKey = entry.blankKey;
+    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
+      if (!old?.catalogs) return old;
+      return {
+        ...old,
+        catalogs: old.catalogs.map((cat: any) => {
+          if (cat.id !== catalogId) return cat;
+          return { ...cat, blankIds: (cat.blankIds || []).filter((k: string) => k !== removedKey) };
+        }),
+      };
+    });
+
     try {
-      await apiRequest("DELETE", `/api/admin/catalogs/${activeCatalog.id}/blanks`, { blankIds: [entry.blankKey] });
+      await apiRequest("DELETE", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds: [removedKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Removed from catalog" });
     } catch (err: any) {
+      // Roll back optimistic update on failure
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not remove item", description: err?.message || "Unknown error", variant: "destructive" });
     } finally {
       setDeletingId(null);
