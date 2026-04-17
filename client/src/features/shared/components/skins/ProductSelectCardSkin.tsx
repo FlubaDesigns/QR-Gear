@@ -20,6 +20,7 @@ import {
   Pencil,
   Save,
   Loader2,
+  Trash2,
 } from "lucide-react";
 
 export interface ProductSelectItem {
@@ -59,6 +60,8 @@ export interface ProductSelectCardSkinProps {
   selectLabel?: React.ReactNode;
   selectedLabel?: React.ReactNode;
   disableWhenSelected?: boolean;
+  onDelete?: (id: string) => Promise<void>;
+  deleting?: boolean;
 }
 
 function PreviewModal({
@@ -432,7 +435,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -550,24 +553,38 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             {item.description || "No description set."}
           </p>
 
-          <Button
-            variant={isSelected ? "secondary" : "default"}
-            className="w-full min-h-11 text-sm"
-            onClick={() => onSelect(item.id, item)}
-            disabled={isSelected && !!disableWhenSelected}
-            data-testid={`button-select-${item.id}`}
-          >
-            {isSelected ? (
-              selectedLabel ?? (
-                <>
-                  <Check className="w-4 h-4 mr-1.5" />
-                  Selected
-                </>
-              )
-            ) : (
-              selectLabel ?? "Select Product"
+          <div className="flex items-center gap-2">
+            <Button
+              variant={isSelected ? "secondary" : "default"}
+              className="flex-1 min-h-11 text-sm"
+              onClick={() => onSelect(item.id, item)}
+              disabled={isSelected && !!disableWhenSelected}
+              data-testid={`button-select-${item.id}`}
+            >
+              {isSelected ? (
+                selectedLabel ?? (
+                  <>
+                    <Check className="w-4 h-4 mr-1.5" />
+                    Selected
+                  </>
+                )
+              ) : (
+                selectLabel ?? "Select Product"
+              )}
+            </Button>
+            {onDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onDelete(item.id)}
+                disabled={deleting}
+                data-testid={`button-delete-${item.id}`}
+                title="Remove from catalog"
+              >
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              </Button>
             )}
-          </Button>
+          </div>
 
           {showTierControls && isSelected && onTierChange && (
             <div className="flex gap-1.5" data-testid={`tier-controls-${item.id}`}>

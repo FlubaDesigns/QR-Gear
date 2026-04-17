@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
@@ -125,6 +125,7 @@ export function ProductsModule() {
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
   const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
@@ -308,6 +309,7 @@ export function ProductsModule() {
   }), [originFilteredProducts]);
 
   const selectedProductId = state.selectedProduct ? String(state.selectedProduct.id) : null;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
 
@@ -324,7 +326,6 @@ export function ProductsModule() {
     return map;
   }, [activeProducts, activeCatalog]);
 
-  // Admin title/description edits go into the packet builder state only — never saved back to master or catalog.
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
@@ -332,8 +333,25 @@ export function ProductsModule() {
       selectProduct(entry.catalog);
     }
     setProductDescription(description || null);
-    toast({ title: "Description set for this packet" });
-  }, [selectItemMap, state.selectedProduct, selectProduct, setProductDescription, toast]);
+
+    // Persist to the selected catalog in Firestore so it survives navigation
+    if (activeCatalog) {
+      try {
+        const headers = await getAuthHeaders();
+        await fetch(`${apiBase}/admin/catalogs/${activeCatalog.id}/blank-description`, {
+          method: "PUT",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ blankId: entry.blankKey, description: description || "" }),
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+        toast({ title: "Description saved to catalog" });
+      } catch {
+        toast({ title: "Description set for this session only", description: "Could not save to catalog", variant: "destructive" });
+      }
+    } else {
+      toast({ title: "Description set for this session" });
+    }
+  }, [selectItemMap, state.selectedProduct, selectProduct, setProductDescription, activeCatalog, apiBase, getAuthHeaders, queryClient, toast]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
     const entry = selectItemMap.get(id);
@@ -342,8 +360,48 @@ export function ProductsModule() {
       selectProduct(entry.catalog);
     }
     setProductTitle(title || null);
-    toast({ title: "Title set for this packet" });
-  }, [selectItemMap, state.selectedProduct, selectProduct, setProductTitle, toast]);
+
+    // Persist to the selected catalog in Firestore
+    if (activeCatalog) {
+      try {
+        const headers = await getAuthHeaders();
+        await fetch(`${apiBase}/admin/catalogs/${activeCatalog.id}/blank-title`, {
+          method: "PUT",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ blankId: entry.blankKey, title: title || "" }),
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+        toast({ title: "Title saved to catalog" });
+      } catch {
+        toast({ title: "Title set for this session only", description: "Could not save to catalog", variant: "destructive" });
+      }
+    } else {
+      toast({ title: "Title set for this session" });
+    }
+  }, [selectItemMap, state.selectedProduct, selectProduct, setProductTitle, activeCatalog, apiBase, getAuthHeaders, queryClient, toast]);
+
+  const handleDelete = useCallback(async (id: string) => {
+    if (!activeCatalog) return;
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    setDeletingId(id);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/admin/catalogs/${activeCatalog.id}/blanks`, {
+        method: "DELETE",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ blankIds: [entry.blankKey] }),
+      });
+      if (!res.ok) throw new Error("Delete failed");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      queryClient.invalidateQueries({ queryKey: ["all-catalog-products", "master"] });
+      toast({ title: "Removed from catalog" });
+    } catch {
+      toast({ title: "Could not remove item", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  }, [activeCatalog, selectItemMap, apiBase, getAuthHeaders, queryClient, toast]);
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
@@ -407,19 +465,22 @@ export function ProductsModule() {
     (scrollItem: ScrollViewItem) => {
       const entry = selectItemMap.get(String(scrollItem.id));
       if (!entry) return null;
+      const cardId = String(scrollItem.id);
       return (
         <ProductSelectCardSkin
           item={entry.selectItem}
-          isSelected={selectedProductId === String(scrollItem.id)}
+          isSelected={selectedProductId === cardId}
           onSelect={handleCardSelect}
           editableDescription={true}
           onDescriptionSave={handleDescriptionSave}
           editableTitle={true}
           onTitleSave={handleTitleSave}
+          onDelete={activeCatalog ? handleDelete : undefined}
+          deleting={deletingId === cardId}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId]
   );
 
   return (
