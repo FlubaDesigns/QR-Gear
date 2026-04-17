@@ -338,7 +338,7 @@ export function ProductsModule() {
     if (activeCatalog) {
       try {
         const headers = await getAuthHeaders();
-        await fetch(`${apiBase}/admin/catalogs/${activeCatalog.id}/blank-description`, {
+        await fetch(`${apiBase}/catalogs/${activeCatalog.id}/blank-description`, {
           method: "PUT",
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify({ blankId: entry.blankKey, description: description || "" }),
@@ -365,7 +365,7 @@ export function ProductsModule() {
     if (activeCatalog) {
       try {
         const headers = await getAuthHeaders();
-        await fetch(`${apiBase}/admin/catalogs/${activeCatalog.id}/blank-title`, {
+        await fetch(`${apiBase}/catalogs/${activeCatalog.id}/blank-title`, {
           method: "PUT",
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify({ blankId: entry.blankKey, title: title || "" }),
@@ -387,7 +387,7 @@ export function ProductsModule() {
     setDeletingId(id);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/admin/catalogs/${activeCatalog.id}/blanks`, {
+      const res = await fetch(`${apiBase}/catalogs/${activeCatalog.id}/blanks`, {
         method: "DELETE",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ blankIds: [entry.blankKey] }),
@@ -440,7 +440,7 @@ export function ProductsModule() {
     setActiveSession(null, null, null);
     const sourceMasterId = String(entry.catalog.id);
     getAuthHeaders().then(headers =>
-      fetch(`${apiBase}/admin/build-sessions/from-master`, {
+      fetch(`${apiBase}/build-sessions/from-master`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ sourceMasterId }),
