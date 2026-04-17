@@ -398,7 +398,8 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       const printfulId = p.printfulProductId ?? p.printfulId ?? null;
       const colors = p.colors ?? p.availableColors ?? [];
       const sizes = p.sizes ?? p.availableSizes ?? [];
-      const imageUrl = (Array.isArray(p.images) ? p.images[0] : null) ?? p.imageUrl ?? null;
+      const allImages: string[] = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+      const imageUrl = allImages[0] ?? null;
       const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
       categories[category].push({
         id: blueprintId ?? printfulId,
@@ -406,6 +407,7 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
         description: (p.description || "").trim() || null,
         brand: p.brand ?? null,
         model: p.model ?? null,
+        images: allImages,
         imageUrl,
         madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
         blueprintId,
@@ -470,7 +472,8 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
       if (!categories[category]) categories[category] = [];
       const colors = p.colors ?? p.availableColors ?? [];
       const sizes = p.sizes ?? p.availableSizes ?? [];
-      const imageUrl = (Array.isArray(p.images) ? p.images[0] : null) ?? p.imageUrl ?? null;
+      const allImages: string[] = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+      const imageUrl = allImages[0] ?? null;
       const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
       categories[category].push({
         id: blueprintId ?? printfulId,
@@ -478,6 +481,7 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
         description: masterDesc,
         brand: p.brand ?? null,
         model: p.model ?? null,
+        images: allImages,
         imageUrl,
         madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
         blueprintId,

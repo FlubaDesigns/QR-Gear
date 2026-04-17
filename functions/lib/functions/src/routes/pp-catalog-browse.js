@@ -459,7 +459,8 @@ function registerPpCatalogBrowseRoutes(app) {
                 const printfulId = p.printfulProductId ?? p.printfulId ?? null;
                 const colors = p.colors ?? p.availableColors ?? [];
                 const sizes = p.sizes ?? p.availableSizes ?? [];
-                const imageUrl = (Array.isArray(p.images) ? p.images[0] : null) ?? p.imageUrl ?? null;
+                const allImages = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+                const imageUrl = allImages[0] ?? null;
                 const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
                 categories[category].push({
                     id: blueprintId ?? printfulId,
@@ -467,6 +468,7 @@ function registerPpCatalogBrowseRoutes(app) {
                     description: (p.description || "").trim() || null,
                     brand: p.brand ?? null,
                     model: p.model ?? null,
+                    images: allImages,
                     imageUrl,
                     madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
                     blueprintId,
@@ -534,7 +536,8 @@ function registerPpCatalogBrowseRoutes(app) {
                     categories[category] = [];
                 const colors = p.colors ?? p.availableColors ?? [];
                 const sizes = p.sizes ?? p.availableSizes ?? [];
-                const imageUrl = (Array.isArray(p.images) ? p.images[0] : null) ?? p.imageUrl ?? null;
+                const allImages = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+                const imageUrl = allImages[0] ?? null;
                 const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
                 categories[category].push({
                     id: blueprintId ?? printfulId,
@@ -542,6 +545,7 @@ function registerPpCatalogBrowseRoutes(app) {
                     description: masterDesc,
                     brand: p.brand ?? null,
                     model: p.model ?? null,
+                    images: allImages,
                     imageUrl,
                     madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
                     blueprintId,

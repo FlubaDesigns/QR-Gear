@@ -37,6 +37,7 @@ interface AdminCatalog {
   blankIds: string[];
   blankDescriptions?: Record<string, string>;
   blankTitles?: Record<string, string>;
+  blankImages?: Record<string, string[]>;
 }
 
 type LocationFilter = "all" | "usa" | "other";
@@ -77,10 +78,13 @@ function catalogToSelectItem(
   p: CatalogProduct,
   adminCatalogDescription?: string | null,
   adminCatalogTitle?: string | null,
+  adminCatalogImages?: string[] | null,
 ): ProductSelectItem {
   const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
   const raw = p as any;
   const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
+  const masterImages: string[] = p.images?.length ? p.images : (imageUrl ? [imageUrl] : []);
+  const effectiveImages = (adminCatalogImages && adminCatalogImages.length > 0) ? adminCatalogImages : masterImages;
   const providerDescription = p.description || null;
   const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
     ? adminCatalogDescription
@@ -100,7 +104,8 @@ function catalogToSelectItem(
     cost: null,
     manufacturer: p.brand || raw.manufacturer || null,
     madeInUSA: p.madeInUSA ?? false,
-    primaryImageUrl: imageUrl,
+    primaryImageUrl: effectiveImages[0] ?? imageUrl,
+    images: effectiveImages,
     description: effectiveDescription,
     providerDescription,
     adminCatalogDescription: normalizedAdminDesc,
@@ -332,7 +337,8 @@ export function ProductsModule() {
       // Load catalog-level admin overrides so cards always show the admin's version
       const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
       const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle), catalog: withGender, blankKey });
+      const adminImages = activeCatalog?.blankImages?.[blankKey] ?? null;
+      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages), catalog: withGender, blankKey });
     });
     return map;
   }, [activeProducts, activeCatalog, catalogKeyMap]);
@@ -417,6 +423,34 @@ export function ProductsModule() {
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
+  const handleImageDelete = useCallback(async (id: string, imageUrl: string) => {
+    if (!activeCatalog) return;
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    const blankKey = entry.blankKey;
+    const currentImages = entry.selectItem.images || [];
+    const newImages = currentImages.filter(img => img !== imageUrl);
+    // Optimistic update
+    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
+      if (!old?.catalogs) return old;
+      return {
+        ...old,
+        catalogs: old.catalogs.map((cat: any) => {
+          if (cat.id !== activeCatalog.id) return cat;
+          return { ...cat, blankImages: { ...(cat.blankImages || {}), [blankKey]: newImages } };
+        }),
+      };
+    });
+    try {
+      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images: newImages });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: `Image removed — ${newImages.length} remaining for members` });
+    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: "Could not save image change", description: err?.message || "Unknown error", variant: "destructive" });
+    }
+  }, [activeCatalog, selectItemMap, queryClient, toast]);
+
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
       id: String(p.id),
@@ -485,10 +519,11 @@ export function ProductsModule() {
           onTitleSave={handleTitleSave}
           onDelete={activeCatalog ? handleDelete : undefined}
           deleting={deletingId === cardId}
+          onImageDelete={activeCatalog ? handleImageDelete : undefined}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete]
   );
 
   return (

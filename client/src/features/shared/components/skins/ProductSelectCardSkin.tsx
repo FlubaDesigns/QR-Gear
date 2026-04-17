@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,9 @@ import {
   Save,
   Loader2,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Images,
 } from "lucide-react";
 
 export interface ProductSelectItem {
@@ -33,6 +36,7 @@ export interface ProductSelectItem {
   manufacturer: string | null;
   madeInUSA: boolean;
   primaryImageUrl: string | null;
+  images?: string[];
   description: string | null;
   providerDescription?: string | null;
   adminCatalogDescription?: string | null;
@@ -62,6 +66,7 @@ export interface ProductSelectCardSkinProps {
   disableWhenSelected?: boolean;
   onDelete?: (id: string) => Promise<void>;
   deleting?: boolean;
+  onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
 }
 
 function PreviewModal({
@@ -76,6 +81,7 @@ function PreviewModal({
   onTitleSave,
   titleSaving,
   editableTitle,
+  onImageDelete,
 }: {
   item: ProductSelectItem;
   open: boolean;
@@ -88,6 +94,7 @@ function PreviewModal({
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -96,6 +103,42 @@ function PreviewModal({
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(item.name || "");
   const [confirmResetTitle, setConfirmResetTitle] = useState(false);
+
+  const masterImages = useMemo(() => {
+    const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
+    return imgs;
+  }, [item.images, item.primaryImageUrl]);
+
+  const [localImages, setLocalImages] = useState<string[]>(masterImages);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [deletingImageUrl, setDeletingImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalImages(masterImages);
+    setCurrentIndex(0);
+  }, [item.id, masterImages.join(",")]);
+
+  const currentImage = localImages[currentIndex] ?? null;
+
+  const handlePrev = () => setCurrentIndex(i => Math.max(0, i - 1));
+  const handleNext = () => setCurrentIndex(i => Math.min(localImages.length - 1, i + 1));
+
+  const handleDeleteImage = async (imgUrl: string) => {
+    if (!onImageDelete || deletingImageUrl) return;
+    setDeletingImageUrl(imgUrl);
+    const newImages = localImages.filter(u => u !== imgUrl);
+    setLocalImages(newImages);
+    if (currentIndex >= newImages.length && newImages.length > 0) {
+      setCurrentIndex(newImages.length - 1);
+    }
+    try {
+      await onImageDelete(item.id, imgUrl);
+    } catch {
+      setLocalImages(localImages);
+    } finally {
+      setDeletingImageUrl(null);
+    }
+  };
 
   const handleSaveDesc = async () => {
     if (!onDescriptionSave) return;
@@ -131,18 +174,71 @@ function PreviewModal({
               <X className="h-5 w-5" />
             </Button>
 
-            <div className="relative aspect-square bg-muted flex items-center justify-center p-3">
-              {item.primaryImageUrl ? (
+            {/* Main image gallery */}
+            <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
+              {currentImage ? (
                 <img
-                  src={item.primaryImageUrl}
-                  alt={item.name}
+                  key={currentImage}
+                  src={currentImage}
+                  alt={`${item.name} ${currentIndex + 1} of ${localImages.length}`}
                   loading="lazy"
                   decoding="async"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain p-3"
                   data-testid={`img-preview-large-${item.id}`}
                 />
               ) : (
                 <Package className="h-24 w-24 text-muted-foreground" />
+              )}
+
+              {/* Prev / Next navigation */}
+              {localImages.length > 1 && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
+                    onClick={handlePrev}
+                    disabled={currentIndex === 0}
+                    data-testid={`button-img-prev-${item.id}`}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
+                    onClick={handleNext}
+                    disabled={currentIndex === localImages.length - 1}
+                    data-testid={`button-img-next-${item.id}`}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
+
+              {/* Counter */}
+              {localImages.length > 1 && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
+                  {currentIndex + 1} / {localImages.length}
+                </div>
+              )}
+
+              {/* Remove current image from catalog (admin only) */}
+              {onImageDelete && currentImage && localImages.length > 1 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute bottom-2 right-2 bg-black/50 text-white"
+                  onClick={() => handleDeleteImage(currentImage)}
+                  disabled={!!deletingImageUrl}
+                  title="Remove this image from catalog"
+                  data-testid={`button-delete-img-${item.id}`}
+                >
+                  {deletingImageUrl === currentImage
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Trash2 className="h-4 w-4" />
+                  }
+                </Button>
               )}
 
               {item.madeInUSA && (
@@ -156,6 +252,40 @@ function PreviewModal({
                 </div>
               )}
             </div>
+
+            {/* Thumbnail strip — shows when there are multiple images */}
+            {localImages.length > 1 && (
+              <div className="flex gap-1.5 px-3 py-2 overflow-x-auto bg-muted/50" data-testid={`gallery-strip-${item.id}`}>
+                {localImages.map((imgUrl, idx) => (
+                  <button
+                    key={imgUrl}
+                    type="button"
+                    onClick={() => setCurrentIndex(idx)}
+                    className={`relative flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-colors ${
+                      idx === currentIndex ? "border-primary" : "border-transparent"
+                    }`}
+                    data-testid={`button-thumb-${item.id}-${idx}`}
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-contain bg-background p-0.5"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Image count hint when admin curation is available */}
+            {onImageDelete && localImages.length > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground border-t">
+                <Images className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>
+                  {localImages.length} image{localImages.length !== 1 ? "s" : ""} forwarded to members
+                  {localImages.length > 1 ? " — tap trash to remove one" : ""}
+                </span>
+              </div>
+            )}
 
             <div className="p-4 space-y-4">
               <div className="space-y-2">
@@ -435,7 +565,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -503,7 +633,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
 
           <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-[11px] text-muted-foreground">
             <Eye className="w-3.5 h-3.5" />
-            Tap to preview
+            {item.images && item.images.length > 1 ? `${item.images.length} photos` : "Tap to preview"}
           </div>
         </div>
 
@@ -617,6 +747,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onTitleSave={onTitleSave}
         titleSaving={titleSaving}
         editableTitle={editableTitle}
+        onImageDelete={onImageDelete}
       />
     </>
   );

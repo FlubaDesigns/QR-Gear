@@ -51,6 +51,7 @@ export interface CatalogProduct {
   description?: string;
   brand: string;
   model: string;
+  images?: string[];
   imageUrl: string | null;
   madeInUSA: boolean;
   minPrice: string | null;

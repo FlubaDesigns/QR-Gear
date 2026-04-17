@@ -235,6 +235,29 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    app.put('/admin/catalogs/:catalogId/blank-images', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { catalogId } = req.params;
+            const { blankId, images } = req.body;
+            if (!blankId || !Array.isArray(images)) {
+                res.status(400).json({ error: 'blankId and images[] required' });
+                return;
+            }
+            const docRef = core_1.db.collection('catalogs').doc(catalogId);
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                res.status(404).json({ error: 'Catalog not found' });
+                return;
+            }
+            const blankImages = { ...(doc.data()?.blankImages || {}), [String(blankId)]: images.map(String) };
+            await docRef.update({ blankImages, updatedAt: new Date().toISOString() });
+            console.log(`[Catalogs] Updated images for blank ${blankId} in catalog ${catalogId}: ${images.length} images`);
+            res.json({ success: true, blankId, imageCount: images.length });
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
     app.get('/admin/catalog-assignments', middleware_1.requireAdmin, async (req, res) => {
         try {
             const doc = await core_1.db.collection('systemSettings').doc('catalog-assignments').get();
