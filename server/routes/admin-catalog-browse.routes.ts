@@ -307,13 +307,44 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       const productId = req.query.productId ? parseInt(req.query.productId as string) : null;
 
       if (provider === 'printify') {
-        if (!blueprintId || !printProviderId) {
-          return res.status(400).json({ error: "blueprintId and printProviderId required for Printify" });
+        if (!blueprintId) {
+          return res.status(400).json({ error: "blueprintId required for Printify" });
         }
         if (!printify) {
           return res.status(503).json({ error: "Printify API not configured" });
         }
-        const { placements } = await syncProductPlacements(blueprintId, printProviderId);
+
+        let resolvedProviderId = printProviderId;
+
+        if (!resolvedProviderId) {
+          const allProviders = await storage.getAllPrintifyProviders();
+          const matching = allProviders.filter(p => p.blueprintId === blueprintId);
+          if (matching.length > 0) {
+            const best = matching.reduce((prev, cur) => {
+              const prevColors = Array.isArray(prev.availableColors) ? prev.availableColors.length : 0;
+              const curColors = Array.isArray(cur.availableColors) ? cur.availableColors.length : 0;
+              return curColors > prevColors ? cur : prev;
+            });
+            resolvedProviderId = best.providerId;
+          }
+        }
+
+        if (!resolvedProviderId) {
+          try {
+            const livePrintProviders = await printify.getPrintProviders(blueprintId);
+            if (livePrintProviders && livePrintProviders.length > 0) {
+              resolvedProviderId = livePrintProviders[0].id;
+            }
+          } catch (provErr: any) {
+            console.warn(`[Placements] Could not fetch live providers for blueprint ${blueprintId}:`, provErr.message);
+          }
+        }
+
+        if (!resolvedProviderId) {
+          return res.status(400).json({ error: "No print provider found for this blueprint. Try syncing the catalog first." });
+        }
+
+        const { placements } = await syncProductPlacements(blueprintId, resolvedProviderId);
         const mapped = placements.map(p => {
           const normalized = normalizePlacement('printify', p.position);
           return {

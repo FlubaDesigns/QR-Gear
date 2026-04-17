@@ -403,10 +403,49 @@ app.get('/admin/catalog/placements', requireAdmin, async (req: Request, res: Res
     const productId = req.query.productId ? parseInt(req.query.productId as string) : null;
 
     if (provider === 'printify') {
-      if (!blueprintId || !printProviderId) { res.status(400).json({ error: "blueprintId and printProviderId required for Printify" }); return; }
+      if (!blueprintId) { res.status(400).json({ error: "blueprintId required for Printify" }); return; }
       if (!printifyClient.isConfigured) { res.status(503).json({ error: "Printify API not configured" }); return; }
+
+      let resolvedProviderId = printProviderId;
+
+      if (!resolvedProviderId) {
+        try {
+          const provSnapshot = await db.collection('printify_providers').get();
+          const matching = provSnapshot.docs
+            .map(d => d.data())
+            .filter(d => (d.blueprintId ?? d.blueprint_id) === blueprintId);
+          if (matching.length > 0) {
+            const best = matching.reduce((prev, cur) => {
+              const prevColors = Array.isArray(prev.availableColors) ? prev.availableColors.length : 0;
+              const curColors = Array.isArray(cur.availableColors) ? cur.availableColors.length : 0;
+              return curColors > prevColors ? cur : prev;
+            });
+            resolvedProviderId = best.providerId ?? best.provider_id ?? null;
+          }
+        } catch (lookupErr: any) {
+          console.warn(`[Placements] Provider DB lookup failed for blueprint ${blueprintId}:`, lookupErr.message);
+        }
+      }
+
+      if (!resolvedProviderId) {
+        try {
+          const liveProviders = await printifyClient.getPrintProviders(blueprintId);
+          if (liveProviders && liveProviders.length > 0) {
+            const usaFirst = liveProviders.find((p: any) => p.location?.country === 'US' || p.location?.country === 'USA');
+            resolvedProviderId = (usaFirst || liveProviders[0]).id;
+          }
+        } catch (provErr: any) {
+          console.warn(`[Placements] Live provider fetch failed for blueprint ${blueprintId}:`, provErr.message);
+        }
+      }
+
+      if (!resolvedProviderId) {
+        res.status(400).json({ error: "No print provider found for this blueprint. Try syncing the catalog first." });
+        return;
+      }
+
       try {
-        const variantData = await printifyClient.getVariants(blueprintId, printProviderId);
+        const variantData = await printifyClient.getVariants(blueprintId, resolvedProviderId);
         const placementSet = new Set<string>();
         if (variantData?.variants) {
           for (const v of variantData.variants) {

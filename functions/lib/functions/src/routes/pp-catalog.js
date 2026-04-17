@@ -463,16 +463,52 @@ function register(app) {
             const printProviderId = req.query.printProviderId ? parseInt(req.query.printProviderId) : null;
             const productId = req.query.productId ? parseInt(req.query.productId) : null;
             if (provider === 'printify') {
-                if (!blueprintId || !printProviderId) {
-                    res.status(400).json({ error: "blueprintId and printProviderId required for Printify" });
+                if (!blueprintId) {
+                    res.status(400).json({ error: "blueprintId required for Printify" });
                     return;
                 }
                 if (!printify_1.printifyClient.isConfigured) {
                     res.status(503).json({ error: "Printify API not configured" });
                     return;
                 }
+                let resolvedProviderId = printProviderId;
+                if (!resolvedProviderId) {
+                    try {
+                        const provSnapshot = await core_1.db.collection('printify_providers').get();
+                        const matching = provSnapshot.docs
+                            .map(d => d.data())
+                            .filter(d => (d.blueprintId ?? d.blueprint_id) === blueprintId);
+                        if (matching.length > 0) {
+                            const best = matching.reduce((prev, cur) => {
+                                const prevColors = Array.isArray(prev.availableColors) ? prev.availableColors.length : 0;
+                                const curColors = Array.isArray(cur.availableColors) ? cur.availableColors.length : 0;
+                                return curColors > prevColors ? cur : prev;
+                            });
+                            resolvedProviderId = best.providerId ?? best.provider_id ?? null;
+                        }
+                    }
+                    catch (lookupErr) {
+                        console.warn(`[Placements] Provider DB lookup failed for blueprint ${blueprintId}:`, lookupErr.message);
+                    }
+                }
+                if (!resolvedProviderId) {
+                    try {
+                        const liveProviders = await printify_1.printifyClient.getPrintProviders(blueprintId);
+                        if (liveProviders && liveProviders.length > 0) {
+                            const usaFirst = liveProviders.find((p) => p.location?.country === 'US' || p.location?.country === 'USA');
+                            resolvedProviderId = (usaFirst || liveProviders[0]).id;
+                        }
+                    }
+                    catch (provErr) {
+                        console.warn(`[Placements] Live provider fetch failed for blueprint ${blueprintId}:`, provErr.message);
+                    }
+                }
+                if (!resolvedProviderId) {
+                    res.status(400).json({ error: "No print provider found for this blueprint. Try syncing the catalog first." });
+                    return;
+                }
                 try {
-                    const variantData = await printify_1.printifyClient.getVariants(blueprintId, printProviderId);
+                    const variantData = await printify_1.printifyClient.getVariants(blueprintId, resolvedProviderId);
                     const placementSet = new Set();
                     if (variantData?.variants) {
                         for (const v of variantData.variants) {
