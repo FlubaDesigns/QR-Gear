@@ -139,11 +139,42 @@ export function ProductsModule() {
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [openShelfIds, setOpenShelfIds] = useState<Set<string>>(new Set());
+  const toggleShelf = useCallback((id: string) => {
+    setOpenShelfIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
   });
   const adminCatalogs = adminCatalogsData?.catalogs || [];
+
+  const { data: shelfGroups = [] } = useQuery<Array<{ id: string; name: string; sortOrder: number }>>({
+    queryKey: ["/api/admin/shelf-groups"],
+  });
+
+  const { data: buildShelfItems = [] } = useQuery<Array<{ id: string; shelfKey: string; groupIds: string[] }>>({
+    queryKey: ["/api/admin/build-shelf"],
+    enabled: dataMode === "catalog",
+  });
+
+  const shelfKeyToGroupIds = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const item of buildShelfItems) {
+      let normalizedKey = item.shelfKey;
+      if (item.shelfKey.startsWith("printful:")) {
+        normalizedKey = "pf:" + item.shelfKey.slice("printful:".length);
+      } else if (item.shelfKey.startsWith("printify:")) {
+        normalizedKey = item.shelfKey.slice("printify:".length);
+      }
+      map.set(normalizedKey, item.groupIds || []);
+    }
+    return map;
+  }, [buildShelfItems]);
 
   const activeCatalog = selectedCatalogId !== "all"
     ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
@@ -613,17 +644,114 @@ export function ProductsModule() {
               </p>
             </div>
           ) : (
-            <ScrollVerticalView
-              items={scrollItems}
-              renderItem={(item) => renderProductCard(item as ScrollViewItem)}
-              height={isMobile ? undefined : "calc(100vh - 160px)"}
-              emptyMessage="No products in this catalog."
-              footer={
-                <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
-                  {scrollItems.length} products available
-                </p>
-              }
-            />
+            <div className="space-y-2">
+              {(() => {
+                const sortedGroups = [...shelfGroups].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+                const usedProductIds = new Set<string>();
+                const sections: JSX.Element[] = [];
+
+                for (const group of sortedGroups) {
+                  const groupProducts = catalogModeProducts.filter(p => {
+                    const blankKey = catalogKeyMap.get(String(p.id)) ?? (
+                      (p as any).fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id)
+                    );
+                    return (shelfKeyToGroupIds.get(blankKey) || []).includes(group.id);
+                  });
+                  if (groupProducts.length === 0) continue;
+                  groupProducts.forEach(p => usedProductIds.add(String(p.id)));
+                  const isOpen = openShelfIds.has(group.id);
+                  const groupScrollItems = groupProducts.map(p => ({
+                    id: String(p.id),
+                    imageUrl: p.imageUrl || "",
+                    title: p.title,
+                    subtitle: p.brand,
+                    minPrice: p.minPrice,
+                    maxPrice: p.maxPrice,
+                    colorCount: p.colorCount,
+                    madeInUSA: p.madeInUSA,
+                    hasMockupMapping: p.hasMockupMapping,
+                  }));
+                  sections.push(
+                    <div key={group.id} className="border rounded-md overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-muted/30 hover-elevate"
+                        onClick={() => toggleShelf(group.id)}
+                        data-testid={`shelf-group-${group.id}`}
+                      >
+                        <span>
+                          {group.name}{" "}
+                          <span className="text-muted-foreground font-normal">({groupProducts.length})</span>
+                        </span>
+                        {isOpen ? <ChevronUp className="h-4 w-4 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 flex-shrink-0" />}
+                      </button>
+                      {isOpen && (
+                        <ScrollVerticalView
+                          items={groupScrollItems}
+                          renderItem={(item) => renderProductCard(item as ScrollViewItem)}
+                          height={isMobile ? undefined : "calc(100vh - 280px)"}
+                          emptyMessage=""
+                        />
+                      )}
+                    </div>
+                  );
+                }
+
+                const uncategorized = catalogModeProducts.filter(p => !usedProductIds.has(String(p.id)));
+                if (uncategorized.length > 0) {
+                  const isOpen = openShelfIds.has("__other__");
+                  const otherScrollItems = uncategorized.map(p => ({
+                    id: String(p.id),
+                    imageUrl: p.imageUrl || "",
+                    title: p.title,
+                    subtitle: p.brand,
+                    minPrice: p.minPrice,
+                    maxPrice: p.maxPrice,
+                    colorCount: p.colorCount,
+                    madeInUSA: p.madeInUSA,
+                    hasMockupMapping: p.hasMockupMapping,
+                  }));
+                  sections.push(
+                    <div key="__other__" className="border rounded-md overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-muted/30 hover-elevate"
+                        onClick={() => toggleShelf("__other__")}
+                        data-testid="shelf-group-other"
+                      >
+                        <span>
+                          Other{" "}
+                          <span className="text-muted-foreground font-normal">({uncategorized.length})</span>
+                        </span>
+                        {isOpen ? <ChevronUp className="h-4 w-4 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 flex-shrink-0" />}
+                      </button>
+                      {isOpen && (
+                        <ScrollVerticalView
+                          items={otherScrollItems}
+                          renderItem={(item) => renderProductCard(item as ScrollViewItem)}
+                          height={isMobile ? undefined : "calc(100vh - 280px)"}
+                          emptyMessage=""
+                        />
+                      )}
+                    </div>
+                  );
+                }
+
+                return sections.length > 0 ? sections : (
+                  <ScrollVerticalView
+                    items={scrollItems}
+                    renderItem={(item) => renderProductCard(item as ScrollViewItem)}
+                    height={isMobile ? undefined : "calc(100vh - 160px)"}
+                    emptyMessage="No products in this catalog."
+                    footer={
+                      <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
+                        {scrollItems.length} products available
+                      </p>
+                    }
+                  />
+                );
+              })()}
+            </div>
           )}
         </>
       )}
