@@ -117,7 +117,7 @@ export function useAdminBlanksController() {
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
   const [sourceCatalogId, setSourceCatalogId] = useState<string | null>(null);
   const [defaultLoaded, setDefaultLoaded] = useState(false);
-  const [providerFilter, setProviderFilter] = useState<ProviderFilter>("printify");
+  const [providerFilter, setProviderFilter] = useState<ProviderFilter>("printful");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");

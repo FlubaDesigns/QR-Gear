@@ -553,6 +553,7 @@ export function ProductsModule() {
           onImageDelete={activeCatalog ? handleImageDelete : undefined}
           onImageRestore={activeCatalog ? handleImageRestore : undefined}
           masterCatalogImages={rawImages}
+          fulfillmentProvider={rawProduct.fulfillmentProvider as string | undefined}
         />
       );
     },

@@ -107,7 +107,7 @@ export function registerQrTemplatesRoutes(app: Express): void {
         productId: z.string(),
         blueprintId: z.number(),
         printProviderId: z.number(),
-        fulfillmentProvider: z.string().optional().default('printify'),
+        fulfillmentProvider: z.string().optional().default('printful'),
         colors: z.array(z.object({
           name: z.string(),
           hex: z.string(),

@@ -68,6 +68,7 @@ export interface ProductSelectCardSkinProps {
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
   masterCatalogImages?: string[];
+  fulfillmentProvider?: string;
 }
 
 function PreviewModal({
@@ -632,7 +633,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const defaultColorEntry = useMemo(() => {
@@ -702,6 +703,18 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             <Eye className="w-3.5 h-3.5" />
             {item.images && item.images.length > 1 ? `${item.images.length} photos` : "Tap to preview"}
           </div>
+
+          {fulfillmentProvider && (
+            <div className="absolute bottom-2 right-2">
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-background/90 backdrop-blur-sm shadow-sm"
+                data-testid={`badge-provider-${item.id}`}
+              >
+                {fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider}
+              </Badge>
+            </div>
+          )}
         </div>
 
         <CardContent className="p-4 space-y-3">
