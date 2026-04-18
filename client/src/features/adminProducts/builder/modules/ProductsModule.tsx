@@ -147,6 +147,9 @@ export function ProductsModule() {
       return next;
     });
   }, []);
+  const [addingShelf, setAddingShelf] = useState(false);
+  const [newShelfName, setNewShelfName] = useState("");
+  const [savingShelf, setSavingShelf] = useState(false);
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
@@ -482,6 +485,24 @@ export function ProductsModule() {
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
+  const handleAddShelf = useCallback(async () => {
+    const name = newShelfName.trim();
+    if (!name) return;
+    setSavingShelf(true);
+    try {
+      const maxOrder = shelfGroups.reduce((m, g) => Math.max(m, g.sortOrder ?? 0), 0);
+      await apiRequest("POST", "/api/admin/shelf-groups", { name, sortOrder: maxOrder + 1 });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/shelf-groups"] });
+      toast({ title: `"${name}" shelf added` });
+      setNewShelfName("");
+      setAddingShelf(false);
+    } catch (err: any) {
+      toast({ title: "Could not add shelf", description: err?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setSavingShelf(false);
+    }
+  }, [newShelfName, shelfGroups, queryClient, toast]);
+
   const handleImageRestore = useCallback(async (id: string) => {
     if (!activeCatalog) return;
     const entry = selectItemMap.get(id);
@@ -751,6 +772,55 @@ export function ProductsModule() {
                   />
                 );
               })()}
+
+              {addingShelf ? (
+                <div className="flex items-center gap-2 pt-1" data-testid="add-shelf-form">
+                  <Input
+                    autoFocus
+                    placeholder="Shelf name…"
+                    value={newShelfName}
+                    onChange={e => setNewShelfName(e.target.value)}
+                    onKeyDown={async e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        await handleAddShelf();
+                      } else if (e.key === "Escape") {
+                        setAddingShelf(false);
+                        setNewShelfName("");
+                      }
+                    }}
+                    className="flex-1"
+                    data-testid="input-new-shelf-name"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddShelf}
+                    disabled={savingShelf || !newShelfName.trim()}
+                    data-testid="button-save-shelf"
+                  >
+                    {savingShelf ? "Saving…" : "Save"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setAddingShelf(false); setNewShelfName(""); }}
+                    data-testid="button-cancel-shelf"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setAddingShelf(true)}
+                  data-testid="button-add-shelf"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add Shelf
+                </Button>
+              )}
             </div>
           )}
         </>
