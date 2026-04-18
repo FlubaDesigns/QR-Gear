@@ -231,11 +231,34 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       });
       const parsed = schema.parse(req.body);
 
-      const key = `${parsed.providerId}:${parsed.catalogId}`;
+      // Resolve master_catalog docId — always store that as the shelfKey
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      let masterDocId: string;
+      if (parsed.providerId === "printify") {
+        masterDocId = `py_${parsed.catalogId}`;
+      } else {
+        const numId = parseInt(parsed.catalogId);
+        const direct = await fsDb.collection("master_catalog").doc(`pf_${numId}`).get();
+        if (direct.exists) {
+          masterDocId = `pf_${numId}`;
+        } else {
+          const q = await fsDb.collection("master_catalog").where("printfulProductId", "==", numId).get();
+          masterDocId = q.empty ? `pf_${numId}` : q.docs[0].id;
+        }
+      }
 
-      const existing = await fsQuery("admin_build_shelf", [["shelfKey", "==", key]]);
+      // Also accept old-style legacy key for upsert lookup
+      const legacyKey = `${parsed.providerId}:${parsed.catalogId}`;
+      const existingByDocId = await fsQuery("admin_build_shelf", [["shelfKey", "==", masterDocId]]);
+      const existingByLegacy = existingByDocId.length === 0
+        ? await fsQuery("admin_build_shelf", [["shelfKey", "==", legacyKey]])
+        : [];
+      const existing = [...existingByDocId, ...existingByLegacy];
+
       if (existing.length > 0) {
         const updated = await fsUpdate("admin_build_shelf", existing[0].id, {
+          shelfKey: masterDocId,
           catalog: parsed.catalog,
           groupIds: parsed.groupIds,
         });
@@ -243,7 +266,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       }
 
       const item = await fsInsert("admin_build_shelf", {
-        shelfKey: key,
+        shelfKey: masterDocId,
         providerId: parsed.providerId,
         catalogId: parsed.catalogId,
         catalog: parsed.catalog,
