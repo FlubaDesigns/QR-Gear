@@ -83,6 +83,8 @@ function PreviewModal({
   titleSaving,
   editableTitle,
   onImageDelete,
+  onImageRestore,
+  masterCatalogImages,
 }: {
   item: ProductSelectItem;
   open: boolean;
