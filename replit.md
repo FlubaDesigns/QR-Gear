@@ -82,6 +82,7 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Mockup System**: Generates high-quality product mockups for all variations via a background job queue, utilizing Printful.
 - **QR Artwork Selection**: Automatically selects black or white QR codes based on background luminance.
 - **Product Catalogs**: Synchronizes Printify and Printful catalogs locally and with Firestore, performing smart diff-based updates.
+- **Admin Product Image Curation**: Admin can delete individual images from a product's image set via the product preview modal (action bar below the image). A "Restore all" button appears when images differ from the master catalog and resets them to the original provider images. Provider badge (Printful/Printify) shown on product cards in admin only — invisible to members/customers. Changes persist to `catalog.blankImages[canonicalBlankKey]` via `PUT /admin/catalogs/:id/blank-images`.
 - **Catalog Management System**: Everything runs through catalogs. Admin creates named catalogs (curated subsets of blanks), assigns them to 5 sections (Member, Public, External, Marketplace, Platform), and controls which blanks are available where. Old "allowed products" system replaced by catalog assignments. Default catalog auto-loads on page open (stored in `systemSettings/catalog-defaults`). Managed from the Blanks page (`admin-blanks.tsx`). Data stored in `catalogs`, `systemSettings/catalog-assignments`, and `systemSettings/catalog-defaults` Firestore collections. Features: duplicate catalog, bulk copy blanks between catalogs, set default catalog, thumbnail viewport strip showing catalog contents. The `GET /members/allowed-products` endpoint defaults to `member` section catalog when no `?section=` param provided. `GET /admin/catalog-health` provides diagnostic overview. Product queries use 5-minute staleTime caching. Product images use lazy loading.
 - **Cascading Product Descriptions (Canonical)**: Three-level description cascade using canonical field names:
   1. `providerDescription` — Exact source from Printify/Printful (formerly `originalDescription`)
@@ -120,7 +121,7 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Error Toasts**: Packet creation failures and library auto-save failures show user-visible toast notifications instead of silent console logs.
 
 ### System Design Choices
-- **Printful-First Mockup Architecture**: Decouples mockup generation from fulfillment.
+- **Printful-First Architecture**: Printful is the default fulfillment provider for all new products and orders. Printify remains available as an alternative but is not the default. The admin catalog browser defaults to the Printful tab. Provider is carried in every packet's `fulfillmentProvider` field for order routing. The admin product card shows a "Printful" or "Printify" provider badge visible only to admins — members and customers see a fully white-label experience.
 - **Backend**: Node.js, Express, TypeScript.
 - **Frontend**: React, TypeScript, Vite.
 - **Database**: Firebase/Firestore exclusively.
