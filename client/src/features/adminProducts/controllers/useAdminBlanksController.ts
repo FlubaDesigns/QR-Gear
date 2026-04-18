@@ -245,11 +245,16 @@ export function useAdminBlanksController() {
 
   const allProductMap = useMemo(() => {
     const map = new Map<string, CatalogProduct>();
+    // Index by numeric id and old-style keys for backward compat
     printifyProducts.forEach(p => map.set(String(p.id), p));
     printfulProducts.forEach(p => map.set(`pf:${p.id}`, p));
-    // Also index Printify products by their Printful counterpart ID so that
-    // catalog entries stored as "pf:456" resolve to the cross-provider matched item
     printifyProducts.forEach(p => { if (p.printfulId) map.set(`pf:${p.printfulId}`, p); });
+    // Index by master_catalog docId (py_X / pf_X) — the canonical format
+    const allItems = [...printifyProducts, ...printfulProducts];
+    allItems.forEach(p => {
+      const docId = (p as any).docId as string | undefined;
+      if (docId) map.set(docId, p);
+    });
     return map;
   }, [printifyProducts, printfulProducts]);
 

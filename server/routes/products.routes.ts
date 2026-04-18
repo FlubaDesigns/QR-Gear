@@ -603,6 +603,7 @@ export function registerProductRoutes(app: Express): void {
         const providers = p.providers ?? (printfulId != null && blueprintId != null ? ['printify', 'printful'] : [fulfillmentProvider]);
 
         categories[category].push({
+          docId: doc.id,
           id: resolvedId,
           title: (p.title || "").trim(),
           description: (p.description || "").trim() || null,

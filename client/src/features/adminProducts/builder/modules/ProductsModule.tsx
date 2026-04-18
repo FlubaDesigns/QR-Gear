@@ -168,13 +168,8 @@ export function ProductsModule() {
   const shelfKeyToGroupIds = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const item of buildShelfItems) {
-      let normalizedKey = item.shelfKey;
-      if (item.shelfKey.startsWith("printful:")) {
-        normalizedKey = "pf:" + item.shelfKey.slice("printful:".length);
-      } else if (item.shelfKey.startsWith("printify:")) {
-        normalizedKey = item.shelfKey.slice("printify:".length);
-      }
-      map.set(normalizedKey, item.groupIds || []);
+      // shelfKeys are now master_catalog doc IDs (py_X / pf_X) — use directly
+      map.set(item.shelfKey, item.groupIds || []);
     }
     return map;
   }, [buildShelfItems]);
@@ -206,7 +201,7 @@ export function ProductsModule() {
       const seen = new Set<string>();
       for (const cat of data) {
         for (const item of (cat.items || [])) {
-          const key = getCanonicalBlankKey(item);
+          const key = (item as any).docId || getCanonicalBlankKey(item);
           if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }
@@ -217,20 +212,16 @@ export function ProductsModule() {
   });
 
   const { catalogModeProducts, catalogKeyMap } = useMemo(() => {
+    // blankIds are now master_catalog docIds (py_X / pf_X) — match directly on docId
     const catalogSet = new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id)));
     const products: CatalogProduct[] = [];
     const keyMap = new Map<string, string>();
+
     for (const p of masterCatalogAllProducts) {
-      const canonKey = getCanonicalBlankKey(p);
-      if (catalogSet.has(canonKey)) {
+      const docId = (p as any).docId as string | undefined;
+      if (docId && catalogSet.has(docId)) {
         products.push(p);
-        keyMap.set(String(p.id), canonKey);
-      } else if ((p as any).printfulId) {
-        const pfKey = `pf:${(p as any).printfulId}`;
-        if (catalogSet.has(pfKey)) {
-          products.push(p);
-          keyMap.set(String(p.id), pfKey);
-        }
+        keyMap.set(String(p.id), docId);
       }
     }
     return { catalogModeProducts: products, catalogKeyMap: keyMap };
