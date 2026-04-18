@@ -635,6 +635,13 @@ const TIER_LABELS: Record<string, string> = {
 
 export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const t = setTimeout(() => setConfirmDelete(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
 
   const defaultColorEntry = useMemo(() => {
     if (item.defaultColor) {
@@ -782,17 +789,38 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 selectLabel ?? "Select Product"
               )}
             </Button>
-            {onDelete && (
+            {onDelete && !confirmDelete && (
               <Button
-                variant="destructive"
+                variant="outline"
                 size="sm"
-                onClick={() => onDelete(item.id)}
+                onClick={() => setConfirmDelete(true)}
                 disabled={deleting}
                 data-testid={`button-delete-${item.id}`}
                 title="Remove from catalog"
               >
                 {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
               </Button>
+            )}
+            {onDelete && confirmDelete && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => { setConfirmDelete(false); onDelete(item.id); }}
+                  disabled={deleting}
+                  data-testid={`button-confirm-delete-${item.id}`}
+                >
+                  Remove
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmDelete(false)}
+                  data-testid={`button-cancel-delete-${item.id}`}
+                >
+                  Keep
+                </Button>
+              </div>
             )}
           </div>
 
