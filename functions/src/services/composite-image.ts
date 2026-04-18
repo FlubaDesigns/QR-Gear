@@ -90,12 +90,14 @@ async function cfGenerateCompositeImage(options: {
   topText?: TextStyleCF | null; bottomText?: TextStyleCF | null;
   qrUrl: string; qrColor?: 'black' | 'white'; placement?: string;
   graphicLayoutMode?: 'zone' | 'freeform';
+  qrSizePercent?: number;
   subBottomEnabled?: boolean; subBottomText?: string; subBottomColor?: string; subBottomFontSize?: string;
 }): Promise<string> {
   const {
     width = 1200, height = 1800, backgroundColor = "#FFFFFF",
     qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black',
     graphicLayoutMode = 'zone',
+    qrSizePercent = 75,
     subBottomEnabled = false, subBottomText = 'Scan Me', subBottomColor = '#666666', subBottomFontSize = '14',
   } = options;
 
@@ -143,8 +145,10 @@ async function cfGenerateCompositeImage(options: {
     zoneW = safeW;
 
     const bgPaddingZone = 20;
-    // QR content size: 45% of safe width keeps visual parity with previous layout
-    const qrContentSizeZone = Math.round(safeW * 0.45);
+    // QR content size: driven by qrSizePercent / 2 to match client-side graphicLayout.ts
+    // Default 75 → 37.5% of safe width; same formula as frontend zone mode.
+    const zoneQrPct = Math.min(Math.max(qrSizePercent / 2, 15), 55);
+    const qrContentSizeZone = Math.round(safeW * (zoneQrPct / 100));
     const qrBgSizeZone = qrContentSizeZone + bgPaddingZone * 2;
 
     // QR background box centered on canvas
@@ -347,7 +351,8 @@ async function cfGeneratePrintifyComposite(
   qrUrl: string, topText: TextStyleCF | null, bottomText: TextStyleCF | null,
   printWidth: number = 1200, printHeight: number = 1800,
   qrColor: 'black' | 'white' = 'black', placement?: string,
-  graphicLayoutMode?: 'zone' | 'freeform'
+  graphicLayoutMode?: 'zone' | 'freeform',
+  qrSizePercent: number = 75
 ): Promise<string> {
   let finalWidth = printWidth;
   let finalHeight = printHeight;
@@ -359,7 +364,7 @@ async function cfGeneratePrintifyComposite(
   const qrSize = CF_PREVIEW_QR_SIZE * scaleFactor;
   return cfGenerateCompositeImage({
     width: finalWidth, height: finalHeight, backgroundColor: "transparent",
-    qrSize, topText, bottomText, qrUrl, qrColor, placement, graphicLayoutMode,
+    qrSize, topText, bottomText, qrUrl, qrColor, placement, graphicLayoutMode, qrSizePercent,
   });
 }
 

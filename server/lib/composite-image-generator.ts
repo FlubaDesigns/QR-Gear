@@ -28,6 +28,7 @@ export interface CompositeImageOptions {
   qrColor?: 'black' | 'white';
   placement?: string;
   graphicLayoutMode?: 'zone' | 'freeform';
+  qrSizePercent?: number;
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -83,6 +84,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
     qrUrl,
     qrColor = 'black',
     graphicLayoutMode = 'zone',
+    qrSizePercent = 75,
   } = options;
 
   const canvas = createCanvas(width, height);
@@ -120,12 +122,15 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   } else {
     zoneX = safeX;
     zoneW = safeW;
+    // QR zone scales with qrSizePercent (default 75 → 40% of safe height)
+    const zoneQrFrac = Math.min(Math.max(0.40 * (qrSizePercent / 75), 0.15), 0.70);
+    qrZoneHeight = safeH * zoneQrFrac;
+    const remaining = safeH - qrZoneHeight;
     headerZoneTop = safeY;
-    headerZoneHeight = safeH * 0.30;
+    headerZoneHeight = remaining / 2;
     qrZoneTop = headerZoneTop + headerZoneHeight;
-    qrZoneHeight = safeH * 0.40;
     footerZoneTop = qrZoneTop + qrZoneHeight;
-    footerZoneHeight = safeH * 0.30;
+    footerZoneHeight = remaining / 2;
   }
 
   const drawImageInZone = async (

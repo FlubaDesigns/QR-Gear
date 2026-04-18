@@ -703,7 +703,8 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
     const { colors = [], placements = ['front', 'back'], placementMethods = {}, ...templateFields } = req.body;
 
     const templateKeys = ['name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
-      'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId'];
+      'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId',
+      'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY'];
     const template: Record<string, any> = {};
     for (const key of templateKeys) {
       if (templateFields[key] !== undefined) template[key] = templateFields[key];

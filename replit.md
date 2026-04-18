@@ -122,6 +122,8 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 
 ### System Design Choices
 - **Printful-First Architecture**: Printful is the default fulfillment provider for all new products and orders. Printify remains available as an alternative but is not the default. The admin catalog browser defaults to the Printful tab. Provider is carried in every packet's `fulfillmentProvider` field for order routing. The admin product card shows a "Printful" or "Printify" provider badge visible only to admins — members and customers see a fully white-label experience.
+- **Zone Mode QR Size Slider**: Admin builder now exposes S/M/L/XL presets + a continuous slider for QR size in Zone mode (in addition to Pallet/freeform mode). Formula: `qrSizePercent / 2` percent of safe width. Default 75 → 37.5% (same as prior hardcoded 38%). Firebase composite generator mirrors this formula. Safety assessment uses the correct effective percent in both modes.
+- **Complete Packet State Persistence**: All graphic design settings are now fully saved in every packet: `graphicLayoutMode`, `qrSizePercent`, `qrPositionX`, `qrPositionY`, `areaImageUrl`, `areaImageMode`, `areaImageOffsetX`, `areaImageOffsetY`, `areaImageScale`. Also written to the template full-save payload (and stored in Firestore `productTemplates`). Previously these values were used only at render time and discarded.
 - **Backend**: Node.js, Express, TypeScript.
 - **Frontend**: React, TypeScript, Vite.
 - **Database**: Firebase/Firestore exclusively.

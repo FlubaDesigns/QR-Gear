@@ -87,7 +87,7 @@ function cfWrapText(ctx, text, maxWidth) {
     return lines;
 }
 async function cfGenerateCompositeImage(options) {
-    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'zone', subBottomEnabled = false, subBottomText = 'Scan Me', subBottomColor = '#666666', subBottomFontSize = '14', } = options;
+    const { width = 1200, height = 1800, backgroundColor = "#FFFFFF", qrSize = 600, topText, bottomText, qrUrl, qrColor = 'black', graphicLayoutMode = 'zone', qrSizePercent = 75, subBottomEnabled = false, subBottomText = 'Scan Me', subBottomColor = '#666666', subBottomFontSize = '14', } = options;
     const { createCanvas: cc, loadImage: li } = getCanvas();
     const canvas = cc(width, height);
     const ctx = canvas.getContext("2d");
@@ -126,8 +126,10 @@ async function cfGenerateCompositeImage(options) {
         zoneX = safeX;
         zoneW = safeW;
         const bgPaddingZone = 20;
-        // QR content size: 45% of safe width keeps visual parity with previous layout
-        const qrContentSizeZone = Math.round(safeW * 0.45);
+        // QR content size: driven by qrSizePercent / 2 to match client-side graphicLayout.ts
+        // Default 75 → 37.5% of safe width; same formula as frontend zone mode.
+        const zoneQrPct = Math.min(Math.max(qrSizePercent / 2, 15), 55);
+        const qrContentSizeZone = Math.round(safeW * (zoneQrPct / 100));
         const qrBgSizeZone = qrContentSizeZone + bgPaddingZone * 2;
         // QR background box centered on canvas
         const qrBgTopZone = Math.round(safeY + safeH / 2 - qrBgSizeZone / 2);
@@ -300,7 +302,7 @@ const CF_PREVIEW_WIDTH = 160;
 exports.CF_PREVIEW_WIDTH = CF_PREVIEW_WIDTH;
 const CF_PREVIEW_QR_SIZE = 36;
 exports.CF_PREVIEW_QR_SIZE = CF_PREVIEW_QR_SIZE;
-async function cfGeneratePrintifyComposite(qrUrl, topText, bottomText, printWidth = 1200, printHeight = 1800, qrColor = 'black', placement, graphicLayoutMode) {
+async function cfGeneratePrintifyComposite(qrUrl, topText, bottomText, printWidth = 1200, printHeight = 1800, qrColor = 'black', placement, graphicLayoutMode, qrSizePercent = 75) {
     let finalWidth = printWidth;
     let finalHeight = printHeight;
     if (placement && CF_PLACEMENT_DIMENSIONS[placement]) {
@@ -311,7 +313,7 @@ async function cfGeneratePrintifyComposite(qrUrl, topText, bottomText, printWidt
     const qrSize = CF_PREVIEW_QR_SIZE * scaleFactor;
     return cfGenerateCompositeImage({
         width: finalWidth, height: finalHeight, backgroundColor: "transparent",
-        qrSize, topText, bottomText, qrUrl, qrColor, placement, graphicLayoutMode,
+        qrSize, topText, bottomText, qrUrl, qrColor, placement, graphicLayoutMode, qrSizePercent,
     });
 }
 async function cfUploadBufferToStorage(buffer, mimeType, folder = 'member-graphics') {

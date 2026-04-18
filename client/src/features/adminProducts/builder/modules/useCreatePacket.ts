@@ -171,6 +171,15 @@ export function useCreatePacket({
         subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
         subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
         subBottomColor: state.content?.subBottomStyle?.color || '#666666',
+        graphicLayoutMode: state.content?.graphicLayoutMode || 'zone',
+        qrSizePercent: state.content?.qrSizePercent ?? 75,
+        qrPositionX: state.content?.qrPositionX ?? 50,
+        qrPositionY: state.content?.qrPositionY ?? 50,
+        areaImageUrl: state.content?.areaImageUrl || null,
+        areaImageMode: state.content?.areaImageMode || 'behind-qr',
+        areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
+        areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
+        areaImageScale: state.content?.areaImageScale ?? 100,
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
@@ -412,6 +421,10 @@ export function useCreatePacket({
           artworkUrl: productGraphicUrl, artworkVariant: "black",
           thumbnailUrl: productGraphicUrl || "",
           qrContent: finalQrContent, pricing, packetId,
+          graphicLayoutMode: state.content?.graphicLayoutMode || 'zone',
+          qrSizePercent: state.content?.qrSizePercent ?? 75,
+          qrPositionX: state.content?.qrPositionX ?? 50,
+          qrPositionY: state.content?.qrPositionY ?? 50,
         }),
       });
 

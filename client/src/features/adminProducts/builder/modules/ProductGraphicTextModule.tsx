@@ -626,7 +626,7 @@ export function ProductGraphicTextModule() {
   const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomStyle?.enabled;
 
   const isZoneMode = state.content.graphicLayoutMode === "zone";
-  const effectiveQrSizePercent = isZoneMode ? 40 : sizeVal;
+  const effectiveQrSizePercent = isZoneMode ? sizeVal / 2 : sizeVal;
 
   const qrSafety = getQrSafetyAssessment({
     qrSizePercent: effectiveQrSizePercent,
@@ -690,6 +690,39 @@ export function ProductGraphicTextModule() {
 
         {state.content.graphicLayoutMode === "zone" && (
           <div className="space-y-4">
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">QR Size</p>
+              <div className="flex gap-2">
+                {([['S', 50], ['M', 75], ['L', 90], ['XL', 110]] as const).map(([label, val]) => (
+                  <Button
+                    key={label}
+                    variant={sizeVal === val ? 'default' : 'outline'}
+                    size="default"
+                    className="flex-1"
+                    onClick={() => setContent({ qrSizePercent: val })}
+                    data-testid={`button-zone-qr-preset-${label.toLowerCase()}`}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <Maximize2 className="w-3.5 h-3.5" /> Custom
+                  </Label>
+                  <span className="text-xs text-muted-foreground" data-testid="text-admin-zone-qr-size">{Math.round(sizeVal / 2)}% of width</span>
+                </div>
+                <Slider
+                  value={[sizeVal]}
+                  onValueChange={([v]) => setContent({ qrSizePercent: v })}
+                  min={40}
+                  max={110}
+                  step={2}
+                  data-testid="slider-admin-zone-qr-size"
+                />
+              </div>
+            </div>
             <ZoneEditor
               state={state}
               setContent={setContent}
