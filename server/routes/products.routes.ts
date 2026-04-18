@@ -604,6 +604,8 @@ export function registerProductRoutes(app: Express): void {
 
         categories[category].push({
           docId: doc.id,
+          qrgId: p.qrgId ?? null,
+          qrgCategory: p.qrgCategory ?? null,
           id: resolvedId,
           title: (p.title || "").trim(),
           description: (p.description || "").trim() || null,

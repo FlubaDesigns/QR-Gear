@@ -69,6 +69,7 @@ export interface ProductSelectCardSkinProps {
   onImageRestore?: (id: string) => Promise<void>;
   masterCatalogImages?: string[];
   fulfillmentProvider?: string;
+  qrgId?: string;
 }
 
 function PreviewModal({
@@ -633,7 +634,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider, qrgId }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -725,9 +726,16 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         </div>
 
         <CardContent className="p-4 space-y-3">
-          <h3 className="font-semibold text-base leading-snug line-clamp-2" data-testid={`text-name-${item.id}`}>
-            {item.name}
-          </h3>
+          <div className="space-y-0.5">
+            <h3 className="font-semibold text-base leading-snug line-clamp-2" data-testid={`text-name-${item.id}`}>
+              {item.name}
+            </h3>
+            {qrgId && (
+              <p className="text-[11px] text-muted-foreground/70 font-mono tracking-wide" data-testid={`text-qrgid-${item.id}`}>
+                {qrgId}
+              </p>
+            )}
+          </div>
 
           <div className="flex items-baseline gap-2 flex-wrap">
             {item.price != null && (

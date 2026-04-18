@@ -597,6 +597,7 @@ export function ProductsModule() {
           onImageRestore={activeCatalog ? handleImageRestore : undefined}
           masterCatalogImages={rawImages}
           fulfillmentProvider={rawProduct.fulfillmentProvider as string | undefined}
+          qrgId={rawProduct.qrgId as string | undefined}
         />
       );
     },
