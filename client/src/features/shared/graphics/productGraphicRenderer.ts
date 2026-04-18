@@ -7,7 +7,7 @@ import {
   computeTextStartY,
   wrapTextMeasured,
 } from "@/features/shared/graphics/textRenderEngine";
-import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
+import qLogoSrc from "@assets/qr-gear-icon_1776543562767.png";
 
 export interface TextStyle {
   text: string;
