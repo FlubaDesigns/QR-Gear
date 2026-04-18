@@ -5,10 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2, History, Eye, LogOut, User as UserIcon, Palette, Trash2, Edit, QrCode, Upload, Copy, Link2 } from "lucide-react";
+import { Package, Clock, Truck, CheckCircle, RefreshCw, ExternalLink, ShoppingCart, DollarSign, TrendingUp, Plus, Loader2, History, Eye, LogOut, User as UserIcon, Palette, Trash2, Edit, QrCode, Upload, Copy, Link2, Zap, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import SEO from "@/components/SEO";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +54,7 @@ interface DashboardStats {
 export default function Account() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const userId = user?.id;
 
@@ -85,6 +86,12 @@ export default function Account() {
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
+
+  const { data: claimedData, isLoading: claimedLoading } = useQuery<{ instances: any[] }>({
+    queryKey: ["/api/claimed-instances"],
+    enabled: !!userId,
+  });
+  const claimedInstances = claimedData?.instances || [];
 
   const deleteDesignMutation = useMutation({
     mutationFn: async (designId: string) => {
@@ -314,6 +321,10 @@ export default function Account() {
             <TabsTrigger value="suggestions" className="gap-2" data-testid="tab-suggestions">
               <TrendingUp className="w-4 h-4" />
               For You
+            </TabsTrigger>
+            <TabsTrigger value="my-qr-items" className="gap-2" data-testid="tab-my-qr-items">
+              <Zap className="w-4 h-4" />
+              My QR Items
             </TabsTrigger>
           </TabsList>
 
@@ -758,6 +769,89 @@ export default function Account() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="my-qr-items" className="space-y-4">
+            {claimedLoading ? (
+              <Card className="glass-card">
+                <CardContent className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                </CardContent>
+              </Card>
+            ) : claimedInstances.length === 0 ? (
+              <Card className="glass-card">
+                <CardContent className="p-12 text-center">
+                  <Zap className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold mb-2 text-foreground">No Activated Items Yet</h2>
+                  <p className="text-muted-foreground mb-6">
+                    When you receive a QR Gear product, scan its QR code and enter your activation code to start your 1-year hosting.
+                  </p>
+                  <Link href="/build">
+                    <Button data-testid="button-get-qr-item">
+                      Get a QR Item
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {claimedInstances.map((instance: any) => {
+                  const expiresAt = new Date(instance.hostingExpiresAt);
+                  const now = new Date();
+                  const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+                  const isActive = instance.status === 'active' && expiresAt > now;
+
+                  return (
+                    <Card key={instance.id} className="glass-card" data-testid={`card-qr-item-${instance.id}`}>
+                      <CardContent className="p-4 space-y-3">
+                        {instance.previewImageUrl && (
+                          <div className="aspect-video bg-muted rounded-md overflow-hidden">
+                            <img src={instance.previewImageUrl} alt={instance.productName} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-semibold text-foreground truncate">{instance.productName}</p>
+                          {instance.qrgId && (
+                            <p className="text-xs text-muted-foreground font-mono">{instance.qrgId}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          {isActive ? (
+                            <Badge className="gap-1 text-xs">
+                              <Shield className="h-3 w-3" />
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-xs">Expired</Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">{daysRemaining}d left</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setLocation(`/my-item/${instance.id}`)}
+                            data-testid={`button-view-item-${instance.id}`}
+                          >
+                            View Item
+                          </Button>
+                          {!isActive && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setLocation(`/renew/${instance.id}`)}
+                              data-testid={`button-renew-item-${instance.id}`}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, ArrowLeft, Zap, ChevronDown, ChevronUp } from "lucide-react";
 
 interface LandingPageData {
   landingPageSnapshotUrl: string | null;
@@ -33,6 +35,81 @@ function getVimeoEmbedUrl(url: string): string {
   return videoId ? `https://player.vimeo.com/video/${videoId}?autoplay=1` : url;
 }
 
+function ActivationPanel() {
+  const [, setLocation] = useLocation();
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+
+  function handleActivate() {
+    const cleaned = code.trim().toUpperCase();
+    if (cleaned.length >= 8) {
+      setLocation(`/claim/${cleaned}`);
+    }
+  }
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50">
+      <div className="bg-slate-900/95 backdrop-blur border-t border-slate-700 shadow-2xl">
+        {open ? (
+          <div className="max-w-sm mx-auto p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-blue-400" />
+                <span className="text-sm font-semibold text-white">Activate Your Item</span>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setOpen(false)}
+                className="h-7 w-7 text-slate-400"
+                data-testid="button-close-activation"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Enter the activation code from your purchase email to start your 1-year hosting.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g. ABCD-1234"
+                className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono tracking-widest text-center"
+                maxLength={9}
+                data-testid="input-activation-code"
+                onKeyDown={(e) => e.key === 'Enter' && handleActivate()}
+              />
+              <Button
+                onClick={handleActivate}
+                disabled={code.trim().length < 8}
+                data-testid="button-activate"
+              >
+                Activate
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-sm mx-auto px-4 py-3">
+            <Button
+              variant="ghost"
+              className="w-full flex items-center justify-between text-slate-300 hover:text-white"
+              onClick={() => setOpen(true)}
+              data-testid="button-open-activation"
+            >
+              <span className="flex items-center gap-2 text-sm">
+                <Zap className="h-4 w-4 text-blue-400" />
+                Is this your item? Activate it
+              </span>
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ProductLanding() {
   const params = useParams();
   const slug = params.slug as string;
@@ -54,7 +131,6 @@ export default function ProductLanding() {
   const landingPage = data?.landingPage;
   const isPlayMode = landingPage?.qrProductState === "qr_play";
   const hasPlayMedia = isPlayMode && landingPage?.playMediaUrl;
-  // For Play mode, no snapshot needed - just show video
   const hasSnapshot = !isPlayMode && !!landingPage?.landingPageSnapshotUrl;
 
   if (error || !data?.success || (!hasSnapshot && !hasPlayMedia)) {
@@ -72,6 +148,7 @@ export default function ProductLanding() {
             </Button>
           </CardContent>
         </Card>
+        <ActivationPanel />
       </div>
     );
   }
@@ -83,7 +160,7 @@ export default function ProductLanding() {
     const isEmbed = isYouTube || isVimeo;
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-black pb-14">
         {isEmbed ? (
           <iframe
             src={isYouTube ? getYouTubeEmbedUrl(mediaUrl) : getVimeoEmbedUrl(mediaUrl)}
@@ -103,18 +180,20 @@ export default function ProductLanding() {
             Your browser does not support the video tag.
           </video>
         )}
+        <ActivationPanel />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
+    <div className="min-h-screen flex items-center justify-center bg-black pb-14">
       <img
         src={landingPage!.landingPageSnapshotUrl!}
         alt="QR Landing"
         className="max-w-full max-h-screen object-contain"
         data-testid="img-landing-snapshot"
       />
+      <ActivationPanel />
     </div>
   );
 }

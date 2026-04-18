@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
   import { freezePacketPricing, createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
+import { sendActivationEmail } from '../services/email';
 import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import Stripe from 'stripe';
 
@@ -141,6 +142,18 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
         buyerEmail: buyerEmail || undefined,
         packetId,
       });
+
+      // Send activation email with claim code
+      if (buyerEmail && claimCode) {
+        sendActivationEmail({
+          customerEmail: buyerEmail,
+          customerName: buyerName || 'Customer',
+          activationCode: claimCode,
+          productName: packet.title || packet.productTitle || 'QR Gear Product',
+          previewImageUrl: packet.itemImage || packet.mockupUrl || null,
+          orderId,
+        }).catch((err: any) => console.error('[Checkout] Activation email error (non-fatal):', err));
+      }
     }
 
     res.json({

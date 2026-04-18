@@ -330,6 +330,45 @@ export function registerCartCheckoutRoutes(app: Express): void {
         console.error('Failed to create buyer instances:', instanceErr);
       }
 
+      // Generate activation codes and send activation emails for each QR product
+      try {
+        const { generateClaimCodeForOrderItem } = await import('../lib/claimService');
+        const { sendActivationEmail } = await import('../lib/email');
+        const buyerEmail = user?.email || (session.customer_details as any)?.email;
+        const buyerName = user?.firstName || (session.customer_details as any)?.name || 'Customer';
+
+        if (buyerEmail) {
+          for (const item of orderItems) {
+            const customization = item.customization as Record<string, any> || {};
+            const productName = customization.productName || customization.title || `QR Product #${item.productId}`;
+            const previewImageUrl = customization.previewImageUrl || customization.mockupUrl || customization.imageUrl || null;
+
+            const activationCode = await generateClaimCodeForOrderItem({
+              orderId: order.id.toString(),
+              packetId: customization.packetId || null,
+              templateId: customization.templateId || null,
+              productName,
+              productDescription: customization.productDescription || null,
+              previewImageUrl,
+              buyerEmail,
+              buyerUserId: userId,
+              qrgId: customization.qrgId || null,
+            });
+
+            await sendActivationEmail({
+              customerEmail: buyerEmail,
+              customerName: buyerName,
+              activationCode,
+              productName,
+              previewImageUrl,
+              orderId: order.id.toString(),
+            });
+          }
+        }
+      } catch (claimErr) {
+        console.error('Failed to generate activation codes:', claimErr);
+      }
+
       res.json({ order, items: orderItems });
     } catch (error: any) {
       console.error('Verify checkout error:', error);

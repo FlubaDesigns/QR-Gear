@@ -302,11 +302,11 @@ export default function ClaimPage() {
               <Button 
                 className="w-full" 
                 size="lg"
-                onClick={() => setLocation('/dynamics')}
-                data-testid="btn-open-dynamics"
+                onClick={() => instanceId ? setLocation(`/my-item/${instanceId}`) : setLocation('/account')}
+                data-testid="btn-view-my-item"
               >
                 <Smartphone className="h-4 w-4 mr-2" />
-                Open QR Dynamics
+                View My Item
               </Button>
 
               <Button 
@@ -315,13 +315,13 @@ export default function ClaimPage() {
                 onClick={() => setLocation('/account')}
                 data-testid="btn-view-items"
               >
-                View My Items
+                My QR Items
               </Button>
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              You can customize your QR content, update destinations, 
-              and manage your items from QR Dynamics.
+              Your 1-year hosting period has started. Visit your item page 
+              to customize your QR content and manage your instance.
             </p>
           </CardContent>
         </Card>

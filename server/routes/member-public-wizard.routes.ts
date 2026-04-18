@@ -449,6 +449,24 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
         console.error("[PublicCheckout] Failed to send confirmation email (non-fatal):", emailErr);
       }
 
+      // Send activation-code-specific email so the buyer has it prominently
+      try {
+        const { sendActivationEmail } = await import('../lib/email');
+        if (buyerEmail) {
+          await sendActivationEmail({
+            customerEmail: buyerEmail,
+            customerName: buyerName || 'Customer',
+            activationCode: claimCode,
+            productName: packet.productTitle || 'QR Gear Product',
+            previewImageUrl: packet.mockupUrl || packet.lifestyleMockupUrl || null,
+            orderId: orderRef.id,
+          });
+          console.log(`[PublicCheckout] Activation email sent to ${buyerEmail} with code ${claimCode}`);
+        }
+      } catch (activationEmailErr) {
+        console.error("[PublicCheckout] Failed to send activation email (non-fatal):", activationEmailErr);
+      }
+
       res.json({
         success: true,
         order: {

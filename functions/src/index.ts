@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260416-phase4-sticky-bar-v9';
+const _BUILD_ID = '20260418-activation-system-v3';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -102,3 +102,5 @@ export const api = onRequest(
   },
   app
 );
+
+// deployed: 20260418T234106Z

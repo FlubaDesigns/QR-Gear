@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const order_service_1 = require("../services/order-service");
+const email_1 = require("../services/email");
 const constants_1 = require("../constants");
 const stripe_1 = __importDefault(require("stripe"));
 function register(app) {
@@ -147,6 +148,17 @@ function register(app) {
                     buyerEmail: buyerEmail || undefined,
                     packetId,
                 });
+                // Send activation email with claim code
+                if (buyerEmail && claimCode) {
+                    (0, email_1.sendActivationEmail)({
+                        customerEmail: buyerEmail,
+                        customerName: buyerName || 'Customer',
+                        activationCode: claimCode,
+                        productName: packet.title || packet.productTitle || 'QR Gear Product',
+                        previewImageUrl: packet.itemImage || packet.mockupUrl || null,
+                        orderId,
+                    }).catch((err) => console.error('[Checkout] Activation email error (non-fatal):', err));
+                }
             }
             res.json({
                 success: true,

@@ -73,6 +73,24 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Admin pages restructured**: `admin-products.tsx` (Builder + Tools tabs), `admin-store-builder.tsx` (Channels + Stores + Library tabs), `admin-store-library.tsx` (AdminShell wrapper), `admin-orders.tsx` (All/Pending/Production/Shipped tabs with stat cards + filters), `admin-marketplaces.tsx` (Accounts + Surfaces + Listings + Jobs + Logs tabs), `admin-external-sites.tsx` (Hosts + Profiles + Placements + Pricing + Revenue + Attribution + Payouts tabs)
 - **CSS classes**: Admin styles use `.qr-admin-*` classes in `client/src/styles/layout.css`. Button pattern: `qr-btn qr-btn--primary qr-btn--touch qr-btn--full`
 
+### First-Scan Activation System (QR Gear Core Flow)
+- **QRG Numbering**: All 1,612 master_catalog products assigned `QRG-CCC-SSS` IDs (100=Tees, 200=Hoodies, 300=Hats, 400=Drinkware, etc.). Fields: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
+- **Activation Flow**: Buyer pays → activation code generated (`XXXX-XXXX` format) → activation email sent → buyer scans product QR → sees product landing page → enters code in activation panel → 1-year hosting starts from claim moment (NOT purchase date).
+- **Key Files**:
+  - `server/lib/claimService.ts`: `generateClaimCodeForOrderItem()` — creates claim code in `claimCodes` Firestore collection with `status: 'unclaimed'`
+  - `server/lib/email.ts`: `sendActivationEmail()` — branded email with large activation code display, step-by-step instructions, and "Activate Now" CTA button
+  - `functions/src/services/email.ts`: Same `sendActivationEmail()` for Cloud Functions side
+  - `functions/src/routes/checkout.ts`: Wired to send activation email after `createCanonicalOrder()` returns claim code
+  - `server/routes/cart-checkout.routes.ts`: After order creation, calls `generateClaimCodeForOrderItem()` + `sendActivationEmail()` for each order item
+  - `server/routes/member-public-wizard.routes.ts`: Same activation email sent after wizard checkout completes
+  - `client/src/pages/product-landing.tsx`: Fixed bottom `ActivationPanel` — collapsed drawer that expands to show code input field. Routes to `/claim/:code` on submit.
+  - `client/src/pages/claim.tsx`: Existing claim flow; success button now navigates to `/my-item/:instanceId` instead of `/dynamics`
+  - `client/src/pages/my-item.tsx`: New page showing claimed instance details: hosting status, days remaining, expiry date, renew button
+  - `client/src/pages/account.tsx`: "My QR Items" tab added — shows all claimed instances with status badges, days remaining, and View Item/Renew buttons
+- **Firestore Collections**: `claimCodes` (status: unclaimed/claimed/expired, source: 'order' or 'packet_share'), `claimedInstances` (hostingExpiresAt = 1 year from claim time, not purchase)
+- **API Endpoints**: `GET /api/claimed-instances` (user's instances), `GET /api/claimed-instances/:instanceId` (instance + isActive), `POST /api/claim/:claimCode` (redeem code)
+- **Firebase Functions Deploy Note**: If Firebase says "No changes detected" after code changes, add a timestamp comment to `functions/src/index.ts`, rebuild, and redeploy — this creates a new package hash to force re-upload.
+
 ### Technical Implementations
 - **Storefront Layout**: All commerce-facing pages (`shop-segment`, `shop-product`, `cart`, `gift-shop`, `gift-redeem`) use `StorefrontLayout` (`client/src/components/StorefrontLayout.tsx`) which wraps content with the shared `Navbar`. New commerce pages must use `StorefrontLayout` instead of importing `Navbar` directly.
 - **Cart Architecture**: Guest cart state is managed by a single React Context (`client/src/contexts/CartContext.tsx`) wrapping the entire app in `App.tsx`. All components read from `useCart()` — there is one shared instance per session. localStorage is persistence-only (also listens to storage events for cross-tab sync). Deduplication: adding the same productId+color+size increments quantity instead of creating a duplicate line. Decrement to 0 removes the item. `GuestCartItem` type and `mergeGuestCartOnLogin` utility exported from this module. The old `useGuestCart` hook has been removed.

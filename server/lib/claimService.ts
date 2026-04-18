@@ -221,3 +221,59 @@ export function isClaimedInstanceActive(instance: any): boolean {
   const expiry = new Date(instance.hostingExpiresAt);
   return instance.status === 'active' && expiry > now;
 }
+
+// Generates a human-readable activation code (format: XXXX-XXXX)
+function generateActivationCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const part = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  return `${part()}-${part()}`;
+}
+
+export interface OrderItemClaimParams {
+  orderId: string;
+  packetId?: string;
+  templateId?: string;
+  productName: string;
+  productDescription?: string;
+  previewImageUrl?: string;
+  buyerEmail: string;
+  buyerUserId?: string;
+  qrgId?: string;
+}
+
+// Called at checkout completion — generates a pending claim code for each QR product
+export async function generateClaimCodeForOrderItem(params: OrderItemClaimParams): Promise<string> {
+  const db = getFirestoreDb();
+
+  // Generate unique activation code, retry on collision
+  let activationCode = generateActivationCode();
+  let attempts = 0;
+  while (attempts < 5) {
+    const existing = await db.collection('claimCodes').doc(activationCode).get();
+    if (!existing.exists) break;
+    activationCode = generateActivationCode();
+    attempts++;
+  }
+
+  const claimData = {
+    claimCode: activationCode,
+    templateId: params.templateId || params.packetId || '',
+    packetId: params.packetId || null,
+    orderId: params.orderId,
+    packetType: 'qr_canvas' as const,
+    productName: params.productName,
+    productDescription: params.productDescription || null,
+    previewImageUrl: params.previewImageUrl || null,
+    status: 'unclaimed',
+    buyerEmail: params.buyerEmail,
+    buyerUserId: params.buyerUserId || null,
+    qrgId: params.qrgId || null,
+    createdAt: new Date().toISOString(),
+    source: 'order',
+  };
+
+  await db.collection('claimCodes').doc(activationCode).set(claimData);
+  console.log(`[ClaimService] Generated activation code ${activationCode} for order ${params.orderId}`);
+
+  return activationCode;
+}
