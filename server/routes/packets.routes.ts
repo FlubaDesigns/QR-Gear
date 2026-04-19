@@ -424,6 +424,29 @@ export function registerPacketRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/admin/packets/:packetId", isAdmin, async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+      const doc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+      if (!doc.exists) return res.status(404).json({ error: "Packet not found" });
+      const data = doc.data()!;
+      res.json({
+        success: true,
+        packet: {
+          id: doc.id,
+          ...data,
+          createdAt: data?.createdAt?.toDate?.() || null,
+          updatedAt: data?.updatedAt?.toDate?.() || null,
+        },
+      });
+    } catch (error: any) {
+      console.error("[Packets] Error getting packet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/admin/packets", isAdmin, async (req: any, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");

@@ -9,6 +9,7 @@ import { ComposeContentModule } from "./modules/ComposeContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { LoadTemplateModule } from "./modules/LoadTemplateModule";
 import { BuilderStickyBar } from "./modules/BuilderStickyBar";
+import { DraftResumeHandler } from "./modules/DraftResumeHandler";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { CollapseAllProvider } from "@/features/shared/components/CollapsibleModule";
 
@@ -16,6 +17,9 @@ function BuilderModules() {
   return (
     <CollapseAllProvider>
     <div className="mobile-compact-stack">
+      {/* Resume draft from ?resume=<sessionId> URL param */}
+      <DraftResumeHandler />
+
       {/* Sticky bar — selected product name + session badge, always visible */}
       <BuilderStickyBar />
 

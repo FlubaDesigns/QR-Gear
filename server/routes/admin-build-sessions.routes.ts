@@ -217,14 +217,14 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
     }
   });
 
-  // ── Update working state only — no permanent instance created ────────────
+  // ── Update working state / draftName — no permanent instance created ──────
   app.patch("/api/admin/build-sessions/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { working } = req.body;
+      const { working, draftName } = req.body;
 
-      if (!working || typeof working !== "object") {
-        return res.status(400).json({ error: "working object is required" });
+      if (!working && draftName === undefined) {
+        return res.status(400).json({ error: "working object or draftName is required" });
       }
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
@@ -247,17 +247,23 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         });
       }
 
-      // Merge incoming working fields on top of existing
-      const mergedWorking = { ...existing.working, ...working };
-
-      await ref.update({
-        working: mergedWorking,
+      const updatePayload: Record<string, any> = {
         updatedAt: FieldValue.serverTimestamp(),
         lastActiveAt: FieldValue.serverTimestamp(),
-      });
+      };
 
-      console.log(`[BuildSessions] Updated working state for session ${id}:`, Object.keys(working));
-      res.json({ success: true, sessionId: id, working: mergedWorking });
+      if (working && typeof working === "object") {
+        updatePayload.working = { ...existing.working, ...working };
+      }
+
+      if (draftName !== undefined) {
+        updatePayload.draftName = draftName;
+      }
+
+      await ref.update(updatePayload);
+
+      console.log(`[BuildSessions] Updated session ${id}:`, Object.keys(updatePayload));
+      res.json({ success: true, sessionId: id });
     } catch (err: any) {
       console.error("[BuildSessions] patch error:", err.message);
       res.status(500).json({ error: err.message });

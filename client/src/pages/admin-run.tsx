@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Hammer,
   MapPin,
@@ -14,8 +15,14 @@ import {
   Plus,
   Activity,
   Zap,
+  Play,
+  Clock,
+  Bookmark,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 
 interface QuickAction {
   label: string;
@@ -31,6 +38,16 @@ interface SectionEntry {
   icon: typeof Hammer;
   href: string;
   color: string;
+}
+
+interface BuildSession {
+  id: string;
+  draftName?: string;
+  status: string;
+  working?: { title?: string; description?: string };
+  generated?: { packetId?: string };
+  updatedAt?: string | null;
+  lastActiveAt?: string | null;
 }
 
 const quickActions: QuickAction[] = [
@@ -104,6 +121,95 @@ const sectionEntries: SectionEntry[] = [
   },
 ];
 
+function timeAgo(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function InProgressSection() {
+  const { getAuthHeaders, apiBase } = useAdminAuth();
+  const [, navigate] = useLocation();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/admin/build-sessions", "working"],
+    queryFn: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/admin/build-sessions?status=working`, { headers });
+      if (!res.ok) return { sessions: [] };
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  const sessions: BuildSession[] = (data?.sessions || []).filter(
+    (s: BuildSession) => s.draftName
+  );
+
+  if (isLoading || sessions.length === 0) return null;
+
+  return (
+    <section>
+      <div className="flex items-center gap-1.5 mb-3">
+        <Bookmark className="h-3.5 w-3.5 text-primary" />
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          In Progress
+        </h2>
+        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-0.5">
+          {sessions.length}
+        </Badge>
+      </div>
+      <div className="flex flex-col gap-2">
+        {sessions.slice(0, 5).map((session) => {
+          const label = session.draftName!;
+          const productTitle = session.working?.title;
+          const lastActive = session.lastActiveAt || session.updatedAt;
+          return (
+            <div
+              key={session.id}
+              className="flex items-center gap-3 p-3 rounded-md border border-border bg-card"
+              data-testid={`run-draft-${session.id}`}
+            >
+              <div className="flex-shrink-0 h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+                <Bookmark className="h-4 w-4 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-tight truncate">{label}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {productTitle && (
+                    <p className="text-xs text-muted-foreground truncate">{productTitle}</p>
+                  )}
+                  {lastActive && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
+                      <Clock className="h-2.5 w-2.5" />
+                      {timeAgo(lastActive)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate(`/admin/products?resume=${session.id}`)}
+                data-testid={`run-draft-resume-${session.id}`}
+                className="flex-shrink-0 gap-1.5"
+              >
+                <Play className="h-3 w-3" />
+                Resume
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function AdminRun() {
   const [, navigate] = useLocation();
 
@@ -118,6 +224,8 @@ export default function AdminRun() {
       </div>
 
       <div className="px-4 py-5 space-y-6">
+        <InProgressSection />
+
         <section>
           <div className="flex items-center gap-1.5 mb-3">
             <Activity className="h-3.5 w-3.5 text-muted-foreground" />
