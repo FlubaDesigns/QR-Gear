@@ -562,6 +562,20 @@ The Cost Sync job (`[Cron] Starting Printify catalog sync...`) needs to be moved
 
 **Workaround for now:** Wait until the cost sync finishes (it runs for several minutes on startup). You can tell it is done when the server logs stop printing `[Cost Sync]` lines. After that, re-select your product and the builder should initialize correctly.
 
+### Email Page Crash: "d.map is not a function"
+
+**What you see:** Navigating to the Email section in admin shows "We hit a snag. The app encountered an error and logged it for recovery." with the error `d.map is not a function`.
+
+**Why it happens:** The dev server and Cloud Functions return the email data in different shapes:
+- Dev server returns a plain array: `[...]`
+- Cloud Functions return a wrapped object: `{ templates: [...] }` or `{ logs: [...] }`
+
+The frontend assumed a plain array and called `.map()` directly on whichever response it got. When it received the wrapped object from Cloud Functions, `.map()` crashed.
+
+**Fix applied:** `client/src/pages/admin-email-templates.tsx` — the query now checks whether the response is a plain array or a wrapped object and handles both formats correctly. The email page should load without crashing after this fix is deployed.
+
+**Root cause for Ghost:** The Cloud Functions routes in `functions/src/routes/am-crud.ts` (lines 129–164) wrap their responses in `{ templates }` and `{ logs }` objects, while the equivalent dev server routes in `server/routes/misc/partner-stores-email.routes.ts` return plain arrays. These should be made consistent — the Cloud Functions should return plain arrays to match the dev server.
+
 ---
 
 ## Need Help?

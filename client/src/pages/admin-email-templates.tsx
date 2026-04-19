@@ -52,13 +52,19 @@ export default function AdminEmailTemplates() {
     isEnabled: true,
   });
 
-  const { data: templates = [], isLoading: loadingTemplates } = useQuery<EmailTemplate[]>({
+  const { data: templatesData, isLoading: loadingTemplates } = useQuery<{ templates: EmailTemplate[] } | EmailTemplate[]>({
     queryKey: ["/api/admin/email-templates"],
   });
+  const templates: EmailTemplate[] = Array.isArray(templatesData)
+    ? templatesData
+    : (templatesData as any)?.templates ?? [];
 
-  const { data: logs = [], isLoading: loadingLogs } = useQuery<EmailLog[]>({
+  const { data: logsData, isLoading: loadingLogs } = useQuery<{ logs: EmailLog[] } | EmailLog[]>({
     queryKey: ["/api/admin/email-logs"],
   });
+  const logs: EmailLog[] = Array.isArray(logsData)
+    ? logsData
+    : (logsData as any)?.logs ?? [];
 
   const createMutation = useMutation({
     mutationFn: (data: typeof formData) => apiRequest("POST", "/api/admin/email-templates", data),
