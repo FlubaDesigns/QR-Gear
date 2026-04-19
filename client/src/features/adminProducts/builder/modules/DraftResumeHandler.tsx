@@ -4,8 +4,65 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogProduct } from "../types";
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+/** Fetch the full grouped catalog ([{ name, items: [{ docId, id, blueprintId, ... }] }]). */
+async function fetchCatalog(): Promise<Array<{ items: any[] }>> {
+  try {
+    const res = await fetch("/api/master-catalog");
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Resolve a CatalogProduct by Firestore doc ID (p.docId).
+ * This is the authoritative key for prepacket sessions — always stored as sourceMasterId.
+ */
+async function resolveByDocId(
+  docId: string,
+  catalog: Array<{ items: any[] }>,
+): Promise<CatalogProduct | null> {
+  for (const cat of catalog) {
+    const match = (cat.items || []).find((p: any) => p.docId && String(p.docId) === String(docId));
+    if (match) return match as CatalogProduct;
+  }
+  return null;
+}
+
+/**
+ * Resolve a CatalogProduct by numeric blueprint ID (p.blueprintId or p.id for Printify;
+ * p.id for Printful). Used as a fallback when sourceMasterId fails.
+ */
+async function resolveByBlueprintId(
+  blueprintId: number | null,
+  provider: string,
+  catalog: Array<{ items: any[] }>,
+): Promise<CatalogProduct | null> {
+  if (!blueprintId) return null;
+  for (const cat of catalog) {
+    const match = (cat.items || []).find((p: any) => {
+      if (provider === "printful") {
+        return p.fulfillmentProvider === "printful" && Number(p.id) === Number(blueprintId);
+      }
+      return (
+        (!p.fulfillmentProvider || p.fulfillmentProvider === "printify") &&
+        Number(p.blueprintId || p.id) === Number(blueprintId)
+      );
+    });
+    if (match) return match as CatalogProduct;
+  }
+  return null;
+}
+
+// ─── component ──────────────────────────────────────────────────────────────
+
 export function DraftResumeHandler() {
-  const { loadFromPacketData, loadFromWorkingState, setActiveSession, setActivePacketId } = useBuilderContext();
+  const { loadFromPacketData, loadFromWorkingState, setActiveSession, setActivePacketId } =
+    useBuilderContext();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
   const handledRef = useRef(false);
@@ -20,13 +77,16 @@ export function DraftResumeHandler() {
       try {
         const headers = await getAuthHeaders();
 
+        // ── 1. Fetch session ─────────────────────────────────────────────
         const sessionRes = await fetch(`${apiBase}/build-sessions/${sessionId}`, { headers });
         if (!sessionRes.ok) {
           toast({ title: "Draft not found", variant: "destructive" });
           return;
         }
         const { session } = await sessionRes.json();
+        console.log("[DraftResumeHandler] Session loaded:", session?.id, "| sourceMasterId:", session?.sourceMasterId);
 
+        // ── 2. Try to load packet (only if session has generated one) ────
         const packetId: string | null = session?.generated?.packetId || null;
         let packetData: Record<string, any> | null = null;
 
@@ -35,65 +95,126 @@ export function DraftResumeHandler() {
           if (packetRes.ok) {
             const pd = await packetRes.json();
             packetData = pd.packet || pd;
+            console.log("[DraftResumeHandler] Packet loaded:", packetId);
+          } else {
+            console.warn("[DraftResumeHandler] Packet fetch failed for:", packetId);
           }
         }
 
-        // Resolve product from catalog.
-        // /master-catalog returns [{ name, items: [{ id: blueprintId, docId: firestoreId, ... }] }]
-        // sourceMasterId  = Firestore doc ID → match p.docId
-        // selectedProductId = numeric blueprint ID stored in working snapshot → match p.id
-        let resolvedProduct: CatalogProduct | null = null;
-        const sourceMasterId: string | null = (session as any)?.sourceMasterId ?? null;
-        const selectedProductId: string | null = session?.working?.metadata?.selectedProductId ?? null;
-        const blueprintId: number | null = packetData?.blueprintId
-          ?? session?.working?.metadata?.selectedProductBlueprintId
-          ?? null;
-        const provider = packetData?.fulfillmentProvider ?? session?.working?.metadata?.fulfillmentProvider ?? "printify";
+        // ── 3. Determine restore mode ────────────────────────────────────
+        const isPacketBacked = !!packetData;
+        const hasWorkingState =
+          !!session?.working && Object.keys(session.working).length > 0;
 
-        if (sourceMasterId || selectedProductId || blueprintId) {
-          try {
-            const catRes = await fetch(`/api/master-catalog`);
-            if (catRes.ok) {
-              const catData = await catRes.json();
-              const allCategories: Array<{ items: any[] }> = Array.isArray(catData) ? catData : [];
-              for (const cat of allCategories) {
-                const match = (cat.items || []).find((p: any) => {
-                  // 1. Firestore doc ID match (most reliable — always set at session creation)
-                  if (sourceMasterId && p.docId && String(p.docId) === String(sourceMasterId)) return true;
-                  // 2. Numeric blueprint ID match from working metadata
-                  if (selectedProductId && String(p.id) === String(selectedProductId)) return true;
-                  // 3. Blueprint ID from packet or saved selectedProductBlueprintId
-                  if (blueprintId) {
-                    if (provider === "printful") return p.fulfillmentProvider === "printful" && Number(p.id) === Number(blueprintId);
-                    return (!p.fulfillmentProvider || p.fulfillmentProvider === "printify") && Number(p.blueprintId || p.id) === Number(blueprintId);
-                  }
-                  return false;
-                });
-                if (match) { resolvedProduct = match as CatalogProduct; break; }
-              }
-            }
-          } catch { /* product resolution is best-effort */ }
-        }
+        console.log(
+          `[DraftResumeHandler] Restore mode: ${isPacketBacked ? "PACKET-BACKED" : "PREPACKET"} | hasWorkingState: ${hasWorkingState}`,
+        );
 
-        const hasRestorable = !!(packetData || (session?.working && Object.keys(session.working).length > 0));
-
-        if (!hasRestorable) {
-          toast({ title: "Draft is empty", description: "No saved state found for this session.", variant: "destructive" });
+        if (!isPacketBacked && !hasWorkingState) {
+          toast({
+            title: "Draft is empty",
+            description: "No saved state found for this session.",
+            variant: "destructive",
+          });
           return;
         }
 
-        if (packetData) {
-          // Generated packet exists — restore from it (richest source)
-          loadFromPacketData(packetData, resolvedProduct);
-        } else if (session?.working && Object.keys(session.working).length > 0) {
-          // No packet yet — restore from session working state saved during editing
+        // ── 4. Fetch catalog once, used by both modes ────────────────────
+        const catalog = await fetchCatalog();
+        console.log("[DraftResumeHandler] Catalog loaded:", catalog.reduce((n, c) => n + (c.items?.length || 0), 0), "products");
+
+        // ── 5. Resolve product — different hierarchy per mode ────────────
+        let resolvedProduct: CatalogProduct | null = null;
+        let resolutionKey = "(none)";
+
+        if (isPacketBacked) {
+          // MODE 1 — Packet-backed restore
+          // Identity comes from the packet: blueprintId + fulfillmentProvider.
+          const packetBlueprint: number | null = packetData?.blueprintId
+            ? Number(packetData.blueprintId)
+            : null;
+          const packetProvider: string = packetData?.fulfillmentProvider ?? "printify";
+
+          console.log("[DraftResumeHandler] [PACKET] Resolving by blueprintId:", packetBlueprint, "| provider:", packetProvider);
+
+          if (packetBlueprint) {
+            resolvedProduct = await resolveByBlueprintId(packetBlueprint, packetProvider, catalog);
+            resolutionKey = `blueprintId:${packetBlueprint}`;
+          }
+
+          // Packet fallback: try sourceMasterId in case blueprintId is missing
+          if (!resolvedProduct && session?.sourceMasterId) {
+            console.log("[DraftResumeHandler] [PACKET] Blueprint miss — falling back to sourceMasterId:", session.sourceMasterId);
+            resolvedProduct = await resolveByDocId(session.sourceMasterId, catalog);
+            resolutionKey = `sourceMasterId:${session.sourceMasterId}`;
+          }
+        } else {
+          // MODE 2 — Prepacket working-state restore
+          // PRIMARY: sourceMasterId (Firestore doc ID, always set at session creation).
+          // Do NOT use selectedProductId as a blueprint identifier — they are different things.
+          const sourceMasterId: string | null = session?.sourceMasterId ?? null;
+          const savedBlueprintId: number | null =
+            session?.working?.metadata?.selectedProductBlueprintId
+              ? Number(session.working.metadata.selectedProductBlueprintId)
+              : null;
+          const provider: string =
+            session?.working?.metadata?.fulfillmentProvider ?? "printify";
+
+          console.log("[DraftResumeHandler] [PREPACKET] Resolving — sourceMasterId:", sourceMasterId, "| savedBlueprintId:", savedBlueprintId, "| provider:", provider);
+
+          if (sourceMasterId) {
+            resolvedProduct = await resolveByDocId(sourceMasterId, catalog);
+            resolutionKey = `sourceMasterId:${sourceMasterId}`;
+          }
+
+          if (!resolvedProduct && savedBlueprintId) {
+            console.log("[DraftResumeHandler] [PREPACKET] sourceMasterId miss — trying savedBlueprintId:", savedBlueprintId);
+            resolvedProduct = await resolveByBlueprintId(savedBlueprintId, provider, catalog);
+            resolutionKey = `selectedProductBlueprintId:${savedBlueprintId}`;
+          }
+
+          // Last resort: templateProductHint from qrConfig (numeric hint for the selected product)
+          if (!resolvedProduct) {
+            const hint: number | null = session?.working?.qrConfig?.templateProductHint
+              ? Number(session.working.qrConfig.templateProductHint)
+              : null;
+            if (hint) {
+              console.log("[DraftResumeHandler] [PREPACKET] Blueprint miss — trying templateProductHint:", hint);
+              resolvedProduct = await resolveByBlueprintId(hint, provider, catalog);
+              resolutionKey = `templateProductHint:${hint}`;
+            }
+          }
+        }
+
+        console.log(
+          resolvedProduct
+            ? `[DraftResumeHandler] Product resolved via ${resolutionKey}: "${resolvedProduct.title}"`
+            : `[DraftResumeHandler] Product NOT resolved (tried: ${resolutionKey})`,
+        );
+
+        // ── 6. Restore builder state ─────────────────────────────────────
+        if (isPacketBacked) {
+          console.log("[DraftResumeHandler] Calling loadFromPacketData");
+          loadFromPacketData(packetData!, resolvedProduct);
+        } else {
+          console.log("[DraftResumeHandler] Calling loadFromWorkingState");
           loadFromWorkingState(session.working, resolvedProduct);
         }
 
+        // ── 7. Register session and packet IDs ───────────────────────────
         setActiveSession(session.id, session.status as any, session.committedInstanceId || null);
         if (packetId) setActivePacketId(packetId);
 
-        const draftLabel = session.draftName || packetData?.productName || resolvedProduct?.title || "your draft";
+        // ── 8. Clean URL and toast ───────────────────────────────────────
+        const url = new URL(window.location.href);
+        url.searchParams.delete("resume");
+        window.history.replaceState({}, "", url.pathname + (url.search === "?" ? "" : url.search));
+
+        const draftLabel =
+          session.draftName ||
+          packetData?.productName ||
+          resolvedProduct?.title ||
+          "your draft";
 
         if (!resolvedProduct) {
           toast({
@@ -107,10 +228,6 @@ export function DraftResumeHandler() {
             description: `Loaded "${draftLabel}" — pick up where you left off.`,
           });
         }
-
-        const url = new URL(window.location.href);
-        url.searchParams.delete("resume");
-        window.history.replaceState({}, "", url.pathname + (url.search === "?" ? "" : url.search));
       } catch (err) {
         console.error("[DraftResumeHandler] resume error:", err);
         toast({ title: "Could not resume draft", variant: "destructive" });

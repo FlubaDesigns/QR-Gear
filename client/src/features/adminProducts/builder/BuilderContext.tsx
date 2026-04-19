@@ -160,6 +160,7 @@ function buildWorkingSnapshot(state: BuilderState): Record<string, any> {
       sourceType: state.sourceType,
       selectedProductId: state.selectedProduct?.id ?? null,
       selectedProductBlueprintId: state.selectedProduct?.blueprintId ?? null,
+      templateProductHint: state.templateProductHint ?? null,
     },
   };
 }
