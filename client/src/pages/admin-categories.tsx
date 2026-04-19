@@ -41,6 +41,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import {
   Category,
   CategoryInput,
@@ -375,6 +377,7 @@ export default function AdminCategories() {
       backHref="/admin"
       backLabel="Back"
       actions={actionButtons}
+      sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
     >
       <CategoriesContent />
     </AdminShell>

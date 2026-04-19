@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Pencil, Trash2, Video, Play, Pause } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { authFetch } from "@/features/adminAuth/authFetch";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
@@ -240,6 +242,7 @@ function VideosContent() {
       backHref="/admin"
       backLabel="Back"
       actions={addVideoButton}
+      sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
     >
       <Card className="mb-6">
         <CardHeader>

@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Gift, Plus, Edit, Trash2, Package, Sparkles, Clock, Eye, Copy, Mail, CheckCircle, AlertCircle, XCircle } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import type { GiftPackage, GiftCode, GiftRedemption, MasterProduct } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -218,6 +220,7 @@ export default function AdminGiftsPage() {
       icon={Gift}
       backHref="/admin"
       backLabel="Back"
+      sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
     >
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6">

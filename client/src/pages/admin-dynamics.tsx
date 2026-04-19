@@ -5,6 +5,8 @@ import {
   Play, Eye, RefreshCw, ExternalLink, ArrowLeft
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { authFetch } from "@/features/adminAuth/authFetch";
 import { apiRequest } from "@/lib/queryClient";
@@ -373,6 +375,7 @@ export default function TestDynamicsPage() {
       subtitle="Build time-based rotating QR content with precise duration control"
       backHref="/admin/products"
       backLabel="Back to Products"
+      sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
     >
         {error && (
           <div className="glass-card bg-red-500/20 border-red-500/50">

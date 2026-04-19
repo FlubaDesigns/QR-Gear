@@ -489,6 +489,42 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 19, 2026 — Admin Cockpit Consistency: Mode Labels + Universal Section Sub-Nav
+
+Every admin page now shows a mode label eyebrow (`BUILD` / `PLACE` / `SELL` / `SYSTEM`) in its `AdminShell` header, auto-detected from the current URL via `getModeForPath()`. All secondary pages (videos, fonts, dynamics, blanks, categories, tags, orchestration, pricing, customers, gifts, coupons, partners, external sites, marketplaces, health, email health, email templates, manual) now render a horizontal section sub-nav strip sourced from the single central `adminNavConfig.ts`. Hub pages (products, store-builder, store-library, orders, settings) were also updated to consume the same central config instead of maintaining their own local subnav arrays — ensuring every mode's nav is consistent everywhere. The `/admin` route is the canonical Run URL; `/admin/run` and `/admin/dashboard` are aliases. The bottom-nav Run button only highlights on those three paths (fixed `isActive` logic). The duplicate unreachable `/admin/dashboard` → `AdminDashboard` route was removed from `App.tsx`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/components/admin/adminNavConfig.ts` | Added `Layers` import; added Orchestration to `SELL_SUBNAV` |
+| `client/src/components/admin/AdminBottomNav.tsx` | Fixed `isActive` — Run uses exact-match list, not `startsWith` |
+| `client/src/App.tsx` | Removed duplicate/unreachable `/admin/dashboard` → `AdminDashboard` route; removed unused import |
+| `client/src/pages/admin-videos.tsx` | Added `sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}` |
+| `client/src/pages/admin-fonts.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-dynamics.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-blanks.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-categories.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-tags.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-orchestration.tsx` | Added `sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}` |
+| `client/src/pages/admin-pricing.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-customers.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-gifts.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-coupons.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-partners.tsx` | Added `sectionNav={<AdminSectionSubNav items={PLACE_SUBNAV} />}` |
+| `client/src/pages/admin-external-sites.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-marketplaces.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-health.tsx` | Added `sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}` |
+| `client/src/pages/admin-email-health.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-email-templates.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-manual.tsx` | Added `sectionNav` |
+| `client/src/pages/admin-products.tsx` | Switched from local `BUILD_SUBNAV` to central config import |
+| `client/src/pages/admin-store-builder.tsx` | Switched from local `PLACE_SUBNAV` (2 items) to central config (5 items) |
+| `client/src/pages/admin-store-library.tsx` | Switched from local `PLACE_SUBNAV` to central config |
+| `client/src/pages/admin-orders.tsx` | Switched from local `SELL_SUBNAV` to central config |
+| `client/src/pages/admin-settings.tsx` | Switched from local `SYSTEM_SUBNAV` (had wrong Customers entry) to central config |
+
+---
+
 ### April 19, 2026 — Draft Save/Resume + Admin Cockpit Reorganization
 
 #### Admin Cockpit — RUN/BUILD/PLACE/SELL/SYSTEM Structure

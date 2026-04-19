@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Check, X, Tag } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import type { ProductCategory } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -163,6 +165,7 @@ export default function AdminTags() {
       backHref="/admin"
       backLabel="Back"
       actions={actionButtons}
+      sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
     >
       <ProductTagsContent />
     </AdminShell>

@@ -25,14 +25,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
-
-const SYSTEM_SUBNAV = [
-  { label: "Settings", href: "/admin/settings", icon: Settings },
-  { label: "Health", href: "/admin/health", icon: Activity },
-  { label: "Email", href: "/admin/email-templates", icon: Mail },
-  { label: "Customers", href: "/admin/customers", icon: Users },
-  { label: "Manual", href: "/admin/manual", icon: BookOpen },
-];
+import { SYSTEM_SUBNAV } from "@/components/admin/adminNavConfig";
 
 interface ApiKeyStatus {
   printful: {

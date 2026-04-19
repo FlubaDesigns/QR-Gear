@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import AdminSectionTabs, { type AdminTab } from "@/components/admin/AdminSectionTabs";
+import { getModeForPath } from "@/components/admin/adminNavConfig";
 
 interface AdminShellProps {
   title: string;
@@ -26,7 +27,7 @@ export default function AdminShell({
   title,
   subtitle,
   icon: Icon,
-  backHref = "/admin/run",
+  backHref = "/admin",
   actions,
   children,
   maxWidth,
@@ -37,7 +38,8 @@ export default function AdminShell({
   stickyBar,
   sectionNav,
 }: AdminShellProps) {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const mode = getModeForPath(location);
 
   return (
     <div className="qr-admin-page">
@@ -56,6 +58,11 @@ export default function AdminShell({
             <div className="flex items-center gap-2 min-w-0">
               {Icon && <Icon className="qr-admin-bar__icon hidden sm:block flex-shrink-0" />}
               <div className="min-w-0">
+                {mode && (
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 leading-none mb-0.5">
+                    {mode}
+                  </p>
+                )}
                 <h1 className="qr-admin-bar__title truncate" data-testid="text-page-title">
                   {title}
                 </h1>

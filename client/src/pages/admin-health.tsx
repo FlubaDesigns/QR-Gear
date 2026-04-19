@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SYSTEM_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -167,6 +169,7 @@ export default function AdminHealth() {
       title="System Health"
       subtitle="Provider & service monitoring"
       icon={Activity}
+      sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
       actions={
         <Button
           variant="outline"

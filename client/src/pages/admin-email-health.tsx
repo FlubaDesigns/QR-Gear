@@ -1,5 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SYSTEM_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -162,6 +164,7 @@ export default function AdminEmailHealth() {
       title="Email System Health"
       subtitle="NexusMail monitoring & controls"
       icon={Mail}
+      sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
       actions={
         <Button
           variant="outline"

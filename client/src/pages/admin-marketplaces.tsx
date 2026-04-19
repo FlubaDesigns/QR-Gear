@@ -1,5 +1,7 @@
 import { useState } from "react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import { Settings, Layers, Link2, ListChecks, ScrollText } from "lucide-react";
 import { AccountsSection, SurfacesSection } from "./marketplaces-accounts";
@@ -22,6 +24,7 @@ export default function AdminMarketplaces() {
       tabs={SECTION_TABS}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      sectionNav={<AdminSectionSubNav items={PLACE_SUBNAV} />}
     >
       {activeTab === "accounts" && <AccountsSection />}
       {activeTab === "surfaces" && <SurfacesSection />}

@@ -1,4 +1,6 @@
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,6 +123,7 @@ export default function AdminOrchestration() {
       title="Multi-Provider Orchestration"
       subtitle="Manage products across Printify, Printful, Etsy, eBay, Amazon"
       icon={Layers}
+      sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
       actions={
         <Button
           onClick={() => refetchProducts()}

@@ -6,11 +6,7 @@ import { MemberProductLibrary } from "@/features/storeBuilder/MemberProductLibra
 import AdminShell from "@/components/AdminShell";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
-
-const PLACE_SUBNAV = [
-  { label: "Store Builder", href: "/admin/store-builder", icon: Store },
-  { label: "Library", href: "/admin/store-library", icon: Package },
-];
+import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 
 const storeTabs: AdminTab[] = [
   { id: "channels", label: "Channels", icon: Store },

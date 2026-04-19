@@ -37,15 +37,8 @@ import {
 import type { OrderUnified } from "@shared/schema";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Users, DollarSign, Tag, Gift } from "lucide-react";
-
-const SELL_SUBNAV = [
-  { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
-  { label: "Customers", href: "/admin/customers", icon: Users },
-  { label: "Pricing", href: "/admin/pricing", icon: DollarSign },
-  { label: "Coupons", href: "/admin/coupons", icon: Tag },
-  { label: "Gifts", href: "/admin/gifts", icon: Gift },
-];
 
 type OrderStatus = "pending" | "routed" | "in_production" | "shipped" | "delivered" | "cancelled";
 

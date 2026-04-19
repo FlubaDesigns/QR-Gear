@@ -1,5 +1,7 @@
 import { useState } from "react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import { Building2, Layout, MapPin, DollarSign, PieChart, FileText, CreditCard } from "lucide-react";
 import { HostsSection, ProfilesSection } from "./external-sites-hosts";
@@ -25,6 +27,7 @@ export default function AdminExternalSites() {
       tabs={SECTION_TABS}
       activeTab={activeTab}
       onTabChange={setActiveTab}
+      sectionNav={<AdminSectionSubNav items={PLACE_SUBNAV} />}
     >
       {activeTab === "hosts" && <HostsSection />}
       {activeTab === "profiles" && <ProfilesSection />}

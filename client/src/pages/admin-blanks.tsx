@@ -13,6 +13,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import {
   AdminSourceBlankSkin,
@@ -505,7 +507,7 @@ export default function AdminBlanks() {
   }, [setSelectedCatalogId]);
 
   return (
-    <AdminShell title="Blanks" subtitle="Manage base products and catalogs" icon={Box}>
+    <AdminShell title="Blanks" subtitle="Manage base products and catalogs" icon={Box} sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}>
       <div className="space-y-5">
         <div className="flex gap-3">
           <Button

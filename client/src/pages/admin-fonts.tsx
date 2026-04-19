@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Settings, Type, Plus, Trash2, GripVertical, Search, Loader2, Check, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -161,6 +163,7 @@ function FontManagerInner() {
       icon={Settings}
       subtitle={`${localFonts.length} font${localFonts.length !== 1 ? 's' : ''} active${hasChanges ? ' (unsaved changes)' : ''}`}
       actions={actionButtons}
+      sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
     >
         <div className="glass-card">
           <h2 className="glass-title text-base flex items-center gap-2 mb-3">

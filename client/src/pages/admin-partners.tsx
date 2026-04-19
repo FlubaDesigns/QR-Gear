@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -203,6 +205,7 @@ export default function AdminPartners() {
       title="Store Management"
       subtitle="Internal stores (ours) & partner stores (external)"
       icon={Store}
+      sectionNav={<AdminSectionSubNav items={PLACE_SUBNAV} />}
       actions={
         user ? (
           <>

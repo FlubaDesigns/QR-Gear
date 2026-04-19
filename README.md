@@ -132,6 +132,12 @@ The admin panel is organized into five sections accessible from the **Run** dash
 | **Sell** | `/admin/orders` | Orders, customers, pricing, coupons, gifts |
 | **System** | `/admin/settings` | Settings, health, email, manual |
 
+### Section Sub-Nav & Mode Labels
+
+Every admin page now displays a mode label eyebrow (`BUILD` / `PLACE` / `SELL` / `SYSTEM`) in its header, auto-detected from the current URL via `getModeForPath()` in `adminNavConfig.ts`. A horizontal sub-nav strip appears below the title on every secondary page, providing one-click navigation to peer pages within the same mode. All subnavs are sourced from the single central config in `client/src/components/admin/adminNavConfig.ts`.
+
+The `/admin` path is the canonical Run URL. `/admin/run` and `/admin/dashboard` are registered aliases. The bottom nav **Run** button links to `/admin` and only highlights on those three paths.
+
 ### Draft Save / Resume
 
 The product builder supports named in-progress drafts. When a build session is active, a **Save Draft** button appears in the builder's sticky bar. Named drafts surface on the Run dashboard under "In Progress" with a one-click **Resume** button that restores the full builder state.

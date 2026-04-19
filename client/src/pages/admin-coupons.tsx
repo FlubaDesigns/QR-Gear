@@ -4,6 +4,8 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -369,6 +371,7 @@ export default function AdminCoupons() {
       title="Promo Codes"
       subtitle="Manage discount codes"
       icon={Tag}
+      sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
       actions={
         <FormWrapper open={isFormOpen} onOpenChange={setIsFormOpen}>
           <FormTrigger asChild>

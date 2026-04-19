@@ -13,8 +13,8 @@ const sections: NavSection[] = [
   {
     label: "Run",
     icon: Zap,
-    href: "/admin/run",
-    match: ["/admin/run", "/admin/dashboard"],
+    href: "/admin",
+    match: ["/admin", "/admin/run", "/admin/dashboard"],
   },
   {
     label: "Build",
@@ -77,7 +77,9 @@ export default function AdminBottomNav() {
   const [location, navigate] = useLocation();
 
   const isActive = (section: NavSection) => {
-    if (location === "/admin" && section.label === "Run") return true;
+    if (section.label === "Run") {
+      return location === "/admin" || location === "/admin/run" || location === "/admin/dashboard";
+    }
     return section.match.some((m) => location.startsWith(m));
   };
 

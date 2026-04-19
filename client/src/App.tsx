@@ -31,7 +31,6 @@ import PacketSuccess from "@/pages/packet-success";
 import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
-import AdminDashboard from "@/pages/admin-dashboard";
 import AdminRun from "@/pages/admin-run";
 import AdminCoupons from "@/pages/admin-coupons";
 import AdminHealth from "@/pages/admin-health";
@@ -138,7 +137,6 @@ function Router() {
       <Route path="/admin/orchestration">{() => <AdminRoute><AdminOrchestration /></AdminRoute>}</Route>
       <Route path="/admin/orders">{() => <AdminRoute><AdminOrders /></AdminRoute>}</Route>
       <Route path="/admin/gifts">{() => <AdminRoute><AdminGifts /></AdminRoute>}</Route>
-      <Route path="/admin/dashboard">{() => <AdminRoute><AdminDashboard /></AdminRoute>}</Route>
       <Route path="/admin/coupons">{() => <AdminRoute><AdminCoupons /></AdminRoute>}</Route>
       <Route path="/admin/health">{() => <AdminRoute><AdminHealth /></AdminRoute>}</Route>
       <Route path="/admin/customers">{() => <AdminRoute><AdminCustomers /></AdminRoute>}</Route>

@@ -15,6 +15,8 @@ import {
   HelpCircle,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SYSTEM_SUBNAV } from "@/components/admin/adminNavConfig";
 
 interface ManualSection {
   id: string;
@@ -336,6 +338,7 @@ export default function AdminManual() {
       icon={Book}
       backHref="/admin"
       backLabel="Back"
+      sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
     >
         <div className="grid lg:grid-cols-[280px_1fr] gap-6">
           <div className="space-y-4">

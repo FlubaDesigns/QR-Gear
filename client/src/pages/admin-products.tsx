@@ -6,15 +6,7 @@ import AdminShell from "@/components/AdminShell";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
-
-const BUILD_SUBNAV = [
-  { label: "Products", href: "/admin/products", icon: Package },
-  { label: "Library", href: "/admin/library", icon: Image },
-  { label: "Blanks", href: "/admin/blanks", icon: Box },
-  { label: "Dynamics", href: "/admin/dynamics", icon: Zap },
-  { label: "Videos", href: "/admin/videos", icon: Film },
-  { label: "Fonts", href: "/admin/fonts", icon: Type },
-];
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 
 const productTabs: AdminTab[] = [
   { id: "builder", label: "Builder", icon: Settings2 },

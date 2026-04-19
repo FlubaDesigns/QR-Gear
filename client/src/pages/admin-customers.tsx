@@ -24,6 +24,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import type { User, OrderUnified } from "@shared/schema";
 import { getDisplayName, getInitials } from "@/lib/admin-utils";
 
@@ -262,6 +264,7 @@ export default function AdminCustomers() {
       icon={Users}
       backHref="/admin"
       backLabel="Back"
+      sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
     >
         <div className="mb-4">
           <div className="relative">

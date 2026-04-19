@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SYSTEM_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -130,6 +132,7 @@ export default function AdminEmailTemplates() {
       title="Email Templates"
       subtitle="Manage email templates and view logs"
       icon={Mail}
+      sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
     >
         <Tabs defaultValue="templates" className="space-y-6">
           <TabsList className="min-h-12">

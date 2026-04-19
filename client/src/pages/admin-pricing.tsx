@@ -5,6 +5,8 @@ import {
   Truck,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
 import StickyActionBar from "@/components/admin/StickyActionBar";
 import { Input } from "@/components/ui/input";
@@ -150,6 +152,7 @@ export default function AdminPricing() {
       icon={DollarSign}
       backHref="/admin/products"
       backLabel="Back to Products"
+      sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
     >
       <div className="grid gap-4">
         <AdminSectionCard
