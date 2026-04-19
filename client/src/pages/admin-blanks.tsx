@@ -507,7 +507,24 @@ export default function AdminBlanks() {
   }, [setSelectedCatalogId]);
 
   return (
-    <AdminShell title="Blanks" subtitle="Manage base products and catalogs" icon={Box} sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}>
+    <AdminShell
+      title="Blanks"
+      subtitle="Manage base products and catalogs"
+      icon={Box}
+      sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
+      actions={
+        <Button
+          variant="outline"
+          onClick={() => setShowCreate(true)}
+          disabled={showCreate}
+          data-testid="button-new-catalog-header"
+          className="qr-touch-48"
+        >
+          <Plus className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">New Catalog</span>
+        </Button>
+      }
+    >
       <div className="space-y-5">
         <div className="flex gap-3">
           <Button

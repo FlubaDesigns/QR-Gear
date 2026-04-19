@@ -471,7 +471,7 @@ export default function AdminOrdersPage() {
         title="Orders"
         subtitle={`${stats.total} total`}
         icon={Truck}
-        backHref="/admin/run"
+        backHref="/admin"
         tabs={orderTabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}

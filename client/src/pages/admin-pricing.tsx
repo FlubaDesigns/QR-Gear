@@ -143,6 +143,24 @@ export default function AdminPricing() {
       backHref="/admin/products"
       backLabel="Back to Products"
       sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
+      actions={
+        <Button
+          variant="outline"
+          onClick={handleSave}
+          disabled={saveMutation.isPending || isLoading}
+          data-testid="button-save-pricing-header"
+          className="qr-touch-48"
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+          ) : (
+            <Save className="h-4 w-4 sm:mr-2" />
+          )}
+          <span className="hidden sm:inline">
+            {saveMutation.isSuccess ? "Saved" : "Save Pricing"}
+          </span>
+        </Button>
+      }
     >
       {isLoading && (
         <div className="flex items-center justify-center py-12">

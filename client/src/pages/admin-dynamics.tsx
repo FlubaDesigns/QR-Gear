@@ -376,6 +376,22 @@ export default function TestDynamicsPage() {
       backHref="/admin/products"
       backLabel="Back to Products"
       sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
+      actions={
+        <Button
+          variant="outline"
+          onClick={createInstance}
+          disabled={loading === "creating" || slots.length === 0}
+          data-testid="button-create-dynamic-header"
+          className="qr-touch-48"
+        >
+          {loading === "creating" ? (
+            <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+          ) : (
+            <Plus className="h-4 w-4 sm:mr-2" />
+          )}
+          <span className="hidden sm:inline">Create Dynamic</span>
+        </Button>
+      }
     >
         {error && (
           <div className="glass-card bg-red-500/20 border-red-500/50">

@@ -123,7 +123,7 @@ export default function AdminSettings() {
       title="Settings"
       subtitle="Manage API keys and integrations"
       icon={Settings}
-      backHref="/admin/run"
+      backHref="/admin"
       backLabel="RUN"
       sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
     >
