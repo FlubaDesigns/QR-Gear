@@ -535,6 +535,35 @@ The platform uses four store types:
 
 ---
 
+## Known Issues (as of April 19, 2026)
+
+### Product Builder Stuck on "Starting…"
+
+**What you see:** When you select a shirt (or any product) in the Products builder, the sticky bar at the top shows a spinning "Starting…" badge that never changes to "In progress." The Save Draft button never appears.
+
+**Why it happens:** Two separate root causes were identified and partially fixed:
+
+1. **Missing Firestore index** — The query that looks up or creates a build session requires a composite index on the `buildSessions` collection. That index was missing, causing a silent 500 error every time a product was selected. The index has been added to `firestore.indexes.json` and deployed to production. The server-side query was also rewritten to avoid depending on that index so it works even before the index finishes building.
+
+2. **Background Cost Sync blocking the server** — On startup (and every hour), the server runs a Printify cost sync that makes hundreds of sequential API calls. While this is running, the Express server is heavily occupied and often cannot respond to the build session creation request in time. This is the likely cause of the issue still occurring after the index fix.
+
+**What still needs to be fixed (for Ghost):**
+
+The Cost Sync job (`[Cron] Starting Printify catalog sync...`) needs to be moved off the main Express server thread. Options:
+- Move it to a Firebase Cloud Functions scheduled trigger (e.g., `pubsub.schedule`) so it runs independently and does not block the dev or production server
+- Or convert it to a true background worker using a job queue so it does not starve incoming HTTP requests
+- As a minimum short-term fix: add a concurrency limiter so the cost sync runs no more than 1-2 Printify API calls at a time with a delay between them, preventing it from monopolizing the event loop
+
+**Files relevant to this bug:**
+- `server/routes/admin-build-sessions.routes.ts` — build session creation endpoint (query already fixed)
+- `firestore.indexes.json` — composite index for `buildSessions` already added
+- `server/lib/cron.ts` (or equivalent) — where the Printify cost sync job is scheduled
+- `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` line 616 — where the frontend calls `POST /api/admin/build-sessions/from-master`
+
+**Workaround for now:** Wait until the cost sync finishes (it runs for several minutes on startup). You can tell it is done when the server logs stop printing `[Cost Sync]` lines. After that, re-select your product and the builder should initialize correctly.
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.
