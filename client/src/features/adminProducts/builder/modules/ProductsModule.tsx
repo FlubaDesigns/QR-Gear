@@ -38,6 +38,7 @@ interface AdminCatalog {
   blankDescriptions?: Record<string, string>;
   blankTitles?: Record<string, string>;
   blankImages?: Record<string, string[]>;
+  blankTiers?: Record<string, string>;
 }
 
 type LocationFilter = "all" | "usa" | "other";
@@ -504,6 +505,33 @@ export function ProductsModule() {
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
+  const handleTierChange = useCallback(async (id: string, tier: string | null) => {
+    if (!activeCatalog) return;
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    const blankKey = entry.blankKey;
+    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
+      if (!old?.catalogs) return old;
+      return {
+        ...old,
+        catalogs: old.catalogs.map((cat: any) => {
+          if (cat.id !== activeCatalog.id) return cat;
+          const blankTiers = { ...(cat.blankTiers || {}) };
+          if (tier) blankTiers[blankKey] = tier;
+          else delete blankTiers[blankKey];
+          return { ...cat, blankTiers };
+        }),
+      };
+    });
+    try {
+      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-tier`, { blankId: blankKey, tier: tier || null });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: "Could not save tier", description: err?.message || "Unknown error", variant: "destructive" });
+    }
+  }, [activeCatalog, selectItemMap, queryClient, toast]);
+
   const handleAddShelf = useCallback(async () => {
     const name = newShelfName.trim();
     if (!name) return;
@@ -610,6 +638,8 @@ export function ProductsModule() {
       const rawImages: string[] = rawProduct.images?.length
         ? rawProduct.images
         : rawProduct.imageUrl ? [rawProduct.imageUrl] : [];
+      const blankKey = entry.blankKey;
+      const itemTier = (activeCatalog?.blankTiers?.[blankKey] ?? null) as "good" | "better" | "best" | null;
       return (
         <ProductSelectCardSkin
           item={entry.selectItem}
@@ -626,10 +656,13 @@ export function ProductsModule() {
           masterCatalogImages={rawImages}
           fulfillmentProvider={rawProduct.fulfillmentProvider as string | undefined}
           qrgId={rawProduct.qrgId as string | undefined}
+          tier={itemTier}
+          onTierChange={activeCatalog ? handleTierChange : undefined}
+          showTierControls={!!activeCatalog}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange]
   );
 
   return (

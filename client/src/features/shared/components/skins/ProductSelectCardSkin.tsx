@@ -87,6 +87,9 @@ function PreviewModal({
   onImageDelete,
   onImageRestore,
   masterCatalogImages,
+  tier,
+  onTierChange,
+  showTierControls,
 }: {
   item: ProductSelectItem;
   open: boolean;
@@ -102,6 +105,9 @@ function PreviewModal({
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
   masterCatalogImages?: string[];
+  tier?: TierValue;
+  onTierChange?: (id: string, tier: TierValue) => void;
+  showTierControls?: boolean;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -604,6 +610,26 @@ function PreviewModal({
                 </div>
               )}
 
+              {showTierControls && onTierChange && (
+                <div className="space-y-1.5" data-testid={`tier-controls-modal-${item.id}`}>
+                  <p className="text-xs text-muted-foreground font-medium">Quality Tier</p>
+                  <div className="flex gap-2">
+                    {(["good", "better", "best"] as const).map((t) => (
+                      <Button
+                        key={t}
+                        size="sm"
+                        variant={tier === t ? "default" : "outline"}
+                        className={`flex-1 text-xs ${tier === t ? TIER_COLORS[t] : ""}`}
+                        onClick={() => onTierChange(item.id, tier === t ? null : t)}
+                        data-testid={`button-modal-tier-${t}-${item.id}`}
+                      >
+                        {TIER_LABELS[t]}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Button
                 className="w-full min-h-12 text-base"
                 onClick={() => {
@@ -866,6 +892,9 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onImageDelete={onImageDelete}
         onImageRestore={onImageRestore}
         masterCatalogImages={masterCatalogImages}
+        tier={tier}
+        onTierChange={onTierChange}
+        showTierControls={showTierControls}
       />
     </>
   );
