@@ -489,6 +489,24 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 19, 2026 — Fix: Product resolution on draft resume + delete button on Run panel
+
+**Root cause of "product not found" on resume:** `DraftResumeHandler` and `LoadTemplateModule` were fetching the catalog via `${apiBase}/master-catalog` = `/api/admin/master-catalog`. On production Cloud Functions, the middleware strips only `/api` — leaving `/admin/master-catalog`. But the grouped catalog is registered at `/master-catalog` (no admin prefix, public endpoint in `pp-catalog-browse.ts`). So the catalog fetch was hitting a dead endpoint, returning no data, and product resolution always failed silently. Fixed: both components now call `/api/master-catalog` directly.
+
+**Secondary fix — ID matching:** Even if the catalog had returned, the prior matcher was comparing `session.sourceMasterId` (a Firestore doc ID string like `"gildan-5000"`) against `p.id` (the numeric Printify blueprint ID like `12`). Those never match. The catalog items also carry `p.docId` (the Firestore string). The matcher now tries `p.docId === sourceMasterId` first, then falls back to numeric blueprint ID and a blueprint ID stored in the working snapshot.
+
+**Delete button on Run panel:** Each "In Progress" draft card now has a trash icon. Clicking it shows an inline "Delete? / Yes / No" confirmation. Confirming calls the existing `abandon` endpoint which removes the session from the working list immediately.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` | Catalog fetch changed to `/api/master-catalog`; ID matcher now uses `p.docId` for Firestore string match |
+| `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx` | Catalog fetch changed to `/api/master-catalog` |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Working snapshot now also saves `selectedProductBlueprintId` as a numeric fallback |
+| `client/src/pages/admin-run.tsx` | Added trash icon + inline confirm/cancel to each session row in `InProgressSection` |
+
+---
+
 ### April 19, 2026 — Fix: Double /admin/ URL bug across all build-session & packet calls
 
 Root cause: `apiBase` is already `/api/admin`, so any path built as `${apiBase}/admin/...` resolves to `/api/admin/admin/...` — a 404 on every call. This was silently causing autosave, draft resume, packet generation, and commit to all fail in production. Fixed all 7 affected fetch calls across 4 files by removing the redundant `/admin/` segment from each URL.
@@ -679,6 +697,12 @@ The auto-template-creation on item save was writing corrupt/partial data, and th
 ---
 
 ## Known Issues & Next Steps
+
+### Draft Resume: "Product not resolved" on sessions saved before April 19, 2026
+
+Sessions created before the double-`/admin/` URL fix (April 19, 2026) never successfully autosaved their working state to Firestore — those PATCH calls were 404ing. When those sessions are resumed, the product resolution now works correctly (the catalog URL and ID-matching bugs are fixed), but if a session's `working` snapshot is empty and the packet data is also absent, the builder has nothing to restore and may still show the warning toast.
+
+**Workaround:** Delete the old session from the Run panel (trash icon → confirm) and start a fresh session from the same product in the builder. Going forward, autosave and resume work correctly.
 
 ### QR Layout Proportions
 The content-aware renderer works but the zone proportions (header 20%, footer 16%) may still be larger than desired. The user's preferred values are header 13%, footer 9%, with a max QR clamp of 82%.

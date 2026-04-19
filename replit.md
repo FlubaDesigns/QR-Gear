@@ -32,9 +32,18 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
   - `functions/src/middleware.ts` — CORS, verifyAuth, requireAuth, requireAdmin, ADMIN_USER_IDS
   - `functions/src/adapters/` — Marketplace platform adapters: etsy.ts (full Etsy API v3 integration: create/update/delete listings with image upload), ebay.ts (eBay Sell Inventory API: create/delete with offer management), amazon.ts (Amazon SP-API Listings Items: create/update/delete). Each exports createListing(), updateListing(), deleteListing() returning MarketplaceResult.
   - `functions/src/services/` — email.ts, pricing.ts, storage-helpers.ts, printful.ts, printify.ts, mockup-generator.ts, composite-image.ts, marketplace-sync.ts (sync pipeline: executeSyncJob, retryFailedJob, processRetryQueue — dispatches to adapter modules, manages Firestore job/listing status, creates sync logs, durable retry via nextRetryAt field + processRetryQueue sweep)
-  - `functions/src/routes/` — 34 route files, each exporting `register(app)`: admin-misc.ts, admin-orders.ts, admin-products.ts, admin-settings.ts, admin-stores.ts, auth.ts, brain.ts, catalog.ts, categories.ts, checkout.ts, claims.ts, core-routes.ts, designs.ts, dynamics.ts, external-sites.ts, file-routes.ts, gifts.ts, images.ts, marketplace.ts, member-files.ts, members.ts, mockup-routes.ts, orchestration.ts, packets.ts, partner.ts, products-page.ts, public-stores.ts, public.ts, referral.ts, seo.ts, store-files.ts, stripe-webhooks.ts, tiers.ts, widget.ts
+  - `functions/src/routes/` — 48 route files. Route prefix map (after CF strips `/api`):
+    | Route prefix | Files | Auth |
+    |---|---|---|
+    | `/admin/*` | admin-build-sessions.ts, admin-catalog-instances.ts, admin-misc.ts, admin-orders.ts, admin-products.ts, admin-settings.ts, admin-stores.ts, am-crud.ts, am-sync.ts, am-utility.ts, master-catalog.ts, member-catalog-instances.ts, orchestration.ts, print-placements.ts | `requireAdmin` |
+    | `/master-catalog`, `/master-catalog/joint` | pp-catalog-browse.ts | **Public** (no auth) |
+    | `/pp/*` | pp-builder.ts, pp-catalog.ts, pp-pricing-packets.ts | varies |
+    | `/members/*` | members.ts, members-library.ts, member-files.ts | `requireAuth` |
+    | `/public/*` | public.ts, public-stores.ts, external-sites-public.ts, products-page.ts, seo.ts | Public |
+    | other | auth.ts, brain.ts, catalog.ts, categories.ts, checkout.ts, claims.ts, core-routes.ts, core-routes-checkout.ts, designs.ts, dynamics.ts, external-sites.ts, file-routes.ts, gifts.ts, images.ts, marketplace.ts, mockup-routes.ts, packets.ts, partner.ts, referral.ts, store-files.ts, stripe-webhooks.ts, tiers.ts, widget.ts | varies |
+  - **CRITICAL routing rule**: `/master-catalog` and `/master-catalog/joint` (pp-catalog-browse.ts) are registered WITHOUT the `/admin` prefix — they are public endpoints. Frontend must call them as `/api/master-catalog`, NOT `/api/admin/master-catalog`. Using `${apiBase}/master-catalog` (where apiBase=`/api/admin`) is WRONG for these endpoints and causes silent 404s.
   - The `server/` directory code is NOT used at runtime. All API route changes go into the modular files above.
-- **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → Firebase Hosting rewrites `/api/*` to Cloud Function → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, `/members/*`, etc.
+- **Production API Flow**: Frontend on `qrgear-c1ffd.web.app` → Firebase Hosting rewrites `/api/*` to Cloud Function → Cloud Function strips `/api` prefix → routes handle `/admin/*`, `/public/*`, `/members/*`, etc. **The strip removes only `/api`, not `/api/admin` — so `/api/admin/foo` becomes `/admin/foo` in CF.**
 - **Session Rules**:
     - Handle voice-to-text transcription errors
     - Verify/confirm before acting

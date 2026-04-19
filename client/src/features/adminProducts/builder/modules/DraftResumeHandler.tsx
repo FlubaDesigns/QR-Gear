@@ -52,7 +52,7 @@ export function DraftResumeHandler() {
 
         if (sourceMasterId || selectedProductId || blueprintId) {
           try {
-            const catRes = await fetch(`${apiBase}/master-catalog`, { headers });
+            const catRes = await fetch(`/api/master-catalog`);
             if (catRes.ok) {
               const catData = await catRes.json();
               const allCategories: Array<{ items: any[] }> = Array.isArray(catData) ? catData : [];

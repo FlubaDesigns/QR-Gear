@@ -140,7 +140,7 @@ export function LoadTemplateModule() {
 
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/master-catalog`, { headers });
+      const res = await fetch(`/api/master-catalog`);
       if (!res.ok) return null;
       const data = await res.json();
       const allCategories: Array<{ items: CatalogProduct[] }> = Array.isArray(data) ? data : [];
