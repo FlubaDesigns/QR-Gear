@@ -77,6 +77,16 @@
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "buildSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ownerAdminId", "order": "ASCENDING" },
+        { "fieldPath": "sourceMasterId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
