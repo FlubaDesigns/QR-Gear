@@ -148,21 +148,21 @@ export function BuilderStickyBar() {
 
           {canSaveDraft && (
             <Button
-              variant="ghost"
+              variant={savedName ? "ghost" : "outline"}
               size="sm"
               onClick={openDraftInput}
               data-testid="button-save-draft"
-              className={`text-xs gap-1.5 ${savedName ? "text-primary" : "text-muted-foreground"}`}
+              className={`text-xs gap-1.5 ${savedName ? "text-primary" : ""}`}
             >
               {savedName ? (
                 <>
                   <BookmarkCheck className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline truncate max-w-24">{savedName}</span>
+                  <span className="truncate max-w-24">{savedName}</span>
                 </>
               ) : (
                 <>
                   <Bookmark className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Save Draft</span>
+                  Name draft
                 </>
               )}
             </Button>

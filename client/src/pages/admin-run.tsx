@@ -252,7 +252,7 @@ function InProgressSection() {
     staleTime: 30000,
   });
 
-  const sessions: BuildSession[] = (data?.sessions || []).filter((s: BuildSession) => s.draftName);
+  const sessions: BuildSession[] = data?.sessions || [];
 
   if (isLoading || sessions.length === 0) return null;
 
@@ -264,8 +264,10 @@ function InProgressSection() {
         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-0.5">{sessions.length}</Badge>
       </div>
       <div className="flex flex-col gap-2">
-        {sessions.slice(0, 5).map((session) => {
+        {sessions.slice(0, 8).map((session) => {
           const lastActive = session.lastActiveAt || session.updatedAt;
+          const displayName = session.draftName || session.working?.title || "Unnamed draft";
+          const isUnnamed = !session.draftName;
           return (
             <div
               key={session.id}
@@ -276,10 +278,15 @@ function InProgressSection() {
                 <Bookmark className="h-4 w-4 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium leading-tight truncate">{session.draftName}</p>
+                <p className={`text-sm font-medium leading-tight truncate ${isUnnamed ? "text-muted-foreground italic" : ""}`}>
+                  {displayName}
+                </p>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {session.working?.title && (
+                  {session.draftName && session.working?.title && (
                     <p className="text-xs text-muted-foreground truncate">{session.working.title}</p>
+                  )}
+                  {isUnnamed && (
+                    <span className="text-xs text-muted-foreground">Not yet named</span>
                   )}
                   {lastActive && (
                     <span className="text-xs text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
