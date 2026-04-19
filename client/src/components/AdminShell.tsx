@@ -19,13 +19,14 @@ interface AdminShellProps {
   activeTab?: string;
   onTabChange?: (tabId: string) => void;
   stickyBar?: ReactNode;
+  sectionNav?: ReactNode;
 }
 
 export default function AdminShell({
   title,
   subtitle,
   icon: Icon,
-  backHref = "/admin",
+  backHref = "/admin/run",
   actions,
   children,
   maxWidth,
@@ -34,6 +35,7 @@ export default function AdminShell({
   activeTab,
   onTabChange,
   stickyBar,
+  sectionNav,
 }: AdminShellProps) {
   const [, navigate] = useLocation();
 
@@ -73,6 +75,8 @@ export default function AdminShell({
         </div>
       </div>
 
+      {sectionNav}
+
       {tabs && activeTab && (
         <AdminSectionTabs
           tabs={tabs}
@@ -92,7 +96,7 @@ export default function AdminShell({
       {stickyBar && (
         <>
           <div className="h-16" />
-          <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3">
+          <div className="fixed bottom-14 md:bottom-0 md:left-16 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3">
             <div className="mx-auto max-w-[640px] flex items-center justify-end gap-3">
               {stickyBar}
             </div>

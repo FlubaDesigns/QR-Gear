@@ -16,9 +16,23 @@ import {
   EyeOff,
   RefreshCw,
   Save,
+  Activity,
+  Mail,
+  Users,
+  BookOpen,
+  Heart,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+
+const SYSTEM_SUBNAV = [
+  { label: "Settings", href: "/admin/settings", icon: Settings },
+  { label: "Health", href: "/admin/health", icon: Activity },
+  { label: "Email", href: "/admin/email-templates", icon: Mail },
+  { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Manual", href: "/admin/manual", icon: BookOpen },
+];
 
 interface ApiKeyStatus {
   printful: {
@@ -116,8 +130,9 @@ export default function AdminSettings() {
       title="Settings"
       subtitle="Manage API keys and integrations"
       icon={Settings}
-      backHref="/admin"
-      backLabel="Admin"
+      backHref="/admin/run"
+      backLabel="RUN"
+      sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
     >
       <div className="space-y-6 max-w-2xl">
         <Card>

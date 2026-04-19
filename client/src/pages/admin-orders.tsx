@@ -36,7 +36,16 @@ import {
 } from "lucide-react";
 import type { OrderUnified } from "@shared/schema";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
-import AdminBottomNav from "@/components/admin/AdminBottomNav";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { Users, DollarSign, Tag, Gift } from "lucide-react";
+
+const SELL_SUBNAV = [
+  { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+  { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Pricing", href: "/admin/pricing", icon: DollarSign },
+  { label: "Coupons", href: "/admin/coupons", icon: Tag },
+  { label: "Gifts", href: "/admin/gifts", icon: Gift },
+];
 
 type OrderStatus = "pending" | "routed" | "in_production" | "shipped" | "delivered" | "cancelled";
 
@@ -469,10 +478,11 @@ export default function AdminOrdersPage() {
         title="Orders"
         subtitle={`${stats.total} total`}
         icon={Truck}
-        backHref="/admin/dashboard"
+        backHref="/admin/run"
         tabs={orderTabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
         actions={
           <Button 
             variant="outline" 
@@ -578,7 +588,6 @@ export default function AdminOrdersPage() {
           onOpenChange={setDetailsOpen}
         />
       </AdminShell>
-      <AdminBottomNav />
     </>
   );
 }

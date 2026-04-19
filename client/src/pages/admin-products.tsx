@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { DollarSign, Image, Layers, Package, QrCode, Store, Settings2, Palette } from "lucide-react";
+import { DollarSign, Image, Layers, Package, QrCode, Store, Settings2, Palette, Box, Film, Type, Zap } from "lucide-react";
 import { ProductsHarness } from "@/features/adminProducts/ProductsHarness";
 import AdminShell from "@/components/AdminShell";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
-import AdminBottomNav from "@/components/admin/AdminBottomNav";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+
+const BUILD_SUBNAV = [
+  { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Library", href: "/admin/library", icon: Image },
+  { label: "Blanks", href: "/admin/blanks", icon: Box },
+  { label: "Dynamics", href: "/admin/dynamics", icon: Zap },
+  { label: "Videos", href: "/admin/videos", icon: Film },
+  { label: "Fonts", href: "/admin/fonts", icon: Type },
+];
 
 const productTabs: AdminTab[] = [
   { id: "builder", label: "Builder", icon: Settings2 },
@@ -23,6 +32,7 @@ export default function AdminProducts() {
         tabs={productTabs}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
       >
         {activeTab === "builder" && (
           <ProductsHarness showBuilder />
@@ -67,7 +77,6 @@ export default function AdminProducts() {
           </div>
         )}
       </AdminShell>
-      <AdminBottomNav />
     </>
   );
 }

@@ -12,7 +12,6 @@ import Widget from "@/pages/widget";
 import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
 import ViewDynamic from "@/pages/view-dynamic";
-import Admin from "@/pages/admin";
 import AdminProducts from "@/pages/admin-products";
 import AdminPricing from "@/pages/admin-pricing";
 import LibraryPage from "@/features/adminLibrary/LibraryPage";
@@ -33,6 +32,7 @@ import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
 import AdminDashboard from "@/pages/admin-dashboard";
+import AdminRun from "@/pages/admin-run";
 import AdminCoupons from "@/pages/admin-coupons";
 import AdminHealth from "@/pages/admin-health";
 import AdminCustomers from "@/pages/admin-customers";
@@ -98,12 +98,16 @@ import DevAuth from "@/pages/dev-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import AdminBottomNav from "@/components/admin/AdminBottomNav";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
       <AdminAuthProvider apiBase="/api/admin">
-        {children}
+        <div className="pb-14 md:pb-0 md:pl-16">
+          {children}
+        </div>
+        <AdminBottomNav />
       </AdminAuthProvider>
     </ProtectedRoute>
   );
@@ -121,7 +125,9 @@ function Router() {
       <Route path="/account" component={Account} />
       <Route path="/members" component={Members} />
       <Route path="/member">{() => <ProtectedRoute requireAdmin={false}><Member /></ProtectedRoute>}</Route>
-      <Route path="/admin">{() => <AdminRoute><Admin /></AdminRoute>}</Route>
+      <Route path="/admin">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
+      <Route path="/admin/run">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
+      <Route path="/admin/dashboard">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
       <Route path="/admin/products">{() => <AdminRoute><AdminProducts /></AdminRoute>}</Route>
       <Route path="/admin/pricing">{() => <AdminRoute><AdminPricing /></AdminRoute>}</Route>
       <Route path="/admin/library">{() => <AdminRoute><LibraryPage /></AdminRoute>}</Route>
