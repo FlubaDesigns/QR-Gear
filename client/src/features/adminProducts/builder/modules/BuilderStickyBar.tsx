@@ -58,7 +58,7 @@ export function BuilderStickyBar() {
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/admin/build-sessions/${activeSessionId}`, {
+      const res = await fetch(`${apiBase}/build-sessions/${activeSessionId}`, {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ draftName: name }),

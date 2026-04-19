@@ -489,6 +489,18 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 19, 2026 — Fix: Double /admin/ URL bug across all build-session & packet calls
+
+Root cause: `apiBase` is already `/api/admin`, so any path built as `${apiBase}/admin/...` resolves to `/api/admin/admin/...` — a 404 on every call. This was silently causing autosave, draft resume, packet generation, and commit to all fail in production. Fixed all 7 affected fetch calls across 4 files by removing the redundant `/admin/` segment from each URL.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Fixed autosave PATCH (`/admin/build-sessions/`) and packet sync PATCH (`/admin/packets/`) |
+| `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` | Fixed session GET (`/admin/build-sessions/`) and packet GET (`/admin/packets/`) |
+| `client/src/features/adminProducts/builder/modules/BuilderStickyBar.tsx` | Fixed "Name draft" PATCH (`/admin/build-sessions/`) |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Fixed generate-artifact POST and commit POST (`/admin/build-sessions/...`) |
+
 ### April 19, 2026 — Build Sessions: Index-Free Query + Autosave Failure Indicator + Draft Resume Hardening
 
 Three targeted fixes to the Product Builder admin flow:

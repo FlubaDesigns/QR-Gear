@@ -20,7 +20,7 @@ export function DraftResumeHandler() {
       try {
         const headers = await getAuthHeaders();
 
-        const sessionRes = await fetch(`${apiBase}/admin/build-sessions/${sessionId}`, { headers });
+        const sessionRes = await fetch(`${apiBase}/build-sessions/${sessionId}`, { headers });
         if (!sessionRes.ok) {
           toast({ title: "Draft not found", variant: "destructive" });
           return;
@@ -31,7 +31,7 @@ export function DraftResumeHandler() {
         let packetData: Record<string, any> | null = null;
 
         if (packetId) {
-          const packetRes = await fetch(`${apiBase}/admin/packets/${packetId}`, { headers });
+          const packetRes = await fetch(`${apiBase}/packets/${packetId}`, { headers });
           if (packetRes.ok) {
             const pd = await packetRes.json();
             packetData = pd.packet || pd;

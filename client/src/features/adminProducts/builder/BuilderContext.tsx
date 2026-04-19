@@ -191,7 +191,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         const headers = await api.getAuthHeaders();
 
         // Primary: save full working state into the build session
-        const res = await fetch(`${api.baseUrl}/admin/build-sessions/${state.activeSessionId}`, {
+        const res = await fetch(`${api.baseUrl}/build-sessions/${state.activeSessionId}`, {
           method: "PATCH",
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify({ working: buildWorkingSnapshot(state) }),
@@ -203,7 +203,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         // Secondary: if a packet already exists, keep its builderSnapshot in sync too
         if (state.activePacketId) {
           const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
-          const packetRes = await fetch(`${api.baseUrl}/admin/packets/${state.activePacketId}`, {
+          const packetRes = await fetch(`${api.baseUrl}/packets/${state.activePacketId}`, {
             method: "PATCH",
             headers: { ...headers, "Content-Type": "application/json" },
             body: JSON.stringify({

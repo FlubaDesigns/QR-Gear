@@ -489,7 +489,7 @@ export function useCreatePacket({
         try {
           const sessionHeaders = await getAuthHeaders();
           const artifactRes = await fetch(
-            `${apiBase}/admin/build-sessions/${state.activeSessionId}/generate-artifact`,
+            `${apiBase}/build-sessions/${state.activeSessionId}/generate-artifact`,
             {
               method: "POST",
               headers: { ...sessionHeaders, "Content-Type": "application/json" },
@@ -615,7 +615,7 @@ export function useCreatePacket({
     setIsCommitting(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/admin/build-sessions/${state.activeSessionId}/commit`, {
+      const res = await fetch(`${apiBase}/build-sessions/${state.activeSessionId}/commit`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({}),
