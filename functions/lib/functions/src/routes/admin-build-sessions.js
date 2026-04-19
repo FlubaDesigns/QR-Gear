@@ -37,17 +37,13 @@ function registerAdminBuildSessions(app) {
     app.get('/admin/build-sessions', middleware_1.requireAdmin, async (req, res) => {
         try {
             const uid = req.user?.uid || '';
-            let query = core_1.db.collection(BUILD_SESSIONS_COLLECTION)
+            // Single equality filter only — no orderBy — avoids any composite index requirement.
+            // Firestore auto-indexes single-field equality; sorting and filtering happen in code.
+            const snap = await core_1.db.collection(BUILD_SESSIONS_COLLECTION)
                 .where('ownerAdminId', '==', uid)
-                .orderBy('updatedAt', 'desc');
-            if (req.query.status) {
-                query = query.where('status', '==', req.query.status);
-            }
-            if (req.query.sourceMasterId) {
-                query = query.where('sourceMasterId', '==', req.query.sourceMasterId);
-            }
-            const snap = await query.limit(50).get();
-            const sessions = snap.docs.map((doc) => {
+                .limit(200)
+                .get();
+            let sessions = snap.docs.map((doc) => {
                 const d = doc.data();
                 return {
                     id: doc.id,
@@ -58,6 +54,19 @@ function registerAdminBuildSessions(app) {
                     expiresAt: d.expiresAt?.toDate?.() || null,
                 };
             });
+            // In-code filters and sort
+            const statusFilter = req.query.status;
+            const masterFilter = req.query.sourceMasterId;
+            if (statusFilter)
+                sessions = sessions.filter((s) => s.status === statusFilter);
+            if (masterFilter)
+                sessions = sessions.filter((s) => s.sourceMasterId === masterFilter);
+            sessions.sort((a, b) => {
+                const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                return bTime - aTime;
+            });
+            sessions = sessions.slice(0, 50);
             res.json({ success: true, sessions, count: sessions.length });
         }
         catch (err) {

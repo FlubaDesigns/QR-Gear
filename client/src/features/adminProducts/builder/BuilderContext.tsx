@@ -6,6 +6,7 @@ import { defaultTextStyle } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
+  autoSaveFailed: boolean;
   activeProviders: string[];
   selectedRole: RoleType | null;
   selectedStore: Store | null;
@@ -166,6 +167,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoSaveFailed, setAutoSaveFailed] = useState(false);
 
   useEffect(() => {
     const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
@@ -195,6 +197,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           body: JSON.stringify({ working: buildWorkingSnapshot(state) }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setAutoSaveFailed(false);
         console.log(`[BuilderContext] Auto-saved to session ${state.activeSessionId}`);
 
         // Secondary: if a packet already exists, keep its builderSnapshot in sync too
@@ -213,6 +216,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         }
       } catch (e) {
         console.warn("[BuilderContext] Auto-save failed:", e);
+        setAutoSaveFailed(true);
       }
     }, 1500);
 
@@ -710,6 +714,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   const value = useMemo<BuilderContextValue>(() => ({
     state,
+    autoSaveFailed,
     activeProviders: selectedProviders,
     selectedRole,
     selectedStore,
@@ -740,7 +745,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, autoSaveFailed, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

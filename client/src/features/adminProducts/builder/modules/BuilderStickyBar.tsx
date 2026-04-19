@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Loader2, CheckCircle2, Clock, ChevronsDownUp, ChevronsUpDown, Bookmark, BookmarkCheck, X } from "lucide-react";
+import { Loader2, CheckCircle2, Clock, ChevronsDownUp, ChevronsUpDown, Bookmark, BookmarkCheck, X, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 export function BuilderStickyBar() {
-  const { state } = useBuilderContext();
+  const { state, autoSaveFailed } = useBuilderContext();
   const { collapseAll, expandAll } = useCollapseAll();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
@@ -174,10 +174,16 @@ export function BuilderStickyBar() {
               Starting…
             </Badge>
           )}
-          {activeSessionId && sessionStatus === "working" && (
+          {activeSessionId && sessionStatus === "working" && !autoSaveFailed && (
             <Badge variant="outline" className="text-xs gap-1" data-testid="sticky-badge-working">
               <Clock className="h-3 w-3 text-amber-500" />
               In progress
+            </Badge>
+          )}
+          {autoSaveFailed && (
+            <Badge variant="outline" className="text-xs gap-1 border-red-500/40 text-red-600 dark:text-red-400" data-testid="sticky-badge-save-failed">
+              <AlertTriangle className="h-3 w-3" />
+              Save failed
             </Badge>
           )}
           {activeSessionId && sessionStatus === "artifact_ready" && (

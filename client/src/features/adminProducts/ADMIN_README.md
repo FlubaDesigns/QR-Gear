@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 19, 2026
+Last updated: April 19, 2026 (rev 2)
 
 ---
 
@@ -488,6 +488,25 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 19, 2026 — Build Sessions: Index-Free Query + Autosave Failure Indicator + Draft Resume Hardening
+
+Three targeted fixes to the Product Builder admin flow:
+
+1. **`GET /admin/build-sessions` no longer requires Firestore composite indexes.** The query now uses a single equality filter (`ownerAdminId`) — which Firestore auto-indexes — and performs `status`, `sourceMasterId` filtering plus `updatedAt` descending sort entirely in code. Previously the query required a composite index that was still building, causing 500 errors on the Run dashboard and builder resume flow.
+
+2. **Autosave failure is now visible in the sticky bar.** When a PATCH to the build session fails, `BuilderContext` sets `autoSaveFailed: true` (exposed through context). `BuilderStickyBar` replaces the "In progress" badge with a red "Save failed" badge (with `AlertTriangle` icon) so the admin knows their work isn't being persisted.
+
+3. **DraftResumeHandler is explicit about empty or broken drafts.** If the session has no restorable state (no packet and no `working` snapshot), it shows a destructive toast and returns early instead of silently loading nothing. If `working` state exists but the source product can't be resolved, it loads the snapshot and shows a warning toast prompting the admin to re-select the product.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `server/routes/admin-build-sessions.routes.ts` | Removed `orderBy` from Firestore query; added in-code filter + sort + slice |
+| `functions/src/routes/admin-build-sessions.ts` | Same refactor as server route |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added `autoSaveFailed` state; set true on PATCH failure, false on success; exposed via context interface |
+| `client/src/features/adminProducts/builder/modules/BuilderStickyBar.tsx` | Added "Save failed" badge using `autoSaveFailed` from context |
+| `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` | Early return with toast on empty session; warning toast when product can't be resolved |
 
 ### April 19, 2026 — Admin Cockpit Polish: 10-Item Fix Pass
 

@@ -43,19 +43,14 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const db = getFirestoreDb();
 
-      let query: any = db.collection(BUILD_SESSIONS_COLLECTION)
+      // Single equality filter only — no orderBy — avoids any composite index requirement.
+      // Firestore auto-indexes single-field equality; sorting and filtering happen in code.
+      const snap = await db.collection(BUILD_SESSIONS_COLLECTION)
         .where("ownerAdminId", "==", req.user?.uid || "")
-        .orderBy("updatedAt", "desc");
+        .limit(200)
+        .get();
 
-      if (req.query.status) {
-        query = query.where("status", "==", req.query.status);
-      }
-      if (req.query.sourceMasterId) {
-        query = query.where("sourceMasterId", "==", req.query.sourceMasterId);
-      }
-
-      const snap = await query.limit(50).get();
-      const sessions = snap.docs.map((doc: any) => {
+      let sessions = snap.docs.map((doc: any) => {
         const d = doc.data();
         return {
           id: doc.id,
@@ -66,6 +61,21 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
           expiresAt: d.expiresAt?.toDate?.() || null,
         };
       });
+
+      // In-code filters and sort
+      if (req.query.status) {
+        sessions = sessions.filter((s: any) => s.status === req.query.status);
+      }
+      if (req.query.sourceMasterId) {
+        sessions = sessions.filter((s: any) => s.sourceMasterId === req.query.sourceMasterId);
+      }
+      // Sort descending by updatedAt in code
+      sessions.sort((a: any, b: any) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bTime - aTime;
+      });
+      sessions = sessions.slice(0, 50);
 
       res.json({ success: true, sessions, count: sessions.length });
     } catch (err: any) {

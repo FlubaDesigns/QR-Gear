@@ -60,6 +60,13 @@ export function DraftResumeHandler() {
           } catch { /* product resolution is best-effort */ }
         }
 
+        const hasRestorable = !!(packetData || (session?.working && Object.keys(session.working).length > 0));
+
+        if (!hasRestorable) {
+          toast({ title: "Draft is empty", description: "No saved state found for this session.", variant: "destructive" });
+          return;
+        }
+
         if (packetData) {
           // Generated packet exists — restore from it (richest source)
           loadFromPacketData(packetData, resolvedProduct);
@@ -72,10 +79,19 @@ export function DraftResumeHandler() {
         if (packetId) setActivePacketId(packetId);
 
         const draftLabel = session.draftName || packetData?.productName || resolvedProduct?.title || "your draft";
-        toast({
-          title: "Draft resumed",
-          description: `Loaded "${draftLabel}" — pick up where you left off.`,
-        });
+
+        if (!resolvedProduct) {
+          toast({
+            title: "Draft resumed (product not found)",
+            description: `Loaded "${draftLabel}" but the source product couldn't be resolved. You may need to re-select it.`,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Draft resumed",
+            description: `Loaded "${draftLabel}" — pick up where you left off.`,
+          });
+        }
 
         const url = new URL(window.location.href);
         url.searchParams.delete("resume");

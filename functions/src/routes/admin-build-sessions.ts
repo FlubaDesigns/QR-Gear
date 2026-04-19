@@ -41,19 +41,14 @@ export function registerAdminBuildSessions(app: express.Express): void {
   app.get('/admin/build-sessions', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const uid = (req as any).user?.uid || '';
-      let query: any = db.collection(BUILD_SESSIONS_COLLECTION)
+      // Single equality filter only — no orderBy — avoids any composite index requirement.
+      // Firestore auto-indexes single-field equality; sorting and filtering happen in code.
+      const snap = await db.collection(BUILD_SESSIONS_COLLECTION)
         .where('ownerAdminId', '==', uid)
-        .orderBy('updatedAt', 'desc');
+        .limit(200)
+        .get();
 
-      if ((req.query as any).status) {
-        query = query.where('status', '==', (req.query as any).status);
-      }
-      if ((req.query as any).sourceMasterId) {
-        query = query.where('sourceMasterId', '==', (req.query as any).sourceMasterId);
-      }
-
-      const snap = await query.limit(50).get();
-      const sessions = snap.docs.map((doc: any) => {
+      let sessions: any[] = snap.docs.map((doc: any) => {
         const d = doc.data();
         return {
           id: doc.id,
@@ -64,6 +59,18 @@ export function registerAdminBuildSessions(app: express.Express): void {
           expiresAt: d.expiresAt?.toDate?.() || null,
         };
       });
+
+      // In-code filters and sort
+      const statusFilter = (req.query as any).status;
+      const masterFilter = (req.query as any).sourceMasterId;
+      if (statusFilter) sessions = sessions.filter((s) => s.status === statusFilter);
+      if (masterFilter) sessions = sessions.filter((s) => s.sourceMasterId === masterFilter);
+      sessions.sort((a: any, b: any) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bTime - aTime;
+      });
+      sessions = sessions.slice(0, 50);
 
       res.json({ success: true, sessions, count: sessions.length });
     } catch (err: any) {
