@@ -10,9 +10,11 @@ import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { LoadTemplateModule } from "./modules/LoadTemplateModule";
 import { BuilderStickyBar } from "./modules/BuilderStickyBar";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
+import { CollapseAllProvider } from "@/features/shared/components/CollapsibleModule";
 
 function BuilderModules() {
   return (
+    <CollapseAllProvider>
     <div className="mobile-compact-stack">
       {/* Sticky bar — selected product name + session badge, always visible */}
       <BuilderStickyBar />
@@ -62,6 +64,7 @@ function BuilderModules() {
         <CreateGraphicsModule />
       </InlineDebugBoundary>
     </div>
+    </CollapseAllProvider>
   );
 }
 

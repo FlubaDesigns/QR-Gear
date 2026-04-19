@@ -1,15 +1,30 @@
-import { Loader2, CheckCircle2, Clock } from "lucide-react";
+import { useState } from "react";
+import { Loader2, CheckCircle2, Clock, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
+import { useCollapseAll } from "@/features/shared/components/CollapsibleModule";
 
 export function BuilderStickyBar() {
   const { state } = useBuilderContext();
+  const { collapseAll, expandAll } = useCollapseAll();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!state.selectedProduct) return null;
 
   const { activeSessionId, sessionStatus } = state;
   const productTitle = state.selectedProduct.title;
   const brand = state.selectedProduct.brand;
+
+  const handleToggle = () => {
+    if (isCollapsed) {
+      expandAll();
+      setIsCollapsed(false);
+    } else {
+      collapseAll();
+      setIsCollapsed(true);
+    }
+  };
 
   return (
     <div
@@ -30,7 +45,27 @@ export function BuilderStickyBar() {
         )}
       </div>
 
-      <div className="flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggle}
+          data-testid="button-collapse-all"
+          className="text-xs text-muted-foreground gap-1.5"
+        >
+          {isCollapsed ? (
+            <>
+              <ChevronsUpDown className="h-3.5 w-3.5" />
+              Expand All
+            </>
+          ) : (
+            <>
+              <ChevronsDownUp className="h-3.5 w-3.5" />
+              Collapse All
+            </>
+          )}
+        </Button>
+
         {activeSessionId === null && state.selectedProduct && (
           <Badge variant="outline" className="text-xs gap-1" data-testid="sticky-badge-starting">
             <Loader2 className="h-3 w-3 animate-spin" />
