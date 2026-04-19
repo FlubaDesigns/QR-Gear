@@ -402,6 +402,9 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       const imageUrl = allImages[0] ?? null;
       const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
       categories[category].push({
+        docId: doc.id,
+        qrgId: p.qrgId ?? null,
+        qrgCategory: p.qrgCategory ?? null,
         id: blueprintId ?? printfulId,
         title: (p.title || "").trim(),
         description: (p.description || "").trim() || null,
