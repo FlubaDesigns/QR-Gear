@@ -103,5 +103,21 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // Alias: POST /admin/sync-master-products → same as /admin/master-catalog/sync
+    // Used by the "Rebuild Master Products" button in the admin Products page.
+    app.post('/admin/sync-master-products', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { forceRefresh = false } = req.body || {};
+            console.log('[MasterCatalog] sync-master-products alias triggered');
+            const startedAt = new Date().toISOString();
+            const result = await (0, master_catalog_1.syncMasterCatalog)({ forceRefresh });
+            const completedAt = new Date().toISOString();
+            res.json({ success: true, message: 'Master catalog sync complete', startedAt, completedAt, ...result });
+        }
+        catch (error) {
+            console.error('[MasterCatalog] sync-master-products error:', error.message);
+            res.status(500).json({ error: error.message });
+        }
+    });
 }
 //# sourceMappingURL=master-catalog.js.map

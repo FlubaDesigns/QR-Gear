@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260419-full-audit-fix-v1';
+const _BUILD_ID = '20260419-full-audit-fix-v2';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -121,7 +121,7 @@ export const api = onRequest(
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260419-full-audit-fix-v1' },
+    labels: { 'build-id': '20260419-full-audit-fix-v2' },
   },
   app
 );
@@ -129,3 +129,4 @@ export const api = onRequest(
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z
 // deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions
+// deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
