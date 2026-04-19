@@ -162,8 +162,23 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         });
       }
 
-      // Fetch master catalog item to seed working defaults
-      const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(sourceMasterId).get();
+      // Fetch master catalog item to seed working defaults.
+      // sourceMasterId may be a Firestore doc ID (preferred) or a legacy numeric blueprint ID string.
+      let masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(sourceMasterId).get();
+      if (!masterDoc.exists) {
+        // Fallback: try querying by printifyBlueprintId (legacy numeric ID sent by old clients)
+        const numericId = Number(sourceMasterId);
+        if (!isNaN(numericId)) {
+          const qSnap = await db.collection(MASTER_CATALOG_COLLECTION)
+            .where("printifyBlueprintId", "==", numericId)
+            .limit(1)
+            .get();
+          if (!qSnap.empty) {
+            masterDoc = qSnap.docs[0] as any;
+            console.log(`[BuildSessions] Resolved blueprint ${numericId} → doc ${masterDoc.id}`);
+          }
+        }
+      }
       if (!masterDoc.exists) {
         console.error(`[BuildSessions] Master catalog item not found: ${sourceMasterId}`);
         return res.status(404).json({ error: `Master catalog item not found: ${sourceMasterId}` });

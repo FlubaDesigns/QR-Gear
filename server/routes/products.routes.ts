@@ -690,6 +690,7 @@ export function registerProductRoutes(app: Express): void {
         const category = (p.category && p.category !== 'Other') ? p.category : classifyCategory(p.title || '');
         if (!categories[category]) categories[category] = [];
         categories[category].push({
+          docId: doc.id,
           id: blueprintId ?? printfulId,
           title: (p.title || "").trim(),
           description: masterDesc,

@@ -47,6 +47,8 @@ export interface ProductPlacement {
 
 export interface CatalogProduct {
   id: number;
+  /** Firestore document ID — always send this as sourceMasterId to build-session endpoints */
+  docId?: string;
   title: string;
   description?: string;
   brand: string;

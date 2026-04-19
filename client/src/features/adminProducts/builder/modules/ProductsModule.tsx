@@ -612,12 +612,15 @@ export function ProductsModule() {
 
     // Clear any previous session then start/resume a build session for this master product
     setActiveSession(null, null, null);
-    const sourceMasterId = String(entry.catalog.id);
+    // Use the Firestore document ID (docId), not the blueprint number (id)
+    const sourceMasterId = entry.catalog.docId ?? String(entry.catalog.id);
     apiRequest("POST", "/api/admin/build-sessions/from-master", { sourceMasterId })
       .then(r => r.json())
       .then(data => {
         if (!data.sessionId) {
           console.error("[ProductsModule] from-master returned no sessionId:", data);
+          selectProduct(null);
+          toast({ title: "Could not start build session", description: data.error || "Please try selecting the product again.", variant: "destructive" });
           return;
         }
         const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
@@ -626,8 +629,10 @@ export function ProductsModule() {
       })
       .catch(err => {
         console.error("[ProductsModule] Failed to start build session:", err.message || err);
+        selectProduct(null);
+        toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, toast]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
