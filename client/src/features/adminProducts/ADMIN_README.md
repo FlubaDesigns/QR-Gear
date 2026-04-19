@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 19, 2026 (rev 2)
+Last updated: April 19, 2026 (rev 3)
 
 ---
 
@@ -488,6 +488,36 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 19, 2026 — Rewrite: Prepacket Resume / Pre-saved Project Restore
+
+Complete redesign of the draft resume logic in `DraftResumeHandler.tsx` to cleanly separate two distinct restore modes and fix the root cause of pre-saved project restore failures.
+
+**Root cause:** The old code used a single shared product resolution path that treated `session.working.metadata.selectedProductId` (the catalog `p.id` field — a numeric blueprint ID) as though it were interchangeable with `session.sourceMasterId` (a Firestore document ID string). These are fundamentally different identifiers and should never be compared the same way.
+
+**MODE 1 — Packet-backed restore** (packet exists):
+- Product resolved via `packetData.blueprintId` + `fulfillmentProvider` matched against `p.blueprintId`
+- Falls back to `sourceMasterId → p.docId` if packet has no blueprintId
+- Calls `loadFromPacketData`
+
+**MODE 2 — Prepacket working-state restore** (no packet yet):
+- Product resolved via `session.sourceMasterId → p.docId` (Firestore doc ID match, always set at session creation — primary key)
+- Falls back to `session.working.metadata.selectedProductBlueprintId` (numeric, safe)
+- Last resort: `session.working.qrConfig.templateProductHint` (numeric hint)
+- `selectedProductId` is never used as a blueprint identifier
+- Calls `loadFromWorkingState`
+
+**Logging added:** Every step emits a `[DraftResumeHandler]` console log — mode detected, identifier tried, resolution result, restore function called.
+
+**`BuilderContext` snapshot updated:** `buildWorkingSnapshot` now also saves `templateProductHint` in the `metadata` block (alongside `selectedProductBlueprintId`), so all fallback keys are persisted on every autosave.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` | Full rewrite — two clean restore modes, `resolveByDocId` / `resolveByBlueprintId` helpers, detailed logging |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | `buildWorkingSnapshot` metadata now includes `templateProductHint` |
+
+---
 
 ### April 19, 2026 — Fix: Product resolution on draft resume + delete button on Run panel
 
