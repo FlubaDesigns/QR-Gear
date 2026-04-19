@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-const _BUILD_ID = '20260419-draft-save-resume-v1';
+const _BUILD_ID = '20260419-full-audit-fix-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -47,6 +47,17 @@ const master_catalog_1 = require("./routes/master-catalog");
 const admin_catalog_instances_1 = require("./routes/admin-catalog-instances");
 const member_catalog_instances_1 = require("./routes/member-catalog-instances");
 const print_placements_1 = require("./routes/print-placements");
+const am_crud_1 = require("./routes/am-crud");
+const am_sync_1 = require("./routes/am-sync");
+const am_utility_1 = require("./routes/am-utility");
+const members_library_1 = require("./routes/members-library");
+const core_routes_checkout_1 = require("./routes/core-routes-checkout");
+const external_sites_public_1 = require("./routes/external-sites-public");
+const pp_builder_1 = require("./routes/pp-builder");
+const pp_catalog_1 = require("./routes/pp-catalog");
+const pp_catalog_browse_1 = require("./routes/pp-catalog-browse");
+const pp_pricing_packets_1 = require("./routes/pp-pricing-packets");
+const admin_build_sessions_1 = require("./routes/admin-build-sessions");
 const app = (0, express_1.default)();
 app.use(middleware_1.corsMiddleware);
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -90,6 +101,17 @@ app.use(middleware_1.apiPrefixMiddleware);
 (0, admin_catalog_instances_1.register)(app);
 (0, member_catalog_instances_1.register)(app);
 (0, print_placements_1.register)(app);
+(0, am_crud_1.register)(app);
+(0, am_sync_1.register)(app);
+(0, am_utility_1.register)(app);
+(0, members_library_1.registerMembersLibraryRoutes)(app);
+(0, core_routes_checkout_1.registerCoreCheckoutRoutes)(app);
+(0, external_sites_public_1.registerExternalSitesPublicRoutes)(app);
+(0, pp_builder_1.register)(app);
+(0, pp_catalog_1.register)(app);
+(0, pp_catalog_browse_1.registerPpCatalogBrowseRoutes)(app);
+(0, pp_pricing_packets_1.register)(app);
+(0, admin_build_sessions_1.registerAdminBuildSessions)(app);
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -98,7 +120,7 @@ exports.api = (0, https_1.onRequest)({
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260419-v4' },
+    labels: { 'build-id': '20260419-full-audit-fix-v1' },
 }, app);
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z

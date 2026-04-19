@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260419-draft-save-resume-v1';
+const _BUILD_ID = '20260419-full-audit-fix-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -42,6 +42,17 @@ import { register as registerMasterCatalog } from './routes/master-catalog';
 import { register as registerAdminCatalogInstances } from './routes/admin-catalog-instances';
 import { register as registerMemberCatalogInstances } from './routes/member-catalog-instances';
 import { register as registerPrintPlacements } from './routes/print-placements';
+import { register as registerAmCrud } from './routes/am-crud';
+import { register as registerAmSync } from './routes/am-sync';
+import { register as registerAmUtility } from './routes/am-utility';
+import { registerMembersLibraryRoutes } from './routes/members-library';
+import { registerCoreCheckoutRoutes } from './routes/core-routes-checkout';
+import { registerExternalSitesPublicRoutes } from './routes/external-sites-public';
+import { register as registerPpBuilder } from './routes/pp-builder';
+import { register as registerPpCatalog } from './routes/pp-catalog';
+import { registerPpCatalogBrowseRoutes } from './routes/pp-catalog-browse';
+import { register as registerPpPricingPackets } from './routes/pp-pricing-packets';
+import { registerAdminBuildSessions } from './routes/admin-build-sessions';
 
 const app = express();
 
@@ -88,6 +99,17 @@ registerMasterCatalog(app);
 registerAdminCatalogInstances(app);
 registerMemberCatalogInstances(app);
 registerPrintPlacements(app);
+registerAmCrud(app);
+registerAmSync(app);
+registerAmUtility(app);
+registerMembersLibraryRoutes(app);
+registerCoreCheckoutRoutes(app);
+registerExternalSitesPublicRoutes(app);
+registerPpBuilder(app);
+registerPpCatalog(app);
+registerPpCatalogBrowseRoutes(app);
+registerPpPricingPackets(app);
+registerAdminBuildSessions(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);
@@ -99,10 +121,11 @@ export const api = onRequest(
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260419-v4' },
+    labels: { 'build-id': '20260419-full-audit-fix-v1' },
   },
   app
 );
 
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z
+// deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions

@@ -145,6 +145,25 @@ The product builder supports named in-progress drafts. When a build session is a
 - Draft names are stored on the `admin_build_sessions` Firestore document (`draftName` field)
 - Resume navigates to `/admin/products?resume=<sessionId>` — the builder detects the param, fetches the session + linked packet, resolves the catalog product, and calls `loadFromPacketData`
 
+## Production Route Audit (2026-04-19)
+
+End-to-end audit of all Cloud Functions route files revealed **10 route files existed in `functions/src/routes/` but were never registered in `functions/src/index.ts`**, causing these admin pages to silently 404 in production:
+
+| Previously Broken | Root Cause |
+|---|---|
+| `admin-run.tsx` — metrics dashboard | `am-crud.ts` unregistered |
+| `admin-customers.tsx` — all data | `am-crud.ts` unregistered |
+| `admin-email-templates.tsx` — all data | `am-crud.ts` unregistered |
+| `admin-orchestration.tsx` — master-products + channel-configs | `am-crud.ts` unregistered |
+| `admin-fonts.tsx` — font management | `am-sync.ts` unregistered |
+| `admin-settings.tsx` — api-keys section | `am-sync.ts` unregistered |
+| `admin-health.tsx` — health check | `am-utility.ts` unregistered |
+| Product builder draft save/resume | `admin-build-sessions` missing from functions |
+
+**All 10 route files now registered** (`am-crud`, `am-sync`, `am-utility`, `members-library`, `core-routes-checkout`, `external-sites-public`, `pp-builder`, `pp-catalog`, `pp-catalog-browse`, `pp-pricing-packets`). A new `admin-build-sessions.ts` was also created for functions (ported from dev server) and registered.
+
+**Orphaned files removed:** `admin-backgrounds.tsx` (re-export of LibraryPage with no route) and `admin-dashboard.tsx` (route was already removed).
+
 ## Admin Resources
 
 - **Admin Guide:** `client/src/features/adminProducts/ADMIN_README.md`
