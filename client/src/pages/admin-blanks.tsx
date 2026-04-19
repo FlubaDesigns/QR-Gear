@@ -43,12 +43,11 @@ const SECTIONS = [
   { key: "platform" as const, label: "Platform", desc: "Internal platform selection" },
 ];
 
-function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => void }) {
+function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatalog: (catalogId: string) => void; showCreate: boolean; setShowCreate: (v: boolean) => void }) {
   const { toast } = useToast();
   const [editingCatalog, setEditingCatalog] = useState<AdminCatalog | null>(null);
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -428,6 +427,7 @@ function CatalogsTab({ onOpenCatalog }: { onOpenCatalog: (catalogId: string) => 
 
 export default function AdminBlanks() {
   const [activeTab, setActiveTab] = useState<PageTab>("blanks");
+  const [showCreate, setShowCreate] = useState(false);
 
   const ctrl = useAdminBlanksController();
   const {
@@ -544,7 +544,7 @@ export default function AdminBlanks() {
         </div>
 
         {activeTab === "catalogs" ? (
-          <CatalogsTab onOpenCatalog={handleOpenCatalog} />
+          <CatalogsTab onOpenCatalog={handleOpenCatalog} showCreate={showCreate} setShowCreate={setShowCreate} />
         ) : (
           <>
             {/* Provider filter */}

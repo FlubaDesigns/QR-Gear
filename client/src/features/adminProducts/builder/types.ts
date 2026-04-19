@@ -96,6 +96,7 @@ export interface TextStyleConfig {
   text: string;
   enabled: boolean;
   fontFamily: string;
+  fontWeight?: string;
   fontSize: string;
   color: string;
   warpPreset: string;

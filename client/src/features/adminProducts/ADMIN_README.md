@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 19, 2026 (rev 5)
+Last updated: April 19, 2026 (rev 6)
 
 ---
 
@@ -488,6 +488,25 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 19, 2026 — Fix: Pre-existing TypeScript errors cleared
+
+Four pre-existing type errors that did not affect runtime but caused the type checker to fail:
+
+1. **`TextStyleConfig` missing `fontWeight`** — `subBottomStyle` initializer used `fontWeight` but the interface didn't declare it. Added `fontWeight?: string` to `TextStyleConfig`.
+2. **`admin-blanks.tsx` — `showCreate` out of scope** — The "New Catalog" button in `AdminBlanks`'s header referenced `showCreate`/`setShowCreate` that were only declared inside the `CatalogsTab` sub-component. Lifted the state up to `AdminBlanks` and passed it down as props.
+3. **`admin-catalogs-shelf.routes.ts` — function declaration in strict-mode block** — The `classifyCategory` helper was declared with `function` syntax inside a block, which is disallowed in ES module strict mode. Converted to a `const` arrow function.
+4. **`qr-templates.routes.ts` — `number | null | undefined` vs `number`** — `data.printProviderId` (nullable/optional from Zod schema) was passed directly to `mockupJobQueue.createBatchJobs` which requires `number`. Added `?? 39` fallback (consistent with the existing `template.printProviderId || 39` pattern elsewhere in the same file).
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/types.ts` | Added `fontWeight?: string` to `TextStyleConfig` |
+| `client/src/pages/admin-blanks.tsx` | Lifted `showCreate` state to `AdminBlanks`, passed as props to `CatalogsTab` |
+| `server/routes/admin-catalogs-shelf.routes.ts` | Converted `function classifyCategory` to const arrow function |
+| `server/routes/misc/qr-templates.routes.ts` | Added `?? 39` fallback to both `printProviderId` usages |
+
+---
 
 ### April 19, 2026 — Feature: Save and restore store, channel, collection, and catalog selection
 

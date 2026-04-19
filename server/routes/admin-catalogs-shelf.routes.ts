@@ -589,7 +589,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       const fsDb = getFirestoreDb();
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
 
-      function classifyCategory(title: string): string {
+      const classifyCategory = (title: string): string => {
         const t = (title || '').toLowerCase();
         if (/christmas|holiday|ornament|halloween|easter|thanksgiving|valentine|xmas/.test(t)) return 'Holiday & Seasonal';
         if (/\bpet\b|\bdog\b|\bcat\b|puppy|kitten|\banimal\b/.test(t)) return 'Pet Products';
