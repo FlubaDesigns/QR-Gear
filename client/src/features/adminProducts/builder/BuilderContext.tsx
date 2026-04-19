@@ -159,6 +159,7 @@ function buildWorkingSnapshot(state: BuilderState): Record<string, any> {
       genderFilter: state.genderFilter,
       sourceType: state.sourceType,
       selectedProductId: state.selectedProduct?.id ?? null,
+      selectedProductBlueprintId: state.selectedProduct?.blueprintId ?? null,
     },
   };
 }

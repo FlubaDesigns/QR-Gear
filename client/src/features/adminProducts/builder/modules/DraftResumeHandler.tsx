@@ -38,12 +38,18 @@ export function DraftResumeHandler() {
           }
         }
 
-        // Resolve product: prefer packet blueprintId, fall back to working.metadata.selectedProductId
+        // Resolve product from catalog
         let resolvedProduct: CatalogProduct | null = null;
-        const blueprintId = packetData?.blueprintId ?? session?.working?.metadata?.selectedProductId ?? null;
+        // sourceMasterId is always stored on the session at creation time — most reliable fallback
+        const selectedProductId: string | null = session?.working?.metadata?.selectedProductId
+          ?? session?.sourceMasterId
+          ?? null;
+        const blueprintId: number | null = packetData?.blueprintId
+          ?? session?.working?.metadata?.selectedProductBlueprintId
+          ?? null;
         const provider = packetData?.fulfillmentProvider ?? session?.working?.metadata?.fulfillmentProvider ?? "printify";
 
-        if (blueprintId) {
+        if (selectedProductId || blueprintId) {
           try {
             const catRes = await fetch(`${apiBase}/master-catalog`, { headers });
             if (catRes.ok) {
@@ -51,8 +57,14 @@ export function DraftResumeHandler() {
               const allCategories: Array<{ items: CatalogProduct[] }> = Array.isArray(catData) ? catData : [];
               for (const cat of allCategories) {
                 const match = (cat.items || []).find((p: CatalogProduct) => {
-                  if (provider === "printful") return p.fulfillmentProvider === "printful" && Number(p.id) === Number(blueprintId);
-                  return (!p.fulfillmentProvider || p.fulfillmentProvider === "printify") && Number(p.blueprintId || p.id) === Number(blueprintId);
+                  // Primary: direct string ID match (fastest, most reliable)
+                  if (selectedProductId && String(p.id) === String(selectedProductId)) return true;
+                  // Fallback: numeric blueprintId match
+                  if (blueprintId) {
+                    if (provider === "printful") return p.fulfillmentProvider === "printful" && Number(p.id) === Number(blueprintId);
+                    return (!p.fulfillmentProvider || p.fulfillmentProvider === "printify") && Number(p.blueprintId || p.id) === Number(blueprintId);
+                  }
+                  return false;
                 });
                 if (match) { resolvedProduct = match; break; }
               }
