@@ -5,6 +5,36 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getCanonicalBlankKey, safeBlankId, isProviderPrintful } from "@shared/blankKeys";
 import type { CatalogBlankItem } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
 
+/**
+ * Build a Set that recognises ALL possible blankId formats for the same product
+ * so catalog lookups work regardless of when the blankId was stored:
+ *   old Printify format  : "123"
+ *   old Printful format  : "pf:123"
+ *   new Printify docId   : "py_123"
+ *   new Printful docId   : "pf_123"
+ */
+function expandBlankIdSet(ids: string[]): Set<string> {
+  const set = new Set<string>();
+  for (const raw of ids) {
+    const id = safeBlankId(raw);
+    set.add(id);
+    if (id.startsWith('py_')) {
+      set.add(id.slice(3));                   // py_123 → 123
+    } else if (id.startsWith('pf_')) {
+      set.add(`pf:${id.slice(3)}`);           // pf_123 → pf:123
+      set.add(id.slice(3));                   // pf_123 → 123
+    } else if (id.startsWith('pf:')) {
+      set.add(`pf_${id.slice(3)}`);           // pf:123 → pf_123
+    } else {
+      // Plain numeric — add all prefixed variants
+      set.add(`py_${id}`);
+      set.add(`pf_${id}`);
+      set.add(`pf:${id}`);
+    }
+  }
+  return set;
+}
+
 interface CatalogProduct {
   id: number;
   title: string;
@@ -163,7 +193,7 @@ export function useAdminBlanksController() {
   const catalogs = catalogsData?.catalogs || [];
   const activeCatalog = selectedCatalogId ? catalogs.find(c => c.id === selectedCatalogId) : null;
   const validSelectedCatalogId = activeCatalog ? selectedCatalogId : null;
-  const catalogBlankSet = useMemo(() => new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id))), [activeCatalog]);
+  const catalogBlankSet = useMemo(() => expandBlankIdSet(activeCatalog?.blankIds || []), [activeCatalog]);
   const blankTiers = activeCatalog?.blankTiers || {};
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
   const blankTitles = activeCatalog?.blankTitles || {};
@@ -276,7 +306,7 @@ export function useAdminBlanksController() {
   // Source catalog derivations
   const sourceCatalog = sourceCatalogId ? catalogs.find(c => c.id === sourceCatalogId) ?? null : null;
   const sourceBlankSet = useMemo(
-    () => new Set((sourceCatalog?.blankIds || []).map(id => safeBlankId(id))),
+    () => expandBlankIdSet(sourceCatalog?.blankIds || []),
     [sourceCatalog]
   );
 

@@ -212,16 +212,44 @@ export function ProductsModule() {
   });
 
   const { catalogModeProducts, catalogKeyMap } = useMemo(() => {
-    // blankIds are now master_catalog docIds (py_X / pf_X) — match directly on docId
-    const catalogSet = new Set((activeCatalog?.blankIds || []).map(id => safeBlankId(id)));
+    // Build a set that recognises both old formats (numeric "123" / "pf:123") and
+    // new docId formats ("py_123" / "pf_123") so catalogs built before the QRG
+    // sync still resolve correctly.
+    const rawIds = activeCatalog?.blankIds || [];
+    const catalogSet = new Set<string>();
+    for (const raw of rawIds) {
+      const id = safeBlankId(raw);
+      catalogSet.add(id);
+      if (id.startsWith('py_')) { catalogSet.add(id.slice(3)); }           // py_123 → 123
+      else if (id.startsWith('pf_')) {
+        catalogSet.add(`pf:${id.slice(3)}`);                                 // pf_123 → pf:123
+        catalogSet.add(id.slice(3));                                         // pf_123 → 123
+      } else if (id.startsWith('pf:')) {
+        catalogSet.add(`pf_${id.slice(3)}`);                                 // pf:123 → pf_123
+      } else {
+        // Plain numeric — add all possible prefixed variants
+        catalogSet.add(`py_${id}`);
+        catalogSet.add(`pf_${id}`);
+        catalogSet.add(`pf:${id}`);
+      }
+    }
+
     const products: CatalogProduct[] = [];
     const keyMap = new Map<string, string>();
 
     for (const p of masterCatalogAllProducts) {
       const docId = (p as any).docId as string | undefined;
-      if (docId && catalogSet.has(docId)) {
+      const numericId = String(p.id);
+      const oldKey = (p as any).fulfillmentProvider === 'printful' ? `pf:${numericId}` : numericId;
+
+      const matched =
+        (docId && catalogSet.has(docId)) ||
+        catalogSet.has(oldKey) ||
+        catalogSet.has(numericId);
+
+      if (matched) {
         products.push(p);
-        keyMap.set(String(p.id), docId);
+        keyMap.set(numericId, docId ?? oldKey);
       }
     }
     return { catalogModeProducts: products, catalogKeyMap: keyMap };
