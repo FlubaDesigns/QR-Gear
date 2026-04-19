@@ -105,13 +105,13 @@ app.post('/claim/:claimCode', requireAuth, async (req: Request, res: Response): 
     const instanceData = {
       instanceId,
       claimCode,
-      templateId: claimData.templateId,
+      templateId: claimData.templateId || '',
       packetType: claimData.packetType,
       ownerUserId: userId,
-      ownerEmail: userEmail,
+      ownerEmail: userEmail || null,
       productName: claimData.productName,
-      productDescription: claimData.productDescription,
-      previewImageUrl: claimData.previewImageUrl,
+      productDescription: claimData.productDescription || null,
+      previewImageUrl: claimData.previewImageUrl || null,
       destinationUrl: null,
       customConfig: null,
       status: 'active',
@@ -120,7 +120,7 @@ app.post('/claim/:claimCode', requireAuth, async (req: Request, res: Response): 
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       claimedAt: now.toISOString(),
-      metadata: claimData.metadata,
+      metadata: claimData.metadata || null,
     };
     
     const batch = db.batch();

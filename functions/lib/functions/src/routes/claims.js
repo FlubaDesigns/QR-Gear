@@ -65,13 +65,13 @@ function register(app) {
             const instanceData = {
                 instanceId,
                 claimCode,
-                templateId: claimData.templateId,
+                templateId: claimData.templateId || '',
                 packetType: claimData.packetType,
                 ownerUserId: userId,
-                ownerEmail: userEmail,
+                ownerEmail: userEmail || null,
                 productName: claimData.productName,
-                productDescription: claimData.productDescription,
-                previewImageUrl: claimData.previewImageUrl,
+                productDescription: claimData.productDescription || null,
+                previewImageUrl: claimData.previewImageUrl || null,
                 destinationUrl: null,
                 customConfig: null,
                 status: 'active',
@@ -80,7 +80,7 @@ function register(app) {
                 createdAt: now.toISOString(),
                 updatedAt: now.toISOString(),
                 claimedAt: now.toISOString(),
-                metadata: claimData.metadata,
+                metadata: claimData.metadata || null,
             };
             const batch = core_1.db.batch();
             batch.set(core_1.db.collection('claimedInstances').doc(instanceId), instanceData);
