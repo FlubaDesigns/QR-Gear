@@ -6,6 +6,7 @@ import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -165,16 +166,19 @@ function FontManagerInner() {
       actions={actionButtons}
       sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}
     >
-        <div className="glass-card">
-          <h2 className="glass-title text-base flex items-center gap-2 mb-3">
-            <Type className="h-5 w-5 text-blue-400" />
-            Active Fonts ({localFonts.length})
-          </h2>
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Type className="h-4 w-4 text-muted-foreground" />
+              Active Fonts ({localFonts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
           <div className="space-y-1">
             {localFonts.map((font, index) => (
               <div
                 key={font}
-                className="flex items-center gap-2 px-3 py-2 rounded-md bg-background/30 border border-white/5 group"
+                className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/40 border border-border group"
                 data-testid={`font-item-${font.replace(/\s+/g, '-').toLowerCase()}`}
               >
                 <GripVertical className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
@@ -215,13 +219,17 @@ function FontManagerInner() {
               </div>
             ))}
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="glass-card">
-          <h2 className="glass-title text-base flex items-center gap-2 mb-3">
-            <Plus className="h-5 w-5 text-green-400" />
-            Browse Google Fonts ({GOOGLE_FONT_FAMILIES.length.toLocaleString()} available)
-          </h2>
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plus className="h-4 w-4 text-muted-foreground" />
+              Browse Google Fonts ({GOOGLE_FONT_FAMILIES.length.toLocaleString()} available)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
 
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -294,7 +302,8 @@ function FontManagerInner() {
               )}
             </div>
           </ScrollArea>
-        </div>
+          </CardContent>
+        </Card>
     </AdminShell>
   );
 }

@@ -19,6 +19,8 @@ import {
   Globe,
   LayoutGrid,
   Layers,
+  Folder,
+  Hash,
 } from "lucide-react";
 
 export interface SubNavItem {
@@ -34,6 +36,8 @@ export const BUILD_SUBNAV: SubNavItem[] = [
   { label: "Dynamics", href: "/admin/dynamics", icon: Zap },
   { label: "Videos", href: "/admin/videos", icon: Film },
   { label: "Fonts", href: "/admin/fonts", icon: Type },
+  { label: "Categories", href: "/admin/categories", icon: Folder },
+  { label: "Tags", href: "/admin/tags", icon: Hash },
 ];
 
 export const PLACE_SUBNAV: SubNavItem[] = [

@@ -15,7 +15,7 @@ export default function AdminSectionSubNav({ items }: AdminSectionSubNavProps) {
   const [location, navigate] = useLocation();
 
   return (
-    <div className="border-b border-border bg-muted/30">
+    <div className="sticky top-0 z-40 border-b border-border bg-muted/30">
       <div className="flex items-center gap-1 px-3 overflow-x-auto scrollbar-none py-1.5">
         {items.map((item) => {
           const active = location.startsWith(item.href);

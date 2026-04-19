@@ -126,7 +126,7 @@ The admin panel is organized into five sections accessible from the **Run** dash
 
 | Section | Route | Purpose |
 |---------|-------|---------|
-| **Run** | `/admin` | Operating dashboard — quick actions, in-progress drafts, section links |
+| **Run** | `/admin` | Operating cockpit — live metrics grid, in-progress drafts, quick actions |
 | **Build** | `/admin/products` | Product builder, templates, library, blanks, dynamics |
 | **Place** | `/admin/store-builder` | Store builder, store library, partners, marketplaces |
 | **Sell** | `/admin/orders` | Orders, customers, pricing, coupons, gifts |
@@ -134,7 +134,7 @@ The admin panel is organized into five sections accessible from the **Run** dash
 
 ### Section Sub-Nav & Mode Labels
 
-Every admin page now displays a mode label eyebrow (`BUILD` / `PLACE` / `SELL` / `SYSTEM`) in its header, auto-detected from the current URL via `getModeForPath()` in `adminNavConfig.ts`. A horizontal sub-nav strip appears below the title on every secondary page, providing one-click navigation to peer pages within the same mode. All subnavs are sourced from the single central config in `client/src/components/admin/adminNavConfig.ts`.
+Every admin page displays a mode label eyebrow (`BUILD` / `PLACE` / `SELL` / `SYSTEM`) in its header, auto-detected from the current URL via `getModeForPath()` in `adminNavConfig.ts`. A horizontal sub-nav strip is now **sticky** and appears on every secondary and hub page, providing one-click navigation to peer pages within the same mode. All subnavs are sourced from the single central config in `client/src/components/admin/adminNavConfig.ts`. The `BUILD` subnav now includes Categories and Tags. The bottom nav uses `getModeForPath()` for all active-state detection (no more hardcoded URL arrays). `AdminShell` gained a `hideBack` prop used by the Run page.
 
 The `/admin` path is the canonical Run URL. `/admin/run` and `/admin/dashboard` are registered aliases. The bottom nav **Run** button links to `/admin` and only highlights on those three paths.
 

@@ -1,86 +1,31 @@
 import { useLocation } from "wouter";
 import { Zap, Hammer, MapPin, ShoppingCart, Settings } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { getModeForPath } from "@/components/admin/adminNavConfig";
 
 interface NavSection {
   label: string;
   icon: LucideIcon;
   href: string;
-  match: string[];
 }
 
 const sections: NavSection[] = [
-  {
-    label: "Run",
-    icon: Zap,
-    href: "/admin",
-    match: ["/admin", "/admin/run", "/admin/dashboard"],
-  },
-  {
-    label: "Build",
-    icon: Hammer,
-    href: "/admin/products",
-    match: [
-      "/admin/products",
-      "/admin/library",
-      "/admin/blanks",
-      "/admin/categories",
-      "/admin/tags",
-      "/admin/videos",
-      "/admin/fonts",
-      "/admin/dynamics",
-      "/admin/backgrounds",
-    ],
-  },
-  {
-    label: "Place",
-    icon: MapPin,
-    href: "/admin/store-builder",
-    match: [
-      "/admin/store-builder",
-      "/admin/store-library",
-      "/admin/partners",
-      "/admin/marketplaces",
-      "/admin/external-sites",
-    ],
-  },
-  {
-    label: "Sell",
-    icon: ShoppingCart,
-    href: "/admin/orders",
-    match: [
-      "/admin/orders",
-      "/admin/customers",
-      "/admin/pricing",
-      "/admin/pricing-coupons",
-      "/admin/coupons",
-      "/admin/gifts",
-      "/admin/orchestration",
-    ],
-  },
-  {
-    label: "System",
-    icon: Settings,
-    href: "/admin/settings",
-    match: [
-      "/admin/settings",
-      "/admin/health",
-      "/admin/email-templates",
-      "/admin/email-health",
-      "/admin/manual",
-      "/admin/ar-demo",
-    ],
-  },
+  { label: "Run", icon: Zap, href: "/admin" },
+  { label: "Build", icon: Hammer, href: "/admin/products" },
+  { label: "Place", icon: MapPin, href: "/admin/store-builder" },
+  { label: "Sell", icon: ShoppingCart, href: "/admin/orders" },
+  { label: "System", icon: Settings, href: "/admin/settings" },
 ];
 
 export default function AdminBottomNav() {
   const [location, navigate] = useLocation();
 
   const isActive = (section: NavSection) => {
+    const mode = getModeForPath(location);
     if (section.label === "Run") {
-      return location === "/admin" || location === "/admin/run" || location === "/admin/dashboard";
+      return mode === null && location.startsWith("/admin");
     }
-    return section.match.some((m) => location.startsWith(m));
+    return mode === section.label;
   };
 
   return (

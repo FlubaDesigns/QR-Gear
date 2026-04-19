@@ -12,6 +12,7 @@ interface AdminShellProps {
   icon?: LucideIcon;
   backHref?: string;
   backLabel?: string;
+  hideBack?: boolean;
   actions?: ReactNode;
   children: ReactNode;
   maxWidth?: string;
@@ -28,6 +29,7 @@ export default function AdminShell({
   subtitle,
   icon: Icon,
   backHref = "/admin",
+  hideBack = false,
   actions,
   children,
   maxWidth,
@@ -46,15 +48,17 @@ export default function AdminShell({
       <div className="qr-admin-bar">
         <div className="qr-admin-bar__inner">
           <div className="qr-admin-bar__left">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(backHref)}
-              className="text-white hover:bg-white/10 min-h-12 min-w-12 flex-shrink-0"
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+            {!hideBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(backHref)}
+                className="text-white hover:bg-white/10 min-h-12 min-w-12 flex-shrink-0"
+                data-testid="button-back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
             <div className="flex items-center gap-2 min-w-0">
               {Icon && <Icon className="qr-admin-bar__icon hidden sm:block flex-shrink-0" />}
               <div className="min-w-0">
@@ -89,7 +93,7 @@ export default function AdminShell({
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={onTabChange}
-          className="sticky top-0 z-40"
+          className={`sticky z-40 ${sectionNav ? "top-9" : "top-0"}`}
         />
       )}
 

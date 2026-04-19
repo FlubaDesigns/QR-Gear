@@ -136,16 +136,6 @@ export default function AdminPricing() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <AdminShell title="Pricing Configuration" icon={DollarSign} backHref="/admin/products" backLabel="Back to Products">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      </AdminShell>
-    );
-  }
-
   return (
     <AdminShell
       title="Pricing Configuration"
@@ -154,7 +144,13 @@ export default function AdminPricing() {
       backLabel="Back to Products"
       sectionNav={<AdminSectionSubNav items={SELL_SUBNAV} />}
     >
-      <div className="grid gap-4">
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      )}
+      {!isLoading && (
+      <><div className="grid gap-4">
         <AdminSectionCard
           title="Markup Settings"
           icon={Percent}
@@ -579,6 +575,7 @@ export default function AdminPricing() {
           Save Pricing
         </button>
       </StickyActionBar>
+      </>)}
     </AdminShell>
   );
 }

@@ -489,6 +489,21 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 19, 2026 — Admin Cockpit Polish: 10-Item Fix Pass
+
+Second polish pass on the admin cockpit. Run page now wrapped in AdminShell with a live metrics grid (revenue, orders, customers) replacing the redundant Sections panel. AdminBottomNav simplified to use `getModeForPath()` instead of hardcoded URL arrays. Categories and Tags added to BUILD_SUBNAV so they appear in the section strip. AdminShell gained a `hideBack` prop (used on Run). AdminSectionSubNav is now sticky (`sticky top-0 z-40`) and hub-page tabs adjusted to `top-9` offset so both coexist cleanly. admin-fonts.tsx refactored from `glass-card` / `glass-title` to standard Card components. admin-pricing.tsx collapsed its duplicate loading-state AdminShell into a single shell with an inline `{isLoading && ...}` guard.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/admin-run.tsx` | Rewritten: wrapped in AdminShell (`hideBack`), live metrics grid from `/api/admin/dashboard/metrics`, InProgressSection for drafts, Quick Actions, Reference links |
+| `client/src/components/AdminShell.tsx` | Added `hideBack` prop; tab sticky offset now `top-9` when `sectionNav` is present, `top-0` otherwise |
+| `client/src/components/admin/AdminBottomNav.tsx` | Simplified: removed `match` arrays, now uses `getModeForPath()` for all `isActive` checks |
+| `client/src/components/admin/adminNavConfig.ts` | Added `Categories` and `Tags` to `BUILD_SUBNAV`; added `Folder` + `Hash` imports |
+| `client/src/components/admin/AdminSectionSubNav.tsx` | Added `sticky top-0 z-40` so the strip sticks below the scrolled-away admin bar |
+| `client/src/pages/admin-fonts.tsx` | Replaced `glass-card` / `glass-title` divs with Card + CardHeader + CardContent |
+| `client/src/pages/admin-pricing.tsx` | Collapsed dual-AdminShell pattern into single AdminShell with `{isLoading && ...}` guard |
+
 ### April 19, 2026 — Admin Cockpit Consistency: Mode Labels + Universal Section Sub-Nav
 
 Every admin page now shows a mode label eyebrow (`BUILD` / `PLACE` / `SELL` / `SYSTEM`) in its `AdminShell` header, auto-detected from the current URL via `getModeForPath()`. All secondary pages (videos, fonts, dynamics, blanks, categories, tags, orchestration, pricing, customers, gifts, coupons, partners, external sites, marketplaces, health, email health, email templates, manual) now render a horizontal section sub-nav strip sourced from the single central `adminNavConfig.ts`. Hub pages (products, store-builder, store-library, orders, settings) were also updated to consume the same central config instead of maintaining their own local subnav arrays — ensuring every mode's nav is consistent everywhere. The `/admin` route is the canonical Run URL; `/admin/run` and `/admin/dashboard` are aliases. The bottom-nav Run button only highlights on those three paths (fixed `isActive` logic). The duplicate unreachable `/admin/dashboard` → `AdminDashboard` route was removed from `App.tsx`.
