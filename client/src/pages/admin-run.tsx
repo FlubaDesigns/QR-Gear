@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Hammer,
   MapPin,
@@ -22,6 +23,7 @@ import {
   TrendingDown,
   AlertCircle,
   CheckCircle,
+  Trash2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import AdminShell from "@/components/AdminShell";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { formatCurrency, formatTrend } from "@/lib/admin-utils";
+import { queryClient } from "@/lib/queryClient";
 
 interface DashboardMetrics {
   revenue: { today: number; week: number; month: number; trend: number };
@@ -240,6 +243,7 @@ function MetricsSection() {
 function InProgressSection() {
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const [, navigate] = useLocation();
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/build-sessions", "working"],
@@ -250,6 +254,22 @@ function InProgressSection() {
       return res.json();
     },
     staleTime: 30000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/build-sessions/${sessionId}/abandon`, {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) throw new Error("Failed to delete draft");
+      return res.json();
+    },
+    onSuccess: () => {
+      setConfirmingDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/build-sessions", "working"] });
+    },
   });
 
   const sessions: BuildSession[] = data?.sessions || [];
@@ -268,6 +288,8 @@ function InProgressSection() {
           const lastActive = session.lastActiveAt || session.updatedAt;
           const displayName = session.draftName || session.working?.title || "Unnamed draft";
           const isUnnamed = !session.draftName;
+          const isConfirming = confirmingDelete === session.id;
+          const isDeleting = deleteMutation.isPending && confirmingDelete === session.id;
           return (
             <div
               key={session.id}
@@ -281,7 +303,7 @@ function InProgressSection() {
                 <p className={`text-sm font-medium leading-tight truncate ${isUnnamed ? "text-muted-foreground italic" : ""}`}>
                   {displayName}
                 </p>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   {session.draftName && session.working?.title && (
                     <p className="text-xs text-muted-foreground truncate">{session.working.title}</p>
                   )}
@@ -296,16 +318,51 @@ function InProgressSection() {
                   )}
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate(`/admin/products?resume=${session.id}`)}
-                data-testid={`run-draft-resume-${session.id}`}
-                className="flex-shrink-0 gap-1.5"
-              >
-                <Play className="h-3 w-3" />
-                Resume
-              </Button>
+              {isConfirming ? (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-xs text-muted-foreground">Delete?</span>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate(session.id)}
+                    disabled={isDeleting}
+                    data-testid={`run-draft-delete-confirm-${session.id}`}
+                  >
+                    {isDeleting ? "Deleting…" : "Yes"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setConfirmingDelete(null)}
+                    disabled={isDeleting}
+                    data-testid={`run-draft-delete-cancel-${session.id}`}
+                  >
+                    No
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setConfirmingDelete(session.id)}
+                    data-testid={`run-draft-delete-${session.id}`}
+                    className="text-muted-foreground"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/admin/products?resume=${session.id}`)}
+                    data-testid={`run-draft-resume-${session.id}`}
+                    className="gap-1.5"
+                  >
+                    <Play className="h-3 w-3" />
+                    Resume
+                  </Button>
+                </div>
+              )}
             </div>
           );
         })}

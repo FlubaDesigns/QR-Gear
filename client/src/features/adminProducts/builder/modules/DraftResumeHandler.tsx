@@ -38,35 +38,38 @@ export function DraftResumeHandler() {
           }
         }
 
-        // Resolve product from catalog
+        // Resolve product from catalog.
+        // /master-catalog returns [{ name, items: [{ id: blueprintId, docId: firestoreId, ... }] }]
+        // sourceMasterId  = Firestore doc ID → match p.docId
+        // selectedProductId = numeric blueprint ID stored in working snapshot → match p.id
         let resolvedProduct: CatalogProduct | null = null;
-        // sourceMasterId is always stored on the session at creation time — most reliable fallback
-        const selectedProductId: string | null = session?.working?.metadata?.selectedProductId
-          ?? session?.sourceMasterId
-          ?? null;
+        const sourceMasterId: string | null = (session as any)?.sourceMasterId ?? null;
+        const selectedProductId: string | null = session?.working?.metadata?.selectedProductId ?? null;
         const blueprintId: number | null = packetData?.blueprintId
           ?? session?.working?.metadata?.selectedProductBlueprintId
           ?? null;
         const provider = packetData?.fulfillmentProvider ?? session?.working?.metadata?.fulfillmentProvider ?? "printify";
 
-        if (selectedProductId || blueprintId) {
+        if (sourceMasterId || selectedProductId || blueprintId) {
           try {
             const catRes = await fetch(`${apiBase}/master-catalog`, { headers });
             if (catRes.ok) {
               const catData = await catRes.json();
-              const allCategories: Array<{ items: CatalogProduct[] }> = Array.isArray(catData) ? catData : [];
+              const allCategories: Array<{ items: any[] }> = Array.isArray(catData) ? catData : [];
               for (const cat of allCategories) {
-                const match = (cat.items || []).find((p: CatalogProduct) => {
-                  // Primary: direct string ID match (fastest, most reliable)
+                const match = (cat.items || []).find((p: any) => {
+                  // 1. Firestore doc ID match (most reliable — always set at session creation)
+                  if (sourceMasterId && p.docId && String(p.docId) === String(sourceMasterId)) return true;
+                  // 2. Numeric blueprint ID match from working metadata
                   if (selectedProductId && String(p.id) === String(selectedProductId)) return true;
-                  // Fallback: numeric blueprintId match
+                  // 3. Blueprint ID from packet or saved selectedProductBlueprintId
                   if (blueprintId) {
                     if (provider === "printful") return p.fulfillmentProvider === "printful" && Number(p.id) === Number(blueprintId);
                     return (!p.fulfillmentProvider || p.fulfillmentProvider === "printify") && Number(p.blueprintId || p.id) === Number(blueprintId);
                   }
                   return false;
                 });
-                if (match) { resolvedProduct = match; break; }
+                if (match) { resolvedProduct = match as CatalogProduct; break; }
               }
             }
           } catch { /* product resolution is best-effort */ }
