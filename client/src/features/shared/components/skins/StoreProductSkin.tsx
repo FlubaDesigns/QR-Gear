@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, List, GalleryHorizontal, Palette, Ruler, Package } from "lucide-react";
+import { LayoutGrid, List, GalleryHorizontal, Palette, Ruler, Package, Trash2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -24,6 +24,7 @@ export interface StoreProductSkinProps {
   selectedIds?: Set<string>;
   onSelect?: (item: StoreProductItem) => void;
   onItemClick?: (item: StoreProductItem) => void;
+  onDelete?: (item: StoreProductItem) => void;
   layout?: StoreProductViewLayout;
   onLayoutChange?: (layout: StoreProductViewLayout) => void;
   initialLayout?: StoreProductViewLayout;
@@ -76,23 +77,25 @@ function ProductCard({
   item,
   isSelected,
   onClick,
+  onDelete,
   variant = "compact",
 }: {
   item: StoreProductItem;
   isSelected: boolean;
   onClick: () => void;
+  onDelete?: () => void;
   variant?: "compact" | "full";
 }) {
   if (variant === "full") {
     return (
       <Card
-        className={`overflow-hidden cursor-pointer hover-elevate transition-all ${
+        className={`overflow-visible cursor-pointer hover-elevate transition-all relative group ${
           isSelected ? "ring-2 ring-primary ring-offset-2" : ""
         }`}
         onClick={onClick}
         data-testid={`product-card-${item.id}`}
       >
-        <div className="relative aspect-square bg-muted">
+        <div className="relative aspect-square bg-muted rounded-t-md overflow-hidden">
           {item.imageUrl ? (
             <img
               src={item.imageUrl}
@@ -133,13 +136,23 @@ function ProductCard({
             )}
           </div>
         </CardContent>
+        {onDelete && (
+          <button
+            className="absolute top-2 left-2 z-10 invisible group-hover:visible p-1 rounded-md bg-destructive/90 text-destructive-foreground"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            data-testid={`button-delete-product-${item.id}`}
+            title="Remove from store"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </Card>
     );
   }
 
   return (
     <div
-      className={`relative border rounded-lg p-2 cursor-pointer transition-all ${
+      className={`relative border rounded-lg p-2 cursor-pointer transition-all group ${
         isSelected
           ? "border-primary bg-primary/10 ring-2 ring-primary"
           : "border-border hover:border-primary/50"
@@ -174,6 +187,16 @@ function ProductCard({
           Selected
         </Badge>
       )}
+      {onDelete && (
+        <button
+          className="absolute top-1 left-1 z-10 invisible group-hover:visible p-1 rounded-md bg-destructive/90 text-destructive-foreground"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          data-testid={`button-delete-product-${item.id}`}
+          title="Remove from store"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      )}
     </div>
   );
 }
@@ -183,6 +206,7 @@ export function StoreProductSkin({
   selectedIds = new Set(),
   onSelect,
   onItemClick,
+  onDelete,
   layout: controlledLayout,
   onLayoutChange,
   initialLayout = "grid",
@@ -235,6 +259,7 @@ export function StoreProductSkin({
             item={item}
             isSelected={selectedIds.has(item.id)}
             onClick={() => handleClick(item)}
+            onDelete={onDelete ? () => onDelete(item) : undefined}
             variant="compact"
           />
         ))}
@@ -255,6 +280,7 @@ export function StoreProductSkin({
             item={item}
             isSelected={selectedIds.has(item.id)}
             onClick={() => handleClick(item)}
+            onDelete={onDelete ? () => onDelete(item) : undefined}
             variant="full"
           />
         ))}
@@ -275,6 +301,7 @@ export function StoreProductSkin({
               item={item}
               isSelected={selectedIds.has(item.id)}
               onClick={() => handleClick(item)}
+              onDelete={onDelete ? () => onDelete(item) : undefined}
               variant="full"
             />
           </div>

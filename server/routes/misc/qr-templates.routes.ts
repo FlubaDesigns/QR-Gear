@@ -16,8 +16,18 @@ export function registerQrTemplatesRoutes(app: Express): void {
 
   app.get("/api/admin/templates", isAdmin, async (req, res) => {
     try {
-      const templates = await storage.getQrTemplates();
-      res.json(templates);
+      const raw = await storage.getQrTemplates();
+      const templates = raw.map((t: any) => {
+        const ts = t.textStyle as Record<string, any> | null;
+        const packetId = ts?.packetId || null;
+        const packetSnapshot = ts?.packetSnapshot || null;
+        return {
+          ...t,
+          packetId,
+          packet: packetSnapshot ? { ...packetSnapshot, id: packetId } : null,
+        };
+      });
+      res.json({ templates });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -104,10 +114,10 @@ export function registerQrTemplatesRoutes(app: Express): void {
         name: z.string().min(1),
         description: z.string().nullable().optional(),
         category: z.string().nullable().optional(),
-        productId: z.string(),
+        productId: z.string().optional().default(''),
         blueprintId: z.number(),
-        printProviderId: z.number(),
-        fulfillmentProvider: z.string().optional().default('printful'),
+        printProviderId: z.number().nullable().optional(),
+        fulfillmentProvider: z.string().optional().default('printify'),
         colors: z.array(z.object({
           name: z.string(),
           hex: z.string(),
@@ -122,11 +132,68 @@ export function registerQrTemplatesRoutes(app: Express): void {
         channelId: z.string().optional(),
         qrContent: z.string().optional(),
         pricing: templatePricingSchema,
+        packetId: z.string().optional(),
+        productName: z.string().optional(),
+        headerText: z.string().nullable().optional(),
+        footerText: z.string().nullable().optional(),
+        headerStyle: z.record(z.any()).nullable().optional(),
+        footerStyle: z.record(z.any()).nullable().optional(),
+        subBottomEnabled: z.boolean().optional().default(false),
+        subBottomText: z.string().optional().default(''),
+        subBottomFontFamily: z.string().optional().default('Arial'),
+        subBottomFontSize: z.string().optional().default('14'),
+        subBottomFontWeight: z.string().optional().default('400'),
+        subBottomColor: z.string().optional().default('#666666'),
+        backgroundUrl: z.string().nullable().optional(),
+        qrProductState: z.string().optional().default('qr_canvas'),
+        areaImageUrl: z.string().nullable().optional(),
+        areaImageMode: z.string().optional().default('behind-qr'),
+        areaImageOffsetX: z.number().optional().default(50),
+        areaImageOffsetY: z.number().optional().default(50),
+        areaImageScale: z.number().optional().default(100),
+        graphicLayoutMode: z.string().optional().default('zone'),
+        qrSizePercent: z.number().optional().default(75),
+        qrPositionX: z.number().optional().default(50),
+        qrPositionY: z.number().optional().default(50),
       });
 
       const data = fullSaveSchema.parse(req.body);
 
       const customerPrice = data.pricing?.customerPrice?.toFixed(2) || "0";
+
+      const packetSnapshot = {
+        qrContent: data.qrContent || null,
+        productName: data.productName || data.name,
+        compositeUrl: data.artworkUrl || data.thumbnailUrl || null,
+        priorityMockupUrl: null,
+        blueprintId: data.blueprintId || null,
+        printProviderId: data.printProviderId || null,
+        fulfillmentProvider: data.fulfillmentProvider || 'printify',
+        placements: data.placements || [],
+        placementConfig: data.placementMethods || {},
+        headerText: data.headerText || null,
+        footerText: data.footerText || null,
+        headerStyle: data.headerStyle || null,
+        footerStyle: data.footerStyle || null,
+        subBottomEnabled: data.subBottomEnabled || false,
+        subBottomText: data.subBottomText || '',
+        subBottomFontFamily: data.subBottomFontFamily || 'Arial',
+        subBottomFontSize: data.subBottomFontSize || '14',
+        subBottomFontWeight: data.subBottomFontWeight || '400',
+        subBottomColor: data.subBottomColor || '#666666',
+        backgroundUrl: data.backgroundUrl || null,
+        qrProductState: data.qrProductState || 'qr_canvas',
+        areaImageUrl: data.areaImageUrl || null,
+        areaImageMode: data.areaImageMode || 'behind-qr',
+        areaImageOffsetX: data.areaImageOffsetX ?? 50,
+        areaImageOffsetY: data.areaImageOffsetY ?? 50,
+        areaImageScale: data.areaImageScale ?? 100,
+        graphicLayoutMode: data.graphicLayoutMode || 'zone',
+        qrSizePercent: data.qrSizePercent ?? 75,
+        qrPositionX: data.qrPositionX ?? 50,
+        qrPositionY: data.qrPositionY ?? 50,
+      };
+
       const template = await storage.createQrTemplate({
         name: data.name,
         description: data.description || null,
@@ -135,10 +202,12 @@ export function registerQrTemplatesRoutes(app: Express): void {
         fullImageUrl: data.artworkUrl,
         storageUrl: data.artworkUrl,
         priceUpcharge: customerPrice,
-        textStyle: data.pricing ? {
-          pricing: data.pricing,
-          hostingTierCode: data.pricing.hostingTierCode,
-        } : null,
+        textStyle: {
+          pricing: data.pricing || null,
+          hostingTierCode: data.pricing?.hostingTierCode || null,
+          packetId: data.packetId || null,
+          packetSnapshot,
+        },
         isActive: true,
         isFeatured: false,
       });

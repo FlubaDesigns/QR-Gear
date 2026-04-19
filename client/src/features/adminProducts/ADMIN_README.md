@@ -450,6 +450,47 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 19, 2026 — Store Page Graphic Fix + Admin UX: Delete from Store + Template Save/Load Chain
+
+#### Store Page — Correct Graphic Display
+The public store page (`/shop/:storeType/:storeName`) was showing a garbled/transparent image for products. Root cause: `storeProductLinks` stores `compositeUrl` which is a **transparent PNG overlay** (just the QR design, no shirt behind it). When rendered on the store card's white background, it appeared as bare text/QR on a white box with no context.
+
+**Fix:** All three store product fetch paths in the public API now enrich `imageUrl` from the packet record:
+- Priority order: `mockupUrl → packet.priorityMockupUrl → packet.landingPageSnapshotUrl → packet.productGraphicUrl → compositeUrl → qrOnlyUrl`
+- `landingPageSnapshotUrl` is the rendered landing page snapshot (background + content layered) — much better visual than the raw transparent overlay
+- `priorityMockupUrl` is the Printify-generated shirt mockup (best option, available after mockup jobs process)
+- All three endpoints fixed: `GET /store/product/:linkId`, channel-type store path, and regular store type path (all in `functions/src/routes/store-files.ts`)
+
+
+
+#### Delete Items from a Store/Collection (Admin Only)
+- **`StoreProductSkin`** — Added optional `onDelete` prop; a trash-can icon button appears on hover over any product card, visible only inside the admin UI.
+- **`ProductGridModule`** — Wired `onDelete` with a `useMutation` → `DELETE /api/admin/store-product-links/:linkId`. An `AlertDialog` confirmation prevents accidental removal. Query cache is invalidated on success so the grid refreshes instantly.
+- Delete is admin-only by both UI placement (lives inside the admin Store Library section) and server-side enforcement (`requireAdmin` on the Cloud Function route).
+
+#### Template Save/Load Chain — 5-Bug Fix
+The auto-template-creation on item save was writing corrupt/partial data, and the template picker was showing garbled items or failing silently. Fixed in five places:
+
+1. **`GET /admin/templates` collection mismatch (Cloud Functions)** — `am-sync.ts` was reading from the `templates` collection but `full-save` writes to `productTemplates`. Fixed: GET now reads from `productTemplates`.
+2. **`GET /admin/templates` missing packet data (Cloud Functions)** — The GET now reconstructs a full `packet` object from the stored template fields (`qrContent`, `headerText`, `footerText`, `headerStyle`, `footerStyle`, `qrSizePercent`, `qrPositionX`, `qrPositionY`, `graphicLayoutMode`, `backgroundUrl`, `areaImageUrl`, `areaImageMode`, `qrProductState`, sub-bottom fields, etc.) so the `LoadTemplateModule` can restore the builder state correctly.
+3. **`full-save` key whitelist too narrow (Cloud Functions)** — `file-routes.ts` was only persisting a small set of fields. Expanded whitelist to include all snapshot fields: `productName`, `headerText`, `footerText`, `headerStyle`, `footerStyle`, `subBottom*`, `backgroundUrl`, `qrProductState`, `areaImageUrl`, `areaImage*`, so templates can be fully restored.
+4. **`LoadTemplateModule` URL fix (client)** — Was calling `${apiBase}/admin/templates` (double `/admin/` prefix); corrected to `/api/admin/templates`.
+5. **`templateId` extraction dual-format support (client)** — `useCreatePacket.ts` now resolves `templateData.template?.id || templateData.templateId || null` to handle both the dev-server response shape (`{ template: { id } }`) and the Cloud Functions response shape (`{ templateId }`).
+
+**Note:** Templates saved before this fix will have null packet data and show "Template has no packet data" when loaded — only newly saved templates will be fully restorable.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/am-sync.ts` | GET `/admin/templates` reads `productTemplates` + builds `packet` object |
+| `functions/src/routes/file-routes.ts` | `full-save` key whitelist expanded with all snapshot fields |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | `templateId` resolved from both response formats |
+| `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx` | URL corrected (no double `/admin/` prefix) |
+| `client/src/features/shared/components/skins/StoreProductSkin.tsx` | `onDelete` prop + hover trash button |
+| `client/src/features/adminProducts/storeLibrary/modules/ProductGridModule.tsx` | Delete mutation + AlertDialog confirmation |
+
+---
+
 ### April 8, 2026 — Security & Trust-Boundary Pass (Task #9)
 
 - **Member route auth hardened** — All `/member/*` body-based routes now use `requireAuth` middleware + UID match (`packets`, `graphics/create`, `templates/save`, `library-links`, `play-packets`, `publish`, `share-card`). All `/members/:memberId/*` URL-param routes now use `verifyMemberAuthCF` JWT check (`packets`, `library`, `library/upload`, `library/crop`, `videos/upload`).

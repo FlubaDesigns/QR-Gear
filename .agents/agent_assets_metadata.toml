@@ -11,7 +11,7 @@ title = "QR Gear Full Source Backup"
 id = "LpkDWMxG1f-h35YkcrvEo"
 uri = "file://downloads/QR_Gear_Full_Website.zip"
 type = "unspecified"
-title = "QR_Gear_Full_Website.zip"
+title = "QR Gear Full Website (Updated April 19, 2026)"
 
 [[outputs]]
 id = "VCcE20W2Vqioz2fz1HEQl"
@@ -54,3 +54,9 @@ id = "9oqXgEB_AFybgLCjHDQEG"
 uri = "file://docs/WEBSITE_ZIP_GUIDE.md"
 type = "text"
 title = "WEBSITE_ZIP_GUIDE.md — updated with node/library exclusions"
+
+[[outputs]]
+id = "vYFqJMii7X-7kzP-0fcEp"
+uri = "file://downloads/QR_Gear_Site_Overview.md"
+type = "text"
+title = "QR Gear Site Overview & Architecture Reference"

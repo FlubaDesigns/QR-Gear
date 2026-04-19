@@ -22,10 +22,12 @@ function register(app) {
             let description = '';
             let category = '';
             let productLine = '';
+            let packetImageUrl = null;
             if (link.packetId) {
                 const packetDoc = await core_1.db.collection('packets').doc(link.packetId).get();
                 if (packetDoc.exists) {
                     const packet = packetDoc.data();
+                    packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
                     const productId = packet.productId;
                     if (productId) {
                         price = await (0, pricing_1.getAuthoritativePrice)(productId);
@@ -56,7 +58,7 @@ function register(app) {
                 description,
                 category,
                 productLine,
-                imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
+                imageUrl: link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null,
                 qrCodeUrl: link.qrOnlyUrl || null,
                 qrProductType: link.qrProductState || 'qr-basics',
                 price: price !== null ? Math.round(price * 100) / 100 : null,
@@ -179,10 +181,12 @@ function register(app) {
                 });
                 const products = await Promise.all(productsRaw.map(async (p) => {
                     let price = null;
+                    let packetImageUrl = null;
                     if (p.packetId) {
                         const pDoc = await core_1.db.collection('packets').doc(p.packetId).get();
                         if (pDoc.exists) {
                             const pkt = pDoc.data();
+                            packetImageUrl = pkt.priorityMockupUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                             if (pkt.productId)
                                 price = await (0, pricing_1.getAuthoritativePrice)(pkt.productId);
                             if (price === null && pkt.pricingSnapshot?.totalPrice)
@@ -192,7 +196,8 @@ function register(app) {
                     if (price === null && p.pricing) {
                         price = parseFloat(p.pricing.customerPrice || p.pricing.totalPrice || p.pricing.retailPrice || '0');
                     }
-                    return { ...p, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
+                    const resolvedImageUrl = p.imageUrl || packetImageUrl || null;
+                    return { ...p, imageUrl: resolvedImageUrl, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
                 }));
                 console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} products`);
                 res.json({
@@ -251,10 +256,12 @@ function register(app) {
             });
             const products = await Promise.all(productsRaw2.map(async (p) => {
                 let price = null;
+                let packetImageUrl = null;
                 if (p.packetId) {
                     const pDoc = await core_1.db.collection('packets').doc(p.packetId).get();
                     if (pDoc.exists) {
                         const pkt = pDoc.data();
+                        packetImageUrl = pkt.priorityMockupUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                         if (pkt.productId)
                             price = await (0, pricing_1.getAuthoritativePrice)(pkt.productId);
                         if (price === null && pkt.pricingSnapshot?.totalPrice)
@@ -264,7 +271,8 @@ function register(app) {
                 if (price === null && p.pricing) {
                     price = parseFloat(p.pricing.customerPrice || p.pricing.totalPrice || p.pricing.retailPrice || '0');
                 }
-                return { ...p, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
+                const resolvedImageUrl = p.imageUrl || packetImageUrl || null;
+                return { ...p, imageUrl: resolvedImageUrl, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
             }));
             console.log(`[Public Store] Store "${matchedStore.name}" (${storeType}): ${products.length} products, ${channels.length} channels`);
             res.json({

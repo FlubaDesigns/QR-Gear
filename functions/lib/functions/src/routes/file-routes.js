@@ -645,7 +645,10 @@ function register(app) {
             const { colors = [], placements = ['front', 'back'], placementMethods = {}, ...templateFields } = req.body;
             const templateKeys = ['name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
                 'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId',
-                'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY'];
+                'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY',
+                'productName', 'headerText', 'footerText', 'headerStyle', 'footerStyle',
+                'subBottomEnabled', 'subBottomText', 'subBottomFontFamily', 'subBottomFontSize', 'subBottomFontWeight', 'subBottomColor',
+                'backgroundUrl', 'qrProductState', 'areaImageUrl', 'areaImageMode', 'areaImageOffsetX', 'areaImageOffsetY', 'areaImageScale'];
             const template = {};
             for (const key of templateKeys) {
                 if (templateFields[key] !== undefined)

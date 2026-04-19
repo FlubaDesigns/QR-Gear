@@ -119,7 +119,7 @@ export function LoadTemplateModule() {
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
-      const res = await authFetch(`${apiBase}/admin/templates`, getAuthHeaders);
+      const res = await authFetch(`/api/admin/templates`, getAuthHeaders);
       const data = await res.json();
       setTemplates(data.templates || []);
     } catch {

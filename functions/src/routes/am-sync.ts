@@ -177,8 +177,44 @@ app.delete('/admin/hosting-tiers/:id', requireAdmin, async (req: Request, res: R
 
 app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snapshot = await db.collection('templates').orderBy('createdAt', 'desc').get();
-    const templates = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    const snapshot = await db.collection('productTemplates').orderBy('createdAt', 'desc').get();
+    const templates = snapshot.docs.map((d: any) => {
+      const data = d.data();
+      const packet = (data.packetId || data.qrContent || data.artworkUrl) ? {
+        id: data.packetId || null,
+        qrContent: data.qrContent || null,
+        productName: data.productName || data.name || null,
+        compositeUrl: data.artworkUrl || data.thumbnailUrl || null,
+        priorityMockupUrl: data.priorityMockupUrl || null,
+        blueprintId: data.blueprintId || null,
+        printProviderId: data.printProviderId || null,
+        fulfillmentProvider: data.fulfillmentProvider || 'printify',
+        placements: data.placements || data.placementConfig ? Object.keys(data.placementConfig || {}) : [],
+        placementConfig: data.placementConfig || {},
+        headerText: data.headerText || null,
+        footerText: data.footerText || null,
+        headerStyle: data.headerStyle || null,
+        footerStyle: data.footerStyle || null,
+        subBottomEnabled: data.subBottomEnabled || false,
+        subBottomText: data.subBottomText || '',
+        subBottomFontFamily: data.subBottomFontFamily || 'Arial',
+        subBottomFontSize: data.subBottomFontSize || '14',
+        subBottomFontWeight: data.subBottomFontWeight || '400',
+        subBottomColor: data.subBottomColor || '#666666',
+        backgroundUrl: data.backgroundUrl || null,
+        qrProductState: data.qrProductState || 'qr_canvas',
+        areaImageUrl: data.areaImageUrl || null,
+        areaImageMode: data.areaImageMode || 'behind-qr',
+        areaImageOffsetX: data.areaImageOffsetX ?? 50,
+        areaImageOffsetY: data.areaImageOffsetY ?? 50,
+        areaImageScale: data.areaImageScale ?? 100,
+        graphicLayoutMode: data.graphicLayoutMode || 'zone',
+        qrSizePercent: data.qrSizePercent ?? 75,
+        qrPositionX: data.qrPositionX ?? 50,
+        qrPositionY: data.qrPositionY ?? 50,
+      } : null;
+      return { id: d.id, ...data, packetId: data.packetId || null, packet };
+    });
     res.json({ templates });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
