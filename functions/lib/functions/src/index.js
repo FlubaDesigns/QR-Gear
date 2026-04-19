@@ -125,4 +125,5 @@ exports.api = (0, https_1.onRequest)({
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z
 // deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions
+// deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
 //# sourceMappingURL=index.js.map

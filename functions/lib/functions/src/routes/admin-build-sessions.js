@@ -104,13 +104,19 @@ function registerAdminBuildSessions(app) {
                 res.status(401).json({ error: 'Admin UID required' });
                 return;
             }
-            const existing = await core_1.db.collection(BUILD_SESSIONS_COLLECTION)
+            // Filter status in-memory to avoid requiring a composite Firestore index.
+            const rawSessions = await core_1.db.collection(BUILD_SESSIONS_COLLECTION)
                 .where('ownerAdminId', '==', ownerAdminId)
                 .where('sourceMasterId', '==', sourceMasterId)
-                .where('status', 'in', ['working', 'artifact_ready'])
-                .orderBy('updatedAt', 'desc')
-                .limit(1)
                 .get();
+            const activeDocs = rawSessions.docs
+                .filter((d) => ['working', 'artifact_ready'].includes(d.data().status))
+                .sort((a, b) => {
+                const aTime = a.data().updatedAt?.toMillis?.() || 0;
+                const bTime = b.data().updatedAt?.toMillis?.() || 0;
+                return bTime - aTime;
+            });
+            const existing = { empty: activeDocs.length === 0, docs: activeDocs };
             if (!existing.empty) {
                 const doc = existing.docs[0];
                 const d = doc.data();

@@ -115,13 +115,21 @@ export function registerAdminBuildSessions(app: express.Express): void {
         return;
       }
 
-      const existing = await db.collection(BUILD_SESSIONS_COLLECTION)
+      // Filter status in-memory to avoid requiring a composite Firestore index.
+      const rawSessions = await db.collection(BUILD_SESSIONS_COLLECTION)
         .where('ownerAdminId', '==', ownerAdminId)
         .where('sourceMasterId', '==', sourceMasterId)
-        .where('status', 'in', ['working', 'artifact_ready'])
-        .orderBy('updatedAt', 'desc')
-        .limit(1)
         .get();
+
+      const activeDocs = rawSessions.docs
+        .filter((d: any) => ['working', 'artifact_ready'].includes(d.data().status))
+        .sort((a: any, b: any) => {
+          const aTime = a.data().updatedAt?.toMillis?.() || 0;
+          const bTime = b.data().updatedAt?.toMillis?.() || 0;
+          return bTime - aTime;
+        });
+
+      const existing = { empty: activeDocs.length === 0, docs: activeDocs };
 
       if (!existing.empty) {
         const doc = existing.docs[0];
