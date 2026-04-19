@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260419-store-graphic-fix-v2';
+const _BUILD_ID = '20260419-title-desc-placements-v4';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -99,7 +99,7 @@ export const api = onRequest(
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260419-v3' },
+    labels: { 'build-id': '20260419-v4' },
   },
   app
 );

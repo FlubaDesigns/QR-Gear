@@ -707,7 +707,9 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
       'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY',
       'productName', 'headerText', 'footerText', 'headerStyle', 'footerStyle',
       'subBottomEnabled', 'subBottomText', 'subBottomFontFamily', 'subBottomFontSize', 'subBottomFontWeight', 'subBottomColor',
-      'backgroundUrl', 'qrProductState', 'areaImageUrl', 'areaImageMode', 'areaImageOffsetX', 'areaImageOffsetY', 'areaImageScale'];
+      'backgroundUrl', 'qrProductState', 'areaImageUrl', 'areaImageMode', 'areaImageOffsetX', 'areaImageOffsetY', 'areaImageScale',
+      'placements', 'placementConfig', 'placementSizes', 'placementMethods',
+      'defaultColor', 'defaultColorHex', 'landingPageTitle', 'landingPageDescription'];
     const template: Record<string, any> = {};
     for (const key of templateKeys) {
       if (templateFields[key] !== undefined) template[key] = templateFields[key];
@@ -722,6 +724,8 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
 
     const templateData = {
       ...template,
+      placements,
+      placementMethods,
       createdAt: now,
       updatedAt: now,
     };

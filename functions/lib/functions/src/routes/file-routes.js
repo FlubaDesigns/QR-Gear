@@ -648,7 +648,9 @@ function register(app) {
                 'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY',
                 'productName', 'headerText', 'footerText', 'headerStyle', 'footerStyle',
                 'subBottomEnabled', 'subBottomText', 'subBottomFontFamily', 'subBottomFontSize', 'subBottomFontWeight', 'subBottomColor',
-                'backgroundUrl', 'qrProductState', 'areaImageUrl', 'areaImageMode', 'areaImageOffsetX', 'areaImageOffsetY', 'areaImageScale'];
+                'backgroundUrl', 'qrProductState', 'areaImageUrl', 'areaImageMode', 'areaImageOffsetX', 'areaImageOffsetY', 'areaImageScale',
+                'placements', 'placementConfig', 'placementSizes', 'placementMethods',
+                'defaultColor', 'defaultColorHex', 'landingPageTitle', 'landingPageDescription'];
             const template = {};
             for (const key of templateKeys) {
                 if (templateFields[key] !== undefined)
@@ -661,6 +663,8 @@ function register(app) {
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
             const templateData = {
                 ...template,
+                placements,
+                placementMethods,
                 createdAt: now,
                 updatedAt: now,
             };
