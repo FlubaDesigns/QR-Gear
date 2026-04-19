@@ -77,54 +77,52 @@ export function BuilderStickyBar() {
 
   return (
     <div
-      className="sticky top-0 z-50 -mx-0 px-3 py-2 bg-background/95 backdrop-blur border-b flex items-center justify-between gap-2 flex-wrap"
+      className="sticky top-0 z-50 px-3 py-2 bg-background/95 backdrop-blur border-b"
       data-testid="builder-sticky-bar"
     >
-      <div className="min-w-0 flex-1">
-        <p
-          className="text-sm font-medium truncate leading-tight"
-          data-testid="sticky-bar-product-title"
-        >
-          {productTitle}
-        </p>
-        {brand && (
-          <p className="text-xs text-muted-foreground truncate leading-tight">
-            {brand}
-          </p>
-        )}
-      </div>
-
       {draftMode && canSaveDraft ? (
-        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+        <div className="flex items-center gap-2 w-full">
           <Input
             ref={inputRef}
             value={draftName}
             onChange={e => setDraftName(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") saveDraft(); if (e.key === "Escape") cancelDraft(); }}
             placeholder="Name this draft…"
-            className="h-7 text-xs w-40 px-2"
+            className="flex-1 min-w-0 h-8 text-sm px-3"
             data-testid="input-draft-name"
           />
           <Button
             size="sm"
             onClick={saveDraft}
             disabled={saving || !draftName.trim()}
-            className="h-7 text-xs px-2"
             data-testid="button-save-draft-confirm"
           >
-            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
           </Button>
           <Button
             size="icon"
             variant="ghost"
             onClick={cancelDraft}
-            className="h-7 w-7"
             data-testid="button-cancel-draft"
           >
-            <X className="h-3 w-3" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
       ) : (
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <p
+            className="text-sm font-medium truncate leading-tight"
+            data-testid="sticky-bar-product-title"
+          >
+            {productTitle}
+          </p>
+          {brand && (
+            <p className="text-xs text-muted-foreground truncate leading-tight">
+              {brand}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button
             variant="ghost"
@@ -207,6 +205,7 @@ export function BuilderStickyBar() {
             </Badge>
           )}
         </div>
+      </div>
       )}
     </div>
   );
