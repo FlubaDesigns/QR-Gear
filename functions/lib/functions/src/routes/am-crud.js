@@ -339,7 +339,7 @@ function register(app) {
         try {
             const snapshot = await core_1.db.collection('master_catalog').orderBy('createdAt', 'desc').get();
             const products = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-            res.json({ products });
+            res.json(products);
         }
         catch (error) {
             res.status(500).json({ error: error.message });
@@ -389,7 +389,7 @@ function register(app) {
         try {
             const snapshot = await core_1.db.collection('channel_configs').get();
             const configs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-            res.json({ configs });
+            res.json(configs);
         }
         catch (error) {
             res.status(500).json({ error: error.message });

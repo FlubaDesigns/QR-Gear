@@ -289,7 +289,7 @@ app.get('/admin/orchestration/master-products', requireAdmin, async (_req: Reque
   try {
     const snapshot = await db.collection('master_catalog').orderBy('createdAt', 'desc').get();
     const products = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ products });
+    res.json(products);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
@@ -326,7 +326,7 @@ app.get('/admin/orchestration/channel-configs', requireAdmin, async (_req: Reque
   try {
     const snapshot = await db.collection('channel_configs').get();
     const configs = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ configs });
+    res.json(configs);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
