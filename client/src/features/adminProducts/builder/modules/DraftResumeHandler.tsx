@@ -151,8 +151,11 @@ export function DraftResumeHandler() {
         } else {
           // MODE 2 — Prepacket working-state restore
           // PRIMARY: sourceMasterId (Firestore doc ID, always set at session creation).
-          // Do NOT use selectedProductId as a blueprint identifier — they are different things.
+          // SECONDARY: selectedProductDocId saved in the working snapshot (also a Firestore doc ID).
+          // TERTIARY: selectedProductBlueprintId (numeric Printify blueprint ID).
           const sourceMasterId: string | null = session?.sourceMasterId ?? null;
+          const snapshotDocId: string | null =
+            session?.working?.metadata?.selectedProductDocId ?? null;
           const savedBlueprintId: number | null =
             session?.working?.metadata?.selectedProductBlueprintId
               ? Number(session.working.metadata.selectedProductBlueprintId)
@@ -160,15 +163,21 @@ export function DraftResumeHandler() {
           const provider: string =
             session?.working?.metadata?.fulfillmentProvider ?? "printify";
 
-          console.log("[DraftResumeHandler] [PREPACKET] Resolving — sourceMasterId:", sourceMasterId, "| savedBlueprintId:", savedBlueprintId, "| provider:", provider);
+          console.log("[DraftResumeHandler] [PREPACKET] Resolving — sourceMasterId:", sourceMasterId, "| snapshotDocId:", snapshotDocId, "| savedBlueprintId:", savedBlueprintId, "| provider:", provider);
 
           if (sourceMasterId) {
             resolvedProduct = await resolveByDocId(sourceMasterId, catalog);
             resolutionKey = `sourceMasterId:${sourceMasterId}`;
           }
 
+          if (!resolvedProduct && snapshotDocId) {
+            console.log("[DraftResumeHandler] [PREPACKET] sourceMasterId miss — trying snapshotDocId:", snapshotDocId);
+            resolvedProduct = await resolveByDocId(snapshotDocId, catalog);
+            resolutionKey = `selectedProductDocId:${snapshotDocId}`;
+          }
+
           if (!resolvedProduct && savedBlueprintId) {
-            console.log("[DraftResumeHandler] [PREPACKET] sourceMasterId miss — trying savedBlueprintId:", savedBlueprintId);
+            console.log("[DraftResumeHandler] [PREPACKET] DocId miss — trying savedBlueprintId:", savedBlueprintId);
             resolvedProduct = await resolveByBlueprintId(savedBlueprintId, provider, catalog);
             resolutionKey = `selectedProductBlueprintId:${savedBlueprintId}`;
           }

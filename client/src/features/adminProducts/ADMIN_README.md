@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 19, 2026 (rev 3)
+Last updated: April 19, 2026 (rev 4)
 
 ---
 
@@ -488,6 +488,24 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 19, 2026 — Fix: Save product docId in working snapshot
+
+The working snapshot was saving `selectedProductId` (numeric Printify blueprint ID, identical to `selectedProductBlueprintId`) and nothing else for product identity. The Firestore doc ID (`docId`, e.g. `"gildan-5000"`) — the only reliable string key for catalog lookup — was never saved. Replaced the redundant `selectedProductId` field with `selectedProductDocId` in `metadata`. The resume handler now uses `selectedProductDocId` as a second fallback (after `session.sourceMasterId`, before the numeric `selectedProductBlueprintId`), so a product can be resolved from the snapshot alone even if `sourceMasterId` is missing on the session doc.
+
+**Resolution order in MODE 2 (prepacket) is now:**
+1. `session.sourceMasterId` → `p.docId`
+2. `working.metadata.selectedProductDocId` → `p.docId`
+3. `working.metadata.selectedProductBlueprintId` → `p.blueprintId` (numeric)
+4. `working.qrConfig.templateProductHint` → `p.blueprintId` (numeric, last resort)
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Replaced `selectedProductId` with `selectedProductDocId` (`p.docId`) in snapshot metadata |
+| `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` | Added `snapshotDocId` as second fallback in MODE 2 resolution chain |
+
+---
 
 ### April 19, 2026 — Rewrite: Prepacket Resume / Pre-saved Project Restore
 
