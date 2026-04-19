@@ -120,8 +120,28 @@ cd functions && npm run build && cd ..
 firebase deploy --only functions --project qrgear-c1ffd
 ```
 
+## Admin Interface
+
+The admin panel is organized into five sections accessible from the **Run** dashboard (`/admin`):
+
+| Section | Route | Purpose |
+|---------|-------|---------|
+| **Run** | `/admin` | Operating dashboard — quick actions, in-progress drafts, section links |
+| **Build** | `/admin/products` | Product builder, templates, library, blanks, dynamics |
+| **Place** | `/admin/store-builder` | Store builder, store library, partners, marketplaces |
+| **Sell** | `/admin/orders` | Orders, customers, pricing, coupons, gifts |
+| **System** | `/admin/settings` | Settings, health, email, manual |
+
+### Draft Save / Resume
+
+The product builder supports named in-progress drafts. When a build session is active, a **Save Draft** button appears in the builder's sticky bar. Named drafts surface on the Run dashboard under "In Progress" with a one-click **Resume** button that restores the full builder state.
+
+- Draft names are stored on the `admin_build_sessions` Firestore document (`draftName` field)
+- Resume navigates to `/admin/products?resume=<sessionId>` — the builder detects the param, fetches the session + linked packet, resolves the catalog product, and calls `loadFromPacketData`
+
 ## Admin Resources
 
+- **Admin Guide:** `client/src/features/adminProducts/ADMIN_README.md`
 - **Admin Manual:** `/ADMIN_MANUAL.md`
 - **Firebase Schema:** `/FIREBASE_SCHEMA.md`
 - **Architecture Canon:** `/ARCHITECTURE_VIEWER.md`, `/ARCHITECTURE_IDENTITY.md`

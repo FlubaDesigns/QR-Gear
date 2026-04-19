@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 8, 2026
+Last updated: April 19, 2026
 
 ---
 
@@ -45,31 +45,56 @@ QR Gear is a Firebase-hosted e-commerce platform for creating and selling QR-cod
 
 ## Admin Dashboard
 
-**Route:** `/admin`
+**Route:** `/admin` → **Run** dashboard
 
-The dashboard is the central hub. From here you can access:
+The admin panel is organized into five top-level sections. `/admin` lands on the **Run** dashboard — your operating cockpit with quick actions, in-progress drafts, and section links.
 
 | Section | Route | Purpose |
 |---------|-------|---------|
-| Products | `/admin/products` | Create/edit product graphics and manage catalog |
-| Library | `/admin/library` | Manage uploaded images, backgrounds, templates |
-| Store Builder | `/admin/store-builder` | Configure storefronts and assign products |
-| Store Library | `/admin/store-library` | Browse existing stores and channels |
-| Orders | `/admin/orders` | View and manage customer orders |
-| Customers | `/admin/customers` | View registered members |
-| Pricing | `/admin/pricing` | Set pricing rules and margins |
-| Categories | `/admin/categories` | Organize products into categories |
-| Dynamics | `/admin/dynamics` | Configure QR dynamic content |
-| Settings | `/admin/settings` | Platform-wide settings |
-| Health | `/admin/health` | System health monitoring |
-| Orchestration | `/admin/orchestration` | Bulk operations, analytics, routing |
-| External Sites | `/admin/external-sites` | Manage embedded product widgets |
-| Email Templates | `/admin/email-templates` | Configure automated emails |
-| Gifts | `/admin/gifts` | Gift card and gift flow management |
-| Partners | `/admin/partners` | Partner/referral management |
-| Videos | `/admin/videos` | Video content management |
-| Fonts | `/admin/fonts` | Custom font management |
-| Backgrounds | `/admin/backgrounds` | Background image management |
+| **Run** | `/admin` | Dashboard — quick actions, in-progress drafts, section navigation |
+| **Build** | `/admin/products` | Product builder, templates, library, blanks, dynamics |
+| **Place** | `/admin/store-builder` | Store builder, store library, partners, marketplaces |
+| **Sell** | `/admin/orders` | Orders, customers, pricing, coupons, gifts |
+| **System** | `/admin/settings` | Settings, health, email, manual |
+
+### Build section routes
+
+| Route | Purpose |
+|-------|---------|
+| `/admin/products` | Create/edit product graphics and manage catalog |
+| `/admin/library` | Manage uploaded images, backgrounds, templates |
+| `/admin/dynamics` | Configure QR dynamic content |
+| `/admin/categories` | Organize products into categories |
+| `/admin/backgrounds` | Background image management |
+| `/admin/fonts` | Custom font management |
+| `/admin/videos` | Video content management |
+
+### Place section routes
+
+| Route | Purpose |
+|-------|---------|
+| `/admin/store-builder` | Configure storefronts and assign products |
+| `/admin/store-library` | Browse existing stores and channels |
+| `/admin/partners` | Partner/referral management |
+| `/admin/external-sites` | Manage embedded product widgets |
+
+### Sell section routes
+
+| Route | Purpose |
+|-------|---------|
+| `/admin/orders` | View and manage customer orders |
+| `/admin/customers` | View registered members |
+| `/admin/pricing` | Set pricing rules and margins |
+| `/admin/gifts` | Gift card and gift flow management |
+| `/admin/orchestration` | Bulk operations, analytics, routing |
+
+### System section routes
+
+| Route | Purpose |
+|-------|---------|
+| `/admin/settings` | Platform-wide settings |
+| `/admin/health` | System health monitoring |
+| `/admin/email-templates` | Configure automated emails |
 
 ---
 
@@ -80,6 +105,19 @@ The dashboard is the central hub. From here you can access:
 - `client/src/features/adminProducts/builder/BuilderContext.tsx` — State management for the builder
 - `client/src/features/adminProducts/builder/BuilderHarness.tsx` — Main builder container
 - `client/src/features/adminProducts/builder/modules/` — All builder modules
+
+### Save Draft
+
+When a build session is active a **Save Draft** button (bookmark icon) appears in the sticky bar at the top of the builder. Click it, type a name, press Save or Enter. The name is stored against the session in Firestore (`draftName` field on `admin_build_sessions`).
+
+Named drafts appear on the **Run** dashboard (`/admin`) under **In Progress**, showing draft name, product title, and time since last activity. Clicking **Resume** navigates to `/admin/products?resume=<sessionId>`. The builder detects that URL param on load, fetches the session and its linked packet, resolves the catalog product, and restores the full builder state via `loadFromPacketData`.
+
+**Key files:**
+- `client/src/features/adminProducts/builder/modules/BuilderStickyBar.tsx` — Save Draft button + inline name input
+- `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` — URL param detection + state restore
+- `client/src/pages/admin-run.tsx` — In Progress section on the Run dashboard
+- `server/routes/admin-build-sessions.routes.ts` — PATCH now accepts `draftName` at top level
+- `server/routes/packets.routes.ts` — `GET /api/admin/packets/:packetId` (new admin single-packet endpoint)
 
 ### How It Works
 
@@ -364,6 +402,7 @@ project/
 | `gifts` | Gift configurations |
 | `categories` | Product categories |
 | `admin_settings` | Platform settings |
+| `admin_build_sessions` | In-progress builder sessions (status, working state, draftName, linked packetId) |
 
 ### Firebase Storage Paths
 
@@ -449,6 +488,31 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 19, 2026 — Draft Save/Resume + Admin Cockpit Reorganization
+
+#### Admin Cockpit — RUN/BUILD/PLACE/SELL/SYSTEM Structure
+The admin panel was restructured into five named sections. `/admin` now routes to a new **Run** dashboard (was a bare redirect). A global nav spine wraps all admin routes via `AdminRoute` in `App.tsx`. Section sub-navs added to hub pages (products, store-builder, store-library, orders, settings). `AdminShell` extended with a `sectionNav` prop.
+
+#### Draft Save/Resume System
+Admins can now name and save in-progress builds as drafts, list them on the Run dashboard, and resume them with one click.
+
+- **Save Draft button** — bookmark icon in the builder's sticky bar. Inline name input, saves `draftName` to `admin_build_sessions` via `PATCH /api/admin/build-sessions/:id` (endpoint extended to accept top-level `draftName`).
+- **In Progress section** — Run dashboard fetches `GET /api/admin/build-sessions?status=working` and shows cards for any sessions that have a `draftName`, with product title, last-active time, and a Resume button.
+- **Resume flow** — Resume navigates to `/admin/products?resume=<sessionId>`. `DraftResumeHandler` (new component inside `BuilderHarness`) detects the URL param, fetches the session and linked packet via the new `GET /api/admin/packets/:packetId` endpoint, resolves the catalog product from the master catalog using `blueprintId`, calls `loadFromPacketData` to restore full builder state, and clears the param from the URL.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `server/routes/admin-build-sessions.routes.ts` | PATCH accepts top-level `draftName` |
+| `server/routes/packets.routes.ts` | New `GET /api/admin/packets/:packetId` admin endpoint |
+| `client/src/features/adminProducts/builder/modules/BuilderStickyBar.tsx` | Save Draft button with inline name input |
+| `client/src/features/adminProducts/builder/modules/DraftResumeHandler.tsx` | New — resume-from-URL handler |
+| `client/src/features/adminProducts/builder/BuilderHarness.tsx` | Mounts DraftResumeHandler |
+| `client/src/pages/admin-run.tsx` | New Run dashboard with In Progress section + quick actions + section links |
+| `functions/src/index.ts` | Build ID bumped |
+
+---
 
 ### April 19, 2026 — Store Page Graphic Fix + Admin UX: Delete from Store + Template Save/Load Chain
 
