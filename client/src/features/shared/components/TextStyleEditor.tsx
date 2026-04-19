@@ -378,11 +378,12 @@ export function TextStyleEditor({
                             style={{ touchAction: 'none' }}
                             data-testid={`slider-${testIdPrefix}-image-scale`}
                           />
-                          <input
-                            type="number"
+                          <NumericInput
                             value={style.imageScale ?? 100}
-                            onChange={(e) => onChange({ imageScale: Number(e.target.value) })}
-                            onBlur={(e) => onChange({ imageScale: Math.min(200, Math.max(20, Number(e.target.value) || 20)) })}
+                            onChange={(v) => onChange({ imageScale: v })}
+                            min={20}
+                            max={200}
+                            defaultValue={100}
                             className="w-20 text-center text-base font-semibold border rounded-md px-1 min-h-[48px] bg-background"
                             data-testid={`input-${testIdPrefix}-image-scale-num`}
                           />

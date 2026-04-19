@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Type, Palette, Move, Maximize2, ChevronDown, ChevronUp, Eye, EyeOff, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
@@ -186,25 +187,25 @@ export function CanvasTextLayer({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">X Position (%)</label>
-                    <Input
-                      type="number"
+                    <NumericInput
                       value={layer.x}
-                      onChange={(e) => update("x", Number(e.target.value))}
+                      onChange={(v) => update("x", v)}
                       min={0}
                       max={100}
-                      className="font-mono"
+                      defaultValue={50}
+                      className="w-full font-mono min-h-[36px] px-3 border rounded-md bg-background text-sm"
                       data-testid={`input-x-${layer.id}`}
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-muted-foreground">Y Position (%)</label>
-                    <Input
-                      type="number"
+                    <NumericInput
                       value={layer.y}
-                      onChange={(e) => update("y", Number(e.target.value))}
+                      onChange={(v) => update("y", v)}
                       min={0}
                       max={100}
-                      className="font-mono"
+                      defaultValue={50}
+                      className="w-full font-mono min-h-[36px] px-3 border rounded-md bg-background text-sm"
                       data-testid={`input-y-${layer.id}`}
                     />
                   </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface NumericInputProps {
@@ -23,9 +23,12 @@ export function NumericInput({
   ...props
 }: NumericInputProps) {
   const [display, setDisplay] = useState(String(value));
+  const isFocused = useRef(false);
 
   useEffect(() => {
-    setDisplay(String(value));
+    if (!isFocused.current) {
+      setDisplay(String(value));
+    }
   }, [value]);
 
   const def = defaultValue ?? min;
@@ -36,6 +39,7 @@ export function NumericInput({
       type="text"
       inputMode={allowNegative ? "text" : "numeric"}
       value={display}
+      onFocus={() => { isFocused.current = true; }}
       onChange={(e) => {
         const raw = e.target.value;
         if (!pattern.test(raw)) return;
@@ -46,6 +50,7 @@ export function NumericInput({
         }
       }}
       onBlur={() => {
+        isFocused.current = false;
         const v = parseInt(display, 10);
         const clamped = Math.min(max, Math.max(min, isNaN(v) ? def : v));
         setDisplay(String(clamped));
