@@ -76,9 +76,12 @@ export default function AdminGiftsPage() {
     queryKey: ["/api/admin/gifts/redemptions"],
   });
 
-  const { data: masterProducts = [] } = useQuery<MasterProduct[]>({
+  const { data: masterProductsData } = useQuery({
     queryKey: ["/api/admin/orchestration/master-products"],
   });
+  const masterProducts: MasterProduct[] = Array.isArray(masterProductsData)
+    ? masterProductsData
+    : (masterProductsData as any)?.products ?? [];
 
   // Mutations
   const createPackageMutation = useMutation({

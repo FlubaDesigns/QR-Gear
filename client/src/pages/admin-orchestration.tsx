@@ -54,13 +54,19 @@ export default function AdminOrchestration() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<MasterProduct | null>(null);
 
-  const { data: products = [], isLoading: productsLoading, refetch: refetchProducts } = useQuery<MasterProduct[]>({
+  const { data: productsData, isLoading: productsLoading, refetch: refetchProducts } = useQuery({
     queryKey: ["/api/admin/orchestration/master-products"],
   });
+  const products: MasterProduct[] = Array.isArray(productsData)
+    ? productsData
+    : (productsData as any)?.products ?? [];
 
-  const { data: channelConfigs = [], isLoading: configsLoading } = useQuery<ChannelConfig[]>({
+  const { data: channelConfigsData, isLoading: configsLoading } = useQuery({
     queryKey: ["/api/admin/orchestration/channel-configs"],
   });
+  const channelConfigs: ChannelConfig[] = Array.isArray(channelConfigsData)
+    ? channelConfigsData
+    : (channelConfigsData as any)?.configs ?? [];
 
   const createProductMutation = useMutation({
     mutationFn: async (data: { title: string; description: string; productType: string; tags: string[] }) => {

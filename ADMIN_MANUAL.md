@@ -576,6 +576,23 @@ The frontend assumed a plain array and called `.map()` directly on whichever res
 
 **Root cause for Ghost:** The Cloud Functions routes in `functions/src/routes/am-crud.ts` (lines 129–164) wrap their responses in `{ templates }` and `{ logs }` objects, while the equivalent dev server routes in `server/routes/misc/partner-stores-email.routes.ts` return plain arrays. These should be made consistent — the Cloud Functions should return plain arrays to match the dev server.
 
+### Orchestration Page Crash: "x.map is not a function"
+
+**What you see:** Navigating to the Orchestration section in admin shows "We hit a snag. The app encountered an error and logged it for recovery." with a crash on `.map()`.
+
+**Why it happens:** The same dev server vs. Cloud Functions shape mismatch as the email page:
+- Dev server returns plain arrays for `/api/admin/orchestration/master-products` and `/api/admin/orchestration/channel-configs`
+- Cloud Functions return wrapped objects: `{ products: [...] }` and `{ configs: [...] }`
+
+The frontend called `.map()` directly on the response, crashing when it got the wrapped object.
+
+**Fix applied:** Three files were updated to handle both formats:
+- `client/src/pages/admin-orchestration.tsx` — `products` and `channelConfigs` queries
+- `client/src/pages/orchestration-bundles-tab.tsx` — `masterProducts` query
+- `client/src/pages/admin-gifts.tsx` — `masterProducts` query (also fetches from the same endpoint)
+
+**Root cause for Ghost:** In `functions/src/routes/am-crud.ts`, the master-products route (around line 290) wraps its response in `{ products: docsToArray(snap) }` and the channel-configs route wraps in `{ configs: docsToArray(snap) }`. These should return plain arrays to match the dev server pattern. A global audit of all Cloud Functions routes that wrap array responses in objects should be done and standardized.
+
 ---
 
 ## Need Help?

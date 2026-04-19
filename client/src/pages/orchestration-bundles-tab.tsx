@@ -43,9 +43,12 @@ export function BundlesTab() {
     queryKey: ["/api/admin/orchestration/bundles"],
   });
 
-  const { data: masterProducts = [] } = useQuery<MasterProduct[]>({
+  const { data: masterProductsData } = useQuery({
     queryKey: ["/api/admin/orchestration/master-products"],
   });
+  const masterProducts: MasterProduct[] = Array.isArray(masterProductsData)
+    ? masterProductsData
+    : (masterProductsData as any)?.products ?? [];
 
   const createBundleMutation = useMutation({
     mutationFn: async (data: Partial<ProductBundle>) => {
