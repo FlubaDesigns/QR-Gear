@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
 import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint } from "./types";
-import type { RoleType, Store, Channel } from "../shared/types";
+import type { RoleType, Store, Channel, Collection } from "../shared/types";
 import { defaultTextStyle } from "./types";
 
 interface BuilderContextValue {
@@ -27,6 +27,7 @@ interface BuilderContextValue {
   setPlacementSize: (placementId: string, size: PlacementSize) => void;
   setPlacementMethod: (placementId: string, method: 'dtg' | 'dtf') => void;
   setSelectedColor: (color: SelectedColor | null) => void;
+  setSelectedCatalogId: (id: string) => void;
   setActivePacketId: (id: string | null) => void;
   setActiveSession: (id: string | null, status: 'working' | 'artifact_ready' | 'committed' | null, instanceId: string | null) => void;
   setProductDescription: (description: string | null) => void;
@@ -123,13 +124,20 @@ const initialState: BuilderState = {
   activeSessionId: null,
   sessionStatus: null,
   committedInstanceId: null,
+  selectedCatalogId: "all",
 };
 
 interface BuilderProviderProps {
   children: React.ReactNode;
 }
 
-function buildWorkingSnapshot(state: BuilderState): Record<string, any> {
+interface BuilderSnapshotContext {
+  selectedStore: Store | null;
+  selectedChannel: Channel | null;
+  selectedCollection: Collection | null;
+}
+
+function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
   const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
   return {
     title: state.adminCatalogTitle ?? state.masterTitle ?? state.selectedProduct?.title ?? null,
@@ -161,12 +169,16 @@ function buildWorkingSnapshot(state: BuilderState): Record<string, any> {
       selectedProductDocId: state.selectedProduct?.docId ?? null,
       selectedProductBlueprintId: state.selectedProduct?.blueprintId ?? null,
       templateProductHint: state.templateProductHint ?? null,
+      selectedCatalogId: state.selectedCatalogId ?? "all",
+      selectedStore: ctx.selectedStore ?? null,
+      selectedChannel: ctx.selectedChannel ?? null,
+      selectedCollection: ctx.selectedCollection ?? null,
     },
   };
 }
 
 export function BuilderProvider({ children }: BuilderProviderProps) {
-  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel } = useProductsContext();
+  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
@@ -196,7 +208,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         const res = await fetch(`${api.baseUrl}/build-sessions/${state.activeSessionId}`, {
           method: "PATCH",
           headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ working: buildWorkingSnapshot(state) }),
+          body: JSON.stringify({ working: buildWorkingSnapshot(state, { selectedStore, selectedChannel, selectedCollection }) }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setAutoSaveFailed(false);
@@ -293,6 +305,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       category: category,
       selectedProduct: null,
     }));
+  }, []);
+
+  const setSelectedCatalogId = useCallback((id: string) => {
+    setState(prev => ({ ...prev, selectedCatalogId: id }));
   }, []);
 
   const setOriginFilter = useCallback((filter: Partial<OriginFilter>) => {
@@ -510,7 +526,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     const graphics = (working.graphics || {}) as Record<string, any>;
     const qrConfig = (working.qrConfig || {}) as Record<string, any>;
     const layoutConfig = (working.layoutConfig || {}) as Record<string, any>;
+    const metadata = (working.metadata || {}) as Record<string, any>;
     const { playMediaFile: _pmf, playMediaPreview: _pmp, ...cleanContent } = (graphics.content || {}) as any;
+
+    // Restore store → channel → collection in dependency order
+    if (metadata.selectedStore) setSelectedStore(metadata.selectedStore as Store);
+    if (metadata.selectedChannel) setSelectedChannel(metadata.selectedChannel as Channel);
+    if (metadata.selectedCollection) setSelectedCollection(metadata.selectedCollection as Collection);
 
     setState(prev => ({
       ...prev,
@@ -530,8 +552,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       selectedProduct: resolvedProduct ?? prev.selectedProduct,
       placementsLoading: false,
       activePacketId: null,
+      selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
     }));
-  }, []);
+  }, [setSelectedStore, setSelectedChannel, setSelectedCollection]);
 
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
@@ -737,6 +760,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setPlacementSize,
     setPlacementMethod,
     setSelectedColor,
+    setSelectedCatalogId,
     setActivePacketId,
     setActiveSession,
     setProductDescription,
@@ -747,7 +771,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, autoSaveFailed, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, autoSaveFailed, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

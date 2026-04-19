@@ -126,18 +126,18 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setSelectedCatalogId } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
   const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+  const selectedCatalogId = state.selectedCatalogId;
 
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
   const [dataMode, setDataMode] = useState<DataMode>("all");
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string>("all");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [openShelfIds, setOpenShelfIds] = useState<Set<string>>(new Set());

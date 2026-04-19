@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 19, 2026 (rev 4)
+Last updated: April 19, 2026 (rev 5)
 
 ---
 
@@ -488,6 +488,25 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 19, 2026 — Feature: Save and restore store, channel, collection, and catalog selection
+
+The autosave working snapshot now includes the full store, channel, collection, and catalog filter selections. On resume, all four are restored in the correct dependency order (store → channel → collection → catalog) so the builder reappears exactly as it was when you stopped.
+
+**What changed:**
+- `selectedCatalogId` lifted from local `useState` in `ProductsModule` into `BuilderState` so it flows through the autosave mechanism
+- `buildWorkingSnapshot` now accepts context and saves `selectedStore`, `selectedChannel`, `selectedCollection` (full objects), and `selectedCatalogId`
+- `loadFromWorkingState` restores store, channel, collection via `ProductsContext` setters and `selectedCatalogId` via `BuilderState`
+- `ProductsModule` reads `selectedCatalogId` from `BuilderContext` instead of owning it locally
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/types.ts` | Added `selectedCatalogId: string` to `BuilderState` |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added `BuilderSnapshotContext`, updated snapshot/restore, added `setSelectedCatalogId`, lifted catalog state |
+| `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` | Replaced local `selectedCatalogId` state with context value |
+
+---
 
 ### April 19, 2026 — Fix: Save product docId in working snapshot
 

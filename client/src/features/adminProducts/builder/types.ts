@@ -243,4 +243,5 @@ export interface BuilderState {
   activeSessionId: string | null;
   sessionStatus: 'working' | 'artifact_ready' | 'committed' | null;
   committedInstanceId: string | null;
+  selectedCatalogId: string;
 }
