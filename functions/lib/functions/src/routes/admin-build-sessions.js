@@ -134,7 +134,22 @@ function registerAdminBuildSessions(app) {
                 });
                 return;
             }
-            const masterDoc = await core_1.db.collection(MASTER_CATALOG_COLLECTION).doc(sourceMasterId).get();
+            // sourceMasterId may be a Firestore doc ID (preferred) or a legacy numeric blueprint ID string.
+            let masterDoc = await core_1.db.collection(MASTER_CATALOG_COLLECTION).doc(sourceMasterId).get();
+            if (!masterDoc.exists) {
+                // Fallback: try querying by printifyBlueprintId (legacy numeric ID sent by old clients)
+                const numericId = Number(sourceMasterId);
+                if (!isNaN(numericId)) {
+                    const qSnap = await core_1.db.collection(MASTER_CATALOG_COLLECTION)
+                        .where('printifyBlueprintId', '==', numericId)
+                        .limit(1)
+                        .get();
+                    if (!qSnap.empty) {
+                        masterDoc = qSnap.docs[0];
+                        console.log(`[BuildSessions] Resolved blueprint ${numericId} → doc ${masterDoc.id}`);
+                    }
+                }
+            }
             if (!masterDoc.exists) {
                 res.status(404).json({ error: `Master catalog item not found: ${sourceMasterId}` });
                 return;

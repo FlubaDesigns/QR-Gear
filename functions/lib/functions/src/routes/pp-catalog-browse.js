@@ -543,6 +543,7 @@ function registerPpCatalogBrowseRoutes(app) {
                 const imageUrl = allImages[0] ?? null;
                 const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
                 categories[category].push({
+                    docId: doc.id,
                     id: blueprintId ?? printfulId,
                     title: (p.title || "").trim(),
                     description: masterDesc,

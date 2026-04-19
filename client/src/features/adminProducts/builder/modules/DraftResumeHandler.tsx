@@ -1,15 +1,13 @@
 import { useEffect, useRef } from "react";
-import { useLocation } from "wouter";
 import { useBuilderContext } from "../BuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogProduct } from "../types";
 
 export function DraftResumeHandler() {
-  const { loadFromPacketData, setActiveSession, setActivePacketId } = useBuilderContext();
+  const { loadFromPacketData, loadFromWorkingState, setActiveSession, setActivePacketId } = useBuilderContext();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
-  const [location, navigate] = useLocation();
   const handledRef = useRef(false);
 
   useEffect(() => {
@@ -40,9 +38,10 @@ export function DraftResumeHandler() {
           }
         }
 
+        // Resolve product: prefer packet blueprintId, fall back to working.metadata.selectedProductId
         let resolvedProduct: CatalogProduct | null = null;
-        const blueprintId = packetData?.blueprintId;
-        const provider = packetData?.fulfillmentProvider || "printify";
+        const blueprintId = packetData?.blueprintId ?? session?.working?.metadata?.selectedProductId ?? null;
+        const provider = packetData?.fulfillmentProvider ?? session?.working?.metadata?.fulfillmentProvider ?? "printify";
 
         if (blueprintId) {
           try {
@@ -62,13 +61,17 @@ export function DraftResumeHandler() {
         }
 
         if (packetData) {
+          // Generated packet exists — restore from it (richest source)
           loadFromPacketData(packetData, resolvedProduct);
+        } else if (session?.working && Object.keys(session.working).length > 0) {
+          // No packet yet — restore from session working state saved during editing
+          loadFromWorkingState(session.working, resolvedProduct);
         }
 
         setActiveSession(session.id, session.status as any, session.committedInstanceId || null);
         if (packetId) setActivePacketId(packetId);
 
-        const draftLabel = session.draftName || packetData?.productName || "your draft";
+        const draftLabel = session.draftName || packetData?.productName || resolvedProduct?.title || "your draft";
         toast({
           title: "Draft resumed",
           description: `Loaded "${draftLabel}" — pick up where you left off.`,

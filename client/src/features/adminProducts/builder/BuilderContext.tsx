@@ -32,6 +32,7 @@ interface BuilderContextValue {
   setProductTitle: (title: string | null) => void;
   resetBuilder: () => void;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
+  loadFromWorkingState: (working: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   hasChangesFromBaseline: () => boolean;
   setTemplateProductResolved: (product: CatalogProduct | null) => void;
   api: ReturnType<typeof useProductsContext>["api"];
@@ -127,6 +128,40 @@ interface BuilderProviderProps {
   children: React.ReactNode;
 }
 
+function buildWorkingSnapshot(state: BuilderState): Record<string, any> {
+  const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
+  return {
+    title: state.adminCatalogTitle ?? state.masterTitle ?? state.selectedProduct?.title ?? null,
+    description: state.productDescription ?? state.adminCatalogDescription ?? state.masterDescription ?? null,
+    images: state.selectedProduct?.images ?? [],
+    graphics: {
+      content: serializableContent,
+      loadedBackground: state.loadedBackground,
+      loadedGraphic: state.loadedGraphic,
+      loadedTemplate: state.loadedTemplate,
+    },
+    qrConfig: {
+      qrProductState: state.qrProductState,
+      selectedColor: state.selectedColor,
+      templateProductHint: state.templateProductHint,
+    },
+    layoutConfig: {
+      selectedPlacements: state.selectedPlacements,
+      placementConfig: state.placementConfig,
+      placementSizes: state.placementSizes,
+      placementMethods: state.placementMethods,
+    },
+    metadata: {
+      fulfillmentProvider: state.fulfillmentProvider,
+      category: state.category,
+      originFilter: state.originFilter,
+      genderFilter: state.genderFilter,
+      sourceType: state.sourceType,
+      selectedProductId: state.selectedProduct?.id ?? null,
+    },
+  };
+}
+
 export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
@@ -143,7 +178,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, [selectedProviders]);
 
   useEffect(() => {
-    if (!state.activePacketId) return;
+    if (!state.activeSessionId) return;
 
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -152,18 +187,30 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
         const headers = await api.getAuthHeaders();
-        const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
-        await fetch(`${api.baseUrl}/admin/packets/${state.activePacketId}`, {
+
+        // Primary: save full working state into the build session
+        const res = await fetch(`${api.baseUrl}/admin/build-sessions/${state.activeSessionId}`, {
           method: "PATCH",
           headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            builderSnapshot: {
-              content: serializableContent,
-              loadedBackground: state.loadedBackground,
-            },
-          }),
+          body: JSON.stringify({ working: buildWorkingSnapshot(state) }),
         });
-        console.log(`[BuilderContext] Auto-saved to packet ${state.activePacketId}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        console.log(`[BuilderContext] Auto-saved to session ${state.activeSessionId}`);
+
+        // Secondary: if a packet already exists, keep its builderSnapshot in sync too
+        if (state.activePacketId) {
+          const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
+          const packetRes = await fetch(`${api.baseUrl}/admin/packets/${state.activePacketId}`, {
+            method: "PATCH",
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              builderSnapshot: { content: serializableContent, loadedBackground: state.loadedBackground },
+            }),
+          });
+          if (!packetRes.ok) {
+            console.warn(`[BuilderContext] Packet sync failed: HTTP ${packetRes.status}`);
+          }
+        }
       } catch (e) {
         console.warn("[BuilderContext] Auto-save failed:", e);
       }
@@ -174,7 +221,24 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         clearTimeout(autoSaveTimerRef.current);
       }
     };
-  }, [state.content, state.loadedBackground, state.activePacketId]);
+  }, [
+    state.content,
+    state.loadedBackground,
+    state.loadedGraphic,
+    state.loadedTemplate,
+    state.selectedColor,
+    state.qrProductState,
+    state.selectedPlacements,
+    state.placementConfig,
+    state.placementSizes,
+    state.placementMethods,
+    state.fulfillmentProvider,
+    state.category,
+    state.productDescription,
+    state.adminCatalogTitle,
+    state.activeSessionId,
+    state.activePacketId,
+  ]);
 
   const setSourceType = useCallback((type: SourceType) => {
     setState(prev => ({
@@ -436,6 +500,33 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const loadFromWorkingState = useCallback((working: Record<string, any>, resolvedProduct?: CatalogProduct | null) => {
+    const graphics = (working.graphics || {}) as Record<string, any>;
+    const qrConfig = (working.qrConfig || {}) as Record<string, any>;
+    const layoutConfig = (working.layoutConfig || {}) as Record<string, any>;
+    const { playMediaFile: _pmf, playMediaPreview: _pmp, ...cleanContent } = (graphics.content || {}) as any;
+
+    setState(prev => ({
+      ...prev,
+      content: { ...initialContent, ...cleanContent },
+      loadedBackground: graphics.loadedBackground ?? null,
+      loadedGraphic: graphics.loadedGraphic ?? null,
+      loadedTemplate: graphics.loadedTemplate ?? null,
+      qrProductState: (qrConfig.qrProductState as QRProductState) ?? prev.qrProductState,
+      selectedColor: qrConfig.selectedColor ?? prev.selectedColor,
+      templateProductHint: qrConfig.templateProductHint ?? null,
+      selectedPlacements: (layoutConfig.selectedPlacements as string[]) ?? [],
+      placementConfig: (layoutConfig.placementConfig as PlacementConfig) ?? {},
+      placementSizes: (layoutConfig.placementSizes as PlacementSizeConfig) ?? {},
+      placementMethods: (layoutConfig.placementMethods as PrintMethodSelection) ?? {},
+      adminCatalogTitle: working.title ?? null,
+      productDescription: working.description ?? null,
+      selectedProduct: resolvedProduct ?? prev.selectedProduct,
+      placementsLoading: false,
+      activePacketId: null,
+    }));
+  }, []);
+
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
     content: Partial<ContentData>,
@@ -645,10 +736,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setProductTitle,
     resetBuilder,
     loadFromPacketData,
+    loadFromWorkingState,
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, selectedProviders, selectedRole, selectedStore, selectedChannel, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>
