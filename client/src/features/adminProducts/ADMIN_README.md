@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 20, 2026 (rev 7)
+Last updated: April 20, 2026 (rev 9)
 
 ---
 
@@ -488,6 +488,29 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 20, 2026 — Feature: Mockup image shown first in product image viewer
+
+The selected product's image viewer (preview modal) now shows the generated mockup as the very first image, before all catalog photos. A "Mockup" badge appears in the top-right of the main image area and a "Mockup" label strip appears on the first thumbnail. The delete button is hidden when viewing the mockup (it is a generated image, not a catalog image that can be removed). Non-selected product cards are unaffected. The mockup only appears once a graphic has been generated in the builder.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/shared/components/skins/ProductSelectCardSkin.tsx` | Added `mockupImageUrl` prop; `PreviewModal` prepends mockup to display images, adds badge, disables delete on mockup |
+| `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` | Passes `state.loadedGraphic?.compositeUrl` as `mockupImageUrl` to the selected product card only |
+
+---
+
+### April 20, 2026 — Fix: Autosave now persists through tab close and immediate navigation
+
+Two gaps in the flush-on-leave autosave path were closed. (1) Auth headers were only cached after the first successful 1.5-second debounce save — if the user navigated away in under 1.5 seconds the flush had no token and silently dropped. Fixed by eagerly calling `getAuthHeaders()` the moment a session becomes active. (2) No `beforeunload` listener existed for browser tab close / full-page refresh. Fixed by adding a `window.addEventListener('beforeunload', ...)` that calls the same `flushSaveRef` flush already used for in-app unmount.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added eager auth-header cache effect on `activeSessionId` change; added `beforeunload` window listener that fires the keepalive flush |
+
+---
 
 ### April 20, 2026 — Fix: Provider, category, origin/gender filters, and source type now restore on resume
 
