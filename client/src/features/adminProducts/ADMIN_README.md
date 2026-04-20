@@ -489,6 +489,19 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 20, 2026 — Fix: Store, channel, collection, and catalog filter now save and restore correctly
+
+**Root cause:** The autosave debounce `useEffect` only re-fired when builder content changed (`state.content`, `state.loadedBackground`, etc.). Selecting a store, channel, or collection — without touching any content — never triggered a re-fire, so those values were captured as stale nulls in the closure. `selectedCatalogId` had the same problem.
+
+**Fix:** Added `selectedStore`, `selectedChannel`, `selectedCollection`, and `state.selectedCatalogId` to the autosave dep array. Any change to those values now triggers the 1.5-second debounce save, and they are correctly written into `session.working.metadata` in Firestore.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added `selectedStore`, `selectedChannel`, `selectedCollection`, `state.selectedCatalogId` to autosave `useEffect` dep array |
+
+---
+
 ### April 20, 2026 — Fix: Pre-packet (pre-save) builder resume now restores all saved work
 
 **Root cause:** When the user selected a master product in the Product Builder, the client called `POST /api/admin/build-sessions/from-master`, which correctly returned the existing `working` session (including title, description, graphics, QR config, layout, and store/channel/collection) from Firestore. However, the client only called `setActiveSession(...)` to register the session ID and **never called `loadFromWorkingState(...)`** to hydrate the builder UI. So every re-entry appeared blank even though the work was fully saved.

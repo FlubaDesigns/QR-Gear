@@ -256,6 +256,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.adminCatalogTitle,
     state.activeSessionId,
     state.activePacketId,
+    state.selectedCatalogId,
+    selectedStore,
+    selectedChannel,
+    selectedCollection,
   ]);
 
   const setSourceType = useCallback((type: SourceType) => {
