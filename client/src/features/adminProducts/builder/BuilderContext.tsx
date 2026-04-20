@@ -182,6 +182,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const [state, setState] = useState<BuilderState>(initialState);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
+  const cachedAuthHeadersRef = useRef<Record<string, string> | null>(null);
+  const flushSaveRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
@@ -194,7 +196,27 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, [selectedProviders]);
 
   useEffect(() => {
-    if (!state.activeSessionId) return;
+    if (!state.activeSessionId) {
+      flushSaveRef.current = null;
+      return;
+    }
+
+    // Build snapshot immediately so flushSaveRef always has the latest data,
+    // even if the 1.5-second debounce timer hasn't fired yet when the user navigates away.
+    const snapshot = buildWorkingSnapshot(state, { selectedStore, selectedChannel, selectedCollection });
+    const sessionId = state.activeSessionId;
+    const baseUrl = api.baseUrl;
+
+    flushSaveRef.current = () => {
+      const headers = cachedAuthHeadersRef.current;
+      if (!headers) return;
+      fetch(`${baseUrl}/build-sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ working: snapshot }),
+        keepalive: true,
+      }).catch(() => {});
+    };
 
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
@@ -203,21 +225,22 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
         const headers = await api.getAuthHeaders();
+        cachedAuthHeadersRef.current = headers;
 
         // Primary: save full working state into the build session
-        const res = await fetch(`${api.baseUrl}/build-sessions/${state.activeSessionId}`, {
+        const res = await fetch(`${baseUrl}/build-sessions/${sessionId}`, {
           method: "PATCH",
           headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ working: buildWorkingSnapshot(state, { selectedStore, selectedChannel, selectedCollection }) }),
+          body: JSON.stringify({ working: snapshot }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setAutoSaveFailed(false);
-        console.log(`[BuilderContext] Auto-saved to session ${state.activeSessionId}`);
+        console.log(`[BuilderContext] Auto-saved to session ${sessionId}`);
 
         // Secondary: if a packet already exists, keep its builderSnapshot in sync too
         if (state.activePacketId) {
           const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
-          const packetRes = await fetch(`${api.baseUrl}/packets/${state.activePacketId}`, {
+          const packetRes = await fetch(`${baseUrl}/packets/${state.activePacketId}`, {
             method: "PATCH",
             headers: { ...headers, "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -252,6 +275,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.placementMethods,
     state.fulfillmentProvider,
     state.category,
+    state.sourceType,
+    state.originFilter,
+    state.genderFilter,
     state.productDescription,
     state.adminCatalogTitle,
     state.activeSessionId,
@@ -261,6 +287,17 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     selectedChannel,
     selectedCollection,
   ]);
+
+  // Flush any pending save when this component unmounts (e.g. user navigates away
+  // before the 1.5-second debounce fires). Uses keepalive:true so the fetch
+  // completes even after the component is gone.
+  useEffect(() => {
+    return () => {
+      if (flushSaveRef.current) {
+        flushSaveRef.current();
+      }
+    };
+  }, []);
 
   const setSourceType = useCallback((type: SourceType) => {
     setState(prev => ({
