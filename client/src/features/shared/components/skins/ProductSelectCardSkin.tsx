@@ -70,6 +70,7 @@ export interface ProductSelectCardSkinProps {
   masterCatalogImages?: string[];
   fulfillmentProvider?: string;
   qrgId?: string;
+  mockupImageUrl?: string | null;
 }
 
 function PreviewModal({
@@ -108,6 +109,7 @@ function PreviewModal({
   tier?: TierValue;
   onTierChange?: (id: string, tier: TierValue) => void;
   showTierControls?: boolean;
+  mockupImageUrl?: string | null;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -124,6 +126,15 @@ function PreviewModal({
 
   const [localImages, setLocalImages] = useState<string[]>(masterImages);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Prepend the mockup as the very first image when available.
+  // localImages always stays as the editable product images only — mockup is display-only.
+  const displayImages = useMemo(
+    () => (mockupImageUrl ? [mockupImageUrl, ...localImages] : localImages),
+    [mockupImageUrl, localImages]
+  );
+  const isMockupIndex = mockupImageUrl ? currentIndex === 0 : false;
+  const currentImage = displayImages[currentIndex] ?? null;
   const [deletingImageUrl, setDeletingImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -131,10 +142,8 @@ function PreviewModal({
     setCurrentIndex(0);
   }, [item.id, masterImages.join(",")]);
 
-  const currentImage = localImages[currentIndex] ?? null;
-
   const handlePrev = () => setCurrentIndex(i => Math.max(0, i - 1));
-  const handleNext = () => setCurrentIndex(i => Math.min(localImages.length - 1, i + 1));
+  const handleNext = () => setCurrentIndex(i => Math.min(displayImages.length - 1, i + 1));
 
   const handleDeleteImage = async (imgUrl: string) => {
     if (!onImageDelete || deletingImageUrl) return;
@@ -209,7 +218,7 @@ function PreviewModal({
                 <img
                   key={currentImage}
                   src={currentImage}
-                  alt={`${item.name} ${currentIndex + 1} of ${localImages.length}`}
+                  alt={`${item.name} ${currentIndex + 1} of ${displayImages.length}`}
                   loading="lazy"
                   decoding="async"
                   className={`max-w-full max-h-full object-contain ${isMobile ? "p-2" : "p-3"}`}
@@ -219,8 +228,17 @@ function PreviewModal({
                 <Package className="h-24 w-24 text-muted-foreground" />
               )}
 
+              {/* Mockup label — shown when viewing the generated mockup image */}
+              {isMockupIndex && (
+                <div className="absolute top-3 right-3">
+                  <Badge className="bg-primary/90 text-primary-foreground text-xs backdrop-blur-sm shadow-sm">
+                    Mockup
+                  </Badge>
+                </div>
+              )}
+
               {/* Prev / Next navigation — desktop only, overlaid on image */}
-              {!isMobile && localImages.length > 1 && (
+              {!isMobile && displayImages.length > 1 && (
                 <>
                   <Button
                     size="icon"
@@ -237,7 +255,7 @@ function PreviewModal({
                     variant="ghost"
                     className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
                     onClick={handleNext}
-                    disabled={currentIndex === localImages.length - 1}
+                    disabled={currentIndex === displayImages.length - 1}
                     data-testid={`button-img-next-${item.id}`}
                   >
                     <ChevronRight className="h-5 w-5" />
@@ -246,12 +264,11 @@ function PreviewModal({
               )}
 
               {/* Counter — desktop only inside image */}
-              {!isMobile && localImages.length > 1 && (
+              {!isMobile && displayImages.length > 1 && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full pointer-events-none">
-                  {currentIndex + 1} / {localImages.length}
+                  {currentIndex + 1} / {displayImages.length}
                 </div>
               )}
-
 
               {item.madeInUSA && (
                 <div className="absolute top-3 left-3">
@@ -266,7 +283,7 @@ function PreviewModal({
             </div>
 
             {/* Mobile prev/next row — below the image, easy one-thumb reach */}
-            {isMobile && localImages.length > 1 && (
+            {isMobile && displayImages.length > 1 && (
               <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b">
                 <Button
                   size="icon"
@@ -278,13 +295,13 @@ function PreviewModal({
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
                 <span className="text-xs text-muted-foreground">
-                  {currentIndex + 1} / {localImages.length}
+                  {currentIndex + 1} / {displayImages.length}
                 </span>
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={handleNext}
-                  disabled={currentIndex === localImages.length - 1}
+                  disabled={currentIndex === displayImages.length - 1}
                   data-testid={`button-img-next-${item.id}`}
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -313,7 +330,8 @@ function PreviewModal({
                     </Button>
                   )}
                 </div>
-                {onImageDelete && currentImage && (
+                {/* Delete is disabled on the mockup — it's not a catalog image */}
+                {onImageDelete && currentImage && !isMockupIndex && (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -333,26 +351,34 @@ function PreviewModal({
             )}
 
             {/* Thumbnail strip — horizontal scrollable rail */}
-            {localImages.length > 1 && (
+            {displayImages.length > 1 && (
               <div className="bg-muted/50 px-3 py-2 border-t" data-testid={`gallery-strip-${item.id}`}>
                 <div className="flex gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap touch-pan-x snap-x snap-mandatory pb-1">
-                  {localImages.map((imgUrl, idx) => (
-                    <button
-                      key={imgUrl}
-                      type="button"
-                      onClick={() => setCurrentIndex(idx)}
-                      className={`relative snap-start flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors ${
-                        idx === currentIndex ? "border-primary" : "border-transparent"
-                      }`}
-                      data-testid={`button-thumb-${item.id}-${idx}`}
-                    >
-                      <img
-                        src={imgUrl}
-                        alt={`Thumbnail ${idx + 1}`}
-                        className="w-full h-full object-contain bg-background p-0.5"
-                      />
-                    </button>
-                  ))}
+                  {displayImages.map((imgUrl, idx) => {
+                    const isMockupThumb = mockupImageUrl ? idx === 0 : false;
+                    return (
+                      <button
+                        key={imgUrl}
+                        type="button"
+                        onClick={() => setCurrentIndex(idx)}
+                        className={`relative snap-start flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-colors ${
+                          idx === currentIndex ? "border-primary" : "border-transparent"
+                        }`}
+                        data-testid={`button-thumb-${item.id}-${idx}`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={isMockupThumb ? "Mockup" : `Thumbnail ${idx}`}
+                          className="w-full h-full object-contain bg-background p-0.5"
+                        />
+                        {isMockupThumb && (
+                          <span className="absolute bottom-0 left-0 right-0 text-center text-[9px] font-semibold bg-primary/80 text-primary-foreground leading-tight py-0.5">
+                            Mockup
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -660,7 +686,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider, qrgId }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider, qrgId, mockupImageUrl }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -895,6 +921,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         tier={tier}
         onTierChange={onTierChange}
         showTierControls={showTierControls}
+        mockupImageUrl={mockupImageUrl}
       />
     </>
   );

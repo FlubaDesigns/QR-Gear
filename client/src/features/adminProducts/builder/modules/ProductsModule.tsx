@@ -672,10 +672,11 @@ export function ProductsModule() {
           tier={itemTier}
           onTierChange={activeCatalog ? handleTierChange : undefined}
           showTierControls={!!activeCatalog}
+          mockupImageUrl={selectedProductId === cardId ? (state.loadedGraphic?.compositeUrl ?? null) : null}
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic]
   );
 
   return (
