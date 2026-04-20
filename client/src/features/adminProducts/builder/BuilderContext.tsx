@@ -299,6 +299,28 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     };
   }, []);
 
+  // Eagerly fetch and cache auth headers the moment a session becomes active.
+  // This ensures the flush-on-unmount and beforeunload saves work even if the
+  // user navigates away before the first 1.5-second autosave timer fires.
+  useEffect(() => {
+    if (!state.activeSessionId) return;
+    api.getAuthHeaders().then(headers => {
+      cachedAuthHeadersRef.current = headers;
+    }).catch(() => {});
+  }, [state.activeSessionId, api]);
+
+  // Flush on tab-close / full-page reload. keepalive:true allows the browser
+  // to complete the request even as the page is being torn down.
+  useEffect(() => {
+    const handler = () => {
+      if (flushSaveRef.current) {
+        flushSaveRef.current();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
   const setSourceType = useCallback((type: SourceType) => {
     setState(prev => ({
       ...prev,
