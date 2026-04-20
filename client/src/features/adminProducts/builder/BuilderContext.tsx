@@ -557,6 +557,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementsLoading: false,
       activePacketId: null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
+      // Restore filter/provider state directly (bypassing setters that have destructive side effects)
+      fulfillmentProvider: (metadata.fulfillmentProvider as string) ?? prev.fulfillmentProvider,
+      category: (metadata.category as string) ?? null,
+      originFilter: (metadata.originFilter as OriginFilter) ?? prev.originFilter,
+      genderFilter: (metadata.genderFilter as GenderFilter) ?? prev.genderFilter,
+      sourceType: (metadata.sourceType as SourceType) ?? prev.sourceType,
     }));
   }, [setSelectedStore, setSelectedChannel, setSelectedCollection]);
 

@@ -489,6 +489,30 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 20, 2026 — Fix: Provider, category, origin/gender filters, and source type now restore on resume
+
+**Root cause:** `loadFromWorkingState` was reading `fulfillmentProvider`, `category`, `originFilter`, `genderFilter`, and `sourceType` from the saved metadata but never writing them back to builder state on restore. These are all first-class `BuilderState` fields that the autosave correctly captures, but the restore path silently ignored them.
+
+**Why the individual setters could not be used:** Each setter has destructive side effects — `setFulfillmentProvider` clears `category`, `setCategory` clears `selectedProduct`, `setOriginFilter` / `setGenderFilter` clear `selectedProduct`, and `setSourceType` wipes templates/graphics/provider/category. Calling them in sequence would have corrupted the restored state.
+
+**Fix:** The five missing fields are now written directly into the single `setState` merge inside `loadFromWorkingState`, bypassing setter side effects. This applies to both the product-card flow (`ProductsModule.handleCardSelect → from-master`) and the URL-param resume flow (`DraftResumeHandler`) since both call the same function.
+
+#### Fields now fully restored on resume
+| Field | Saved in | Restored to |
+|-------|----------|-------------|
+| `fulfillmentProvider` | `metadata.fulfillmentProvider` | `state.fulfillmentProvider` |
+| `category` | `metadata.category` | `state.category` |
+| `originFilter` | `metadata.originFilter` | `state.originFilter` |
+| `genderFilter` | `metadata.genderFilter` | `state.genderFilter` |
+| `sourceType` | `metadata.sourceType` | `state.sourceType` |
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added 5 missing metadata fields to `loadFromWorkingState` setState merge |
+
+---
+
 ### April 20, 2026 — Fix: Store, channel, collection, and catalog filter now save and restore correctly
 
 **Root cause:** The autosave debounce `useEffect` only re-fired when builder content changed (`state.content`, `state.loadedBackground`, etc.). Selecting a store, channel, or collection — without touching any content — never triggered a re-fire, so those values were captured as stale nulls in the closure. `selectedCatalogId` had the same problem.
