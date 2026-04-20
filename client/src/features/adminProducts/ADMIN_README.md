@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 20, 2026 (rev 9)
+Last updated: April 20, 2026 (rev 10)
 
 ---
 
@@ -488,6 +488,19 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 20, 2026 — Crash fix: "mockupImageUrl is not defined" in product image viewer
+
+**Root cause:** `mockupImageUrl` was added to `PreviewModal`'s JSX usage and used throughout its body (for `displayImages`, `isMockupIndex`, thumbnail badges, and delete guard) but was never added to `PreviewModal`'s own parameter destructuring or inline TypeScript type. The variable was therefore undefined in that function's scope, causing a `ReferenceError` crash whenever the image viewer opened inside the builder.
+
+**Fix:** Added `mockupImageUrl?: string | null` to both the destructured parameter list and the inline prop type of `PreviewModal`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/shared/components/skins/ProductSelectCardSkin.tsx` | Added `mockupImageUrl` to `PreviewModal` parameter destructuring and its inline type |
+
+---
 
 ### April 20, 2026 — Feature: Mockup image shown first in product image viewer
 

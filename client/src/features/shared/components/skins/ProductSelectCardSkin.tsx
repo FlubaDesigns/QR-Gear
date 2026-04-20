@@ -91,6 +91,7 @@ function PreviewModal({
   tier,
   onTierChange,
   showTierControls,
+  mockupImageUrl,
 }: {
   item: ProductSelectItem;
   open: boolean;
@@ -103,6 +104,7 @@ function PreviewModal({
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  mockupImageUrl?: string | null;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
   masterCatalogImages?: string[];
