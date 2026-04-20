@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 19, 2026 (rev 6)
+Last updated: April 20, 2026 (rev 7)
 
 ---
 
@@ -488,6 +488,21 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 20, 2026 — Fix: Pre-packet (pre-save) builder resume now restores all saved work
+
+**Root cause:** When the user selected a master product in the Product Builder, the client called `POST /api/admin/build-sessions/from-master`, which correctly returned the existing `working` session (including title, description, graphics, QR config, layout, and store/channel/collection) from Firestore. However, the client only called `setActiveSession(...)` to register the session ID and **never called `loadFromWorkingState(...)`** to hydrate the builder UI. So every re-entry appeared blank even though the work was fully saved.
+
+**Fix:** After `from-master` returns `isExisting: true` with a non-empty `working` object, `loadFromWorkingState(data.session.working, entry.catalog)` is now called immediately. A "Draft resumed" toast confirms the restore so the admin knows their work was not lost.
+
+**Scope:** Frontend-only change. No Cloud Function changes needed — the `from-master` endpoint already returned the complete `session.working` payload. Only the client was ignoring it.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` | Added `loadFromWorkingState` to `useBuilderContext` destructure; call it after `from-master` returns existing session; show "Draft resumed" toast; added to `handleCardSelect` deps |
+
+---
 
 ### April 19, 2026 — Fix: Pre-existing TypeScript errors cleared
 

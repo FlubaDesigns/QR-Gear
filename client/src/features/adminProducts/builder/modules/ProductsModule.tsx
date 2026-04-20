@@ -126,7 +126,7 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setSelectedCatalogId } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setSelectedCatalogId, loadFromWorkingState } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -625,14 +625,22 @@ export function ProductsModule() {
         }
         const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
         setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null);
-        console.log(`[ProductsModule] Build session ${data.isExisting ? 'resumed' : 'started'}: ${data.sessionId} (${status})`);
+
+        if (data.isExisting && data.session?.working && Object.keys(data.session.working).length > 0) {
+          loadFromWorkingState(data.session.working, entry.catalog);
+          const draftName = data.session.draftName || entry.catalog.title || "your draft";
+          toast({ title: "Draft resumed", description: `Picked up where you left off on "${draftName}".` });
+          console.log(`[ProductsModule] Working state restored for session ${data.sessionId}`);
+        } else {
+          console.log(`[ProductsModule] Build session ${data.isExisting ? 'resumed (no working state)' : 'started'}: ${data.sessionId} (${status})`);
+        }
       })
       .catch(err => {
         console.error("[ProductsModule] Failed to start build session:", err.message || err);
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, toast]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, loadFromWorkingState, toast]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
