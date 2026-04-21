@@ -5,6 +5,17 @@ description: CRITICAL rule — always ask clarifying questions before starting a
 
 # Ask Before Starting — Always
 
+## PRODUCTION MANDATE — NON-NEGOTIABLE
+
+**This project deploys exclusively to Firebase production (Cloud Functions + Firebase Hosting). The Express dev server (`server/`) is for local development only and is NEVER the target for fixes or features.**
+
+- All backend logic lives in `functions/src/routes/` — these are the Cloud Functions
+- All backend changes require: `cd functions && npm run build` then `firebase deploy --only functions --project qrgear-c1ffd --force`
+- All frontend changes require: `npm run build` then `firebase deploy --only hosting --project qrgear-c1ffd --force`
+- When both change: deploy `--only functions,hosting` together
+- NEVER edit `server/` routes expecting production to reflect the change
+- NEVER consider a task done until it is deployed to Firebase production
+
 ## The Rule
 
 **Before writing a single line of code or making any change, ask the user clarifying questions.**
@@ -34,6 +45,7 @@ At minimum, confirm:
 - Do not assume a component name or file from context — ask or confirm.
 - Do not add, remove, or change behavior that wasn't explicitly requested.
 - Do not start a deploy or build until the user has confirmed the plan.
+- Do not edit `server/` routes for production fixes — they have no effect in production.
 
 ## The Pattern
 
@@ -44,6 +56,7 @@ User: Answers.
 Agent: Summarize the plan in plain language. Ask if that's right.
 User: Confirms.
 Agent: Now start work.
+Agent: Deploy to Firebase production (functions and/or hosting).
 ```
 
 ## Example

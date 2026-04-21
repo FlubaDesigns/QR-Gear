@@ -449,10 +449,38 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const now = FieldValue.serverTimestamp();
       const effectiveCatalogId = catalogId || session.catalogId || null;
 
+      // --- Resolve curated image list ---
+      // Priority: catalog blankImages (admin-trimmed) > master catalog images
+      let curatedImages: string[] = master.images || [];
+      if (effectiveCatalogId) {
+        try {
+          const catDoc = await db.collection('catalogs').doc(effectiveCatalogId).get();
+          if (catDoc.exists) {
+            const blankImages = (catDoc.data() as any).blankImages || {};
+            const trimmed: string[] = blankImages[session.sourceMasterId] || [];
+            if (trimmed.length > 0) curatedImages = trimmed;
+          }
+        } catch (_) { /* fall back to master images */ }
+      }
+
+      // Prepend the generated mockup as the hero image if available
+      const packetId = session.generated?.packetId || null;
+      let mockupUrl: string | null = null;
+      if (packetId) {
+        try {
+          const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+          if (packetDoc.exists) {
+            mockupUrl = (packetDoc.data() as any).priorityMockupUrl || null;
+          }
+        } catch (_) { /* no mockup */ }
+      }
+      const finalImages = mockupUrl ? [mockupUrl, ...curatedImages] : curatedImages;
+      // ----------------------------------------
+
       const baseSnapshot = {
         title: master.title || '',
         description: master.description || null,
-        images: master.images || [],
+        images: finalImages,
         brand: master.brand || null,
         colors: master.colors || [],
         sizes: master.sizes || [],
