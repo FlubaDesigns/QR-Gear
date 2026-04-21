@@ -480,7 +480,8 @@ export function useCreatePacket({
         }
       }
 
-      // Link packet to build session and flip session to artifact_ready
+      // Link packet to build session, generate artifact, then immediately commit.
+      // Single button press = full save to catalog. No second "commit" step needed.
       if (state.activeSessionId) {
         try {
           const sessionHeaders = await getAuthHeaders();
@@ -493,14 +494,35 @@ export function useCreatePacket({
             },
           );
           if (artifactRes.ok) {
-            setActiveSession(state.activeSessionId, 'artifact_ready', null);
-            console.log(`[CreatePacket] Session ${state.activeSessionId} → artifact_ready (packet ${packetId})`);
+            console.log(`[CreatePacket] Session ${state.activeSessionId} → artifact_ready (packet ${packetId}), committing…`);
+            // Auto-commit immediately — saves to admin_catalog_instances
+            const commitHeaders = await getAuthHeaders();
+            const commitRes = await fetch(
+              `${apiBase}/build-sessions/${state.activeSessionId}/commit`,
+              {
+                method: "POST",
+                headers: { ...commitHeaders, "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+              },
+            );
+            if (commitRes.ok) {
+              const commitData = await commitRes.json();
+              setActiveSession(state.activeSessionId, 'committed', commitData.instanceId);
+              setCommitResult({ instanceId: commitData.instanceId, sessionId: state.activeSessionId, packetId });
+              console.log(`[CreatePacket] Auto-committed → instance ${commitData.instanceId}`);
+            } else {
+              // Artifact ready but commit failed — fall back to artifact_ready so
+              // the manual commit button is still available
+              const errData = await commitRes.json().catch(() => ({}));
+              console.error("[CreatePacket] auto-commit failed:", errData.error || commitRes.status);
+              setActiveSession(state.activeSessionId, 'artifact_ready', null);
+            }
           } else {
             const errData = await artifactRes.json().catch(() => ({}));
             console.error("[CreatePacket] generate-artifact failed:", errData.error || artifactRes.status);
           }
         } catch (sessionErr: any) {
-          console.error("[CreatePacket] generate-artifact request failed:", sessionErr.message || sessionErr);
+          console.error("[CreatePacket] session save failed:", sessionErr.message || sessionErr);
         }
       }
 
