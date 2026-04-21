@@ -158,7 +158,7 @@ function MoveDialog({
           ? `${destStore!.name} / ${destChannel!.name} / ${destCollection.name}`
           : `${destStore!.name} / ${destChannel!.name}`,
       };
-      const res = await fetch(`${apiBase}/admin/catalog-instances/${instance.id}`, {
+      const res = await fetch(`${apiBase}/catalog-instances/${instance.id}`, {
         method: "PATCH",
         headers: { ...(headers as Record<string, string>), "Content-Type": "application/json" },
         body: JSON.stringify({ folderUpdate }),
@@ -241,7 +241,7 @@ function InstanceCard({
   const patchMutation = useMutation({
     mutationFn: async (body: Record<string, any>) => {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/admin/catalog-instances/${instance.id}`, {
+      const res = await fetch(`${apiBase}/catalog-instances/${instance.id}`, {
         method: "PATCH",
         headers: { ...(headers as Record<string, string>), "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -254,7 +254,7 @@ function InstanceCard({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/admin/catalog-instances/${instance.id}`, {
+      const res = await fetch(`${apiBase}/catalog-instances/${instance.id}`, {
         method: "DELETE",
         headers: headers as Record<string, string>,
       });
@@ -598,7 +598,7 @@ export function StoreManagerTab() {
       params.set("storeId", selectedStore.id);
       if (selectedChannelId) params.set("channelId", selectedChannelId);
       if (selectedCollectionName) params.set("collectionName", selectedCollectionName);
-      const res = await fetch(`${apiBase}/admin/catalog-instances?${params}`, { headers });
+      const res = await fetch(`${apiBase}/catalog-instances?${params}`, { headers });
       return res.json();
     },
     enabled: !!selectedStore,
