@@ -208,6 +208,48 @@ function registerAdminBuildSessions(app) {
             res.status(500).json({ error: err.message });
         }
     });
+    // ── Clone a session into a fresh working draft ────────────────────────────
+    app.post('/admin/build-sessions/clone', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { sourceSessionId } = req.body;
+            if (!sourceSessionId) {
+                res.status(400).json({ error: 'sourceSessionId is required' });
+                return;
+            }
+            const uid = req.user?.uid || null;
+            const sourceDoc = await core_1.db.collection(BUILD_SESSIONS_COLLECTION).doc(sourceSessionId).get();
+            if (!sourceDoc.exists) {
+                res.status(404).json({ error: 'Source session not found' });
+                return;
+            }
+            const source = sourceDoc.data();
+            const now = firestore_1.FieldValue.serverTimestamp();
+            const expiresAt = firestore_1.Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+            const newSession = {
+                sessionType: 'admin_build',
+                sourceMasterId: source.sourceMasterId,
+                catalogId: source.catalogId || null,
+                ownerAdminId: uid,
+                working: source.working || {},
+                draftName: source.draftName ? `${source.draftName} (copy)` : null,
+                generated: { packetId: null, templateId: null, graphicSetId: null, artifactReady: false },
+                status: 'working',
+                clonedFromSessionId: sourceSessionId,
+                createdAt: now,
+                updatedAt: now,
+                lastActiveAt: now,
+                expiresAt,
+                committedInstanceId: null,
+            };
+            const ref = await core_1.db.collection(BUILD_SESSIONS_COLLECTION).add(newSession);
+            console.log(`[BuildSessions] Cloned ${sourceSessionId} → ${ref.id}`);
+            res.json({ success: true, sessionId: ref.id, clonedFrom: sourceSessionId });
+        }
+        catch (err) {
+            console.error('[BuildSessions] clone error:', err.message);
+            res.status(500).json({ error: err.message });
+        }
+    });
     // ── Update working state / draftName ──────────────────────────────────────
     app.patch('/admin/build-sessions/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
@@ -309,13 +351,17 @@ function registerAdminBuildSessions(app) {
                     packetId = packetRef.id;
                 }
             }
-            await ref.update({
+            const sessionUpdate = {
                 'generated.packetId': packetId,
                 'generated.artifactReady': true,
                 status: 'artifact_ready',
                 updatedAt: now,
                 lastActiveAt: now,
-            });
+            };
+            if (packetFields.previewImageUrl) {
+                sessionUpdate['generated.previewImageUrl'] = packetFields.previewImageUrl;
+            }
+            await ref.update(sessionUpdate);
             res.json({ success: true, sessionId: id, packetId, artifactReady: true });
         }
         catch (err) {
@@ -389,26 +435,54 @@ function registerAdminBuildSessions(app) {
             if (w.metadata)
                 overrides.metadata = w.metadata;
             const resolved = resolveFields(baseSnapshot, overrides);
-            const instanceData = {
-                instanceType: 'admin',
-                sourceMasterId: session.sourceMasterId,
-                sourceSessionId: id,
-                catalogId: effectiveCatalogId,
-                ownerAdminId: session.ownerAdminId,
-                baseSnapshot,
-                overrides,
-                resolved,
-                currentPacketId: session.generated?.packetId || null,
-                currentTemplateId: session.generated?.templateId || null,
-                currentGraphicSetId: session.generated?.graphicSetId || null,
-                status: 'draft',
-                createdAt: now,
-                updatedAt: now,
-            };
-            const instanceRef = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION).add(instanceData);
-            const instanceId = instanceRef.id;
-            if (session.generated?.packetId) {
-                await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(session.generated.packetId).update({
+            let instanceId;
+            const newPacketId = session.generated?.packetId || null;
+            if (session.committedInstanceId) {
+                // ── UPDATE existing instance ──────────────────────────────────────
+                const existingRef = core_1.db.collection(ADMIN_INSTANCES_COLLECTION).doc(session.committedInstanceId);
+                const existingDoc = await existingRef.get();
+                if (existingDoc.exists) {
+                    const existing = existingDoc.data();
+                    await existingRef.update({
+                        overrides,
+                        resolved,
+                        currentPacketId: newPacketId || existing.currentPacketId || null,
+                        currentTemplateId: session.generated?.templateId || existing.currentTemplateId || null,
+                        currentGraphicSetId: session.generated?.graphicSetId || existing.currentGraphicSetId || null,
+                        updatedAt: now,
+                    });
+                    instanceId = session.committedInstanceId;
+                    console.log(`[BuildSessions] Updated existing instance ${instanceId} from session ${id}`);
+                }
+                else {
+                    // Existing instance was deleted externally — create a fresh one
+                    const instanceRef = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION).add({
+                        instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
+                        catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
+                        baseSnapshot, overrides, resolved,
+                        currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
+                        currentGraphicSetId: session.generated?.graphicSetId || null,
+                        status: 'draft', createdAt: now, updatedAt: now,
+                    });
+                    instanceId = instanceRef.id;
+                    console.log(`[BuildSessions] Existing instance missing — created new: ${instanceId}`);
+                }
+            }
+            else {
+                // ── CREATE new instance ───────────────────────────────────────────
+                const instanceRef = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION).add({
+                    instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
+                    catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
+                    baseSnapshot, overrides, resolved,
+                    currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
+                    currentGraphicSetId: session.generated?.graphicSetId || null,
+                    status: 'draft', createdAt: now, updatedAt: now,
+                });
+                instanceId = instanceRef.id;
+                console.log(`[BuildSessions] Created new instance ${instanceId} from session ${id}`);
+            }
+            if (newPacketId) {
+                await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
                     ownerType: 'admin',
                     ownerInstanceId: instanceId,
                     sourceAdminInstanceId: instanceId,
@@ -425,7 +499,7 @@ function registerAdminBuildSessions(app) {
                 sessionId: id,
                 instanceId,
                 sourceMasterId: session.sourceMasterId,
-                packetId: session.generated?.packetId || null,
+                packetId: newPacketId,
             });
         }
         catch (err) {
@@ -456,6 +530,34 @@ function registerAdminBuildSessions(app) {
         }
         catch (err) {
             console.error('[BuildSessions] abandon error:', err.message);
+            res.status(500).json({ error: err.message });
+        }
+    });
+    // ── Reopen a committed session for editing ────────────────────────────────
+    app.post('/admin/build-sessions/:id/reopen', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const ref = core_1.db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
+            const doc = await ref.get();
+            if (!doc.exists) {
+                res.status(404).json({ error: 'Session not found' });
+                return;
+            }
+            const session = doc.data();
+            if (session.status !== 'committed') {
+                res.json({ success: true, sessionId: id, status: session.status, committedInstanceId: session.committedInstanceId || null, alreadyOpen: true });
+                return;
+            }
+            await ref.update({
+                status: 'working',
+                updatedAt: firestore_1.FieldValue.serverTimestamp(),
+                lastActiveAt: firestore_1.FieldValue.serverTimestamp(),
+            });
+            console.log(`[BuildSessions] Reopened session ${id} (committed → working, keeps instanceId: ${session.committedInstanceId})`);
+            res.json({ success: true, sessionId: id, status: 'working', committedInstanceId: session.committedInstanceId || null });
+        }
+        catch (err) {
+            console.error('[BuildSessions] reopen error:', err.message);
             res.status(500).json({ error: err.message });
         }
     });

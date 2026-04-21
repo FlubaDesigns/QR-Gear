@@ -493,7 +493,7 @@ export function useCreatePacket({
             {
               method: "POST",
               headers: { ...sessionHeaders, "Content-Type": "application/json" },
-              body: JSON.stringify({ existingPacketId: packetId }),
+              body: JSON.stringify({ existingPacketId: packetId, previewImageUrl: productGraphicUrl || null }),
             },
           );
           if (artifactRes.ok) {

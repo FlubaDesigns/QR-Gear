@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 20, 2026 (rev 10)
+Last updated: April 21, 2026 (rev 11)
 
 ---
 
@@ -488,6 +488,39 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 21, 2026 — Feature: Phase 1+2 save/reload loop — Update Saved Item & Save as New
+
+Completes the admin product build loop: **BUILD → SAVE → RELOAD → MODIFY → SCALE**.
+
+**Phase 1 — Persist committed sessions across reload:**
+- Backend: `GET /build-sessions/from-committed` lists sessions with status `committed`, filtered by product/role/store/channel. Returns `committedInstanceId`.
+- Backend: `POST /build-sessions/:sessionId/reopen` sets session status back to `working` so the builder autosave and generate-artifact flows resume.
+- Backend: `POST /build-sessions/clone` duplicates an existing session (all fields) as a fresh `working` session with no `committedInstanceId`.
+- Backend: `generate-artifact` now accepts an optional `previewImageUrl` and stores it on the session for display in load lists.
+- Backend: `commit` detects whether the session has an existing `committedInstanceId` and **updates** the existing `admin_catalog_instance` rather than always creating a new one.
+
+**Phase 2 — UI buttons in `CreateGraphicsModule`:**
+- After a session is committed, two buttons appear beneath the green confirmation strip:
+  - **Update Saved Item** — calls `/reopen`, restores the session to `working` state in-place. User can then regenerate a packet and commit again to overwrite the same catalog instance.
+  - **Save as New** — calls `/clone`, then does a full-page redirect to `/admin/products?resume=<newSessionId>`. The cloned session has no `committedInstanceId`, so committing it creates a brand-new catalog instance.
+
+**Phase 2 — `LoadSavedModule`:**
+- New module that appears below `LoadTemplateModule` in the builder harness.
+- Fetches committed sessions for the selected product/role/store/channel combination and renders a list of resumable saved builds (thumbnail, product name, date).
+- Clicking a saved build sets the session context and re-fetches its packet result to restore the `PacketResultDisplay`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/admin-build-sessions.ts` | Added `clone`, `reopen`, `from-committed` routes; `previewImageUrl` on generate-artifact; update-vs-create logic in commit |
+| `functions/src/index.ts` | Bumped `_BUILD_ID` to force functions redeploy |
+| `client/src/features/adminProducts/builder/modules/CreateGraphicsModule.tsx` | Added `useToast`, `useLocation`, `setActiveSession`; `isReopening`/`isCloningSession` state; `handleUpdateSaved`/`handleSaveAsNew` handlers; Phase 2 buttons in committed section |
+| `client/src/features/adminProducts/builder/modules/LoadSavedModule.tsx` | New module — lists and resumes committed sessions |
+| `client/src/features/adminProducts/builder/BuilderHarness.tsx` | Mounts `LoadSavedModule` below `LoadTemplateModule` |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Passes `previewImageUrl` (composite URL) to generate-artifact |
+
+---
 
 ### April 20, 2026 — Crash fix: "mockupImageUrl is not defined" in product image viewer
 

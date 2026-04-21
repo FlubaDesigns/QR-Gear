@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { Package, Loader2, Check, BookmarkCheck, CheckCircle2 } from "lucide-react";
+import { Package, Loader2, Check, BookmarkCheck, CheckCircle2, Copy, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PacketResultDisplay } from "./PacketResultDisplay";
 import { useCreatePacket } from "./useCreatePacket";
@@ -37,9 +39,13 @@ export interface PacketResult {
 }
 
 export function CreateGraphicsModule() {
-  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder, setActivePacketId } = useBuilderContext();
+  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder, setActivePacketId, setActiveSession } = useBuilderContext();
   const { apiBase, getAuthHeaders } = useAdminAuth();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
+  const [isReopening, setIsReopening] = useState(false);
+  const [isCloningSession, setIsCloningSession] = useState(false);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
@@ -109,6 +115,46 @@ export function CreateGraphicsModule() {
     restore();
     return () => { cancelled = true; };
   }, [state.activePacketId, packetResult, sessionStatus]);
+
+  const handleUpdateSaved = async () => {
+    if (isReopening || !state.activeSessionId) return;
+    setIsReopening(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/build-sessions/${state.activeSessionId}/reopen`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setActiveSession(state.activeSessionId, 'working', data.committedInstanceId || state.committedInstanceId);
+      toast({ title: 'Ready to edit', description: 'Make changes, create a new packet, then save as admin instance.' });
+    } catch (err: any) {
+      toast({ title: 'Could not reopen', description: err.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsReopening(false);
+    }
+  };
+
+  const handleSaveAsNew = async () => {
+    if (isCloningSession || !state.activeSessionId) return;
+    setIsCloningSession(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/build-sessions/clone`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceSessionId: state.activeSessionId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      window.location.href = `/admin/products?resume=${data.sessionId}`;
+    } catch (err: any) {
+      toast({ title: 'Could not save as new', description: err.message || 'Please try again.', variant: 'destructive' });
+      setIsCloningSession(false);
+    }
+  };
 
   if (!state.selectedProduct || !state.qrProductState || !state.content) {
     return null;
@@ -218,16 +264,44 @@ export function CreateGraphicsModule() {
           </div>
         )}
 
-        {/* Committed confirmation */}
+        {/* Committed confirmation + Phase 2 actions */}
         {packetResult && hasActiveSession && sessionStatus === 'committed' && (
-          <div className="pt-2 border-t">
+          <div className="pt-2 border-t space-y-3">
             <p className="text-sm text-green-600 dark:text-green-400 flex items-center gap-2" data-testid="status-committed-confirm">
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
               Saved as admin catalog instance
               {state.committedInstanceId && (
                 <span className="text-xs text-muted-foreground ml-1">({state.committedInstanceId.slice(0, 8)}…)</span>
               )}
             </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUpdateSaved}
+                disabled={isReopening}
+                data-testid="button-update-saved"
+              >
+                {isReopening
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  : <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                }
+                Update Saved Item
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveAsNew}
+                disabled={isCloningSession}
+                data-testid="button-save-as-new"
+              >
+                {isCloningSession
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  : <Copy className="h-3.5 w-3.5 mr-1.5" />
+                }
+                Save as New
+              </Button>
+            </div>
           </div>
         )}
 

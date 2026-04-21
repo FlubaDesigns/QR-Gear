@@ -8,6 +8,7 @@ import { BasicsContentModule } from "./modules/BasicsContentModule";
 import { ComposeContentModule } from "./modules/ComposeContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { LoadTemplateModule } from "./modules/LoadTemplateModule";
+import { LoadSavedModule } from "./modules/LoadSavedModule";
 import { BuilderStickyBar } from "./modules/BuilderStickyBar";
 import { DraftResumeHandler } from "./modules/DraftResumeHandler";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
@@ -26,6 +27,11 @@ function BuilderModules() {
       {/* Template loader — above everything so it populates all steps */}
       <InlineDebugBoundary label="LoadTemplateModule">
         <LoadTemplateModule />
+      </InlineDebugBoundary>
+
+      {/* Resume a previously created packet / committed build */}
+      <InlineDebugBoundary label="LoadSavedModule">
+        <LoadSavedModule />
       </InlineDebugBoundary>
 
       {/* Step 1: Product Type & QR State Selection */}
