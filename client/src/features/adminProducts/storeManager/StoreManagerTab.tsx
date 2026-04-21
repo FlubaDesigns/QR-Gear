@@ -4,6 +4,7 @@ import {
   Store, Hash, Layers, ChevronRight, ChevronDown, ChevronLeft,
   Loader2, Trash2, MoveRight, Check, X, DollarSign, Package
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -215,6 +216,61 @@ function MoveDialog({
   );
 }
 
+function AccordionSection({
+  label,
+  badge,
+  children,
+  defaultOpen = false,
+}: {
+  label: string;
+  badge?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-white/10">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between py-3 text-left"
+        data-testid={`accordion-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      >
+        <span className="glass-subtitle text-xs uppercase tracking-wider flex items-center gap-2">
+          {label}
+          {badge && <span className="normal-case opacity-60 text-[11px]">{badge}</span>}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-white/40 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="pb-3">{children}</div>}
+    </div>
+  );
+}
+
+function ImageLightbox({ url, alt, onClose }: { url: string; alt: string; onClose: () => void }) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90"
+      onClick={onClose}
+      data-testid="lightbox-backdrop"
+    >
+      <img
+        src={url}
+        alt={alt}
+        className="max-w-[92vw] max-h-[88vh] rounded-lg object-contain shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      />
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white"
+        data-testid="lightbox-close"
+      >
+        <X className="h-5 w-5" />
+      </button>
+    </div>,
+    document.body
+  );
+}
+
 function InstanceCard({
   instance,
   apiBase,
@@ -232,6 +288,7 @@ function InstanceCard({
   const [showMove, setShowMove] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [localPrice, setLocalPrice] = useState(instance.customerPrice ?? "");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const allColors = instance.resolved?.colors ?? [];
   const allSizes = instance.resolved?.sizes ?? [];
@@ -291,15 +348,20 @@ function InstanceCard({
   const maxPrice = instance.baseSnapshot?.maxPrice;
 
   return (
-    <div className="glass-card p-4 space-y-4" data-testid={`card-instance-${instance.id}`}>
+    <div className="glass-card p-4" data-testid={`card-instance-${instance.id}`}>
       {/* Header row: image + title */}
-      <div className="flex gap-3">
-        <div className="w-20 h-20 rounded-md bg-white/10 flex-shrink-0 overflow-hidden">
+      <div className="flex gap-3 mb-1">
+        <button
+          className="w-20 h-20 rounded-md bg-white/10 flex-shrink-0 overflow-hidden focus:outline-none"
+          onClick={() => imageUrl && setLightboxOpen(true)}
+          data-testid={`button-image-${instance.id}`}
+          style={{ cursor: imageUrl ? "zoom-in" : "default" }}
+        >
           {imageUrl
             ? <img src={imageUrl} alt={title} className="w-full h-full object-cover" />
             : <Package className="m-auto mt-5 h-9 w-9 text-white/30" />
           }
-        </div>
+        </button>
         <div className="flex-1 min-w-0 py-0.5">
           <p className="glass-body font-medium text-base leading-snug" data-testid={`text-instance-title-${instance.id}`}>{title}</p>
           {instance.folderPath && (
@@ -307,7 +369,7 @@ function InstanceCard({
           )}
           {(minPrice != null || maxPrice != null) && (
             <p className="glass-subtitle text-xs mt-1.5">
-              Base cost: ${minPrice?.toFixed(2) ?? "—"} – ${maxPrice?.toFixed(2) ?? "—"}
+              Base: ${minPrice?.toFixed(2) ?? "—"} – ${maxPrice?.toFixed(2) ?? "—"}
             </p>
           )}
           {patchMutation.isPending && (
@@ -319,12 +381,9 @@ function InstanceCard({
         </div>
       </div>
 
-      {/* Colors */}
+      {/* Colors accordion */}
       {allColors.length > 0 && (
-        <div>
-          <p className="glass-subtitle text-xs uppercase tracking-wider mb-2.5">
-            Colors <span className="normal-case opacity-60">({enabledColors.length}/{allColors.length} on)</span>
-          </p>
+        <AccordionSection label="Colors" badge={`${enabledColors.length}/${allColors.length} on`}>
           <div className="flex flex-wrap gap-2">
             {allColors.map(color => (
               <ColorToggle
@@ -335,15 +394,12 @@ function InstanceCard({
               />
             ))}
           </div>
-        </div>
+        </AccordionSection>
       )}
 
-      {/* Sizes */}
+      {/* Sizes accordion */}
       {allSizes.length > 0 && (
-        <div>
-          <p className="glass-subtitle text-xs uppercase tracking-wider mb-2.5">
-            Sizes <span className="normal-case opacity-60">({enabledSizes.length}/{allSizes.length} on)</span>
-          </p>
+        <AccordionSection label="Sizes" badge={`${enabledSizes.length}/${allSizes.length} on`}>
           <div className="flex flex-wrap gap-2">
             {allSizes.map(size => (
               <SizeChip
@@ -354,12 +410,11 @@ function InstanceCard({
               />
             ))}
           </div>
-        </div>
+        </AccordionSection>
       )}
 
-      {/* Customer price */}
-      <div>
-        <p className="glass-subtitle text-xs uppercase tracking-wider mb-2.5">Customer Price</p>
+      {/* Pricing accordion */}
+      <AccordionSection label="Pricing">
         <div className="relative">
           <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
           <input
@@ -370,55 +425,60 @@ function InstanceCard({
             onChange={e => setLocalPrice(e.target.value)}
             onBlur={savePrice}
             onKeyDown={e => e.key === "Enter" && savePrice()}
-            placeholder="0.00"
+            placeholder="Customer price"
             className="w-full h-11 pl-9 pr-4 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/30 text-base focus:outline-none focus:ring-1 focus:ring-ice-2"
             data-testid={`input-price-${instance.id}`}
           />
         </div>
-      </div>
+      </AccordionSection>
 
-      {/* Actions */}
-      <div className="flex gap-2 pt-1 border-t border-white/10">
-        <button
-          onClick={() => { setShowMove(!showMove); setConfirmDelete(false); }}
-          className="qr-btn qr-btn--outline qr-btn--touch flex-1 gap-2"
-          data-testid={`button-move-${instance.id}`}
-        >
-          <MoveRight className="h-4 w-4" /> Move
-        </button>
-        {!confirmDelete ? (
+      {/* Actions accordion */}
+      <AccordionSection label="Actions">
+        <div className="flex gap-2">
           <button
-            onClick={() => setConfirmDelete(true)}
-            className="qr-btn qr-btn--outline qr-btn--touch flex-1 text-red-400 gap-2"
-            data-testid={`button-delete-${instance.id}`}
+            onClick={() => { setShowMove(!showMove); setConfirmDelete(false); }}
+            className="qr-btn qr-btn--outline qr-btn--touch flex-1 gap-2"
+            data-testid={`button-move-${instance.id}`}
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <MoveRight className="h-4 w-4" /> Move
           </button>
-        ) : (
-          <div className="flex gap-2 flex-1">
+          {!confirmDelete ? (
             <button
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-              className="qr-btn qr-btn--touch flex-1 bg-red-500/20 text-red-300 border border-red-500/30"
-              data-testid={`button-confirm-delete-${instance.id}`}
+              onClick={() => setConfirmDelete(true)}
+              className="qr-btn qr-btn--outline qr-btn--touch flex-1 text-red-400 gap-2"
+              data-testid={`button-delete-${instance.id}`}
             >
-              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+              <Trash2 className="h-4 w-4" /> Delete
             </button>
-            <button onClick={() => setConfirmDelete(false)} className="qr-btn qr-btn--ghost qr-btn--touch" data-testid={`button-cancel-delete-${instance.id}`}>
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+          ) : (
+            <div className="flex gap-2 flex-1">
+              <button
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+                className="qr-btn qr-btn--touch flex-1 bg-red-500/20 text-red-300 border border-red-500/30"
+                data-testid={`button-confirm-delete-${instance.id}`}
+              >
+                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+              </button>
+              <button onClick={() => setConfirmDelete(false)} className="qr-btn qr-btn--ghost qr-btn--touch" data-testid={`button-cancel-delete-${instance.id}`}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
+        {showMove && (
+          <MoveDialog
+            instance={instance}
+            apiBase={apiBase}
+            getAuthHeaders={getAuthHeaders}
+            onClose={() => setShowMove(false)}
+            onMoved={onMoved}
+          />
         )}
-      </div>
+      </AccordionSection>
 
-      {showMove && (
-        <MoveDialog
-          instance={instance}
-          apiBase={apiBase}
-          getAuthHeaders={getAuthHeaders}
-          onClose={() => setShowMove(false)}
-          onMoved={onMoved}
-        />
+      {lightboxOpen && imageUrl && (
+        <ImageLightbox url={imageUrl} alt={title} onClose={() => setLightboxOpen(false)} />
       )}
     </div>
   );
