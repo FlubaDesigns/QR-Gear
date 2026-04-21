@@ -11,6 +11,7 @@ interface BuilderContextValue {
   selectedRole: RoleType | null;
   selectedStore: Store | null;
   selectedChannel: Channel | null;
+  selectedCollection: Collection | null;
   setSourceType: (type: SourceType) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
@@ -813,6 +814,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     selectedRole,
     selectedStore,
     selectedChannel,
+    selectedCollection,
     setSourceType,
     loadTemplate,
     loadGraphic,

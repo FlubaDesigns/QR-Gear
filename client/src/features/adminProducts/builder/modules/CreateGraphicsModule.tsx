@@ -39,7 +39,7 @@ export interface PacketResult {
 }
 
 export function CreateGraphicsModule() {
-  const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder, setActivePacketId, setActiveSession } = useBuilderContext();
+  const { state, setContent, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, setActivePacketId, setActiveSession } = useBuilderContext();
   const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -60,11 +60,21 @@ export function CreateGraphicsModule() {
     staleTime: 60000,
   });
 
+  // Auto-seed content.title from the selected collection name when not already set
+  useEffect(() => {
+    if (selectedCollection?.name && !state.content?.title) {
+      setContent({ title: selectedCollection.name });
+    }
+  }, [selectedCollection?.name]);
+
   const isPlayMode = state.qrProductState === "qr_play";
   const isBasicsOrPlusMode = state.qrProductState === "qr_basics" || state.qrProductState === "qr_plus";
 
   const validationErrors: string[] = [];
-  const canCreate = true;
+  if (!selectedCollection) {
+    validationErrors.push("Select a collection (folder) above before creating a packet");
+  }
+  const canCreate = validationErrors.length === 0;
 
   const {
     isCreating, packetResult, error, isDeleting,
