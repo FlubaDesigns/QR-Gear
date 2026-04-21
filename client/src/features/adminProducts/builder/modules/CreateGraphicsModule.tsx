@@ -88,8 +88,8 @@ export function CreateGraphicsModule() {
         const res = await fetch(`${apiBase}/packets/${state.activePacketId}`, { headers });
         if (!res.ok || cancelled) return;
         const data = await res.json();
-        const p = data.packet || data;
-        if (!p || cancelled) return;
+        const p = data.landingPage || data.packet || data;
+        if (!p || !p.packetId || cancelled) return;
         setPacketResult({
           packetId: state.activePacketId,
           landingPageUrl: p.qrContent || p.landingPageUrl || '',
