@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 16)
+Last updated: April 21, 2026 (rev 17)
 
 ---
 
@@ -488,6 +488,21 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 21, 2026 — Change: Commit always creates a new catalog instance
+
+**Previous behavior:** If a session had already been committed before (i.e. it had a `committedInstanceId`), committing again would overwrite the existing catalog instance. Only the first commit from a fresh session created a new instance.
+
+**New behavior:** Every commit always creates a brand-new `admin_catalog_instance`, regardless of whether the session was previously committed or reopened. The old `committedInstanceId` on the session is replaced with the new instance ID for tracking, but no existing instance is ever mutated by the commit path.
+
+This means: every time you change options and save, a new instance appears in the catalog list.
+
+| File | Change |
+|------|--------|
+| `functions/src/routes/admin-build-sessions.ts` | Removed `if (committedInstanceId) { UPDATE } else { CREATE }` branch — always takes CREATE path |
+| `functions/src/index.ts` | Bumped `_BUILD_ID` to `20260421-always-create-instance-v2` to force function redeploy |
+
+---
 
 ### April 21, 2026 — Fix: "No changes detected" blocks save after loading graphic/template
 

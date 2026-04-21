@@ -474,51 +474,19 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       const resolved = resolveFields(baseSnapshot, overrides);
 
-      let instanceId: string;
       const newPacketId = session.generated?.packetId || null;
 
-      if (session.committedInstanceId) {
-        // ── UPDATE existing instance ──────────────────────────────────────
-        const existingRef = db.collection(ADMIN_INSTANCES_COLLECTION).doc(session.committedInstanceId);
-        const existingDoc = await existingRef.get();
-        if (existingDoc.exists) {
-          const existing = existingDoc.data()!;
-          await existingRef.update({
-            overrides,
-            resolved,
-            currentPacketId: newPacketId || existing.currentPacketId || null,
-            currentTemplateId: session.generated?.templateId || existing.currentTemplateId || null,
-            currentGraphicSetId: session.generated?.graphicSetId || existing.currentGraphicSetId || null,
-            updatedAt: now,
-          });
-          instanceId = session.committedInstanceId;
-          console.log(`[BuildSessions] Updated existing instance ${instanceId} from session ${id}`);
-        } else {
-          // Existing instance was deleted externally — create a fresh one
-          const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
-            instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
-            catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
-            baseSnapshot, overrides, resolved,
-            currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
-            currentGraphicSetId: session.generated?.graphicSetId || null,
-            status: 'draft', createdAt: now, updatedAt: now,
-          });
-          instanceId = instanceRef.id;
-          console.log(`[BuildSessions] Existing instance missing — created new: ${instanceId}`);
-        }
-      } else {
-        // ── CREATE new instance ───────────────────────────────────────────
-        const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
-          instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
-          catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
-          baseSnapshot, overrides, resolved,
-          currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
-          currentGraphicSetId: session.generated?.graphicSetId || null,
-          status: 'draft', createdAt: now, updatedAt: now,
-        });
-        instanceId = instanceRef.id;
-        console.log(`[BuildSessions] Created new instance ${instanceId} from session ${id}`);
-      }
+      // ── Always CREATE a new instance — every commit is a new catalog entry ──
+      const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
+        instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
+        catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
+        baseSnapshot, overrides, resolved,
+        currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
+        currentGraphicSetId: session.generated?.graphicSetId || null,
+        status: 'draft', createdAt: now, updatedAt: now,
+      });
+      const instanceId = instanceRef.id;
+      console.log(`[BuildSessions] Created new instance ${instanceId} from session ${id}`);
 
       if (newPacketId) {
         await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
