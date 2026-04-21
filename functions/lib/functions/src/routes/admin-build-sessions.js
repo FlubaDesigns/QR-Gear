@@ -373,7 +373,7 @@ function registerAdminBuildSessions(app) {
     app.post('/admin/build-sessions/:id/commit', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { id } = req.params;
-            const { catalogId } = req.body;
+            const { catalogId, pricing: bodyPricing } = req.body;
             const ref = core_1.db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
             const doc = await ref.get();
             if (!doc.exists) {
@@ -468,8 +468,9 @@ function registerAdminBuildSessions(app) {
                 overrides.description = w.description;
             if (w.images?.length)
                 overrides.images = w.images;
-            if (w.pricing)
-                overrides.pricing = w.pricing;
+            const effectivePricing = bodyPricing || w.pricing || null;
+            if (effectivePricing)
+                overrides.pricing = effectivePricing;
             if (w.metadata)
                 overrides.metadata = w.metadata;
             const resolved = resolveFields(baseSnapshot, overrides);

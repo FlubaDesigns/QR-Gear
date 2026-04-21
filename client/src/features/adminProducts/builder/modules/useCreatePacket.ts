@@ -502,7 +502,7 @@ export function useCreatePacket({
               {
                 method: "POST",
                 headers: { ...commitHeaders, "Content-Type": "application/json" },
-                body: JSON.stringify({}),
+                body: JSON.stringify({ pricing }),
               },
             );
             if (commitRes.ok) {

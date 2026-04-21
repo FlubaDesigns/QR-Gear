@@ -405,7 +405,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
   app.post('/admin/build-sessions/:id/commit', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { catalogId } = req.body;
+      const { catalogId, pricing: bodyPricing } = req.body;
 
       const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
       const doc = await ref.get();
@@ -504,7 +504,8 @@ export function registerAdminBuildSessions(app: express.Express): void {
       if (w.title && w.title !== master.title) overrides.title = w.title;
       if (w.description && w.description !== master.description) overrides.description = w.description;
       if (w.images?.length) overrides.images = w.images;
-      if (w.pricing) overrides.pricing = w.pricing;
+      const effectivePricing = bodyPricing || w.pricing || null;
+      if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;
 
       const resolved = resolveFields(baseSnapshot, overrides);
