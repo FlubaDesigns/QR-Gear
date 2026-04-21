@@ -52,8 +52,21 @@ Key files and functions for the admin/products build system.
 ## Template Load
 
 **File:** `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx`
-**Function:** `handleSelect(template)`
-**Purpose:** Calls `loadFromPacketData`, then calls `POST /build-sessions/from-master` to create a session, then calls `setActiveSession`.
+**Function:** `handleSelect(item)`
+**Purpose:** Loads a template into the builder. Sequence (post April 21 2026 fix):
+1. Clears active session (`setActiveSession(null, null, null)`) to prevent autosave cross-contamination
+2. Resolves the product from master catalog via blueprintId/docId
+3. Determines `sourceMasterId` from: `resolvedProduct.docId` → `packet.productId` → `packet.blueprintId` (in order)
+4. Calls `POST /build-sessions/from-master` using that sourceMasterId
+5. Calls `setActiveSession(sessionId, 'working', null)` — gates autosave on new session
+6. Calls `loadFromPacketData(packet, resolvedProduct)` — hydrates UI with template content
+   React 18 batches steps 5+6 into one render so autosave fires with correct session + template state.
+
+**Previous bug (now fixed):** Session creation was gated on `if (resolvedProduct?.docId)`. If product couldn't be
+resolved (old blueprint, deleted product), no session was created → activeSessionId null → autosave dead →
+Build+Save created a packet but commit was skipped → no catalog instance.
+Additionally, session was not cleared before hydration, so prior session could receive template content
+via the 1.5s debounced autosave.
 
 **File:** `functions/src/routes/` (templates route file)
 **Function:** `GET /admin/templates/:templateId`

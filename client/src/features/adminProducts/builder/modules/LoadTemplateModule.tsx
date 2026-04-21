@@ -181,26 +181,57 @@ export function LoadTemplateModule() {
         return;
       }
 
-      const resolvedProduct = await resolveProduct(packet);
-      loadFromPacketData(packet, resolvedProduct);
+      console.log(`[LoadTemplateModule] Loading template ${item.id} | packet ${packet.id}`);
 
-      // Auto-create a build session so autosave and commit work immediately
-      if (resolvedProduct?.docId) {
+      const resolvedProduct = await resolveProduct(packet);
+      console.log(`[LoadTemplateModule] Resolved product: ${resolvedProduct?.title ?? 'NOT FOUND'} (docId: ${resolvedProduct?.docId ?? 'none'})`);
+
+      // Clear any prior session BEFORE hydrating the UI so the autosave effect
+      // does not write the incoming template state into the wrong (previous) session.
+      setActiveSession(null, null, null);
+
+      // Determine sourceMasterId: prefer Firestore doc ID, fall back to the
+      // packet's productId (numeric blueprint — the CF handles the numeric→doc lookup).
+      const sourceMasterId: string | null =
+        resolvedProduct?.docId ||
+        (packet.productId ? String(packet.productId) : null) ||
+        (packet.blueprintId ? String(packet.blueprintId) : null);
+
+      if (sourceMasterId) {
         try {
           const headers = await getAuthHeaders();
           const sessionRes = await fetch(`${apiBase}/build-sessions/from-master`, {
             method: 'POST',
             headers: { ...headers, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sourceMasterId: resolvedProduct.docId }),
+            body: JSON.stringify({ sourceMasterId }),
           });
           if (sessionRes.ok) {
             const sessionData = await sessionRes.json();
+            console.log(
+              `[LoadTemplateModule] Session ${sessionData.isExisting ? 'resumed' : 'created'}: ${sessionData.sessionId} ` +
+              `(sourceMasterId: ${sourceMasterId})`
+            );
+            // Set session and hydrate UI together — React 18 batches these into one
+            // render, so the autosave effect sees the correct session + template content
+            // at the same time, preventing a blank-state overwrite of the new session.
             setActiveSession(sessionData.sessionId, 'working', null);
+          } else {
+            const errBody = await sessionRes.json().catch(() => ({}));
+            console.warn(`[LoadTemplateModule] Session creation failed (${sessionRes.status}):`, errBody);
+            // Builder will load the template visually but autosave will be inactive
+            // until the user selects the product from the picker (which creates a session).
           }
-        } catch {
-          // Non-fatal — builder still works, session will be created on first autosave attempt
+        } catch (e) {
+          console.warn('[LoadTemplateModule] Session creation error:', e);
         }
+      } else {
+        console.warn('[LoadTemplateModule] No sourceMasterId available — template loaded without a session. Autosave inactive.');
       }
+
+      // Always hydrate the builder from the template, regardless of session outcome.
+      // Called after setActiveSession so React 18 can batch both state updates in
+      // one render, ensuring autosave fires with the correct session + template state.
+      loadFromPacketData(packet, resolvedProduct);
 
       if (!resolvedProduct && packet.blueprintId) {
         toast({
@@ -216,7 +247,7 @@ export function LoadTemplateModule() {
     } finally {
       setSelecting(false);
     }
-  }, [apiBase, getAuthHeaders, loadFromPacketData, resolveProduct, toast]);
+  }, [apiBase, getAuthHeaders, loadFromPacketData, resolveProduct, setActiveSession, toast]);
 
   const handleDismissBanner = useCallback(() => {
     setTemplateProductResolved(null);

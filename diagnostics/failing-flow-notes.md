@@ -51,19 +51,31 @@ Real-world traces of what actually happens during known failure scenarios.
 
 ---
 
-## Flow 3 — Template Load Then Save (With Session Bug Fixed)
+## Flow 3 — Template Load Then Save (Post-Fix)
 
 **Starting state:** Admin opens builder, clicks Load Template, selects a template.
+**Fix deployed:** April 21 2026
 
-1. `handleSelect(template)` fires in LoadTemplateModule
-2. `loadFromPacketData(packet)` hydrates builder state from template's linked packet
-3. `POST /api/admin/build-sessions/from-master` → 200 → sessionId = `new-session-abc`
-4. `setActiveSession('new-session-abc')` stores session ID in context
-5. Builder shows "In Progress" badge — ready to save
-6. Admin presses Build+Save
-7. Full flow runs with activeSessionId set → catalog instance created ✓
+1. `handleSelect(item)` fires in LoadTemplateModule
+2. `resolveProduct(packet)` searches master catalog by blueprintId — may return null if product gone
+3. `setActiveSession(null, null, null)` — clears any prior session to prevent cross-session autosave
+4. `sourceMasterId` computed: `resolvedProduct.docId` → `packet.productId` → `packet.blueprintId` (in order)
+5. `POST /api/admin/build-sessions/from-master` with sourceMasterId → 200 → `{ sessionId, isExisting }`
+6. `setActiveSession('new-session-abc', 'working', null)` — arms autosave on new session
+7. `loadFromPacketData(packet, resolvedProduct)` — hydrates builder UI with template content
+   (Steps 6+7 batched by React 18 → autosave sees correct session + template content together)
+8. Builder shows "In Progress" badge — ready to save
+9. Admin presses Build+Save
+10. Full flow runs with activeSessionId set → catalog instance created ✓
 
-**Before the fix (pre-April 21 2026):** Step 3 never happened. `setActiveSession` was never called. `activeSessionId` remained null. Step 12-13 were skipped. No catalog instance created.
+**Previous broken flow (before fix):**
+- Session creation was gated on `if (resolvedProduct?.docId)` — if product not in catalog, skipped entirely
+- No `setActiveSession(null)` call before hydration — prior session could receive template content via autosave
+- `activeSessionId` remained null → commit skipped → no catalog instance despite success toast
+
+**Remaining edge case:** If `from-master` returns an existing session for the same product, that session's
+prior working state is NOT loaded into the UI (template always wins). The session's working state is
+overwritten by the next autosave (1.5s after last edit). This is intentional — template load = fresh start.
 
 ---
 
