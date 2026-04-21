@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Hash, Layers, ChevronRight, ChevronDown, ChevronLeft,
-  Loader2, Trash2, MoveRight, Check, X, DollarSign, Package
+  Loader2, Trash2, MoveRight, Check, X, Package
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -27,6 +27,12 @@ interface AdminInstance {
     minPrice?: number;
     maxPrice?: number;
     description?: string;
+    pricing?: {
+      customerPrice?: number;
+      markupPercent?: number;
+      markupFixed?: number;
+      markupAmount?: number;
+    };
   };
   baseSnapshot?: {
     minPrice?: number;
@@ -287,7 +293,6 @@ function InstanceCard({
   const { toast } = useToast();
   const [showMove, setShowMove] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [localPrice, setLocalPrice] = useState(instance.customerPrice ?? "");
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const allColors = instance.resolved?.colors ?? [];
@@ -338,14 +343,9 @@ function InstanceCard({
     patchMutation.mutate({ enabledSizes: next });
   }, [enabledSizes, patchMutation]);
 
-  const savePrice = useCallback(() => {
-    patchMutation.mutate({ customerPrice: localPrice });
-  }, [localPrice, patchMutation]);
-
   const imageUrl = getImageUrl(instance);
   const title = instance.resolved?.title ?? "Untitled";
-  const minPrice = instance.baseSnapshot?.minPrice;
-  const maxPrice = instance.baseSnapshot?.maxPrice;
+  const customerPrice = instance.resolved?.pricing?.customerPrice;
 
   return (
     <div className="glass-card p-4" data-testid={`card-instance-${instance.id}`}>
@@ -367,9 +367,9 @@ function InstanceCard({
           {instance.folderPath && (
             <p className="glass-subtitle text-xs mt-1 leading-relaxed">{instance.folderPath}</p>
           )}
-          {(minPrice != null || maxPrice != null) && (
+          {customerPrice != null && (
             <p className="glass-subtitle text-xs mt-1.5">
-              Base: ${minPrice?.toFixed(2) ?? "—"} – ${maxPrice?.toFixed(2) ?? "—"}
+              Price: ${customerPrice.toFixed(2)}
             </p>
           )}
           {patchMutation.isPending && (
@@ -413,24 +413,6 @@ function InstanceCard({
         </AccordionSection>
       )}
 
-      {/* Pricing accordion */}
-      <AccordionSection label="Pricing">
-        <div className="relative">
-          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={localPrice}
-            onChange={e => setLocalPrice(e.target.value)}
-            onBlur={savePrice}
-            onKeyDown={e => e.key === "Enter" && savePrice()}
-            placeholder="Customer price"
-            className="w-full h-11 pl-9 pr-4 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/30 text-base focus:outline-none focus:ring-1 focus:ring-ice-2"
-            data-testid={`input-price-${instance.id}`}
-          />
-        </div>
-      </AccordionSection>
 
       {/* Actions accordion */}
       <AccordionSection label="Actions">
