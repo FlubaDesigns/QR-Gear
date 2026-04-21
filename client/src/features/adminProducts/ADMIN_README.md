@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 15)
+Last updated: April 21, 2026 (rev 16)
 
 ---
 
@@ -488,6 +488,18 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 21, 2026 — Fix: "No changes detected" blocks save after loading graphic/template
+
+**Root cause:** `hasChangesFromBaseline()` only compared a narrow set of content fields (URL, text labels, color, QR position, background). It did NOT track the loaded graphic image or template image. When a user loaded a template and then swapped the graphic — which is the primary thing to change — the comparison still returned "identical" and blocked packet creation with "No changes detected."
+
+**Fix:** Removed the `hasChangesFromBaseline` guard from `handleCreatePacket` entirely. The guard was never reliable (too narrow to cover all meaningful changes) and was blocking legitimate saves. The user clicking "Create Packet" is already an intentional action; the guard added friction without meaningful protection.
+
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Removed `hasChangesFromBaseline` guard and unused import from `handleCreatePacket` |
+
+---
 
 ### April 21, 2026 — Fix: "Starting…" forever + "No changes detected" after template load
 

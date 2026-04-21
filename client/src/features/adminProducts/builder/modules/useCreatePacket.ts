@@ -47,7 +47,7 @@ export function useCreatePacket({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
-  const { hasChangesFromBaseline, setActiveSession } = useBuilderContext();
+  const { setActiveSession } = useBuilderContext();
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
@@ -79,14 +79,6 @@ export function useCreatePacket({
   const handleCreatePacket = async () => {
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
-
-    if (state.templateBaseline && !hasChangesFromBaseline() && !state.committedInstanceId) {
-      toast({
-        title: "No changes detected",
-        description: "You loaded a template but haven't changed anything yet. Edit something first to save a new packet.",
-      });
-      return;
-    }
 
     setIsCreating(true);
     setError(null);
