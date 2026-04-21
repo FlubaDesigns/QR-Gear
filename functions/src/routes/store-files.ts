@@ -156,63 +156,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         }
       }
 
-      const channelName = channelData.name || storeName;
-      let linksSnapshot = (await db.collection('storeProductLinks')
-        .where('storeId', '==', storeId)
-        .where('channel', '==', channelName).get());
-      if (linksSnapshot.empty && channelName !== storeName) {
-        linksSnapshot = await db.collection('storeProductLinks')
-          .where('storeId', '==', storeId)
-          .where('channel', '==', storeName).get();
-      }
-      if (segment) {
-        const filteredDocs = linksSnapshot.docs.filter((doc: any) => doc.data().collection === segment);
-        linksSnapshot = { ...linksSnapshot, docs: filteredDocs, empty: filteredDocs.length === 0, size: filteredDocs.length } as any;
-      }
-
-      const productsRaw = linksSnapshot.docs.map((doc: any) => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          name: d.productName || 'Untitled Product',
-          imageUrl: d.mockupUrl || d.compositeUrl || d.qrOnlyUrl || null,
-          segment: d.collection || null,
-          isFeatured: false,
-          isSeasonalPromo: false,
-          templateVariant: null,
-          qrProductType: d.qrProductState || 'qr-basics',
-          qrCodeUrl: d.qrOnlyUrl || null,
-          selectedColors: d.enabledColors || [],
-          availableSizes: d.enabledSizes || [],
-          defaultColor: d.defaultColor || null,
-          mockupsByColor: null,
-          packetId: d.packetId || null,
-          pricing: d.pricing || null,
-          createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-        };
-      });
-
-      const products = await Promise.all(productsRaw.map(async (p: any) => {
-        let price: number | null = null;
-        let packetImageUrl: string | null = null;
-        if (p.packetId) {
-          const pDoc = await db.collection('packets').doc(p.packetId).get();
-          if (pDoc.exists) {
-            const pkt = pDoc.data()!;
-            packetImageUrl = pkt.priorityMockupUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-            if (pkt.productId) price = await getAuthoritativePrice(pkt.productId);
-            if (price === null && pkt.pricingSnapshot?.totalPrice) price = parseFloat(pkt.pricingSnapshot.totalPrice);
-          }
-        }
-        if (price === null && p.pricing) {
-          price = parseFloat(p.pricing.customerPrice || p.pricing.totalPrice || p.pricing.retailPrice || '0');
-        }
-        const resolvedImageUrl = p.imageUrl || packetImageUrl || null;
-        return { ...p, imageUrl: resolvedImageUrl, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
-      }));
-
-      // Also pull from admin_catalog_instances for this channel
-      let instancesSnap = await db.collection('admin_catalog_instances')
+      const instancesSnap = await db.collection('admin_catalog_instances')
         .where('storeId', '==', storeId)
         .where('channelId', '==', storeName)
         .get();
@@ -224,7 +168,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         return img?.url || null;
       };
 
-      const instanceProducts = await Promise.all(
+      const products = await Promise.all(
         instancesSnap.docs
           .filter((doc: any) => {
             if (!segment) return true;
@@ -237,7 +181,6 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let price: number | null = pricing?.customerPrice ?? null;
             let imageUrl = getFirstImageUrl(resolved.images || []);
 
-            // Try to get a better image from the packet
             if (d.currentPacketId) {
               try {
                 const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
@@ -251,7 +194,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             }
 
             return {
-              id: `inst_${doc.id}`,
+              id: doc.id,
               name: resolved.title || 'Untitled',
               imageUrl,
               segment: d.collectionName || null,
@@ -266,19 +209,16 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               mockupsByColor: null,
               price: price !== null ? Math.round(price * 100) / 100 : null,
               createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-              _source: 'catalog',
             };
           })
       );
 
-      const allProducts = [...products, ...instanceProducts];
-
-      console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} storeProductLinks + ${instanceProducts.length} catalog instances`);
+      console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} catalog instances`);
       res.json({
         storeType: storeData.roleType || 'internal',
         storeName: channelData.name || storeName,
         segment: segment || null,
-        products: allProducts,
+        products,
       });
       return;
     }
