@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 18)
+Last updated: April 21, 2026 (rev 19)
 
 ---
 
@@ -945,6 +945,39 @@ The auto-template-creation on item save was writing corrupt/partial data, and th
 | `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx` | URL corrected (no double `/admin/` prefix) |
 | `client/src/features/shared/components/skins/StoreProductSkin.tsx` | `onDelete` prop + hover trash button |
 | `client/src/features/adminProducts/storeLibrary/modules/ProductGridModule.tsx` | Delete mutation + AlertDialog confirmation |
+
+---
+
+### April 21, 2026 — Store Builder: Catalog Tab + Instance Management (rev 19)
+
+A new **Catalog** tab is now the default landing tab on the Store Builder page. It provides a full management view for every product instance across all stores, channels, and collections.
+
+**Role → Store dropdowns**
+Picking a role (Internal / External / Member) narrows the store list. Selecting a store loads the channel tree.
+
+**Channel + Collection tree (left panel)**
+All channels for the selected store are listed. Each channel has an expand arrow — clicking it lazily fetches and shows the collections underneath. Clicking a channel or collection loads the matching instances in the right panel.
+
+**Instance grid (right panel)**
+Each card shows:
+- Product thumbnail, title, and full folder path breadcrumb
+- Base cost range from the master snapshot (`minPrice`–`maxPrice`)
+- **Color swatches** — all available colors rendered as circles. Click to toggle enabled/disabled per listing. Saves immediately.
+- **Size chips** — all available sizes rendered as tags. Click to toggle. Saves immediately.
+- **Customer price** input — editable override, saves on blur or Enter.
+- **Delete** with a two-step confirm.
+- **Move to…** — opens an inline store / channel / collection picker. Confirm updates the instance's folder fields atomically (`storeId`, `channelId`, `collectionName`, `folderPath`).
+
+**Backend changes**
+- `GET /api/admin/catalog-instances` now accepts `storeId`, `channelId`, `collectionName`, and `folderPath` query params for server-side filtering. When folder filters are active, `orderBy` is dropped to avoid requiring Firestore composite indexes; results are sorted in memory.
+- `PATCH /api/admin/catalog-instances/:id` now accepts top-level `enabledColors`, `enabledSizes`, `customerPrice`, and a `folderUpdate` object (allowlisted keys: `storeId`, `storeName`, `channelId`, `channelName`, `collectionId`, `collectionName`, `folderPath`). These are stored at the top level of the instance document, not in `overrides`.
+- `DELETE /api/admin/catalog-instances/:id` — new route.
+
+| File | Change |
+|------|--------|
+| `server/routes/admin-catalog-instances.routes.ts` | `GET` — added `storeId`, `channelId`, `collectionName`, `folderPath` filters; `PATCH` — added `enabledColors`, `enabledSizes`, `customerPrice`, `folderUpdate` top-level update support; `DELETE` — new route |
+| `client/src/features/adminProducts/storeManager/StoreManagerTab.tsx` | New component — full role/store/channel/collection/instance management UI |
+| `client/src/pages/admin-store-builder.tsx` | Added `Catalog` tab (default); imports `StoreManagerTab` |
 
 ---
 
