@@ -36,18 +36,21 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const db = getFirestoreDb();
 
-      let query: any = db.collection(ADMIN_INSTANCES_COLLECTION)
-        .orderBy("createdAt", "desc");
+      const hasFolderFilter = !!(req.query.storeId || req.query.channelId || req.query.collectionName || req.query.folderPath);
 
-      if (req.query.catalogId) {
-        query = query.where("catalogId", "==", req.query.catalogId);
-      }
-      if (req.query.sourceMasterId) {
-        query = query.where("sourceMasterId", "==", req.query.sourceMasterId);
-      }
+      let query: any = hasFolderFilter
+        ? db.collection(ADMIN_INSTANCES_COLLECTION)
+        : db.collection(ADMIN_INSTANCES_COLLECTION).orderBy("createdAt", "desc");
+
+      if (req.query.catalogId)       query = query.where("catalogId",       "==", req.query.catalogId);
+      if (req.query.sourceMasterId)  query = query.where("sourceMasterId",  "==", req.query.sourceMasterId);
+      if (req.query.storeId)         query = query.where("storeId",         "==", req.query.storeId);
+      if (req.query.channelId)       query = query.where("channelId",       "==", req.query.channelId);
+      if (req.query.collectionName)  query = query.where("collectionName",  "==", req.query.collectionName);
+      if (req.query.folderPath)      query = query.where("folderPath",      "==", req.query.folderPath);
 
       const snap = await query.limit(200).get();
-      const instances = snap.docs.map((doc: any) => {
+      let instances = snap.docs.map((doc: any) => {
         const d = doc.data();
         return {
           id: doc.id,
@@ -56,6 +59,14 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
           updatedAt: d.updatedAt?.toDate?.() || null,
         };
       });
+
+      if (hasFolderFilter) {
+        instances = instances.sort((a: any, b: any) => {
+          const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bt - at;
+        });
+      }
 
       res.json({ success: true, instances, count: instances.length });
     } catch (err: any) {
@@ -160,7 +171,7 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
   app.patch("/api/admin/catalog-instances/:id", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { overrides, metadata, status } = req.body;
+      const { overrides, metadata, status, folderUpdate, enabledColors, enabledSizes, customerPrice } = req.body;
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const { FieldValue } = await import("firebase-admin/firestore");
@@ -186,12 +197,45 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
       if (metadata !== undefined) update.metadata = metadata;
       if (status !== undefined) update.status = status;
 
+      // Listing controls — stored at top level, not in overrides
+      if (enabledColors !== undefined) update.enabledColors = enabledColors;
+      if (enabledSizes !== undefined) update.enabledSizes = enabledSizes;
+      if (customerPrice !== undefined) update.customerPrice = customerPrice;
+
+      // Folder move — update top-level folder fields atomically
+      if (folderUpdate) {
+        const allowed = ["storeId","storeName","channelId","channelName","collectionId","collectionName","folderPath"];
+        for (const key of allowed) {
+          if (folderUpdate[key] !== undefined) update[key] = folderUpdate[key];
+        }
+      }
+
       await ref.update(update);
 
-      console.log(`[AdminInstances] Updated instance ${id} overrides:`, Object.keys(overrides || {}));
+      console.log(`[AdminInstances] Updated instance ${id}`);
       res.json({ success: true, instanceId: id, resolved });
     } catch (err: any) {
       console.error("[AdminInstances] patch error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Delete admin instance ────────────────────────────────────────────────
+  app.delete("/api/admin/catalog-instances/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const ref = db.collection(ADMIN_INSTANCES_COLLECTION).doc(id);
+      const doc = await ref.get();
+      if (!doc.exists) return res.status(404).json({ error: "Instance not found" });
+
+      await ref.delete();
+      console.log(`[AdminInstances] Deleted instance ${id}`);
+      res.json({ success: true, instanceId: id });
+    } catch (err: any) {
+      console.error("[AdminInstances] delete error:", err);
       res.status(500).json({ error: err.message });
     }
   });
