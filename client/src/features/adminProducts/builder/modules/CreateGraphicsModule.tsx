@@ -85,7 +85,7 @@ export function CreateGraphicsModule() {
   // When re-selecting a product whose session already has a packet, restore
   // the PacketResultDisplay automatically instead of showing "Create Packet".
   useEffect(() => {
-    if (!state.activePacketId || packetResult || sessionStatus !== 'artifact_ready') return;
+    if (!state.activePacketId || packetResult || (sessionStatus !== 'artifact_ready' && sessionStatus !== 'committed')) return;
     let cancelled = false;
 
     const restore = async () => {
