@@ -626,6 +626,13 @@ export function ProductsModule() {
         const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
         setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null);
 
+        // Restore the packet ID so CreateGraphicsModule can re-display the packet result
+        const existingPacketId: string | null = data.session?.generated?.packetId || null;
+        if (existingPacketId) {
+          setActivePacketId(existingPacketId);
+          console.log(`[ProductsModule] Restored activePacketId: ${existingPacketId}`);
+        }
+
         if (data.isExisting && data.session?.working && Object.keys(data.session.working).length > 0) {
           loadFromWorkingState(data.session.working, entry.catalog);
           const draftName = data.session.draftName || entry.catalog.title || "your draft";
@@ -640,7 +647,7 @@ export function ProductsModule() {
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, loadFromWorkingState, toast]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {

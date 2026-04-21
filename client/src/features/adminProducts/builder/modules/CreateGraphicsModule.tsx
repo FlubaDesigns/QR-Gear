@@ -38,7 +38,7 @@ export interface PacketResult {
 
 export function CreateGraphicsModule() {
   const { state, loadGraphic, selectedRole, selectedStore, selectedChannel, resetBuilder, setActivePacketId } = useBuilderContext();
-  const { apiBase } = useAdminAuth();
+  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
 
   const hasActiveSession = !!state.activeSessionId;
@@ -63,17 +63,52 @@ export function CreateGraphicsModule() {
   const {
     isCreating, packetResult, error, isDeleting,
     isCommitting, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
-    handleCommitSession,
+    handleCommitSession, setPacketResult,
   } = useCreatePacket({
     state, selectedRole, selectedStore, selectedChannel,
     loadGraphic, resetBuilder, pricingSettings,
   });
 
+  // Sync activePacketId when a new packet is freshly created
   useEffect(() => {
     if (packetResult?.packetId) {
       setActivePacketId(packetResult.packetId);
     }
   }, [packetResult?.packetId]);
+
+  // When re-selecting a product whose session already has a packet, restore
+  // the PacketResultDisplay automatically instead of showing "Create Packet".
+  useEffect(() => {
+    if (!state.activePacketId || packetResult || sessionStatus !== 'artifact_ready') return;
+    let cancelled = false;
+
+    const restore = async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${apiBase}/packets/${state.activePacketId}`, { headers });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const p = data.packet || data;
+        if (!p || cancelled) return;
+        setPacketResult({
+          packetId: state.activePacketId,
+          landingPageUrl: p.qrContent || p.landingPageUrl || '',
+          landingPageSnapshotUrl: p.landingPageSnapshotUrl || '',
+          productGraphicUrl: p.productGraphicUrl || p.compositeUrl || '',
+          qrOnlyUrl: p.qrOnlyUrl || '',
+          pricing: p.pricing as PricingBreakdown,
+          priorityMockupUrl: p.priorityMockupUrl || null,
+          priorityMockupLoading: false,
+        });
+        console.log(`[CreateGraphicsModule] Restored packetResult for ${state.activePacketId}`);
+      } catch {
+        // silent — fallback to showing Create Packet button
+      }
+    };
+
+    restore();
+    return () => { cancelled = true; };
+  }, [state.activePacketId, packetResult, sessionStatus]);
 
   if (!state.selectedProduct || !state.qrProductState || !state.content) {
     return null;
