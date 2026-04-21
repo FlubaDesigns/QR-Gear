@@ -58,22 +58,23 @@ function getImageUrl(instance: AdminInstance): string | null {
 }
 
 function ColorToggle({ color, enabled, onToggle }: { color: string; enabled: boolean; onToggle: () => void }) {
+  const isHex = color.startsWith("#");
   return (
     <button
       onClick={onToggle}
       title={color}
-      className={`relative w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center flex-shrink-0
-        ${enabled ? "border-white/60 opacity-100" : "border-white/20 opacity-40"}`}
-      style={{ backgroundColor: color.startsWith("#") ? color : undefined }}
+      className={`relative w-12 h-12 rounded-full border-2 transition-all flex items-center justify-center flex-shrink-0
+        ${enabled ? "border-white/60 opacity-100" : "border-white/15 opacity-35"}`}
+      style={{ backgroundColor: isHex ? color : undefined }}
       data-testid={`toggle-color-${color}`}
     >
-      {!color.startsWith("#") && (
-        <span className="text-[9px] font-bold text-white leading-none uppercase">
-          {color.slice(0, 2)}
+      {!isHex && (
+        <span className="text-[10px] font-bold text-white leading-none uppercase">
+          {color.slice(0, 3)}
         </span>
       )}
-      {enabled && (
-        <Check className="absolute h-3.5 w-3.5 text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.8)]" />
+      {!enabled && (
+        <X className="absolute h-5 w-5 text-white/70 drop-shadow-[0_0_2px_rgba(0,0,0,0.9)]" />
       )}
     </button>
   );
@@ -83,10 +84,10 @@ function SizeChip({ size, enabled, onToggle }: { size: string; enabled: boolean;
   return (
     <button
       onClick={onToggle}
-      className={`px-3 py-1 rounded text-sm font-medium border transition-all min-h-[2rem]
+      className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-all min-h-[2.75rem] min-w-[3rem]
         ${enabled
           ? "border-white/40 bg-white/15 text-white"
-          : "border-white/10 bg-transparent text-white/30"
+          : "border-white/10 bg-transparent text-white/25 line-through"
         }`}
       data-testid={`toggle-size-${size}`}
     >
@@ -381,35 +382,43 @@ function InstanceCard({
         </div>
       </div>
 
-      {/* Colors accordion */}
-      {allColors.length > 0 && (
-        <AccordionSection label="Colors" badge={`${enabledColors.length}/${allColors.length} on`}>
-          <div className="flex flex-wrap gap-2">
-            {allColors.map(color => (
-              <ColorToggle
-                key={color}
-                color={color}
-                enabled={enabledColors.includes(color)}
-                onToggle={() => toggleColor(color)}
-              />
-            ))}
-          </div>
-        </AccordionSection>
-      )}
-
-      {/* Sizes accordion */}
-      {allSizes.length > 0 && (
-        <AccordionSection label="Sizes" badge={`${enabledSizes.length}/${allSizes.length} on`}>
-          <div className="flex flex-wrap gap-2">
-            {allSizes.map(size => (
-              <SizeChip
-                key={size}
-                size={size}
-                enabled={enabledSizes.includes(size)}
-                onToggle={() => toggleSize(size)}
-              />
-            ))}
-          </div>
+      {/* Combined Colors & Sizes accordion */}
+      {(allColors.length > 0 || allSizes.length > 0) && (
+        <AccordionSection label="Colors & Sizes">
+          {allColors.length > 0 && (
+            <div className="mb-4">
+              <p className="glass-subtitle text-[11px] uppercase tracking-wider mb-2.5">
+                Colors <span className="normal-case opacity-60">({enabledColors.length}/{allColors.length} on)</span>
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {allColors.map(color => (
+                  <ColorToggle
+                    key={color}
+                    color={color}
+                    enabled={enabledColors.includes(color)}
+                    onToggle={() => toggleColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          {allSizes.length > 0 && (
+            <div>
+              <p className="glass-subtitle text-[11px] uppercase tracking-wider mb-2.5">
+                Sizes <span className="normal-case opacity-60">({enabledSizes.length}/{allSizes.length} on)</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {allSizes.map(size => (
+                  <SizeChip
+                    key={size}
+                    size={size}
+                    enabled={enabledSizes.includes(size)}
+                    onToggle={() => toggleSize(size)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </AccordionSection>
       )}
 
