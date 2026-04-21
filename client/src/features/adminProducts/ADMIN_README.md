@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 14)
+Last updated: April 21, 2026 (rev 15)
 
 ---
 
@@ -488,6 +488,26 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 21, 2026 — Fix: "Starting…" forever + "No changes detected" after template load
+
+**Bug 1 — "Starting…" spinner never resolves after loading a template**
+`loadFromPacketData` populates the builder state including `selectedProduct`, but never called `from-master` to create a build session. The sticky bar badge showed "Starting…" indefinitely and autosave/commit were blocked with no session to write to.
+
+**Fix:** `LoadTemplateModule.handleSelect` now calls `POST /build-sessions/from-master` after `loadFromPacketData` (when a product was resolved). The returned `sessionId` is immediately registered via `setActiveSession`, so the sticky bar shows "In progress" and autosave begins normally.
+
+**Bug 2 — "No changes detected" blocks packet creation on reopened committed sessions**
+After committing a session and reopening it via "Update Saved Item", `templateBaseline` remained set from the original template load. Creating a new packet then triggered the baseline comparison which returned "no changes" — even if the user had actually made edits — because the working state was restored to match the baseline.
+
+**Fix:** The `hasChangesFromBaseline` guard in `useCreatePacket` now skips the block when `state.committedInstanceId` is set. A session with an existing committed instance is explicitly being updated; the intent is clear and the guard adds no value there.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx` | Added `setActiveSession` to context destructure; `handleSelect` calls `from-master` after `loadFromPacketData` to auto-create a session |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Baseline check now includes `&& !state.committedInstanceId` so reopened committed sessions are not blocked |
+
+---
 
 ### April 21, 2026 — Fix: "Template has no packet data" error on Load Template
 

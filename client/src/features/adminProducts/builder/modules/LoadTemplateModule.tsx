@@ -104,7 +104,7 @@ function TemplatePickerCard({
 }
 
 export function LoadTemplateModule() {
-  const { loadFromPacketData, setTemplateProductResolved, state } = useBuilderContext();
+  const { loadFromPacketData, setTemplateProductResolved, setActiveSession, state } = useBuilderContext();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
 
@@ -183,6 +183,24 @@ export function LoadTemplateModule() {
 
       const resolvedProduct = await resolveProduct(packet);
       loadFromPacketData(packet, resolvedProduct);
+
+      // Auto-create a build session so autosave and commit work immediately
+      if (resolvedProduct?.docId) {
+        try {
+          const headers = await getAuthHeaders();
+          const sessionRes = await fetch(`${apiBase}/build-sessions/from-master`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sourceMasterId: resolvedProduct.docId }),
+          });
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            setActiveSession(sessionData.sessionId, 'working', null);
+          }
+        } catch {
+          // Non-fatal — builder still works, session will be created on first autosave attempt
+        }
+      }
 
       if (!resolvedProduct && packet.blueprintId) {
         toast({

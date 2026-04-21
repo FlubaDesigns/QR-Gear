@@ -80,7 +80,7 @@ export function useCreatePacket({
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
 
-    if (state.templateBaseline && !hasChangesFromBaseline()) {
+    if (state.templateBaseline && !hasChangesFromBaseline() && !state.committedInstanceId) {
       toast({
         title: "No changes detected",
         description: "You loaded a template but haven't changed anything yet. Edit something first to save a new packet.",
