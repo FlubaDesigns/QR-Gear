@@ -193,6 +193,12 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               } catch (_) {}
             }
 
+            const toStringArray = (arr: any[]): string[] =>
+              (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
+
+            const rawColors = d.enabledColors || resolved.colors || [];
+            const rawSizes = d.enabledSizes || resolved.sizes || [];
+
             return {
               id: doc.id,
               name: resolved.title || 'Untitled',
@@ -203,8 +209,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               templateVariant: null,
               qrProductType: 'qr-basics',
               qrCodeUrl: null,
-              selectedColors: d.enabledColors || resolved.colors || [],
-              availableSizes: d.enabledSizes || resolved.sizes || [],
+              selectedColors: toStringArray(rawColors),
+              availableSizes: toStringArray(rawSizes),
               defaultColor: null,
               mockupsByColor: null,
               price: price !== null ? Math.round(price * 100) / 100 : null,
