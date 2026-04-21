@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 17)
+Last updated: April 21, 2026 (rev 18)
 
 ---
 
@@ -945,6 +945,25 @@ The auto-template-creation on item save was writing corrupt/partial data, and th
 | `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx` | URL corrected (no double `/admin/` prefix) |
 | `client/src/features/shared/components/skins/StoreProductSkin.tsx` | `onDelete` prop + hover trash button |
 | `client/src/features/adminProducts/storeLibrary/modules/ProductGridModule.tsx` | Delete mutation + AlertDialog confirmation |
+
+---
+
+### April 21, 2026 — Folder Path Naming (rev 18)
+
+- **`selectedCollection` exposed in BuilderContext** — Added `selectedCollection: Collection | null` to `BuilderContextValue` interface and the `useMemo` return value so any module can read the selected folder.
+- **Auto-title from folder path** — `CreateGraphicsModule` now uses a `useEffect` to auto-set `content.title` to the full folder path (`"StoreName / ChannelName / CollectionName"`) when the title is empty. This title flows into the graphic name, template name, and landing page slug for every packet created from that session.
+- **`canCreate` gated on collection** — The Create Packet button is disabled (with a clear validation message) until a collection is selected, ensuring every packet has a meaningful folder path name.
+- **`collectionId`, `collectionName`, `folderPath` in packet payload** — `useCreatePacket` now sends all three fields alongside the existing `storeId`/`storeName`/`channelId`/`channelName`.
+- **`folderPath` on committed instance (CF)** — The Cloud Functions commit handler (`admin-build-sessions.ts`) reads `session.working.metadata.selectedStore/Channel/Collection`, composes the `folderPath` string, and stores `storeId`, `storeName`, `channelId`, `channelName`, `collectionId`, `collectionName`, and `folderPath` on every new `admin_catalog_instance` document. This enables Firestore queries like `.where('folderPath', '==', 'USA250 / Armed Forces')`.
+- **Slug unchanged** — `landingPageSlug` remains `slugify(folderPath) + '-' + timestamp36` — human-readable path prefix with a unique hash suffix.
+- **CF build ID** — `20260421-folder-path-on-instance-v3`
+
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | `selectedCollection` added to interface + useMemo return |
+| `client/src/features/adminProducts/builder/modules/CreateGraphicsModule.tsx` | useEffect auto-titles from full folder path; `canCreate` gated on collection; passes `selectedCollection` to `useCreatePacket` |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | `selectedCollection` arg added; `collectionId`, `collectionName`, `folderPath` added to packet payload |
+| `functions/src/routes/admin-build-sessions.ts` | Commit handler extracts folder context from `session.working.metadata`; stores 7 new fields on instance |
 
 ---
 

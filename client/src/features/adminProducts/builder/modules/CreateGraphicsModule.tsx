@@ -60,12 +60,15 @@ export function CreateGraphicsModule() {
     staleTime: 60000,
   });
 
-  // Auto-seed content.title from the selected collection name when not already set
+  // Auto-seed content.title from full folder path when not already set
   useEffect(() => {
-    if (selectedCollection?.name && !state.content?.title) {
-      setContent({ title: selectedCollection.name });
+    if (!state.content?.title) {
+      const parts = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean);
+      if (parts.length > 0) {
+        setContent({ title: parts.join(' / ') });
+      }
     }
-  }, [selectedCollection?.name]);
+  }, [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]);
 
   const isPlayMode = state.qrProductState === "qr_play";
   const isBasicsOrPlusMode = state.qrProductState === "qr_basics" || state.qrProductState === "qr_plus";
@@ -81,7 +84,7 @@ export function CreateGraphicsModule() {
     isCommitting, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession, setPacketResult,
   } = useCreatePacket({
-    state, selectedRole, selectedStore, selectedChannel,
+    state, selectedRole, selectedStore, selectedChannel, selectedCollection,
     loadGraphic, resetBuilder, pricingSettings,
   });
 

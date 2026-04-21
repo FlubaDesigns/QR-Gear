@@ -436,6 +436,12 @@ function registerAdminBuildSessions(app) {
                 overrides.metadata = w.metadata;
             const resolved = resolveFields(baseSnapshot, overrides);
             const newPacketId = session.generated?.packetId || null;
+            const meta = w.metadata || {};
+            const selectedStore = meta.selectedStore || null;
+            const selectedChannel = meta.selectedChannel || null;
+            const selectedCollection = meta.selectedCollection || null;
+            const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
+                .filter(Boolean).join(' / ') || null;
             // ── Always CREATE a new instance — every commit is a new catalog entry ──
             const instanceRef = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION).add({
                 instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
@@ -443,6 +449,13 @@ function registerAdminBuildSessions(app) {
                 baseSnapshot, overrides, resolved,
                 currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
                 currentGraphicSetId: session.generated?.graphicSetId || null,
+                storeId: selectedStore?.id || null,
+                storeName: selectedStore?.name || null,
+                channelId: selectedChannel?.id || null,
+                channelName: selectedChannel?.name || null,
+                collectionId: selectedCollection?.id || null,
+                collectionName: selectedCollection?.name || null,
+                folderPath,
                 status: 'draft', createdAt: now, updatedAt: now,
             });
             const instanceId = instanceRef.id;

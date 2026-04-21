@@ -29,13 +29,14 @@ interface UseCreatePacketArgs {
   selectedRole: any;
   selectedStore: any;
   selectedChannel: any;
+  selectedCollection: any;
   loadGraphic: (g: { compositeUrl: string; qrOnlyUrl: string }) => void;
   resetBuilder: () => void;
   pricingSettings: PricingSettings | undefined;
 }
 
 export function useCreatePacket({
-  state, selectedRole, selectedStore, selectedChannel,
+  state, selectedRole, selectedStore, selectedChannel, selectedCollection,
   loadGraphic, resetBuilder, pricingSettings,
 }: UseCreatePacketArgs) {
   const { apiBase, getAuthHeaders } = useAdminAuth();
@@ -156,6 +157,9 @@ export function useCreatePacket({
         storeName: selectedStore?.name || null,
         channelId: selectedChannel?.id || null,
         channelName: selectedChannel?.name || null,
+        collectionId: selectedCollection?.id || null,
+        collectionName: selectedCollection?.name || null,
+        folderPath: [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean).join(' / ') || null,
         fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
         subBottomEnabled: state.content?.subBottomStyle?.enabled || false,
         subBottomText: state.content?.subBottomStyle?.text || '',
