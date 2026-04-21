@@ -126,7 +126,7 @@ interface CatalogCategoryResponse {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setSelectedCatalogId, loadFromWorkingState } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, setSelectedCatalogId, loadFromWorkingState } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
