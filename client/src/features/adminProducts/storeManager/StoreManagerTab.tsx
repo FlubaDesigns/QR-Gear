@@ -592,15 +592,16 @@ export function StoreManagerTab() {
   const { data: instancesData, isLoading: loadingInstances } = useQuery<{ instances: AdminInstance[] }>({
     queryKey: instancesQueryKey,
     queryFn: async () => {
-      if (!selectedChannelId) return { instances: [] };
+      if (!selectedStore) return { instances: [] };
       const headers = await getAuthHeaders();
       const params = new URLSearchParams();
-      params.set("channelId", selectedChannelId);
+      params.set("storeId", selectedStore.id);
+      if (selectedChannelId) params.set("channelId", selectedChannelId);
       if (selectedCollectionName) params.set("collectionName", selectedCollectionName);
       const res = await fetch(`${apiBase}/admin/catalog-instances?${params}`, { headers });
       return res.json();
     },
-    enabled: !!selectedChannelId,
+    enabled: !!selectedStore,
   });
 
   const instances = instancesData?.instances ?? [];

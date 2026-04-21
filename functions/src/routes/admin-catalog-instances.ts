@@ -38,14 +38,58 @@ function toSerializable(doc: FirebaseFirestore.DocumentSnapshot): Record<string,
 export function register(app: express.Express): void {
 
   // ── GET /admin/catalog-instances ────────────────────────────────────────────
+  // Filters by storeId in Firestore (indexed), then applies channelId /
+  // collectionName in memory so legacy instances (committed before folder-path
+  // CF update, channelId=null) still surface instead of silently disappearing.
   app.get('/admin/catalog-instances', requireAdmin, async (req: any, res: any): Promise<void> => {
     try {
-      let q: FirebaseFirestore.Query = db.collection(ADMIN_INSTANCES).orderBy('createdAt', 'desc');
-      if (req.query.catalogId)      q = q.where('catalogId',      '==', req.query.catalogId);
-      if (req.query.sourceMasterId) q = q.where('sourceMasterId', '==', req.query.sourceMasterId);
-      if (req.query.status)         q = q.where('status',         '==', req.query.status);
-      const snap = await q.limit(200).get();
-      const instances = snap.docs.map(toSerializable);
+      const {
+        storeId, channelId, collectionName, folderPath,
+        catalogId, sourceMasterId, status,
+      } = req.query as Record<string, string>;
+
+      // Use storeId as the primary Firestore filter when available — it's the
+      // most reliable field (set even on pre-folder-path instances).
+      // Avoid combining orderBy with inequality filters to sidestep index requirements.
+      let q: FirebaseFirestore.Query = (storeId || catalogId || sourceMasterId)
+        ? db.collection(ADMIN_INSTANCES)
+        : db.collection(ADMIN_INSTANCES).orderBy('createdAt', 'desc');
+
+      if (catalogId)      q = q.where('catalogId',      '==', catalogId);
+      if (sourceMasterId) q = q.where('sourceMasterId', '==', sourceMasterId);
+      if (status)         q = q.where('status',         '==', status);
+      if (storeId)        q = q.where('storeId',        '==', storeId);
+      // folderPath exact-match only when no sub-filters present
+      if (folderPath && !channelId && !collectionName) {
+        q = q.where('folderPath', '==', folderPath);
+      }
+
+      const snap = await q.limit(500).get();
+      let instances = snap.docs.map(toSerializable);
+
+      // In-memory filters for channel / collection.
+      // An instance with null/missing channelId is treated as belonging to ALL
+      // channels within its store (backward compat with pre-folder-path commits).
+      if (channelId) {
+        instances = instances.filter(inst =>
+          !inst.channelId || inst.channelId === channelId
+        );
+      }
+      if (collectionName) {
+        instances = instances.filter(inst =>
+          inst.collectionName === collectionName
+        );
+      }
+
+      // Sort newest-first when Firestore orderBy was skipped
+      if (storeId || catalogId || sourceMasterId) {
+        instances.sort((a, b) => {
+          const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bt - at;
+        });
+      }
+
       res.json({ success: true, instances, count: instances.length });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -130,12 +174,19 @@ export function register(app: express.Express): void {
 
   // ── PATCH /admin/catalog-instances/:id ──────────────────────────────────────
   // Save admin overrides. resolveInstance is recomputed. Master is NEVER touched.
+  // Also accepts top-level listing controls: enabledColors, enabledSizes,
+  // customerPrice, and folderUpdate (for moving an instance to a different folder).
   app.patch('/admin/catalog-instances/:id', requireAdmin, async (req: any, res: any): Promise<void> => {
     try {
-      // Callers may pass overrides directly, or include metadata inside overrides.
-      // metadata as a top-level convenience param is folded into overrides so
-      // resolveInstance always sees the full picture.
-      const { overrides: rawOverrides = {}, status } = req.body;
+      const {
+        overrides: rawOverrides = {},
+        status,
+        enabledColors,
+        enabledSizes,
+        customerPrice,
+        folderUpdate,
+      } = req.body;
+
       const topLevelMetadata = req.body.metadata;
       const incomingOverrides = topLevelMetadata !== undefined
         ? { ...rawOverrides, metadata: topLevelMetadata }
@@ -149,7 +200,7 @@ export function register(app: express.Express): void {
       // Merge incoming overrides on top of stored overrides (object-level merge)
       const mergedOverrides = { ...existing.overrides, ...incomingOverrides };
 
-      // Single source of truth for resolved state — resolveInstance handles metadata
+      // Single source of truth for resolved state
       const resolved = resolveInstance(existing.baseSnapshot, mergedOverrides);
 
       const update: Record<string, any> = {
@@ -161,9 +212,34 @@ export function register(app: express.Express): void {
       };
       if (status !== undefined) update.status = status;
 
+      // Listing controls — stored at top level, not inside overrides
+      if (enabledColors !== undefined) update.enabledColors = enabledColors;
+      if (enabledSizes  !== undefined) update.enabledSizes  = enabledSizes;
+      if (customerPrice !== undefined) update.customerPrice = customerPrice;
+
+      // Folder move — allowlisted keys written to top level atomically
+      if (folderUpdate) {
+        const allowed = ['storeId','storeName','channelId','channelName','collectionId','collectionName','folderPath'];
+        for (const key of allowed) {
+          if (folderUpdate[key] !== undefined) update[key] = folderUpdate[key];
+        }
+      }
+
       await ref.update(update);
       console.log(`[AdminInstances] Updated ${req.params.id} → v${update.version}`);
       res.json({ success: true, instanceId: req.params.id, resolved, version: update.version });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // ── DELETE /admin/catalog-instances/:id ─────────────────────────────────────
+  app.delete('/admin/catalog-instances/:id', requireAdmin, async (req: any, res: any): Promise<void> => {
+    try {
+      const ref = db.collection(ADMIN_INSTANCES).doc(req.params.id);
+      const doc = await ref.get();
+      if (!doc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
+      await ref.delete();
+      console.log(`[AdminInstances] Deleted ${req.params.id}`);
+      res.json({ success: true, instanceId: req.params.id });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
