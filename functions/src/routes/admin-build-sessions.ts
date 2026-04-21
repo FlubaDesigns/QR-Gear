@@ -449,18 +449,25 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const now = FieldValue.serverTimestamp();
       const effectiveCatalogId = catalogId || session.catalogId || null;
 
-      // --- Resolve curated image list ---
-      // Priority: catalog blankImages (admin-trimmed) > master catalog images
+      // --- Resolve curated title, description, and image list from catalog overrides ---
+      // Priority: catalog blankTitles/blankDescriptions/blankImages > master catalog
+      let curatedTitle: string = master.title || '';
+      let curatedDescription: string | null = master.description || null;
       let curatedImages: string[] = master.images || [];
       if (effectiveCatalogId) {
         try {
           const catDoc = await db.collection('catalogs').doc(effectiveCatalogId).get();
           if (catDoc.exists) {
-            const blankImages = (catDoc.data() as any).blankImages || {};
+            const catData = catDoc.data() as any;
+            const blankTitles = catData.blankTitles || {};
+            const blankDescriptions = catData.blankDescriptions || {};
+            const blankImages = catData.blankImages || {};
+            if (blankTitles[session.sourceMasterId]) curatedTitle = blankTitles[session.sourceMasterId];
+            if (blankDescriptions[session.sourceMasterId]) curatedDescription = blankDescriptions[session.sourceMasterId];
             const trimmed: string[] = blankImages[session.sourceMasterId] || [];
             if (trimmed.length > 0) curatedImages = trimmed;
           }
-        } catch (_) { /* fall back to master images */ }
+        } catch (_) { /* fall back to master values */ }
       }
 
       // Prepend the generated mockup as the hero image if available
@@ -478,8 +485,8 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // ----------------------------------------
 
       const baseSnapshot = {
-        title: master.title || '',
-        description: master.description || null,
+        title: curatedTitle,
+        description: curatedDescription,
         images: finalImages,
         brand: master.brand || null,
         colors: master.colors || [],
