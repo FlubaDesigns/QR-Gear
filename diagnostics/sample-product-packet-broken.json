@@ -1,0 +1,37 @@
+{
+  "_note": "Pattern of a BROKEN packet — fields that cause known failures downstream.",
+  "_symptoms": [
+    "customerPrice is null → store shows no price",
+    "productGraphicUrl is null → card shows broken image",
+    "effectiveTitle is null → card shows 'Untitled'",
+    "channelId is null → instance not visible in channel store"
+  ],
+
+  "_id": "<some-old-packet-id>",
+  "_collection": "productPackets",
+
+  "productId": "py_12",
+  "productName": "Unisex Jersey Short Sleeve Tee",
+  "effectiveTitle": null,
+
+  "pricing": null,
+
+  "storeId": "qr-gear",
+  "channelId": null,
+  "channelName": null,
+  "collectionName": null,
+
+  "productGraphicUrl": null,
+  "qrOnlyUrl": null,
+  "compositeUrl": null,
+
+  "qrContent": "",
+  "qrProductState": "qr_basics",
+
+  "_diagnosis": {
+    "pricing_null": "Packet was created before pricing was wired into the commit body (fixed April 21 2026). Rebuild and re-save to populate.",
+    "channelId_null": "Session was created without a channel selected. Instance query uses channelId == storeName, so it won't appear in the channel store.",
+    "effectiveTitle_null": "masterTitle and productName were both null at packet creation time — likely a session restore bug.",
+    "productGraphicUrl_null": "Canvas render failed silently (e.g. CORS on background image). Packet was still saved. Image shows broken."
+  }
+}

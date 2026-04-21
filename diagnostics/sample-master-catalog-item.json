@@ -1,0 +1,32 @@
+{
+  "_id": "py_12",
+  "_collection": "master_catalog",
+  "_note": "Real document from Firestore. Printify blueprint item. ID format: py_<blueprintId> or pf_<printfulId>",
+  "title": "Unisex Jersey Short Sleeve Tee",
+  "description": "<p>The Bella Canvas 3001 is a classic unisex jersey short sleeve tee...</p>",
+  "brand": "Bella + Canvas",
+  "images": [
+    "https://images.printify.com/66d81b70295ea4f038065152",
+    "https://images.printify.com/688c5bdea91db6d1610f6ca2",
+    "https://images.printify.com/66d81b76953258e42905f422",
+    "https://images.printify.com/66d81b7a0482d2ef57061f32"
+  ],
+  "colors": [
+    { "name": "Heather Orchid", "hex": "#c2878e" },
+    { "name": "Heather Dust", "hex": "#e5d9c9" },
+    { "name": "Navy", "hex": "#27354a" }
+  ],
+  "sizes": ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
+  "category": "T-Shirts & Tops",
+  "originCountry": "Nicaragua",
+  "minPrice": 12.19,
+  "maxPrice": 18.30,
+  "printifyBlueprintId": 12,
+  "printfulProductId": 71,
+  "qrgId": "QRG-100-012",
+  "qrgCategory": 100,
+  "qrgSequence": 12,
+  "lastSyncedAt": "2026-04-10T20:11:11.689Z",
+  "updatedAt": "2026-04-10T20:11:11.689Z",
+  "createdAt": "2026-04-10T20:11:11.689Z"
+}

@@ -1,0 +1,89 @@
+{
+  "_id": "3suaB5KK7Ez8pOOzucec",
+  "_collection": "admin_catalog_instances",
+  "_note": "Real document from Firestore. Created by Build→Save (commit). One per Build+Save press.",
+
+  "instanceType": "admin",
+  "sourceMasterId": "py_12",
+  "sourceSessionId": "WbaNyMM4wFhwd9m1oQES",
+  "ownerAdminId": "***REDACTED***",
+  "catalogId": null,
+  "currentPacketId": "4kLsxHqCca7fbdICvW3T",
+  "currentTemplateId": null,
+  "currentGraphicSetId": null,
+
+  "storeId": "qr-gear",
+  "storeName": "QR Gear",
+  "channelId": "usa250",
+  "channelName": "USA250",
+  "collectionId": null,
+  "collectionName": "Armed Forces",
+  "folderPath": "QR Gear / USA250 / Armed Forces",
+  "status": "draft",
+
+  "baseSnapshot": {
+    "_note": "Copied from master_catalog at session creation. Never mutated after that.",
+    "title": "Unisex Jersey Short Sleeve Tee",
+    "description": "<p>Provider description from Printify...</p>",
+    "images": ["https://images.printify.com/66d81b70295ea4f038065152"],
+    "brand": "Bella + Canvas",
+    "colors": [{ "name": "Heather Orchid", "hex": "#c2878e" }],
+    "sizes": ["S", "M", "L", "XL"],
+    "category": "T-Shirts & Tops",
+    "originCountry": "Nicaragua",
+    "minPrice": 12.19,
+    "maxPrice": 18.30,
+    "printifyBlueprintId": 12,
+    "printfulProductId": 71
+  },
+
+  "overrides": {
+    "_note": "Admin-set overrides. These win over baseSnapshot in the resolved layer.",
+    "description": "A great QR scan starts with a smooth, high-quality surface...",
+    "images": ["https://images.printify.com/66d81b70295ea4f038065152"],
+    "pricing": {
+      "baseProductCost": 18.30,
+      "placementCost": 0,
+      "textUpcharge": 2,
+      "hostingCost": 0,
+      "subtotal": 20.30,
+      "markupPercent": 25,
+      "markupFixed": 0,
+      "markupAmount": 5.075,
+      "customerPrice": 25.375,
+      "hostingTierCode": "1_year"
+    },
+    "metadata": {
+      "fulfillmentProvider": "printify",
+      "category": "T-Shirts",
+      "selectedStore": { "id": "qr-gear", "name": "QR Gear" },
+      "selectedChannel": { "id": "usa250", "name": "USA250" },
+      "selectedCollection": { "name": "Armed Forces" }
+    }
+  },
+
+  "resolved": {
+    "_note": "Merged view: baseSnapshot + overrides. This is what the storefront reads.",
+    "title": "Unisex Jersey Short Sleeve Tee",
+    "description": "A great QR scan starts with a smooth, high-quality surface...",
+    "images": ["https://images.printify.com/66d81b70295ea4f038065152"],
+    "brand": "Bella + Canvas",
+    "colors": [{ "name": "Heather Orchid", "hex": "#c2878e" }],
+    "sizes": ["S", "M", "L", "XL"],
+    "category": "T-Shirts & Tops",
+    "originCountry": "Nicaragua",
+    "minPrice": 12.19,
+    "maxPrice": 18.30,
+    "printifyBlueprintId": 12,
+    "printfulProductId": 71,
+    "pricing": {
+      "customerPrice": 25.375,
+      "baseProductCost": 18.30,
+      "markupPercent": 25,
+      "subtotal": 20.30
+    }
+  },
+
+  "createdAt": "2026-04-21T19:09:11.993Z",
+  "updatedAt": "2026-04-21T19:09:11.993Z"
+}

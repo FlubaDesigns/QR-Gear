@@ -1,0 +1,74 @@
+QR Gear — Known Console & Network Errors
+Last updated: April 21, 2026
+Environment: Production (qrgear-c1ffd.web.app)
+
+NOTE: Dev environment requires login — browser console capture from dev is not available.
+Errors below are from code review and known failure patterns.
+
+================================================================================
+CONFIRMED ERROR — V.toLowerCase is not a function
+================================================================================
+Location: /shop/channel/usa250
+Source: client/src/pages/shop-segment.tsx, line 244
+  <SelectItem key={color} value={color} data-testid={`option-color-${color.toLowerCase()...`}
+
+Root cause: selectedColors array contained objects { name, hex } instead of strings.
+The admin_catalog_instances collection stores colors as objects.
+The store-files CF route was returning them unconverted.
+
+Error message: TypeError: V.toLowerCase is not a function
+  at shop-segment.tsx:244
+
+Fix: store-files.ts now runs toStringArray() to normalize colors to name strings.
+Status: FIXED April 21 2026, deployed.
+
+================================================================================
+KNOWN SILENT FAILURE — No catalog instance created
+================================================================================
+Location: Admin builder, after Build+Save
+Source: useCreatePacket.ts, lines ~485-510
+
+If state.activeSessionId is null:
+  console.log('[CreatePacket] No active session ID — skipping artifact/commit flow')
+  (or similar)
+
+No error is shown to the user. No toast. Save appears to complete successfully.
+Only symptom: item does not appear in Catalog tab.
+
+Root cause: Session was not created before Build+Save was pressed.
+
+================================================================================
+KNOWN SILENT FAILURE — Product graphic render fails
+================================================================================
+Location: Admin builder, useCreatePacket.ts lines ~272-297
+
+If renderProductGraphic() throws:
+  console.warn('Product graphic generation failed:', e)
+  productGraphicUrl = ""
+
+No error shown to user. Packet is saved with empty productGraphicUrl.
+Symptom: product card shows broken/missing image in admin and storefront.
+
+================================================================================
+NETWORK — POST /api/admin/store-product-links (non-critical, expected to fail)
+================================================================================
+This route still runs as Step 9 of the save flow.
+If it returns a non-ok status, it logs a warning but does not fail the save.
+This is the LEGACY store link table — no longer used by the storefront.
+These failures are not bugs.
+
+================================================================================
+NETWORK — POST /api/admin/queue/process (fire and forget)
+================================================================================
+This fires after template save to kick off mockup generation.
+Not awaited. Any failure is silently swallowed.
+If mockup generation is not happening, check this endpoint.
+
+================================================================================
+ENVIRONMENT NOTE
+================================================================================
+The dev Express server (server/) uses in-memory storage.
+Any writes to server/ routes are lost on restart.
+If folder creates or product saves disappear after restart in dev,
+the API call went to server/ not functions/.
+Confirm calls go to /api/admin/... and are handled by functions/src/routes/.

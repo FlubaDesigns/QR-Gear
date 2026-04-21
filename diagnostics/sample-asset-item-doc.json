@@ -1,0 +1,15 @@
+{
+  "_collection": "admin_images",
+  "_note": "Each doc is one uploaded image in the admin library. storageUrl is the CDN-accessible URL.",
+
+  "_id": "1775540782227-image-1775540781426",
+  "name": "army-logo.png",
+  "folder": "Armed Forces Graphics",
+  "storageUrl": "https://storage.googleapis.com/qrgear-c1ffd.firebasestorage.app/library/images/Armed%20Forces%20Graphics/1775540782227-army-logo.png",
+  "mimeType": "image/png",
+  "sizeBytes": 48320,
+  "width": 512,
+  "height": 512,
+  "uploadedBy": "***REDACTED***",
+  "createdAt": "2026-04-18T14:22:00.000Z"
+}

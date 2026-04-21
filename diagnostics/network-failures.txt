@@ -1,0 +1,78 @@
+QR Gear — Network Failure Patterns
+Last updated: April 21, 2026
+
+These are the known failure patterns for API calls in the admin/products flow.
+Format: METHOD URL — what breaks — how to detect
+
+================================================================================
+POST /api/admin/packets
+================================================================================
+Failure: 401 Unauthorized
+Cause: Auth token expired or not included in request headers
+Detection: Response status 401, toast shows "Failed to create packet"
+Fix: Re-login. getAuthHeaders() should auto-refresh Firebase token.
+
+Failure: 500 Internal Server Error
+Cause: Firestore write error, usually a missing required field or type mismatch
+Detection: Response body { error: "..." }
+Fix: Check functions logs in Firebase console for the specific Firestore error
+
+Failure: Request never made
+Cause: calculatePricing() returned null (pricingSettings not loaded)
+Detection: Console shows "Could not calculate pricing", no network request fired
+Fix: Wait for pricing settings to load (useQuery for /api/admin/pricing-settings)
+
+================================================================================
+POST /api/admin/build-sessions/:id/commit
+================================================================================
+Failure: 404 Not Found on session
+Cause: Session ID is stale or was deleted (sessions expire after 7 days)
+Detection: Response { error: "Session not found" }
+Fix: Start a new build session
+
+Failure: Missing channelId in catalog instance
+Cause: Session was created without channel selection
+Detection: Catalog instance doc has channelId: null
+Fix: Always require channel selection before allowing Build+Save
+
+================================================================================
+GET /api/admin/catalog-instances?storeId=...&channelId=...
+================================================================================
+Failure: Returns empty array despite items existing in Firestore
+Cause: Query uses channelId filter — items with null channelId are excluded
+Detection: Check Firestore directly for docs with matching storeId but null channelId
+Fix: Rebuild and re-save those items with channel selected
+
+================================================================================
+DELETE /api/admin/catalog-instances/:instanceId
+================================================================================
+Failure: 404 Not Found
+Cause: instanceId passed to delete is wrong (may be using a display ID instead of Firestore doc ID)
+Detection: Response { error: "Instance not found" }
+Fix: Confirm the id field returned by the list endpoint is the Firestore doc ID
+
+Failure: 200 OK but item reappears after refresh
+Cause: TanStack Query cache not invalidated after delete
+Detection: Network request succeeds but UI still shows deleted item
+Fix: Call queryClient.invalidateQueries({ queryKey: ['/api/admin/catalog-instances'] }) after delete
+
+================================================================================
+POST /api/admin/images/folders
+================================================================================
+Failure: 409 Conflict
+Cause: Folder with same normalizedName already exists
+Detection: Response { error: "Folder already exists" }
+This is expected behavior — not a bug.
+
+Failure: Folder created but gone after refresh
+Cause: API call went to dev Express server (server/) instead of Cloud Functions
+Detection: Check Network tab — URL should resolve to Firebase CF, not localhost
+Fix: Confirm VITE_API_BASE points to /api which routes through CF, not server
+
+================================================================================
+GET /api/store/channel/usa250
+================================================================================
+Failure: Returns empty products array
+Cause: No admin_catalog_instances exist with channelId == 'usa250'
+Detection: CF logs show "0 catalog instances"
+Fix: Build and save products with USA250 channel selected in the admin builder

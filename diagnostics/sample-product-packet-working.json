@@ -1,0 +1,70 @@
+{
+  "_id": "4kLsxHqCca7fbdICvW3T",
+  "_collection": "productPackets",
+  "_note": "Real packet from Firestore (latest). Created by POST /api/admin/packets during Build→Save flow.",
+
+  "productId": "py_12",
+  "productName": "Unisex Jersey Short Sleeve Tee",
+  "masterTitle": "Unisex Jersey Short Sleeve Tee",
+  "adminCatalogTitle": null,
+  "effectiveTitle": "Unisex Jersey Short Sleeve Tee",
+
+  "masterDescription": "<p>Provider description...</p>",
+  "adminCatalogDescription": "A great QR scan starts with a smooth surface...",
+  "effectiveDescription": "A great QR scan starts with a smooth surface...",
+
+  "qrContent": "https://qrgear.com/m/product-mo832gi4",
+  "qrProductState": "qr_canvas",
+  "landingPageSlug": "unisex-jersey-short-sleeve-tee-mo832gi4",
+
+  "pricing": {
+    "baseProductCost": 18.30,
+    "placementCost": 0,
+    "textUpcharge": 2,
+    "subtotal": 20.30,
+    "markupPercent": 25,
+    "markupFixed": 0,
+    "markupAmount": 5.075,
+    "customerPrice": 25.375,
+    "hostingTierCode": "1_year"
+  },
+
+  "storeId": "qr-gear",
+  "storeName": "QR Gear",
+  "channelId": "usa250",
+  "channelName": "USA250",
+  "collectionName": "Armed Forces",
+  "roleType": "internal",
+
+  "blueprintId": 12,
+  "printProviderId": null,
+  "fulfillmentProvider": "printify",
+  "category": "T-Shirts & Tops",
+  "madeInUSA": false,
+
+  "defaultColor": "Navy",
+  "defaultColorHex": "#27354a",
+  "placements": ["front-center"],
+  "availablePlacements": ["front-center", "back-center"],
+  "sizes": ["S", "M", "L", "XL"],
+  "colors": [{ "name": "Navy", "hex": "#27354a" }],
+
+  "productGraphicUrl": "https://storage.googleapis.com/.../graphic.png",
+  "qrOnlyUrl": "https://api.qrserver.com/v1/...",
+  "compositeUrl": "https://storage.googleapis.com/.../graphic.png",
+  "landingPageSnapshotUrl": "https://storage.googleapis.com/.../snapshot.png",
+
+  "headerText": null,
+  "footerText": "UNITED STATES ARMED FORCES",
+  "headerStyle": { "enabled": true, "mode": "image", "imageUrl": "/api/library-files/...", "imageScale": 25 },
+  "footerStyle": { "enabled": true, "mode": "text", "text": "UNITED STATES ARMED FORCES", "fontFamily": "Oswald", "fontSize": "20", "fontWeight": "700", "color": "#000000" },
+  "backgroundUrl": null,
+
+  "qrSizePercent": 75,
+  "qrPositionX": 50,
+  "qrPositionY": 50,
+  "graphicLayoutMode": "zone",
+
+  "createdAt": "2026-04-21T19:09:11.000Z",
+  "updatedAt": "2026-04-21T19:09:11.000Z"
+}

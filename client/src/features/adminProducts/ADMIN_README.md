@@ -403,6 +403,9 @@ project/
 | `categories` | Product categories |
 | `admin_settings` | Platform settings |
 | `admin_build_sessions` | In-progress builder sessions (status, working state, draftName, linked packetId) |
+| `admin_catalog_instances` | Committed product instances — one per Build→Save cycle. Fields: storeId, channelId, collectionName, currentPacketId, enabledColors[], enabledSizes[], resolved (title, images[], colors[], sizes[], pricing.customerPrice), createdAt |
+| `stores` | Top-level store documents (storeId = doc ID, e.g. `qr-gear`) |
+| `storeChannels` | Channel documents (channelId = doc ID, e.g. `usa250`). Fields: storeId, name. Used by the public store route to map channel URL slug → store |
 
 ### Firebase Storage Paths
 

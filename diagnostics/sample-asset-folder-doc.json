@@ -1,0 +1,10 @@
+{
+  "_collection": "admin_image_folders",
+  "_note": "Each doc represents one named folder in the admin image library.",
+
+  "_id": "Armed Forces Graphics",
+  "name": "Armed Forces Graphics",
+  "normalizedName": "armed forces graphics",
+  "createdAt": "2026-04-10T14:22:00.000Z",
+  "createdBy": "***REDACTED***"
+}
