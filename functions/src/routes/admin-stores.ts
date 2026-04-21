@@ -144,22 +144,33 @@ app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, 
       return;
     }
 
+    const collectionsSet = new Set<string>();
+
+    // 1. From admin_catalog_instances (primary source for Catalog tab)
+    const instancesSnapshot = await db.collection('admin_catalog_instances')
+      .where('storeId', '==', storeId)
+      .where('channelId', '==', channelId)
+      .get();
+    instancesSnapshot.docs.forEach(doc => {
+      const col = doc.data().collectionName;
+      if (col) collectionsSet.add(col);
+    });
+
+    // 2. From storeProductLinks (legacy / store-facing products)
     const linksSnapshot = await db.collection('storeProductLinks')
       .where('storeId', '==', storeId)
       .where('channel', '==', channelId)
       .get();
-
-    const collectionsSet = new Set<string>();
     linksSnapshot.docs.forEach(doc => {
       const collection = doc.data().collection;
       if (collection) collectionsSet.add(collection);
     });
 
+    // 3. From mosaic templates
     const explicitSnapshot = await db.collection(MOSAIC_TEMPLATES_COLLECTION)
       .where('storeId', '==', storeId)
       .where('channelId', '==', channelId)
       .get();
-
     explicitSnapshot.docs.forEach(doc => {
       const name = doc.data().name;
       if (name) collectionsSet.add(name);

@@ -142,16 +142,28 @@ function register(app) {
                 res.status(400).json({ error: 'storeId and channelId are required' });
                 return;
             }
+            const collectionsSet = new Set();
+            // 1. From admin_catalog_instances (primary source for Catalog tab)
+            const instancesSnapshot = await core_1.db.collection('admin_catalog_instances')
+                .where('storeId', '==', storeId)
+                .where('channelId', '==', channelId)
+                .get();
+            instancesSnapshot.docs.forEach(doc => {
+                const col = doc.data().collectionName;
+                if (col)
+                    collectionsSet.add(col);
+            });
+            // 2. From storeProductLinks (legacy / store-facing products)
             const linksSnapshot = await core_1.db.collection('storeProductLinks')
                 .where('storeId', '==', storeId)
                 .where('channel', '==', channelId)
                 .get();
-            const collectionsSet = new Set();
             linksSnapshot.docs.forEach(doc => {
                 const collection = doc.data().collection;
                 if (collection)
                     collectionsSet.add(collection);
             });
+            // 3. From mosaic templates
             const explicitSnapshot = await core_1.db.collection(constants_1.MOSAIC_TEMPLATES_COLLECTION)
                 .where('storeId', '==', storeId)
                 .where('channelId', '==', channelId)
