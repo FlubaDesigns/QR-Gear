@@ -199,12 +199,72 @@ function register(app) {
                     const resolvedImageUrl = p.imageUrl || packetImageUrl || null;
                     return { ...p, imageUrl: resolvedImageUrl, price: price !== null ? Math.round(price * 100) / 100 : null, packetId: undefined, pricing: undefined };
                 }));
-                console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} products`);
+                // Also pull from admin_catalog_instances for this channel
+                let instancesSnap = await core_1.db.collection('admin_catalog_instances')
+                    .where('storeId', '==', storeId)
+                    .where('channelId', '==', storeName)
+                    .get();
+                const getFirstImageUrl = (images) => {
+                    if (!images?.length)
+                        return null;
+                    const img = images[0];
+                    if (typeof img === 'string')
+                        return img;
+                    return img?.url || null;
+                };
+                const instanceProducts = await Promise.all(instancesSnap.docs
+                    .filter((doc) => {
+                    if (!segment)
+                        return true;
+                    return doc.data().collectionName === segment;
+                })
+                    .map(async (doc) => {
+                    const d = doc.data();
+                    const resolved = d.resolved || {};
+                    const pricing = resolved.pricing || null;
+                    let price = pricing?.customerPrice ?? null;
+                    let imageUrl = getFirstImageUrl(resolved.images || []);
+                    // Try to get a better image from the packet
+                    if (d.currentPacketId) {
+                        try {
+                            const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
+                            if (pDoc.exists) {
+                                const pkt = pDoc.data();
+                                const mockup = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                                if (mockup)
+                                    imageUrl = mockup;
+                                if (price === null && pkt.pricing?.customerPrice)
+                                    price = pkt.pricing.customerPrice;
+                            }
+                        }
+                        catch (_) { }
+                    }
+                    return {
+                        id: `inst_${doc.id}`,
+                        name: resolved.title || 'Untitled',
+                        imageUrl,
+                        segment: d.collectionName || null,
+                        isFeatured: false,
+                        isSeasonalPromo: false,
+                        templateVariant: null,
+                        qrProductType: 'qr-basics',
+                        qrCodeUrl: null,
+                        selectedColors: d.enabledColors || resolved.colors || [],
+                        availableSizes: d.enabledSizes || resolved.sizes || [],
+                        defaultColor: null,
+                        mockupsByColor: null,
+                        price: price !== null ? Math.round(price * 100) / 100 : null,
+                        createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                        _source: 'catalog',
+                    };
+                }));
+                const allProducts = [...products, ...instanceProducts];
+                console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} storeProductLinks + ${instanceProducts.length} catalog instances`);
                 res.json({
                     storeType: storeData.roleType || 'internal',
                     storeName: channelData.name || storeName,
                     segment: segment || null,
-                    products,
+                    products: allProducts,
                 });
                 return;
             }
