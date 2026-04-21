@@ -135,6 +135,25 @@ app.delete('/admin/stores/:storeId/channels/:channelId', requireAdmin, async (re
   }
 });
 
+// Admin: Delete a collection (removes all catalog instances in it)
+app.delete('/admin/stores/:storeId/channels/:channelId/collections/:collectionName', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { storeId, channelId, collectionName } = req.params;
+    const snap = await db.collection('admin_catalog_instances')
+      .where('storeId', '==', storeId)
+      .where('channelId', '==', channelId)
+      .where('collectionName', '==', collectionName)
+      .get();
+    const batch = db.batch();
+    snap.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    res.json({ success: true, deleted: snap.size });
+  } catch (error: any) {
+    console.error('[Collections] DELETE error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Admin: Get collections for a store channel
 app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {

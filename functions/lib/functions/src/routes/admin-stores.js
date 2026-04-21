@@ -134,6 +134,25 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // Admin: Delete a collection (removes all catalog instances in it)
+    app.delete('/admin/stores/:storeId/channels/:channelId/collections/:collectionName', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { storeId, channelId, collectionName } = req.params;
+            const snap = await core_1.db.collection('admin_catalog_instances')
+                .where('storeId', '==', storeId)
+                .where('channelId', '==', channelId)
+                .where('collectionName', '==', collectionName)
+                .get();
+            const batch = core_1.db.batch();
+            snap.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            res.json({ success: true, deleted: snap.size });
+        }
+        catch (error) {
+            console.error('[Collections] DELETE error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
     // Admin: Get collections for a store channel
     app.get('/admin/stores/:storeId/channels/:channelId/collections', middleware_1.requireAdmin, async (req, res) => {
         try {

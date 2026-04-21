@@ -484,6 +484,39 @@ function InstanceCard({
   );
 }
 
+function DeleteConfirmRow({
+  label,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  label: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
+      <span className="text-xs text-red-300 flex-1 leading-snug">Delete {label}?</span>
+      <button
+        onClick={onConfirm}
+        disabled={isPending}
+        className="qr-btn qr-btn--touch text-xs px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded"
+        data-testid="button-confirm-del"
+      >
+        {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Yes"}
+      </button>
+      <button
+        onClick={onCancel}
+        className="qr-btn qr-btn--ghost qr-btn--touch p-1"
+        data-testid="button-cancel-del"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function CollectionList({
   storeId,
   channel,
@@ -491,6 +524,7 @@ function CollectionList({
   getAuthHeaders,
   selectedCollectionName,
   onSelect,
+  onCollectionDeleted,
 }: {
   storeId: string;
   channel: Channel;
@@ -498,7 +532,12 @@ function CollectionList({
   getAuthHeaders: () => Promise<HeadersInit>;
   selectedCollectionName: string | null;
   onSelect: (name: string) => void;
+  onCollectionDeleted: () => void;
 }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [confirmCol, setConfirmCol] = useState<string | null>(null);
+
   const { data: collections = [], isLoading } = useQuery<Collection[]>({
     queryKey: ["collections", storeId, channel.id],
     queryFn: async () => {
@@ -508,6 +547,24 @@ function CollectionList({
       const raw: any[] = d.collections ?? (Array.isArray(d) ? d : []);
       return raw.map(c => typeof c === "string" ? { name: c } : c);
     },
+  });
+
+  const deleteColMutation = useMutation({
+    mutationFn: async (colName: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `${apiBase}/stores/${storeId}/channels/${channel.id}/collections/${encodeURIComponent(colName)}`,
+        { method: "DELETE", headers: headers as Record<string, string> }
+      );
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: () => {
+      toast({ title: "Collection deleted" });
+      setConfirmCol(null);
+      queryClient.invalidateQueries({ queryKey: ["collections", storeId, channel.id] });
+      onCollectionDeleted();
+    },
+    onError: () => toast({ title: "Error", description: "Could not delete collection.", variant: "destructive" }),
   });
 
   if (isLoading) {
@@ -522,17 +579,38 @@ function CollectionList({
     <div className="pl-6 space-y-0.5 mt-1">
       {collections.map(col => {
         const isSelected = selectedCollectionName === col.name;
+        if (confirmCol === col.name) {
+          return (
+            <div key={col.name} className="px-1 py-0.5">
+              <DeleteConfirmRow
+                label={`"${col.name}"`}
+                onConfirm={() => deleteColMutation.mutate(col.name)}
+                onCancel={() => setConfirmCol(null)}
+                isPending={deleteColMutation.isPending}
+              />
+            </div>
+          );
+        }
         return (
-          <button
-            key={col.name}
-            onClick={() => onSelect(col.name)}
-            className={`w-full flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm text-left transition-all hover-elevate
-              ${isSelected ? "bg-purple-500/20 text-purple-200" : "glass-subtitle"}`}
-            data-testid={`button-select-collection-${col.name}`}
-          >
-            <Layers className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{col.name}</span>
-          </button>
+          <div key={col.name} className="flex items-center gap-1 group">
+            <button
+              onClick={() => onSelect(col.name)}
+              className={`flex-1 flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm text-left transition-all hover-elevate
+                ${isSelected ? "bg-purple-500/20 text-purple-200" : "glass-subtitle"}`}
+              data-testid={`button-select-collection-${col.name}`}
+            >
+              <Layers className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{col.name}</span>
+            </button>
+            <button
+              onClick={() => setConfirmCol(col.name)}
+              className="p-1.5 text-white/20 hover-elevate rounded flex-shrink-0"
+              style={{ visibility: "visible" }}
+              data-testid={`button-delete-collection-${col.name}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         );
       })}
     </div>
@@ -547,6 +625,7 @@ function ChannelTree({
   selectedChannelId,
   selectedCollectionName,
   onSelect,
+  onChannelDeleted,
 }: {
   channels: Channel[];
   apiBase: string;
@@ -555,8 +634,11 @@ function ChannelTree({
   selectedChannelId: string | null;
   selectedCollectionName: string | null;
   onSelect: (channelId: string, collectionName: string | null) => void;
+  onChannelDeleted: () => void;
 }) {
+  const { toast } = useToast();
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
+  const [confirmChannelId, setConfirmChannelId] = useState<string | null>(null);
 
   const toggleExpand = (channelId: string) => {
     setExpandedChannels(prev => {
@@ -566,11 +648,40 @@ function ChannelTree({
     });
   };
 
+  const deleteChannelMutation = useMutation({
+    mutationFn: async (channelId: string) => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channelId}`, {
+        method: "DELETE",
+        headers: headers as Record<string, string>,
+      });
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: () => {
+      toast({ title: "Channel deleted" });
+      setConfirmChannelId(null);
+      onChannelDeleted();
+    },
+    onError: () => toast({ title: "Error", description: "Could not delete channel.", variant: "destructive" }),
+  });
+
   return (
     <div className="space-y-0.5">
       {channels.map(channel => {
         const isExpanded = expandedChannels.has(channel.id);
         const isChannelSelected = selectedChannelId === channel.id && !selectedCollectionName;
+        if (confirmChannelId === channel.id) {
+          return (
+            <div key={channel.id} className="px-1 py-0.5">
+              <DeleteConfirmRow
+                label={`"${channel.name}"`}
+                onConfirm={() => deleteChannelMutation.mutate(channel.id)}
+                onCancel={() => setConfirmChannelId(null)}
+                isPending={deleteChannelMutation.isPending}
+              />
+            </div>
+          );
+        }
         return (
           <div key={channel.id}>
             <div className="flex items-center gap-1">
@@ -595,6 +706,13 @@ function ChannelTree({
                   <span className="ml-auto text-xs text-white/30 pr-1">{channel.productCount}</span>
                 )}
               </button>
+              <button
+                onClick={() => setConfirmChannelId(channel.id)}
+                className="p-1.5 text-white/20 hover-elevate rounded flex-shrink-0"
+                data-testid={`button-delete-channel-${channel.id}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
             {isExpanded && (
               <CollectionList
@@ -604,6 +722,7 @@ function ChannelTree({
                 getAuthHeaders={getAuthHeaders}
                 selectedCollectionName={selectedChannelId === channel.id ? selectedCollectionName : null}
                 onSelect={name => onSelect(channel.id, name)}
+                onCollectionDeleted={onChannelDeleted}
               />
             )}
           </div>
@@ -616,13 +735,35 @@ function ChannelTree({
 export function StoreManagerTab() {
   const { apiBase, getAuthHeaders } = useAdminAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [selectedRole, setSelectedRole] = useState<RoleType | "">("");
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
-  // mobile: "nav" shows the channel tree, "items" shows the product grid
   const [mobileView, setMobileView] = useState<"nav" | "items">("nav");
+  const [confirmDeleteStore, setConfirmDeleteStore] = useState(false);
+
+  const deleteStoreMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedStore) return;
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/stores/${selectedStore.id}`, {
+        method: "DELETE",
+        headers: headers as Record<string, string>,
+      });
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: () => {
+      toast({ title: "Store deleted" });
+      setConfirmDeleteStore(false);
+      setSelectedStore(null);
+      setSelectedChannelId(null);
+      setSelectedCollectionName(null);
+      queryClient.invalidateQueries({ queryKey: ["stores", selectedRole] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not delete store.", variant: "destructive" }),
+  });
 
   const { data: stores = [], isLoading: loadingStores } = useQuery<StoreType[]>({
     queryKey: ["stores", selectedRole],
@@ -705,7 +846,7 @@ export function StoreManagerTab() {
 
   return (
     <div className="space-y-4">
-      {/* Role + Store selectors — stacked on mobile, side-by-side on sm+ */}
+      {/* Role + Store selectors */}
       <div className="glass-card p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
@@ -720,15 +861,39 @@ export function StoreManagerTab() {
           </div>
           <div className="flex-1">
             <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Store</label>
-            <CustomDropdown
-              value={selectedStore?.id ?? ""}
-              onChange={handleStoreChange}
-              options={storeOptions}
-              placeholder="Select a store…"
-              loading={loadingStores}
-              disabled={!selectedRole}
-              data-testid="select-store-manager"
-            />
+            <div className="flex gap-2 items-center">
+              <div className="flex-1">
+                <CustomDropdown
+                  value={selectedStore?.id ?? ""}
+                  onChange={handleStoreChange}
+                  options={storeOptions}
+                  placeholder="Select a store…"
+                  loading={loadingStores}
+                  disabled={!selectedRole}
+                  data-testid="select-store-manager"
+                />
+              </div>
+              {selectedStore && !confirmDeleteStore && (
+                <button
+                  onClick={() => setConfirmDeleteStore(true)}
+                  className="p-2 text-white/30 hover-elevate rounded flex-shrink-0 mt-0.5"
+                  data-testid="button-delete-store"
+                  title="Delete store"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            {selectedStore && confirmDeleteStore && (
+              <div className="mt-2">
+                <DeleteConfirmRow
+                  label={`store "${selectedStore.name}"`}
+                  onConfirm={() => deleteStoreMutation.mutate()}
+                  onCancel={() => setConfirmDeleteStore(false)}
+                  isPending={deleteStoreMutation.isPending}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -776,6 +941,11 @@ export function StoreManagerTab() {
                   selectedChannelId={selectedChannelId}
                   selectedCollectionName={selectedCollectionName}
                   onSelect={handleFolderSelect}
+                  onChannelDeleted={() => {
+                    queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
+                    setSelectedChannelId(null);
+                    setSelectedCollectionName(null);
+                  }}
                 />
               )}
             </div>
