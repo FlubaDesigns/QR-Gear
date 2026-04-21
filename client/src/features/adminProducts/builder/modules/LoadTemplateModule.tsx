@@ -159,14 +159,28 @@ export function LoadTemplateModule() {
   }, [apiBase, getAuthHeaders]);
 
   const handleSelect = useCallback(async (item: TemplateItem) => {
-    const packet = item.packet;
-    if (!packet) {
-      toast({ title: "Template has no packet data", variant: "destructive" });
-      return;
-    }
-
     setSelecting(true);
     try {
+      let packet = item.packet;
+
+      // Snapshot missing but packetId present — fetch the packet live
+      if (!packet && item.packetId) {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${apiBase}/packets/${item.packetId}`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          const p = data.landingPage || data.packet || data;
+          if (p && (p.packetId || p.id)) {
+            packet = { ...p, id: p.packetId || p.id };
+          }
+        }
+      }
+
+      if (!packet) {
+        toast({ title: "Template has no packet data", description: "The packet linked to this template could not be found.", variant: "destructive" });
+        return;
+      }
+
       const resolvedProduct = await resolveProduct(packet);
       loadFromPacketData(packet, resolvedProduct);
 
@@ -184,7 +198,7 @@ export function LoadTemplateModule() {
     } finally {
       setSelecting(false);
     }
-  }, [loadFromPacketData, resolveProduct, toast]);
+  }, [apiBase, getAuthHeaders, loadFromPacketData, resolveProduct, toast]);
 
   const handleDismissBanner = useCallback(() => {
     setTemplateProductResolved(null);

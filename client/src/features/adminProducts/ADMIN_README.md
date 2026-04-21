@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 11)
+Last updated: April 21, 2026 (rev 14)
 
 ---
 
@@ -488,6 +488,45 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 21, 2026 — Fix: "Template has no packet data" error on Load Template
+
+**Root cause:** Templates are stored with an optional `packetSnapshot` embedded in their `textStyle` field. Templates saved before this snapshot field was introduced (or through paths that didn't write it) have `packet: null`. The `handleSelect` handler hard-failed with "Template has no packet data" rather than falling back to fetching the packet live.
+
+**Fix:** When `item.packet` is null but `item.packetId` is present, `handleSelect` now fetches the packet directly from `${apiBase}/packets/:packetId`, normalises the response shape (`data.landingPage || data.packet || data`), and proceeds with `loadFromPacketData` exactly as if the snapshot had been present. The error toast is now only shown if the live fetch also fails to return usable data.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/LoadTemplateModule.tsx` | `handleSelect` fetches packet live when `packetSnapshot` is absent; `setSelecting(true)` moved before the fetch so the spinner shows immediately |
+
+---
+
+### April 21, 2026 — Fix: Committed packet not shown on session resume
+
+**Root cause:** The auto-restore `useEffect` in `CreateGraphicsModule` guarded on `sessionStatus !== 'artifact_ready'`, so when resuming a committed session (status = `'committed'`) the `PacketResultDisplay` was never populated — the viewer appeared empty even though all data was intact in Firestore.
+
+**Fix:** Widened the condition to allow both `'artifact_ready'` and `'committed'` statuses.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/CreateGraphicsModule.tsx` | Auto-restore effect now fires for both `artifact_ready` and `committed` session statuses |
+
+---
+
+### April 21, 2026 — Crash fix: `setActivePacketId is not defined` in ProductsModule
+
+**Root cause:** `setActivePacketId` was used inside `handleCardSelect` and listed in its dependency array in `ProductsModule.tsx`, but was never included in the `useBuilderContext()` destructuring on that component. This caused a `ReferenceError` at runtime, caught by the nearest error boundary (labeled "StateModule").
+
+**Fix:** Added `setActivePacketId` to the `useBuilderContext()` destructure in `ProductsModule`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` | Added `setActivePacketId` to `useBuilderContext()` destructuring |
+
+---
 
 ### April 21, 2026 — Feature: Phase 1+2 save/reload loop — Update Saved Item & Save as New
 
