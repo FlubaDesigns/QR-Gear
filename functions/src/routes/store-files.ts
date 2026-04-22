@@ -241,9 +241,21 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
     for (const doc of snap.docs) {
       const data = doc.data();
       const storeSlug = (data.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      if (doc.id === storeName || storeSlug === storeName) {
+      const storeSlugCompact = storeSlug.replace(/-/g, '');
+      if (doc.id === storeName || storeSlug === storeName || storeSlugCompact === storeName) {
         matchedStore = { id: doc.id, ...data };
         break;
+      }
+    }
+    // Channel-first fallback: if store not found by name, resolve it via the channel doc
+    if (!matchedStore && channel) {
+      const fallbackChan = await db.collection('storeChannels').doc(channel).get();
+      if (fallbackChan.exists) {
+        const fcData = fallbackChan.data() || {};
+        if (fcData.storeId) {
+          const storeDoc = await db.collection('stores').doc(fcData.storeId).get();
+          if (storeDoc.exists) matchedStore = { id: storeDoc.id, ...storeDoc.data() };
+        }
       }
     }
     if (!matchedStore) { res.status(404).json({ error: "Store not found" }); return; }
