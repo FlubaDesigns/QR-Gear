@@ -49,9 +49,24 @@ interface PacketInfo {
 
 interface TemplateItem {
   id: string;
-  name: string;
+  name?: string;
+  productName?: string;
+  thumbnailUrl?: string;
+  artworkUrl?: string;
+  updatedAt?: string;
+  createdAt?: string;
   packetId?: string;
   packet?: PacketInfo | null;
+  // Normalized picker fields returned by the backend
+  previewTitle?: string;
+  previewImageUrl?: string | null;
+}
+
+function formatDate(iso?: string): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return null; }
 }
 
 function TemplatePickerCard({
@@ -61,8 +76,29 @@ function TemplatePickerCard({
   item: TemplateItem;
   onSelect: (item: TemplateItem) => void;
 }) {
-  const packet = item.packet;
-  const imageUrl = packet?.priorityMockupUrl || packet?.compositeUrl;
+  // ── Image: layered fallbacks ────────────────────────────────────────────────
+  const imageUrl =
+    item.previewImageUrl ||
+    item.packet?.priorityMockupUrl ||
+    item.packet?.compositeUrl ||
+    item.thumbnailUrl ||
+    item.artworkUrl ||
+    null;
+
+  // ── Title: layered fallbacks ────────────────────────────────────────────────
+  const title =
+    item.previewTitle ||
+    item.packet?.productName ||
+    item.productName ||
+    item.name ||
+    'Untitled Template';
+
+  // ── Subtitle: date or QR content for secondary cue ─────────────────────────
+  const subtitle =
+    item.packet?.qrContent ||
+    formatDate(item.updatedAt) ||
+    formatDate(item.createdAt) ||
+    null;
 
   return (
     <Card
@@ -74,28 +110,26 @@ function TemplatePickerCard({
         {imageUrl ? (
           <img
             src={imageUrl}
-            alt={item.name}
+            alt={title}
             className="w-full h-full object-contain"
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <Image className="h-10 w-10" />
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
+            <Image className="h-8 w-8 opacity-40" />
+            <span className="text-xs opacity-60">No preview</span>
           </div>
         )}
       </div>
       <CardContent className="p-3 space-y-1">
         <p className="font-medium text-sm truncate" data-testid="text-load-template-name">
-          {packet?.productName || item.name}
+          {title}
         </p>
-        {packet?.qrContent && (
+        {subtitle && (
           <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-            <LinkIcon className="h-3 w-3 flex-shrink-0" />
-            {packet.qrContent}
-          </p>
-        )}
-        {packet?.headerText && (
-          <p className="text-xs text-muted-foreground truncate">
-            {packet.headerText}
+            {item.packet?.qrContent
+              ? <LinkIcon className="h-3 w-3 flex-shrink-0" />
+              : null}
+            {subtitle}
           </p>
         )}
       </CardContent>
@@ -252,16 +286,6 @@ export function LoadTemplateModule() {
   const handleDismissBanner = useCallback(() => {
     setTemplateProductResolved(null);
   }, [setTemplateProductResolved]);
-
-  const skinItems = templates.map(t => ({
-    id: t.id,
-    name: t.packet?.productName || t.name || 'Untitled',
-    primaryImage: t.packet?.priorityMockupUrl || t.packet?.compositeUrl,
-    secondaryImage: t.packet?.compositeUrl,
-    qrContent: t.packet?.qrContent,
-    headerText: t.packet?.headerText,
-    footerText: t.packet?.footerText,
-  }));
 
   return (
     <div className="space-y-2">

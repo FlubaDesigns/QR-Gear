@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.api = void 0;
-const _BUILD_ID = '20260422-public-store-admin-catalog-instances';
+const _BUILD_ID = '20260422-template-picker-1776830541';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -126,4 +126,5 @@ exports.api = (0, https_1.onRequest)({
 // deployed: 2026-04-19T00:21:12Z
 // deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions
 // deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
+// deploy-1776830756
 //# sourceMappingURL=index.js.map

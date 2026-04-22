@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260422-public-store-admin-catalog-instances';
+const _BUILD_ID = '20260422-template-picker-1776830541';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -130,3 +130,5 @@ export const api = onRequest(
 // deployed: 2026-04-19T00:21:12Z
 // deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions
 // deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
+
+// deploy-1776830756

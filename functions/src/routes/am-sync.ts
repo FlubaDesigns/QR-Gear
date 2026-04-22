@@ -178,13 +178,28 @@ app.delete('/admin/hosting-tiers/:id', requireAdmin, async (req: Request, res: R
 app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('productTemplates').orderBy('createdAt', 'desc').get();
+    let withPreview = 0, withFallbackTitle = 0, noPacket = 0;
+
     const templates = snapshot.docs.map((d: any) => {
       const data = d.data();
-      const packet = (data.packetId || data.qrContent || data.artworkUrl) ? {
+
+      // ── Packet reconstruction ────────────────────────────────────────────────
+      // Build the packet object whenever ANY packet-relevant field is present.
+      // Previously this was gated on (packetId || qrContent || artworkUrl) which
+      // silently dropped valid templates that only had e.g. thumbnailUrl or
+      // priorityMockupUrl.  The picker threshold is much lower than the build
+      // threshold — we just need enough to show a usable card.
+      const hasPacketData = !!(
+        data.packetId || data.qrContent || data.artworkUrl ||
+        data.thumbnailUrl || data.priorityMockupUrl || data.compositeUrl ||
+        data.blueprintId || data.placementConfig
+      );
+
+      const packet = hasPacketData ? {
         id: data.packetId || null,
         qrContent: data.qrContent || null,
         productName: data.productName || data.name || null,
-        compositeUrl: data.artworkUrl || data.thumbnailUrl || null,
+        compositeUrl: data.artworkUrl || data.thumbnailUrl || data.compositeUrl || null,
         priorityMockupUrl: data.priorityMockupUrl || null,
         blueprintId: data.blueprintId || null,
         printProviderId: data.printProviderId || null,
@@ -219,8 +234,42 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
         qrPositionX: data.qrPositionX ?? 50,
         qrPositionY: data.qrPositionY ?? 50,
       } : null;
-      return { id: d.id, ...data, packetId: data.packetId || null, packet };
+
+      if (!packet) noPacket++;
+
+      // ── Normalized picker display fields ────────────────────────────────────
+      // These are derived independently of packet so the frontend card always
+      // has a reliable title and image regardless of packet completeness.
+
+      const previewTitle =
+        data.productName ||
+        data.name ||
+        packet?.productName ||
+        'Untitled Template';
+
+      const previewImageUrl =
+        data.priorityMockupUrl ||
+        data.compositeUrl ||
+        data.thumbnailUrl ||
+        data.artworkUrl ||
+        packet?.priorityMockupUrl ||
+        packet?.compositeUrl ||
+        null;
+
+      if (previewImageUrl) withPreview++;
+      if (!data.productName && !data.name) withFallbackTitle++;
+
+      return {
+        id: d.id,
+        ...data,
+        packetId: data.packetId || null,
+        packet,
+        previewTitle,
+        previewImageUrl,
+      };
     });
+
+    console.log(`[/admin/templates] returned ${templates.length} templates | withPreview=${withPreview} | fallbackTitle=${withFallbackTitle} | noPacket=${noPacket}`);
     res.json({ templates });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
