@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Store, Hash, Layers, ChevronRight, ChevronDown, ChevronLeft,
+  Store, Hash, Layers, ChevronRight, ChevronDown,
   Loader2, Trash2, MoveRight, Check, X, Package, ExternalLink
 } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -733,7 +733,6 @@ export function StoreManagerTab() {
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
-  const [mobileView, setMobileView] = useState<"nav" | "items">("nav");
   const [confirmDeleteStore, setConfirmDeleteStore] = useState(false);
 
   const deleteStoreMutation = useMutation({
@@ -804,7 +803,6 @@ export function StoreManagerTab() {
     setSelectedStore(null);
     setSelectedChannelId(null);
     setSelectedCollectionName(null);
-    setMobileView("nav");
   };
 
   const handleStoreChange = (storeId: string) => {
@@ -812,13 +810,11 @@ export function StoreManagerTab() {
     setSelectedStore(store ?? null);
     setSelectedChannelId(null);
     setSelectedCollectionName(null);
-    setMobileView("nav");
   };
 
   const handleFolderSelect = (channelId: string, collectionName: string | null) => {
     setSelectedChannelId(channelId);
     setSelectedCollectionName(collectionName);
-    setMobileView("items");
   };
 
   const refreshInstances = () => {
@@ -904,31 +900,11 @@ export function StoreManagerTab() {
 
       {selectedStore && (
         <>
-          {/* ── Mobile: back button shown when viewing items ── */}
-          {mobileView === "items" && (
-            <div className="md:hidden">
-              <button
-                onClick={() => setMobileView("nav")}
-                className="qr-btn qr-btn--ghost qr-btn--touch gap-2 w-full justify-start"
-                data-testid="button-back-to-nav"
-              >
-                <ChevronLeft className="h-5 w-5" />
-                <span>Channels</span>
-              </button>
-            </div>
-          )}
-
-          {/* ── Two-panel layout ── */}
-          {/* Mobile: show only one panel at a time via mobileView state  */}
-          {/* Desktop (md+): side-by-side always visible               */}
-          <div className="md:flex md:gap-4 md:min-h-[480px]">
+          {/* ── Two-panel layout: stacked on mobile, side-by-side on desktop ── */}
+          <div className="flex flex-col md:flex-row gap-4">
 
             {/* Left: channel tree */}
-            <div className={`
-              md:w-60 md:flex-shrink-0 md:block md:overflow-y-auto
-              glass-card p-3
-              ${mobileView === "nav" ? "block" : "hidden"}
-            `}>
+            <div className="md:w-60 md:flex-shrink-0 glass-card p-3">
               <p className="glass-subtitle text-xs uppercase tracking-wider mb-3 px-1">Channels</p>
               {loadingChannels ? (
                 <div className="flex justify-center py-10">
@@ -954,11 +930,8 @@ export function StoreManagerTab() {
               )}
             </div>
 
-            {/* Right: instance grid */}
-            <div className={`
-              md:flex-1 md:block md:overflow-y-auto
-              ${mobileView === "items" ? "block" : "hidden"}
-            `}>
+            {/* Right: instance grid — always visible */}
+            <div className="flex-1 min-w-0">
               {loadingInstances ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-6 w-6 animate-spin text-white/40" />
