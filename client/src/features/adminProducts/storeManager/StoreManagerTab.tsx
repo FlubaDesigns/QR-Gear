@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Hash, Layers, ChevronRight, ChevronDown, ChevronLeft,
-  Loader2, Trash2, MoveRight, Check, X, Package
+  Loader2, Trash2, MoveRight, Check, X, Package, ExternalLink
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -296,8 +296,9 @@ function InstanceCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  const allColors = instance.resolved?.colors ?? [];
-  const allSizes = instance.resolved?.sizes ?? [];
+  const toStr = (v: any): string => typeof v === 'string' ? v : v?.name || v?.label || v?.hex || String(v ?? '');
+  const allColors = (instance.resolved?.colors ?? []).map(toStr).filter(Boolean);
+  const allSizes = (instance.resolved?.sizes ?? []).map(toStr).filter(Boolean);
   const enabledColors = instance.enabledColors ?? allColors;
   const enabledSizes = instance.enabledSizes ?? allSizes;
 
@@ -865,14 +866,26 @@ export function StoreManagerTab() {
                 />
               </div>
               {selectedStore && !confirmDeleteStore && (
-                <button
-                  onClick={() => setConfirmDeleteStore(true)}
-                  className="p-2 text-white/30 hover-elevate rounded flex-shrink-0 mt-0.5"
-                  data-testid="button-delete-store"
-                  title="Delete store"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <>
+                  <a
+                    href={`/shop/${selectedRole}/${selectedStore.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-white/30 hover-elevate rounded flex-shrink-0 mt-0.5"
+                    data-testid="link-visit-store"
+                    title="Visit store"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                  <button
+                    onClick={() => setConfirmDeleteStore(true)}
+                    className="p-2 text-white/30 hover-elevate rounded flex-shrink-0 mt-0.5"
+                    data-testid="button-delete-store"
+                    title="Delete store"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </>
               )}
             </div>
             {selectedStore && confirmDeleteStore && (
@@ -946,12 +959,7 @@ export function StoreManagerTab() {
               md:flex-1 md:block md:overflow-y-auto
               ${mobileView === "items" ? "block" : "hidden"}
             `}>
-              {!selectedChannelId ? (
-                <div className="flex flex-col items-center justify-center py-20 text-white/30 gap-3">
-                  <Hash className="h-9 w-9" />
-                  <p className="text-sm">Pick a channel to browse products</p>
-                </div>
-              ) : loadingInstances ? (
+              {loadingInstances ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-6 w-6 animate-spin text-white/40" />
                 </div>
