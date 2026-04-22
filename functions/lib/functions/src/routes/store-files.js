@@ -254,8 +254,16 @@ function register(app) {
                     return typeof img === 'string' ? img : (img?.url || null);
                 };
                 const toStrArr = (arr) => (arr || []).map((v) => typeof v === 'string' ? v : v?.name || v?.label || String(v)).filter(Boolean);
+                // Normalize to slug for comparison so "Armed Forces" matches URL param "armed-forces"
+                const toSlug = (s) => s.toLowerCase().replace(/[\s_]+/g, '-');
+                const collectionSlug = collection ? toSlug(collection) : null;
                 const channelProducts = await Promise.all(instancesSnap.docs
-                    .filter((doc) => !collection || doc.data().collectionName === collection)
+                    .filter((doc) => {
+                    if (!collection)
+                        return true;
+                    const name = doc.data().collectionName || '';
+                    return name === collection || toSlug(name) === collectionSlug;
+                })
                     .map(async (doc) => {
                     const d = doc.data();
                     const resolved = d.resolved || {};

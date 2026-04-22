@@ -49,6 +49,14 @@ const routeLabels: Record<string, string> = {
 
 const hiddenRoutes = new Set(["/"]);
 
+// Segments that are technical URL params with no real landing page — omit them
+const skipSegments = new Set(["internal", "external"]);
+
+// When a path would point to a non-existent route, remap it to a real one
+const hrefOverrides: Record<string, string> = {
+  "/shop": "/store",
+};
+
 export default function BreadcrumbTrail() {
   const [location] = useLocation();
   const segments = location.split("/").filter(Boolean);
@@ -60,9 +68,10 @@ export default function BreadcrumbTrail() {
   let path = "";
   segments.forEach((seg, i) => {
     path += "/" + seg;
-    const isLast = i === segments.length - 1;
+    if (skipSegments.has(seg)) return; // skip technical params
     const label = routeLabels[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-    crumbs.push({ label, href: path });
+    const href = hrefOverrides[path] ?? path;
+    crumbs.push({ label, href });
   });
 
   if (crumbs.length === 0) return null;
