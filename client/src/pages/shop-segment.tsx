@@ -24,6 +24,7 @@ interface StoreProduct {
   id: string;
   name: string;
   imageUrl: string | null;
+  packetImageUrl?: string | null;
   segment: string | null;
   isFeatured: boolean;
   isSeasonalPromo: boolean;
@@ -112,10 +113,19 @@ function StoreProductCard({ product }: { product: StoreProduct }) {
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
   const availableSizes = product.availableSizes || [];
 
-  const galleryImages = useMemo(
-    () => buildMockupGalleryImages(product, selectedColor || null),
-    [product, selectedColor]
-  );
+  const galleryImages = useMemo(() => {
+    // If mockupsByColor is populated, use the standard color-based gallery
+    if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
+      return buildMockupGalleryImages(product, selectedColor || null);
+    }
+    // Otherwise build a two-image gallery: lifestyle photo first, QR graphic second
+    const images: { url: string; alt: string }[] = [];
+    if (product.imageUrl) images.push({ url: product.imageUrl, alt: product.name });
+    if (product.packetImageUrl && product.packetImageUrl !== product.imageUrl) {
+      images.push({ url: product.packetImageUrl, alt: `${product.name} — graphic` });
+    }
+    return images;
+  }, [product, selectedColor]);
 
   const displayImage = galleryImages[0]?.url || product.imageUrl;
   const hasMockups = !!product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0;

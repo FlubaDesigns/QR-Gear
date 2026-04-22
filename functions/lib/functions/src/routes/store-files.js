@@ -170,15 +170,16 @@ function register(app) {
                     const resolved = d.resolved || {};
                     const pricing = resolved.pricing || null;
                     let price = pricing?.customerPrice ?? null;
-                    let imageUrl = getFirstImageUrl(resolved.images || []);
+                    // Lifestyle/person image from the Printify catalog — this is always first
+                    const imageUrl = getFirstImageUrl(resolved.images || []);
+                    // QR graphic mockup from the packet — shown as secondary image
+                    let packetImageUrl = null;
                     if (d.currentPacketId) {
                         try {
                             const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
                             if (pDoc.exists) {
                                 const pkt = pDoc.data();
-                                const mockup = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
-                                if (mockup)
-                                    imageUrl = mockup;
+                                packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
                                 if (price === null && pkt.pricing?.customerPrice)
                                     price = pkt.pricing.customerPrice;
                             }
@@ -191,7 +192,8 @@ function register(app) {
                     return {
                         id: doc.id,
                         name: resolved.title || 'Untitled',
-                        imageUrl,
+                        imageUrl: imageUrl || packetImageUrl,
+                        packetImageUrl,
                         segment: d.collectionName || null,
                         isFeatured: false,
                         isSeasonalPromo: false,
@@ -258,15 +260,14 @@ function register(app) {
                     const d = doc.data();
                     const resolved = d.resolved || {};
                     let price = resolved.pricing?.customerPrice ?? null;
-                    let imageUrl = getFirstImgUrl(resolved.images || []);
+                    const imageUrl = getFirstImgUrl(resolved.images || []);
+                    let packetImageUrl = null;
                     if (d.currentPacketId) {
                         try {
                             const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
                             if (pDoc.exists) {
                                 const pkt = pDoc.data();
-                                const mockup = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
-                                if (mockup)
-                                    imageUrl = mockup;
+                                packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
                                 if (price === null && pkt.pricing?.customerPrice)
                                     price = pkt.pricing.customerPrice;
                             }
@@ -276,7 +277,8 @@ function register(app) {
                     return {
                         id: doc.id,
                         name: resolved.title || 'Untitled',
-                        imageUrl,
+                        imageUrl: imageUrl || packetImageUrl,
+                        packetImageUrl,
                         segment: d.collectionName || null,
                         isFeatured: false,
                         isSeasonalPromo: false,
@@ -322,15 +324,14 @@ function register(app) {
                 const d = doc.data();
                 const resolved = d.resolved || {};
                 let price = resolved.pricing?.customerPrice ?? null;
-                let imageUrl = getFirstImgUrl2(resolved.images || []);
+                const imageUrl = getFirstImgUrl2(resolved.images || []);
+                let packetImageUrl = null;
                 if (d.currentPacketId) {
                     try {
                         const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
                         if (pDoc.exists) {
                             const pkt = pDoc.data();
-                            const mockup = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
-                            if (mockup)
-                                imageUrl = mockup;
+                            packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
                             if (price === null && pkt.pricing?.customerPrice)
                                 price = pkt.pricing.customerPrice;
                         }
@@ -340,7 +341,8 @@ function register(app) {
                 return {
                     id: doc.id,
                     name: resolved.title || 'Untitled',
-                    imageUrl,
+                    imageUrl: imageUrl || packetImageUrl,
+                    packetImageUrl,
                     segment: d.collectionName || null,
                     isFeatured: false,
                     isSeasonalPromo: false,

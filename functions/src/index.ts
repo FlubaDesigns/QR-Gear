@@ -132,3 +132,5 @@ export const api = onRequest(
 // deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
 
 // deploy-1776830756
+
+export const BUILD_TAG = "store-images-lifestyle-first-20260422";
