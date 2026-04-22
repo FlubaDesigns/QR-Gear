@@ -168,8 +168,9 @@ function Router() {
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
       <Route path="/shop/product/:linkId" component={ShopProduct} />
-      <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
+      <Route path="/shop/:storeType/:storeName/:channel/:collection" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
+      <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
       <Route path="/admin/dynamics">{() => <AdminRoute><AdminDynamics /></AdminRoute>}</Route>
       <Route path="/admin/blanks">{() => <AdminRoute><AdminBlanks /></AdminRoute>}</Route>
       <Route path="/admin/marketplaces">{() => <AdminRoute><AdminMarketplaces /></AdminRoute>}</Route>

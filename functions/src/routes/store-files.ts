@@ -138,6 +138,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
   try {
     const { storeType, storeName } = req.params;
     const segment = req.query.segment as string | undefined;
+    const channel = req.query.channel as string | undefined;
+    const collection = req.query.collection as string | undefined;
 
     if (storeType === 'channel') {
       const channelDoc = await db.collection('storeChannels').doc(storeName).get();
@@ -242,6 +244,83 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       }
     }
     if (!matchedStore) { res.status(404).json({ error: "Store not found" }); return; }
+
+    // ---- Channel-scoped query: /api/store/internal/qr-gear?channel=usa250[&collection=monuments] ----
+    if (channel) {
+      const channelDoc = await db.collection('storeChannels').doc(channel).get();
+      if (!channelDoc.exists || (channelDoc.data() || {}).storeId !== matchedStore.id) {
+        res.status(404).json({ error: 'Channel not found in this store' });
+        return;
+      }
+      const channelData = channelDoc.data() || {};
+
+      const instancesSnap = await db.collection('admin_catalog_instances')
+        .where('storeId', '==', matchedStore.id)
+        .where('channelId', '==', channel)
+        .get();
+
+      const getFirstImgUrl = (images: any[]): string | null => {
+        if (!images?.length) return null;
+        const img = images[0];
+        return typeof img === 'string' ? img : (img?.url || null);
+      };
+      const toStrArr = (arr: any[]): string[] =>
+        (arr || []).map((v: any) => typeof v === 'string' ? v : v?.name || v?.label || String(v)).filter(Boolean);
+
+      const channelProducts = await Promise.all(
+        instancesSnap.docs
+          .filter((doc: any) => !collection || doc.data().collectionName === collection)
+          .map(async (doc: any) => {
+            const d = doc.data();
+            const resolved = d.resolved || {};
+            let price: number | null = resolved.pricing?.customerPrice ?? null;
+            let imageUrl = getFirstImgUrl(resolved.images || []);
+
+            if (d.currentPacketId) {
+              try {
+                const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+                if (pDoc.exists) {
+                  const pkt = pDoc.data()!;
+                  const mockup = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                  if (mockup) imageUrl = mockup;
+                  if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
+                }
+              } catch (_) {}
+            }
+
+            return {
+              id: doc.id,
+              name: resolved.title || 'Untitled',
+              imageUrl,
+              segment: d.collectionName || null,
+              isFeatured: false,
+              isSeasonalPromo: false,
+              templateVariant: null,
+              qrProductType: 'qr-basics',
+              qrCodeUrl: null,
+              selectedColors: toStrArr(d.enabledColors || resolved.colors || []),
+              availableSizes: toStrArr(d.enabledSizes || resolved.sizes || []),
+              defaultColor: null,
+              mockupsByColor: null,
+              price: price !== null ? Math.round(price * 100) / 100 : null,
+              createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            };
+          })
+      );
+
+      console.log(`[Public Store] Channel "${channel}" in "${matchedStore.name}": ${channelProducts.length} instances${collection ? ` / collection: ${collection}` : ''}`);
+      res.json({
+        storeType: matchedStore.roleType || storeType,
+        storeName: matchedStore.name || storeName,
+        channelId: channel,
+        channelName: channelData.name || channel,
+        collection: collection || null,
+        segment: null,
+        products: channelProducts,
+      });
+      return;
+    }
+    // ---- End channel-scoped query ----
 
     const channelsSnap = await db.collection('storeChannels').where('storeId', '==', matchedStore.id).get();
     const channels = channelsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));

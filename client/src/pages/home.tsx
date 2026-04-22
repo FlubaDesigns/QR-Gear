@@ -118,8 +118,8 @@ function FeaturedStores() {
   const stores = [
     {
       title: "USA 250",
-      subtitle: "Patriotic drops + limited runs",
-      href: "/shop/channel/usa250",
+      subtitle: "Monuments, Armed Forces, Founding Fathers",
+      href: "/shop/internal/qr-gear/usa250",
       badge: "Preview Store",
       icon: <Flag className="w-5 h-5" />,
     },
