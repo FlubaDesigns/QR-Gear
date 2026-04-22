@@ -127,5 +127,5 @@ exports.api = (0, https_1.onRequest)({
 // deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions
 // deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
 // deploy-1776830756
-exports.BUILD_TAG = "store-images-lifestyle-first-20260422";
+exports.BUILD_TAG = "template-picker-unified-20260422";
 //# sourceMappingURL=index.js.map

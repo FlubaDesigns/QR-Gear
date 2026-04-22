@@ -604,54 +604,6 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
   }
 });
 
-// Admin: List all product templates
-app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('productTemplates').get();
-    const templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.json({ templates });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Admin: Create a product template
-app.post('/admin/templates', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const now = admin.firestore.FieldValue.serverTimestamp();
-    const data = { ...req.body, createdAt: now, updatedAt: now };
-    const ref = await db.collection('productTemplates').add(data);
-    res.json({ id: ref.id, ...data });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Admin: Update a product template
-app.put('/admin/templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const now = admin.firestore.FieldValue.serverTimestamp();
-    const data = { ...req.body, updatedAt: now };
-    await db.collection('productTemplates').doc(id).update(data);
-    const updated = await db.collection('productTemplates').doc(id).get();
-    res.json({ id, ...updated.data() });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Admin: Delete a product template
-app.delete('/admin/templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    await db.collection('productTemplates').doc(id).delete();
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Admin: Get mockups for a template
 app.get('/admin/templates/:templateId/mockups', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {

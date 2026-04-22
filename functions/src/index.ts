@@ -133,4 +133,4 @@ export const api = onRequest(
 
 // deploy-1776830756
 
-export const BUILD_TAG = "store-images-lifestyle-first-20260422";
+export const BUILD_TAG = "template-picker-unified-20260422";

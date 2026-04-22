@@ -549,54 +549,6 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // Admin: List all product templates
-    app.get('/admin/templates', middleware_1.requireAdmin, async (_req, res) => {
-        try {
-            const snapshot = await core_1.db.collection('productTemplates').get();
-            const templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            res.json({ templates });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Admin: Create a product template
-    app.post('/admin/templates', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            const data = { ...req.body, createdAt: now, updatedAt: now };
-            const ref = await core_1.db.collection('productTemplates').add(data);
-            res.json({ id: ref.id, ...data });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Admin: Update a product template
-    app.put('/admin/templates/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { id } = req.params;
-            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            const data = { ...req.body, updatedAt: now };
-            await core_1.db.collection('productTemplates').doc(id).update(data);
-            const updated = await core_1.db.collection('productTemplates').doc(id).get();
-            res.json({ id, ...updated.data() });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Admin: Delete a product template
-    app.delete('/admin/templates/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { id } = req.params;
-            await core_1.db.collection('productTemplates').doc(id).delete();
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
     // Admin: Get mockups for a template
     app.get('/admin/templates/:templateId/mockups', middleware_1.requireAdmin, async (req, res) => {
         try {

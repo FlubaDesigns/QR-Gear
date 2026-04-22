@@ -285,6 +285,7 @@ function register(app) {
                     withPreview++;
                 if (!data.productName && !data.name)
                     withFallbackTitle++;
+                const previewPrice = data.pricing?.customerPrice ?? null;
                 return {
                     id: d.id,
                     ...data,
@@ -292,6 +293,7 @@ function register(app) {
                     packet,
                     previewTitle,
                     previewImageUrl,
+                    previewPrice,
                 };
             });
             console.log(`[/admin/templates] returned ${templates.length} templates | withPreview=${withPreview} | fallbackTitle=${withFallbackTitle} | noPacket=${noPacket}`);
@@ -303,7 +305,7 @@ function register(app) {
     });
     app.post('/admin/templates', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const docRef = await core_1.db.collection('templates').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+            const docRef = await core_1.db.collection('productTemplates').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
             res.json({ id: docRef.id, success: true });
         }
         catch (error) {
@@ -312,7 +314,7 @@ function register(app) {
     });
     app.put('/admin/templates/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            await core_1.db.collection('templates').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
+            await core_1.db.collection('productTemplates').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
             res.json({ success: true });
         }
         catch (error) {
@@ -321,7 +323,7 @@ function register(app) {
     });
     app.delete('/admin/templates/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            await core_1.db.collection('templates').doc(req.params.id).delete();
+            await core_1.db.collection('productTemplates').doc(req.params.id).delete();
             res.json({ success: true });
         }
         catch (error) {

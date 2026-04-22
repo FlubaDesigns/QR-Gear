@@ -259,6 +259,8 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
       if (previewImageUrl) withPreview++;
       if (!data.productName && !data.name) withFallbackTitle++;
 
+      const previewPrice: number | null = (data.pricing as any)?.customerPrice ?? null;
+
       return {
         id: d.id,
         ...data,
@@ -266,6 +268,7 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
         packet,
         previewTitle,
         previewImageUrl,
+        previewPrice,
       };
     });
 
@@ -276,21 +279,21 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
 
 app.post('/admin/templates', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const docRef = await db.collection('templates').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    const docRef = await db.collection('productTemplates').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     res.json({ id: docRef.id, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.put('/admin/templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('templates').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
+    await db.collection('productTemplates').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.delete('/admin/templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('templates').doc(req.params.id).delete();
+    await db.collection('productTemplates').doc(req.params.id).delete();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
