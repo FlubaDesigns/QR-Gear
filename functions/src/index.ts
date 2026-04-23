@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260422-template-picker-1776830541';
+const _BUILD_ID = '20260423-amazon-sp-api-oauth-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -53,6 +53,7 @@ import { register as registerPpCatalog } from './routes/pp-catalog';
 import { registerPpCatalogBrowseRoutes } from './routes/pp-catalog-browse';
 import { register as registerPpPricingPackets } from './routes/pp-pricing-packets';
 import { registerAdminBuildSessions } from './routes/admin-build-sessions';
+import { register as registerAmazonOAuth } from './routes/amazon-oauth';
 
 const app = express();
 
@@ -110,6 +111,7 @@ registerPpCatalog(app);
 registerPpCatalogBrowseRoutes(app);
 registerPpPricingPackets(app);
 registerAdminBuildSessions(app);
+registerAmazonOAuth(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

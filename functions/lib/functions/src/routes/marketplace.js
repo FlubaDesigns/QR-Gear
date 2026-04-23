@@ -5,6 +5,7 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const marketplace_sync_1 = require("../services/marketplace-sync");
 const surface_generator_1 = require("../services/surface-generator");
+const amazon_sp_api_1 = require("../services/amazon-sp-api");
 const constants_1 = require("../constants");
 const VALID_PLATFORMS = new Set(constants_1.MARKETPLACE_PLATFORMS);
 const VALID_SURFACE_STATUSES = new Set(['draft', 'ready', 'published', 'archived']);
@@ -544,6 +545,95 @@ function register(app) {
         }
         catch (error) {
             console.error('[SurfaceGenerator] generate-from-instance error:', error.message);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // --- Push Surface to Amazon ---
+    app.post('/admin/surfaces/:surfaceId/push-to-amazon', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { surfaceId } = req.params;
+            const { accountId, sku: skuOverride } = req.body;
+            if (!accountId) {
+                res.status(400).json({ error: 'accountId is required' });
+                return;
+            }
+            // Load surface
+            const surfaceDoc = await core_1.db.collection(constants_1.SURFACES_COLLECTION).doc(surfaceId).get();
+            if (!surfaceDoc.exists) {
+                res.status(404).json({ error: 'Surface not found' });
+                return;
+            }
+            const surface = surfaceDoc.data();
+            // Load account and verify it is an Amazon account with credentials
+            const accountDoc = await core_1.db.collection(constants_1.MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+            if (!accountDoc.exists) {
+                res.status(404).json({ error: 'Account not found' });
+                return;
+            }
+            const account = accountDoc.data();
+            if (account.platform !== 'amazon') {
+                res.status(400).json({ error: 'Account is not an Amazon account' });
+                return;
+            }
+            if (!account.amazonConnected || !account.amazonRefreshToken) {
+                res.status(400).json({
+                    error: 'Amazon account not connected. Complete the OAuth flow first.',
+                    setupRequired: true,
+                });
+                return;
+            }
+            if (!account.amazonSellerId) {
+                res.status(400).json({ error: 'Amazon Seller ID not recorded on this account. Reconnect via OAuth.' });
+                return;
+            }
+            const credentials = {
+                sellerId: account.amazonSellerId,
+                marketplaceId: account.amazonMarketplaceId || 'ATVPDKIKX0DER',
+                refreshToken: account.amazonRefreshToken,
+            };
+            // Derive SKU: prefer explicit override → surface.sku → surface.id slice
+            const sku = skuOverride || surface.sku || `QRG-${surfaceId.slice(0, 8).toUpperCase()}`;
+            // Map surface data to AmazonListingProduct
+            const product = {
+                title: surface.title || 'QR Gear Product',
+                description: surface.description || '',
+                bulletPoints: surface.bulletPoints || [],
+                keywords: surface.tags || [],
+                price: surface.price || surface.basePrice || 0,
+                currencyCode: 'USD',
+                quantity: 100,
+                condition: 'new_new',
+                brandName: surface.brand || 'QR Gear',
+                imageUrls: (surface.images || []).map((img) => (typeof img === 'string' ? img : img?.url)).filter(Boolean),
+                productType: surface.amazonProductType || 'SHIRT',
+            };
+            if (product.price <= 0) {
+                res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to Amazon.' });
+                return;
+            }
+            console.log(`[Amazon Push] Pushing surface ${surfaceId} as SKU ${sku} to account ${accountId}`);
+            const result = await (0, amazon_sp_api_1.pushListingToAmazon)(credentials, product, sku);
+            // Record the push attempt on the surface
+            const now = new Date().toISOString();
+            const updateData = {
+                [`amazonPushHistory.${now.replace(/[:.]/g, '_')}`]: {
+                    accountId,
+                    sku,
+                    success: result.success,
+                    status: result.status,
+                    error: result.error || null,
+                    submissionId: result.submissionId || null,
+                    pushedAt: now,
+                },
+                lastAmazonPushAt: now,
+                lastAmazonPushSuccess: result.success,
+                lastAmazonPushSku: sku,
+            };
+            await core_1.db.collection(constants_1.SURFACES_COLLECTION).doc(surfaceId).update(updateData);
+            res.json({ ...result, surfaceId, accountId });
+        }
+        catch (error) {
+            console.error('[Amazon Push] push-to-amazon error:', error);
             res.status(500).json({ error: error.message });
         }
     });

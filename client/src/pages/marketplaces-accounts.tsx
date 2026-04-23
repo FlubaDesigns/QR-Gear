@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,12 +36,20 @@ export interface MarketplaceAccount {
   feePercent: number;
   isActive: boolean;
   healthStatus?: string;
+  // Amazon SP-API OAuth fields
+  amazonConnected?: boolean;
+  amazonSellerId?: string;
+  amazonMarketplaceId?: string;
+  amazonMarketplaceIds?: string[];
+  amazonConnectedAt?: string;
 }
 
 export function AccountsSection() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     platform: "etsy" as MarketplacePlatform,
     accountName: "",
@@ -48,6 +57,25 @@ export function AccountsSection() {
     shopName: "",
     feePercent: "0",
   });
+
+  // Detect redirect back from Amazon OAuth and show result toast
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectResult = params.get("amazon_connect");
+    if (!connectResult) return;
+
+    if (connectResult === "success") {
+      toast({ title: "Amazon account connected", description: "Your seller account is now linked and ready to push listings." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+    } else if (connectResult === "error") {
+      const reason = params.get("reason") || "unknown error";
+      toast({ title: "Amazon connection failed", description: reason, variant: "destructive" });
+    }
+
+    // Clean query params from URL without triggering navigation
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, "", cleanUrl);
+  }, []);
 
   const { data: accounts = [], isLoading } = useQuery<MarketplaceAccount[]>({
     queryKey: ["/api/admin/surfaces/accounts"],
@@ -103,6 +131,50 @@ export function AccountsSection() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] }),
   });
+
+  const connectAmazonMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const res = await apiRequest("GET", `/api/marketplace/amazon/oauth/start?accountId=${accountId}`, undefined);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
+    },
+    onSuccess: (data) => {
+      setConnectingId(null);
+      if (data.oauthUrl) {
+        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
+        toast({ title: "Amazon authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+      }
+    },
+    onError: (err: Error) => {
+      setConnectingId(null);
+      const isSetup = err.message.includes("not configured");
+      toast({
+        title: isSetup ? "Amazon app credentials not set up yet" : "Could not start Amazon connection",
+        description: isSetup
+          ? "Set AMAZON_SP_APP_ID, AMAZON_SP_CLIENT_ID, AMAZON_SP_CLIENT_SECRET, and AMAZON_SP_REDIRECT_URI in the server environment, then try again."
+          : err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectAmazonMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/surfaces/accounts/${accountId}/amazon-disconnect`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      toast({ title: "Amazon account disconnected" });
+    },
+    onError: (err: Error) => toast({ title: "Disconnect failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleConnectAmazon = (accountId: string) => {
+    setConnectingId(accountId);
+    connectAmazonMutation.mutate(accountId);
+  };
 
   const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "", feePercent: "0" });
 
@@ -181,6 +253,11 @@ export function AccountsSection() {
                         {acct.healthStatus === "unhealthy" && (
                           <Badge variant="destructive" className="text-xs"><AlertCircle className="h-3 w-3 mr-1" />Unhealthy</Badge>
                         )}
+                        {acct.platform === "amazon" && (
+                          acct.amazonConnected
+                            ? <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />SP-API Connected</Badge>
+                            : <Badge variant="outline" className="text-xs text-muted-foreground">Not Connected</Badge>
+                        )}
                         {acct.feePercent > 0 && (
                           <span className="text-xs text-muted-foreground">{acct.feePercent}% fee</span>
                         )}
@@ -188,6 +265,31 @@ export function AccountsSection() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {acct.platform === "amazon" && (
+                      acct.amazonConnected ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { if (confirm("Disconnect this Amazon account?")) disconnectAmazonMutation.mutate(acct.id); }}
+                          disabled={disconnectAmazonMutation.isPending}
+                          data-testid={`button-amazon-disconnect-${acct.id}`}
+                        >
+                          {disconnectAmazonMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConnectAmazon(acct.id)}
+                          disabled={connectingId === acct.id && connectAmazonMutation.isPending}
+                          data-testid={`button-amazon-connect-${acct.id}`}
+                        >
+                          {connectingId === acct.id && connectAmazonMutation.isPending
+                            ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Connecting…</>
+                            : <><SiAmazon className="h-3 w-3 mr-1" />Connect</>}
+                        </Button>
+                      )
+                    )}
                     <Switch
                       checked={acct.isActive}
                       onCheckedChange={(checked) => toggleMutation.mutate({ id: acct.id, isActive: checked })}
@@ -528,6 +630,156 @@ function buildSurfacePayload(data: SurfaceForm) {
   };
 }
 
+// ─── Push to Amazon dialog ────────────────────────────────────────────────────
+
+function PushToAmazonDialog({
+  open,
+  onClose,
+  surfaceId,
+  surfaceTitle,
+  surfaceSku,
+}: {
+  open: boolean;
+  onClose: () => void;
+  surfaceId: string;
+  surfaceTitle: string;
+  surfaceSku?: string;
+}) {
+  const { toast } = useToast();
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
+
+  const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
+    queryKey: ["/api/admin/surfaces/accounts"],
+    enabled: open,
+  });
+
+  const amazonAccounts = allAccounts.filter(
+    (a) => a.platform === "amazon" && a.amazonConnected && a.isActive
+  );
+
+  useEffect(() => {
+    if (amazonAccounts.length === 1 && !selectedAccountId) {
+      setSelectedAccountId(amazonAccounts[0].id);
+    }
+  }, [amazonAccounts.length]);
+
+  const pushMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-amazon`, {
+        accountId: selectedAccountId,
+        ...(skuOverride ? { sku: skuOverride } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Push failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "Pushed to Amazon", description: `Listing submitted (SKU: ${data.sku}). Check Seller Central for status.` });
+      } else {
+        toast({
+          title: "Amazon returned issues",
+          description: data.issues?.map((i: any) => i.message).join("; ") || data.error || "Unknown issue",
+          variant: "destructive",
+        });
+      }
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Push failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleClose = () => {
+    if (pushMutation.isPending) return;
+    setSelectedAccountId("");
+    setSkuOverride(surfaceSku || "");
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Push to Amazon</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            Submit <span className="font-medium">{surfaceTitle || "this surface"}</span> as a listing to Amazon via SP-API.
+          </p>
+
+          {amazonAccounts.length === 0 ? (
+            <div className="rounded-md border p-4 space-y-2">
+              <p className="text-sm font-medium text-destructive">No connected Amazon accounts</p>
+              <p className="text-xs text-muted-foreground">Go to the Accounts tab, add an Amazon account, and complete the SP-API OAuth flow first.</p>
+            </div>
+          ) : (
+            <>
+              {amazonAccounts.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Amazon Seller Account</Label>
+                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                    <SelectTrigger data-testid="select-push-account">
+                      <SelectValue placeholder="Select account…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {amazonAccounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id} data-testid={`option-push-account-${a.id}`}>
+                          {a.accountName}
+                          {a.amazonSellerId && <span className="text-muted-foreground ml-2 text-xs">{a.amazonSellerId}</span>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {amazonAccounts.length === 1 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <SiAmazon className="h-4 w-4 text-yellow-500" />
+                  <span className="font-medium">{amazonAccounts[0].accountName}</span>
+                  {amazonAccounts[0].amazonSellerId && (
+                    <span className="text-muted-foreground text-xs">({amazonAccounts[0].amazonSellerId})</span>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-xs">SKU</Label>
+                <Input
+                  value={skuOverride}
+                  onChange={(e) => setSkuOverride(e.target.value)}
+                  placeholder={`Auto: QRG-${surfaceId.slice(0, 8).toUpperCase()}`}
+                  data-testid="input-push-sku"
+                />
+                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={pushMutation.isPending} data-testid="button-push-cancel">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => pushMutation.mutate()}
+            disabled={!selectedAccountId || pushMutation.isPending || amazonAccounts.length === 0}
+            data-testid="button-push-confirm"
+          >
+            {pushMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pushing…</>
+            ) : (
+              <><SiAmazon className="h-4 w-4 mr-2" />Push to Amazon</>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Admin instance shape used by the generate dialog ────────────────────────
 
 interface AdminInstancePreview {
@@ -708,6 +960,7 @@ export function SurfacesSection() {
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
+  const [pushTarget, setPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SurfaceForm>(DEFAULT_FORM);
 
@@ -846,6 +1099,16 @@ export function SurfacesSection() {
         onGenerated={handleGenerated}
       />
 
+      {pushTarget && (
+        <PushToAmazonDialog
+          open={!!pushTarget}
+          onClose={() => setPushTarget(null)}
+          surfaceId={pushTarget.id}
+          surfaceTitle={pushTarget.title}
+          surfaceSku={pushTarget.sku}
+        />
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : surfaces.length === 0 ? (
@@ -906,6 +1169,17 @@ export function SurfacesSection() {
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {surface.enabledPlatforms?.includes("amazon") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPushTarget({ id: surface.id, title: surface.title || "Untitled", sku: surface.sku })}
+                        data-testid={`button-push-amazon-${surface.id}`}
+                      >
+                        <SiAmazon className="h-3 w-3 mr-1 text-yellow-500" />
+                        Push
+                      </Button>
+                    )}
                     <Button variant="outline" size="sm" onClick={() => checkReadinessMutation.mutate(surface.id)} disabled={checkReadinessMutation.isPending} data-testid={`button-check-readiness-${surface.id}`}>
                       {checkReadinessMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
                       Check
