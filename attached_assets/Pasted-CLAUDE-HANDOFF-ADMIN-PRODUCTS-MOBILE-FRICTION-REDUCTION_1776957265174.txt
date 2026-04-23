@@ -1,0 +1,247 @@
+CLAUDE HANDOFF — ADMIN/PRODUCTS MOBILE FRICTION REDUCTION (OPERATOR-ONLY, THIS ZIP ONLY)
+
+This pass is NOT about simplifying the admin for beginners.
+
+This is an OPERATOR OPTIMIZATION PASS for a single user (me) working primarily on a MOBILE PHONE.
+
+The goal is:
+- faster interaction
+- less scrolling
+- clearer state
+- fewer repeated actions
+- zero loss of power
+
+Do NOT:
+- remove functionality
+- hide advanced controls
+- dumb down the system
+- change core architecture
+
+Keep admin/products powerful.
+Make it faster and more usable on mobile.
+
+==================================================
+PRIMARY OBJECTIVE
+==================================================
+
+Reduce friction caused by:
+- long vertical scroll
+- repeated actions
+- unclear current state
+- mobile interaction inefficiencies
+- context switching
+
+==================================================
+PART 1 — STICKY TOP STATUS BAR (CRITICAL)
+==================================================
+
+Add a compact sticky header at the top of admin/products.
+
+This must ALWAYS remain visible while scrolling.
+
+It should display current system truth:
+
+- Product title (or ID)
+- Draft / Saved / Committed state
+- Template name (if applicable)
+- Store / Channel / Collection
+- Dirty indicator (unsaved changes)
+
+Add quick actions (compact buttons/icons):
+- Save Draft
+- Commit
+- Preview
+- Create Surface (or equivalent marketplace action)
+
+Rules:
+- Keep it compact (single row if possible)
+- No large UI
+- Prioritize readability and quick tapping
+
+Goal:
+Never lose track of “what am I working on?”
+
+==================================================
+PART 2 — MOBILE BOTTOM ACTION BAR
+==================================================
+
+Add a fixed bottom action bar for mobile only.
+
+Include:
+- Save
+- Preview
+- Commit
+- Surface / Publish
+
+Rules:
+- Must be thumb-reachable
+- Must not block content
+- Must not duplicate large UI above (keep icons or compact labels)
+
+Goal:
+Eliminate need to scroll for core actions.
+
+==================================================
+PART 3 — COLLAPSIBLE SECTIONS (SCROLL REDUCTION)
+==================================================
+
+All major sections must be collapsible:
+
+- Product Definition
+- Options
+- Media
+- QR / Content
+- Layout / Placement
+- Preview
+- Save / Publish
+
+Behavior:
+- Only one or two sections open at a time
+- Sections remember their open/closed state
+- Default to collapsed except active section
+
+Rules:
+- No loss of data when collapsed
+- No hidden side effects
+
+Goal:
+Reduce vertical scroll length dramatically.
+
+==================================================
+PART 4 — “CURRENT TRUTH” SUMMARY CARD
+==================================================
+
+Add a compact summary block near the top (below sticky header).
+
+Display:
+
+- Product title
+- Card mode
+- Hero image thumbnail
+- Image count
+- Channel / Collection
+- Template (if used)
+- State (draft/saved/committed)
+
+This is READ-ONLY.
+
+Goal:
+Quickly confirm system state without scanning entire page.
+
+==================================================
+PART 5 — MEDIA HANDLING (MOBILE-FIRST)
+==================================================
+
+Improve media controls for thumb use.
+
+Add explicit controls:
+
+- Set Hero button
+- Move Up button
+- Move Down button
+- Remove image
+
+Avoid:
+- drag-only interactions (not reliable on mobile)
+
+Show:
+- image source label (Curated / Mockup / Provider)
+
+Ensure:
+- image order is clearly visible
+- hero is clearly marked
+
+Goal:
+No guessing how images are ordered.
+
+==================================================
+PART 6 — REDUCE MODAL DEPENDENCE
+==================================================
+
+Where possible:
+- replace full-screen modals with inline expanders or slide panels
+
+Rules:
+- Do NOT eliminate modals entirely
+- Use modals only when necessary (e.g., destructive actions, heavy forms)
+
+Goal:
+Avoid losing context during frequent edits.
+
+==================================================
+PART 7 — PREVIEW MODES
+==================================================
+
+Add two preview modes:
+
+1. Quick Preview
+- lightweight
+- fast rendering
+- minimal UI
+
+2. Full Preview
+- full Viewer → View → Skin rendering
+
+Toggle must be easily accessible.
+
+Goal:
+Avoid paying full render cost every time.
+
+==================================================
+PART 8 — SECTION PRIORITIZATION (FLOW)
+==================================================
+
+Encourage a natural flow through layout:
+
+1. Product / Template
+2. Media
+3. QR / Content
+4. Layout / Placement
+5. Preview
+6. Save / Commit
+
+Do NOT force the flow.
+Just structure sections in this order.
+
+Goal:
+Reduce cognitive switching.
+
+==================================================
+PART 9 — NO ARCHITECTURAL CHANGES
+==================================================
+
+Do NOT:
+- change BuilderContext logic
+- introduce new data models
+- duplicate state systems
+- bypass existing rendering system
+
+This is a UX and interaction layer pass ONLY.
+
+==================================================
+EXPECTED RESULT
+==================================================
+
+After this pass:
+
+1. Core actions are always accessible (top or bottom)
+2. Scrolling is significantly reduced
+3. Current state is always visible
+4. Media is easy to manage on mobile
+5. Sections are easier to focus on
+6. Preview is faster to access
+7. No functionality is lost
+
+==================================================
+WHAT I WANT BACK
+==================================================
+
+1. Exact files changed
+2. Sticky header implementation details
+3. Bottom action bar implementation
+4. How collapsible sections were added
+5. Media interaction changes
+6. Preview mode implementation
+7. Confirmation that no core architecture was changed
+
+Patch this in THIS ZIP only. Focus on speed and clarity for mobile operator use.
