@@ -4,6 +4,26 @@ export interface MockupsByColor {
   [color: string]: { front?: string; lifestyle?: string; angles?: string[] };
 }
 
+export interface ProductOptionValue {
+  label: string;
+  hex?: string;
+  available: boolean;
+  image?: string | null;
+}
+
+export interface ProductOption {
+  name: string;
+  displayType: 'swatches' | 'pills' | 'dropdown';
+  isPrimary: boolean;
+  values: ProductOptionValue[];
+}
+
+export interface ProductMedia {
+  images: string[];
+  mockupPriority: boolean;
+  heroStrategy: 'mockupFirst' | 'catalogFirst';
+}
+
 export interface StoreProduct {
   id: string;
   name: string;
@@ -24,6 +44,12 @@ export interface StoreProduct {
   mockupsByColor?: MockupsByColor | null;
   price?: number | null;
   createdAt: string;
+  /** Structured display-intent options emitted by the builder layer */
+  options?: ProductOption[] | null;
+  /** How this product should behave on listing cards */
+  cardMode?: 'browseOnly' | 'quickAdd' | null;
+  /** Media contract — defines hero strategy and ordered gallery */
+  media?: ProductMedia | null;
 }
 
 export interface StoreResponse {

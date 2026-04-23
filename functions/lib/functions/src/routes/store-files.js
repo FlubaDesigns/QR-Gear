@@ -4,6 +4,39 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const pricing_1 = require("../services/pricing");
+const COLOR_HEX = {
+    'White': '#FFFFFF', 'Black': '#000000', 'Navy': '#000080', 'Navy Blue': '#000080',
+    'Royal Blue': '#4169E1', 'Red': '#DC2626', 'Heather Gray': '#9CA3AF',
+    'Heather Grey': '#9CA3AF', 'Sport Gray': '#6B7280', 'Sport Grey': '#6B7280',
+    'Dark Heather': '#374151', 'Charcoal': '#36454F', 'Natural': '#F5F5DC',
+    'Sand': '#C2B280', 'Forest Green': '#228B22', 'Kelly Green': '#4CBB17',
+    'Maroon': '#800000', 'Orange': '#FF6B00', 'Gold': '#FFD700', 'Yellow': '#FFFF00',
+    'Light Blue': '#ADD8E6', 'Pink': '#FFC0CB', 'Purple': '#800080', 'Ash': '#B2BEB5',
+    'Heather Cool Grey': '#A0A0A0', 'Heather Sand Dune': '#C8B89A',
+};
+function buildStructuredOptions(colors, sizes) {
+    const opts = [];
+    if (colors.length > 0) {
+        opts.push({
+            name: 'color',
+            displayType: 'swatches',
+            isPrimary: true,
+            values: colors.map(label => ({ label, hex: COLOR_HEX[label] || '#CCCCCC', available: true })),
+        });
+    }
+    if (sizes.length > 0) {
+        opts.push({
+            name: 'size',
+            displayType: 'pills',
+            isPrimary: false,
+            values: sizes.map(label => ({ label, available: true })),
+        });
+    }
+    return opts;
+}
+function deriveCardMode(colors, sizes) {
+    return colors.length > 0 && sizes.length > 0 ? 'browseOnly' : 'quickAdd';
+}
 function register(app) {
     // ============ BATCH: STORE/LIBRARY FILE ROUTES ============
     app.get('/store/product/:linkId', async (req, res) => {
@@ -83,6 +116,9 @@ function register(app) {
                     channel: link.channel || null,
                     collection: link.collection || null,
                     packetId: link.packetId || null,
+                    options: buildStructuredOptions(availableColors, availableSizes),
+                    cardMode: deriveCardMode(availableColors, availableSizes),
+                    media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
                 });
                 return;
             }
@@ -116,6 +152,8 @@ function register(app) {
                 allImages.push(packetMockupUrl);
             providerImages.forEach((u) => { if (u !== packetMockupUrl)
                 allImages.push(u); });
+            const bColors = toStrArr(d.enabledColors || resolved.colors || []);
+            const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
             res.json({
                 id: instanceDoc.id,
                 name: resolved.title || 'Untitled',
@@ -128,8 +166,8 @@ function register(app) {
                 qrCodeUrl: null,
                 qrProductType: d.qrProductType || 'qr-basics',
                 price: price !== null ? Math.round(price * 100) / 100 : null,
-                availableSizes: toStrArr(d.enabledSizes || resolved.sizes || []),
-                availableColors: toStrArr(d.enabledColors || resolved.colors || []),
+                availableSizes: bSizes,
+                availableColors: bColors,
                 availablePlacements: [],
                 defaultColor: null,
                 mockupsByColor: null,
@@ -139,6 +177,9 @@ function register(app) {
                 channel: d.channelId || null,
                 collection: d.collectionName || null,
                 packetId: d.currentPacketId || null,
+                options: buildStructuredOptions(bColors, bSizes),
+                cardMode: deriveCardMode(bColors, bSizes),
+                media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
             });
         }
         catch (e) {
@@ -303,6 +344,8 @@ function register(app) {
                         allImages.push(packetImageUrl);
                     providerImgs.forEach((u) => { if (u !== packetImageUrl)
                         allImages.push(u); });
+                    const l1Colors = toStringArray(rawColors);
+                    const l1Sizes = toStringArray(rawSizes);
                     return {
                         id: doc.id,
                         name: resolved.title || 'Untitled',
@@ -315,12 +358,15 @@ function register(app) {
                         templateVariant: null,
                         qrProductType: 'qr-basics',
                         qrCodeUrl: null,
-                        selectedColors: toStringArray(rawColors),
-                        availableSizes: toStringArray(rawSizes),
+                        selectedColors: l1Colors,
+                        availableSizes: l1Sizes,
                         defaultColor: null,
                         mockupsByColor: null,
                         price: price !== null ? Math.round(price * 100) / 100 : null,
                         createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                        options: buildStructuredOptions(l1Colors, l1Sizes),
+                        cardMode: deriveCardMode(l1Colors, l1Sizes),
+                        media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
                     };
                 }));
                 console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} catalog instances`);
@@ -417,6 +463,8 @@ function register(app) {
                         allImagesCh.push(packetImageUrl);
                     providerImgsCh.forEach((u) => { if (u !== packetImageUrl)
                         allImagesCh.push(u); });
+                    const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
+                    const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
                     return {
                         id: doc.id,
                         name: resolved.title || 'Untitled',
@@ -429,12 +477,15 @@ function register(app) {
                         templateVariant: null,
                         qrProductType: 'qr-basics',
                         qrCodeUrl: null,
-                        selectedColors: toStrArr(d.enabledColors || resolved.colors || []),
-                        availableSizes: toStrArr(d.enabledSizes || resolved.sizes || []),
+                        selectedColors: l2Colors,
+                        availableSizes: l2Sizes,
                         defaultColor: null,
                         mockupsByColor: null,
                         price: price !== null ? Math.round(price * 100) / 100 : null,
                         createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                        options: buildStructuredOptions(l2Colors, l2Sizes),
+                        cardMode: deriveCardMode(l2Colors, l2Sizes),
+                        media: { images: allImagesCh, mockupPriority: true, heroStrategy: 'mockupFirst' },
                     };
                 }));
                 console.log(`[Public Store] Channel "${channel}" in "${matchedStore.name}": ${channelProducts.length} instances${collection ? ` / collection: ${collection}` : ''}`);
@@ -489,6 +540,8 @@ function register(app) {
                     allImagesSt.push(packetImageUrl);
                 providerImgsSt.forEach((u) => { if (u !== packetImageUrl)
                     allImagesSt.push(u); });
+                const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
+                const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
                 return {
                     id: doc.id,
                     name: resolved.title || 'Untitled',
@@ -501,12 +554,15 @@ function register(app) {
                     templateVariant: null,
                     qrProductType: 'qr-basics',
                     qrCodeUrl: null,
-                    selectedColors: toStrArr2(d.enabledColors || resolved.colors || []),
-                    availableSizes: toStrArr2(d.enabledSizes || resolved.sizes || []),
+                    selectedColors: l3Colors,
+                    availableSizes: l3Sizes,
                     defaultColor: null,
                     mockupsByColor: null,
                     price: price !== null ? Math.round(price * 100) / 100 : null,
                     createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                    options: buildStructuredOptions(l3Colors, l3Sizes),
+                    cardMode: deriveCardMode(l3Colors, l3Sizes),
+                    media: { images: allImagesSt, mockupPriority: true, heroStrategy: 'mockupFirst' },
                 };
             }));
             console.log(`[Public Store] Store "${matchedStore.name}" (${storeType}): ${products.length} catalog instances, ${channels.length} channels`);

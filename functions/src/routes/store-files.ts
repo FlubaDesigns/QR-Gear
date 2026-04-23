@@ -13,6 +13,42 @@ import { printfulClient } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 
+const COLOR_HEX: Record<string, string> = {
+  'White': '#FFFFFF', 'Black': '#000000', 'Navy': '#000080', 'Navy Blue': '#000080',
+  'Royal Blue': '#4169E1', 'Red': '#DC2626', 'Heather Gray': '#9CA3AF',
+  'Heather Grey': '#9CA3AF', 'Sport Gray': '#6B7280', 'Sport Grey': '#6B7280',
+  'Dark Heather': '#374151', 'Charcoal': '#36454F', 'Natural': '#F5F5DC',
+  'Sand': '#C2B280', 'Forest Green': '#228B22', 'Kelly Green': '#4CBB17',
+  'Maroon': '#800000', 'Orange': '#FF6B00', 'Gold': '#FFD700', 'Yellow': '#FFFF00',
+  'Light Blue': '#ADD8E6', 'Pink': '#FFC0CB', 'Purple': '#800080', 'Ash': '#B2BEB5',
+  'Heather Cool Grey': '#A0A0A0', 'Heather Sand Dune': '#C8B89A',
+};
+
+function buildStructuredOptions(colors: string[], sizes: string[]) {
+  const opts: any[] = [];
+  if (colors.length > 0) {
+    opts.push({
+      name: 'color',
+      displayType: 'swatches',
+      isPrimary: true,
+      values: colors.map(label => ({ label, hex: COLOR_HEX[label] || '#CCCCCC', available: true })),
+    });
+  }
+  if (sizes.length > 0) {
+    opts.push({
+      name: 'size',
+      displayType: 'pills',
+      isPrimary: false,
+      values: sizes.map(label => ({ label, available: true })),
+    });
+  }
+  return opts;
+}
+
+function deriveCardMode(colors: string[], sizes: string[]): 'browseOnly' | 'quickAdd' {
+  return colors.length > 0 && sizes.length > 0 ? 'browseOnly' : 'quickAdd';
+}
+
   export function register(app: express.Express): void {
   // ============ BATCH: STORE/LIBRARY FILE ROUTES ============
 
@@ -97,6 +133,9 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         channel: link.channel || null,
         collection: link.collection || null,
         packetId: link.packetId || null,
+        options: buildStructuredOptions(availableColors, availableSizes),
+        cardMode: deriveCardMode(availableColors, availableSizes),
+        media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
       });
       return;
     }
@@ -134,6 +173,9 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
     if (packetMockupUrl) allImages.push(packetMockupUrl);
     providerImages.forEach((u) => { if (u !== packetMockupUrl) allImages.push(u); });
 
+    const bColors = toStrArr(d.enabledColors || resolved.colors || []);
+    const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
+
     res.json({
       id: instanceDoc.id,
       name: resolved.title || 'Untitled',
@@ -146,8 +188,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       qrCodeUrl: null,
       qrProductType: d.qrProductType || 'qr-basics',
       price: price !== null ? Math.round(price * 100) / 100 : null,
-      availableSizes: toStrArr(d.enabledSizes || resolved.sizes || []),
-      availableColors: toStrArr(d.enabledColors || resolved.colors || []),
+      availableSizes: bSizes,
+      availableColors: bColors,
       availablePlacements: [],
       defaultColor: null,
       mockupsByColor: null,
@@ -157,6 +199,9 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       channel: d.channelId || null,
       collection: d.collectionName || null,
       packetId: d.currentPacketId || null,
+      options: buildStructuredOptions(bColors, bSizes),
+      cardMode: deriveCardMode(bColors, bSizes),
+      media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
     });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -333,6 +378,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             if (packetImageUrl) allImages.push(packetImageUrl);
             providerImgs.forEach((u) => { if (u !== packetImageUrl) allImages.push(u); });
 
+            const l1Colors = toStringArray(rawColors);
+            const l1Sizes = toStringArray(rawSizes);
             return {
               id: doc.id,
               name: resolved.title || 'Untitled',
@@ -345,12 +392,15 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               templateVariant: null,
               qrProductType: 'qr-basics',
               qrCodeUrl: null,
-              selectedColors: toStringArray(rawColors),
-              availableSizes: toStringArray(rawSizes),
+              selectedColors: l1Colors,
+              availableSizes: l1Sizes,
               defaultColor: null,
               mockupsByColor: null,
               price: price !== null ? Math.round(price * 100) / 100 : null,
               createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              options: buildStructuredOptions(l1Colors, l1Sizes),
+              cardMode: deriveCardMode(l1Colors, l1Sizes),
+              media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
             };
           })
       );
@@ -449,6 +499,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             if (packetImageUrl) allImagesCh.push(packetImageUrl);
             providerImgsCh.forEach((u) => { if (u !== packetImageUrl) allImagesCh.push(u); });
 
+            const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
+            const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
             return {
               id: doc.id,
               name: resolved.title || 'Untitled',
@@ -461,12 +513,15 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               templateVariant: null,
               qrProductType: 'qr-basics',
               qrCodeUrl: null,
-              selectedColors: toStrArr(d.enabledColors || resolved.colors || []),
-              availableSizes: toStrArr(d.enabledSizes || resolved.sizes || []),
+              selectedColors: l2Colors,
+              availableSizes: l2Sizes,
               defaultColor: null,
               mockupsByColor: null,
               price: price !== null ? Math.round(price * 100) / 100 : null,
               createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              options: buildStructuredOptions(l2Colors, l2Sizes),
+              cardMode: deriveCardMode(l2Colors, l2Sizes),
+              media: { images: allImagesCh, mockupPriority: true, heroStrategy: 'mockupFirst' },
             };
           })
       );
@@ -528,6 +583,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           if (packetImageUrl) allImagesSt.push(packetImageUrl);
           providerImgsSt.forEach((u) => { if (u !== packetImageUrl) allImagesSt.push(u); });
 
+          const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
+          const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
           return {
             id: doc.id,
             name: resolved.title || 'Untitled',
@@ -540,12 +597,15 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             templateVariant: null,
             qrProductType: 'qr-basics',
             qrCodeUrl: null,
-            selectedColors: toStrArr2(d.enabledColors || resolved.colors || []),
-            availableSizes: toStrArr2(d.enabledSizes || resolved.sizes || []),
+            selectedColors: l3Colors,
+            availableSizes: l3Sizes,
             defaultColor: null,
             mockupsByColor: null,
             price: price !== null ? Math.round(price * 100) / 100 : null,
             createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            options: buildStructuredOptions(l3Colors, l3Sizes),
+            cardMode: deriveCardMode(l3Colors, l3Sizes),
+            media: { images: allImagesSt, mockupPriority: true, heroStrategy: 'mockupFirst' },
           };
         })
     );

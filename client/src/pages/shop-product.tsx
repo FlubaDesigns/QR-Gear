@@ -39,6 +39,19 @@ function getColorHex(colorName: string): string {
   return colorMap[colorName] || "#CCCCCC";
 }
 
+interface ProductOptionValue {
+  label: string;
+  hex?: string;
+  available: boolean;
+}
+
+interface ProductOption {
+  name: string;
+  displayType: 'swatches' | 'pills' | 'dropdown';
+  isPrimary: boolean;
+  values: ProductOptionValue[];
+}
+
 interface StoreProduct {
   id: string;
   name: string;
@@ -63,6 +76,10 @@ interface StoreProduct {
   channel: string | null;
   collection: string | null;
   packetId: string | null;
+  /** Structured display-intent options from builder layer */
+  options?: ProductOption[] | null;
+  /** Card display mode */
+  cardMode?: 'browseOnly' | 'quickAdd' | null;
 }
 
 export default function ShopProductPage() {
@@ -266,71 +283,90 @@ export default function ShopProductPage() {
 
             <Separator />
 
-            {product.availableColors.length > 0 && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Color:{" "}
-                  <span className="text-muted-foreground font-normal">
-                    {selectedColor || "Select a color"}
-                  </span>
-                </label>
-                <div className="flex flex-wrap gap-2.5">
-                  {product.availableColors.map((color) => {
-                    const hex = getColorHex(color);
-                    const isSelected = selectedColor === color;
-                    const isLight = hex === "#FFFFFF" || hex === "#FFD700" || hex === "#FFFF00" || hex === "#F5F5DC" || hex === "#C2B280" || hex === "#ADD8E6" || hex === "#FFC0CB";
-                    return (
-                      <button
-                        key={color}
-                        className={`w-11 h-11 rounded-full border-2 transition-all relative flex-shrink-0 ${
-                          isSelected
-                            ? "border-primary ring-2 ring-primary/30 scale-110"
-                            : "border-border hover:scale-105"
-                        }`}
-                        style={{ backgroundColor: hex }}
-                        onClick={() => setSelectedColor(color)}
-                        title={color}
-                        aria-label={color}
-                        aria-pressed={isSelected}
-                        data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, "-")}`}
-                      >
-                        {isSelected && (
-                          <Check
-                            className={`h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
-                              isLight ? "text-black" : "text-white"
-                            }`}
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
+            {(() => {
+              const colorOption = product.options?.find(o => o.name === 'color');
+              const colorValues = colorOption
+                ? colorOption.values
+                : product.availableColors.map(label => ({ label, hex: getColorHex(label), available: true }));
+              if (colorValues.length === 0) return null;
+              const LIGHT_HEXES = ["#FFFFFF","#FFD700","#FFFF00","#F5F5DC","#C2B280","#ADD8E6","#FFC0CB"];
+              return (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Color:{" "}
+                    <span className="text-muted-foreground font-normal">
+                      {selectedColor || "Select a color"}
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap gap-2.5">
+                    {colorValues.map((cv) => {
+                      const hex = cv.hex || getColorHex(cv.label);
+                      const isSelected = selectedColor === cv.label;
+                      const isLight = LIGHT_HEXES.includes(hex.toUpperCase());
+                      return (
+                        <button
+                          key={cv.label}
+                          className={`w-11 h-11 rounded-full border-2 transition-all relative flex-shrink-0 ${
+                            !cv.available
+                              ? "opacity-40 cursor-not-allowed"
+                              : isSelected
+                              ? "border-primary ring-2 ring-primary/30 scale-110"
+                              : "border-border hover:scale-105"
+                          }`}
+                          style={{ backgroundColor: hex }}
+                          onClick={() => cv.available && setSelectedColor(cv.label)}
+                          title={cv.label}
+                          aria-label={cv.label}
+                          aria-pressed={isSelected}
+                          aria-disabled={!cv.available}
+                          data-testid={`swatch-${cv.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        >
+                          {isSelected && cv.available && (
+                            <Check
+                              className={`h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
+                                isLight ? "text-black" : "text-white"
+                              }`}
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
-            {product.availableSizes.length > 0 && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Size: {selectedSize || "Select a size"}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {product.availableSizes.map((size) => {
-                    const isSelected = selectedSize === size;
-                    return (
-                      <Button
-                        key={size}
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSelectedSize(size)}
-                        data-testid={`button-size-${size.toLowerCase()}`}
-                      >
-                        {size}
-                      </Button>
-                    );
-                  })}
+            {(() => {
+              const sizeOption = product.options?.find(o => o.name === 'size');
+              const sizeValues = sizeOption
+                ? sizeOption.values
+                : product.availableSizes.map(label => ({ label, available: true }));
+              if (sizeValues.length === 0) return null;
+              return (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Size: {selectedSize || "Select a size"}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {sizeValues.map((sv) => {
+                      const isSelected = selectedSize === sv.label;
+                      return (
+                        <Button
+                          key={sv.label}
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          disabled={!sv.available}
+                          onClick={() => sv.available && setSelectedSize(sv.label)}
+                          data-testid={`button-size-${sv.label.toLowerCase()}`}
+                        >
+                          {sv.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div>
               <label className="text-sm font-medium mb-2 block">Quantity</label>
