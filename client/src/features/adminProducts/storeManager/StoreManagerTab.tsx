@@ -315,8 +315,8 @@ function InstanceCard({
   const toStr = (v: any): string => typeof v === 'string' ? v : v?.name || v?.label || v?.hex || String(v ?? '');
   const allColors = (instance.resolved?.colors ?? []).map(toStr).filter(Boolean);
   const allSizes = (instance.resolved?.sizes ?? []).map(toStr).filter(Boolean);
-  const enabledColors = instance.enabledColors ?? allColors;
-  const enabledSizes = instance.enabledSizes ?? allSizes;
+  const enabledColors = instance.enabledColors?.length ? instance.enabledColors : allColors;
+  const enabledSizes = instance.enabledSizes?.length ? instance.enabledSizes : allSizes;
 
   const patchMutation = useMutation({
     mutationFn: async (body: Record<string, any>) => {
