@@ -236,7 +236,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  const url = `${window.location.origin}/creator/${creatorSlug}`;
+                  const url = `${window.location.origin}/creator/${creatorSlug}/${selectedChannelId}`;
                   navigator.clipboard?.writeText(url);
                   toast({ title: 'Link copied' });
                 }}

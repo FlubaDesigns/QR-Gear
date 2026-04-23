@@ -168,6 +168,7 @@ function Router() {
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
+      <Route path="/creator/:creatorSlug/:channelId" component={CreatorSurface} />
       <Route path="/creator/:creatorSlug" component={CreatorSurface} />
       <Route path="/shop/product/:linkId" component={ShopProduct} />
       <Route path="/shop/:storeType/:storeName/:channel/:collection" component={ShopSegment} />

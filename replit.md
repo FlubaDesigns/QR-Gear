@@ -343,20 +343,28 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
   - `provider_health_checks`: providerType+checkedAt(DESC)
   - `temp_packets`: status+expiresAt(ASC) (inequality filter)
 
-## Member Creator Surface (added 2026-04-23)
-- **Route**: `/creator/:creatorSlug` → `client/src/pages/creator-surface.tsx`
-  - Public, no auth. Resolves by `creatorSlug` field or Firebase UID fallback.
-  - Shows member `storeName`, published packets grid, links to `/p/:id`.
-- **API**: `GET /api/public/creator/:slug`
-  - Dev server: `server/routes/member-public-wizard.routes.ts` (end of file)
-  - Firebase Functions: `functions/src/routes/members.ts` (end of file)
-  - Returns `{ profile, items, channelName }`. No auth required.
-- **Share URL fix**: `client/src/features/members/member-channels-view.tsx`
-  - Share button now copies `qrgear.com/creator/:creatorSlug` (was broken `/channel/:id`).
-  - Profile query added to get `creatorSlug`; falls back to `memberId` if slug absent.
-- **storeId fix**: `functions/src/routes/members.ts` line 435
+## Member Creator Surface (added 2026-04-23, updated pass 2)
+- **Routes**:
+  - `/creator/:creatorSlug` — shows all published packets for creator
+  - `/creator/:creatorSlug/:channelId` — shows packets filtered to a single channel
+  - Both → `client/src/pages/creator-surface.tsx`. Public, no auth.
+- **Creator surface features (pass 2)**:
+  - SEO component: per-page title, og:description, og:image from first item
+  - Avatar with initials (from `storeName`)
+  - Social handle display with platform icon + link (Instagram, TikTok, X, YouTube, Facebook)
+  - Channel name shown in header when channel-scoped URL used
+  - `?ref=:memberId` appended to all product links (referral attribution)
+  - Empty state CTA: "Browse QR Gear" link to platform shop
+  - Redundant `client/src/features/members/MemberChannelsView.tsx` deleted
+- **API**: `GET /api/public/creator/:slug?channel=:channelId`
+  - Both endpoints updated: `functions/src/routes/members.ts` + `server/routes/member-public-wizard.routes.ts`
+  - `?channel=` param filters packets by `channelId` field
+  - Profile response now includes `socialHandle`, `primarySocial`
+  - Channel display name resolved from Firestore `channels` collection
+- **Share URL**: `client/src/features/members/member-channels-view.tsx`
+  - Share button copies `/creator/:creatorSlug/:channelId` (channel-scoped URL)
+- **storeId fix** (pass 1): `functions/src/routes/members.ts`
   - Packet `storeId` changed from `storeId || memberId` → `storeId || PLATFORM_STORE_ID`
-  - Aligns packet storeId with channel storeId (`'qr-gear'`) for consistent parent attribution.
 
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.

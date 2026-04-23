@@ -655,13 +655,15 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
 
       const profileData = profileSnap.data()!;
 
-      // Published packets for this member, newest first
-      const packetsSnap = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION)
+      // Optional channel filter from query string
+      const channelFilter = req.query?.channel as string | undefined;
+
+      // Build query — filter by channel if provided
+      let query: any = firestoreDb.collection(MEMBER_PACKETS_COLLECTION)
         .where("memberId", "==", userId)
-        .where("status", "==", "published")
-        .orderBy("updatedAt", "desc")
-        .limit(50)
-        .get();
+        .where("status", "==", "published");
+      if (channelFilter) query = query.where("channelId", "==", channelFilter);
+      const packetsSnap = await query.orderBy("updatedAt", "desc").limit(50).get();
 
       const items = packetsSnap.docs.map((doc: any) => {
         const d = doc.data();
@@ -678,12 +680,12 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
         };
       });
 
-      // Resolve channel display name from first packet with a channelId
+      // Resolve channel display name: prefer explicit filter, else first packet's channel
       let channelName: string | null = null;
-      const firstChannelId = items.find((p: any) => p.channelId)?.channelId;
-      if (firstChannelId) {
+      const resolveChannelId = channelFilter || items.find((p: any) => p.channelId)?.channelId;
+      if (resolveChannelId) {
         try {
-          const channelDoc = await firestoreDb.collection("channels").doc(firstChannelId).get();
+          const channelDoc = await firestoreDb.collection("channels").doc(resolveChannelId).get();
           if (channelDoc.exists) channelName = (channelDoc.data() as any)?.name || null;
         } catch (_) {}
       }
@@ -695,6 +697,8 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
           fullName: profileData.fullName || "",
           creatorSlug: profileData.creatorSlug || slug,
           memberId: userId,
+          socialHandle: profileData.socialHandle || "",
+          primarySocial: profileData.primarySocial || "",
         },
         items,
         channelName,

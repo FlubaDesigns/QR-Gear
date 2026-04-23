@@ -587,13 +587,15 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
 
     const profileData = profileSnap.data()!;
 
-    // Fetch published packets for this member (ordered newest-first)
-    const packetsSnap = await db.collection(MEMBER_PACKETS_COLLECTION)
+    // Optional channel filter from query string
+    const channelFilter = req.query.channel as string | undefined;
+
+    // Build query — filter by channel if provided
+    let query: FirebaseFirestore.Query = db.collection(MEMBER_PACKETS_COLLECTION)
       .where('memberId', '==', userId)
-      .where('status', '==', 'published')
-      .orderBy('updatedAt', 'desc')
-      .limit(50)
-      .get();
+      .where('status', '==', 'published');
+    if (channelFilter) query = query.where('channelId', '==', channelFilter);
+    const packetsSnap = await query.orderBy('updatedAt', 'desc').limit(50).get();
 
     const items = packetsSnap.docs.map(doc => {
       const d = doc.data();
@@ -610,12 +612,12 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
       };
     });
 
-    // Resolve a channel display name from the first packet that has one
+    // Resolve channel display name: prefer explicit filter, else first packet's channel
     let channelName: string | null = null;
-    const firstChannelId = items.find(p => p.channelId)?.channelId;
-    if (firstChannelId) {
+    const resolveChannelId = channelFilter || items.find(p => p.channelId)?.channelId;
+    if (resolveChannelId) {
       try {
-        const channelDoc = await db.collection('channels').doc(firstChannelId).get();
+        const channelDoc = await db.collection('channels').doc(resolveChannelId).get();
         if (channelDoc.exists) channelName = channelDoc.data()?.name || null;
       } catch (_) {}
     }
@@ -627,6 +629,8 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
         fullName: profileData.fullName || '',
         creatorSlug: profileData.creatorSlug || slug,
         memberId: userId,
+        socialHandle: profileData.socialHandle || '',
+        primarySocial: profileData.primarySocial || '',
       },
       items,
       channelName,
