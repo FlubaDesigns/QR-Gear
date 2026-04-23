@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, DollarSign, Package, Sparkles, CheckCircle, ScanLine } from "lucide-react";
+import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, DollarSign, Sparkles, CheckCircle, ScanLine } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
@@ -13,6 +13,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import usa250HeroImg from "@assets/generated_images/usa250_store_card_hero.png";
+import becomeMemberCreatorImg from "@assets/generated_images/become_member_creator.png";
 
 type Product = {
   id: string;
@@ -89,6 +91,15 @@ function BecomeMember() {
                 </ul>
               </div>
 
+              <div className="hidden lg:block w-52 xl:w-64 flex-shrink-0 self-stretch rounded-lg overflow-hidden">
+                <img
+                  src={becomeMemberCreatorImg}
+                  alt="Entrepreneur designing custom QR code merchandise at a home studio — become a QR Gear member and earn money from your creative designs"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              </div>
+
               <div className="flex flex-col gap-3 w-full lg:w-auto lg:min-w-[200px]">
                 <Link href="/members">
                   <Button className="w-full" data-testid="button-become-member">
@@ -123,6 +134,8 @@ function FeaturedStores() {
       href: "/shop/internal/qr-gear/usa250",
       badge: "Now Available",
       icon: <Flag className="w-5 h-5" />,
+      heroImage: usa250HeroImg,
+      imageAlt: "Man wearing a USA 250 navy QR code t-shirt at the Washington Monument — patriotic custom apparel with scannable American history content",
     },
   ];
 
@@ -145,22 +158,27 @@ function FeaturedStores() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {stores.map((s) => (
-            <Card key={s.title} className="glass-card">
+            <Card key={s.title} className="glass-card overflow-hidden">
+              <div className="relative h-52">
+                <img
+                  src={s.heroImage}
+                  alt={s.imageAlt}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
+                <Badge variant="default" className="absolute top-3 right-3 gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  {s.badge}
+                </Badge>
+              </div>
               <CardContent className="p-6">
-                <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                  <div className="flex items-center gap-2">
-                    {s.icon}
-                    <h3 className="text-lg font-semibold text-foreground">{s.title}</h3>
-                  </div>
-                  <Badge variant="default" className="gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    {s.badge}
-                  </Badge>
+                <div className="flex items-center gap-2 mb-1">
+                  {s.icon}
+                  <h3 className="text-lg font-semibold text-foreground">{s.title}</h3>
                 </div>
-
                 <p className="text-foreground font-medium text-sm mb-1">{s.tagline}</p>
                 <p className="text-muted-foreground text-sm mb-5">{s.collections}</p>
-
                 <Link href={s.href}>
                   <Button className="w-full" data-testid={`button-store-${s.title.replace(/\s+/g, "-").toLowerCase()}`}>
                     <ScanLine className="w-4 h-4 mr-2" />

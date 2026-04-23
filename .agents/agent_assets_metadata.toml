@@ -30,6 +30,66 @@ uri = "file://attached_assets/collection_founding_fathers.png"
 type = "image"
 title = "founding fathers collection"
 
+[[generated]]
+id = "IytzgoDiSxaxCNbEN0ZtM"
+uri = "file://attached_assets/generated_images/usa250_store_card_hero.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0czUgjdt1IRNzDb2sfC3Y"
+uri = "file://attached_assets/generated_images/become_member_creator.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "QJ6p-RBp_vbIg7F03yfB2"
+uri = "file://attached_assets/generated_images/marketing_hidden_message.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "PFf7nIoyl1Jc47ACjoXaZ"
+uri = "file://attached_assets/generated_images/marketing_precious_moments.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "RBHwRUdr53k28qtGAElEe"
+uri = "file://attached_assets/generated_images/marketing_qr_dynamics.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "HLdCLWlrQmIgqCGh17hmM"
+uri = "file://attached_assets/generated_images/marketing_brands_creators.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "SQWITQd1VkFObn_0nEN3I"
+uri = "file://attached_assets/generated_images/howitworks_scan_phone.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nfOG1_yW1nDtzKzbhehpJ"
+uri = "file://attached_assets/generated_images/howitworks_video_plays.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "QKSbICDzC-86W5gi_tWZM"
+uri = "file://attached_assets/generated_images/howitworks_design_step.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "c_J6Xuuan5z0nKG3ze4se"
+uri = "file://attached_assets/generated_images/qr_product_lineup_flatlay.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "VvjPq9Vo5UHfXlSuYHRTX"
 uri = "file://qrgear-backup.zip"
