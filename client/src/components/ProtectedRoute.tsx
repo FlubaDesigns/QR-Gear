@@ -8,6 +8,9 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = true }: ProtectedRouteProps) {
+  // DEV BYPASS — remove before deploying
+  return <>{children}</>;
+
   const { isLoading, isAuthenticated, isAdmin, user } = useAuth();
 
   if (isLoading) {
