@@ -24,7 +24,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
         className="h-full flex flex-col cursor-pointer hover-elevate group"
         data-testid={`card-product-${product.id}`}
       >
-        <div className="aspect-square relative bg-muted overflow-hidden rounded-t-md">
+        <div className="aspect-square relative bg-muted overflow-hidden">
           {heroImage ? (
             <img
               src={heroImage}
