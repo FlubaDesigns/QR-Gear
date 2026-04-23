@@ -98,10 +98,10 @@ function register(app) {
             let packetMockupUrl = null;
             if (d.currentPacketId) {
                 try {
-                    const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
+                    const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
                     if (pDoc.exists) {
                         const pkt = pDoc.data();
-                        packetMockupUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                        packetMockupUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                         if (price === null && pkt.pricing?.customerPrice)
                             price = pkt.pricing.customerPrice;
                     }
@@ -198,10 +198,10 @@ function register(app) {
             let heroImageUrl = null;
             if (d.currentPacketId) {
                 try {
-                    const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
+                    const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
                     if (pDoc.exists) {
                         const pkt = pDoc.data();
-                        heroImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                        heroImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                         if (price === null && pkt.pricing?.customerPrice)
                             price = pkt.pricing.customerPrice;
                     }
@@ -282,10 +282,10 @@ function register(app) {
                     let packetImageUrl = null;
                     if (d.currentPacketId) {
                         try {
-                            const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
+                            const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
                             if (pDoc.exists) {
                                 const pkt = pDoc.data();
-                                packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                                packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                                 if (price === null && pkt.pricing?.customerPrice)
                                     price = pkt.pricing.customerPrice;
                             }
@@ -400,10 +400,10 @@ function register(app) {
                     let packetImageUrl = null;
                     if (d.currentPacketId) {
                         try {
-                            const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
+                            const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
                             if (pDoc.exists) {
                                 const pkt = pDoc.data();
-                                packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                                packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                                 if (price === null && pkt.pricing?.customerPrice)
                                     price = pkt.pricing.customerPrice;
                             }
@@ -472,10 +472,10 @@ function register(app) {
                 let packetImageUrl = null;
                 if (d.currentPacketId) {
                     try {
-                        const pDoc = await core_1.db.collection('product_packets').doc(d.currentPacketId).get();
+                        const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
                         if (pDoc.exists) {
                             const pkt = pDoc.data();
-                            packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                            packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                             if (price === null && pkt.pricing?.customerPrice)
                                 price = pkt.pricing.customerPrice;
                         }

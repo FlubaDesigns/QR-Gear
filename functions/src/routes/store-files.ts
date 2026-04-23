@@ -116,10 +116,10 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
     if (d.currentPacketId) {
       try {
-        const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+        const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
         if (pDoc.exists) {
           const pkt = pDoc.data()!;
-          packetMockupUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+          packetMockupUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
           if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
         }
       } catch (_) {}
@@ -223,10 +223,10 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
 
     if (d.currentPacketId) {
       try {
-        const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+        const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
         if (pDoc.exists) {
           const pkt = pDoc.data()!;
-          heroImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+          heroImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
           if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
         }
       } catch (_) {}
@@ -310,10 +310,10 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
             if (d.currentPacketId) {
               try {
-                const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+                const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
-                  packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                  packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
               } catch (_) {}
@@ -433,10 +433,10 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
             if (d.currentPacketId) {
               try {
-                const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+                const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
-                  packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                  packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
               } catch (_) {}
@@ -512,10 +512,10 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
           if (d.currentPacketId) {
             try {
-              const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+              const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
               if (pDoc.exists) {
                 const pkt = pDoc.data()!;
-                packetImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+                packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                 if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
               }
             } catch (_) {}
