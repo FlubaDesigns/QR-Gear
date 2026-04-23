@@ -269,30 +269,35 @@ export default function ShopProductPage() {
             {product.availableColors.length > 0 && (
               <div>
                 <label className="text-sm font-medium mb-2 block">
-                  Color: {selectedColor || "Select a color"}
+                  Color:{" "}
+                  <span className="text-muted-foreground font-normal">
+                    {selectedColor || "Select a color"}
+                  </span>
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   {product.availableColors.map((color) => {
+                    const hex = getColorHex(color);
                     const isSelected = selectedColor === color;
+                    const isLight = hex === "#FFFFFF" || hex === "#FFD700" || hex === "#FFFF00" || hex === "#F5F5DC" || hex === "#C2B280" || hex === "#ADD8E6" || hex === "#FFC0CB";
                     return (
                       <button
                         key={color}
-                        className={`w-9 h-9 rounded-full border-2 transition-all relative ${
+                        className={`w-11 h-11 rounded-full border-2 transition-all relative flex-shrink-0 ${
                           isSelected
-                            ? "border-primary ring-2 ring-primary/30"
-                            : "border-border"
+                            ? "border-primary ring-2 ring-primary/30 scale-110"
+                            : "border-border hover:scale-105"
                         }`}
-                        style={{ backgroundColor: getColorHex(color) }}
+                        style={{ backgroundColor: hex }}
                         onClick={() => setSelectedColor(color)}
                         title={color}
+                        aria-label={color}
+                        aria-pressed={isSelected}
                         data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, "-")}`}
                       >
                         {isSelected && (
                           <Check
                             className={`h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
-                              getColorHex(color) === "#FFFFFF" || getColorHex(color) === "#FFD700" || getColorHex(color) === "#FFFF00"
-                                ? "text-black"
-                                : "text-white"
+                              isLight ? "text-black" : "text-white"
                             }`}
                           />
                         )}

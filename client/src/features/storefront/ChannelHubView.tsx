@@ -18,7 +18,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import StorefrontLayout from "@/components/StorefrontLayout";
-import { StoreProductCard } from "./ProductCard";
 import { getChannelConfig } from "@/data/shopHierarchy";
 import type { StoreResponse } from "./types";
 
@@ -128,28 +127,11 @@ export function ChannelHubView({
           </div>
         )}
 
-        {/* All products in this channel */}
-        {(data?.products.length ?? 0) > 0 && (
-          <>
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-foreground">All Products</h2>
-              <p className="text-sm text-muted-foreground">
-                Browse everything in this channel
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {data!.products.map((p) => (
-                <StoreProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {(data?.products.length ?? 0) === 0 && (
+        {collections.length === 0 && (
           <Card className="max-w-md mx-auto">
             <CardContent className="py-12 text-center">
               <QrCode className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-lg text-muted-foreground mb-2">Products coming soon</p>
+              <p className="text-lg text-muted-foreground mb-2">Collections coming soon</p>
               <p className="text-sm text-muted-foreground">
                 This channel is being stocked. Check back soon.
               </p>
