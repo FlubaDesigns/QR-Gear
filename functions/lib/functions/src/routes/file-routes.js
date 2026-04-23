@@ -102,6 +102,29 @@ async function processQueueInBackground() {
                 mockupUrl: mockupResult.mockupUrl,
                 completedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
             });
+            // If this job belongs to a packet, write the best mockup URL back to the
+            // packet document so template cards always display a real printer mockup.
+            if (job.productId && typeof job.productId === 'string' && job.productId.startsWith('packet_')) {
+                const packetId = job.productId.slice('packet_'.length);
+                try {
+                    const packetRef = core_1.db.collection('productPackets').doc(packetId);
+                    const packetSnap = await packetRef.get();
+                    if (packetSnap.exists) {
+                        const packetData = packetSnap.data() || {};
+                        const existingUrl = packetData.priorityMockupUrl || null;
+                        const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl || null;
+                        const isUpgrade = bestUrl &&
+                            (!existingUrl || (mockupResult.lifestyleMockupUrl && existingUrl !== mockupResult.lifestyleMockupUrl));
+                        if (isUpgrade) {
+                            await packetRef.update({ priorityMockupUrl: bestUrl });
+                            console.log(`[Queue Background] Updated packet ${packetId} priorityMockupUrl with ${mockupResult.lifestyleMockupUrl ? 'lifestyle' : 'flat'} mockup`);
+                        }
+                    }
+                }
+                catch (packetErr) {
+                    console.error(`[Queue Background] Failed to write-back mockup to packet ${packetId}:`, packetErr.message);
+                }
+            }
             console.log(`[Queue Background] Completed: ${job.colorName}/${job.placement}/${job.qrSize}`);
         }
         catch (error) {

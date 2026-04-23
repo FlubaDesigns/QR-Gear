@@ -594,7 +594,7 @@ function register(app) {
                 const destinationUrl = `${baseUrl}/view/${packetId}`;
                 const now = new Date().toISOString();
                 const packetData = {
-                    id: packetId, memberId, storeId: storeId || memberId, channelId: channelId || null, packetType,
+                    id: packetId, memberId, storeId: storeId || constants_1.PLATFORM_STORE_ID, channelId: channelId || null, packetType,
                     title: title || 'Untitled', description: description || '', status: status || 'published',
                     createdAt: now, updatedAt: now, source: source || { entryPoint: 'wizard' },
                     boundProduct: boundProduct || null, selectedColor: selectedColor || null,
@@ -735,6 +735,89 @@ function register(app) {
             const pendingEarnings = earnings.filter((e) => e.status === 'pending').reduce((sum, e) => sum + (e.amount || 0), 0);
             const paidEarnings = earnings.filter((e) => e.status === 'paid').reduce((sum, e) => sum + (e.amount || 0), 0);
             res.json({ earnings, summary: { total: totalEarnings, pending: pendingEarnings, paid: paidEarnings, profitShare: 0.25 } });
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // ── Public creator surface ────────────────────────────────────────────────────
+    // GET /public/creator/:slug
+    // No auth required. Accepts creatorSlug (human-readable) or memberId (UID fallback).
+    app.get('/public/creator/:slug', async (req, res) => {
+        try {
+            const { slug } = req.params;
+            if (!slug) {
+                res.status(400).json({ error: 'slug is required' });
+                return;
+            }
+            let profileSnap = null;
+            let userId = null;
+            // Primary lookup: creatorSlug field
+            const bySlug = await core_1.db.collection('member_profiles').where('creatorSlug', '==', slug).limit(1).get();
+            if (!bySlug.empty) {
+                profileSnap = bySlug.docs[0];
+                userId = bySlug.docs[0].id;
+            }
+            else {
+                // Fallback: treat slug as Firebase UID (doc ID)
+                const byId = await core_1.db.collection('member_profiles').doc(slug).get();
+                if (byId.exists) {
+                    profileSnap = byId;
+                    userId = byId.id;
+                }
+            }
+            if (!profileSnap || !userId) {
+                res.status(404).json({ error: 'Creator not found' });
+                return;
+            }
+            const profileData = profileSnap.data();
+            // Optional channel filter from query string
+            const channelFilter = req.query.channel;
+            // Build query — filter by channel if provided
+            let query = core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION)
+                .where('memberId', '==', userId)
+                .where('status', '==', 'published');
+            if (channelFilter)
+                query = query.where('channelId', '==', channelFilter);
+            const packetsSnap = await query.orderBy('updatedAt', 'desc').limit(50).get();
+            const items = packetsSnap.docs.map(doc => {
+                const d = doc.data();
+                return {
+                    id: doc.id,
+                    title: d.title || 'QR Gear Product',
+                    description: d.description || '',
+                    itemImage: d.qrCanvasMockup || d.qrBasicMockup || d.qrPlusMockup || d.qrPlayMockup || d.composeMockup || d.productGraphic || null,
+                    retailPrice: d.pricingSnapshot?.retailPriceBase ?? d.pricingSnapshot?.customerPrice ?? null,
+                    qrType: d.qrType || d.packetType || null,
+                    status: d.status || 'published',
+                    channelId: d.channelId || null,
+                    updatedAt: d.updatedAt || '',
+                };
+            });
+            // Resolve channel display name: prefer explicit filter, else first packet's channel
+            let channelName = null;
+            const resolveChannelId = channelFilter || items.find(p => p.channelId)?.channelId;
+            if (resolveChannelId) {
+                try {
+                    const channelDoc = await core_1.db.collection('channels').doc(resolveChannelId).get();
+                    if (channelDoc.exists)
+                        channelName = channelDoc.data()?.name || null;
+                }
+                catch (_) { }
+            }
+            res.json({
+                success: true,
+                profile: {
+                    storeName: profileData.storeName || '',
+                    fullName: profileData.fullName || '',
+                    creatorSlug: profileData.creatorSlug || slug,
+                    memberId: userId,
+                    socialHandle: profileData.socialHandle || '',
+                    primarySocial: profileData.primarySocial || '',
+                },
+                items,
+                channelName,
+            });
         }
         catch (error) {
             res.status(500).json({ error: error.message });
