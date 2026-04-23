@@ -18,6 +18,15 @@ import { StoreProductCard } from "./ProductCard";
 import { StorefrontBreadcrumb } from "./StorefrontBreadcrumb";
 import { getChannelConfig, getCollectionConfig } from "@/data/shopHierarchy";
 import type { StoreResponse } from "./types";
+import armedForcesImg from "@assets/collection_armed_forces.png";
+import monumentsImg from "@assets/collection_monuments.png";
+import foundingFathersImg from "@assets/collection_founding_fathers.png";
+
+const COLLECTION_HERO_IMAGES: Record<string, string> = {
+  "armed-forces": armedForcesImg,
+  "monuments": monumentsImg,
+  "founding-fathers": foundingFathersImg,
+};
 
 interface CollectionViewProps {
   storeType: string;
@@ -47,9 +56,36 @@ export function CollectionView({
   const collectionDescription = collectionConfig?.description ?? "";
 
   const products = data?.products ?? [];
+  const heroImage = COLLECTION_HERO_IMAGES[collectionSlug];
 
   return (
     <StorefrontLayout>
+      {/* Collection hero image */}
+      {heroImage ? (
+        <div className="relative w-full overflow-hidden" style={{ minHeight: "280px" }}>
+          <img
+            src={heroImage}
+            alt={collectionLabel}
+            className="absolute inset-0 w-full h-full object-cover"
+            data-testid="img-collection-hero"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/70" />
+          <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 py-16">
+            <h1
+              className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2"
+              data-testid="text-collection-title"
+            >
+              {collectionLabel}
+            </h1>
+            {collectionDescription && (
+              <p className="text-base text-white/80 max-w-xl leading-relaxed">
+                {collectionDescription}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <div className="container max-w-6xl py-8 px-4">
         {/* Breadcrumb */}
         <StorefrontBreadcrumb
@@ -60,20 +96,22 @@ export function CollectionView({
           ]}
         />
 
-        {/* Collection header */}
-        <div className="text-center mb-10">
-          <h1
-            className="text-3xl md:text-4xl font-bold mb-2"
-            data-testid="text-collection-title"
-          >
-            {collectionLabel}
-          </h1>
-          {collectionDescription && (
-            <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
-              {collectionDescription}
-            </p>
-          )}
-        </div>
+        {/* Collection header — only show text version when there's no hero image */}
+        {!heroImage && (
+          <div className="text-center mb-10">
+            <h1
+              className="text-3xl md:text-4xl font-bold mb-2"
+              data-testid="text-collection-title"
+            >
+              {collectionLabel}
+            </h1>
+            {collectionDescription && (
+              <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
+                {collectionDescription}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Product grid — browse-only, tap to go to product page */}
         {products.length === 0 ? (

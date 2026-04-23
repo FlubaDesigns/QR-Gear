@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useState, useEffect } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Flag } from "lucide-react";
 import { QRButton } from "@/components/QRButton";
 import tshirtHeroMockup from "@assets/generated_images/tshirt_qr_hero_mockup.png";
 import navyLifestyleMockup from "@assets/generated_images/printful_navy_lifestyle_mockup.jpg";
@@ -102,7 +102,7 @@ export default function Hero() {
 
           <div className="flex justify-between items-center">
             <div className="product__label">Yours Alone • Made to Order</div>
-            <span className="text-xs text-white/70">🇺🇸 USA Options</span>
+            <span className="text-xs text-white/70 flex items-center gap-1"><Flag className="w-3 h-3" /> USA Made Options</span>
           </div>
         </div>
       </div>

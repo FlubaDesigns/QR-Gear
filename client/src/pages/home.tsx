@@ -132,7 +132,7 @@ function FeaturedStores() {
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Featured Stores</h2>
             <p className="text-muted-foreground">
-              Click into a mini-store (even if it's not fully stocked yet). This is the public funnel.
+              Explore curated collections of QR-embedded gear — each one tells a story worth wearing.
             </p>
           </div>
 
@@ -179,10 +179,10 @@ function NoProductsYet() {
           <CardContent className="p-8 md:p-10">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
-                <h2 className="text-xl font-semibold text-foreground mb-2">No products live yet</h2>
+                <h2 className="text-xl font-semibold text-foreground mb-2">New drops coming soon</h2>
                 <p className="text-muted-foreground">
-                  That's fine — the public site is still "real" right now. Use the builders or click into a featured store
-                  like <span className="text-foreground font-medium">USA 250</span> while inventory is being staged.
+                  Our catalog is being stocked. In the meantime, explore featured collections
+                  like <span className="text-foreground font-medium">USA 250</span> or design your own custom QR gear.
                 </p>
               </div>
 
@@ -243,9 +243,11 @@ export default function Home() {
         </div>
         <BecomeMember />
         <FeaturedStores />
-        <div className="hidden md:block">
-          {hasProducts ? <FeaturedProducts /> : <NoProductsYet />}
-        </div>
+        {hasProducts ? (
+          <div className="hidden md:block"><FeaturedProducts /></div>
+        ) : (
+          <NoProductsYet />
+        )}
       </main>
 
       <Footer />

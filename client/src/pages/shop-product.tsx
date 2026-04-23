@@ -224,6 +224,27 @@ export default function ShopProductPage() {
 
   const typeInfo = QR_PRODUCT_TYPE_LABELS[product.qrProductType];
 
+  // Build fallback options from raw arrays when structured options[] are absent
+  const colorOption = product.options?.find(o => o.name === 'color') ??
+    (product.availableColors?.length
+      ? {
+          name: 'color',
+          displayType: 'swatches' as const,
+          isPrimary: true,
+          values: product.availableColors.map(c => ({ label: c, available: true, hex: undefined })),
+        }
+      : null);
+
+  const sizeOption = product.options?.find(o => o.name === 'size') ??
+    (product.availableSizes?.length
+      ? {
+          name: 'size',
+          displayType: 'pills' as const,
+          isPrimary: false,
+          values: product.availableSizes.map(s => ({ label: s, available: true })),
+        }
+      : null);
+
   // Build breadcrumb crumbs from product channel/collection data
   const breadcrumbs = (() => {
     const crumbs: Array<{ label: string; href?: string }> = [
@@ -312,7 +333,6 @@ export default function ShopProductPage() {
             <Separator />
 
             {(() => {
-              const colorOption = product.options?.find(o => o.name === 'color');
               if (!colorOption || colorOption.values.length === 0) return null;
               const displayType = colorOption.displayType ?? 'swatches';
               return (
@@ -395,7 +415,6 @@ export default function ShopProductPage() {
             })()}
 
             {(() => {
-              const sizeOption = product.options?.find(o => o.name === 'size');
               if (!sizeOption || sizeOption.values.length === 0) return null;
               const displayType = sizeOption.displayType ?? 'pills';
               return (
