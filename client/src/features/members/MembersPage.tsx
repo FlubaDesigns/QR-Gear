@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { 
   User, QrCode, Loader2, Layers, DollarSign, Share2,
-  Wand2, Zap, Sparkles, BarChart3, Banknote
+  Wand2, Zap, Sparkles, BarChart3, Banknote, AlertCircle, RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import SEO from "@/components/SEO";
@@ -44,17 +45,18 @@ interface EarningsSummary {
 }
 
 function CollectionsView({ memberId }: { memberId: string }) {
-  const { data: dynamicsItems, isLoading } = useQuery<any[]>({
+  const { data: dynamicsItems, isLoading, isError } = useQuery<any[]>({
     queryKey: ['/api/members', memberId, 'dynamics'],
     queryFn: async () => {
       if (!memberId) return [];
       const headers = await getAuthHeaders();
       const res = await fetch(`/api/members/${memberId}/published-items?types=qr-compose`, { headers });
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error(`Failed to load QR Dynamics (${res.status})`);
       const data = await res.json();
       return data.items || [];
     },
-    enabled: !!memberId
+    enabled: !!memberId,
+    retry: 1,
   });
 
   const itemList = dynamicsItems || [];
@@ -74,6 +76,12 @@ function CollectionsView({ memberId }: { memberId: string }) {
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+          </div>
+        ) : isError ? (
+          <div className="text-center py-12 text-slate-400">
+            <AlertCircle className="w-10 h-10 mx-auto mb-3 text-red-400/70 opacity-70" />
+            <p className="mb-1">Couldn't load your QR Dynamics.</p>
+            <p className="text-sm text-slate-500">Check your connection and try refreshing the page.</p>
           </div>
         ) : itemList.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
@@ -203,10 +211,14 @@ function useTempPacketClaim({
   userId,
   onboardingComplete,
   onClaim,
+  onSuccess,
+  onError,
 }: {
   userId: string;
   onboardingComplete: boolean;
   onClaim: (cfg: any) => void;
+  onSuccess: () => void;
+  onError: (msg?: string) => void;
 }) {
   const claimedRef = useRef(false);
   const params = new URLSearchParams(window.location.search);
@@ -225,11 +237,20 @@ function useTempPacketClaim({
           headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ tempPacketId }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          const msg = (errData as any).error;
+          onError(msg);
+          return;
+        }
         const data = await res.json();
-        if (data.success && data.packetConfig) onClaim(data.packetConfig);
+        if (data.success && data.packetConfig) {
+          onClaim(data.packetConfig);
+          onSuccess();
+        }
       } catch (err) {
         console.warn('[Member] Failed to claim temp packet:', err);
+        onError();
       }
     })();
   }, [onboardingComplete, tempPacketId, userId]);
@@ -264,15 +285,17 @@ function MembersController() {
   } = useWizardContext();
   const [, setLocation] = useLocation();
   const [initialChannelId, setInitialChannelId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const { isLoading, isAuthenticated, userId, onboardingComplete } = useMemberRuntimeState();
+  const { isLoading, isAuthenticated, userId, onboardingComplete, profileError, refreshProfile } = useMemberRuntimeState();
 
   useEffect(() => {
+    if (profileError) return;
     if (!isLoading && isAuthenticated && userId && !onboardingComplete) {
       const params = window.location.search;
       setLocation(`/member${params}`);
     }
-  }, [isLoading, isAuthenticated, userId, onboardingComplete, setLocation]);
+  }, [isLoading, isAuthenticated, userId, onboardingComplete, profileError, setLocation]);
 
   useTempPacketClaim({
     userId,
@@ -285,6 +308,16 @@ function MembersController() {
       setWizardTier('super-simple');
       setViewMode('wizard');
     },
+    onSuccess: () => {
+      toast({ title: 'Your work was saved!', description: 'Pick up right where you left off.' });
+    },
+    onError: (msg?: string) => {
+      toast({
+        title: "Couldn't recover your work",
+        description: msg || 'Your session may have expired. Try creating again.',
+        variant: 'destructive',
+      });
+    },
   });
 
   useEffect(() => {
@@ -293,6 +326,30 @@ function MembersController() {
       setViewMode('wizard');
     }
   }, [isAuthenticated]);
+
+  if (isAuthenticated && profileError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+        <Card className="bg-slate-800/80 border-red-500/30 max-w-sm w-full">
+          <CardContent className="p-8 text-center space-y-4">
+            <AlertCircle className="w-10 h-10 mx-auto text-red-400" />
+            <h2 className="text-lg font-semibold text-white">Couldn't load your profile</h2>
+            <p className="text-slate-400 text-sm">
+              There was a problem connecting to your account. Check your connection and try again.
+            </p>
+            <Button
+              onClick={refreshProfile}
+              className="w-full"
+              data-testid="button-retry-profile"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isAuthenticated && (isLoading || !onboardingComplete)) {
     return (

@@ -8,6 +8,7 @@ export interface MemberRuntimeState {
   userId: string;
   onboardingComplete: boolean;
   publishCount: number;
+  profileError: boolean;
   unlockedTiers: {
     simple: boolean;
     advanced: boolean;
@@ -26,7 +27,11 @@ export function useMemberRuntimeState(): MemberRuntimeState {
   const userId = apiUser?.id || firebaseUser?.uid || '';
   const qc = useQueryClient();
 
-  const { data: profileData, isLoading: profileLoading } = useQuery({
+  const {
+    data: profileData,
+    isLoading: profileLoading,
+    isError: profileIsError,
+  } = useQuery({
     queryKey: PROFILE_QUERY_KEY(userId),
     queryFn: async () => {
       if (!userId) return null;
@@ -35,11 +40,14 @@ export function useMemberRuntimeState(): MemberRuntimeState {
       const res = await fetch('/api/members/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        throw new Error(`Profile fetch failed (${res.status})`);
+      }
       return res.json() as Promise<{ isMember: boolean; profile?: { publishCount?: number } } | null>;
     },
     enabled: !!userId && isAuthenticated,
     staleTime: PROFILE_STALE_MS,
+    retry: 2,
   });
 
   const onboardingComplete = profileData?.isMember === true;
@@ -56,6 +64,7 @@ export function useMemberRuntimeState(): MemberRuntimeState {
     userId,
     onboardingComplete,
     publishCount,
+    profileError: isAuthenticated && !!userId && profileIsError,
     unlockedTiers: {
       simple: true,
       advanced: publishCount >= 1,
