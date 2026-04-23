@@ -10,6 +10,8 @@ import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { LoadTemplateModule } from "./modules/LoadTemplateModule";
 import { LoadSavedModule } from "./modules/LoadSavedModule";
 import { BuilderStickyBar } from "./modules/BuilderStickyBar";
+import { BuilderSummaryCard } from "./modules/BuilderSummaryCard";
+import { BuilderBottomBar } from "./modules/BuilderBottomBar";
 import { DraftResumeHandler } from "./modules/DraftResumeHandler";
 import { InlineDebugBoundary } from "@/debug/InlineDebugBoundary";
 import { CollapseAllProvider } from "@/features/shared/components/CollapsibleModule";
@@ -17,63 +19,67 @@ import { CollapseAllProvider } from "@/features/shared/components/CollapsibleMod
 function BuilderModules() {
   return (
     <CollapseAllProvider>
-    <div className="mobile-compact-stack">
-      {/* Resume draft from ?resume=<sessionId> URL param */}
-      <DraftResumeHandler />
+      {/* Fixed mobile bottom action bar — outside scroll flow */}
+      <BuilderBottomBar />
 
-      {/* Sticky bar — selected product name + session badge, always visible */}
-      <BuilderStickyBar />
+      <div className="mobile-compact-stack pb-20 md:pb-0">
+        {/* Resume draft from ?resume=<sessionId> URL param */}
+        <DraftResumeHandler />
 
-      {/* Template loader — above everything so it populates all steps */}
-      <InlineDebugBoundary label="LoadTemplateModule">
-        <LoadTemplateModule />
-      </InlineDebugBoundary>
+        {/* Sticky bar — product name + session state + collapse all, always visible */}
+        <BuilderStickyBar />
 
-      {/* Resume a previously created packet / committed build */}
-      <InlineDebugBoundary label="LoadSavedModule">
-        <LoadSavedModule />
-      </InlineDebugBoundary>
+        {/* Read-only summary: hero thumbnail, QR type, store/channel, session status */}
+        <BuilderSummaryCard />
 
-      {/* Step 1: Product Type & QR State Selection */}
-      <InlineDebugBoundary label="StateModule">
-        <StateModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 2: Placement Selection */}
-      <InlineDebugBoundary label="PlacementModule">
-        <PlacementModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 3: Graphic Design (Header/Footer, QR, images, layout modes) */}
-      <InlineDebugBoundary label="ProductGraphicTextModule">
-        <ProductGraphicTextModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 4a: QR Basics Content (Text or URL for Basics mode) */}
-      <InlineDebugBoundary label="BasicsContentModule">
-        <BasicsContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 4b: URL Settings (Background, Title, Description for Canvas/Compose/Plus) */}
-      <InlineDebugBoundary label="URLContentModule">
-        <URLContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 4c: Play Media (for QR Play mode) */}
-      <InlineDebugBoundary label="PlayContentModule">
-        <PlayContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 4d: QR Compose (pick items, mode, durations, order, hosting, preview, publish) */}
-      <InlineDebugBoundary label="ComposeContentModule">
-        <ComposeContentModule />
-      </InlineDebugBoundary>
-      
-      {/* Step 5: Create Graphics (generates QR, composite, calculates pricing, queues mockups) */}
-      <InlineDebugBoundary label="CreateGraphicsModule">
-        <CreateGraphicsModule />
-      </InlineDebugBoundary>
-    </div>
+        {/* Template / saved session loaders */}
+        <InlineDebugBoundary label="LoadTemplateModule">
+          <LoadTemplateModule />
+        </InlineDebugBoundary>
+
+        <InlineDebugBoundary label="LoadSavedModule">
+          <LoadSavedModule />
+        </InlineDebugBoundary>
+
+        {/* Step 1: Product + QR type selection */}
+        <InlineDebugBoundary label="StateModule">
+          <StateModule />
+        </InlineDebugBoundary>
+
+        {/* Step 2: Graphic design (zones, freeform, area image) */}
+        <InlineDebugBoundary label="ProductGraphicTextModule">
+          <ProductGraphicTextModule />
+        </InlineDebugBoundary>
+
+        {/* Step 3: QR content (mode-specific) */}
+        <InlineDebugBoundary label="BasicsContentModule">
+          <BasicsContentModule />
+        </InlineDebugBoundary>
+
+        <InlineDebugBoundary label="URLContentModule">
+          <URLContentModule />
+        </InlineDebugBoundary>
+
+        <InlineDebugBoundary label="PlayContentModule">
+          <PlayContentModule />
+        </InlineDebugBoundary>
+
+        <InlineDebugBoundary label="ComposeContentModule">
+          <ComposeContentModule />
+        </InlineDebugBoundary>
+
+        {/* Step 4: Layout / Placement (color, print method, placement positions) */}
+        <InlineDebugBoundary label="PlacementModule">
+          <PlacementModule />
+        </InlineDebugBoundary>
+
+        {/* Step 5: Create graphics → preview → save / commit */}
+        <div id="builder-create-section">
+          <InlineDebugBoundary label="CreateGraphicsModule">
+            <CreateGraphicsModule />
+          </InlineDebugBoundary>
+        </div>
+      </div>
     </CollapseAllProvider>
   );
 }

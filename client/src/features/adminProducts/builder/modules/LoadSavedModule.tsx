@@ -153,8 +153,14 @@ export function LoadSavedModule() {
         Load Saved
       </Button>
 
-      <ModalView open={open} onOpenChange={setOpen} title="Resume a Saved Build">
-        <div className="p-4">
+      <ModalView
+        open={open}
+        onOpenChange={setOpen}
+        title="Resume a Saved Build"
+        maxWidth="sm:max-w-2xl"
+        className="max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!max-w-full max-sm:!rounded-t-2xl max-sm:!rounded-b-none max-sm:!h-[88svh] max-sm:!max-h-[88svh]"
+      >
+        <div className="p-4 overflow-y-auto h-full">
           {loading ? (
             <div className="flex items-center justify-center py-16" data-testid="loader-saved-picker">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

@@ -40,7 +40,7 @@ title = "QR Gear Full Source Backup"
 id = "LpkDWMxG1f-h35YkcrvEo"
 uri = "file://downloads/QR_Gear_Full_Website.zip"
 type = "unspecified"
-title = "QR Gear Full Website (updated with Stripe Connect)"
+title = "QR Gear Full Website (updated)"
 
 [[outputs]]
 id = "VCcE20W2Vqioz2fz1HEQl"
@@ -101,3 +101,9 @@ id = "U5vhgovJjgcxJa_DHUWXr"
 uri = "file://downloads/QR_Gear_StripeConnect_Changes.zip"
 type = "unspecified"
 title = "Stripe Connect Changes Only (9 files)"
+
+[[outputs]]
+id = "uWttb8taYSbPZhmHPXwvs"
+uri = "file://downloads/QR_Gear_MobileFriction_Changes.zip"
+type = "unspecified"
+title = "Mobile Friction Reduction — Changed Files (6 files)"

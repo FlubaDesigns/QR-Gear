@@ -7,6 +7,7 @@ import { useBuilderContext } from "../BuilderContext";
 import { useCollapseAll } from "@/features/shared/components/CollapsibleModule";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { QR_PRODUCT_STATES } from "../types";
 
 export function BuilderStickyBar() {
   const { state, autoSaveFailed } = useBuilderContext();
@@ -26,6 +27,7 @@ export function BuilderStickyBar() {
   const productTitle = state.selectedProduct.title;
   const brand = state.selectedProduct.brand;
   const canSaveDraft = !!activeSessionId;
+  const qrLabel = QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label;
 
   const handleToggle = () => {
     if (isCollapsed) {
@@ -117,11 +119,21 @@ export function BuilderStickyBar() {
           >
             {productTitle}
           </p>
-          {brand && (
-            <p className="text-xs text-muted-foreground truncate leading-tight">
-              {brand}
-            </p>
-          )}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {brand && (
+              <p className="text-xs text-muted-foreground truncate leading-tight">
+                {brand}
+              </p>
+            )}
+            {qrLabel && (
+              <span
+                className="text-[10px] font-medium bg-primary/10 text-primary rounded-full px-1.5 py-0 leading-tight"
+                data-testid="sticky-bar-qr-label"
+              >
+                {qrLabel}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button

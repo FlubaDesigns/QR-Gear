@@ -332,8 +332,14 @@ export function LoadTemplateModule() {
         </div>
       )}
 
-      <ModalView open={open} onOpenChange={setOpen} title="Choose a Template">
-        <div className="p-4">
+      <ModalView
+        open={open}
+        onOpenChange={setOpen}
+        title="Choose a Template"
+        maxWidth="sm:max-w-2xl"
+        className="max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!max-w-full max-sm:!rounded-t-2xl max-sm:!rounded-b-none max-sm:!h-[88svh] max-sm:!max-h-[88svh]"
+      >
+        <div className="p-4 overflow-y-auto h-full">
           <ScrollGridView
             items={skinItems}
             isLoading={loadingTemplates}
