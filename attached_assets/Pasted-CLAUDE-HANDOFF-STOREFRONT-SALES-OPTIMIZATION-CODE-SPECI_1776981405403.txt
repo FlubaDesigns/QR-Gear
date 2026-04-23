@@ -1,0 +1,314 @@
+CLAUDE HANDOFF — STOREFRONT SALES OPTIMIZATION (CODE-SPECIFIC, THIS ZIP ONLY)
+
+This is a STRICT, FILE-LEVEL conversion optimization pass based on the current codebase.
+
+DO NOT:
+- change routing
+- change Store → Channel → Collection → Product hierarchy
+- introduce new systems
+- re-add option selectors to product cards
+- break Builder → Storefront contracts
+- modify Firestore structure
+
+DO:
+- improve conversion through copy, layout placement, and light UI additions
+- keep everything compatible with existing components
+
+TARGET FILES:
+- client/src/pages/home.tsx
+- client/src/features/storefront/StoreRootView.tsx
+- client/src/features/storefront/ChannelHubView.tsx
+- client/src/features/storefront/CollectionView.tsx
+- client/src/pages/shop-product.tsx
+- client/src/features/storefront/ProductCard.tsx
+
+==================================================
+PART 1 — HOME PAGE (client/src/pages/home.tsx)
+==================================================
+
+GOAL:
+Make it obvious how to START SHOPPING immediately.
+
+CHANGES:
+
+1. Add a PRIMARY STORE CTA ABOVE or NEAR existing hero section
+
+Insert a block (reuse existing Button component):
+
+TEXT:
+"Shop QR Gear"
+
+SUBTEXT:
+"Browse scannable apparel and interactive designs"
+
+CTA:
+<Button onClick={() => navigate('/shop/internal/qrgear')}>
+  Shop Now
+</Button>
+
+POSITION:
+- above or immediately below existing hero CTAs
+- do NOT bury this below membership/build sections
+
+---
+
+2. ADD FEATURED PRODUCTS STRIP
+
+Create a small section ABOVE or just AFTER hero:
+
+TITLE:
+"Featured Products"
+
+Render 2–4 ProductCard components using existing data source (reuse same product fetching logic used in store views if possible)
+
+DO NOT build new API.
+If needed, temporarily hardcode 2 product IDs for display.
+
+---
+
+EXPECTED RESULT:
+A buyer lands and immediately sees:
+- Shop path
+- Products
+- Not just “join” or “build”
+
+==================================================
+PART 2 — STORE ROOT (StoreRootView.tsx)
+==================================================
+
+GOAL:
+Convert interest → browsing → buying
+
+CHANGES:
+
+1. ADD STRONGER SUBLINE BELOW MAIN HERO
+
+Locate main hero block.
+
+Add:
+
+<p className="text-lg text-gray-600 mt-2">
+  Premium gear that turns a shirt into a scannable story.
+</p>
+
+---
+
+2. ADD FEATURED PRODUCT BLOCK BELOW HERO CTA
+
+Immediately below hero CTA:
+
+<section className="mt-8">
+  <h2 className="text-xl font-semibold mb-4">Start Here</h2>
+  <div className="grid grid-cols-2 gap-4">
+    {/* Render 2 ProductCard components */}
+  </div>
+</section>
+
+---
+
+3. ADD MICRO TRUST LINE BELOW CTA
+
+<p className="text-sm text-gray-500 mt-2">
+  Made to order • Secure checkout • Creator-powered
+</p>
+
+---
+
+EXPECTED RESULT:
+User:
+- sees reason to buy
+- sees what to click
+- sees immediate product options
+
+==================================================
+PART 3 — CHANNEL PAGE (ChannelHubView.tsx)
+==================================================
+
+GOAL:
+Turn channel into a curated destination, not just a category hub
+
+CHANGES:
+
+1. ADD EMOTIONAL HEADER LINE
+
+Under existing title:
+
+<p className="text-lg text-gray-600">
+  Wear the story. Scan the meaning.
+</p>
+
+---
+
+2. ADD FEATURED PRODUCT SECTION ABOVE COLLECTION GRID
+
+Insert before collection cards:
+
+<section className="mb-8">
+  <h3 className="text-lg font-semibold mb-3">Featured</h3>
+  <ProductCard product={featuredProduct} />
+</section>
+
+Use:
+- first product from first collection if no feature logic exists
+
+---
+
+EXPECTED RESULT:
+Channel feels like:
+- a curated experience
+- not just a navigation layer
+
+==================================================
+PART 4 — COLLECTION PAGE (CollectionView.tsx)
+==================================================
+
+GOAL:
+Increase product click-through
+
+CHANGES:
+
+1. ADD SHORT VALUE LINE ABOVE PRODUCT GRID
+
+Right before grid:
+
+<p className="text-sm text-gray-600 mb-4">
+  Scannable designs that connect apparel to a deeper story.
+</p>
+
+---
+
+2. OPTIONAL: FEATURE FIRST PRODUCT
+
+Before grid:
+
+<ProductCard product={products[0]} />
+
+Then render rest normally.
+
+---
+
+EXPECTED RESULT:
+User:
+- understands product value
+- clicks faster
+
+==================================================
+PART 5 — PRODUCT PAGE (shop-product.tsx)
+==================================================
+
+GOAL:
+Increase add-to-cart rate
+
+CHANGES:
+
+1. ADD VALUE STATEMENT NEAR TITLE
+
+Directly under product title:
+
+<p className="text-sm text-gray-700 mt-1">
+  Scan this item to unlock a connected digital experience.
+</p>
+
+---
+
+2. ADD BENEFIT BULLETS NEAR BUY SECTION
+
+Below price/options:
+
+<ul className="text-sm text-gray-600 mt-3 space-y-1">
+  <li>• Scannable QR experience</li>
+  <li>• Premium made-to-order apparel</li>
+  <li>• Perfect for gifts and collectors</li>
+</ul>
+
+---
+
+3. ADD TRUST LINE NEAR ADD TO CART
+
+Below button:
+
+<p className="text-xs text-gray-500 mt-2">
+  Secure checkout • Made to order
+</p>
+
+---
+
+EXPECTED RESULT:
+User:
+- understands what makes product special
+- feels safe buying
+- converts faster
+
+==================================================
+PART 6 — PRODUCT CARD (ProductCard.tsx)
+==================================================
+
+GOAL:
+Increase click-through rate
+
+CHANGES:
+
+1. ADD MICRO-LINE BELOW TITLE
+
+Under product title:
+
+<p className="text-xs text-gray-500">
+  Scan to unlock the story
+</p>
+
+---
+
+2. ENSURE FEATURED BADGE IS VISUALLY STRONG
+
+If featured flag exists:
+- use bold color (bg-orange or similar)
+- place top-left of image
+
+---
+
+EXPECTED RESULT:
+Cards:
+- still clean
+- slightly more compelling
+
+==================================================
+PART 7 — IMAGE STRATEGY (NO MAJOR REWRITE)
+==================================================
+
+DO NOT rewrite buildProductGallery.
+
+BUT:
+
+Ensure:
+- first image in images[] is visually strong
+- not just technical mockup
+
+If necessary:
+- reorder images array BEFORE passing to gallery
+
+Rule:
+first image = highest conversion image
+
+==================================================
+EXPECTED FINAL STATE
+==================================================
+
+1. Homepage clearly leads to shopping
+2. Store root sells, not just explains
+3. Channel pages feel curated
+4. Collection pages encourage clicks
+5. Product pages persuade
+6. Product cards hint at value
+7. Images help sell, not just display
+
+==================================================
+WHAT TO RETURN
+==================================================
+
+1. Files changed
+2. Where each block was inserted
+3. Any reused components
+4. Confirmation no routing or structure changed
+5. Screenshot or description of updated product page layout
+
+Keep it tight. No overengineering. This is a conversion pass only.
