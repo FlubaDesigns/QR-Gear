@@ -343,6 +343,21 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
   - `provider_health_checks`: providerType+checkedAt(DESC)
   - `temp_packets`: status+expiresAt(ASC) (inequality filter)
 
+## Member Creator Surface (added 2026-04-23)
+- **Route**: `/creator/:creatorSlug` → `client/src/pages/creator-surface.tsx`
+  - Public, no auth. Resolves by `creatorSlug` field or Firebase UID fallback.
+  - Shows member `storeName`, published packets grid, links to `/p/:id`.
+- **API**: `GET /api/public/creator/:slug`
+  - Dev server: `server/routes/member-public-wizard.routes.ts` (end of file)
+  - Firebase Functions: `functions/src/routes/members.ts` (end of file)
+  - Returns `{ profile, items, channelName }`. No auth required.
+- **Share URL fix**: `client/src/features/members/member-channels-view.tsx`
+  - Share button now copies `qrgear.com/creator/:creatorSlug` (was broken `/channel/:id`).
+  - Profile query added to get `creatorSlug`; falls back to `memberId` if slug absent.
+- **storeId fix**: `functions/src/routes/members.ts` line 435
+  - Packet `storeId` changed from `storeId || memberId` → `storeId || PLATFORM_STORE_ID`
+  - Aligns packet storeId with channel storeId (`'qr-gear'`) for consistent parent attribution.
+
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
 - **Printful**: Product mockup generation.

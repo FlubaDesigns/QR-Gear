@@ -66,6 +66,20 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
     enabled: !!memberId
   });
 
+  const { data: memberProfile } = useQuery<{ isMember: boolean; profile?: { creatorSlug?: string } }>({
+    queryKey: ['/api/members/profile', memberId],
+    queryFn: async () => {
+      if (!memberId) return { isMember: false };
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/members/profile', { headers });
+      if (!res.ok) return { isMember: false };
+      return res.json();
+    },
+    enabled: !!memberId,
+  });
+
+  const creatorSlug = memberProfile?.profile?.creatorSlug || memberId;
+
   const createChannelMutation = useMutation({
     mutationFn: async (name: string) => {
       const headers = await getAuthHeaders();
@@ -222,7 +236,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  const url = `${window.location.origin}/channel/${selectedChannelId}`;
+                  const url = `${window.location.origin}/creator/${creatorSlug}`;
                   navigator.clipboard?.writeText(url);
                   toast({ title: 'Link copied' });
                 }}

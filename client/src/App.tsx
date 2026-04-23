@@ -83,6 +83,7 @@ import AdminBlanks from "@/pages/admin-blanks";
 import AdminMarketplaces from "@/pages/admin-marketplaces";
 import AdminExternalSites from "@/pages/admin-external-sites";
 import AdminLaunch from "@/pages/admin-launch";
+import CreatorSurface from "@/pages/creator-surface";
 import FontManagement from "@/pages/admin-fonts";
 import Members from "@/features/members/MembersPage";
 import PlayLanding from "@/pages/play";
@@ -167,6 +168,7 @@ function Router() {
       <Route path="/gifts" component={GiftShop} />
       <Route path="/gift/redeem" component={GiftRedeem} />
       <Route path="/gift/redeem/:code" component={GiftRedeem} />
+      <Route path="/creator/:creatorSlug" component={CreatorSurface} />
       <Route path="/shop/product/:linkId" component={ShopProduct} />
       <Route path="/shop/:storeType/:storeName/:channel/:collection" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />

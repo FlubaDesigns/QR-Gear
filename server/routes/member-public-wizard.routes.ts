@@ -624,4 +624,84 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
       });
     }
   });
+
+  // ── Public creator surface ─────────────────────────────────────────────────
+  // GET /api/public/creator/:slug — no auth required
+  // Accepts creatorSlug (human handle) or memberId (UID) as fallback
+  app.get("/api/public/creator/:slug", async (req: any, res) => {
+    try {
+      const { slug } = req.params;
+      if (!slug) return res.status(400).json({ error: "slug is required" });
+
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { MEMBER_PACKETS_COLLECTION } = await import("../lib/constants");
+      const firestoreDb = getFirestoreDb();
+
+      let profileSnap: any = null;
+      let userId: string | null = null;
+
+      // Primary: lookup by creatorSlug field
+      const bySlug = await firestoreDb.collection("member_profiles").where("creatorSlug", "==", slug).limit(1).get();
+      if (!bySlug.empty) {
+        profileSnap = bySlug.docs[0];
+        userId = bySlug.docs[0].id;
+      } else {
+        // Fallback: treat slug as Firebase UID (doc ID)
+        const byId = await firestoreDb.collection("member_profiles").doc(slug).get();
+        if (byId.exists) { profileSnap = byId; userId = byId.id; }
+      }
+
+      if (!profileSnap || !userId) return res.status(404).json({ error: "Creator not found" });
+
+      const profileData = profileSnap.data()!;
+
+      // Published packets for this member, newest first
+      const packetsSnap = await firestoreDb.collection(MEMBER_PACKETS_COLLECTION)
+        .where("memberId", "==", userId)
+        .where("status", "==", "published")
+        .orderBy("updatedAt", "desc")
+        .limit(50)
+        .get();
+
+      const items = packetsSnap.docs.map((doc: any) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          title: d.title || "QR Gear Product",
+          description: d.description || "",
+          itemImage: d.qrCanvasMockup || d.qrBasicMockup || d.qrPlusMockup || d.qrPlayMockup || d.composeMockup || d.productGraphic || null,
+          retailPrice: d.pricingSnapshot?.retailPriceBase ?? d.pricingSnapshot?.customerPrice ?? null,
+          qrType: d.qrType || d.packetType || null,
+          status: d.status || "published",
+          channelId: d.channelId || null,
+          updatedAt: d.updatedAt || "",
+        };
+      });
+
+      // Resolve channel display name from first packet with a channelId
+      let channelName: string | null = null;
+      const firstChannelId = items.find((p: any) => p.channelId)?.channelId;
+      if (firstChannelId) {
+        try {
+          const channelDoc = await firestoreDb.collection("channels").doc(firstChannelId).get();
+          if (channelDoc.exists) channelName = (channelDoc.data() as any)?.name || null;
+        } catch (_) {}
+      }
+
+      return res.json({
+        success: true,
+        profile: {
+          storeName: profileData.storeName || "",
+          fullName: profileData.fullName || "",
+          creatorSlug: profileData.creatorSlug || slug,
+          memberId: userId,
+        },
+        items,
+        channelName,
+      });
+    } catch (error: any) {
+      console.error("[PublicCreator] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 }

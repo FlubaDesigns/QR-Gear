@@ -429,7 +429,7 @@ app.post('/members/:memberId/products', async (req: Request, res: Response): Pro
       const destinationUrl = `${baseUrl}/view/${packetId}`;
       const now = new Date().toISOString();
       const packetData: Record<string, any> = {
-        id: packetId, memberId, storeId: storeId || memberId, channelId: channelId || null, packetType,
+        id: packetId, memberId, storeId: storeId || PLATFORM_STORE_ID, channelId: channelId || null, packetType,
         title: title || 'Untitled', description: description || '', status: status || 'published',
         createdAt: now, updatedAt: now, source: source || { entryPoint: 'wizard' },
         boundProduct: boundProduct || null, selectedColor: selectedColor || null,
@@ -558,6 +558,79 @@ app.get('/members/:memberId/earnings', async (req: Request, res: Response): Prom
     const pendingEarnings = earnings.filter((e: any) => e.status === 'pending').reduce((sum, e: any) => sum + (e.amount || 0), 0);
     const paidEarnings = earnings.filter((e: any) => e.status === 'paid').reduce((sum, e: any) => sum + (e.amount || 0), 0);
     res.json({ earnings, summary: { total: totalEarnings, pending: pendingEarnings, paid: paidEarnings, profitShare: 0.25 } });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+// ── Public creator surface ────────────────────────────────────────────────────
+// GET /public/creator/:slug
+// No auth required. Accepts creatorSlug (human-readable) or memberId (UID fallback).
+app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { slug } = req.params;
+    if (!slug) { res.status(400).json({ error: 'slug is required' }); return; }
+
+    let profileSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+    let userId: string | null = null;
+
+    // Primary lookup: creatorSlug field
+    const bySlug = await db.collection('member_profiles').where('creatorSlug', '==', slug).limit(1).get();
+    if (!bySlug.empty) {
+      profileSnap = bySlug.docs[0];
+      userId = bySlug.docs[0].id;
+    } else {
+      // Fallback: treat slug as Firebase UID (doc ID)
+      const byId = await db.collection('member_profiles').doc(slug).get();
+      if (byId.exists) { profileSnap = byId; userId = byId.id; }
+    }
+
+    if (!profileSnap || !userId) { res.status(404).json({ error: 'Creator not found' }); return; }
+
+    const profileData = profileSnap.data()!;
+
+    // Fetch published packets for this member (ordered newest-first)
+    const packetsSnap = await db.collection(MEMBER_PACKETS_COLLECTION)
+      .where('memberId', '==', userId)
+      .where('status', '==', 'published')
+      .orderBy('updatedAt', 'desc')
+      .limit(50)
+      .get();
+
+    const items = packetsSnap.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        title: d.title || 'QR Gear Product',
+        description: d.description || '',
+        itemImage: d.qrCanvasMockup || d.qrBasicMockup || d.qrPlusMockup || d.qrPlayMockup || d.composeMockup || d.productGraphic || null,
+        retailPrice: d.pricingSnapshot?.retailPriceBase ?? d.pricingSnapshot?.customerPrice ?? null,
+        qrType: d.qrType || d.packetType || null,
+        status: d.status || 'published',
+        channelId: d.channelId || null,
+        updatedAt: d.updatedAt || '',
+      };
+    });
+
+    // Resolve a channel display name from the first packet that has one
+    let channelName: string | null = null;
+    const firstChannelId = items.find(p => p.channelId)?.channelId;
+    if (firstChannelId) {
+      try {
+        const channelDoc = await db.collection('channels').doc(firstChannelId).get();
+        if (channelDoc.exists) channelName = channelDoc.data()?.name || null;
+      } catch (_) {}
+    }
+
+    res.json({
+      success: true,
+      profile: {
+        storeName: profileData.storeName || '',
+        fullName: profileData.fullName || '',
+        creatorSlug: profileData.creatorSlug || slug,
+        memberId: userId,
+      },
+      items,
+      channelName,
+    });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
