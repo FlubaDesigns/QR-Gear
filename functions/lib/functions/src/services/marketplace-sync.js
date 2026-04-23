@@ -73,7 +73,10 @@ async function updateListingStatus(listingId, updates) {
         updatedAt: new Date().toISOString(),
     });
 }
-function toSurfaceInput(doc) {
+// Builds the full three-layer resolved surface input.
+// core (title/desc/price/sku/images) + common (brand/material/condition/etc.) + ebay block.
+// This is the single place where a Firestore SurfaceDoc is normalized for adapter use.
+function toSurfaceInputFull(doc) {
     return {
         title: doc.title,
         description: doc.description,
@@ -82,7 +85,23 @@ function toSurfaceInput(doc) {
         retailPrice: doc.retailPrice,
         sku: doc.sku,
         masterProductId: doc.masterProductId,
+        // Common fields
+        subtitle: doc.subtitle,
+        bulletPoints: doc.bulletPoints,
+        keywords: doc.keywords,
+        condition: doc.condition,
+        brand: doc.brand,
+        material: doc.material,
+        department: doc.department,
+        shippingProfileRef: doc.shippingProfileRef,
+        returnsProfileRef: doc.returnsProfileRef,
+        // eBay block — already scoped, adapter reads it directly
+        ebay: doc.ebay,
     };
+}
+// Keep thin alias for adapters that only need the base shape (Etsy, Amazon)
+function toSurfaceInput(doc) {
+    return toSurfaceInputFull(doc);
 }
 function toAccountInput(doc) {
     return { shopId: doc.shopId };
@@ -228,7 +247,7 @@ async function executeSyncJob(jobId) {
         await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', `No adapter for platform: ${job.platform}`);
         return;
     }
-    const surfaceInput = toSurfaceInput(surface);
+    const surfaceInput = toSurfaceInputFull(surface);
     const accountInput = toAccountInput(account);
     let result;
     try {

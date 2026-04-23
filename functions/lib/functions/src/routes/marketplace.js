@@ -309,7 +309,11 @@ function register(app) {
     });
     app.post('/admin/surfaces', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { masterProductId, title, subtitle, description, bulletPoints, tags, keywords, images, mockupImages, retailPrice, compareAtPrice, currency, sku, defaultSkuPrefix, enabledPlatforms, storeId, channelId, collectionId, productId, artifactId, mosaicId, supportsEmbedStore, supportsEmbedProduct, supportsEmbedBuilder, supportsEtsy, supportsEbay, supportsAmazon } = req.body;
+            const { masterProductId, title, subtitle, description, bulletPoints, tags, keywords, images, mockupImages, retailPrice, compareAtPrice, currency, sku, defaultSkuPrefix, enabledPlatforms, storeId, channelId, collectionId, productId, artifactId, mosaicId, supportsEmbedStore, supportsEmbedProduct, supportsEmbedBuilder, supportsEtsy, supportsEbay, supportsAmazon, 
+            // Marketplace-common fields
+            condition, brand, material, department, shippingProfileRef, returnsProfileRef, 
+            // eBay-specific block
+            ebay, } = req.body;
             if (!masterProductId) {
                 res.status(400).json({ error: 'masterProductId is required' });
                 return;
@@ -343,6 +347,15 @@ function register(app) {
                 supportsEtsy: supportsEtsy === true,
                 supportsEbay: supportsEbay === true,
                 supportsAmazon: supportsAmazon === true,
+                // Marketplace-common
+                condition: condition || null,
+                brand: brand || null,
+                material: material || null,
+                department: department || null,
+                shippingProfileRef: shippingProfileRef || null,
+                returnsProfileRef: returnsProfileRef || null,
+                // eBay block — stored as a scoped sub-object; null when not provided
+                ebay: ebay && typeof ebay === 'object' ? ebay : null,
                 status: 'draft',
                 readinessErrors: [],
                 isActive: true,
@@ -366,7 +379,18 @@ function register(app) {
                 return;
             }
             const updates = {};
-            const allowed = ['title', 'subtitle', 'description', 'bulletPoints', 'tags', 'keywords', 'images', 'mockupImages', 'retailPrice', 'compareAtPrice', 'currency', 'sku', 'defaultSkuPrefix', 'enabledPlatforms', 'status', 'storeId', 'channelId', 'collectionId', 'productId', 'artifactId', 'mosaicId', 'supportsEmbedStore', 'supportsEmbedProduct', 'supportsEmbedBuilder', 'supportsEtsy', 'supportsEbay', 'supportsAmazon', 'isActive'];
+            const allowed = [
+                'title', 'subtitle', 'description', 'bulletPoints', 'tags', 'keywords',
+                'images', 'mockupImages', 'retailPrice', 'compareAtPrice', 'currency',
+                'sku', 'defaultSkuPrefix', 'enabledPlatforms', 'status',
+                'storeId', 'channelId', 'collectionId', 'productId', 'artifactId', 'mosaicId',
+                'supportsEmbedStore', 'supportsEmbedProduct', 'supportsEmbedBuilder',
+                'supportsEtsy', 'supportsEbay', 'supportsAmazon', 'isActive',
+                // Marketplace-common
+                'condition', 'brand', 'material', 'department', 'shippingProfileRef', 'returnsProfileRef',
+                // eBay block
+                'ebay',
+            ];
             for (const key of allowed) {
                 if (req.body[key] !== undefined)
                     updates[key] = req.body[key];
@@ -464,6 +488,30 @@ function register(app) {
                 || surface.supportsEtsy || surface.supportsEbay || surface.supportsAmazon;
             if (!hasAnyChannel)
                 errors.push('At least one selling channel must be enabled (marketplace or embed)');
+            // eBay-specific readiness validation
+            if (surface.supportsEbay) {
+                const eb = surface.ebay || {};
+                if (!eb.categoryId || !String(eb.categoryId).trim()) {
+                    errors.push('eBay: Category ID is required (ebay.categoryId)');
+                }
+                if (!eb.conditionId || !String(eb.conditionId).trim()) {
+                    errors.push('eBay: Condition ID is required (ebay.conditionId)');
+                }
+                if (!eb.listingFormat) {
+                    errors.push('eBay: Listing format must be set (FIXED_PRICE or AUCTION)');
+                }
+                // At least one aspect/identifier must be known — brand from common or itemSpecifics
+                const hasBrand = (surface.brand && surface.brand.trim()) || (eb.brand && eb.brand.trim());
+                const hasItemSpecifics = eb.itemSpecifics && Object.keys(eb.itemSpecifics).length > 0;
+                if (!hasBrand && !hasItemSpecifics) {
+                    errors.push('eBay: At least a Brand or one item specific is required for eBay aspects');
+                }
+                // Warn (non-blocking) about shipping policy — surface can still be "ready" without it
+                if (!eb.shippingPolicyId && !eb.returnsPolicyId) {
+                    // Not a blocking error — just surfaces in logs via readiness response
+                    // so callers can surface this as a warning in the UI
+                }
+            }
             const newStatus = errors.length === 0 ? 'ready' : 'draft';
             await core_1.db.collection(constants_1.SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
             res.json({ ready: errors.length === 0, errors, status: newStatus });

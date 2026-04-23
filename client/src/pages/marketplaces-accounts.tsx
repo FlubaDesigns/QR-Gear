@@ -270,6 +270,27 @@ export function AccountsSection() {
 
 // ============ SURFACES SECTION ============
 
+export interface EbayBlockData {
+  categoryId?: string;
+  conditionId?: string;
+  listingFormat?: "FIXED_PRICE" | "AUCTION";
+  subtitle?: string;
+  itemSpecifics?: Record<string, string>;
+  bestOfferEnabled?: boolean;
+  shippingPolicyId?: string;
+  returnsPolicyId?: string;
+  paymentPolicyId?: string;
+  handlingTime?: number;
+  packageWeightLbs?: number;
+  packageDimensionsInches?: { length: number; width: number; height: number };
+  upc?: string;
+  ean?: string;
+  mpn?: string;
+  brand?: string;
+  priceOverride?: number;
+  quantity?: number;
+}
+
 export interface SurfaceData {
   id: string;
   masterProductId: string;
@@ -299,6 +320,15 @@ export interface SurfaceData {
   supportsEtsy?: boolean;
   supportsEbay?: boolean;
   supportsAmazon?: boolean;
+  // Marketplace-common
+  condition?: string;
+  brand?: string;
+  material?: string;
+  department?: string;
+  shippingProfileRef?: string;
+  returnsProfileRef?: string;
+  // eBay-specific block
+  ebay?: EbayBlockData;
   status: string;
   readinessErrors: string[];
   isActive?: boolean;
@@ -306,67 +336,234 @@ export interface SurfaceData {
   updatedAt: string;
 }
 
+// Parses "Key: Value" lines into a Record<string, string>
+function parseItemSpecifics(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx === -1) continue;
+    const k = line.slice(0, colonIdx).trim();
+    const v = line.slice(colonIdx + 1).trim();
+    if (k && v) result[k] = v;
+  }
+  return result;
+}
+
+// Converts a Record<string, string> to "Key: Value" lines
+function serializeItemSpecifics(rec?: Record<string, string>): string {
+  if (!rec) return "";
+  return Object.entries(rec).map(([k, v]) => `${k}: ${v}`).join("\n");
+}
+
+type SurfaceForm = {
+  masterProductId: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  bulletPoints: string;
+  tags: string;
+  keywords: string;
+  retailPrice: string;
+  compareAtPrice: string;
+  sku: string;
+  storeId: string;
+  channelId: string;
+  collectionId: string;
+  supportsEmbedStore: boolean;
+  supportsEmbedProduct: boolean;
+  supportsEmbedBuilder: boolean;
+  enabledPlatforms: MarketplacePlatform[];
+  // Common fields
+  brand: string;
+  condition: string;
+  material: string;
+  department: string;
+  shippingProfileRef: string;
+  returnsProfileRef: string;
+  // eBay block (flattened for form editing)
+  ebay_categoryId: string;
+  ebay_conditionId: string;
+  ebay_listingFormat: "FIXED_PRICE" | "AUCTION";
+  ebay_subtitle: string;
+  ebay_bestOfferEnabled: boolean;
+  ebay_itemSpecifics: string;
+  ebay_shippingPolicyId: string;
+  ebay_returnsPolicyId: string;
+  ebay_paymentPolicyId: string;
+  ebay_handlingTime: string;
+  ebay_packageWeightLbs: string;
+  ebay_dimLength: string;
+  ebay_dimWidth: string;
+  ebay_dimHeight: string;
+  ebay_upc: string;
+  ebay_ean: string;
+  ebay_mpn: string;
+  ebay_brand: string;
+  ebay_priceOverride: string;
+  ebay_quantity: string;
+};
+
+const DEFAULT_FORM: SurfaceForm = {
+  masterProductId: "", title: "", subtitle: "", description: "",
+  bulletPoints: "", tags: "", keywords: "",
+  retailPrice: "", compareAtPrice: "", sku: "",
+  storeId: "", channelId: "", collectionId: "",
+  supportsEmbedStore: false, supportsEmbedProduct: false, supportsEmbedBuilder: false,
+  enabledPlatforms: [],
+  brand: "", condition: "", material: "", department: "",
+  shippingProfileRef: "", returnsProfileRef: "",
+  ebay_categoryId: "", ebay_conditionId: "", ebay_listingFormat: "FIXED_PRICE",
+  ebay_subtitle: "", ebay_bestOfferEnabled: false, ebay_itemSpecifics: "",
+  ebay_shippingPolicyId: "", ebay_returnsPolicyId: "", ebay_paymentPolicyId: "",
+  ebay_handlingTime: "", ebay_packageWeightLbs: "",
+  ebay_dimLength: "", ebay_dimWidth: "", ebay_dimHeight: "",
+  ebay_upc: "", ebay_ean: "", ebay_mpn: "",
+  ebay_brand: "", ebay_priceOverride: "", ebay_quantity: "",
+};
+
+// Hydrate form from an existing SurfaceData for editing
+function surfaceToForm(s: SurfaceData): SurfaceForm {
+  const eb = s.ebay || {};
+  const dims = eb.packageDimensionsInches;
+  return {
+    masterProductId: s.masterProductId || "",
+    title: s.title || "",
+    subtitle: s.subtitle || "",
+    description: s.description || "",
+    bulletPoints: (s.bulletPoints || []).join("\n"),
+    tags: (s.tags || []).join(", "),
+    keywords: (s.keywords || []).join(", "),
+    retailPrice: s.retailPrice != null ? String(s.retailPrice) : "",
+    compareAtPrice: s.compareAtPrice != null ? String(s.compareAtPrice) : "",
+    sku: s.sku || "",
+    storeId: s.storeId || "",
+    channelId: s.channelId || "",
+    collectionId: s.collectionId || "",
+    supportsEmbedStore: !!s.supportsEmbedStore,
+    supportsEmbedProduct: !!s.supportsEmbedProduct,
+    supportsEmbedBuilder: !!s.supportsEmbedBuilder,
+    enabledPlatforms: s.enabledPlatforms || [],
+    brand: s.brand || "",
+    condition: s.condition || "",
+    material: s.material || "",
+    department: s.department || "",
+    shippingProfileRef: s.shippingProfileRef || "",
+    returnsProfileRef: s.returnsProfileRef || "",
+    ebay_categoryId: eb.categoryId || "",
+    ebay_conditionId: eb.conditionId || "",
+    ebay_listingFormat: (eb.listingFormat as "FIXED_PRICE" | "AUCTION") || "FIXED_PRICE",
+    ebay_subtitle: eb.subtitle || "",
+    ebay_bestOfferEnabled: !!eb.bestOfferEnabled,
+    ebay_itemSpecifics: serializeItemSpecifics(eb.itemSpecifics),
+    ebay_shippingPolicyId: eb.shippingPolicyId || "",
+    ebay_returnsPolicyId: eb.returnsPolicyId || "",
+    ebay_paymentPolicyId: eb.paymentPolicyId || "",
+    ebay_handlingTime: eb.handlingTime != null ? String(eb.handlingTime) : "",
+    ebay_packageWeightLbs: eb.packageWeightLbs != null ? String(eb.packageWeightLbs) : "",
+    ebay_dimLength: dims?.length != null ? String(dims.length) : "",
+    ebay_dimWidth: dims?.width != null ? String(dims.width) : "",
+    ebay_dimHeight: dims?.height != null ? String(dims.height) : "",
+    ebay_upc: eb.upc || "",
+    ebay_ean: eb.ean || "",
+    ebay_mpn: eb.mpn || "",
+    ebay_brand: eb.brand || "",
+    ebay_priceOverride: eb.priceOverride != null ? String(eb.priceOverride) : "",
+    ebay_quantity: eb.quantity != null ? String(eb.quantity) : "",
+  };
+}
+
+// Build the API payload from the form state
+function buildSurfacePayload(data: SurfaceForm) {
+  const wantsEbay = data.enabledPlatforms.includes("ebay");
+  const ebayBlock: EbayBlockData | undefined = wantsEbay ? {
+    categoryId: data.ebay_categoryId || undefined,
+    conditionId: data.ebay_conditionId || undefined,
+    listingFormat: data.ebay_listingFormat || undefined,
+    subtitle: data.ebay_subtitle || undefined,
+    itemSpecifics: parseItemSpecifics(data.ebay_itemSpecifics),
+    bestOfferEnabled: data.ebay_bestOfferEnabled,
+    shippingPolicyId: data.ebay_shippingPolicyId || undefined,
+    returnsPolicyId: data.ebay_returnsPolicyId || undefined,
+    paymentPolicyId: data.ebay_paymentPolicyId || undefined,
+    handlingTime: data.ebay_handlingTime ? parseInt(data.ebay_handlingTime) : undefined,
+    packageWeightLbs: data.ebay_packageWeightLbs ? parseFloat(data.ebay_packageWeightLbs) : undefined,
+    packageDimensionsInches: (data.ebay_dimLength && data.ebay_dimWidth && data.ebay_dimHeight) ? {
+      length: parseFloat(data.ebay_dimLength),
+      width: parseFloat(data.ebay_dimWidth),
+      height: parseFloat(data.ebay_dimHeight),
+    } : undefined,
+    upc: data.ebay_upc || undefined,
+    ean: data.ebay_ean || undefined,
+    mpn: data.ebay_mpn || undefined,
+    brand: data.ebay_brand || undefined,
+    priceOverride: data.ebay_priceOverride ? parseFloat(data.ebay_priceOverride) : undefined,
+    quantity: data.ebay_quantity ? parseInt(data.ebay_quantity) : undefined,
+  } : undefined;
+
+  return {
+    masterProductId: data.masterProductId,
+    title: data.title,
+    subtitle: data.subtitle,
+    description: data.description,
+    bulletPoints: data.bulletPoints.split("\n").map((t) => t.trim()).filter(Boolean),
+    tags: data.tags.split(",").map((t) => t.trim()).filter(Boolean),
+    keywords: data.keywords.split(",").map((t) => t.trim()).filter(Boolean),
+    retailPrice: parseFloat(data.retailPrice) || 0,
+    compareAtPrice: data.compareAtPrice ? parseFloat(data.compareAtPrice) : undefined,
+    sku: data.sku,
+    storeId: data.storeId || undefined,
+    channelId: data.channelId || undefined,
+    collectionId: data.collectionId || undefined,
+    supportsEmbedStore: data.supportsEmbedStore,
+    supportsEmbedProduct: data.supportsEmbedProduct,
+    supportsEmbedBuilder: data.supportsEmbedBuilder,
+    enabledPlatforms: data.enabledPlatforms,
+    brand: data.brand || undefined,
+    condition: data.condition || undefined,
+    material: data.material || undefined,
+    department: data.department || undefined,
+    shippingProfileRef: data.shippingProfileRef || undefined,
+    returnsProfileRef: data.returnsProfileRef || undefined,
+    ebay: ebayBlock,
+  };
+}
+
 export function SurfacesSection() {
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
-    masterProductId: "",
-    title: "",
-    subtitle: "",
-    description: "",
-    bulletPoints: "",
-    tags: "",
-    keywords: "",
-    retailPrice: "",
-    compareAtPrice: "",
-    sku: "",
-    storeId: "",
-    channelId: "",
-    collectionId: "",
-    supportsEmbedStore: false,
-    supportsEmbedProduct: false,
-    supportsEmbedBuilder: false,
-    enabledPlatforms: [] as MarketplacePlatform[],
-  });
-  const defaultForm = {
-    masterProductId: "", title: "", subtitle: "", description: "", bulletPoints: "", tags: "", keywords: "",
-    retailPrice: "", compareAtPrice: "", sku: "", storeId: "", channelId: "", collectionId: "",
-    supportsEmbedStore: false, supportsEmbedProduct: false, supportsEmbedBuilder: false,
-    enabledPlatforms: [] as MarketplacePlatform[],
-  };
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<SurfaceForm>(DEFAULT_FORM);
+
+  const setF = (patch: Partial<SurfaceForm>) => setForm((f) => ({ ...f, ...patch }));
 
   const { data: surfaces = [], isLoading } = useQuery<SurfaceData[]>({
     queryKey: ["/api/admin/surfaces"],
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: typeof form) => {
-      const res = await apiRequest("POST", "/api/admin/surfaces", {
-        masterProductId: data.masterProductId,
-        title: data.title,
-        subtitle: data.subtitle,
-        description: data.description,
-        bulletPoints: data.bulletPoints.split("\n").map((t) => t.trim()).filter(Boolean),
-        tags: data.tags.split(",").map((t) => t.trim()).filter(Boolean),
-        keywords: data.keywords.split(",").map((t) => t.trim()).filter(Boolean),
-        retailPrice: parseFloat(data.retailPrice) || 0,
-        compareAtPrice: data.compareAtPrice ? parseFloat(data.compareAtPrice) : undefined,
-        sku: data.sku,
-        storeId: data.storeId || undefined,
-        channelId: data.channelId || undefined,
-        collectionId: data.collectionId || undefined,
-        supportsEmbedStore: data.supportsEmbedStore,
-        supportsEmbedProduct: data.supportsEmbedProduct,
-        supportsEmbedBuilder: data.supportsEmbedBuilder,
-        enabledPlatforms: data.enabledPlatforms,
-      });
+    mutationFn: async (data: SurfaceForm) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces", buildSurfacePayload(data));
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
       setShowAdd(false);
-      setForm(defaultForm);
+      setForm(DEFAULT_FORM);
       toast({ title: "Surface created" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: SurfaceForm }) => {
+      const res = await apiRequest("PATCH", `/api/admin/surfaces/${id}`, buildSurfacePayload(data));
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      setEditingId(null);
+      setForm(DEFAULT_FORM);
+      toast({ title: "Surface updated" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -381,7 +578,7 @@ export function SurfacesSection() {
       if (data.ready) {
         toast({ title: "Surface is ready for publishing" });
       } else {
-        toast({ title: "Surface not ready", description: data.errors.join(", "), variant: "destructive" });
+        toast({ title: "Surface not ready", description: data.errors.slice(0, 3).join(" • "), variant: "destructive" });
       }
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -399,13 +596,34 @@ export function SurfacesSection() {
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
+  const openEdit = (s: SurfaceData) => {
+    setForm(surfaceToForm(s));
+    setEditingId(s.id);
+  };
+
+  const closeDialog = () => {
+    setShowAdd(false);
+    setEditingId(null);
+    setForm(DEFAULT_FORM);
+  };
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isDialogOpen = showAdd || editingId !== null;
+
   const togglePlatform = (p: MarketplacePlatform) => {
-    setForm((f) => ({
-      ...f,
-      enabledPlatforms: f.enabledPlatforms.includes(p)
-        ? f.enabledPlatforms.filter((x) => x !== p)
-        : [...f.enabledPlatforms, p],
-    }));
+    setF({
+      enabledPlatforms: form.enabledPlatforms.includes(p)
+        ? form.enabledPlatforms.filter((x) => x !== p)
+        : [...form.enabledPlatforms, p],
+    });
+  };
+
+  const handleSave = () => {
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: form });
+    } else {
+      createMutation.mutate(form);
+    }
   };
 
   const statusBadge = (status: string) => {
@@ -416,6 +634,8 @@ export function SurfacesSection() {
       default: return <Badge variant="secondary" className="text-xs">Draft</Badge>;
     }
   };
+
+  const ebayEnabled = form.enabledPlatforms.includes("ebay");
 
   return (
     <div className="p-4 space-y-4">
@@ -462,6 +682,7 @@ export function SurfacesSection() {
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       {surface.sku && <span className="text-xs text-muted-foreground font-mono">SKU: {surface.sku}</span>}
                       {surface.retailPrice > 0 && <span className="text-xs text-muted-foreground">${surface.retailPrice.toFixed(2)}</span>}
+                      {surface.brand && <span className="text-xs text-muted-foreground">{surface.brand}</span>}
                       {surface.enabledPlatforms?.map((p) => {
                         const info = PLATFORM_INFO[p];
                         const PIcon = info?.icon;
@@ -472,36 +693,31 @@ export function SurfacesSection() {
                       {surface.supportsEmbedStore && <Badge variant="secondary" className="text-xs">Embed Store</Badge>}
                       {surface.supportsEmbedProduct && <Badge variant="secondary" className="text-xs">Embed Product</Badge>}
                       {surface.supportsEmbedBuilder && <Badge variant="secondary" className="text-xs">Embed Builder</Badge>}
+                      {surface.ebay?.categoryId && <Badge variant="secondary" className="text-xs"><SiEbay className="h-3 w-3 mr-1" />Cat {surface.ebay.categoryId}</Badge>}
                       {surface.storeId && <span className="text-xs text-muted-foreground">Store: {surface.storeId.slice(0, 8)}</span>}
-                      {surface.channelId && <span className="text-xs text-muted-foreground">Ch: {surface.channelId.slice(0, 8)}</span>}
                     </div>
                     {surface.readinessErrors?.length > 0 && (
                       <div className="mt-2 space-y-0.5">
-                        {surface.readinessErrors.map((e, i) => (
+                        {surface.readinessErrors.slice(0, 4).map((e, i) => (
                           <p key={i} className="text-xs text-destructive flex items-center gap-1">
                             <AlertCircle className="h-3 w-3 flex-shrink-0" />{e}
                           </p>
                         ))}
+                        {surface.readinessErrors.length > 4 && (
+                          <p className="text-xs text-muted-foreground">{surface.readinessErrors.length - 4} more error(s)…</p>
+                        )}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => checkReadinessMutation.mutate(surface.id)}
-                      disabled={checkReadinessMutation.isPending}
-                      data-testid={`button-check-readiness-${surface.id}`}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => checkReadinessMutation.mutate(surface.id)} disabled={checkReadinessMutation.isPending} data-testid={`button-check-readiness-${surface.id}`}>
                       {checkReadinessMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
                       Check
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { if (confirm(`Delete surface "${surface.title || surface.id}"?`)) deleteMutation.mutate(surface.id); }}
-                      data-testid={`button-delete-surface-${surface.id}`}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(surface)} data-testid={`button-edit-surface-${surface.id}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Delete surface "${surface.title || surface.id}"?`)) deleteMutation.mutate(surface.id); }} data-testid={`button-delete-surface-${surface.id}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -512,89 +728,148 @@ export function SurfacesSection() {
         </div>
       )}
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Create Surface</DialogTitle></DialogHeader>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Edit Surface" : "Create Surface"}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-4">
+
+            {/* ─── Core fields ─── */}
             <div className="space-y-2">
               <Label htmlFor="s-mpid">Master Product ID</Label>
-              <Input id="s-mpid" placeholder="Firestore product ID" value={form.masterProductId} onChange={(e) => setForm({ ...form, masterProductId: e.target.value })} data-testid="input-surface-product-id" />
+              <Input id="s-mpid" placeholder="Firestore product ID" value={form.masterProductId} onChange={(e) => setF({ masterProductId: e.target.value })} data-testid="input-surface-product-id" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-title">Listing Title</Label>
-              <Input id="s-title" placeholder="Marketplace listing title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="input-surface-title" />
+              <Input id="s-title" placeholder="Marketplace listing title (≤80 chars for eBay)" value={form.title} onChange={(e) => setF({ title: e.target.value })} data-testid="input-surface-title" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-subtitle">Subtitle</Label>
-              <Input id="s-subtitle" placeholder="Optional subtitle" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} data-testid="input-surface-subtitle" />
+              <Input id="s-subtitle" placeholder="Optional subtitle" value={form.subtitle} onChange={(e) => setF({ subtitle: e.target.value })} data-testid="input-surface-subtitle" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-desc">Description</Label>
-              <Textarea id="s-desc" placeholder="Product description for the marketplace" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="input-surface-description" rows={3} />
+              <Textarea id="s-desc" placeholder="Product description" value={form.description} onChange={(e) => setF({ description: e.target.value })} data-testid="input-surface-description" rows={3} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-bullets">Bullet Points (one per line)</Label>
-              <Textarea id="s-bullets" placeholder="Key feature 1&#10;Key feature 2" value={form.bulletPoints} onChange={(e) => setForm({ ...form, bulletPoints: e.target.value })} data-testid="input-surface-bullets" rows={3} />
+              <Textarea id="s-bullets" placeholder="Key feature 1&#10;Key feature 2" value={form.bulletPoints} onChange={(e) => setF({ bulletPoints: e.target.value })} data-testid="input-surface-bullets" rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="s-price">Retail Price</Label>
-                <Input id="s-price" type="number" min="0" step="0.01" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} data-testid="input-surface-price" />
+                <Input id="s-price" type="number" min="0" step="0.01" value={form.retailPrice} onChange={(e) => setF({ retailPrice: e.target.value })} data-testid="input-surface-price" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="s-compare">Compare At Price</Label>
-                <Input id="s-compare" type="number" min="0" step="0.01" placeholder="Optional" value={form.compareAtPrice} onChange={(e) => setForm({ ...form, compareAtPrice: e.target.value })} data-testid="input-surface-compare-price" />
+                <Input id="s-compare" type="number" min="0" step="0.01" placeholder="Optional" value={form.compareAtPrice} onChange={(e) => setF({ compareAtPrice: e.target.value })} data-testid="input-surface-compare-price" />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-sku">SKU</Label>
-              <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} data-testid="input-surface-sku" />
+              <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setF({ sku: e.target.value })} data-testid="input-surface-sku" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-tags">Tags (comma-separated)</Label>
-              <Input id="s-tags" placeholder="qr code, custom, apparel" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} data-testid="input-surface-tags" />
+              <Input id="s-tags" placeholder="qr code, custom, apparel" value={form.tags} onChange={(e) => setF({ tags: e.target.value })} data-testid="input-surface-tags" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-keywords">Keywords (comma-separated)</Label>
-              <Input id="s-keywords" placeholder="qr, custom, personalized" value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} data-testid="input-surface-keywords" />
+              <Input id="s-keywords" placeholder="qr, custom, personalized" value={form.keywords} onChange={(e) => setF({ keywords: e.target.value })} data-testid="input-surface-keywords" />
             </div>
 
+            {/* ─── Marketplace-common fields ─── */}
+            <div className="border-t pt-4">
+              <p className="text-sm font-semibold mb-3">Common Product Details</p>
+              <p className="text-xs text-muted-foreground mb-3">Used across all enabled marketplaces and fed into eBay aspects.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="s-brand" className="text-xs">Brand</Label>
+                  <Input id="s-brand" placeholder="e.g. QR Gear" value={form.brand} onChange={(e) => setF({ brand: e.target.value })} data-testid="input-surface-brand" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-condition" className="text-xs">Condition</Label>
+                  <Select value={form.condition || "_none"} onValueChange={(v) => setF({ condition: v === "_none" ? "" : v })}>
+                    <SelectTrigger id="s-condition" data-testid="select-surface-condition"><SelectValue placeholder="Select condition" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">— None —</SelectItem>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="new_with_tags">New with tags</SelectItem>
+                      <SelectItem value="new_without_tags">New without tags</SelectItem>
+                      <SelectItem value="used_excellent">Used — Excellent</SelectItem>
+                      <SelectItem value="used_good">Used — Good</SelectItem>
+                      <SelectItem value="refurbished">Refurbished</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-material" className="text-xs">Material</Label>
+                  <Input id="s-material" placeholder="e.g. Cotton, Polyester" value={form.material} onChange={(e) => setF({ material: e.target.value })} data-testid="input-surface-material" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-dept" className="text-xs">Department</Label>
+                  <Select value={form.department || "_none"} onValueChange={(v) => setF({ department: v === "_none" ? "" : v })}>
+                    <SelectTrigger id="s-dept" data-testid="select-surface-department"><SelectValue placeholder="Select department" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">— None —</SelectItem>
+                      <SelectItem value="Men">Men</SelectItem>
+                      <SelectItem value="Women">Women</SelectItem>
+                      <SelectItem value="Unisex">Unisex</SelectItem>
+                      <SelectItem value="Kids">Kids</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-ship-ref" className="text-xs">Shipping Profile Ref</Label>
+                  <Input id="s-ship-ref" placeholder="Generic shipping profile ID" value={form.shippingProfileRef} onChange={(e) => setF({ shippingProfileRef: e.target.value })} data-testid="input-surface-shipping-ref" />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-ret-ref" className="text-xs">Returns Profile Ref</Label>
+                  <Input id="s-ret-ref" placeholder="Generic returns profile ID" value={form.returnsProfileRef} onChange={(e) => setF({ returnsProfileRef: e.target.value })} data-testid="input-surface-returns-ref" />
+                </div>
+              </div>
+            </div>
+
+            {/* ─── Linked Resources ─── */}
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Linked Resources</p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="s-store" className="text-xs">Store ID</Label>
-                  <Input id="s-store" placeholder="Optional" value={form.storeId} onChange={(e) => setForm({ ...form, storeId: e.target.value })} data-testid="input-surface-store-id" />
+                  <Input id="s-store" placeholder="Optional" value={form.storeId} onChange={(e) => setF({ storeId: e.target.value })} data-testid="input-surface-store-id" />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="s-channel" className="text-xs">Channel ID</Label>
-                  <Input id="s-channel" placeholder="Optional" value={form.channelId} onChange={(e) => setForm({ ...form, channelId: e.target.value })} data-testid="input-surface-channel-id" />
+                  <Input id="s-channel" placeholder="Optional" value={form.channelId} onChange={(e) => setF({ channelId: e.target.value })} data-testid="input-surface-channel-id" />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="s-collection" className="text-xs">Collection ID</Label>
-                  <Input id="s-collection" placeholder="Optional" value={form.collectionId} onChange={(e) => setForm({ ...form, collectionId: e.target.value })} data-testid="input-surface-collection-id" />
+                  <Input id="s-collection" placeholder="Optional" value={form.collectionId} onChange={(e) => setF({ collectionId: e.target.value })} data-testid="input-surface-collection-id" />
                 </div>
               </div>
             </div>
 
+            {/* ─── Embed Support ─── */}
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Embed Support</p>
               <div className="flex flex-wrap gap-3">
                 <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-embed-store">
-                  <input type="checkbox" className="rounded" checked={form.supportsEmbedStore} onChange={(e) => setForm({ ...form, supportsEmbedStore: e.target.checked })} />
+                  <input type="checkbox" className="rounded" checked={form.supportsEmbedStore} onChange={(e) => setF({ supportsEmbedStore: e.target.checked })} />
                   Mini Store
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-embed-product">
-                  <input type="checkbox" className="rounded" checked={form.supportsEmbedProduct} onChange={(e) => setForm({ ...form, supportsEmbedProduct: e.target.checked })} />
+                  <input type="checkbox" className="rounded" checked={form.supportsEmbedProduct} onChange={(e) => setF({ supportsEmbedProduct: e.target.checked })} />
                   Mini Product
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-embed-builder">
-                  <input type="checkbox" className="rounded" checked={form.supportsEmbedBuilder} onChange={(e) => setForm({ ...form, supportsEmbedBuilder: e.target.checked })} />
+                  <input type="checkbox" className="rounded" checked={form.supportsEmbedBuilder} onChange={(e) => setF({ supportsEmbedBuilder: e.target.checked })} />
                   Mini Builder
                 </label>
               </div>
             </div>
 
+            {/* ─── Target Platforms ─── */}
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Target Platforms</p>
               <div className="flex flex-wrap gap-2">
@@ -602,14 +877,7 @@ export function SurfacesSection() {
                   const Icon = info.icon;
                   const selected = form.enabledPlatforms.includes(key);
                   return (
-                    <Button
-                      key={key}
-                      variant={selected ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => togglePlatform(key)}
-                      className="gap-1.5"
-                      data-testid={`button-toggle-platform-${key}`}
-                    >
+                    <Button key={key} variant={selected ? "default" : "outline"} size="sm" onClick={() => togglePlatform(key)} className="gap-1.5" data-testid={`button-toggle-platform-${key}`}>
                       <Icon className={`h-4 w-4 ${!selected ? info.color : ""}`} />
                       {info.name}
                     </Button>
@@ -617,12 +885,158 @@ export function SurfacesSection() {
                 })}
               </div>
             </div>
+
+            {/* ─── eBay-specific block — visible only when eBay is selected ─── */}
+            {ebayEnabled && (
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <SiEbay className="h-5 w-5 text-blue-500" />
+                  <p className="text-sm font-semibold">eBay Listing Details</p>
+                </div>
+                <p className="text-xs text-muted-foreground -mt-2">These fields produce the eBay-specific listing payload. Fields marked with * are required for readiness.</p>
+
+                {/* Category / Condition / Format */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-cat" className="text-xs">Category ID *</Label>
+                    <Input id="eb-cat" placeholder="e.g. 15687" value={form.ebay_categoryId} onChange={(e) => setF({ ebay_categoryId: e.target.value })} data-testid="input-ebay-category-id" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-cond" className="text-xs">Condition ID *</Label>
+                    <Select value={form.ebay_conditionId || "_none"} onValueChange={(v) => setF({ ebay_conditionId: v === "_none" ? "" : v })}>
+                      <SelectTrigger id="eb-cond" data-testid="select-ebay-condition-id"><SelectValue placeholder="Select condition" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">— None —</SelectItem>
+                        <SelectItem value="1000">1000 — New</SelectItem>
+                        <SelectItem value="1500">1500 — New Other</SelectItem>
+                        <SelectItem value="2000">2000 — Certified Refurbished</SelectItem>
+                        <SelectItem value="2500">2500 — Excellent Refurbished</SelectItem>
+                        <SelectItem value="3000">3000 — Very Good Refurbished</SelectItem>
+                        <SelectItem value="4000">4000 — Good Refurbished</SelectItem>
+                        <SelectItem value="7000">7000 — Used</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-format" className="text-xs">Listing Format *</Label>
+                    <Select value={form.ebay_listingFormat} onValueChange={(v) => setF({ ebay_listingFormat: v as "FIXED_PRICE" | "AUCTION" })}>
+                      <SelectTrigger id="eb-format" data-testid="select-ebay-listing-format"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FIXED_PRICE">Fixed Price</SelectItem>
+                        <SelectItem value="AUCTION">Auction</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-subtitle" className="text-xs">eBay Subtitle (≤55 chars)</Label>
+                    <Input id="eb-subtitle" placeholder="Optional secondary line" maxLength={55} value={form.ebay_subtitle} onChange={(e) => setF({ ebay_subtitle: e.target.value })} data-testid="input-ebay-subtitle" />
+                  </div>
+                </div>
+
+                {/* Item Specifics */}
+                <div className="space-y-1">
+                  <Label htmlFor="eb-specifics" className="text-xs">Item Specifics * (Key: Value, one per line)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Brand, Material, and Department from Common fields are merged in automatically. Add extra specifics here, e.g. <em>Color: Black</em>
+                  </p>
+                  <Textarea
+                    id="eb-specifics"
+                    placeholder={"Color: Black\nSize Type: Regular\nStyle: Casual"}
+                    value={form.ebay_itemSpecifics}
+                    onChange={(e) => setF({ ebay_itemSpecifics: e.target.value })}
+                    data-testid="input-ebay-item-specifics"
+                    rows={4}
+                  />
+                </div>
+
+                {/* Best Offer */}
+                <label className="flex items-center gap-2 text-sm cursor-pointer" data-testid="toggle-ebay-best-offer">
+                  <input type="checkbox" className="rounded" checked={form.ebay_bestOfferEnabled} onChange={(e) => setF({ ebay_bestOfferEnabled: e.target.checked })} />
+                  Enable Best Offer
+                </label>
+
+                {/* Business Policies */}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Business Policy IDs</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-ship" className="text-xs">Shipping Policy ID</Label>
+                    <Input id="eb-ship" placeholder="Policy ID" value={form.ebay_shippingPolicyId} onChange={(e) => setF({ ebay_shippingPolicyId: e.target.value })} data-testid="input-ebay-shipping-policy" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-ret" className="text-xs">Returns Policy ID</Label>
+                    <Input id="eb-ret" placeholder="Policy ID" value={form.ebay_returnsPolicyId} onChange={(e) => setF({ ebay_returnsPolicyId: e.target.value })} data-testid="input-ebay-returns-policy" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-pay" className="text-xs">Payment Policy ID</Label>
+                    <Input id="eb-pay" placeholder="Policy ID" value={form.ebay_paymentPolicyId} onChange={(e) => setF({ ebay_paymentPolicyId: e.target.value })} data-testid="input-ebay-payment-policy" />
+                  </div>
+                </div>
+
+                {/* Handling + Package */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-handling" className="text-xs">Handling Time (days)</Label>
+                    <Input id="eb-handling" type="number" min="0" max="30" placeholder="e.g. 3" value={form.ebay_handlingTime} onChange={(e) => setF({ ebay_handlingTime: e.target.value })} data-testid="input-ebay-handling-time" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-weight" className="text-xs">Package Weight (lbs)</Label>
+                    <Input id="eb-weight" type="number" min="0" step="0.1" placeholder="e.g. 0.5" value={form.ebay_packageWeightLbs} onChange={(e) => setF({ ebay_packageWeightLbs: e.target.value })} data-testid="input-ebay-package-weight" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Package Dimensions (inches: L × W × H)</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input type="number" min="0" step="0.1" placeholder="Length" value={form.ebay_dimLength} onChange={(e) => setF({ ebay_dimLength: e.target.value })} data-testid="input-ebay-dim-length" />
+                    <Input type="number" min="0" step="0.1" placeholder="Width" value={form.ebay_dimWidth} onChange={(e) => setF({ ebay_dimWidth: e.target.value })} data-testid="input-ebay-dim-width" />
+                    <Input type="number" min="0" step="0.1" placeholder="Height" value={form.ebay_dimHeight} onChange={(e) => setF({ ebay_dimHeight: e.target.value })} data-testid="input-ebay-dim-height" />
+                  </div>
+                </div>
+
+                {/* Identifiers */}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Product Identifiers</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-upc" className="text-xs">UPC</Label>
+                    <Input id="eb-upc" placeholder="Optional" value={form.ebay_upc} onChange={(e) => setF({ ebay_upc: e.target.value })} data-testid="input-ebay-upc" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-ean" className="text-xs">EAN</Label>
+                    <Input id="eb-ean" placeholder="Optional" value={form.ebay_ean} onChange={(e) => setF({ ebay_ean: e.target.value })} data-testid="input-ebay-ean" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-mpn" className="text-xs">MPN</Label>
+                    <Input id="eb-mpn" placeholder="Optional" value={form.ebay_mpn} onChange={(e) => setF({ ebay_mpn: e.target.value })} data-testid="input-ebay-mpn" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="eb-brand-ovr" className="text-xs">Brand Override (eBay only, overrides Common brand)</Label>
+                  <Input id="eb-brand-ovr" placeholder="Leave blank to use Common brand" value={form.ebay_brand} onChange={(e) => setF({ ebay_brand: e.target.value })} data-testid="input-ebay-brand-override" />
+                </div>
+
+                {/* eBay overrides */}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">eBay Overrides</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-price-ovr" className="text-xs">Price Override (USD)</Label>
+                    <Input id="eb-price-ovr" type="number" min="0" step="0.01" placeholder="Leave blank to use Retail Price" value={form.ebay_priceOverride} onChange={(e) => setF({ ebay_priceOverride: e.target.value })} data-testid="input-ebay-price-override" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="eb-qty" className="text-xs">Quantity Override</Label>
+                    <Input id="eb-qty" type="number" min="0" step="1" placeholder="Leave blank to use 999" value={form.ebay_quantity} onChange={(e) => setF({ ebay_quantity: e.target.value })} data-testid="input-ebay-quantity-override" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)} data-testid="button-cancel-surface">Cancel</Button>
-            <Button onClick={() => createMutation.mutate(form)} disabled={createMutation.isPending} data-testid="button-save-surface">
-              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Surface
+            <Button variant="outline" onClick={closeDialog} data-testid="button-cancel-surface">Cancel</Button>
+            <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-surface">
+              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {editingId ? "Save Changes" : "Create Surface"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,6 +5,36 @@ export interface MarketplaceResult {
   error?: string;
 }
 
+// ─── eBay-specific field block ───────────────────────────────────────────────
+// Stored as `surface.ebay` on the Firestore surface document.
+// All fields are optional at storage time but several are required for eBay
+// listing readiness (validated in check-readiness).
+export interface EbayBlock {
+  categoryId?: string;
+  conditionId?: string;
+  listingFormat?: 'FIXED_PRICE' | 'AUCTION';
+  subtitle?: string;
+  // Key-value item specifics — flexible but pre-seeded for common apparel fields.
+  // e.g. { Brand: "QR Gear", Department: "Men", Color: "Black", Size: "M" }
+  itemSpecifics?: Record<string, string>;
+  bestOfferEnabled?: boolean;
+  // eBay Business Policy IDs
+  shippingPolicyId?: string;
+  returnsPolicyId?: string;
+  paymentPolicyId?: string;
+  handlingTime?: number;
+  packageWeightLbs?: number;
+  packageDimensionsInches?: { length: number; width: number; height: number };
+  upc?: string;
+  ean?: string;
+  mpn?: string;
+  brand?: string;
+  // Explicit overrides — take precedence over core fields for eBay only
+  priceOverride?: number;
+  quantity?: number;
+}
+
+// ─── Base input (Etsy-compatible, also used generically) ─────────────────────
 export interface SurfaceInput {
   title: string;
   description: string;
@@ -13,6 +43,23 @@ export interface SurfaceInput {
   retailPrice: number;
   sku: string;
   masterProductId: string;
+}
+
+// ─── Full input — three-layer resolved view used by the eBay adapter ─────────
+// core   = product-level data (title, description, price, sku, images, qty)
+// common = marketplace-common data (brand, material, condition, bullets, etc.)
+// ebay   = eBay-specific block from surface.ebay, already merged/resolved
+export interface SurfaceInputFull extends SurfaceInput {
+  subtitle?: string;
+  bulletPoints?: string[];
+  keywords?: string[];
+  condition?: string;
+  brand?: string;
+  material?: string;
+  department?: string;
+  shippingProfileRef?: string;
+  returnsProfileRef?: string;
+  ebay?: EbayBlock;
 }
 
 export interface AccountInput {

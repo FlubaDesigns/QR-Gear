@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildEbayPayload = buildEbayPayload;
 exports.createListing = createListing;
 exports.updateListing = updateListing;
 exports.deleteListing = deleteListing;
@@ -15,6 +16,94 @@ function getHeaders() {
         'Accept': 'application/json',
     };
 }
+// ─── Payload builder ─────────────────────────────────────────────────────────
+// Implements: core + common + ebay overrides = final eBay listing payload.
+// This is the single authoritative place for eBay payload construction.
+function buildEbayPayload(surface) {
+    const eb = surface.ebay || {};
+    // Core values (base layer)
+    const resolvedTitle = (eb.priceOverride != null ? surface.title : surface.title).substring(0, 80);
+    const resolvedPrice = eb.priceOverride ?? surface.retailPrice;
+    const resolvedQuantity = eb.quantity ?? 999;
+    // Build item specifics — merge common fields first, then ebay.itemSpecifics overrides
+    const aspects = {};
+    // Flow common fields into eBay aspects
+    if (surface.brand || eb.brand)
+        aspects['Brand'] = [eb.brand || surface.brand || 'QR Gear'];
+    if (surface.material)
+        aspects['Material'] = [surface.material];
+    if (surface.department)
+        aspects['Department'] = [surface.department];
+    if (surface.condition)
+        aspects['Condition'] = [surface.condition];
+    // eBay itemSpecifics override/extend common aspects
+    if (eb.itemSpecifics) {
+        for (const [k, v] of Object.entries(eb.itemSpecifics)) {
+            if (v && v.trim())
+                aspects[k] = [v.trim()];
+        }
+    }
+    const sku = `QRGEAR-${(surface.sku || surface.masterProductId).substring(0, 8)}`.toUpperCase();
+    // Product identifiers
+    const identifiers = [];
+    if (eb.upc)
+        identifiers.push({ type: 'UPC', value: eb.upc });
+    if (eb.ean)
+        identifiers.push({ type: 'EAN', value: eb.ean });
+    if (eb.mpn)
+        identifiers.push({ type: 'MPN', value: eb.mpn });
+    const inventoryItem = {
+        sku,
+        product: {
+            title: resolvedTitle,
+            description: surface.description.substring(0, 4000),
+            aspects,
+            imageUrls: (surface.images || []).filter((u) => u.startsWith('https://')).slice(0, 12),
+            ...(identifiers.length > 0 ? { identifiers } : {}),
+        },
+        condition: eb.conditionId || 'NEW',
+        availability: {
+            shipToLocationAvailability: { quantity: resolvedQuantity },
+        },
+        ...(eb.packageWeightLbs != null ? {
+            packageWeightAndSize: {
+                weight: { value: eb.packageWeightLbs, unit: 'POUND' },
+                ...(eb.packageDimensionsInches ? {
+                    dimensions: {
+                        length: eb.packageDimensionsInches.length,
+                        width: eb.packageDimensionsInches.width,
+                        height: eb.packageDimensionsInches.height,
+                        unit: 'INCH',
+                    },
+                } : {}),
+            },
+        } : {}),
+    };
+    const marketplaceId = process.env.EBAY_MARKETPLACE_ID || 'EBAY_US';
+    const offerData = {
+        sku,
+        marketplaceId,
+        format: eb.listingFormat || 'FIXED_PRICE',
+        listingDescription: surface.description.substring(0, 4000),
+        categoryId: eb.categoryId || process.env.EBAY_DEFAULT_CATEGORY_ID || '1059',
+        listingPolicies: {
+            paymentPolicyId: eb.paymentPolicyId || process.env.EBAY_PAYMENT_POLICY_ID || '',
+            returnPolicyId: eb.returnsPolicyId || process.env.EBAY_RETURN_POLICY_ID || '',
+            fulfillmentPolicyId: eb.shippingPolicyId || process.env.EBAY_FULFILLMENT_POLICY_ID || '',
+        },
+        pricingSummary: {
+            price: { value: resolvedPrice.toFixed(2), currency: 'USD' },
+        },
+        quantityLimitPerBuyer: 10,
+        ...(eb.subtitle ? { subtitle: eb.subtitle.substring(0, 55) } : {}),
+        ...(eb.bestOfferEnabled != null ? {
+            bestOfferTerms: { bestOfferEnabled: eb.bestOfferEnabled },
+        } : {}),
+        ...(eb.handlingTime != null ? { handlingTime: eb.handlingTime } : {}),
+    };
+    return { sku, inventoryItem, offerData };
+}
+// ─── Create listing ───────────────────────────────────────────────────────────
 async function createListing(surface, _account) {
     let headers;
     try {
@@ -23,18 +112,7 @@ async function createListing(surface, _account) {
     catch (e) {
         return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
-    const sku = `QRGEAR-${(surface.sku || surface.masterProductId).substring(0, 8)}`.toUpperCase();
-    const inventoryItem = {
-        sku,
-        product: {
-            title: surface.title.substring(0, 80),
-            description: surface.description.substring(0, 4000),
-            aspects: { Brand: ['QR Gear'], Type: ['Apparel'] },
-            imageUrls: (surface.images || []).filter(u => u.startsWith('https://')).slice(0, 12),
-        },
-        condition: 'NEW',
-        availability: { shipToLocationAvailability: { quantity: 999 } },
-    };
+    const { sku, inventoryItem, offerData } = buildEbayPayload(surface);
     const invRes = await fetch(`${INVENTORY_API}/inventory_item/${encodeURIComponent(sku)}`, {
         method: 'PUT',
         headers,
@@ -44,21 +122,6 @@ async function createListing(surface, _account) {
         const errText = await invRes.text();
         return { success: false, error: `eBay inventory creation failed (${invRes.status}): ${errText}` };
     }
-    const marketplaceId = process.env.EBAY_MARKETPLACE_ID || 'EBAY_US';
-    const offerData = {
-        sku,
-        marketplaceId,
-        format: 'FIXED_PRICE',
-        listingDescription: surface.description.substring(0, 4000),
-        categoryId: process.env.EBAY_DEFAULT_CATEGORY_ID || '1059',
-        listingPolicies: {
-            paymentPolicyId: process.env.EBAY_PAYMENT_POLICY_ID || '',
-            returnPolicyId: process.env.EBAY_RETURN_POLICY_ID || '',
-            fulfillmentPolicyId: process.env.EBAY_FULFILLMENT_POLICY_ID || '',
-        },
-        pricingSummary: { price: { value: surface.retailPrice.toFixed(2), currency: 'USD' } },
-        quantityLimitPerBuyer: 10,
-    };
     const offerRes = await fetch(`${INVENTORY_API}/offer`, {
         method: 'POST',
         headers,
@@ -101,7 +164,7 @@ async function deleteListing(externalListingId, _account) {
         const offersRes = await fetch(`${INVENTORY_API}/offer?marketplace_id=${marketplaceId}&limit=100`, { headers });
         if (offersRes.ok) {
             const offersData = await offersRes.json();
-            const match = offersData.offers?.find(o => o.listing?.listingId === externalListingId);
+            const match = offersData.offers?.find((o) => o.listing?.listingId === externalListingId);
             if (match) {
                 await fetch(`${INVENTORY_API}/offer/${match.offerId}/withdraw`, { method: 'POST', headers, body: '{}' }).catch(() => { });
                 await fetch(`${INVENTORY_API}/offer/${match.offerId}`, { method: 'DELETE', headers }).catch(() => { });

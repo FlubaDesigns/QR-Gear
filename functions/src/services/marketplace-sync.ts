@@ -13,7 +13,7 @@ import {
 import * as etsyAdapter from '../adapters/etsy';
 import * as ebayAdapter from '../adapters/ebay';
 import * as amazonAdapter from '../adapters/amazon';
-import type { MarketplaceResult, SurfaceInput, AccountInput } from '../adapters/etsy';
+import type { MarketplaceResult, SurfaceInput, SurfaceInputFull, AccountInput, EbayBlock } from '../adapters/etsy';
 
 interface SyncJobDoc {
   listingId: string;
@@ -49,6 +49,15 @@ interface SurfaceDoc {
   sku: string;
   enabledPlatforms: MarketplacePlatform[];
   status: string;
+  // Marketplace-common fields
+  condition?: string;
+  brand?: string;
+  material?: string;
+  department?: string;
+  shippingProfileRef?: string;
+  returnsProfileRef?: string;
+  // eBay-specific scoped block
+  ebay?: EbayBlock;
 }
 
 interface AccountDoc {
@@ -121,7 +130,10 @@ async function updateListingStatus(
   });
 }
 
-function toSurfaceInput(doc: SurfaceDoc): SurfaceInput {
+// Builds the full three-layer resolved surface input.
+// core (title/desc/price/sku/images) + common (brand/material/condition/etc.) + ebay block.
+// This is the single place where a Firestore SurfaceDoc is normalized for adapter use.
+function toSurfaceInputFull(doc: SurfaceDoc): SurfaceInputFull {
   return {
     title: doc.title,
     description: doc.description,
@@ -130,7 +142,24 @@ function toSurfaceInput(doc: SurfaceDoc): SurfaceInput {
     retailPrice: doc.retailPrice,
     sku: doc.sku,
     masterProductId: doc.masterProductId,
+    // Common fields
+    subtitle: doc.subtitle,
+    bulletPoints: doc.bulletPoints,
+    keywords: doc.keywords,
+    condition: doc.condition,
+    brand: doc.brand,
+    material: doc.material,
+    department: doc.department,
+    shippingProfileRef: doc.shippingProfileRef,
+    returnsProfileRef: doc.returnsProfileRef,
+    // eBay block — already scoped, adapter reads it directly
+    ebay: doc.ebay,
   };
+}
+
+// Keep thin alias for adapters that only need the base shape (Etsy, Amazon)
+function toSurfaceInput(doc: SurfaceDoc): SurfaceInput {
+  return toSurfaceInputFull(doc);
 }
 
 function toAccountInput(doc: AccountDoc): AccountInput {
@@ -296,7 +325,7 @@ export async function executeSyncJob(jobId: string): Promise<void> {
     return;
   }
 
-  const surfaceInput = toSurfaceInput(surface);
+  const surfaceInput = toSurfaceInputFull(surface);
   const accountInput = toAccountInput(account);
   let result: MarketplaceResult;
 
