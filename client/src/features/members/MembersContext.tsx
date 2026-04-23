@@ -65,6 +65,7 @@ export interface MockupParams {
   colorName: string;
   colorHex?: string;
   placement?: string;
+  selectedPlacements?: string[];
   artworkUrl: string;
   qrSize?: 'small' | 'medium' | 'large';
   fulfillmentProvider?: 'printify' | 'printful';
@@ -74,6 +75,7 @@ export interface MockupResult {
   success: boolean;
   mockupUrl: string | null;
   lifestyleMockupUrl: string | null;
+  placementMockupUrls?: Record<string, string>;
   fromCache: boolean;
   error?: string;
 }
@@ -188,6 +190,9 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
             colorName: params.colorName,
             colorHex: params.colorHex || '#000000',
             placement: params.placement || 'front',
+            selectedPlacements: params.selectedPlacements && params.selectedPlacements.length > 0
+              ? params.selectedPlacements
+              : undefined,
             artworkUrl: params.artworkUrl,
             qrSize: params.qrSize || 'medium',
             fulfillmentProvider: params.fulfillmentProvider || 'printify',
@@ -209,6 +214,7 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
           success: data.success,
           mockupUrl: data.mockupUrl || null,
           lifestyleMockupUrl: data.lifestyleMockupUrl || null,
+          placementMockupUrls: data.placementMockupUrls || undefined,
           fromCache: data.fromCache || false,
           error: data.error,
         };

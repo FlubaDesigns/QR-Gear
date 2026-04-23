@@ -96,43 +96,71 @@ export function registerStoreProductLinksRoutes(app: Express): void {
 
   app.post("/api/mockup/priority", isAdmin, async (req: any, res) => {
     try {
-      const { 
-        blueprintId, printProviderId, colorName, colorHex, 
-        placement, artworkUrl, qrSize = "medium",
+      const {
+        blueprintId, printProviderId, colorName, colorHex,
+        placement, selectedPlacements,
+        artworkUrl, qrSize = "medium",
         fulfillmentProvider = "printify"
       } = req.body;
 
       if (!blueprintId || !colorName || !artworkUrl) {
-        return res.status(400).json({ 
-          error: "Missing required fields: blueprintId, colorName, artworkUrl" 
+        return res.status(400).json({
+          error: "Missing required fields: blueprintId, colorName, artworkUrl"
         });
       }
 
-      console.log(`[Priority Mockup] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
+      // Support both legacy single `placement` and new `selectedPlacements` array
+      const placementsToGenerate: string[] = Array.isArray(selectedPlacements) && selectedPlacements.length > 0
+        ? selectedPlacements
+        : [placement || 'front'];
+
+      console.log(`[Priority Mockup] Generating for: ${colorName} @ [${placementsToGenerate.join(', ')}], provider: ${fulfillmentProvider}`);
 
       const { getMockupWithFallback } = await import("../../lib/mockup-service");
       const storage = (await import("../../storage")).storage;
-      
-      const result = await getMockupWithFallback({
-        blueprintId: parseInt(blueprintId),
-        printProviderId: parseInt(printProviderId) || 99,
-        colorName,
-        colorHex,
-        canonicalPlacementId: placement || "front",
-        artworkUrl,
-        artworkVariant: "black",
-        qrSize: qrSize as 'small' | 'medium' | 'large',
-        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      }, storage);
 
-      console.log(`[Priority Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+      const placementResults: Record<string, { mockupUrl: string; lifestyleMockupUrl?: string | null }> = {};
+      for (const canonicalPlacement of placementsToGenerate) {
+        try {
+          const result = await getMockupWithFallback({
+            blueprintId: parseInt(blueprintId),
+            printProviderId: parseInt(printProviderId) || 99,
+            colorName,
+            colorHex,
+            canonicalPlacementId: canonicalPlacement,
+            artworkUrl,
+            artworkVariant: "black",
+            qrSize: qrSize as 'small' | 'medium' | 'large',
+            fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
+          }, storage);
+          console.log(`[Priority Mockup] Generated for ${canonicalPlacement}: ${result.mockupUrl} (cached: ${result.fromCache})`);
+          placementResults[canonicalPlacement] = {
+            mockupUrl: result.mockupUrl,
+            lifestyleMockupUrl: result.lifestyleMockupUrl,
+          };
+        } catch (placementErr: any) {
+          console.warn(`[Priority Mockup] Skipping placement ${canonicalPlacement}: ${placementErr.message}`);
+        }
+      }
+
+      const primaryPlacement = placementsToGenerate.find(p => placementResults[p]) || Object.keys(placementResults)[0];
+      const primaryResult = primaryPlacement ? placementResults[primaryPlacement] : null;
+
+      if (!primaryResult?.mockupUrl) {
+        throw new Error('Mockup generation failed for all placements');
+      }
+
+      const placementMockupUrls: Record<string, string> = {};
+      for (const [p, r] of Object.entries(placementResults)) {
+        if (r.mockupUrl) placementMockupUrls[p] = r.mockupUrl;
+      }
 
       res.json({
         success: true,
-        mockupUrl: result.mockupUrl,
-        lifestyleMockupUrl: result.lifestyleMockupUrl,
-        fromCache: result.fromCache,
-        generatedAt: result.generatedAt,
+        mockupUrl: primaryResult.mockupUrl,
+        lifestyleMockupUrl: primaryResult.lifestyleMockupUrl,
+        placementMockupUrls,
+        fromCache: false,
       });
     } catch (error: any) {
       console.error("[Priority Mockup] Error:", error);

@@ -166,6 +166,32 @@ Every storefront product API response includes three structured fields (translat
 - **`cardMode`** — `browseOnly` (has both colors + sizes) or `quickAdd` (single dimension)
 - **`media`** — Hero image strategy: `heroStrategy: "mockupFirst"` — QR composite mockup always takes priority over plain product photos
 
+### Multi-Placement Mockup Gallery
+
+When a product is built with more than one print placement (e.g. front + back, or front + left sleeve), the store product gallery shows a separate flat mockup image for each placement, in addition to the lifestyle/model shot.
+
+**Gallery order:** lifestyle → front flat → back flat → left sleeve → right sleeve
+
+**How it works:**
+- At build time, `selectedPlacements[]` is sent to the mockup generation endpoint instead of a single `placement` string
+- The endpoint calls `getMockupWithFallback` once per placement and stores all results as `placementMockupUrls: { front: url, back: url, left_sleeve: url }` on the packet
+- `functions/src/routes/store-files.ts` reads `placementMockupUrls` from both the packet and the storeProductLink (link overrides packet), then appends each extra placement view to the `images[]` array
+- Printful's `variant_printfiles` API data is used to resolve the correct print-area dimensions per placement so sleeve graphics are sized for the sleeve canvas, not the chest
+
+**Endpoints that support `selectedPlacements[]`:**
+| Endpoint | Used by |
+|---|---|
+| `POST /api/public/generate-mockup` | Public / owner wizard |
+| `POST /api/mockup/priority` | Member wizard, admin tools |
+
+**Key files:**
+- `server/lib/mockup-service.ts` — printfile dimension lookup via `variant_printfiles`
+- `server/routes/member-public-wizard.routes.ts` — public generate-mockup handler
+- `server/routes/misc/store-product-links.routes.ts` — priority mockup handler
+- `client/src/features/owner/useOwnerWizardState.ts` — owner wizard sends full `selectedPlacements`
+- `client/src/features/members/MembersContext.tsx` — `MockupParams.selectedPlacements` + `MockupResult.placementMockupUrls`
+- `functions/src/routes/store-files.ts` — gallery assembly from `placementMockupUrls`
+
 ### Description Cascade (Canonical)
 
 ```
