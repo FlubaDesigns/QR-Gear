@@ -96,6 +96,42 @@ app.get('/admin/stores/by-id/:storeId', requireAdmin, async (req: Request, res: 
   }
 });
 
+// List ALL channels across all stores (with store name, including orphaned)
+app.get('/admin/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const snapshot = await db.collection('storeChannels').get();
+    const storeIds = [...new Set(snapshot.docs.map((d: any) => d.data().storeId).filter(Boolean))] as string[];
+    const storeMap: Record<string, string> = {};
+    for (const id of storeIds) {
+      const doc = await db.collection('stores').doc(id).get();
+      storeMap[id] = doc.exists ? ((doc.data() as any)?.name || id) : `(orphaned)`;
+    }
+    const channels = snapshot.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data(),
+      storeName: storeMap[doc.data().storeId] || `(orphaned)`,
+      storeExists: !!storeMap[doc.data().storeId] && !storeMap[doc.data().storeId].includes('orphaned'),
+    }));
+    channels.sort((a: any, b: any) => (a.storeName || '').localeCompare(b.storeName || '') || (a.name || '').localeCompare(b.name || ''));
+    res.json(channels);
+  } catch (error: any) {
+    console.error('[AllChannels] GET error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete any channel directly by ID (no storeId required)
+app.delete('/admin/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { channelId } = req.params;
+    await db.collection('storeChannels').doc(channelId).delete();
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[AllChannels] DELETE error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId } = req.params;

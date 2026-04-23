@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Store, Users, Package, LayoutGrid } from "lucide-react";
+import { Store, Users, Package, LayoutGrid, Hash, Globe } from "lucide-react";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
 import { StoreManager } from "@/features/storeBuilder/StoreManager";
 import { MemberProductLibrary } from "@/features/storeBuilder/MemberProductLibrary";
 import { StoreManagerTab } from "@/features/adminProducts/storeManager/StoreManagerTab";
+import { AllChannelsManager } from "@/features/adminProducts/storeManager/AllChannelsManager";
 import AdminShell from "@/components/AdminShell";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
@@ -11,8 +12,9 @@ import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 
 const storeTabs: AdminTab[] = [
   { id: "catalog", label: "Catalog", icon: LayoutGrid },
-  { id: "channels", label: "Channels", icon: Store },
+  { id: "channels", label: "Channels", icon: Hash },
   { id: "stores", label: "Stores", icon: Users },
+  { id: "partners", label: "Partners", icon: Globe },
   { id: "library", label: "Library", icon: Package },
 ];
 
@@ -33,11 +35,15 @@ export default function AdminStoreBuilderPage() {
       )}
 
       {activeTab === "channels" && (
-        <StoreBuilderHarness />
+        <AllChannelsManager />
       )}
 
       {activeTab === "stores" && (
         <StoreManager />
+      )}
+
+      {activeTab === "partners" && (
+        <StoreBuilderHarness />
       )}
 
       {activeTab === "library" && (

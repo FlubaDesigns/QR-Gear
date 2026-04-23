@@ -92,6 +92,42 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // List ALL channels across all stores (with store name, including orphaned)
+    app.get('/admin/channels', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const snapshot = await core_1.db.collection('storeChannels').get();
+            const storeIds = [...new Set(snapshot.docs.map((d) => d.data().storeId).filter(Boolean))];
+            const storeMap = {};
+            for (const id of storeIds) {
+                const doc = await core_1.db.collection('stores').doc(id).get();
+                storeMap[id] = doc.exists ? (doc.data()?.name || id) : `(orphaned)`;
+            }
+            const channels = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+                storeName: storeMap[doc.data().storeId] || `(orphaned)`,
+                storeExists: !!storeMap[doc.data().storeId] && !storeMap[doc.data().storeId].includes('orphaned'),
+            }));
+            channels.sort((a, b) => (a.storeName || '').localeCompare(b.storeName || '') || (a.name || '').localeCompare(b.name || ''));
+            res.json(channels);
+        }
+        catch (error) {
+            console.error('[AllChannels] GET error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // Delete any channel directly by ID (no storeId required)
+    app.delete('/admin/channels/:channelId', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { channelId } = req.params;
+            await core_1.db.collection('storeChannels').doc(channelId).delete();
+            res.json({ success: true });
+        }
+        catch (error) {
+            console.error('[AllChannels] DELETE error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
     app.get('/admin/stores/:storeId/channels', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { storeId } = req.params;
