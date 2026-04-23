@@ -37,24 +37,17 @@ Before changing anything, write out (in your working notes, not in a file):
 ### 5. Audit Naming Conventions Before Creating Anything New
 Before creating any new file, component, class, CSS class, Firestore collection, field name, route path, query key, or ID:
 
-**Check what already exists:**
-- Scan the relevant directory for existing file names — is there already a file that does this?
+**Consult the Naming Standards table in `replit.md` → "Naming Standards — Project Law"** for the canonical convention for every layer (files, folders, components, Firestore collections, fields, CSS classes, route paths, query keys).
+
+**Then check what already exists:**
+- Scan the relevant directory — is there already a file, component, or collection that does this?
 - Search for existing class names, component names, or IDs that match the concept
-- Check Firestore collection names and field names in the routes that touch them
-- Check CSS class naming patterns (e.g. `glass-card`, `qr-btn--primary`) — reuse, don't invent
+- If something already exists that covers the need, reuse or extend it — do NOT create a parallel version
 
-**Match the existing pattern:**
-- File naming: match the case and separator style already in use (e.g. `kebab-case.tsx` vs `PascalCase.tsx`)
-- Component naming: match how similar components are named in the same folder
-- CSS classes: follow the existing BEM-style or utility pattern already in the codebase
-- Firestore fields: match `camelCase` as used in existing documents
-- Route paths: match the existing `/api/noun/verb` pattern
-
-**Hard rules on naming:**
-- NEVER create a new Firestore collection without first checking if one already exists for the same concept (the duplicate collections `libraryAssets` / `library_assets`, `printfulProducts` / `printful_products` are a direct result of skipping this check)
-- NEVER create a new CSS utility class if an existing one already covers the behavior
-- NEVER create a new component if an existing one can be extended or reused
-- NEVER name a file with a different casing convention than its siblings in the same folder
+**Non-negotiable:**
+- NEVER create a new Firestore collection without checking if one already exists for the same concept
+- NEVER name a file, folder, or class with a different convention than its siblings in the same layer
+- NEVER invent abbreviations or creative names — match vocabulary already in use
 
 ### 6. Only Then Plan the Change
 After reading everything, form the minimal change that accomplishes the goal without disturbing anything that works. The change should be surgical — touch only what is broken or missing. Leave everything else exactly as it is.

@@ -69,6 +69,35 @@ These six rules apply to every task, every session, no exceptions. When the user
 
 5. **Present Changed Files** — After every fix, feature, or update — before marking done — add only the files created or modified during that task into `downloads/QR_Gear_Full_Website.zip` using `zip -u`. Never recreate the zip from scratch. Never include build output, node_modules, lock files, or the downloads folder itself. Tell the user which files were added or updated.
 
+## Naming Standards — Project Law
+
+These conventions are mandatory. Before creating any file, class, ID, collection, field, route, or CSS class — verify it does not already exist and that the new name matches these patterns exactly.
+
+### By Layer
+
+| Layer | Convention | Example |
+|---|---|---|
+| Files — pages & routes | `kebab-case` | `admin-store-builder.tsx`, `store-files.ts` |
+| Files — components | `PascalCase.tsx` | `StoreManagerTab.tsx`, `ProductCard.tsx` |
+| Feature folders | `kebab-case` | `store-builder/`, `storefront-shared/` |
+| React components | `PascalCase` | `InstanceCard`, `StoreManagerTab` |
+| TypeScript interfaces & types | `PascalCase` | `AdminInstance`, `ProductOption` |
+| Variables & functions | `camelCase` | `getAuthHeaders()`, `enabledColors` |
+| Constants | `SCREAMING_SNAKE_CASE` | `COLOR_HEX_MAP`, `ADMIN_USER_IDS` |
+| Firestore collections — new | `snake_case` | `admin_catalog_instances`, `mockup_jobs` |
+| Firestore document fields | `camelCase` | `currentPacketId`, `enabledColors` |
+| CSS custom classes | `kebab-case` + BEM `--` modifier | `qr-btn--primary`, `glass-card` |
+| API route paths | `kebab-case` | `/api/catalog-instances`, `/admin/store-files` |
+| Query keys (TanStack) | array with `kebab-case` strings | `["catalog-instances", storeId]` |
+
+### Hard Rules
+
+1. **Check before creating** — Search the codebase for an existing file, component, collection, or class that already serves the purpose. Reuse or extend it. Do not create a parallel version.
+2. **No mixed conventions in the same layer** — If all route files in `functions/src/routes/` are `kebab-case.ts`, the new one must be too. No exceptions.
+3. **Firestore: snake_case going forward** — All new Firestore collections use `snake_case`. Existing `camelCase` collections (`productPackets`, `memberLibrary`, etc.) are grandfathered — do NOT rename live collections. When a duplicate exists (`libraryAssets` + `library_assets`), flag it and consolidate only with explicit user approval.
+4. **No creative naming** — Names must describe exactly what the thing is, matching the vocabulary already in use in that layer. No abbreviations that aren't already established in the codebase.
+5. **Feature folders go kebab-case** — Existing folders like `adminAuth`, `adminProducts`, `storeBuilder` are grandfathered. All new feature folders use `kebab-case`. Do not rename existing ones without explicit user approval.
+
 ## System Architecture
 
 ### UI/UX Decisions
