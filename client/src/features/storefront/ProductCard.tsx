@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Star, Sparkles, QrCode, ShoppingCart } from "lucide-react";
 import ProductImageGallery from "@/components/ProductImageGallery";
-import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
+import { buildProductGallery } from "@/features/storefront-shared/buildProductGallery";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -49,17 +49,10 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
     (product.mockupsByColor ? Object.keys(product.mockupsByColor) : []);
   const availableSizes = product.availableSizes || [];
 
-  const galleryImages = useMemo(() => {
-    if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
-      return buildMockupGalleryImages(product, selectedColor || null);
-    }
-    const images: { url: string; alt: string }[] = [];
-    if (product.imageUrl) images.push({ url: product.imageUrl, alt: product.name });
-    if (product.packetImageUrl && product.packetImageUrl !== product.imageUrl) {
-      images.push({ url: product.packetImageUrl, alt: `${product.name} — graphic` });
-    }
-    return images;
-  }, [product, selectedColor]);
+  const galleryImages = useMemo(
+    () => buildProductGallery(product, selectedColor),
+    [product, selectedColor],
+  );
 
   const displayImage = galleryImages[0]?.url || product.imageUrl;
   const hasMockups = !!product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0;

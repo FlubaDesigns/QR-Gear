@@ -11,7 +11,7 @@ import {
 import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
 import ProductImageGallery from "@/components/ProductImageGallery";
-import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
+import { buildProductGallery } from "@/features/storefront-shared/buildProductGallery";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -46,6 +46,9 @@ interface StoreProduct {
   category: string;
   productLine: string;
   imageUrl: string | null;
+  /** Full ordered gallery array from API — primary image source. First item is hero/mockup. */
+  images?: string[] | null;
+  packetImageUrl?: string | null;
   qrCodeUrl: string | null;
   qrProductType: string;
   price: number | null;
@@ -92,10 +95,10 @@ export default function ShopProductPage() {
     setSelectedSize(product.availableSizes[0]);
   }
 
-  const galleryImages = useMemo(() => {
-    if (!product) return [];
-    return buildMockupGalleryImages(product, selectedColor);
-  }, [product, selectedColor]);
+  const galleryImages = useMemo(
+    () => buildProductGallery(product ?? null, selectedColor),
+    [product, selectedColor],
+  );
 
   const displayImage = galleryImages[0]?.url || product?.imageUrl;
 

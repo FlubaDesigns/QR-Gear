@@ -19,69 +19,144 @@ import { printfulClient } from '../services/printful';
 app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { linkId } = req.params;
+
+    // Helper: normalize images array (items may be strings or {url} objects)
+    const toUrlArr = (imgs: any[]): string[] =>
+      (imgs || []).map((img: any) => (typeof img === 'string' ? img : img?.url || null)).filter(Boolean);
+
+    // ── Path A: storeProductLinks (original path) ───────────────────────────
     const linkDoc = await db.collection('storeProductLinks').doc(linkId).get();
-    if (!linkDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
-    const link = linkDoc.data()!;
+    if (linkDoc.exists) {
+      const link = linkDoc.data()!;
 
-    let price: number | null = null;
-    let availableSizes: string[] = link.enabledSizes || [];
-    let availableColors: string[] = link.enabledColors || [];
-    let availablePlacements: string[] = [];
-    let description = '';
-    let category = '';
-    let productLine = '';
+      let price: number | null = null;
+      let availableSizes: string[] = link.enabledSizes || [];
+      let availableColors: string[] = link.enabledColors || [];
+      let availablePlacements: string[] = [];
+      let description = '';
+      let category = '';
+      let productLine = '';
+      let packetImageUrl: string | null = null;
 
-    let packetImageUrl: string | null = null;
-    if (link.packetId) {
-      const packetDoc = await db.collection('packets').doc(link.packetId).get();
-      if (packetDoc.exists) {
-        const packet = packetDoc.data()!;
-        packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
-        const productId = packet.productId;
-        if (productId) {
-          price = await getAuthoritativePrice(productId);
-          const productDoc = await db.collection('products').doc(productId).get();
-          if (productDoc.exists) {
-            const product = productDoc.data()!;
-            if (availableSizes.length === 0) availableSizes = product.availableSizes || product.sizes || [];
-            if (availableColors.length === 0) availableColors = product.availableColors || product.colors || [];
-            availablePlacements = product.availablePlacements || [];
-            description = product.description || '';
-            category = product.category || '';
-            productLine = product.productLine || '';
+      if (link.packetId) {
+        const packetDoc = await db.collection('packets').doc(link.packetId).get();
+        if (packetDoc.exists) {
+          const packet = packetDoc.data()!;
+          packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
+          const productId = packet.productId;
+          if (productId) {
+            price = await getAuthoritativePrice(productId);
+            const productDoc = await db.collection('products').doc(productId).get();
+            if (productDoc.exists) {
+              const product = productDoc.data()!;
+              if (availableSizes.length === 0) availableSizes = product.availableSizes || product.sizes || [];
+              if (availableColors.length === 0) availableColors = product.availableColors || product.colors || [];
+              availablePlacements = product.availablePlacements || [];
+              description = product.description || '';
+              category = product.category || '';
+              productLine = product.productLine || '';
+            }
+          }
+          if (price === null && packet.pricingSnapshot?.totalPrice) {
+            price = parseFloat(packet.pricingSnapshot.totalPrice);
           }
         }
-        if (price === null && packet.pricingSnapshot?.totalPrice) {
-          price = parseFloat(packet.pricingSnapshot.totalPrice);
-        }
       }
+
+      if (price === null && link.pricing) {
+        price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
+      }
+
+      // Build ordered gallery: mockup first, then any stored images array
+      const heroUrl = link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null;
+      const storedImages = toUrlArr(link.images || []);
+      const allImages: string[] = [];
+      if (heroUrl) allImages.push(heroUrl);
+      storedImages.forEach((u) => { if (u !== heroUrl) allImages.push(u); });
+
+      res.json({
+        id: linkDoc.id,
+        name: link.productName || 'Untitled Product',
+        description,
+        category,
+        productLine,
+        imageUrl: allImages[0] || null,
+        images: allImages,
+        packetImageUrl,
+        qrCodeUrl: link.qrOnlyUrl || null,
+        qrProductType: link.qrProductState || 'qr-basics',
+        price: price !== null ? Math.round(price * 100) / 100 : null,
+        availableSizes,
+        availableColors,
+        availablePlacements,
+        defaultColor: link.defaultColor || null,
+        mockupsByColor: null,
+        selectedGraphicSize: link.selectedGraphicSize || null,
+        storeId: link.storeId || null,
+        storeName: link.storeName || null,
+        channel: link.channel || null,
+        collection: link.collection || null,
+        packetId: link.packetId || null,
+      });
+      return;
     }
 
-    if (price === null && link.pricing) {
-      price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
+    // ── Path B: admin_catalog_instances (products from store catalog listing) ─
+    const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
+    if (!instanceDoc.exists) {
+      res.status(404).json({ error: "Product not found" });
+      return;
     }
+
+    const d = instanceDoc.data()!;
+    const resolved = d.resolved || {};
+
+    let price: number | null = resolved.pricing?.customerPrice ?? null;
+    let packetMockupUrl: string | null = null;
+
+    if (d.currentPacketId) {
+      try {
+        const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+        if (pDoc.exists) {
+          const pkt = pDoc.data()!;
+          packetMockupUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+          if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
+        }
+      } catch (_) {}
+    }
+
+    const toStrArr = (arr: any[]): string[] =>
+      (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
+
+    // Build ordered gallery: packet mockup first, then provider catalog images
+    const providerImages = toUrlArr(resolved.images || []);
+    const allImages: string[] = [];
+    if (packetMockupUrl) allImages.push(packetMockupUrl);
+    providerImages.forEach((u) => { if (u !== packetMockupUrl) allImages.push(u); });
 
     res.json({
-      id: linkDoc.id,
-      name: link.productName || 'Untitled Product',
-      description,
-      category,
-      productLine,
-      imageUrl: link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null,
-      qrCodeUrl: link.qrOnlyUrl || null,
-      qrProductType: link.qrProductState || 'qr-basics',
+      id: instanceDoc.id,
+      name: resolved.title || 'Untitled',
+      description: resolved.description || '',
+      category: resolved.category || '',
+      productLine: resolved.productLine || '',
+      imageUrl: allImages[0] || null,
+      images: allImages,
+      packetImageUrl: packetMockupUrl,
+      qrCodeUrl: null,
+      qrProductType: d.qrProductType || 'qr-basics',
       price: price !== null ? Math.round(price * 100) / 100 : null,
-      availableSizes,
-      availableColors,
-      availablePlacements,
-      defaultColor: link.defaultColor || null,
+      availableSizes: toStrArr(d.enabledSizes || resolved.sizes || []),
+      availableColors: toStrArr(d.enabledColors || resolved.colors || []),
+      availablePlacements: [],
+      defaultColor: null,
       mockupsByColor: null,
-      selectedGraphicSize: link.selectedGraphicSize || null,
-      storeId: link.storeId || null,
-      storeName: link.storeName || null,
-      channel: link.channel || null,
-      collection: link.collection || null,
-      packetId: link.packetId || null,
+      selectedGraphicSize: null,
+      storeId: d.storeId || null,
+      storeName: d.storeName || null,
+      channel: d.channelId || null,
+      collection: d.collectionName || null,
+      packetId: d.currentPacketId || null,
     });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -91,29 +166,76 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
     const { linkId } = req.params;
     const { selectedColor, selectedSize, quantity = 1 } = req.body;
 
+    // ── Path A: storeProductLinks ──────────────────────────────────────────
     const linkDoc = await db.collection('storeProductLinks').doc(linkId).get();
-    if (!linkDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
-    const link = linkDoc.data()!;
+    if (linkDoc.exists) {
+      const link = linkDoc.data()!;
 
-    let price: number | null = null;
-    let productId: string | null = null;
+      let price: number | null = null;
+      let productId: string | null = null;
 
-    if (link.packetId) {
-      const packetDoc = await db.collection('packets').doc(link.packetId).get();
-      if (packetDoc.exists) {
-        const packet = packetDoc.data()!;
-        productId = packet.productId || null;
-        if (productId) {
-          price = await getAuthoritativePrice(productId);
-        }
-        if (price === null && packet.pricingSnapshot?.totalPrice) {
-          price = parseFloat(packet.pricingSnapshot.totalPrice);
+      if (link.packetId) {
+        const packetDoc = await db.collection('packets').doc(link.packetId).get();
+        if (packetDoc.exists) {
+          const packet = packetDoc.data()!;
+          productId = packet.productId || null;
+          if (productId) price = await getAuthoritativePrice(productId);
+          if (price === null && packet.pricingSnapshot?.totalPrice) {
+            price = parseFloat(packet.pricingSnapshot.totalPrice);
+          }
         }
       }
+
+      if (price === null && link.pricing) {
+        price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
+      }
+
+      if (price === null || price <= 0) {
+        res.status(400).json({ error: "Price could not be determined for this product" });
+        return;
+      }
+
+      res.json({
+        productId: productId || linkId,
+        linkId,
+        price: Math.round(price * 100) / 100,
+        name: link.productName || 'Untitled Product',
+        imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
+        selectedColor: selectedColor || link.defaultColor || null,
+        selectedSize: selectedSize || null,
+        quantity,
+      });
+      return;
     }
 
-    if (price === null && link.pricing) {
-      price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
+    // ── Path B: admin_catalog_instances ────────────────────────────────────
+    const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
+    if (!instanceDoc.exists) {
+      res.status(404).json({ error: "Product not found" });
+      return;
+    }
+
+    const d = instanceDoc.data()!;
+    const resolved = d.resolved || {};
+
+    let price: number | null = resolved.pricing?.customerPrice ?? null;
+    let heroImageUrl: string | null = null;
+
+    if (d.currentPacketId) {
+      try {
+        const pDoc = await db.collection('product_packets').doc(d.currentPacketId).get();
+        if (pDoc.exists) {
+          const pkt = pDoc.data()!;
+          heroImageUrl = pkt.priorityMockupUrl || pkt.productGraphicUrl || null;
+          if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
+        }
+      } catch (_) {}
+    }
+
+    // Fallback to first provider catalog image
+    if (!heroImageUrl && resolved.images?.length) {
+      const img = resolved.images[0];
+      heroImageUrl = typeof img === 'string' ? img : (img?.url || null);
     }
 
     if (price === null || price <= 0) {
@@ -122,12 +244,12 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
     }
 
     res.json({
-      productId: productId || linkId,
+      productId: linkId,
       linkId,
       price: Math.round(price * 100) / 100,
-      name: link.productName || 'Untitled Product',
-      imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
-      selectedColor: selectedColor || link.defaultColor || null,
+      name: resolved.title || 'Untitled',
+      imageUrl: heroImageUrl,
+      selectedColor: selectedColor || null,
       selectedSize: selectedSize || null,
       quantity,
     });
@@ -199,14 +321,23 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
             const toStringArray = (arr: any[]): string[] =>
               (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
+            const toImgUrl = (img: any): string | null =>
+              typeof img === 'string' ? img : (img?.url || null);
 
             const rawColors = d.enabledColors || resolved.colors || [];
             const rawSizes = d.enabledSizes || resolved.sizes || [];
 
+            // Build ordered gallery: packet mockup first, then provider images
+            const providerImgs = (resolved.images || []).map(toImgUrl).filter(Boolean) as string[];
+            const allImages: string[] = [];
+            if (packetImageUrl) allImages.push(packetImageUrl);
+            providerImgs.forEach((u) => { if (u !== packetImageUrl) allImages.push(u); });
+
             return {
               id: doc.id,
               name: resolved.title || 'Untitled',
-              imageUrl: imageUrl || packetImageUrl,
+              imageUrl: allImages[0] || null,
+              images: allImages,
               packetImageUrl,
               segment: d.collectionName || null,
               isFeatured: false,
@@ -311,10 +442,18 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               } catch (_) {}
             }
 
+            const toImgUrlCh = (img: any): string | null =>
+              typeof img === 'string' ? img : (img?.url || null);
+            const providerImgsCh = (resolved.images || []).map(toImgUrlCh).filter(Boolean) as string[];
+            const allImagesCh: string[] = [];
+            if (packetImageUrl) allImagesCh.push(packetImageUrl);
+            providerImgsCh.forEach((u) => { if (u !== packetImageUrl) allImagesCh.push(u); });
+
             return {
               id: doc.id,
               name: resolved.title || 'Untitled',
-              imageUrl: imageUrl || packetImageUrl,
+              imageUrl: allImagesCh[0] || null,
+              images: allImagesCh,
               packetImageUrl,
               segment: d.collectionName || null,
               isFeatured: false,
@@ -382,10 +521,18 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             } catch (_) {}
           }
 
+          const toImgUrlSt = (img: any): string | null =>
+            typeof img === 'string' ? img : (img?.url || null);
+          const providerImgsSt = (resolved.images || []).map(toImgUrlSt).filter(Boolean) as string[];
+          const allImagesSt: string[] = [];
+          if (packetImageUrl) allImagesSt.push(packetImageUrl);
+          providerImgsSt.forEach((u) => { if (u !== packetImageUrl) allImagesSt.push(u); });
+
           return {
             id: doc.id,
             name: resolved.title || 'Untitled',
-            imageUrl: imageUrl || packetImageUrl,
+            imageUrl: allImagesSt[0] || null,
+            images: allImagesSt,
             packetImageUrl,
             segment: d.collectionName || null,
             isFeatured: false,

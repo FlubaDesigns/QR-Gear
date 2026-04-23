@@ -8,6 +8,8 @@ export interface StoreProduct {
   id: string;
   name: string;
   imageUrl: string | null;
+  /** Full ordered gallery array — primary image source. First item is hero. */
+  images?: string[] | null;
   packetImageUrl?: string | null;
   /** Firestore segment field — the bridge layer maps this to collection slugs. */
   segment: string | null;

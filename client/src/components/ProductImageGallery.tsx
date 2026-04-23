@@ -302,7 +302,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           ))}
         </div>
 
-        <div className="flex justify-center gap-1 mt-2">
+        <div className="hidden sm:flex justify-center gap-1 mt-2">
           {images.map((img, index) => (
             <button
               key={index}
