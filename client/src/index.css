@@ -21,21 +21,21 @@
 
 :root {
   /* Tailwind HSL format tokens */
-  --background: 211 76% 8%;
+  --background: 211 40% 14%;
   --foreground: 202 100% 95%;
-  --border: 207 60% 40%;
-  --card: 210 28% 10%;
+  --border: 207 50% 38%;
+  --card: 210 30% 19%;
   --card-foreground: 190 60% 95%;
-  --card-border: 207 60% 45%;
+  --card-border: 207 50% 42%;
   --popover: 210 28% 10%;
   --popover-foreground: 190 60% 95%;
   --popover-border: 207 60% 45%;
   --primary: 207 100% 59%;
   --primary-foreground: 210 30% 6%;
-  --secondary: 210 25% 18%;
+  --secondary: 210 25% 24%;
   --secondary-foreground: 190 60% 95%;
-  --muted: 210 22% 20%;
-  --muted-foreground: 190 40% 65%;
+  --muted: 210 22% 26%;
+  --muted-foreground: 190 40% 68%;
   --accent: 24 100% 55%;
   --accent-foreground: 210 30% 6%;
   --accent-border: 24 100% 45%;
@@ -45,12 +45,12 @@
   --ring: 207 100% 59%;
   --radius: 0.75rem;
 
-  --sidebar: 210 30% 8%;
+  --sidebar: 210 30% 12%;
   --sidebar-foreground: 190 60% 95%;
-  --sidebar-border: 207 60% 38%;
+  --sidebar-border: 207 50% 36%;
   --sidebar-primary: 207 100% 59%;
   --sidebar-primary-foreground: 210 30% 6%;
-  --sidebar-accent: 210 28% 16%;
+  --sidebar-accent: 210 28% 20%;
   --sidebar-accent-foreground: 190 60% 95%;
   --sidebar-ring: 207 100% 59%;
 
