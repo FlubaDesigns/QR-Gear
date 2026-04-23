@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, Film, DollarSign, Image, Box, Type, Library, Package, Sparkles, CheckCircle } from "lucide-react";
+import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, DollarSign, Package, Sparkles, CheckCircle, ScanLine } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
@@ -118,9 +118,10 @@ function FeaturedStores() {
   const stores = [
     {
       title: "USA 250",
-      subtitle: "Monuments, Armed Forces, Founding Fathers",
+      tagline: "Wear the story of American history.",
+      collections: "Monuments · Armed Forces · Founding Fathers",
       href: "/shop/internal/qr-gear/usa250",
-      badge: "Preview Store",
+      badge: "Now Available",
       icon: <Flag className="w-5 h-5" />,
     },
   ];
@@ -130,9 +131,9 @@ function FeaturedStores() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">Featured Stores</h2>
+            <h2 className="text-2xl font-semibold text-foreground">Shop Featured Collections</h2>
             <p className="text-muted-foreground">
-              Explore curated collections of QR-embedded gear — each one tells a story worth wearing.
+              Curated QR-embedded gear — every piece connects to a scannable experience you can wear and share.
             </p>
           </div>
 
@@ -146,20 +147,24 @@ function FeaturedStores() {
           {stores.map((s) => (
             <Card key={s.title} className="glass-card">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
                   <div className="flex items-center gap-2">
                     {s.icon}
                     <h3 className="text-lg font-semibold text-foreground">{s.title}</h3>
                   </div>
-                  <Badge variant="secondary">{s.badge}</Badge>
+                  <Badge variant="default" className="gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    {s.badge}
+                  </Badge>
                 </div>
 
-                <p className="text-muted-foreground mb-5">{s.subtitle}</p>
+                <p className="text-foreground font-medium text-sm mb-1">{s.tagline}</p>
+                <p className="text-muted-foreground text-sm mb-5">{s.collections}</p>
 
                 <Link href={s.href}>
                   <Button className="w-full" data-testid={`button-store-${s.title.replace(/\s+/g, "-").toLowerCase()}`}>
-                    Enter
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ScanLine className="w-4 h-4 mr-2" />
+                    Shop the Collection
                   </Button>
                 </Link>
               </CardContent>
@@ -229,6 +234,13 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <ActionCards />
+        {/* Shop path — surface early so buyers get a direct route */}
+        <FeaturedStores />
+        {hasProducts ? (
+          <FeaturedProducts />
+        ) : (
+          <NoProductsYet />
+        )}
         <div className="hidden md:block">
           <MarketingMessage />
         </div>
@@ -242,12 +254,6 @@ export default function Home() {
           <HowItWorks />
         </div>
         <BecomeMember />
-        <FeaturedStores />
-        {hasProducts ? (
-          <div className="hidden md:block"><FeaturedProducts /></div>
-        ) : (
-          <NoProductsYet />
-        )}
       </main>
 
       <Footer />

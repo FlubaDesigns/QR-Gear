@@ -71,6 +71,11 @@ export function CollectionView({
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/70" />
           <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 py-16">
+            {collectionConfig?.subtitle && (
+              <p className="text-sm font-semibold tracking-widest uppercase text-white/60 mb-2">
+                {collectionConfig.subtitle}
+              </p>
+            )}
             <h1
               className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2"
               data-testid="text-collection-title"
@@ -78,7 +83,7 @@ export function CollectionView({
               {collectionLabel}
             </h1>
             {collectionDescription && (
-              <p className="text-base text-white/80 max-w-xl leading-relaxed">
+              <p className="text-base text-white/75 max-w-xl leading-relaxed">
                 {collectionDescription}
               </p>
             )}

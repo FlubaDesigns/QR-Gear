@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { QrCode, Star, Sparkles } from "lucide-react";
+import { QrCode, Star, Sparkles, ScanLine } from "lucide-react";
 import type { StoreProduct } from "./types";
 
 export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -53,7 +53,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
           )}
         </div>
 
-        <CardContent className="flex-1 p-3 flex flex-col gap-2">
+        <CardContent className="flex-1 p-3 flex flex-col gap-1.5">
           <div className="flex-1">
             <h3
               className="font-semibold text-base leading-snug line-clamp-2"
@@ -62,7 +62,12 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
               {product.name}
             </h3>
 
-            <div className="flex flex-wrap items-center gap-2 mt-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+              <ScanLine className="h-3 w-3 flex-shrink-0" />
+              Wear + Scan experience
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
               {product.price != null && product.price > 0 && (
                 <span
                   className="text-xl font-bold text-emerald-500"

@@ -5,9 +5,10 @@
  */
 
 import { Link } from "wouter";
-import { ArrowRight, QrCode, ScanLine, Share2 } from "lucide-react";
+import { ArrowRight, QrCode, ScanLine, Share2, ShoppingBag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import StorefrontLayout from "@/components/StorefrontLayout";
 import type { StoreConfig } from "@/data/shopHierarchy";
 import heroImg from "@assets/store_hero.png";
@@ -36,7 +37,6 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
           className="absolute inset-0 w-full h-full object-cover"
           data-testid="img-store-hero"
         />
-        {/* Dark wash for text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70" />
 
         <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 py-24">
@@ -47,9 +47,12 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
             Wear the Story.
             <br className="hidden sm:block" /> Scan the Experience.
           </h1>
-          <p className="text-lg md:text-xl text-white/80 max-w-xl mb-10 leading-relaxed">
-            Each design connects to a deeper story through a scannable QR experience.
-            History, meaning, and message — right on your shirt.
+          <p className="text-lg md:text-xl text-white/80 max-w-2xl mb-3 leading-relaxed">
+            Premium apparel that goes deeper than a design. Every piece connects to a scannable
+            story — history, tribute, and meaning right on your shirt.
+          </p>
+          <p className="text-base text-white/60 mb-10 italic">
+            Wear history. Scan meaning. Share the story.
           </p>
 
           {primaryChannel && (
@@ -60,8 +63,8 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
                   className="text-base px-8"
                   data-testid="button-hero-primary-cta"
                 >
-                  Explore the {primaryChannel.label} Collection
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ShoppingBag className="mr-2 h-4 w-4" />
+                  Shop the {primaryChannel.label} Collection
                 </Button>
               </Link>
               <Link href={`${storeBasePath}`}>
@@ -82,8 +85,8 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
       {/* ── How it works ─────────────────────────────────────────────────────── */}
       <div className="container max-w-4xl py-16 px-4">
         <div className="text-center mb-10">
-          <h2 className="text-2xl font-bold mb-2">Scan. Learn. Connect.</h2>
-          <p className="text-muted-foreground">Every piece of QR Gear tells a story — here's how it works.</p>
+          <h2 className="text-2xl font-bold mb-2">More than apparel.</h2>
+          <p className="text-muted-foreground">Each piece connects the physical to a digital experience — scan and discover.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {HOW_IT_WORKS.map(({ icon: Icon, text }, i) => (
@@ -99,8 +102,11 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
         {/* ── Channel entry cards ───────────────────────────────────────────── */}
         {storeConfig.channels.length > 0 && (
           <div className="mt-16 space-y-4">
-            <h2 className="text-xl font-bold mb-6 text-center">Collections</h2>
-            {storeConfig.channels.map((channel) => (
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold">Shop the Collections</h2>
+              <p className="text-sm text-muted-foreground mt-1">Each collection is a curated drop built around a theme worth wearing.</p>
+            </div>
+            {storeConfig.channels.map((channel, i) => (
               <Link key={channel.slug} href={`${storeBasePath}/${channel.slug}`}>
                 <Card
                   className="hover-elevate cursor-pointer"
@@ -108,19 +114,26 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
                 >
                   <CardContent className="p-7 flex items-center justify-between gap-6 flex-wrap">
                     <div className="min-w-0">
-                      <h3 className="text-lg font-bold mb-1">{channel.label}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold">{channel.label}</h3>
+                        {i === 0 && (
+                          <Badge variant="default" className="text-xs">
+                            Popular
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-muted-foreground text-sm leading-snug">
-                        {channel.description}
+                        {channel.intro}
                       </p>
                     </div>
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="default"
                       className="flex-shrink-0"
                       tabIndex={-1}
                       data-testid={`button-enter-${channel.slug}`}
                     >
-                      Explore <ArrowRight className="ml-2 h-4 w-4" />
+                      Shop <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </CardContent>
                 </Card>

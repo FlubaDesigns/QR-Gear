@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
+  ScanLine, Gift, Shield, Truck,
 } from "lucide-react";
 import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
@@ -316,6 +317,9 @@ export default function ShopProductPage() {
                   {product.description}
                 </p>
               )}
+              <p className="text-sm text-foreground mt-3 leading-relaxed">
+                More than apparel — this piece connects to a story you can wear, scan, and share.
+              </p>
             </div>
 
             <div>
@@ -328,6 +332,22 @@ export default function ShopProductPage() {
                   Price not yet set
                 </p>
               )}
+
+              {/* Benefit micro-bullets */}
+              <ul className="mt-3 space-y-1.5" data-testid="list-product-benefits">
+                <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <ScanLine className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                  Scannable QR experience built in
+                </li>
+                <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Package className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                  Premium print-on-demand, made to order
+                </li>
+                <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Gift className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                  Great for gifts, history lovers, and collectors
+                </li>
+              </ul>
             </div>
 
             <Separator />
@@ -513,6 +533,12 @@ export default function ShopProductPage() {
             <Separator />
 
             <div className="space-y-3">
+              {/* Scan context — remind buyer what makes this special */}
+              <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
+                <ScanLine className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                Scan with your phone to unlock the linked experience
+              </p>
+
               <Button
                 className="w-full"
                 size="lg"
@@ -543,6 +569,19 @@ export default function ShopProductPage() {
               >
                 Buy Now
               </Button>
+
+              {/* Trust strip */}
+              <div className="flex items-center justify-center gap-4 pt-1 flex-wrap">
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Shield className="h-3 w-3" /> Secure checkout
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Truck className="h-3 w-3" /> Made to order
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Check className="h-3 w-3" /> Ships from the USA
+                </span>
+              </div>
             </div>
 
             {product.storeName && (

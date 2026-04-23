@@ -81,11 +81,13 @@ export function ChannelHubView({
             className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-3"
             data-testid="text-channel-title"
           >
-            {label} Collection
+            {label}
           </h1>
-          <p className="text-base md:text-lg text-white/80 max-w-xl leading-relaxed">
-            A tribute to American history, service, and legacy. Each design connects
-            you to a deeper story — one you can wear and share.
+          <p className="text-base md:text-lg text-white/80 max-w-xl leading-relaxed mb-2">
+            {channelConfig?.intro ?? "A tribute to American history, service, and legacy."}
+          </p>
+          <p className="text-sm text-white/60 italic">
+            Wear the story. Scan the meaning.
           </p>
         </div>
       </div>
@@ -132,7 +134,7 @@ export function ChannelHubView({
                           className="self-start mb-3 text-xs"
                           data-testid={`badge-count-${col.slug}`}
                         >
-                          {count} items
+                          {count} {count === 1 ? "item" : "items"}
                         </Badge>
                       )}
                       <h3
@@ -141,11 +143,11 @@ export function ChannelHubView({
                       >
                         {col.label}
                       </h3>
-                      <p className="text-sm text-white/75 leading-snug mb-3">
+                      <p className="text-sm text-white/80 leading-snug mb-3 font-medium">
                         {col.subtitle}
                       </p>
-                      <div className="flex items-center gap-1.5 text-sm text-white/90 font-medium">
-                        Browse <ArrowRight className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-1.5 text-sm text-white font-semibold">
+                        Shop Now <ArrowRight className="h-3.5 w-3.5" />
                       </div>
                     </div>
                   </div>
