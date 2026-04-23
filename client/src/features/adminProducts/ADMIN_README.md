@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 21, 2026 (rev 19)
+Last updated: April 23, 2026 (rev 20)
 
 ---
 
@@ -491,6 +491,29 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 23, 2026 — Surface Auto-Generation from Built Product Pipeline (rev 20)
+
+Surfaces can now be auto-populated from a committed catalog instance via the product pipeline (`product → packet → admin_catalog_instance → normalized product → Surface draft`).
+
+**New "Generate from Product" button** appears next to "Create Surface" in the Surfaces section header. Clicking it opens a dialog where you:
+1. Select a committed built product (loaded from `admin_catalog_instances` — shows title and folder path)
+2. Choose a target marketplace (eBay, Etsy, or Amazon)
+3. Click **Generate Surface** → a draft Surface is created and the editor opens for review
+
+**What is auto-filled:**
+- Title, description (cascade: instance → packet → master), images
+- Price (MSRP from packet data), available sizes + colors
+- Auto-generated bullet points and tags from product attributes
+- eBay-specific: itemSpecifics (brand, material, color, size), department derivation
+- SKU: `QRG-{MASTER6}-{INST4}` pattern
+- Fields requiring external lookup (eBay category ID, shipping/payment/return policy IDs) are left blank for manual entry
+
+| File | Change |
+|------|--------|
+| `functions/src/services/surface-generator.ts` | NEW — `NormalizedProduct` type, `normalizeProductForPublishing()`, `createSurfaceDraftFromNormalizedProduct()` |
+| `functions/src/routes/marketplace.ts` | `POST /admin/surfaces/generate-from-instance` endpoint added |
+| `client/src/pages/marketplaces-accounts.tsx` | `GenerateFromProductDialog` component, `showGenerate` state, "Generate from Product" button in Surfaces header |
 
 ### April 21, 2026 — Change: Commit always creates a new catalog instance
 

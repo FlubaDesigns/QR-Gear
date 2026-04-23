@@ -4,6 +4,7 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const marketplace_sync_1 = require("../services/marketplace-sync");
+const surface_generator_1 = require("../services/surface-generator");
 const constants_1 = require("../constants");
 const VALID_PLATFORMS = new Set(constants_1.MARKETPLACE_PLATFORMS);
 const VALID_SURFACE_STATUSES = new Set(['draft', 'ready', 'published', 'archived']);
@@ -518,6 +519,31 @@ function register(app) {
         }
         catch (error) {
             console.error('[Surfaces] POST check-readiness error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // --- Generate Surface from Built Product ---
+    app.post('/admin/surfaces/generate-from-instance', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { instanceId, marketplace = 'ebay', defaults = {} } = req.body;
+            if (!instanceId || typeof instanceId !== 'string' || !instanceId.trim()) {
+                res.status(400).json({ error: 'instanceId is required' });
+                return;
+            }
+            const validMarketplaces = new Set(['ebay', 'etsy', 'amazon']);
+            if (!validMarketplaces.has(marketplace)) {
+                res.status(400).json({ error: `Invalid marketplace. Must be one of: ebay, etsy, amazon` });
+                return;
+            }
+            console.log(`[SurfaceGenerator] Normalizing instance ${instanceId} for ${marketplace}`);
+            const normalized = await (0, surface_generator_1.normalizeProductForPublishing)(instanceId.trim(), core_1.db);
+            const surfacePayload = (0, surface_generator_1.createSurfaceDraftFromNormalizedProduct)(normalized, marketplace, defaults);
+            const docRef = await core_1.db.collection(constants_1.SURFACES_COLLECTION).add(surfacePayload);
+            console.log(`[SurfaceGenerator] Created surface ${docRef.id} from instance ${instanceId}`);
+            res.json({ success: true, surfaceId: docRef.id, instanceId, marketplace });
+        }
+        catch (error) {
+            console.error('[SurfaceGenerator] generate-from-instance error:', error.message);
             res.status(500).json({ error: error.message });
         }
     });

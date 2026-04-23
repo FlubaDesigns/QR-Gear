@@ -14,7 +14,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   Plus, Trash2, ShoppingBag, Settings, RefreshCw, Loader2, ExternalLink,
   CheckCircle, AlertCircle, Package, Layers, Link2, ListChecks, ScrollText,
-  Pencil, Play, Clock, XCircle, Info, AlertTriangle,
+  Pencil, Play, Clock, XCircle, Info, AlertTriangle, Zap,
 } from "lucide-react";
 import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
 
@@ -528,9 +528,186 @@ function buildSurfacePayload(data: SurfaceForm) {
   };
 }
 
+// ─── Admin instance shape used by the generate dialog ────────────────────────
+
+interface AdminInstancePreview {
+  id: string;
+  resolved?: { title?: string };
+  folderPath?: string | null;
+  status?: string;
+}
+
+// ─── Generate Surface from Built Product dialog ───────────────────────────────
+
+function GenerateFromProductDialog({
+  open,
+  onClose,
+  onGenerated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onGenerated: (surfaceId: string) => void;
+}) {
+  const { toast } = useToast();
+  const [selectedInstanceId, setSelectedInstanceId] = useState("");
+  const [marketplace, setMarketplace] = useState<MarketplacePlatform>("ebay");
+
+  const {
+    data: instances = [],
+    isLoading: instancesLoading,
+    error: instancesError,
+  } = useQuery<AdminInstancePreview[]>({
+    queryKey: ["/api/admin/catalog-instances"],
+    enabled: open,
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: async (vars: { instanceId: string; marketplace: string }) => {
+      const res = await apiRequest("POST", "/api/admin/surfaces/generate-from-instance", vars);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      toast({ title: "Surface generated", description: "Draft surface created — open it to review and fill in any remaining fields." });
+      onGenerated(data.surfaceId);
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Generation failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleClose = () => {
+    if (generateMutation.isPending) return;
+    setSelectedInstanceId("");
+    setMarketplace("ebay");
+    onClose();
+  };
+
+  const handleGenerate = () => {
+    if (!selectedInstanceId) {
+      toast({ title: "Select a product first", variant: "destructive" });
+      return;
+    }
+    generateMutation.mutate({ instanceId: selectedInstanceId, marketplace });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Generate Surface from Built Product</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            Pick a committed built product and a target marketplace. A draft Surface will be created with title, description, images, pricing, colors, and sizes pre-filled from the product pipeline.
+          </p>
+
+          {instancesError ? (
+            <p className="text-sm text-destructive" data-testid="text-generate-error">
+              Failed to load products: {(instancesError as Error).message}
+            </p>
+          ) : instancesLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading built products…
+            </div>
+          ) : instances.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center" data-testid="text-generate-empty">
+              No committed products found. Build and commit a product first.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              <Label className="text-xs">Built Product</Label>
+              <Select
+                value={selectedInstanceId}
+                onValueChange={setSelectedInstanceId}
+              >
+                <SelectTrigger data-testid="select-generate-instance">
+                  <SelectValue placeholder="Choose a product…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {instances.map((inst) => (
+                    <SelectItem
+                      key={inst.id}
+                      value={inst.id}
+                      data-testid={`option-instance-${inst.id}`}
+                    >
+                      <span className="font-medium">
+                        {inst.resolved?.title || "Untitled Product"}
+                      </span>
+                      {inst.folderPath && (
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          — {inst.folderPath}
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label className="text-xs">Target Marketplace</Label>
+            <Select
+              value={marketplace}
+              onValueChange={(v) => setMarketplace(v as MarketplacePlatform)}
+            >
+              <SelectTrigger data-testid="select-generate-marketplace">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ebay" data-testid="option-marketplace-ebay">eBay</SelectItem>
+                <SelectItem value="etsy" data-testid="option-marketplace-etsy">Etsy</SelectItem>
+                <SelectItem value="amazon" data-testid="option-marketplace-amazon">Amazon</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Fields requiring external lookup (eBay category ID, policy IDs) will be left blank for you to fill in the Surface editor before publishing.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={generateMutation.isPending}
+            data-testid="button-generate-cancel"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleGenerate}
+            disabled={!selectedInstanceId || generateMutation.isPending || instancesLoading}
+            data-testid="button-generate-confirm"
+          >
+            {generateMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 mr-2" />
+                Generate Surface
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function SurfacesSection() {
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SurfaceForm>(DEFAULT_FORM);
 
@@ -601,6 +778,13 @@ export function SurfacesSection() {
     setEditingId(s.id);
   };
 
+  const handleGenerated = (surfaceId: string) => {
+    const generated = surfaces.find((s) => s.id === surfaceId);
+    if (generated) {
+      openEdit(generated);
+    }
+  };
+
   const closeDialog = () => {
     setShowAdd(false);
     setEditingId(null);
@@ -644,11 +828,23 @@ export function SurfacesSection() {
           <h2 className="text-lg font-semibold" data-testid="text-surfaces-title">Surfaces</h2>
           <p className="text-sm text-muted-foreground">Marketplace-ready product configurations</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} data-testid="button-add-surface">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Surface
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowGenerate(true)} data-testid="button-generate-surface">
+            <Zap className="h-4 w-4 mr-2" />
+            Generate from Product
+          </Button>
+          <Button onClick={() => setShowAdd(true)} data-testid="button-add-surface">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Surface
+          </Button>
+        </div>
       </div>
+
+      <GenerateFromProductDialog
+        open={showGenerate}
+        onClose={() => setShowGenerate(false)}
+        onGenerated={handleGenerated}
+      />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
