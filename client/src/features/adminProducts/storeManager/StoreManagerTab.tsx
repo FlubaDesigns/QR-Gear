@@ -9,6 +9,7 @@ import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { RoleType, Store as StoreType, Channel, Collection } from "../shared/types";
+import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 
 interface AdminInstance {
   id: string;
@@ -40,6 +41,7 @@ interface AdminInstance {
   };
   enabledColors?: string[];
   enabledSizes?: string[];
+  colorMap?: Record<string, string>;
   customerPrice?: string;
   currentPacketId?: string;
 }
@@ -57,8 +59,17 @@ function getImageUrl(instance: AdminInstance): string | null {
   return img.url ?? null;
 }
 
-function ColorToggle({ color, enabled, onToggle }: { color: string; enabled: boolean; onToggle: () => void }) {
+function ColorToggle({ color, enabled, onToggle, colorMap }: {
+  color: string;
+  enabled: boolean;
+  onToggle: () => void;
+  colorMap?: Record<string, string>;
+}) {
   const isHex = color.startsWith("#");
+  // 1. Stored hex from colorMap (exact Printify/Printful value)
+  // 2. Raw value if already a hex string
+  // 3. Canonical name→hex lookup for common Printify/Printful color names
+  const bgColor = colorMap?.[color] ?? (isHex ? color : getColorHexByName(color));
   const displayName = color.length > 10 ? color.slice(0, 9) + "…" : color;
   return (
     <button
@@ -68,17 +79,12 @@ function ColorToggle({ color, enabled, onToggle }: { color: string; enabled: boo
       className="flex flex-col items-center gap-1.5 focus:outline-none flex-shrink-0"
     >
       <div
-        className={`relative w-9 h-9 rounded-md border-2 transition-all flex items-center justify-center
+        className={`relative w-9 h-9 rounded-md border-2 transition-all flex items-center justify-center bg-white/10
           ${enabled ? "border-white/70" : "border-white/15 opacity-30"}`}
-        style={{ backgroundColor: isHex ? color : color.toLowerCase() }}
+        style={bgColor ? { backgroundColor: bgColor } : undefined}
       >
-        {!isHex && !enabled && (
-          <span className="text-[9px] font-bold text-white/60 leading-none uppercase">
-            {color.slice(0, 3)}
-          </span>
-        )}
-        {!isHex && enabled && (
-          <span className="text-[9px] font-bold text-white leading-none uppercase">
+        {!bgColor && (
+          <span className={`text-[9px] font-bold leading-none uppercase ${enabled ? "text-white" : "text-white/60"}`}>
             {color.slice(0, 3)}
           </span>
         )}
@@ -417,6 +423,7 @@ function InstanceCard({
                     color={color}
                     enabled={enabledColors.includes(color)}
                     onToggle={() => toggleColor(color)}
+                    colorMap={instance.colorMap}
                   />
                 ))}
               </div>

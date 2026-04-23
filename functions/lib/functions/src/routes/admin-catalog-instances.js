@@ -125,6 +125,12 @@ function register(app) {
             const normalizedColors = (master.colors ?? [])
                 .map((c) => (typeof c === 'string' ? c : (c?.name ?? c?.hex ?? '')))
                 .filter(Boolean);
+            // Preserve name→hex mapping so the UI can render accurate color swatches
+            const colorMap = {};
+            for (const c of (master.colors ?? [])) {
+                if (typeof c === 'object' && c?.name && c?.hex)
+                    colorMap[c.name] = c.hex;
+            }
             const baseSnapshot = {
                 title: master.title ?? '',
                 description: master.description ?? null,
@@ -150,6 +156,7 @@ function register(app) {
                 baseSnapshot,
                 overrides,
                 resolved,
+                colorMap: Object.keys(colorMap).length > 0 ? colorMap : null,
                 currentPacketId: null,
                 currentTemplateId: null,
                 currentGraphicSetId: null,

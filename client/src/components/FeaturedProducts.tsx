@@ -8,6 +8,7 @@ import UsaFlag from "./UsaFlag";
 import InstantMockupPreview from "./InstantMockupPreview";
 import ProductImageGallery from "./ProductImageGallery";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -165,7 +166,7 @@ function ProductCard({
               type="button"
               key={color}
               className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
-              style={{ backgroundColor: colorHexMap[color] || getColorHex(color) }}
+              style={{ backgroundColor: colorHexMap[color] || getColorHexByName(color) || '#CCCCCC' }}
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -216,35 +217,6 @@ function ProductCard({
   );
 }
 
-function getColorHex(colorName: string): string {
-  const colorMap: Record<string, string> = {
-    'White': '#FFFFFF',
-    'Black': '#000000',
-    'Navy': '#000080',
-    'Navy Blue': '#000080',
-    'Royal Blue': '#4169E1',
-    'Red': '#DC2626',
-    'Heather Gray': '#9CA3AF',
-    'Heather Grey': '#9CA3AF',
-    'Sport Gray': '#6B7280',
-    'Sport Grey': '#6B7280',
-    'Dark Heather': '#374151',
-    'Charcoal': '#36454F',
-    'Natural': '#F5F5DC',
-    'Sand': '#C2B280',
-    'Forest Green': '#228B22',
-    'Kelly Green': '#4CBB17',
-    'Maroon': '#800000',
-    'Orange': '#FF6B00',
-    'Gold': '#FFD700',
-    'Yellow': '#FFFF00',
-    'Light Blue': '#ADD8E6',
-    'Pink': '#FFC0CB',
-    'Purple': '#800080',
-    'Ash': '#B2BEB5',
-  };
-  return colorMap[colorName] || '#CCCCCC';
-}
 
 function ProductQuickView({ 
   product, 
@@ -386,7 +358,7 @@ function ProductQuickView({
           <div className="relative">
             {(() => {
               const hasMockup = galleryImages.length > 0 && galleryImages[0].url !== product.imageUrl;
-              const hexColor = selectedColor ? (colorHexMap[selectedColor] || getColorHex(selectedColor)) : null;
+              const hexColor = selectedColor ? (colorHexMap[selectedColor] || getColorHexByName(selectedColor) || '#CCCCCC') : null;
               const qrArtworkBlack = product.frontChestImage || product.qrCodeUrl;
               const qrArtworkWhite = (product as any).frontChestImageWhite || null;
               
@@ -447,7 +419,7 @@ function ProductQuickView({
               <div className="flex flex-wrap gap-2">
                 {availableColors.map((color: string) => {
                   const hasMockup = localMockups[color]?.front || product.mockupsByColor?.[color]?.front;
-                  const hexColor = colorHexMap[color] || getColorHex(color);
+                  const hexColor = colorHexMap[color] || getColorHexByName(color) || '#CCCCCC';
                   return (
                     <button
                       key={color}

@@ -128,6 +128,12 @@ export function register(app: express.Express): void {
         .map((c: any) => (typeof c === 'string' ? c : (c?.name ?? c?.hex ?? '')))
         .filter(Boolean) as string[];
 
+      // Preserve name→hex mapping so the UI can render accurate color swatches
+      const colorMap: Record<string, string> = {};
+      for (const c of (master.colors ?? [])) {
+        if (typeof c === 'object' && c?.name && c?.hex) colorMap[c.name] = c.hex;
+      }
+
       const baseSnapshot = {
         title:               master.title              ?? '',
         description:         master.description        ?? null,
@@ -155,6 +161,7 @@ export function register(app: express.Express): void {
         baseSnapshot,
         overrides,
         resolved,
+        colorMap:           Object.keys(colorMap).length > 0 ? colorMap : null,
         currentPacketId:    null,
         currentTemplateId:  null,
         currentGraphicSetId: null,
