@@ -61,6 +61,19 @@ app.get('/members/check-status', requireAuth, async (req: Request, res: Response
   } catch { res.json({ isMember: false }); }
 });
 
+app.post('/members/increment-publish', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.uid;
+    await db.collection('member_profiles').doc(userId).set(
+      { publishCount: admin.firestore.FieldValue.increment(1), updatedAt: new Date().toISOString() },
+      { merge: true }
+    );
+    const doc = await db.collection('member_profiles').doc(userId).get();
+    const publishCount = doc.data()?.publishCount ?? 1;
+    res.json({ success: true, publishCount });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 app.put('/members/:memberId/social-handles', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;

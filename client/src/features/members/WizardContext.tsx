@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { PROFILE_QUERY_KEY } from './useMemberRuntimeState';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembersContext } from "@/features/members/MembersContext";
@@ -120,27 +122,49 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     document.body.scrollTop = 0;
   }, [simpleStep]);
 
+  const { data: memberProfileData } = useQuery({
+    queryKey: PROFILE_QUERY_KEY(user?.id || ''),
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { auth } = await import('@/lib/firebase');
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) return null;
+      const res = await fetch('/api/members/profile', { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!user?.id && isAuthenticated,
+    staleTime: 2 * 60 * 1000,
+  });
+
   useEffect(() => {
     if (user?.id) {
-      const count = parseInt(localStorage.getItem(`publish_count_${user.id}`) || '0', 10);
+      const serverCount = (memberProfileData as any)?.profile?.publishCount ?? 0;
+      const localCount = parseInt(localStorage.getItem(`publish_count_${user.id}`) || '0', 10);
+      const count = Math.max(serverCount, localCount);
+      localStorage.setItem(`publish_count_${user.id}`, String(count));
       setPublishCount(count);
-      if (count === 0) {
-        setWizardTier('simple');
-      }
+      if (count === 0) setWizardTier('simple');
     }
-  }, [user?.id]);
+  }, [user?.id, memberProfileData]);
 
   const incrementPublishCount = () => {
     if (user?.id) {
       const newCount = publishCount + 1;
       localStorage.setItem(`publish_count_${user.id}`, String(newCount));
       setPublishCount(newCount);
-
-      if (newCount === 1) {
-        setShowUnlockPrompt('advanced');
-      } else if (newCount === 2) {
-        setShowUnlockPrompt('studio');
-      }
+      if (newCount === 1) setShowUnlockPrompt('advanced');
+      else if (newCount === 2) setShowUnlockPrompt('studio');
+      import('@/lib/firebase').then(({ auth }) =>
+        auth.currentUser?.getIdToken().then(token => {
+          if (!token) return;
+          return fetch('/api/members/increment-publish', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          });
+        }).catch(err => console.warn('[Member] Server publish count sync failed:', err))
+      );
+      queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY(user.id) });
     }
   };
 

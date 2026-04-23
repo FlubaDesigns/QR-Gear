@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
+import { useMemberRuntimeState } from './useMemberRuntimeState';
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -198,9 +199,44 @@ function EarningsView({ memberId }: { memberId: string }) {
 }
 
 
-function MembersSandboxContent() {
-  const { user: apiUser, firebaseUser, isLoading: authLoading, isAuthenticated } = useAuth();
-  const user = apiUser || (firebaseUser ? { id: firebaseUser.uid, email: firebaseUser.email, displayName: firebaseUser.displayName } as any : null);
+function useTempPacketClaim({
+  userId,
+  onboardingComplete,
+  onClaim,
+}: {
+  userId: string;
+  onboardingComplete: boolean;
+  onClaim: (cfg: any) => void;
+}) {
+  const claimedRef = useRef(false);
+  const params = new URLSearchParams(window.location.search);
+  const tempPacketId = params.get('tempPacketId') || localStorage.getItem('pending_temp_packet_id');
+
+  useEffect(() => {
+    if (!onboardingComplete || !tempPacketId || !userId || claimedRef.current) return;
+    claimedRef.current = true;
+    localStorage.removeItem('pending_temp_packet_id');
+    (async () => {
+      try {
+        const { auth } = await import('@/lib/firebase');
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch(`/api/members/${userId}/claim-temp-packet`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ tempPacketId }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && data.packetConfig) onClaim(data.packetConfig);
+      } catch (err) {
+        console.warn('[Member] Failed to claim temp packet:', err);
+      }
+    })();
+  }, [onboardingComplete, tempPacketId, userId]);
+}
+
+function MembersShell() {
+  const { isLoading: authLoading } = useAuth();
 
   if (authLoading) {
     return (
@@ -212,12 +248,12 @@ function MembersSandboxContent() {
 
   return (
     <WizardProvider>
-      <MembersSandboxInner />
+      <MembersController />
     </WizardProvider>
   );
 }
 
-function MembersSandboxInner() {
+function MembersController() {
   const {
     user,
     viewMode, setViewMode,
@@ -226,82 +262,30 @@ function MembersSandboxInner() {
     showUnlockPrompt, setShowUnlockPrompt,
     setSelectedColor, setQrType, setSelectedPlacements, setGraphicSize,
   } = useWizardContext();
-  const { isAuthenticated } = useAuth();
-
-  const userId = user?.id || '';
   const [, setLocation] = useLocation();
   const [initialChannelId, setInitialChannelId] = useState<string | null>(null);
-  const onboardingKey = `member_onboarding_complete_${userId}`;
-  const localComplete = userId ? localStorage.getItem(onboardingKey) === 'true' : false;
-  const [serverChecked, setServerChecked] = useState(false);
-  const [serverComplete, setServerComplete] = useState(false);
+
+  const { isLoading, isAuthenticated, userId, onboardingComplete } = useMemberRuntimeState();
 
   useEffect(() => {
-    if (!userId || localComplete) { setServerChecked(true); return; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const { auth } = await import("@/lib/firebase");
-        const token = await auth.currentUser?.getIdToken();
-        if (!token) { setServerChecked(true); return; }
-        const res = await fetch('/api/members/profile', { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) { setServerChecked(true); return; }
-        const data = await res.json();
-        if (!cancelled && data.isMember) {
-          localStorage.setItem(onboardingKey, 'true');
-          setServerComplete(true);
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setServerChecked(true);
-    })();
-    return () => { cancelled = true; };
-  }, [userId, localComplete, onboardingKey]);
-
-  const onboardingComplete = localComplete || serverComplete;
-
-  useEffect(() => {
-    if (isAuthenticated && userId && serverChecked && !onboardingComplete) {
+    if (!isLoading && isAuthenticated && userId && !onboardingComplete) {
       const params = window.location.search;
       setLocation(`/member${params}`);
     }
-  }, [isAuthenticated, userId, onboardingComplete, serverChecked, setLocation]);
+  }, [isLoading, isAuthenticated, userId, onboardingComplete, setLocation]);
 
-  const params = new URLSearchParams(window.location.search);
-  const tempPacketIdFromUrl = params.get('tempPacketId') || localStorage.getItem('pending_temp_packet_id');
-
-  const claimTempPacket = async (memberId: string, packetId: string) => {
-    try {
-      const token = await (await import("@/lib/firebase")).auth.currentUser?.getIdToken();
-      const res = await fetch(`/api/members/${memberId}/claim-temp-packet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ tempPacketId: packetId }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.success && data.packetConfig) {
-        const cfg = data.packetConfig;
-        if (cfg.selectedColor) setSelectedColor(cfg.selectedColor);
-        if (cfg.qrType) setQrType(cfg.qrType);
-        if (cfg.selectedPlacements?.length) setSelectedPlacements(cfg.selectedPlacements);
-        if (cfg.graphicSize) setGraphicSize(cfg.graphicSize);
-        console.log('[Member] Claimed temp packet config:', cfg);
-      }
-    } catch (err) {
-      console.warn('[Member] Failed to claim temp packet:', err);
-    }
-  };
-
-  const claimedRef = useRef(false);
-  useEffect(() => {
-    if (onboardingComplete && tempPacketIdFromUrl && userId && !claimedRef.current) {
-      claimedRef.current = true;
-      localStorage.removeItem('pending_temp_packet_id');
-      claimTempPacket(userId, tempPacketIdFromUrl);
+  useTempPacketClaim({
+    userId,
+    onboardingComplete,
+    onClaim: (cfg: any) => {
+      if (cfg.selectedColor) setSelectedColor(cfg.selectedColor);
+      if (cfg.qrType) setQrType(cfg.qrType);
+      if (cfg.selectedPlacements?.length) setSelectedPlacements(cfg.selectedPlacements);
+      if (cfg.graphicSize) setGraphicSize(cfg.graphicSize);
       setWizardTier('super-simple');
       setViewMode('wizard');
-    }
-  }, [onboardingComplete, tempPacketIdFromUrl, userId]);
+    },
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -310,7 +294,7 @@ function MembersSandboxInner() {
     }
   }, [isAuthenticated]);
 
-  if (isAuthenticated && !onboardingComplete) {
+  if (isAuthenticated && (isLoading || !onboardingComplete)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
@@ -320,7 +304,7 @@ function MembersSandboxInner() {
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
-      <SEO title="Members Sandbox" description="Build and sell your products" />
+      <SEO title="Member Area" description="Build and sell your products" />
       
       <div className="container py-4 max-w-5xl mx-auto px-4">
         {viewMode !== 'wizard' && isAuthenticated && (
@@ -598,12 +582,12 @@ class MembersErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 }
 
-export default function TestMembersSandbox() {
+export default function MembersApp() {
   return (
     <MembersErrorBoundary>
       <MemberAuthProvider apiBase="/api/members">
         <MembersProvider>
-          <MembersSandboxContent />
+          <MembersShell />
         </MembersProvider>
       </MemberAuthProvider>
     </MembersErrorBoundary>
