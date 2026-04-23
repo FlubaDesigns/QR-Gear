@@ -1,0 +1,106 @@
+CLAUDE HANDOFF — STORE BUILDER → STOREFRONT CONTRACT ENFORCEMENT (READ FULLY)
+
+You MUST follow the canon defined in README.md, replit.md, and ADMIN_README.md. Do NOT create new systems. Do NOT create a second viewer. Use the existing Viewer → View → Skin architecture. Pages are composition only — no business logic in pages.
+
+This is NOT a redesign. This is an ENFORCEMENT pass of the existing Builder → Storefront Display Contract, which already exists in this repo:
+
+- options[]
+- cardMode
+- media
+
+The current problem:
+- Color and size UX is unusable (dropdown/form-like)
+- Product cards are overloaded (trying to browse + configure + add to cart)
+- Mobile UX is cluttered and frustrating
+- Storefront is ignoring or inconsistently consuming the builder contract
+
+This directly violates ADMIN_README.md, which already defines:
+- color swatches
+- size chips
+
+YOUR TASK:
+Audit and enforce the contract so the storefront behaves correctly.
+
+1. options[]
+Each option group MUST include:
+- name (color, size)
+- displayType ("swatches", "pills", "dropdown")
+- isPrimary
+- values[] (structured, not strings)
+
+Rules:
+- color MUST render as swatches
+- size MUST render as pills
+- dropdown is fallback only
+- DO NOT guess UI — use displayType
+
+2. cardMode
+Controls product card behavior:
+- "browseOnly"
+- "quickAdd"
+
+Rules:
+- Products with color + size MUST be browseOnly
+- browseOnly = NO color/size selection in card
+- DO NOT allow multi-step interaction inside cards
+
+3. media
+Must provide:
+- images[] (full ordered gallery)
+- hero strategy (mockup first if present)
+
+Rules:
+- DO NOT collapse to single image
+- DO NOT ignore curated images
+- Order must be: mockup → curated images
+
+COLLECTION PAGE REQUIREMENTS:
+Example: /shop/internal/qrgear/usa250/armed-forces
+
+Product cards MUST:
+- show single image (no full gallery)
+- show title
+- show price
+- tap → open product page
+
+REMOVE from cards:
+- color selectors
+- size selectors
+- dropdowns
+- add-to-cart forms
+- embedded ProductImageGallery
+
+Cards are ENTRY POINTS, not mini product pages.
+
+PRODUCT PAGE REQUIREMENTS:
+All interaction happens here ONLY:
+
+- Full gallery (images[])
+- Color swatches (visual, tap-friendly)
+- Size pills (one-tap selection)
+- Add to cart
+
+DO NOT:
+- use dropdowns for color or size
+- hide options behind extra taps
+- split selection across UI layers
+
+MOBILE-FIRST RULES:
+- tap targets must be large
+- no cramped controls
+- no multi-step dropdown interaction
+- gallery must swipe cleanly
+- browsing must be fast and calm
+
+If selecting color or size is difficult on mobile, it is wrong.
+
+FINAL OBJECTIVE:
+- Collection pages = clean browsing
+- Product cards = simple, tap-to-open
+- Product page = full experience
+- options[] respected
+- cardMode enforced
+- media used correctly
+- Viewer/View/Skin remains the ONLY system
+
+Do not improvise. Enforce the existing system defined in this repo.
