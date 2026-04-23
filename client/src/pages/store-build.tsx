@@ -316,13 +316,8 @@ export default function StoreBuildPage() {
     saveProductMutation.mutate({ productId, config });
   }
 
-  if (!user) {
-    return (
-      <div className="container mx-auto p-8 text-center">
-        <p>Please log in to access this page.</p>
-      </div>
-    );
-  }
+  // DEV BYPASS — remove before deploying
+  // if (!user) { ... }
 
   const enabledProducts = products?.filter(p => p.isEnabled) || [];
   const filteredProducts = usaOnly
