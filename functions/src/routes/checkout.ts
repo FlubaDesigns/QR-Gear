@@ -38,7 +38,27 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     const productImage = packet.itemImage || packet.socialPacket?.itemImage || null;
     const packetBaseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
 
-    const session = await stripe.checkout.sessions.create({
+    // Resolve creator's Connect account for automatic 25% transfer
+    const creatorMemberId = packet.memberId || '';
+    let connectAccountId = '';
+    let connectTransferApplied = false;
+    if (creatorMemberId) {
+      try {
+        const profileDoc = await db.collection('member_profiles').doc(creatorMemberId).get();
+        const profile = profileDoc.data() || {};
+        if (profile.stripeConnectAccountId && profile.stripePayoutsEnabled === true) {
+          connectAccountId = profile.stripeConnectAccountId;
+        }
+      } catch (profileErr: any) {
+        console.warn('[PacketCheckout] Non-fatal: Could not fetch creator profile for Connect:', profileErr.message);
+      }
+    }
+
+    const totalCents = Math.round(serverTotal * 100);
+    const entityShareCents = Math.floor(totalCents * 0.25);
+
+    // Build session with optional destination transfer
+    const sessionParams: any = {
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
@@ -48,7 +68,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
             description: `Size: ${size}`,
             images: productImage ? [productImage.startsWith('http') ? productImage : `${packetBaseUrl}${productImage}`] : [],
           },
-          unit_amount: Math.round(serverTotal * 100),
+          unit_amount: totalCents,
         },
         quantity: 1,
       }],
@@ -63,11 +83,26 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
         selectedShirtSize: size,
         referrerId: referrerId || '',
         source: 'packet_share',
-        memberId: packet.memberId || '',
+        memberId: creatorMemberId,
         serverTotal: serverTotal.toString(),
+        connectAccountId: connectAccountId || '',
+        connectTransferApplied: connectAccountId ? 'true' : 'false',
       },
       customer_creation: 'if_required',
-    });
+    };
+
+    if (connectAccountId && entityShareCents > 0) {
+      sessionParams.payment_intent_data = {
+        transfer_data: {
+          destination: connectAccountId,
+          amount: entityShareCents,
+        },
+      };
+      connectTransferApplied = true;
+      console.log(`[PacketCheckout] Connect transfer: ${entityShareCents}¢ → ${connectAccountId}`);
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     console.log(`[PacketCheckout] Created session ${session.id} for packet ${packetId}, total: $${serverTotal}`);
     res.json({ url: session.url, sessionId: session.id, total: serverTotal });
@@ -131,6 +166,8 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
 
     if (!alreadyExisted) {
       const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
+      const connectAccountIdMeta = session.metadata?.connectAccountId || '';
+      const connectTransferAppliedMeta = session.metadata?.connectTransferApplied === 'true';
 
       await writePayoutAttribution({
         source: 'packet_share',
@@ -141,6 +178,8 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
         referrerId: referrerId || undefined,
         buyerEmail: buyerEmail || undefined,
         packetId,
+        connectTransferApplied: connectTransferAppliedMeta,
+        connectAccountId: connectAccountIdMeta || undefined,
       });
 
       // Send activation email with claim code

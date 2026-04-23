@@ -48,7 +48,26 @@ function register(app) {
             const productTitle = packet.title || 'QR Gear Custom Product';
             const productImage = packet.itemImage || packet.socialPacket?.itemImage || null;
             const packetBaseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
-            const session = await stripe.checkout.sessions.create({
+            // Resolve creator's Connect account for automatic 25% transfer
+            const creatorMemberId = packet.memberId || '';
+            let connectAccountId = '';
+            let connectTransferApplied = false;
+            if (creatorMemberId) {
+                try {
+                    const profileDoc = await core_1.db.collection('member_profiles').doc(creatorMemberId).get();
+                    const profile = profileDoc.data() || {};
+                    if (profile.stripeConnectAccountId && profile.stripePayoutsEnabled === true) {
+                        connectAccountId = profile.stripeConnectAccountId;
+                    }
+                }
+                catch (profileErr) {
+                    console.warn('[PacketCheckout] Non-fatal: Could not fetch creator profile for Connect:', profileErr.message);
+                }
+            }
+            const totalCents = Math.round(serverTotal * 100);
+            const entityShareCents = Math.floor(totalCents * 0.25);
+            // Build session with optional destination transfer
+            const sessionParams = {
                 payment_method_types: ['card'],
                 line_items: [{
                         price_data: {
@@ -58,7 +77,7 @@ function register(app) {
                                 description: `Size: ${size}`,
                                 images: productImage ? [productImage.startsWith('http') ? productImage : `${packetBaseUrl}${productImage}`] : [],
                             },
-                            unit_amount: Math.round(serverTotal * 100),
+                            unit_amount: totalCents,
                         },
                         quantity: 1,
                     }],
@@ -73,11 +92,24 @@ function register(app) {
                     selectedShirtSize: size,
                     referrerId: referrerId || '',
                     source: 'packet_share',
-                    memberId: packet.memberId || '',
+                    memberId: creatorMemberId,
                     serverTotal: serverTotal.toString(),
+                    connectAccountId: connectAccountId || '',
+                    connectTransferApplied: connectAccountId ? 'true' : 'false',
                 },
                 customer_creation: 'if_required',
-            });
+            };
+            if (connectAccountId && entityShareCents > 0) {
+                sessionParams.payment_intent_data = {
+                    transfer_data: {
+                        destination: connectAccountId,
+                        amount: entityShareCents,
+                    },
+                };
+                connectTransferApplied = true;
+                console.log(`[PacketCheckout] Connect transfer: ${entityShareCents}¢ → ${connectAccountId}`);
+            }
+            const session = await stripe.checkout.sessions.create(sessionParams);
             console.log(`[PacketCheckout] Created session ${session.id} for packet ${packetId}, total: $${serverTotal}`);
             res.json({ url: session.url, sessionId: session.id, total: serverTotal });
         }
@@ -138,6 +170,8 @@ function register(app) {
             });
             if (!alreadyExisted) {
                 const productCost = packet.pricingSnapshot?.printifyCostBase || packet.pricingSnapshot?.totalCostBase || 0;
+                const connectAccountIdMeta = session.metadata?.connectAccountId || '';
+                const connectTransferAppliedMeta = session.metadata?.connectTransferApplied === 'true';
                 await (0, order_service_1.writePayoutAttribution)({
                     source: 'packet_share',
                     orderId,
@@ -147,6 +181,8 @@ function register(app) {
                     referrerId: referrerId || undefined,
                     buyerEmail: buyerEmail || undefined,
                     packetId,
+                    connectTransferApplied: connectTransferAppliedMeta,
+                    connectAccountId: connectAccountIdMeta || undefined,
                 });
                 // Send activation email with claim code
                 if (buyerEmail && claimCode) {

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Users, Package, QrCode, Loader2, ChevronRight, Layers, User,
   DollarSign, Share2, Plus, ExternalLink, Wand2, Zap, Sparkles,
-  ArrowRight, BarChart3, CalendarPlus
+  ArrowRight, BarChart3, CalendarPlus, Banknote
 } from "lucide-react";
 import {
   type ViewMode, type WizardTier, type MemberChannel,
@@ -337,6 +337,24 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
           </CardContent>
         </Card>
       )}
+
+      {/* Payouts CTA */}
+      <button
+        onClick={() => onNavigate('payouts')}
+        className="w-full text-left bg-gradient-to-r from-emerald-900/40 to-teal-900/40 border border-emerald-700/40 hover:border-emerald-500/60 rounded-lg p-4 transition-colors flex items-center justify-between gap-4"
+        data-testid="cta-payouts"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
+            <Banknote className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-white text-sm">Get paid automatically</p>
+            <p className="text-slate-400 text-xs">Connect your bank account to receive your 25% profit share on every sale</p>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-emerald-400 shrink-0" />
+      </button>
     </div>
   );
 }

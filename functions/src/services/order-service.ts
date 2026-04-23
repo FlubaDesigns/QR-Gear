@@ -391,6 +391,8 @@ export interface PayoutAttributionInput {
   builderHostId?: string;
   builderPlacementId?: string;
   quantity?: number;
+  connectTransferApplied?: boolean;
+  connectAccountId?: string;
 }
 
 export async function writePayoutAttribution(input: PayoutAttributionInput): Promise<void> {
@@ -411,6 +413,8 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
   if (input.creatorMemberId && profit > 0) {
     try {
       const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
+      const connectTransferApplied = !!input.connectTransferApplied;
+      const connectAccountId = input.connectAccountId || '';
       await db.collection('member_earnings').add({
         memberId: input.creatorMemberId,
         orderId: input.orderId,
@@ -421,7 +425,9 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
         sharePercent: 25,
         earnings: creatorEarnings,
         type: 'product_sale',
-        status: 'pending',
+        status: connectTransferApplied ? 'transferred' : 'pending',
+        connectTransferApplied,
+        ...(connectAccountId ? { connectAccountId } : {}),
         createdAt: nowISO,
       });
       console.log(`[OrderService] Creator ${input.creatorMemberId} earned $${creatorEarnings} from order ${input.orderId}`);

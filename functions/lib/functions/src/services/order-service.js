@@ -282,6 +282,8 @@ async function writeCreatorAndReferralPayouts(input, nowISO) {
     if (input.creatorMemberId && profit > 0) {
         try {
             const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
+            const connectTransferApplied = !!input.connectTransferApplied;
+            const connectAccountId = input.connectAccountId || '';
             await core_1.db.collection('member_earnings').add({
                 memberId: input.creatorMemberId,
                 orderId: input.orderId,
@@ -292,7 +294,9 @@ async function writeCreatorAndReferralPayouts(input, nowISO) {
                 sharePercent: 25,
                 earnings: creatorEarnings,
                 type: 'product_sale',
-                status: 'pending',
+                status: connectTransferApplied ? 'transferred' : 'pending',
+                connectTransferApplied,
+                ...(connectAccountId ? { connectAccountId } : {}),
                 createdAt: nowISO,
             });
             console.log(`[OrderService] Creator ${input.creatorMemberId} earned $${creatorEarnings} from order ${input.orderId}`);

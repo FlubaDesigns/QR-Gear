@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260423-oil-change-rules-indexes-v1';
+const _BUILD_ID = '20260423-stripe-connect-payouts-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -56,6 +56,7 @@ import { registerAdminBuildSessions } from './routes/admin-build-sessions';
 import { register as registerAmazonOAuth } from './routes/amazon-oauth';
 import { register as registerEbayOAuth } from './routes/ebay-oauth';
 import { register as registerEtsyOAuth } from './routes/etsy-oauth';
+import { register as registerConnect } from './routes/connect';
 
 const app = express();
 
@@ -116,6 +117,7 @@ registerAdminBuildSessions(app);
 registerAmazonOAuth(app);
 registerEbayOAuth(app);
 registerEtsyOAuth(app);
+registerConnect(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

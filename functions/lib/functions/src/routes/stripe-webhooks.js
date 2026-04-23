@@ -157,6 +157,35 @@ function register(app) {
                     }
                     break;
                 }
+                case 'account.updated': {
+                    const account = event.data.object;
+                    const accountId = account.id;
+                    const payoutsEnabled = account.payouts_enabled === true;
+                    const chargesEnabled = account.charges_enabled === true;
+                    const onboardingComplete = payoutsEnabled && chargesEnabled;
+                    console.log(`[Connect Webhook] account.updated: ${accountId} payouts=${payoutsEnabled} charges=${chargesEnabled}`);
+                    try {
+                        const profileQuery = await core_1.db.collection('member_profiles')
+                            .where('stripeConnectAccountId', '==', accountId).limit(1).get();
+                        if (!profileQuery.empty) {
+                            const profileRef = profileQuery.docs[0].ref;
+                            await profileRef.set({
+                                stripePayoutsEnabled: payoutsEnabled,
+                                stripeChargesEnabled: chargesEnabled,
+                                stripeOnboardingComplete: onboardingComplete,
+                                stripeStatusSyncedAt: new Date().toISOString(),
+                            }, { merge: true });
+                            console.log(`[Connect Webhook] Synced Connect status for profile ${profileQuery.docs[0].id}`);
+                        }
+                        else {
+                            console.warn(`[Connect Webhook] No member profile found for Stripe account ${accountId}`);
+                        }
+                    }
+                    catch (syncErr) {
+                        console.error('[Connect Webhook] Non-fatal status sync error:', syncErr.message);
+                    }
+                    break;
+                }
                 case 'payment_intent.succeeded': {
                     const paymentIntent = event.data.object;
                     console.log('Payment succeeded:', paymentIntent.id);

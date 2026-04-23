@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   User, QrCode, Loader2, Layers, DollarSign, Share2,
-  Wand2, Zap, Sparkles, BarChart3
+  Wand2, Zap, Sparkles, BarChart3, Banknote
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import SEO from "@/components/SEO";
@@ -19,6 +19,7 @@ import {
 import { WizardProvider, useWizardContext } from "./WizardContext";
 import { MemberIndexView } from "./member-index-view";
 import { ChannelsView } from "./member-channels-view";
+import { PayoutsView } from "./PayoutsView";
 
 const SuperSimpleWizard = lazy(() => import("./SuperSimpleWizard").then(m => ({ default: m.SuperSimpleWizard })));
 const SimpleWizard = lazy(() => import("./SimpleWizard").then(m => ({ default: m.SimpleWizard })));
@@ -405,6 +406,16 @@ function MembersSandboxInner() {
                 Earnings
               </Button>
               <Button
+                variant={viewMode === 'payouts' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('payouts')}
+                data-testid="tab-payouts"
+                className={viewMode === 'payouts' ? 'bg-emerald-600 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
+              >
+                <Banknote className="w-4 h-4 mr-1" />
+                Payouts
+              </Button>
+              <Button
                 variant={viewMode === 'social' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('social')}
@@ -539,6 +550,10 @@ function MembersSandboxInner() {
 
         {viewMode === 'earnings' && (
           <EarningsView memberId={user?.id || ''} />
+        )}
+
+        {viewMode === 'payouts' && (
+          <PayoutsView memberId={user?.id || ''} />
         )}
 
         {viewMode === 'social' && (
