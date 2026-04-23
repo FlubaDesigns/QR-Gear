@@ -40,7 +40,7 @@ title = "QR Gear Full Source Backup"
 id = "LpkDWMxG1f-h35YkcrvEo"
 uri = "file://downloads/QR_Gear_Full_Website.zip"
 type = "unspecified"
-title = "QR_Gear_Full_Website.zip"
+title = "QR Gear Full Website (updated with Stripe Connect)"
 
 [[outputs]]
 id = "VCcE20W2Vqioz2fz1HEQl"
@@ -95,3 +95,9 @@ id = "xJcvE2Pbaq35IjnEuSPb4"
 uri = "file://downloads/etsy-integration-rev23.zip"
 type = "unspecified"
 title = "Etsy Integration — Rev 23 (changed files)"
+
+[[outputs]]
+id = "U5vhgovJjgcxJa_DHUWXr"
+uri = "file://downloads/QR_Gear_StripeConnect_Changes.zip"
+type = "unspecified"
+title = "Stripe Connect Changes Only (9 files)"
