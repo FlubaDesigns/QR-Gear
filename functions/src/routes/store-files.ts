@@ -69,12 +69,14 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
       }
 
-      // Build ordered gallery: mockup first, then any stored images array
-      const heroUrl = link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null;
+      // Build ordered gallery: lifestyle/model image first, then flat mockup, then any extras
+      const lifestyleUrl: string | null = link.lifestyleMockupUrl || null;
+      const flatMockupUrl: string | null = link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null;
       const storedImages = toUrlArr(link.images || []);
       const allImages: string[] = [];
-      if (heroUrl) allImages.push(heroUrl);
-      storedImages.forEach((u) => { if (u !== heroUrl) allImages.push(u); });
+      if (lifestyleUrl) allImages.push(lifestyleUrl);
+      if (flatMockupUrl && flatMockupUrl !== lifestyleUrl) allImages.push(flatMockupUrl);
+      storedImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
 
       res.json({
         id: linkDoc.id,
