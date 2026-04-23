@@ -491,6 +491,7 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
         colorName,
         colorHex,
         placement = 'front',
+        selectedPlacements,
         qrSize = 'medium',
         fulfillmentProvider = 'printify',
         qrUrl,
@@ -499,6 +500,11 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
         textLayoutChoice,
         qrColor = 'black',
       } = req.body;
+
+      // Support both old single `placement` and new `selectedPlacements` array
+      const placementsToGenerate: string[] = Array.isArray(selectedPlacements) && selectedPlacements.length > 0
+        ? selectedPlacements
+        : [placement];
 
       if (!blueprintId || !colorName) {
         return res.status(400).json({ error: "Missing required fields: blueprintId, colorName" });
@@ -577,31 +583,58 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
       const { getMockupWithFallback } = await import("../lib/mockup-service");
       const storageModule = (await import("../storage")).storage;
 
-      const result = await getMockupWithFallback({
-        blueprintId: parseInt(blueprintId),
-        printProviderId: parseInt(printProviderId) || 99,
-        colorName,
-        colorHex: colorHex || '#000000',
-        canonicalPlacementId: placement,
-        artworkUrl,
-        artworkVariant: qrColor === 'white' ? 'white' : 'black',
-        qrSize: qrSize as 'small' | 'medium' | 'large',
-        fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      }, storageModule);
+      // Generate a mockup for every selected placement
+      const placementResults: Record<string, { mockupUrl: string; lifestyleMockupUrl?: string | null }> = {};
+      for (const canonicalPlacement of placementsToGenerate) {
+        try {
+          const result = await getMockupWithFallback({
+            blueprintId: parseInt(blueprintId),
+            printProviderId: parseInt(printProviderId) || 99,
+            colorName,
+            colorHex: colorHex || '#000000',
+            canonicalPlacementId: canonicalPlacement,
+            artworkUrl,
+            artworkVariant: qrColor === 'white' ? 'white' : 'black',
+            qrSize: qrSize as 'small' | 'medium' | 'large',
+            fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
+          }, storageModule);
+          console.log(`[PublicMockup] Mockup generated for ${canonicalPlacement}: ${result.mockupUrl} (cached: ${result.fromCache})`);
+          placementResults[canonicalPlacement] = {
+            mockupUrl: result.mockupUrl,
+            lifestyleMockupUrl: result.lifestyleMockupUrl,
+          };
+        } catch (placementErr: any) {
+          console.warn(`[PublicMockup] Skipping placement ${canonicalPlacement}: ${placementErr.message}`);
+        }
+      }
 
-      console.log(`[PublicMockup] Mockup generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+      // Primary = front if available, otherwise first successfully generated placement
+      const primaryPlacement =
+        placementsToGenerate.find(p => placementResults[p]) || Object.keys(placementResults)[0];
+      const primaryResult = primaryPlacement ? placementResults[primaryPlacement] : null;
+
+      if (!primaryResult?.mockupUrl) {
+        throw new Error('Mockup generation failed for all selected placements');
+      }
+
+      // Build flat placement→URL map for storage and response
+      const placementMockupUrls: Record<string, string> = {};
+      for (const [p, r] of Object.entries(placementResults)) {
+        if (r.mockupUrl) placementMockupUrls[p] = r.mockupUrl;
+      }
 
       if (tempPacketId) {
         try {
           const { getFirestoreDb } = await import("../lib/firebase-admin");
           const db = getFirestoreDb();
           await db.collection('temp_packets').doc(tempPacketId).update({
-            mockupUrl: result.mockupUrl,
-            lifestyleMockupUrl: result.lifestyleMockupUrl,
+            mockupUrl: primaryResult.mockupUrl,
+            lifestyleMockupUrl: primaryResult.lifestyleMockupUrl ?? null,
+            placementMockupUrls,
             artworkUrl,
             updatedAt: new Date().toISOString(),
           });
-          console.log(`[PublicMockup] Packet ${tempPacketId} updated with mockup`);
+          console.log(`[PublicMockup] Packet ${tempPacketId} updated with ${Object.keys(placementMockupUrls).length} placement mockup(s)`);
         } catch (pktErr: any) {
           console.warn(`[PublicMockup] Failed to update packet: ${pktErr.message}`);
         }
@@ -609,10 +642,11 @@ export function registerMemberPublicWizardRoutes(app: Express): void {
 
       res.json({
         success: true,
-        mockupUrl: result.mockupUrl,
-        lifestyleMockupUrl: result.lifestyleMockupUrl,
+        mockupUrl: primaryResult.mockupUrl,
+        lifestyleMockupUrl: primaryResult.lifestyleMockupUrl,
+        placementMockupUrls,
         artworkUrl,
-        fromCache: result.fromCache,
+        fromCache: false,
       });
     } catch (error: any) {
       console.error("[PublicMockup] Error:", error);

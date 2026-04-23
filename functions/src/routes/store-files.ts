@@ -39,12 +39,16 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let category = '';
       let productLine = '';
       let packetImageUrl: string | null = null;
+      let packetPlacementMockupUrls: Record<string, string> = {};
 
       if (link.packetId) {
         const packetDoc = await db.collection('packets').doc(link.packetId).get();
         if (packetDoc.exists) {
           const packet = packetDoc.data()!;
           packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
+          if (packet.placementMockupUrls && typeof packet.placementMockupUrls === 'object') {
+            packetPlacementMockupUrls = packet.placementMockupUrls as Record<string, string>;
+          }
           const productId = packet.productId;
           if (productId) {
             price = await getAuthoritativePrice(productId);
@@ -69,13 +73,28 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
       }
 
-      // Build ordered gallery: lifestyle/model image first, then flat mockup, then any extras
+      // Build ordered gallery: lifestyle first → primary flat mockup → additional placement views → any extras
       const lifestyleUrl: string | null = link.lifestyleMockupUrl || null;
       const flatMockupUrl: string | null = link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null;
       const storedImages = toUrlArr(link.images || []);
+
+      // Merge placement mockup URLs — link overrides packet (admin can override via PATCH)
+      const mergedPlacementUrls: Record<string, string> = {
+        ...packetPlacementMockupUrls,
+        ...(link.placementMockupUrls && typeof link.placementMockupUrls === 'object'
+          ? (link.placementMockupUrls as Record<string, string>)
+          : {}),
+      };
+      const EXTRA_PLACEMENT_ORDER = ['back', 'left_sleeve', 'right_sleeve'];
+
       const allImages: string[] = [];
       if (lifestyleUrl) allImages.push(lifestyleUrl);
       if (flatMockupUrl && flatMockupUrl !== lifestyleUrl) allImages.push(flatMockupUrl);
+      // Back and sleeve views follow the primary mockup
+      EXTRA_PLACEMENT_ORDER.forEach(p => {
+        const u = mergedPlacementUrls[p];
+        if (u && !allImages.includes(u)) allImages.push(u);
+      });
       storedImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
 
       res.json({

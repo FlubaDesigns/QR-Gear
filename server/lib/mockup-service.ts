@@ -388,39 +388,48 @@ async function generatePrintfulMockupInternal(params: {
   const targetVariant = variants.find(v => v.size === 'M') || variants[0];
   console.log(`[MockupService/Printful] Using variant: ${targetVariant.id} (${targetVariant.size}, ${targetVariant.color})`);
 
-  // Step 3: Get printfile info for positioning
+  // Step 3: Get printfile info + available placements
   const printfiles = await printfulClient.getPrintfiles(printfulProductId);
-  const frontPrintfile = printfiles.printfiles?.find((p: any) => p.printfile_id === 1) || printfiles.printfiles?.[0];
-  
-  // Position for front chest - QR code size based on user preference
-  const areaWidth = frontPrintfile?.width || 4500;  // Printful's actual area for t-shirts
-  const areaHeight = frontPrintfile?.height || 5400;
-  
+  const availPlacements = printfiles?.available_placements ? Object.keys(printfiles.available_placements) : [];
+
+  // Step 4: Map canonical placement to Printful placement (needed before printfile dimension lookup)
+  const printfulPlacement = toProviderPlacement('printful', canonicalPlacementId, availPlacements, params.printMethod);
+
+  // Resolve placement-specific print area from variant_printfiles — sleeve areas differ from chest
+  const variantPfEntry = (printfiles.variant_printfiles as any[] | undefined)?.find(
+    (vp: any) => vp.variant_id === targetVariant.id
+  );
+  const placementPfId: number | undefined = variantPfEntry?.placements?.[printfulPlacement];
+  const activePrintfile =
+    (placementPfId != null
+      ? (printfiles.printfiles as any[] | undefined)?.find((p: any) => p.printfile_id === placementPfId)
+      : undefined) ||
+    (printfiles.printfiles as any[] | undefined)?.find((p: any) => p.printfile_id === 1) ||
+    (printfiles.printfiles as any[] | undefined)?.[0];
+
+  const areaWidth: number = activePrintfile?.width || 4500;
+  const areaHeight: number = activePrintfile?.height || 5400;
+
   // QR size based on size preference: small=25%, medium=45%, large=65% of print area
   const sizePercentages: Record<string, number> = {
-    small: 0.25,   // ~4" on a 12"x16" area
-    medium: 0.45,  // ~8" on a 12"x16" area  
-    large: 0.65,   // ~12" on a 12"x16" area (near max)
+    small: 0.25,
+    medium: 0.45,
+    large: 0.65,
   };
   const sizePercent = sizePercentages[params.qrSize || 'medium'] || sizePercentages.medium;
-  // Minimum QR size is 15% of print area (ensures visibility without overriding user choice)
   const minQrSize = Math.round(areaWidth * 0.15);
   const qrSize = Math.max(Math.round(areaWidth * sizePercent), minQrSize);
-  
-  console.log(`[MockupService/Printful] Print area: ${areaWidth}x${areaHeight}, QR size: ${qrSize}px (${Math.round(qrSize/areaWidth*100)}%)`);
-  
+
+  console.log(`[MockupService/Printful] Placement: ${printfulPlacement} (${canonicalPlacementId}), print area: ${areaWidth}x${areaHeight}, QR size: ${qrSize}px (${Math.round(qrSize / areaWidth * 100)}%)`);
+
   const position = {
     area_width: areaWidth,
     area_height: areaHeight,
     width: qrSize,
     height: qrSize,
-    top: Math.round(areaHeight * 0.15),  // ~15% from top for chest placement
-    left: Math.round((areaWidth - qrSize) / 2),  // Centered horizontally
+    top: Math.round(areaHeight * 0.15),
+    left: Math.round((areaWidth - qrSize) / 2),
   };
-
-  // Step 4: Map internal placement to Printful placement using bridge (respecting DTG/DTF method choice)
-  const availPlacements = printfiles?.available_placements ? Object.keys(printfiles.available_placements) : [];
-  const printfulPlacement = toProviderPlacement('printful', canonicalPlacementId, availPlacements, params.printMethod);
 
   // Step 5: Build files array - main artwork + auto-branding tag
   const mockupFiles: Array<{ placement: string; image_url: string; position?: any }> = [{

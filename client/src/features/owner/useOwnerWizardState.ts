@@ -145,7 +145,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
           printProviderId: selectedProductType.printProviderId || 99,
           colorName: colorInfo?.name || selectedColor,
           colorHex: colorInfo?.hex || '#1a1a1a',
-          placement: selectedPlacements[0] || 'front',
+          selectedPlacements: selectedPlacements.length > 0 ? selectedPlacements : ['front'],
           qrSize: graphicSize || 'medium',
           qrUrl: qrContent,
           headerStyle,
