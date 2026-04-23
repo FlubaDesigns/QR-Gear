@@ -424,7 +424,7 @@ function InstanceCard({
       )}
 
 
-      {/* Actions accordion */}
+      {/* Actions accordion — Move only */}
       <AccordionSection label="Actions">
         <div className="flex gap-2">
           <button
@@ -434,29 +434,6 @@ function InstanceCard({
           >
             <MoveRight className="h-4 w-4" /> Move
           </button>
-          {!confirmDelete ? (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="qr-btn qr-btn--outline qr-btn--touch flex-1 text-red-400 gap-2"
-              data-testid={`button-delete-${instance.id}`}
-            >
-              <Trash2 className="h-4 w-4" /> Delete
-            </button>
-          ) : (
-            <div className="flex gap-2 flex-1">
-              <button
-                onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
-                className="qr-btn qr-btn--touch flex-1 bg-red-500/20 text-red-300 border border-red-500/30"
-                data-testid={`button-confirm-delete-${instance.id}`}
-              >
-                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
-              </button>
-              <button onClick={() => setConfirmDelete(false)} className="qr-btn qr-btn--ghost qr-btn--touch" data-testid={`button-cancel-delete-${instance.id}`}>
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
         </div>
         {showMove && (
           <MoveDialog
@@ -468,6 +445,39 @@ function InstanceCard({
           />
         )}
       </AccordionSection>
+
+      {/* Bottom-right delete */}
+      <div className="flex justify-end mt-2 pt-2 border-t border-white/10">
+        {!confirmDelete ? (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="p-1.5 text-white/30 hover-elevate rounded"
+            title="Remove from store"
+            data-testid={`button-delete-${instance.id}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-red-300">Remove this item?</span>
+            <button
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="qr-btn qr-btn--touch text-xs px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded"
+              data-testid={`button-confirm-delete-${instance.id}`}
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes, delete"}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="qr-btn qr-btn--ghost qr-btn--touch p-1"
+              data-testid={`button-cancel-delete-${instance.id}`}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+      </div>
 
       {lightboxOpen && imageUrl && (
         <ImageLightbox url={imageUrl} alt={title} onClose={() => setLightboxOpen(false)} />

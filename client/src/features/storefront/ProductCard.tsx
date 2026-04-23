@@ -66,7 +66,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {product.price != null && product.price > 0 && (
                 <span
-                  className="text-lg font-bold text-foreground"
+                  className="text-xl font-bold text-emerald-500"
                   data-testid={`text-price-${product.id}`}
                 >
                   ${product.price.toFixed(2)}
