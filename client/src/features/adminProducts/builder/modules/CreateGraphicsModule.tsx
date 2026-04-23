@@ -81,7 +81,7 @@ export function CreateGraphicsModule() {
 
   const {
     isCreating, packetResult, error, isDeleting,
-    isCommitting, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    isCommitting, artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession, setPacketResult,
   } = useCreatePacket({
     state, selectedRole, selectedStore, selectedChannel, selectedCollection,
@@ -246,6 +246,7 @@ export function CreateGraphicsModule() {
             onNext={handleNext}
             onReset={handleReset}
             onDelete={handleDeletePacket}
+            artifactError={artifactError}
           />
         )}
 

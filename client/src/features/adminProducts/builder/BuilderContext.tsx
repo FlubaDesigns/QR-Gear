@@ -115,6 +115,7 @@ const initialState: BuilderState = {
     },
   },
   placementsLoading: false,
+  placementsError: null,
   selectedPlacements: [],
   placementConfig: {},
   placementSizes: {},
@@ -424,7 +425,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
     if (!product) {
-      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false }));
+      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
       return;
     }
 
@@ -432,11 +433,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     const masterDescription = (product.description || "").trim() || null;
 
     if (product.placements && product.placements.length > 0) {
-      setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false }));
+      setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
       return;
     }
 
-    setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true }));
+    setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true, placementsError: null }));
 
     const provider = product.fulfillmentProvider || 'printify';
     const params = new URLSearchParams({ provider });
@@ -472,7 +473,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         console.error('Failed to fetch placements:', err);
         setState(prev => {
           if (prev.selectedProduct?.id !== product.id) return prev;
-          return { ...prev, placementsLoading: false };
+          return { ...prev, placementsLoading: false, placementsError: err?.message || 'Failed to load placements from printer' };
         });
       });
   }, []);
@@ -615,6 +616,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       productDescription: working.description ?? null,
       selectedProduct: resolvedProduct ?? prev.selectedProduct,
       placementsLoading: false,
+      placementsError: null,
       activePacketId: null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
       // Restore filter/provider state directly (bypassing setters that have destructive side effects)
@@ -754,6 +756,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       selectedProduct: resolvedProduct ?? null,
       productDescription: packetData.productDescription ?? resolvedProduct?.description ?? null,
       placementsLoading: false,
+      placementsError: null,
     }));
   }, []);
 

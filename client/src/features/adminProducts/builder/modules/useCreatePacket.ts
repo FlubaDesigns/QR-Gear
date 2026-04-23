@@ -48,6 +48,7 @@ export function useCreatePacket({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
+  const [artifactError, setArtifactError] = useState<string | null>(null);
   const { setActiveSession } = useBuilderContext();
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
@@ -83,6 +84,7 @@ export function useCreatePacket({
 
     setIsCreating(true);
     setError(null);
+    setArtifactError(null);
     setPacketResult(null);
 
     try {
@@ -527,15 +529,21 @@ export function useCreatePacket({
               // Artifact ready but commit failed — fall back to artifact_ready so
               // the manual commit button is still available
               const errData = await commitRes.json().catch(() => ({}));
-              console.error("[CreatePacket] auto-commit failed:", errData.error || commitRes.status);
+              const commitErrMsg = errData.error || `HTTP ${commitRes.status}`;
+              console.error("[CreatePacket] auto-commit failed:", commitErrMsg);
               setActiveSession(state.activeSessionId, 'artifact_ready', null);
+              setArtifactError(`Packet was created but couldn't be saved to your catalog (${commitErrMsg}). Use the commit button below to retry.`);
             }
           } else {
             const errData = await artifactRes.json().catch(() => ({}));
-            console.error("[CreatePacket] generate-artifact failed:", errData.error || artifactRes.status);
+            const artifactErrMsg = errData.error || `HTTP ${artifactRes.status}`;
+            console.error("[CreatePacket] generate-artifact failed:", artifactErrMsg);
+            setArtifactError(`Packet was created but the catalog entry failed to generate (${artifactErrMsg}). You can still proceed or retry.`);
           }
         } catch (sessionErr: any) {
-          console.error("[CreatePacket] session save failed:", sessionErr.message || sessionErr);
+          const sessionErrMsg = sessionErr.message || String(sessionErr);
+          console.error("[CreatePacket] session save failed:", sessionErrMsg);
+          setArtifactError(`Session could not be saved (${sessionErrMsg}). Your packet data may not persist.`);
         }
       }
 
@@ -684,7 +692,7 @@ export function useCreatePacket({
 
   return {
     isCreating, packetResult, error, isDeleting,
-    isCommitting, commitResult,
+    isCommitting, commitResult, artifactError,
     calculatePricing, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
     setPacketResult, setError,

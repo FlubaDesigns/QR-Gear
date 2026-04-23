@@ -183,6 +183,13 @@ export function PlacementModule() {
           </div>
         )}
 
+        {!isLoading && state.placementsError && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <span>{state.placementsError} — placements defaulted to standard. Reselect the product to retry.</span>
+          </div>
+        )}
+
         {!isLoading && hasApiPlacements && (
           <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
             <Check className="h-3 w-3" />

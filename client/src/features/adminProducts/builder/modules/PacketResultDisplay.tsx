@@ -1,4 +1,4 @@
-import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2 } from "lucide-react";
+import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import type { PricingBreakdown } from "../types";
@@ -29,6 +29,7 @@ interface PacketResultDisplayProps {
   onNext: () => void;
   onReset: () => void;
   onDelete: () => void;
+  artifactError?: string | null;
 }
 
 export function PacketResultDisplay({
@@ -45,6 +46,7 @@ export function PacketResultDisplay({
   onNext,
   onReset,
   onDelete,
+  artifactError,
 }: PacketResultDisplayProps) {
   return (
     <div className="space-y-4">
@@ -52,6 +54,13 @@ export function PacketResultDisplay({
         <Check className="h-6 w-6" />
         <span className="font-bold text-lg">Packet Created Successfully</span>
       </div>
+
+      {artifactError && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300" data-testid="banner-artifact-error">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{artifactError}</span>
+        </div>
+      )}
 
       <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-blue-300 dark:border-blue-700">
         <CardContent className="p-4">

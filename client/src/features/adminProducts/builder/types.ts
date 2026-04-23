@@ -234,6 +234,7 @@ export interface BuilderState {
   qrProductState: QRProductState;
   content: ContentData;
   placementsLoading: boolean;
+  placementsError: string | null;
   selectedPlacements: string[];
   placementConfig: _PlacementConfig;
   placementSizes: _PlacementSizeConfig;
