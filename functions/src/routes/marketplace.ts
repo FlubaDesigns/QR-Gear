@@ -13,6 +13,8 @@ import { printfulClient } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 import { executeSyncJob, retryFailedJob, processRetryQueue, startRetrySweep } from '../services/marketplace-sync';
+import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct } from '../services/surface-generator';
+import type { SupportedMarketplace, GenerateDefaults } from '../services/surface-generator';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -469,6 +471,42 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     res.json({ ready: errors.length === 0, errors, status: newStatus });
   } catch (error: any) {
     console.error('[Surfaces] POST check-readiness error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Generate Surface from Built Product ---
+
+app.post('/admin/surfaces/generate-from-instance', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { instanceId, marketplace = 'ebay', defaults = {} } = req.body;
+
+    if (!instanceId || typeof instanceId !== 'string' || !instanceId.trim()) {
+      res.status(400).json({ error: 'instanceId is required' });
+      return;
+    }
+
+    const validMarketplaces = new Set<string>(['ebay', 'etsy', 'amazon']);
+    if (!validMarketplaces.has(marketplace)) {
+      res.status(400).json({ error: `Invalid marketplace. Must be one of: ebay, etsy, amazon` });
+      return;
+    }
+
+    console.log(`[SurfaceGenerator] Normalizing instance ${instanceId} for ${marketplace}`);
+
+    const normalized = await normalizeProductForPublishing(instanceId.trim(), db);
+    const surfacePayload = createSurfaceDraftFromNormalizedProduct(
+      normalized,
+      marketplace as SupportedMarketplace,
+      defaults as GenerateDefaults,
+    );
+
+    const docRef = await db.collection(SURFACES_COLLECTION).add(surfacePayload);
+
+    console.log(`[SurfaceGenerator] Created surface ${docRef.id} from instance ${instanceId}`);
+    res.json({ success: true, surfaceId: docRef.id, instanceId, marketplace });
+  } catch (error: any) {
+    console.error('[SurfaceGenerator] generate-from-instance error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
