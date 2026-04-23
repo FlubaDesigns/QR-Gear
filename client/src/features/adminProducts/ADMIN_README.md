@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 23, 2026 (rev 24)
+Last updated: April 23, 2026 (rev 25)
 
 ---
 
@@ -491,6 +491,23 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 23, 2026 — Pre-Launch Checklist Page (rev 25)
+
+Added a dedicated `/admin/launch` page that gives a GO / NO-GO readiness verdict before accepting real orders. The page combines live environment-variable checks (pulled from the existing `/api/admin/dashboard/setup` endpoint) with a static list of code-level advisories that env checks alone cannot catch.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/admin-launch.tsx` | New page — pre-launch checklist with expandable items, Firebase config snippet, GO/NO-GO banner |
+| `client/src/App.tsx` | Registered route `/admin/launch` → `AdminLaunch` |
+| `client/src/pages/admin.tsx` | Replaced "System" quick action with "Pre-Launch" (Zap icon, `/admin/launch`) |
+
+**Hard Blockers surfaced:** Missing Stripe live key, missing Resend key, missing webhook secret, ADMIN_BYPASS flag check, unregistered Stripe webhook endpoint reminder, Firebase Functions deploy reminder.
+
+**Risk Items surfaced:** Test-mode Stripe key, partial marketplace credentials, hardcoded admin UIDs on client, no cart-level inventory check, semi-manual Printify order submission.
+
+---
 
 ### April 23, 2026 — Core Product System Unification: Shared Layer (rev 24)
 

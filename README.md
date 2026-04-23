@@ -289,6 +289,22 @@ The admin panel is organized into four nav modes plus a landing dashboard (`/adm
 | **Sell** | `/admin/orders` | Orders, Customers, Pricing, Coupons, Gifts, Orchestration |
 | **System** | `/admin/settings` | Settings, Health, Email, Email Health, Manual |
 
+### Pre-Launch Checklist
+
+**Route:** `/admin/launch` (Quick Action: "Pre-Launch" on the `/admin` dashboard)
+
+A production-readiness checklist that combines live environment-variable checks with static code-level advisories. Shows a GO / NO-GO banner and groups items into three tiers:
+
+| Tier | Contents |
+|------|----------|
+| **Hard Blockers** | Missing Stripe live key, missing Resend key, missing webhook secret, ADMIN_BYPASS flag, unregistered Stripe webhook endpoint, undeployed Firebase Functions |
+| **Risk Items** | Test-mode Stripe key, partial marketplace credentials, hardcoded admin UIDs, no inventory check at cart, semi-manual Printify order submission |
+| **Connected** | All env vars currently returning OK |
+
+Each item is expandable — tap to see the fix and a deep link to the relevant admin section. A Firebase Functions config snippet at the bottom shows the exact `firebase functions:config:set` command needed.
+
+**Source:** `client/src/pages/admin-launch.tsx` — consumes `/api/admin/dashboard/setup` for live env status; static `ADVISORIES` array for code-level risks.
+
 ### Admin UI Architecture
 
 - **AdminShell** (`client/src/components/AdminShell.tsx`) — Shared layout shell used by all admin pages: top bar, section tabs, optional sticky bar

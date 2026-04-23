@@ -256,11 +256,121 @@ async function buildQueue() {
     items.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
     return items;
 }
+async function buildSetupChecklist() {
+    const items = [];
+    const env = process.env;
+    // ── Payments ──────────────────────────────────────────────────────────────
+    const stripeKey = env.STRIPE_SECRET_KEY || '';
+    items.push({
+        id: 'stripe-key',
+        label: 'Stripe Secret Key',
+        description: 'Required for payment processing',
+        status: !stripeKey ? 'missing' : stripeKey.startsWith('sk_live_') ? 'ok' : 'warning',
+        action: !stripeKey ? 'Add STRIPE_SECRET_KEY to environment' : stripeKey.startsWith('sk_test_') ? 'Switch from test key to live key before accepting real payments' : undefined,
+        href: '/admin/settings',
+        group: 'payments',
+    });
+    items.push({
+        id: 'stripe-webhook',
+        label: 'Stripe Webhook Secret',
+        description: 'Required for validating Stripe webhook events',
+        status: env.STRIPE_WEBHOOK_SECRET ? 'ok' : 'missing',
+        action: 'Add STRIPE_WEBHOOK_SECRET — configure endpoint at /api/stripe-webhooks in Stripe dashboard',
+        href: '/admin/settings',
+        group: 'payments',
+    });
+    // ── Email ─────────────────────────────────────────────────────────────────
+    items.push({
+        id: 'resend-key',
+        label: 'Resend API Key',
+        description: 'Required for all transactional emails (orders, shipping, members)',
+        status: env.QR_RESEND_API_KEY ? 'ok' : 'missing',
+        action: 'Get API key from resend.com and add as QR_RESEND_API_KEY',
+        href: '/admin/settings',
+        group: 'email',
+    });
+    // ── AI Brain ─────────────────────────────────────────────────────────────
+    const brainUrl = env.FLUBA_BRAIN_URL || '';
+    const brainSecret = env.FLUBA_SITE_SECRET || '';
+    items.push({
+        id: 'ai-brain',
+        label: 'AI Brain Connection',
+        description: 'Connects the dashboard to your AI operator brain',
+        status: brainUrl && brainSecret ? 'ok' : brainUrl || brainSecret ? 'partial' : 'missing',
+        action: !brainUrl && !brainSecret
+            ? 'Set FLUBA_BRAIN_URL and FLUBA_SITE_SECRET to enable AI monitoring'
+            : !brainUrl ? 'FLUBA_BRAIN_URL is missing' : 'FLUBA_SITE_SECRET is missing',
+        href: '/admin/settings',
+        group: 'ai',
+    });
+    // ── Fulfillment ───────────────────────────────────────────────────────────
+    items.push({
+        id: 'printify-key',
+        label: 'Printify API Key',
+        description: 'Required for product sync and order fulfillment via Printify',
+        status: env.PRINTIFY_API_KEY ? 'ok' : 'warning',
+        action: env.PRINTIFY_API_KEY ? undefined : 'PRINTIFY_API_KEY not set — using fallback key, set your own for production',
+        href: '/admin/settings',
+        group: 'fulfillment',
+    });
+    items.push({
+        id: 'printful-key',
+        label: 'Printful API Key',
+        description: 'Required for Printful fulfillment and mockup generation',
+        status: env.PRINTFUL_API_KEY ? 'ok' : 'missing',
+        action: 'Get API key from printful.com/dashboard and add as PRINTFUL_API_KEY',
+        href: '/admin/settings',
+        group: 'fulfillment',
+    });
+    // ── Marketplaces ─────────────────────────────────────────────────────────
+    items.push({
+        id: 'etsy-oauth-app',
+        label: 'Etsy OAuth App',
+        description: 'Required to connect Etsy seller accounts and push listings',
+        status: env.ETSY_KEYSTRING && env.ETSY_REDIRECT_URI ? 'ok' : env.ETSY_KEYSTRING || env.ETSY_REDIRECT_URI ? 'partial' : 'missing',
+        action: !env.ETSY_KEYSTRING ? 'Register app at developers.etsy.com and set ETSY_KEYSTRING + ETSY_REDIRECT_URI' : !env.ETSY_REDIRECT_URI ? 'ETSY_REDIRECT_URI is missing' : undefined,
+        href: '/admin/marketplaces',
+        group: 'marketplaces',
+    });
+    items.push({
+        id: 'ebay-oauth-app',
+        label: 'eBay OAuth App',
+        description: 'Required to connect eBay seller accounts and push listings',
+        status: env.EBAY_APP_ID && env.EBAY_CERT_ID && env.EBAY_RUNAME ? 'ok' : (env.EBAY_APP_ID || env.EBAY_CERT_ID || env.EBAY_RUNAME) ? 'partial' : 'missing',
+        action: !env.EBAY_APP_ID ? 'Register app at developer.ebay.com and set EBAY_APP_ID, EBAY_CERT_ID, EBAY_RUNAME' : 'Some eBay credentials are missing — check EBAY_APP_ID, EBAY_CERT_ID, EBAY_RUNAME',
+        href: '/admin/marketplaces',
+        group: 'marketplaces',
+    });
+    // ── Platform ─────────────────────────────────────────────────────────────
+    const adminIds = env.ADMIN_USER_IDS || '';
+    const defaultAdminId = 'xHUmudG0t5OkCQhqyhB4nXhCUfs1';
+    items.push({
+        id: 'admin-user-ids',
+        label: 'Admin User IDs',
+        description: 'Explicitly configured list of admin user IDs',
+        status: adminIds && adminIds !== defaultAdminId ? 'ok' : adminIds === defaultAdminId || !adminIds ? 'warning' : 'ok',
+        action: !adminIds || adminIds === defaultAdminId ? 'Set ADMIN_USER_IDS to your Firebase UID — currently using hardcoded default' : undefined,
+        href: '/admin/settings',
+        group: 'platform',
+    });
+    return items;
+}
 function register(app) {
     app.get('/admin/dashboard/queue', middleware_1.requireAdmin, async (_req, res) => {
         try {
             const items = await buildQueue();
             res.json({ items, generatedAt: new Date().toISOString() });
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.get('/admin/dashboard/setup', middleware_1.requireAdmin, async (_req, res) => {
+        try {
+            const items = await buildSetupChecklist();
+            const missing = items.filter(i => i.status === 'missing').length;
+            const warnings = items.filter(i => i.status === 'warning' || i.status === 'partial').length;
+            res.json({ items, missing, warnings, generatedAt: new Date().toISOString() });
         }
         catch (error) {
             res.status(500).json({ error: error.message });
