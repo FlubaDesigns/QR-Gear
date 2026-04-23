@@ -14,6 +14,7 @@ import { Loader2, ShoppingCart, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
+import { buildProductGallery } from "@/features/storefront-shared/buildProductGallery";
 import type { Product } from "@shared/schema";
 import baseShirtImage from "@assets/generated_images/white_t-shirt_mockup_template.png";
 
@@ -72,56 +73,8 @@ function ProductCard({
     setSelectedColor(color);
   };
 
-  const getCurrentMockup = (): { url: string | null; isLifestyle: boolean } => {
-    const color = selectedColor || product.defaultColor || availableColors[0];
-    
-    // Helper to check if URL is valid (HTTP URL or local /api/files path)
-    const isValidUrl = (url?: string) => url && (url.startsWith('http') || url.startsWith('/api/files'));
-    
-    // Helper to normalize color names for matching (strip common prefixes)
-    const normalizeColor = (c: string) => c.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim();
-    
-    // Try to find mockup - first exact match, then normalized match, then any available
-    const findMockup = (targetColor: string | undefined): { url: string; isLifestyle: boolean } | null => {
-      if (!product.mockupsByColor || !targetColor) return null;
-      
-      // 1. Exact match
-      if (product.mockupsByColor[targetColor]) {
-        const m = product.mockupsByColor[targetColor];
-        if (isValidUrl(m.lifestyle)) return { url: m.lifestyle!, isLifestyle: true };
-        if (isValidUrl(m.front)) return { url: m.front!, isLifestyle: false };
-      }
-      
-      // 2. Normalized match (e.g., "Solid Black" matches "Black")
-      const normalizedTarget = normalizeColor(targetColor);
-      for (const [mockupColor, mockup] of Object.entries(product.mockupsByColor)) {
-        if (normalizeColor(mockupColor) === normalizedTarget) {
-          if (isValidUrl(mockup.lifestyle)) return { url: mockup.lifestyle!, isLifestyle: true };
-          if (isValidUrl(mockup.front)) return { url: mockup.front!, isLifestyle: false };
-        }
-      }
-      
-      return null;
-    };
-    
-    // Try selected color first
-    const selectedMockup = findMockup(color);
-    if (selectedMockup) return selectedMockup;
-    
-    // Fallback: Use ANY available mockup (better than nothing)
-    if (product.mockupsByColor) {
-      for (const mockup of Object.values(product.mockupsByColor)) {
-        if (isValidUrl(mockup.lifestyle)) return { url: mockup.lifestyle!, isLifestyle: true };
-        if (isValidUrl(mockup.front)) return { url: mockup.front!, isLifestyle: false };
-      }
-    }
-    
-    // Final fallback: default mockup image or Printify catalog image
-    return { url: product.defaultMockupImage || product.imageUrl || null, isLifestyle: false };
-  };
-
-  const mockupResult = getCurrentMockup();
-  const displayImage = mockupResult.url || product.imageUrl || "";
+  const gallery = buildProductGallery(product, selectedColor);
+  const displayImage = gallery[0]?.url || product.imageUrl || "";
 
   // FIX #2: Guard the Card Click Handler - ignore clicks on swatch area
   const onCardClick = (e: React.MouseEvent) => {
@@ -143,7 +96,7 @@ function ProductCard({
           src={displayImage || product.imageUrl || ""}
           alt={product.name}
         />
-        {!mockupResult.url && product.qrCodeUrl && (
+        {gallery.length === 0 && product.qrCodeUrl && (
           <img
             src={product.qrCodeUrl}
             alt="QR Code"

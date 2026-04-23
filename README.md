@@ -210,6 +210,22 @@ Four wizard tiers with progressive unlock:
 
 Builder capabilities declared in `client/src/features/shared/builder-capabilities.ts` (`BuilderCapabilities` type with presets per wizard tier).
 
+### Shared Product Engine (Core Unification — rev 24)
+
+Three wizard tiers (SuperSimple / Simple / Advanced) remain distinct UIs. The underlying data contract, color resolution, and storefront option-building are unified via two shared modules:
+
+| Module | Purpose |
+|---|---|
+| `shared/colorUtils.ts` | Canonical `COLOR_HEX_MAP` — single source of truth for all color-to-hex resolution. Exports `getColorHexByName`, `getColorHex`, `resolveColorHex`. |
+| `shared/storefrontTypes.ts` | Canonical `StoreProduct` + `ProductOption` types, `buildStructuredOptions`, `deriveCardMode`. All consumer files re-export or import from here. |
+
+Consumer files that now import from shared (do not define local copies):
+- `client/src/features/storeBuilder/store-builder-types.ts`
+- `client/src/features/storefront/types.ts`
+- `functions/src/routes/store-files.ts`
+- `client/src/features/storefront-shared/buildProductGallery.ts`
+- `client/src/components/FeaturedProducts.tsx`
+
 ### Key Firestore Collections (from `functions/src/constants.ts`)
 
 | Constant | Collection Name |

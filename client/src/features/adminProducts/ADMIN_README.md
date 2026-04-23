@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 23, 2026 (rev 23)
+Last updated: April 23, 2026 (rev 24)
 
 ---
 
@@ -491,6 +491,21 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 23, 2026 — Core Product System Unification: Shared Layer (rev 24)
+
+Unified the product data contract, color resolution, and storefront option-building across all three wizard tiers (SuperSimple / Simple / Advanced), admin, storefront, and marketplace into a single shared engine. The wizard UIs remain distinct; only the underlying contract and pipeline are unified.
+
+**New shared modules:**
+- `shared/colorUtils.ts` — canonical `COLOR_HEX_MAP` merging all frontend and backend color definitions (previously 3 separate maps). Exports `getColorHexByName`, `getColorHex`, `resolveColorHex`.
+- `shared/storefrontTypes.ts` — canonical `StoreProduct`, `ProductOption` types plus `buildStructuredOptions` and `deriveCardMode` helpers. Previously duplicated across `client/src/features/storeBuilder/store-builder-types.ts`, `client/src/features/storefront/types.ts`, and `functions/src/routes/store-files.ts`.
+
+**Files updated to import from shared:**
+- `client/src/features/storeBuilder/store-builder-types.ts` — re-exports from shared (no local types remain)
+- `client/src/features/storefront/types.ts` — re-exports from shared
+- `functions/src/routes/store-files.ts` — removed 140-line local `COLOR_HEX` + `buildStructuredOptions` + `deriveCardMode` block; imports from shared
+- `client/src/features/storefront-shared/buildProductGallery.ts` — enhanced with normalized color matching (strips `Solid`/`Heather` prefixes before matching mockup keys)
+- `client/src/components/FeaturedProducts.tsx` — removed 40-line local `getCurrentMockup()` from ProductCard; replaced with `buildProductGallery()` from shared gallery builder
 
 ### April 23, 2026 — Etsy OAuth 2.0 (PKCE) + Listings API Push (rev 23)
 

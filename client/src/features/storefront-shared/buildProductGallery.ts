@@ -6,7 +6,7 @@
  *
  * Priority order:
  *   1. API-provided `images[]` array  ← primary source of truth
- *   2. `mockupsByColor` (color-specific mockup data, legacy)
+ *   2. `mockupsByColor` (color-specific mockup data) with normalized color matching
  *   3. `imageUrl` + `packetImageUrl` as a 2-image fallback set
  *   4. Empty array (caller handles empty state)
  */
@@ -34,6 +34,35 @@ function normalizeImageUrl(item: string | { url?: string; alt?: string }): strin
   return item?.url || null;
 }
 
+/** Strip common color name prefixes for fuzzy matching (e.g. "Solid Black" → "black"). */
+function normalizeColorName(name: string): string {
+  return name.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim();
+}
+
+/**
+ * Find the best mockup entry for a given color from a mockupsByColor map.
+ * Tries exact match first, then normalized (prefix-stripped) match, then any available.
+ */
+function findColorMockup(
+  mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[] }>,
+  targetColor: string | null | undefined,
+): { front?: string; lifestyle?: string; angles?: string[] } | null {
+  if (!targetColor) {
+    const firstKey = Object.keys(mockupsByColor)[0];
+    return firstKey ? mockupsByColor[firstKey] : null;
+  }
+
+  if (mockupsByColor[targetColor]) return mockupsByColor[targetColor];
+
+  const normalizedTarget = normalizeColorName(targetColor);
+  for (const [key, val] of Object.entries(mockupsByColor)) {
+    if (normalizeColorName(key) === normalizedTarget) return val;
+  }
+
+  const firstKey = Object.keys(mockupsByColor)[0];
+  return firstKey ? mockupsByColor[firstKey] : null;
+}
+
 export function buildProductGallery(
   product: ProductMediaSource | null | undefined,
   selectedColor?: string | null,
@@ -57,17 +86,18 @@ export function buildProductGallery(
     if (items.length > 0) return items;
   }
 
-  // ── Priority 2: mockupsByColor (color-keyed legacy data) ─────────────────
-  const color = selectedColor || (product.mockupsByColor ? Object.keys(product.mockupsByColor)[0] : null);
-  if (color && product.mockupsByColor?.[color]) {
-    const m = product.mockupsByColor[color];
-    const items: StorefrontMediaItem[] = [];
-    if (m.lifestyle) items.push({ url: m.lifestyle, label: 'Lifestyle', alt: `${productName} — ${color} lifestyle`, type: 'lifestyle' });
-    if (m.front)     items.push({ url: m.front,     label: 'Front',     alt: `${productName} — ${color} front`,     type: 'gallery'   });
-    (m.angles || []).forEach((url, i) => {
-      items.push({ url, label: `View ${i + 2}`, alt: `${productName} — ${color} angle ${i + 2}`, type: 'gallery' });
-    });
-    if (items.length > 0) return items;
+  // ── Priority 2: mockupsByColor (with normalized color matching) ───────────
+  if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
+    const mockup = findColorMockup(product.mockupsByColor, selectedColor);
+    if (mockup) {
+      const items: StorefrontMediaItem[] = [];
+      if (mockup.lifestyle) items.push({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
+      if (mockup.front)     items.push({ url: mockup.front,     label: 'Front',     alt: `${productName} — front`,     type: 'gallery'  });
+      (mockup.angles || []).forEach((url, i) => {
+        items.push({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' });
+      });
+      if (items.length > 0) return items;
+    }
   }
 
   // ── Priority 3: single imageUrl + optional packetImageUrl ────────────────
