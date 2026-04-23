@@ -1,6 +1,7 @@
 import { fsGet, fsGetAll, fsQuery, fsQueryOne, fsInsert, fsUpdate, fsDelete, fsDeleteWhere } from "./firestore-crud";
 import { type MockupJob, type InsertMockupJob } from "@shared/schema";
 import { generatePrintfulMockup } from "./mockup-service";
+import { PRODUCT_PACKETS_COLLECTION } from "./constants";
 
 interface JobResult {
   mockupUrl?: string;
@@ -341,6 +342,35 @@ export class MockupJobQueue {
       await fsUpdate('products', job.productId, { mockupsByColor });
 
       console.log(`[JobQueue] Updated product ${job.productId} mockups for ${colorSizeKey}`);
+
+      // If this job belongs to a packet (productId = "packet_<packetId>"), write the best
+      // available mockup URL back to the packet document so template cards can display it.
+      if (job.productId.startsWith('packet_')) {
+        const packetId = job.productId.slice('packet_'.length);
+        try {
+          const { getFirestoreDb } = await import('./firebase-admin.js');
+          const db = getFirestoreDb();
+          const packetRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
+          const packetSnap = await packetRef.get();
+          if (packetSnap.exists) {
+            const packetData = packetSnap.data() || {};
+            const existingUrl: string | null = packetData.priorityMockupUrl || null;
+            const bestUrl = result.lifestyleMockupUrl || result.mockupUrl || null;
+
+            // Upgrade if: no image yet, or we now have a lifestyle image and didn't before
+            const isUpgrade =
+              bestUrl &&
+              (!existingUrl || (result.lifestyleMockupUrl && existingUrl !== result.lifestyleMockupUrl));
+
+            if (isUpgrade) {
+              await packetRef.update({ priorityMockupUrl: bestUrl });
+              console.log(`[JobQueue] Updated packet ${packetId} priorityMockupUrl with ${result.lifestyleMockupUrl ? 'lifestyle' : 'flat'} mockup`);
+            }
+          }
+        } catch (packetErr) {
+          console.error(`[JobQueue] Failed to write-back mockup to packet ${packetId}:`, packetErr);
+        }
+      }
     } catch (err) {
       console.error("[JobQueue] Error updating product mockups:", err);
     }
