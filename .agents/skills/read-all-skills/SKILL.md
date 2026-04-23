@@ -12,7 +12,8 @@ Read each of these SKILL.md files completely, in this order:
 3. `.agents/skills/ask-before-starting/SKILL.md` — Mandatory clarification before any work
 4. `.agents/skills/always-deploy/SKILL.md` — Mandatory deploy rules after every change
 5. `.agents/skills/fail-loudly/SKILL.md` — Error surfacing and silent-failure prevention
-6. `.agents/skills/present-changed-files/SKILL.md` — File presentation at task completion
+6. `.agents/skills/update-readmes/SKILL.md` — Update README.md and ADMIN_README.md after every change
+7. `.agents/skills/present-changed-files/SKILL.md` — File presentation at task completion
 
 ## Step 2 — Read replit.md
 
