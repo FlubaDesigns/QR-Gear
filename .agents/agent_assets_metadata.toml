@@ -107,3 +107,9 @@ id = "uWttb8taYSbPZhmHPXwvs"
 uri = "file://downloads/QR_Gear_MobileFriction_Changes.zip"
 type = "unspecified"
 title = "Mobile Friction Reduction — Changed Files (6 files)"
+
+[[outputs]]
+id = "_SKmqheguJ74q_z9GB3eG"
+uri = "file://downloads/QR_Gear_LaunchPrep_Fixes.zip"
+type = "unspecified"
+title = "Launch Prep — All 8 Fixes (7 files)"

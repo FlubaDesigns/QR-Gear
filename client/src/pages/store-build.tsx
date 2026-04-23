@@ -316,9 +316,6 @@ export default function StoreBuildPage() {
     saveProductMutation.mutate({ productId, config });
   }
 
-  // DEV BYPASS — remove before deploying
-  // if (!user) { ... }
-
   const enabledProducts = products?.filter(p => p.isEnabled) || [];
   const filteredProducts = usaOnly
     ? enabledProducts.filter(p => p.madeInUSA)

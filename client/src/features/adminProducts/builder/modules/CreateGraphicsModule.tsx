@@ -110,7 +110,7 @@ export function CreateGraphicsModule() {
         const p = data.landingPage || data.packet || data;
         if (!p || !p.packetId || cancelled) return;
         setPacketResult({
-          packetId: state.activePacketId,
+          packetId: state.activePacketId ?? '',
           landingPageUrl: p.qrContent || p.landingPageUrl || '',
           landingPageSnapshotUrl: p.landingPageSnapshotUrl || '',
           productGraphicUrl: p.productGraphicUrl || p.compositeUrl || '',

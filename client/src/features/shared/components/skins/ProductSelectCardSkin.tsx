@@ -111,7 +111,6 @@ function PreviewModal({
   tier?: TierValue;
   onTierChange?: (id: string, tier: TierValue) => void;
   showTierControls?: boolean;
-  mockupImageUrl?: string | null;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);

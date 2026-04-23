@@ -227,7 +227,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
         const headers = await api.getAuthHeaders();
-        cachedAuthHeadersRef.current = headers;
+        cachedAuthHeadersRef.current = headers as Record<string, string>;
 
         // Primary: save full working state into the build session
         const res = await fetch(`${baseUrl}/build-sessions/${sessionId}`, {
@@ -307,7 +307,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   useEffect(() => {
     if (!state.activeSessionId) return;
     api.getAuthHeaders().then(headers => {
-      cachedAuthHeadersRef.current = headers;
+      cachedAuthHeadersRef.current = headers as Record<string, string>;
     }).catch(() => {});
   }, [state.activeSessionId, api]);
 

@@ -84,7 +84,7 @@ function templateToSkinItem(item: TemplateItem): SkinItem {
 
   return {
     id: item.id,
-    packetId: item.packetId || null,
+    packetId: item.packetId || undefined,
     name,
     primaryImage,
     qrContent: item.packet?.qrContent || null,
