@@ -72,26 +72,48 @@ export function registerAdminContentRoutes(app: Express): void {
   app.post("/api/admin/partner-stores/:storeId/products/:productId/generate-mockup", isAdmin, async (req: any, res) => {
     try {
       const { storeId, productId } = req.params;
-      const { color } = req.body;
-      
+      const { color, qrSize = 'medium' } = req.body;
+
       if (!color) {
         return res.status(400).json({ error: "color is required" });
       }
-      
+
       const product = await storage.getProduct(productId);
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
-      
+
       const blueprintId = product.blueprintId;
       const printProviderId = product.printProviderId;
-      
       if (!blueprintId || !printProviderId) {
         return res.status(400).json({ error: "Product missing blueprint or print provider" });
       }
-      
-      let artworkUrl: string | null = null;
-      
+
+      // Resolve color hex and determine artwork variant (white QR on dark shirts)
+      const { getProviderColorsWithFallback } = await import("../lib/printify");
+      const colors = await getProviderColorsWithFallback(blueprintId, printProviderId, storage);
+      const colorInfo = colors.find((c: any) => c.name?.toLowerCase() === color.toLowerCase());
+      const colorHex = colorInfo?.hex || '#000000';
+      const { isColorDark } = await import('../lib/composite-image-generator.js');
+      const needsWhiteQR = isColorDark(colorHex);
+      const artworkVariant: 'white' | 'black' = needsWhiteQR ? 'white' : 'black';
+
+      // Map design placement keys to canonical placement IDs used by getMockupWithFallback
+      const DESIGN_KEY_TO_CANONICAL: Record<string, string> = {
+        'front': 'front',
+        'front-chest': 'front',
+        'front-chest-black': 'front',
+        'back': 'back',
+        'back-center': 'back',
+        'left_sleeve': 'left_sleeve',
+        'sleeve_left': 'left_sleeve',
+        'right_sleeve': 'right_sleeve',
+        'sleeve_right': 'right_sleeve',
+      };
+
+      // Build canonical placement → artwork URL map from the design's placementImages
+      const placementArtworkMap: Record<string, string> = {};
+
       if (productId.startsWith('custom_')) {
         const designId = productId.replace('custom_', '');
         const design = await storage.getCustomDesign(designId);
@@ -104,131 +126,112 @@ export function registerAdminContentRoutes(app: Express): void {
               designPlacements = design.placementImages as Record<string, string>;
             }
           } catch (e) {
-            console.error('[Mockup] Failed to parse placementImages:', e);
+            console.error('[PartnerMockup] Failed to parse placementImages:', e);
           }
-          
-          const { getProviderColorsWithFallback } = await import("../lib/printify");
-          const colors = await getProviderColorsWithFallback(blueprintId, printProviderId, storage);
-          const colorInfo = colors.find(
-            (c: any) => c.name?.toLowerCase() === color.toLowerCase()
-          );
-          const colorHex = colorInfo?.hex || null;
-          
-          const { isColorDark } = await import('../lib/composite-image-generator.js');
-          
-          const needsWhiteQR = colorHex ? isColorDark(colorHex) : false;
-          
-          const blackArtwork = designPlacements["front"] || designPlacements["front-chest"] || designPlacements["front-chest-black"];
-          const whiteArtwork = designPlacements["front-white"] || designPlacements["front-chest-white"];
-          
-          if (needsWhiteQR && whiteArtwork) {
-            artworkUrl = whiteArtwork;
-            console.log(`[Mockup] Using WHITE artwork for dark shirt color: ${color} (${colorHex})`);
-          } else if (blackArtwork) {
-            artworkUrl = blackArtwork;
-            console.log(`[Mockup] Using BLACK artwork for light shirt color: ${color} (${colorHex})`);
-          } else {
-            artworkUrl = design.printifyCompositeUrl || Object.values(designPlacements)[0] as string;
+
+          // Iterate non-white keys first to populate each canonical placement
+          for (const [key, url] of Object.entries(designPlacements)) {
+            if (key.includes('white') || !url) continue;
+            const canonical = DESIGN_KEY_TO_CANONICAL[key];
+            if (canonical && !placementArtworkMap[canonical]) {
+              // If color is dark, prefer a white-QR variant for this placement if one exists
+              if (needsWhiteQR) {
+                const whiteUrl = designPlacements[`${key}-white`] || designPlacements[key.replace('black', 'white')];
+                placementArtworkMap[canonical] = whiteUrl || url;
+              } else {
+                placementArtworkMap[canonical] = url;
+              }
+            }
+          }
+
+          // Handle explicit front-white key (common pattern)
+          if (needsWhiteQR) {
+            const explicitWhite = designPlacements['front-white'] || designPlacements['front-chest-white'];
+            if (explicitWhite) placementArtworkMap['front'] = explicitWhite;
+          }
+
+          // Fallback: no recognized placements — use composite or first available artwork
+          if (Object.keys(placementArtworkMap).length === 0) {
+            const fallback = design.printifyCompositeUrl || (Object.values(designPlacements)[0] as string | undefined);
+            if (fallback) placementArtworkMap['front'] = fallback;
           }
         }
       }
-      
-      if (!artworkUrl) {
+
+      if (Object.keys(placementArtworkMap).length === 0) {
         return res.status(400).json({ error: "No artwork found for this product" });
       }
-      
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'http://localhost:5000';
-      const absoluteArtworkUrl = artworkUrl.startsWith('http') ? artworkUrl : `${baseUrl}${artworkUrl}`;
-      
-      console.log(`[Mockup] Generating for product ${productId}, color ${color}`);
-      console.log(`[Mockup] Blueprint: ${blueprintId}, Provider: ${printProviderId}`);
-      console.log(`[Mockup] Artwork: ${absoluteArtworkUrl}`);
-      
-      const { printify: printifyClient, syncProductVariants: syncVariants, syncProductPlacements: syncPlacements } = await import("../lib/printify");
-      
-      const { variants } = await syncVariants(blueprintId, printProviderId);
-      const colorVariants = variants.filter(v => 
-        v.options?.color && v.options.color.toLowerCase() === color.toLowerCase()
-      );
-      
-      if (colorVariants.length === 0) {
-        return res.status(400).json({ error: `No variants found for color: ${color}` });
-      }
-      
-      const variantIds = colorVariants.slice(0, 1).map(v => v.id);
-      console.log(`[Mockup] Found ${colorVariants.length} variants for ${color}, using: ${variantIds[0]}`);
-      
-      const imageUpload = await printifyClient.uploadImage(absoluteArtworkUrl, `mockup-${productId}-${color}.png`);
-      console.log(`[Mockup] Uploaded image ID: ${imageUpload.id}`);
-      
-      const { placements: providerPlacements } = await syncPlacements(blueprintId, printProviderId);
-      const placement = providerPlacements[0]?.position || "front";
-      
-      const productData = {
-        title: `Mockup - ${product.name} - ${color}`,
-        description: `Mockup generation for ${color}`,
-        blueprint_id: blueprintId,
-        print_provider_id: printProviderId,
-        variants: variantIds.map(vid => ({
-          id: vid,
-          price: 2500,
-          is_enabled: true,
-        })),
-        print_areas: [{
-          variant_ids: variantIds,
-          placeholders: [{
-            position: placement,
-            images: [{
-              id: imageUpload.id,
-              x: 0.5,
-              y: 0.5,
-              scale: 1.0,
-              angle: 0,
-            }],
-          }],
-        }],
-      };
-      
-      const printifyProduct = await printifyClient.createProduct(productData);
-      console.log(`[Mockup] Created Printify product: ${printifyProduct.id}`);
-      
-      let attempts = 0;
-      const maxAttempts = 10;
-      let mockupUrl: string | null = null;
-      
-      while (attempts < maxAttempts && !mockupUrl) {
-        const delay = Math.min(2000 * Math.pow(1.5, attempts), 8000);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        attempts++;
-        
-        const productDetails = await printifyClient.getProduct(printifyProduct.id);
-        if (productDetails.images && productDetails.images.length > 0) {
-          mockupUrl = productDetails.images[0].src;
-          console.log(`[Mockup] Got mockup URL: ${mockupUrl}`);
+
+      console.log(`[PartnerMockup] Generating for ${color} (${colorHex}), placements: [${Object.keys(placementArtworkMap).join(', ')}]`);
+
+      // Generate via getMockupWithFallback — handles Printful mockup tasks, caching, permanent URLs
+      const { getMockupWithFallback } = await import("../lib/mockup-service");
+      const storageModule = (await import("../storage")).storage;
+      const fulfillmentProvider = ((product as any).fulfillmentProvider || 'printify') as 'printify' | 'printful';
+
+      const placementResults: Record<string, { mockupUrl: string; lifestyleMockupUrl?: string | null }> = {};
+      for (const [canonicalPlacement, artworkUrl] of Object.entries(placementArtworkMap)) {
+        try {
+          const result = await getMockupWithFallback({
+            blueprintId: parseInt(blueprintId as any),
+            printProviderId: parseInt(printProviderId as any) || 99,
+            colorName: color,
+            colorHex,
+            canonicalPlacementId: canonicalPlacement,
+            artworkUrl,
+            artworkVariant,
+            qrSize: qrSize as 'small' | 'medium' | 'large',
+            fulfillmentProvider,
+          }, storageModule);
+          console.log(`[PartnerMockup] ${canonicalPlacement} done: ${result.mockupUrl}`);
+          placementResults[canonicalPlacement] = {
+            mockupUrl: result.mockupUrl,
+            lifestyleMockupUrl: result.lifestyleMockupUrl,
+          };
+        } catch (placementErr: any) {
+          console.warn(`[PartnerMockup] Skipping ${canonicalPlacement}: ${placementErr.message}`);
         }
       }
-      
-      if (!mockupUrl) {
-        await printifyClient.deleteProduct(printifyProduct.id).catch(() => {});
-        return res.status(500).json({ error: "Mockup generation timed out" });
+
+      const primaryPlacement = ['front', ...Object.keys(placementResults)].find(p => placementResults[p]) || '';
+      const primaryResult = primaryPlacement ? placementResults[primaryPlacement] : null;
+      if (!primaryResult?.mockupUrl) {
+        return res.status(500).json({ error: 'Mockup generation failed for all placements' });
       }
-      
+
+      const placementMockupUrls: Record<string, string> = {};
+      for (const [p, r] of Object.entries(placementResults)) {
+        if (r.mockupUrl) placementMockupUrls[p] = r.mockupUrl;
+      }
+
+      // Persist: update mockupsByColor with full placement data
       const storeProduct = await storage.getPartnerStoreProduct(storeId, productId);
       const existingMockups = (storeProduct?.mockupsByColor as Record<string, any>) || {};
-      existingMockups[color] = { front: mockupUrl };
-      
+      existingMockups[color] = {
+        front: placementMockupUrls['front'] || null,
+        back: placementMockupUrls['back'] || null,
+        left_sleeve: placementMockupUrls['left_sleeve'] || null,
+        right_sleeve: placementMockupUrls['right_sleeve'] || null,
+        lifestyle: primaryResult.lifestyleMockupUrl || null,
+        placementMockupUrls,
+      };
+
       await storage.updatePartnerStoreProductByIds(storeId, productId, {
         mockupsByColor: existingMockups,
+        placementMockupUrls,
       });
-      
-      await printifyClient.deleteProduct(printifyProduct.id).catch(() => {});
-      
-      console.log(`[Mockup] Saved mockup for ${color}`);
-      res.json({ success: true, color, mockupUrl, mockupsByColor: existingMockups });
+
+      console.log(`[PartnerMockup] Saved ${Object.keys(placementMockupUrls).length} placement mockup(s) for ${color}`);
+      res.json({
+        success: true,
+        color,
+        mockupUrl: primaryResult.mockupUrl,
+        lifestyleMockupUrl: primaryResult.lifestyleMockupUrl,
+        placementMockupUrls,
+        mockupsByColor: existingMockups,
+      });
     } catch (error: any) {
-      console.error("[Mockup] Error:", error);
+      console.error("[PartnerMockup] Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

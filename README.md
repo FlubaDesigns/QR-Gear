@@ -183,11 +183,19 @@ When a product is built with more than one print placement (e.g. front + back, o
 |---|---|
 | `POST /api/public/generate-mockup` | Public / owner wizard |
 | `POST /api/mockup/priority` | Member wizard, admin tools |
+| `POST /api/admin/partner-stores/:storeId/products/:productId/generate-mockup` | Partner store admin |
+
+**Partner store endpoint notes:**
+- Previously used a direct Printify product-creation loop (no caching, slow, front-only)
+- Migrated to use `getMockupWithFallback` — same path as all other builders
+- Auto-detects placements from the design's `placementImages` map and maps them to canonical IDs
+- Stores results in `mockupsByColor[color].placementMockupUrls` and a top-level `placementMockupUrls` field on the partner store product
 
 **Key files:**
 - `server/lib/mockup-service.ts` — printfile dimension lookup via `variant_printfiles`
 - `server/routes/member-public-wizard.routes.ts` — public generate-mockup handler
 - `server/routes/misc/store-product-links.routes.ts` — priority mockup handler
+- `server/routes/admin-content.routes.ts` — partner store mockup handler (migrated)
 - `client/src/features/owner/useOwnerWizardState.ts` — owner wizard sends full `selectedPlacements`
 - `client/src/features/members/MembersContext.tsx` — `MockupParams.selectedPlacements` + `MockupResult.placementMockupUrls`
 - `functions/src/routes/store-files.ts` — gallery assembly from `placementMockupUrls`
