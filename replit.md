@@ -325,6 +325,24 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 - **shopHierarchy.ts** — Added `subtitle` field to `CollectionConfig`. Three collections now have subtitles: "Honor. Service. Sacrifice.", "Symbols That Stand the Test of Time", "The Minds That Built a Nation".
 - **Images** (in `attached_assets/`): `store_hero.png` (lifestyle hero), `usa250_header.png` (channel header), `collection_armed_forces.png`, `collection_monuments.png`, `collection_founding_fathers.png` — all AI-generated, 16:9 or 4:3 as appropriate.
 
+### Firestore Security + Index Oil Change (2026-04-23 — deployed)
+- **`isAdmin()` rule fixed** — Firestore rules `isAdmin()` previously only checked `request.auth.token.role == 'admin'` (custom claim never set). Now also checks `get(.../users/uid).data.isAdmin == true`, matching the backend's `requireAdmin` middleware logic. This unblocks client-side admin writes (Categories CRUD).
+- **Three missing collection rules added** to `firestore.rules`:
+  - `categories` — public read / admin write (used by `client/src/lib/categories.ts` + `admin-categories.tsx` + `PreDesignedCollection.tsx`)
+  - `member_profiles` — owner+admin read/write (used by `useSuperSimpleTutorial.ts` for tutorial completion tracking)
+  - `brain_responses` — signed-in read / no client write (used by `flubaBrainClient.ts` for AI async response subscriptions)
+- **9 missing composite indexes added** to `firestore.indexes.json` for `where+orderBy` queries that would fail as data grows:
+  - `admin_catalog_instances`: storeId+channelId; storeId+channelId+collectionName
+  - `storeProductLinks`: storeId+channel+collection+createdAt(ASC)
+  - `admin_build_shelf`: groupIds(ARRAY_CONTAINS)+createdAt(DESC)
+  - `memberProducts`: memberId+createdAt(DESC)
+  - `memberEarnings`: memberId+createdAt(DESC)
+  - `mockup_jobs`: productId+createdAt(DESC)
+  - `design_versions`: masterProductId+version(DESC)
+  - `bundle_items`: bundleId+displayOrder(ASC)
+  - `provider_health_checks`: providerType+checkedAt(DESC)
+  - `temp_packets`: status+expiresAt(ASC) (inequality filter)
+
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
 - **Printful**: Product mockup generation.

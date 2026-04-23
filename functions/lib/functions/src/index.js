@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BUILD_TAG = exports.api = void 0;
-const _BUILD_ID = '20260423-etsy-oauth-listings-api-v1';
+const _BUILD_ID = '20260423-oil-change-rules-indexes-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -126,12 +126,12 @@ exports.api = (0, https_1.onRequest)({
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260419-full-audit-fix-v2' },
+    labels: { 'build-id': '20260423-oil-change-rules-indexes-v1' },
 }, app);
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z
 // deployed: 2026-04-19T06:23:38Z — full audit fix: registered 10 missing route files + admin-build-sessions
 // deployed: 2026-04-19T06:35:00Z — audit v2: added sync-master-products alias to master-catalog
 // deploy-1776830756
-exports.BUILD_TAG = "store-channel-fallback-20260422d";
+exports.BUILD_TAG = "oil-change-rules-indexes-20260423";
 //# sourceMappingURL=index.js.map

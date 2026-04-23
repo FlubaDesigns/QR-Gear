@@ -5,11 +5,14 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
-    
+
     function isAdmin() {
-      return signedIn() && request.auth.token.role == 'admin';
+      return signedIn() && (
+        request.auth.token.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+      );
     }
-    
+
     function isOwner(userId) {
       return signedIn() && request.auth.uid == userId;
     }
@@ -78,6 +81,23 @@ service cloud.firestore {
     match /productCategories/{categoryId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Categories - public read, admin write (used by client SDK directly)
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Member profiles - owner or admin read/write (tutorial progress, social handles)
+    match /member_profiles/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // Brain responses - signed-in read only (AI async response listener)
+    match /brain_responses/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
     }
 
     // Mockup jobs - admin only

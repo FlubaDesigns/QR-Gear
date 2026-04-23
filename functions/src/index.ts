@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260423-etsy-oauth-listings-api-v1';
+const _BUILD_ID = '20260423-oil-change-rules-indexes-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -127,7 +127,7 @@ export const api = onRequest(
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260419-full-audit-fix-v2' },
+    labels: { 'build-id': '20260423-oil-change-rules-indexes-v1' },
   },
   app
 );
@@ -139,4 +139,4 @@ export const api = onRequest(
 
 // deploy-1776830756
 
-export const BUILD_TAG = "store-channel-fallback-20260422d";
+export const BUILD_TAG = "oil-change-rules-indexes-20260423";
