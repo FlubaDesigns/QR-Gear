@@ -1192,3 +1192,16 @@ The content-aware renderer works but the zone proportions (header 20%, footer 16
 - **Task #9:** Security & Trust-Boundary Pass
 - **Task #10:** Test Coverage Expansion
 - **Task #11:** Legacy Naming & Compatibility Cleanup (partially done — "structured" → "zone" rename and "replace-qr" removal completed April 8)
+
+### Marketplace Surfaces — Next Candidates
+
+The following marketplace integrations are queued for future builds, in rough priority order. Each follows the same OAuth + push pattern already used by Amazon, eBay, and Etsy.
+
+| Priority | Marketplace | Why it fits | API notes |
+|---|---|---|---|
+| 1 | **TikTok Shop** | Fastest-growing channel; Gen Z audience overlaps well with custom/novelty QR apparel; high viral potential | Full Seller API with OAuth + product listing push |
+| 2 | **Walmart Marketplace** | Second-largest US marketplace; similar REST + OAuth pattern to Amazon SP-API; reaches buyers who avoid Amazon | Seller Center API; requires approval to sell |
+| 3 | **Google Shopping (Merchant Center)** | High-intent traffic across Search, Shopping tab, and YouTube; broad reach | Content API v2.1; feed-based rather than OAuth; no per-listing push — syncs a product catalog feed |
+| 4 | **Meta Commerce (Facebook + Instagram Shops)** | Single API surfaces products on both platforms; strong for visual products and retargeting; Instagram well-suited for apparel | Commerce Manager API; OAuth; catalog-based |
+| 5 | **Pinterest Shopping** | Discovery-mode audience skews toward apparel, accessories, and gifts; Catalogs API | Feed-based catalog push; Pinterest Ads API for boosting |
+| 6 | **Redbubble / Teepublic** | POD marketplaces with their own built-in audiences; since Printify/Printful already handle fulfillment, designs can be pushed to their storefronts too | Limited/unofficial APIs; may require partner agreement |
