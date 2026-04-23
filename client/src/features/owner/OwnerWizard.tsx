@@ -161,6 +161,7 @@ export function OwnerWizard() {
             earnings={memberEarnings}
             onSignUp={() => navigate(`/members?tempPacketId=${tempPacketId || ''}&wizard=super-simple`)}
             onSkip={handlePublicCheckout}
+            mockupUrl={realMockupUrl || lifestyleMockupUrl}
           />
           <div className="flex gap-3 flex-wrap justify-between pt-2 border-t border-slate-700">
             <Button variant="outline" onClick={() => setShowMemberPitch(false)} data-testid="button-back-from-pitch">

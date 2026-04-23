@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, QrCode, Type, ImagePlus, Play, Layers, ArrowRight, Palette, Crosshair, PenLine, PartyPopper } from "lucide-react";
+import { ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, QrCode, Type, ImagePlus, Play, Layers, ArrowRight, Palette, Crosshair, PenLine, PartyPopper, Check } from "lucide-react";
 
 export interface GuidedCardData {
   icon: React.ReactNode;
@@ -253,42 +253,56 @@ export function OwnerCostSummary({ basePrice, sizeCost, placementCost, textCost,
   );
 }
 
-export function MemberConversionPitch({ earnings, onSignUp, onSkip }: {
-  earnings: number; onSignUp: () => void; onSkip: () => void;
+export function MemberConversionPitch({ earnings, onSignUp, onSkip, mockupUrl }: {
+  earnings: number; onSignUp: () => void; onSkip: () => void; mockupUrl?: string | null;
 }) {
   return (
-    <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 rounded-xl p-5 border border-amber-500/30 space-y-4">
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="bg-amber-500/20 rounded-full p-2">
-          <Crown className="w-6 h-6 text-amber-400" />
+    <div className="bg-slate-800/60 rounded-xl border border-slate-600 space-y-4 overflow-hidden">
+      {mockupUrl && (
+        <div className="w-full bg-slate-900">
+          <img
+            src={mockupUrl}
+            alt="Your design"
+            className="w-full h-36 object-contain"
+            data-testid="img-conversion-mockup"
+          />
         </div>
+      )}
+      <div className="px-5 pb-5 space-y-4">
         <div>
-          <h3 className="text-white font-bold">Turn This Into Income</h3>
-          <p className="text-amber-200/70 text-sm">Your design could earn you money</p>
+          <h3 className="text-white font-bold text-base">Don't lose your work</h3>
+          <p className="text-slate-400 text-sm mt-0.5">A free account keeps this design and adds a few things worth having.</p>
         </div>
-      </div>
-      <div className="bg-slate-800/60 rounded-lg p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Sell this design to others</span>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+            <span className="text-slate-300 text-sm">Your design saved to your account forever</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-sky-400 shrink-0" />
+            <span className="text-slate-300 text-sm">25% off every order you place</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-sky-400 shrink-0" />
+            <span className="text-slate-300 text-sm">Earn 25% when someone else buys your design</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-sky-400 shrink-0" />
+            <span className="text-slate-300 text-sm">Your own QR Gear page to share</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-sky-400 shrink-0" />
+            <span className="text-slate-300 text-sm">Build multi-item QR experiences</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Earnings start at ${earnings.toFixed(2)} per sale — and only go up from there</span>
+        <div className="flex flex-col gap-2 pt-1">
+          <Button onClick={onSignUp} className="w-full bg-amber-500 text-black font-bold" data-testid="button-become-member">
+            Save my design — it's free
+          </Button>
+          <Button variant="ghost" onClick={onSkip} className="w-full text-slate-400 text-sm" data-testid="button-skip-member">
+            Continue to checkout without saving
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-green-400" />
-          <span className="text-slate-300 text-sm">Save designs to your personal library</span>
-        </div>
-      </div>
-      <div className="flex gap-3 flex-wrap">
-        <Button onClick={onSignUp} className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold" data-testid="button-become-member">
-          <Crown className="w-4 h-4 mr-2" />
-          Become a Member
-        </Button>
-        <Button variant="ghost" onClick={onSkip} className="text-slate-400" data-testid="button-skip-member">
-          Maybe later
-        </Button>
       </div>
     </div>
   );

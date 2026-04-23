@@ -198,7 +198,14 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
                       <type.icon className="w-6 h-6 text-white" />
                     </div>
                     <div className="text-left flex-1">
-                      <h3 className="font-bold text-white">{type.label}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-white">{type.label}</h3>
+                        {type.requiresMember && (
+                          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            Members
+                          </span>
+                        )}
+                      </div>
                       <p className="text-slate-400 text-sm">{type.description}</p>
                     </div>
                     {qrType === type.id && (

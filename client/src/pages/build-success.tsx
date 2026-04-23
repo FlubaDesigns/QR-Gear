@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Package, Crown, Users, ArrowRight, Loader2, QrCode, Clock, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle, Package, Crown, Users, ArrowRight, Loader2, QrCode, Clock, ShieldCheck, Sparkles, DollarSign } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
 import { apiRequest } from "@/lib/queryClient";
@@ -150,9 +150,9 @@ export default function BuildSuccess() {
           </Card>
 
           <div className="space-y-3">
-            <Link href="/members">
+            <Link href={`/members?orderId=${order.id}`}>
               <Button className="w-full bg-amber-500 text-black font-bold" data-testid="button-create-account">
-                Create Free Account
+                Create my free account
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
@@ -315,51 +315,49 @@ export default function BuildSuccess() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-amber-900/30 to-orange-900/30 border-amber-500/30">
+        <Card className="bg-slate-800/80 border-slate-700">
           <CardContent className="pt-6 pb-6 space-y-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="bg-amber-500/20 rounded-full p-2">
-                <Crown className="w-6 h-6 text-amber-400" />
-              </div>
-              <div>
-                <h3 className="text-white font-bold">Become a Member</h3>
-                <p className="text-amber-200/70 text-sm">Unlock powerful perks for free</p>
-              </div>
+            <div>
+              <h3 className="text-white font-bold">One more thing</h3>
+              <p className="text-slate-400 text-sm mt-0.5">Here's what a free account gives you:</p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex items-center gap-2">
-                <Package className="w-4 h-4 text-blue-400" />
+                <Package className="w-4 h-4 text-sky-400 shrink-0" />
                 <span className="text-slate-300 text-sm">Track your shipment in real time</span>
               </div>
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                <span className="text-slate-300 text-sm">Keep your custom graphic permanently</span>
+                <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+                <span className="text-slate-300 text-sm">Keep your design permanently — not just 30 days</span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-green-400" />
-                <span className="text-slate-300 text-sm">Turn your design into income</span>
+                <DollarSign className="w-4 h-4 text-sky-400 shrink-0" />
+                <span className="text-slate-300 text-sm">Earn 25% when someone else orders your design</span>
               </div>
               <div className="flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-cyan-400" />
-                <span className="text-slate-300 text-sm">Manage your QR destination anytime</span>
+                <QrCode className="w-4 h-4 text-sky-400 shrink-0" />
+                <span className="text-slate-300 text-sm">Update where your QR code points — anytime</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-sky-400 shrink-0" />
+                <span className="text-slate-300 text-sm">Your own QR Gear page to share</span>
               </div>
             </div>
-            <div className="flex gap-3 flex-wrap pt-2">
+            <div className="flex flex-col gap-2 pt-1">
               <Button
                 onClick={() => setChosenPath('member')}
-                className="flex-1 bg-amber-500 text-black font-bold min-w-[140px]"
+                className="w-full bg-amber-500 text-black font-bold"
                 data-testid="button-path-member"
               >
-                <Crown className="w-4 h-4 mr-1" />
-                Yes, Sign Me Up
+                Create my free account
               </Button>
               <Button
                 onClick={() => setChosenPath('guest')}
-                variant="outline"
-                className="flex-1 min-w-[140px]"
+                variant="ghost"
+                className="w-full text-slate-400 text-sm"
                 data-testid="button-path-guest"
               >
-                No Thanks
+                No thanks
               </Button>
             </div>
           </CardContent>
