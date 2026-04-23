@@ -144,6 +144,17 @@ export function useCreatePacket({
         availablePlacements,
         sizes: availableSizes,
         colors: availableColors,
+        // Declared display contract — persisted so storefront can prefer it over regenerated structure
+        options: [
+          ...(availableColors.length > 0 ? [{
+            name: 'Color', type: 'color', displayType: 'swatches',
+            values: availableColors.map((c: any) => ({ value: c.name || c, label: c.name || c, hex: c.hex || null })),
+          }] : []),
+          ...(availableSizes.length > 0 ? [{
+            name: 'Size', type: 'size', displayType: 'pills',
+            values: availableSizes.map((s: string) => ({ value: s, label: s })),
+          }] : []),
+        ],
         basePrice: product?.basePrice || null,
         customerPrice: product?.customerPrice || null,
         mockupsByColor: product?.mockupsByColor || null,
@@ -467,6 +478,8 @@ export function useCreatePacket({
               qrContent: finalQrContent, pricing,
               enabledColors: availableColors.map((c: any) => c.name || c),
               enabledSizes: availableSizes,
+              // Catalog images from provider so storefront gallery has real product photos
+              images: product?.images || [],
               selectedGraphicSize: state.placementSizes?.[(state.selectedPlacements || ["front"])[0]] || "medium",
               defaultColor: state.selectedColor?.name || null,
             }),

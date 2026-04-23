@@ -471,13 +471,26 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       // Prepend the generated mockup as the hero image if available
+      // Also capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes
       const packetId = session.generated?.packetId || null;
       let mockupUrl: string | null = null;
+      let packetEnabledColors: string[] | null = null;
+      let packetEnabledSizes: string[] | null = null;
       if (packetId) {
         try {
           const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
           if (packetDoc.exists) {
-            mockupUrl = (packetDoc.data() as any).priorityMockupUrl || null;
+            const pkt = packetDoc.data() as any;
+            mockupUrl = pkt.priorityMockupUrl || null;
+            const rawColors = pkt.colors || pkt.enabledColors || [];
+            const rawSizes = pkt.sizes || pkt.enabledSizes || [];
+            const normalizedColors = rawColors
+              .map((c: any) => (typeof c === 'string' ? c : c?.name || c?.label || null))
+              .filter(Boolean) as string[];
+            const normalizedSizes = rawSizes
+              .filter((s: any) => typeof s === 'string' && s.length > 0) as string[];
+            if (normalizedColors.length > 0) packetEnabledColors = normalizedColors;
+            if (normalizedSizes.length > 0) packetEnabledSizes = normalizedSizes;
           }
         } catch (_) { /* no mockup */ }
       }
@@ -524,6 +537,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
         instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
         catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
         baseSnapshot, overrides, resolved,
+        // Admin-curated selections from the builder — overrides full provider catalog at storefront
+        enabledColors: packetEnabledColors,
+        enabledSizes: packetEnabledSizes,
         currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
         currentGraphicSetId: session.generated?.graphicSetId || null,
         storeId: selectedStore?.id || null,

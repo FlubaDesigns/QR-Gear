@@ -433,13 +433,28 @@ function registerAdminBuildSessions(app) {
                 catch (_) { /* fall back to master values */ }
             }
             // Prepend the generated mockup as the hero image if available
+            // Also capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes
             const packetId = session.generated?.packetId || null;
             let mockupUrl = null;
+            let packetEnabledColors = null;
+            let packetEnabledSizes = null;
             if (packetId) {
                 try {
                     const packetDoc = await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
                     if (packetDoc.exists) {
-                        mockupUrl = packetDoc.data().priorityMockupUrl || null;
+                        const pkt = packetDoc.data();
+                        mockupUrl = pkt.priorityMockupUrl || null;
+                        const rawColors = pkt.colors || pkt.enabledColors || [];
+                        const rawSizes = pkt.sizes || pkt.enabledSizes || [];
+                        const normalizedColors = rawColors
+                            .map((c) => (typeof c === 'string' ? c : c?.name || c?.label || null))
+                            .filter(Boolean);
+                        const normalizedSizes = rawSizes
+                            .filter((s) => typeof s === 'string' && s.length > 0);
+                        if (normalizedColors.length > 0)
+                            packetEnabledColors = normalizedColors;
+                        if (normalizedSizes.length > 0)
+                            packetEnabledSizes = normalizedSizes;
                     }
                 }
                 catch (_) { /* no mockup */ }
@@ -486,6 +501,9 @@ function registerAdminBuildSessions(app) {
                 instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
                 catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
                 baseSnapshot, overrides, resolved,
+                // Admin-curated selections from the builder — overrides full provider catalog at storefront
+                enabledColors: packetEnabledColors,
+                enabledSizes: packetEnabledSizes,
                 currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
                 currentGraphicSetId: session.generated?.graphicSetId || null,
                 storeId: selectedStore?.id || null,
