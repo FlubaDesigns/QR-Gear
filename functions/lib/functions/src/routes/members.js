@@ -68,6 +68,18 @@ function register(app) {
             res.json({ isMember: false });
         }
     });
+    app.post('/members/increment-publish', middleware_1.requireAuth, async (req, res) => {
+        try {
+            const userId = req.user?.uid;
+            await core_1.db.collection('member_profiles').doc(userId).set({ publishCount: core_1.admin.firestore.FieldValue.increment(1), updatedAt: new Date().toISOString() }, { merge: true });
+            const doc = await core_1.db.collection('member_profiles').doc(userId).get();
+            const publishCount = doc.data()?.publishCount ?? 1;
+            res.json({ success: true, publishCount });
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
     app.put('/members/:memberId/social-handles', async (req, res) => {
         try {
             const { memberId } = req.params;
