@@ -159,12 +159,24 @@ export default function ShopProductPage() {
     enabled: !!linkId,
   });
 
-  if (product && !selectedColor && product.defaultColor) {
-    setSelectedColor(product.defaultColor);
-  }
-  if (product && !selectedSize && product.availableSizes?.length > 0) {
-    setSelectedSize(product.availableSizes[0]);
-  }
+  // Initialise selection once per product load — use options[] contract first, fallback to raw fields
+  useEffect(() => {
+    if (!product) return;
+    const colorOpt = product.options?.find(o => o.name === 'color');
+    const defaultColor =
+      colorOpt?.values.find(v => v.available)?.label ??
+      product.defaultColor ??
+      null;
+    if (defaultColor) setSelectedColor(defaultColor);
+
+    const sizeOpt = product.options?.find(o => o.name === 'size');
+    const defaultSize =
+      sizeOpt?.values.find(v => v.available)?.label ??
+      product.availableSizes?.[0] ??
+      null;
+    if (defaultSize) setSelectedSize(defaultSize);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   const galleryImages = useMemo(
     () => buildProductGallery(product ?? null, selectedColor),
@@ -286,18 +298,17 @@ export default function ShopProductPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
+            {/* overflow-hidden clips image to Card radius; no aspect-square wrapper so dots + thumbnails show below */}
             <Card className="overflow-hidden">
-              <div className="aspect-square relative bg-muted">
-                {galleryImages.length > 0 ? (
-                  <ProductImageGallery images={galleryImages} />
-                ) : displayImage ? (
-                  <ProductImageGallery images={[{ url: displayImage, alt: product.name }]} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <QrCode className="h-24 w-24 text-muted-foreground/50" />
-                  </div>
-                )}
-              </div>
+              {galleryImages.length > 0 ? (
+                <ProductImageGallery images={galleryImages} />
+              ) : displayImage ? (
+                <ProductImageGallery images={[{ url: displayImage, alt: product.name }]} />
+              ) : (
+                <div className="aspect-square flex items-center justify-center bg-muted rounded-md">
+                  <QrCode className="h-24 w-24 text-muted-foreground/50" />
+                </div>
+              )}
             </Card>
           </div>
 
@@ -339,10 +350,8 @@ export default function ShopProductPage() {
 
             {(() => {
               const colorOption = product.options?.find(o => o.name === 'color');
-              const colorValues = colorOption
-                ? colorOption.values
-                : product.availableColors.map(label => ({ label, hex: getColorHex(label), available: true }));
-              if (colorValues.length === 0) return null;
+              if (!colorOption || colorOption.values.length === 0) return null;
+              const displayType = colorOption.displayType ?? 'swatches';
               return (
                 <div>
                   <label className="text-sm font-medium mb-2 block">
@@ -351,62 +360,95 @@ export default function ShopProductPage() {
                       {selectedColor || "Select a color"}
                     </span>
                   </label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {colorValues.map((cv) => {
-                      const hex = cv.hex || getColorHex(cv.label);
-                      const isSelected = selectedColor === cv.label;
-                      const isLight = isLightColor(hex);
-                      return (
-                        <button
+                  {displayType === 'swatches' && (
+                    <div className="flex flex-wrap gap-2.5">
+                      {colorOption.values.map((cv) => {
+                        const hex = cv.hex || getColorHex(cv.label);
+                        const isSelected = selectedColor === cv.label;
+                        const isLight = isLightColor(hex);
+                        return (
+                          <button
+                            key={cv.label}
+                            className={`w-11 h-11 rounded-full border-2 transition-all relative flex-shrink-0 ${
+                              !cv.available
+                                ? "opacity-40 cursor-not-allowed"
+                                : isSelected
+                                ? "border-primary ring-2 ring-primary/30 scale-110"
+                                : "border-border hover:scale-105"
+                            }`}
+                            style={{ backgroundColor: hex }}
+                            onClick={() => cv.available && setSelectedColor(cv.label)}
+                            title={cv.label}
+                            aria-label={cv.label}
+                            aria-pressed={isSelected}
+                            aria-disabled={!cv.available}
+                            data-testid={`swatch-${cv.label.toLowerCase().replace(/\s+/g, "-")}`}
+                          >
+                            {isSelected && cv.available && (
+                              <Check
+                                className={`h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
+                                  isLight ? "text-black" : "text-white"
+                                }`}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {displayType === 'pills' && (
+                    <div className="flex flex-wrap gap-2">
+                      {colorOption.values.map((cv) => (
+                        <Button
                           key={cv.label}
-                          className={`w-11 h-11 rounded-full border-2 transition-all relative flex-shrink-0 ${
-                            !cv.available
-                              ? "opacity-40 cursor-not-allowed"
-                              : isSelected
-                              ? "border-primary ring-2 ring-primary/30 scale-110"
-                              : "border-border hover:scale-105"
-                          }`}
-                          style={{ backgroundColor: hex }}
+                          variant={selectedColor === cv.label ? "default" : "outline"}
+                          size="sm"
+                          disabled={!cv.available}
                           onClick={() => cv.available && setSelectedColor(cv.label)}
-                          title={cv.label}
-                          aria-label={cv.label}
-                          aria-pressed={isSelected}
-                          aria-disabled={!cv.available}
-                          data-testid={`swatch-${cv.label.toLowerCase().replace(/\s+/g, "-")}`}
+                          data-testid={`pill-color-${cv.label.toLowerCase().replace(/\s+/g, "-")}`}
                         >
-                          {isSelected && cv.available && (
-                            <Check
-                              className={`h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
-                                isLight ? "text-black" : "text-white"
-                              }`}
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          {cv.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  {displayType === 'dropdown' && (
+                    <select
+                      className="w-full border rounded-md p-2 text-sm bg-background"
+                      value={selectedColor ?? ''}
+                      onChange={e => setSelectedColor(e.target.value)}
+                      data-testid="select-color"
+                    >
+                      <option value="">Select a color</option>
+                      {colorOption.values.map(cv => (
+                        <option key={cv.label} value={cv.label} disabled={!cv.available}>
+                          {cv.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               );
             })()}
 
             {(() => {
               const sizeOption = product.options?.find(o => o.name === 'size');
-              const sizeValues = sizeOption
-                ? sizeOption.values
-                : product.availableSizes.map(label => ({ label, available: true }));
-              if (sizeValues.length === 0) return null;
+              if (!sizeOption || sizeOption.values.length === 0) return null;
+              const displayType = sizeOption.displayType ?? 'pills';
               return (
                 <div>
                   <label className="text-sm font-medium mb-2 block">
-                    Size: {selectedSize || "Select a size"}
+                    Size:{" "}
+                    <span className="text-muted-foreground font-normal">
+                      {selectedSize || "Select a size"}
+                    </span>
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {sizeValues.map((sv) => {
-                      const isSelected = selectedSize === sv.label;
-                      return (
+                  {displayType === 'pills' && (
+                    <div className="flex flex-wrap gap-2">
+                      {sizeOption.values.map((sv) => (
                         <Button
                           key={sv.label}
-                          variant={isSelected ? "default" : "outline"}
+                          variant={selectedSize === sv.label ? "default" : "outline"}
                           size="sm"
                           disabled={!sv.available}
                           onClick={() => sv.available && setSelectedSize(sv.label)}
@@ -414,9 +456,48 @@ export default function ShopProductPage() {
                         >
                           {sv.label}
                         </Button>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+                  {displayType === 'swatches' && (
+                    <div className="flex flex-wrap gap-2.5">
+                      {sizeOption.values.map((sv) => {
+                        const isSelected = selectedSize === sv.label;
+                        return (
+                          <button
+                            key={sv.label}
+                            className={`w-11 h-11 rounded-full border-2 transition-all flex-shrink-0 flex items-center justify-center ${
+                              !sv.available
+                                ? "opacity-40 cursor-not-allowed"
+                                : isSelected
+                                ? "border-primary ring-2 ring-primary/30 scale-110 bg-primary text-primary-foreground"
+                                : "border-border hover:scale-105"
+                            }`}
+                            onClick={() => sv.available && setSelectedSize(sv.label)}
+                            aria-label={sv.label}
+                            data-testid={`swatch-size-${sv.label.toLowerCase()}`}
+                          >
+                            <span className="text-xs font-medium">{sv.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {displayType === 'dropdown' && (
+                    <select
+                      className="w-full border rounded-md p-2 text-sm bg-background"
+                      value={selectedSize ?? ''}
+                      onChange={e => setSelectedSize(e.target.value)}
+                      data-testid="select-size"
+                    >
+                      <option value="">Select a size</option>
+                      {sizeOption.values.map(sv => (
+                        <option key={sv.label} value={sv.label} disabled={!sv.available}>
+                          {sv.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               );
             })()}
