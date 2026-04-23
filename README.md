@@ -1,5 +1,7 @@
 # QR Gear — QR-Linked Product & Experience Platform
 
+> **Agent reference:** The canonical system reference for this project is [`replit.md`](./replit.md). It contains the full architecture, API routes, deploy commands, standing rules, naming standards, and session rules. Always read it first.
+
 QR Gear links physical products and digital artifacts through QR codes. Artifacts are organized into channels and collections, then stitched together into Mosaic experiences using QR Dynamics.
 
 ## Live Site

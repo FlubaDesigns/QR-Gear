@@ -1,5 +1,7 @@
 # QR Gear Methodology
 
+> **Agent reference:** The canonical system reference for this project is [`replit.md`](./replit.md). It contains the full architecture, API routes, deploy commands, standing rules, naming standards, and session rules. Always read it first.
+
 This document captures the core design principles and architectural decisions for QR Gear. Updates are dated to track evolution.
 
 ---
