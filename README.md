@@ -1,79 +1,101 @@
 # QR Gear — QR-Linked Product & Experience Platform
 
 > **Agent reference:** The canonical system reference for this project is [`replit.md`](./replit.md). It contains the full architecture, API routes, deploy commands, standing rules, naming standards, and session rules. Always read it first.
+> **Strategic reference:** [`METHODOLOGY.md`](./METHODOLOGY.md) contains all design principles, architectural decisions, and the product vision. Read it for the "why and what."
 
-QR Gear links physical products and digital artifacts through QR codes. Artifacts are organized into channels and collections, then stitched together into Mosaic experiences using QR Dynamics.
+---
 
 ## Live Site
 
 **Production:** https://qrgear-c1ffd.web.app
 
-## Core Concepts
+---
 
-### Domain Hierarchy
+## What QR Gear Is
+
+QR Gear links physical products to living digital experiences through QR codes. A shirt, mug, or hat carries a QR code that resolves to a digital surface the owner controls — images, video, rotating content. The physical product is the doorway. The digital layer is the platform.
+
+**One-line pitch:** "QR Gear lets you own moments, move them between products, and control what people see when they scan — anytime."
+
+---
+
+## QR Product Tiers
+
+| Tier | QR State | What It Does |
+|---|---|---|
+| **QR Basic** | Static | QR encodes a direct URL or text. No server. No hosting. Permanently dumb. |
+| **QR Plus** | Static | Same as Basic but with header/footer text composed around the QR on the product graphic. Gets a bridge URL — upgradeable. |
+| **QR Canvas** | Fixed | QR links to a custom full-screen image landing page (creator-set, does not change). Hosting required. |
+| **QR Play** | Fixed | QR links to a video player page. Creator uploads video. Hosting required. |
+| **QR Compose** | Living | QR cycles through a playlist of Canvas + Play moments on a schedule. Member configures the rotation. |
+| **QR Dynamics** | Living | Post-purchase buyer dashboard. Owner controls content rotation, swaps moments, manages schedule. |
+
+**QR States:**
+- **Static** — Destination is permanent. Encoded directly. No hosting needed.
+- **Fixed** — Single rich destination (image or video). Creator-set. Requires hosting.
+- **Living** — Destination rotates through content over time. Requires hosting + resolver engine.
+
+---
+
+## Five Distribution Layers
+
+QR Gear is one engine with five revenue paths — all feeding the same core system (packets, instances, ownership, dynamic control):
+
+| Layer | Name | Description | Revenue |
+|---|---|---|---|
+| 1 | Member / Creator | Members build + sell products, earn 25% of profit | 75% to QR Gear |
+| 2 | Direct Buyer | Visitor builds + buys directly on qrgear.com | 100% to QR Gear |
+| 3 | Owner / QR Dynamic | Buyer claims item, controls content post-purchase | Subscription revenue |
+| 4 | API / Embedded Stores | Partner sites embed QR Gear UX; orders route through QR Gear | Revenue share |
+| 5 | Marketplaces | Etsy/eBay/Amazon listings drive buyers back to QR Gear platform | Listing revenue |
+
+**Growth Flywheel:** Visitor → Builder → Buyer → Owner → Member → Distributor
+
+---
+
+## Four Store Types
+
+| Type | Who Controls It | Revenue Model |
+|---|---|---|
+| **Internal** | QR Gear admin (e.g. USA 250 channel) | 100% to QR Gear |
+| **Marketplace** | Admin pushes listings; marketplace handles checkout | QR Gear keeps net after fees |
+| **Partner** | Partner embeds QR Gear UX; QR Gear powers the backend | Revenue split |
+| **Member** | Individual member stores via wizard system | 25% to member, 75% to QR Gear |
+
+---
+
+## Domain Hierarchy
 
 ```
-Store → Channel → Collection → Artifact
-                                   ↓
-                            QR Dynamics stitches
-                            artifacts into a Mosaic
+Store → Channel → Collection → Product (Catalog Instance)
+                                        ↓
+                              QR Dynamics stitches
+                              moments into a living surface
 ```
 
-| Concept       | Definition                                                        |
-|---------------|-------------------------------------------------------------------|
-| **Store**     | Top-level brand or platform surface (e.g. `qr-gear`)             |
-| **Channel**   | A thematic feed or domain inside a store (e.g. `usa250`, `faith`)|
-| **Collection**| A curated grouping inside a channel (e.g. `signature-series`)    |
-| **Artifact**  | An individual content item or QR-linked object                   |
-| **Mosaic**    | A stitched interactive experience created from artifacts          |
-| **QR Dynamics**| The engine that stitches artifacts together into a Mosaic        |
-
-### Example Structure
-
+**Current internal store structure:**
 ```
-QR Gear (Store)
-  Channel: USA250
-    Collection: Signature Series
-      Mosaic: The Forefathers
-        Artifacts:
-          - Lexington Stand
-          - Tree of Liberty
-          - Declaration of Independence
-          - Government of Laws
+qrgear (Store — internal)
+  Channel: usa250
+    Collection: armed-forces
+    Collection: monuments
+    Collection: founding-fathers
 ```
 
-## Product Architecture
-
-### Layer 1 — Product Catalog
-Printify and Printful product blanks synchronized to Firestore. Admin curates blanks into named catalogs assigned to sections (Member, Public, External, Marketplace, Platform). Good/Better/Best tier system for product display.
-
-### Layer 2 — Artifact Content
-Members create QR-linked products through wizards (Quick Create, Advanced, Studio). Each creation becomes an artifact that can be published to channels and organized into collections.
-
-### Layer 3 — Mosaic / QR Dynamics
-QR Dynamics stitches multiple artifacts into a single scannable Mosaic experience. Each scan resolves through the QR resolver to display the stitched content.
-
-### Layer 4 — Widget Embed System
-External sites embed QR Gear experiences via JWT-authenticated widget tokens. Supports channel products, program series, and create-product views.
+---
 
 ## Technical Architecture
 
 ### Stack
 
 - **Frontend:** React 18, TypeScript, Vite, TailwindCSS, Shadcn UI
-- **Backend:** Express.js, TypeScript (Cloud Functions)
-- **Database:** Firestore (primary), PostgreSQL (relational commerce data)
+- **Backend:** Node.js, Express, TypeScript (Firebase Cloud Functions)
+- **Database:** Firestore (all data)
 - **Storage:** Firebase Storage
 - **Auth:** Firebase Authentication
 - **Payments:** Stripe
-- **Email:** Resend
-- **Deployment:** Firebase Hosting + Cloud Functions
-
-### Source of Truth
-
-- **Firestore** owns artifact, content, catalog, and channel data
-- **PostgreSQL** owns relational commerce data (orders, users, carts)
-- Dual-write adapters synchronize where needed
+- **Email:** Resend / NexusMail
+- **Deployment:** Firebase Hosting + Cloud Functions (`qrgear-c1ffd`)
 
 ### UI Architecture (Canon)
 
@@ -88,39 +110,51 @@ Domain (shared models / truth)
 
 **Canonical View Set (5 only):** SingleView, ScrollGridView, ScrollVerticalView, ScrollHorizontalView, ModalView.
 
+### Builder → Storefront Display Contract
+
+Every product API response includes three structured fields so the frontend never guesses rendering intent:
+
+- **`options[]`** — Structured color/size options with hex codes, availability flags, and contrast-aware swatch rendering
+- **`cardMode`** — `browseOnly` (has both colors + sizes) or `quickAdd` (single dimension)
+- **`media`** — Hero image strategy (`mockupFirst` — QR composite mockup takes priority over plain product photos)
+
 ### Canonical Description Cascade
 
-Three-layer description system:
-1. `providerDescription` — from Printify/Printful (immutable)
-2. `adminCatalogDescription` — admin override
-3. `memberPacketDescription` — member customization
-
-Resolution: `memberPacketDescription ?? adminCatalogDescription ?? providerDescription`
+```
+memberPacketDescription ?? adminCatalogDescription ?? providerDescription
+```
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `shared/domainModel.ts` | Canonical domain interfaces |
+| `replit.md` | Canonical system reference — architecture, routes, deploy, rules |
+| `METHODOLOGY.md` | Strategic decisions, product vision, architectural principles |
 | `shared/descriptionLayers.ts` | Description resolution functions |
 | `shared/wizardProduct.ts` | Wizard product normalizer |
 | `shared/blankKeys.ts` | Canonical blank key derivation |
-| `server/lib/domain-mappers.ts` | Legacy → canonical record mappers |
-| `server/lib/channelItemsService.ts` | Channel artifact CRUD |
+| `functions/src/routes/store-files.ts` | Storefront API + display contract translation layer |
+| `functions/src/constants.ts` | Centralized platform constants |
 | `ARCHITECTURE_VIEWER.md` | Binding viewer/view/skin canon |
 | `ARCHITECTURE_IDENTITY.md` | Canonical product identity canon |
+
+---
 
 ## Firebase Deployment
 
 ```bash
 # Frontend (Hosting)
 npm run build
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json
 firebase deploy --only hosting --project qrgear-c1ffd
 
 # Backend (Cloud Functions)
 cd functions && npm run build && cd ..
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json
 firebase deploy --only functions --project qrgear-c1ffd
 ```
+
+---
 
 ## Admin Interface
 
@@ -128,50 +162,42 @@ The admin panel is organized into five sections accessible from the **Run** dash
 
 | Section | Route | Purpose |
 |---------|-------|---------|
-| **Run** | `/admin` | Operating cockpit — live metrics grid, in-progress drafts, quick actions |
+| **Run** | `/admin` | Operating cockpit — live metrics, in-progress drafts, quick actions |
 | **Build** | `/admin/products` | Product builder, templates, library, blanks, dynamics |
-| **Place** | `/admin/store-builder` | Store builder, store library, partners, marketplaces |
+| **Place** | `/admin/store-builder` | Catalog, channels, stores, partners, library |
 | **Sell** | `/admin/orders` | Orders, customers, pricing, coupons, gifts |
 | **System** | `/admin/settings` | Settings, health, email, manual |
 
-### Section Sub-Nav & Mode Labels
+### Store Builder — Catalog Tab
 
-Every admin page displays a mode label eyebrow (`BUILD` / `PLACE` / `SELL` / `SYSTEM`) in its header, auto-detected from the current URL via `getModeForPath()` in `adminNavConfig.ts`. A horizontal sub-nav strip is now **sticky** and appears on every secondary and hub page, providing one-click navigation to peer pages within the same mode. All subnavs are sourced from the single central config in `client/src/components/admin/adminNavConfig.ts`. The `BUILD` subnav now includes Categories and Tags. The bottom nav uses `getModeForPath()` for all active-state detection (no more hardcoded URL arrays). `AdminShell` gained a `hideBack` prop used by the Run page.
+Products in the store are managed as **catalog instances** (`admin_catalog_instances` Firestore collection). Each instance references a product packet, has enabled colors/sizes, pricing, and a folder path (store/channel/collection). The admin can toggle colors and sizes on/off, move items between collections, and delete items directly from each card.
 
-The `/admin` path is the canonical Run URL. `/admin/run` and `/admin/dashboard` are registered aliases. The bottom nav **Run** button links to `/admin` and only highlights on those three paths.
-
-### Draft Save / Resume
-
-The product builder supports named in-progress drafts. When a build session is active, a **Save Draft** button appears in the builder's sticky bar. Named drafts surface on the Run dashboard under "In Progress" with a one-click **Resume** button that restores the full builder state.
-
-- Draft names are stored on the `admin_build_sessions` Firestore document (`draftName` field)
-- Resume navigates to `/admin/products?resume=<sessionId>` — the builder detects the param, fetches the session + linked packet, resolves the catalog product, and calls `loadFromPacketData`
-
-## Production Route Audit (2026-04-19)
-
-End-to-end audit of all Cloud Functions route files revealed **10 route files existed in `functions/src/routes/` but were never registered in `functions/src/index.ts`**, causing these admin pages to silently 404 in production:
-
-| Previously Broken | Root Cause |
-|---|---|
-| `admin-run.tsx` — metrics dashboard | `am-crud.ts` unregistered |
-| `admin-customers.tsx` — all data | `am-crud.ts` unregistered |
-| `admin-email-templates.tsx` — all data | `am-crud.ts` unregistered |
-| `admin-orchestration.tsx` — master-products + channel-configs | `am-crud.ts` unregistered |
-| `admin-fonts.tsx` — font management | `am-sync.ts` unregistered |
-| `admin-settings.tsx` — api-keys section | `am-sync.ts` unregistered |
-| `admin-health.tsx` — health check | `am-utility.ts` unregistered |
-| Product builder draft save/resume | `admin-build-sessions` missing from functions |
-
-**All 10 route files now registered** (`am-crud`, `am-sync`, `am-utility`, `members-library`, `core-routes-checkout`, `external-sites-public`, `pp-builder`, `pp-catalog`, `pp-catalog-browse`, `pp-pricing-packets`). A new `admin-build-sessions.ts` was also created for functions (ported from dev server) and registered.
-
-**Orphaned files removed:** `admin-backgrounds.tsx` (re-export of LibraryPage with no route) and `admin-dashboard.tsx` (route was already removed).
+---
 
 ## Admin Resources
 
+- **Canonical System Reference:** `replit.md`
+- **Strategic & Design Decisions:** `METHODOLOGY.md`
 - **Admin Guide:** `client/src/features/adminProducts/ADMIN_README.md`
-- **Admin Manual:** `/ADMIN_MANUAL.md`
-- **Firebase Schema:** `/FIREBASE_SCHEMA.md`
-- **Architecture Canon:** `/ARCHITECTURE_VIEWER.md`, `/ARCHITECTURE_IDENTITY.md`
+- **Admin Manual:** `ADMIN_MANUAL.md`
+- **Firebase Schema:** `FIREBASE_SCHEMA.md`
+- **Architecture Canon:** `ARCHITECTURE_VIEWER.md`, `ARCHITECTURE_IDENTITY.md`
+- **ZIP Guide:** `docs/WEBSITE_ZIP_GUIDE.md`
+
+---
+
+## Naming Standards
+
+All conventions (files, folders, components, Firestore collections, CSS classes, route paths) are defined in **`replit.md` → "Naming Standards — Project Law"**.
+
+Quick reference:
+- Files/routes: `kebab-case`
+- Components: `PascalCase`
+- Variables/functions: `camelCase`
+- Firestore collections (new): `snake_case`
+- CSS custom classes: `kebab-case` + BEM `--`
+
+---
 
 ## License
 

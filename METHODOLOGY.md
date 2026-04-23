@@ -10,6 +10,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-04-23 | Added Builder→Storefront 5-Block Display Contract (Section 16) and Naming Standards reference (Section 17) |
 | 2026-04-09 | Added Collections sub-level within channels (Section 14) and Packet Auto-Save / Builder State Persistence (Section 15) |
 | 2026-03-07 | Added Four Store Types architecture — split "external" into marketplace + partner (Section 13) |
 | 2026-02-10 | Added Public Wizard Stripe Checkout & Post-Sale Flow (Section 12) |
@@ -589,7 +590,7 @@ The Public Wizard (`/build`, `/creator`) is a conversion funnel where visitors b
 17. On successful payment, Stripe redirects to success page with `session_id`
 18. `GET /api/public/checkout/verify/:sessionId` — Verifies payment (no auth)
 19. Server retrieves Stripe session, confirms `payment_status === 'paid'`
-20. **Temp-to-Real Packet Conversion**: Temp packet data is written to `product_packets` collection as a permanent record
+20. **Temp-to-Real Packet Conversion**: Temp packet data is written to `productPackets` collection (legacy camelCase — grandfathered) as a permanent record
 21. Order is created in Firestore with line items, Stripe session ID, buyer email
 22. **Claim Code Generation**: Unique claim code (format: `QR-XXXX-XXXX`, e.g. `QR-7X4M-9K2P`) is generated and stored on the order
 23. Confirmation email sent via NexusMail with: order details, claim code, scan instructions
@@ -778,6 +779,66 @@ Auto-save updates the same packet continuously. When the admin wants a deliberat
 
 #### Design Rule
 The packet is the working state, not just the output artifact. The admin should never lose work between sessions. The builder is stateful from the moment a packet is created.
+
+---
+
+### 16. Builder → Storefront Architecture (5-Block Display Contract)
+**Established: 2026-04-23**
+
+#### The Problem
+The storefront was guessing how to render product options. Each product card had to infer whether to show color swatches, size pills, a quick-add button, or a browse-only view — from raw flat arrays with no semantic intent. This caused inconsistent rendering, impossible-to-predict card modes, and frontend logic that needed to be duplicated everywhere.
+
+#### The Solution: Server-Side Translation Layer
+A translation layer in `functions/src/routes/store-files.ts` transforms raw Firestore data into a structured display contract before sending it to the frontend. The frontend never guesses — it receives explicit intent.
+
+#### Five Blocks of the Contract
+
+Every product response now includes three structured fields:
+
+**1. `options[]` — Structured display options**
+Each option has:
+- `type`: `"color"` or `"size"`
+- `label`: Display name
+- `values[]`: Array of `{ value, label, hex?, available, isDefault }`
+
+Color values include resolved hex codes (from a 100+ color map covering all Bella+Canvas, Gildan, Next Level, and District variants) and availability flags. Contrast for swatch checkmarks is computed via WCAG luminance formula.
+
+**2. `cardMode` — Explicit rendering intent**
+- `browseOnly`: Product has both colors AND sizes — user must visit detail page to configure
+- `quickAdd`: Product has only one dimension — can be added directly from the card
+
+Rule: virtually all QR apparel is `browseOnly`.
+
+**3. `media` — Hero image strategy**
+- `mockupPriority`: The ordered list of image sources to try
+- `heroStrategy`: `"mockupFirst"` — always prefer the QR composite mockup image over plain product photos
+
+#### Color Map
+The `COLOR_HEX_MAP` (100+ entries) lives in both backend (`store-files.ts`) and frontend (`shop-product.tsx`). It covers every POD brand color name to hex value. The `isLightColor()` function uses WCAG relative luminance to determine whether a white or black checkmark should appear on a color swatch.
+
+#### Data Source
+- `admin_catalog_instances` → `enabledColors`, `enabledSizes` (admin-configured)
+- `productPackets` → `compositeUrl` (QR composite mockup image)
+- No Firestore migration required — translation is 100% at query time
+
+---
+
+### 17. Naming Standards
+**Established: 2026-04-23**
+
+All naming conventions for files, folders, Firestore collections, fields, CSS classes, route paths, and TypeScript constructs are canonically defined in **`replit.md` → "Naming Standards — Project Law"**.
+
+Key rule: the duplicate Firestore collections (`libraryAssets`/`library_assets`, `printfulProducts`/`printful_products`) were caused by skipping a naming check before creating new collections. All new collections use `snake_case`. Existing camelCase collections are grandfathered — do not rename them without explicit approval.
+
+---
+
+## Changelog (continued)
+
+| Date | Update |
+|------|--------|
+| 2026-04-23 | Added Builder→Storefront 5-Block Display Contract (Section 16) |
+| 2026-04-23 | Added Naming Standards reference (Section 17) |
+| 2026-04-23 | Fixed collection name in Section 12: `product_packets` → `productPackets` (grandfathered camelCase) |
 
 ---
 
