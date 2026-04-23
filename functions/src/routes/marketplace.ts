@@ -17,6 +17,8 @@ import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct 
 import type { SupportedMarketplace, GenerateDefaults } from '../services/surface-generator';
 import { pushListingToAmazon } from '../services/amazon-sp-api';
 import type { AmazonListingProduct } from '../services/amazon-sp-api';
+import { pushListingToEbay } from '../services/ebay-api';
+import type { EbayListingProduct } from '../services/ebay-api';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -610,6 +612,132 @@ app.post('/admin/surfaces/:surfaceId/push-to-amazon', requireAdmin, async (req: 
     res.json({ ...result, surfaceId, accountId });
   } catch (error: any) {
     console.error('[Amazon Push] push-to-amazon error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Push Surface to eBay ---
+
+app.post('/admin/surfaces/:surfaceId/push-to-ebay', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const { accountId, sku: skuOverride } = req.body;
+
+    if (!accountId) {
+      res.status(400).json({ error: 'accountId is required' });
+      return;
+    }
+
+    // Load surface
+    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!surfaceDoc.exists) {
+      res.status(404).json({ error: 'Surface not found' });
+      return;
+    }
+    const surface = surfaceDoc.data() as any;
+
+    // Load account and verify it is an eBay account with credentials
+    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+    if (!accountDoc.exists) {
+      res.status(404).json({ error: 'Account not found' });
+      return;
+    }
+    const account = accountDoc.data() as any;
+
+    if (account.platform !== 'ebay') {
+      res.status(400).json({ error: 'Account is not an eBay account' });
+      return;
+    }
+    if (!account.ebayConnected || !account.ebayRefreshToken) {
+      res.status(400).json({
+        error: 'eBay account not connected. Complete the OAuth flow first.',
+        setupRequired: true,
+      });
+      return;
+    }
+
+    const credentials = {
+      userId: account.ebayUserId || '',
+      username: account.ebayUsername || '',
+      refreshToken: account.ebayRefreshToken,
+    };
+
+    // Derive SKU
+    const sku = skuOverride || surface.sku || `QRG-${surfaceId.slice(0, 8).toUpperCase()}`;
+
+    // eBay block fields from surface
+    const eb = surface.ebay || {};
+
+    if (!eb.categoryId) {
+      res.status(400).json({ error: 'Surface is missing eBay category ID (ebay.categoryId). Edit the surface and set it before pushing.' });
+      return;
+    }
+
+    if (surface.retailPrice == null || surface.retailPrice <= 0) {
+      res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to eBay.' });
+      return;
+    }
+
+    // Parse itemSpecifics — stored as Record<string,string> or JSON string
+    let aspects: Record<string, string[]> = {};
+    if (eb.itemSpecifics) {
+      const raw = typeof eb.itemSpecifics === 'string'
+        ? JSON.parse(eb.itemSpecifics)
+        : eb.itemSpecifics;
+      for (const [k, v] of Object.entries(raw)) {
+        aspects[k] = Array.isArray(v) ? v : [String(v)];
+      }
+    }
+
+    // Map surface data to EbayListingProduct
+    const product: EbayListingProduct = {
+      title: surface.title || 'QR Gear Product',
+      description: surface.description || '',
+      price: eb.priceOverride || surface.retailPrice || surface.price || surface.basePrice || 0,
+      currencyCode: surface.currency || 'USD',
+      quantity: eb.quantity || 100,
+      condition: eb.conditionId || 'NEW',
+      brand: eb.brand || surface.brand || 'QR Gear',
+      imageUrls: (surface.images || []).map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean),
+      categoryId: String(eb.categoryId),
+      listingFormat: eb.listingFormat || 'FIXED_PRICE',
+      fulfillmentPolicyId: eb.shippingPolicyId || undefined,
+      paymentPolicyId: eb.paymentPolicyId || undefined,
+      returnPolicyId: eb.returnsPolicyId || undefined,
+      merchantLocationKey: eb.merchantLocationKey || undefined,
+      upc: eb.upc || undefined,
+      ean: eb.ean || undefined,
+      mpn: eb.mpn || undefined,
+      aspects: Object.keys(aspects).length > 0 ? aspects : undefined,
+      bestOfferEnabled: eb.bestOfferEnabled || false,
+      subtitle: eb.subtitle || undefined,
+    };
+
+    console.log(`[eBay Push] Pushing surface ${surfaceId} as SKU ${sku} to account ${accountId}`);
+    const result = await pushListingToEbay(credentials, product, sku);
+
+    // Record the push attempt on the surface
+    const now = new Date().toISOString();
+    const updateData: Record<string, any> = {
+      [`ebayPushHistory.${now.replace(/[:.]/g, '_')}`]: {
+        accountId,
+        sku,
+        success: result.success,
+        status: result.status,
+        listingId: result.listingId || null,
+        offerId: result.offerId || null,
+        error: result.error || null,
+        pushedAt: now,
+      },
+      lastEbayPushAt: now,
+      lastEbayPushSuccess: result.success,
+      lastEbayPushSku: sku,
+    };
+    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updateData);
+
+    res.json({ ...result, surfaceId, accountId });
+  } catch (error: any) {
+    console.error('[eBay Push] push-to-ebay error:', error);
     res.status(500).json({ error: error.message });
   }
 });

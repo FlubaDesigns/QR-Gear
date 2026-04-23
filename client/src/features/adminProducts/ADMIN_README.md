@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 23, 2026 (rev 21)
+Last updated: April 23, 2026 (rev 22)
 
 ---
 
@@ -491,6 +491,42 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 23, 2026 — eBay OAuth + Inventory API Listing Push (rev 22)
+
+Full eBay Sell API integration following the same pattern as Amazon. Uses the OAuth 2.0 Authorization Code flow and the eBay Inventory API (3-step: create inventory item → create/update offer → publish offer).
+
+**Accounts section — eBay connect/disconnect:**
+- eBay accounts now show an **OAuth Connected** badge when linked and the seller's eBay username, or a **Not Connected** badge when not
+- **Connect** button starts the eBay OAuth flow: opens a new tab → seller approves → eBay redirects back → refresh token + userId + username stored on the account document
+- **Disconnect** button removes stored credentials
+- On return from eBay OAuth, the page detects `?ebay_connect=success/error` query params and shows a result toast
+
+**Surfaces section — Push to eBay button:**
+- Any surface with "ebay" in `enabledPlatforms` or `supportsEbay=true` shows a **Push** button
+- Clicking it opens a dialog to confirm the target eBay account and optionally override the SKU
+- Backend executes the 3-step Inventory API push using fields from the surface's `ebay` sub-object: categoryId, conditionId, listingFormat, shippingPolicyId, paymentPolicyId, returnsPolicyId, itemSpecifics, priceOverride, quantity, brand, upc, ean, mpn, subtitle
+- Push result (success, offerId, listingId) is stored in `ebayPushHistory` on the surface document
+
+**One-time server setup required before connecting:**
+Four environment variables must be set in the Firebase Functions environment (register the app at developer.ebay.com first):
+| Variable | Description |
+|---|---|
+| `EBAY_APP_ID` | Application ID (Client ID) from eBay developer portal |
+| `EBAY_CERT_ID` | Cert ID (Client Secret) from eBay developer portal |
+| `EBAY_RUNAME` | RuName — the name eBay assigned to your registered redirect URI |
+| `EBAY_REDIRECT_URI` | Actual callback URL: `https://qrgear.com/api/marketplace/ebay/oauth/callback` |
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/services/ebay-api.ts` | **NEW** — eBay service: OAuth URL builder, token exchange, refresh, pushListingToEbay (3-step Inventory API), getUserInfo |
+| `functions/src/routes/ebay-oauth.ts` | **NEW** — OAuth routes: start, callback, disconnect |
+| `functions/src/routes/marketplace.ts` | Added `POST /admin/surfaces/:surfaceId/push-to-ebay` endpoint |
+| `functions/src/index.ts` | Registered registerEbayOAuth; bumped BUILD_ID |
+| `client/src/pages/marketplaces-accounts.tsx` | Added eBay OAuth fields, connect/disconnect mutations + UI, PushToEbayDialog, eBay Push button on surfaces |
+
+---
 
 ### April 23, 2026 — Amazon SP-API OAuth Connection + Listing Push (rev 21)
 

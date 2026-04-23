@@ -42,6 +42,11 @@ export interface MarketplaceAccount {
   amazonMarketplaceId?: string;
   amazonMarketplaceIds?: string[];
   amazonConnectedAt?: string;
+  // eBay OAuth fields
+  ebayConnected?: boolean;
+  ebayUserId?: string;
+  ebayUsername?: string;
+  ebayConnectedAt?: string;
 }
 
 export function AccountsSection() {
@@ -58,23 +63,34 @@ export function AccountsSection() {
     feePercent: "0",
   });
 
-  // Detect redirect back from Amazon OAuth and show result toast
+  // Detect redirect back from Amazon or eBay OAuth and show result toast
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const connectResult = params.get("amazon_connect");
-    if (!connectResult) return;
 
-    if (connectResult === "success") {
-      toast({ title: "Amazon account connected", description: "Your seller account is now linked and ready to push listings." });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
-    } else if (connectResult === "error") {
-      const reason = params.get("reason") || "unknown error";
-      toast({ title: "Amazon connection failed", description: reason, variant: "destructive" });
+    const amazonResult = params.get("amazon_connect");
+    if (amazonResult) {
+      if (amazonResult === "success") {
+        toast({ title: "Amazon account connected", description: "Your seller account is now linked and ready to push listings." });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      } else if (amazonResult === "error") {
+        const reason = params.get("reason") || "unknown error";
+        toast({ title: "Amazon connection failed", description: reason, variant: "destructive" });
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
     }
 
-    // Clean query params from URL without triggering navigation
-    const cleanUrl = window.location.pathname;
-    window.history.replaceState({}, "", cleanUrl);
+    const ebayResult = params.get("ebay_connect");
+    if (ebayResult) {
+      if (ebayResult === "success") {
+        toast({ title: "eBay account connected", description: "Your eBay seller account is now linked and ready to push listings." });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      } else if (ebayResult === "error") {
+        const reason = params.get("reason") || "unknown error";
+        toast({ title: "eBay connection failed", description: reason, variant: "destructive" });
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   const { data: accounts = [], isLoading } = useQuery<MarketplaceAccount[]>({
@@ -171,9 +187,53 @@ export function AccountsSection() {
     onError: (err: Error) => toast({ title: "Disconnect failed", description: err.message, variant: "destructive" }),
   });
 
+  const connectEbayMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const res = await apiRequest("GET", `/api/marketplace/ebay/oauth/start?accountId=${accountId}`, undefined);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
+    },
+    onSuccess: (data) => {
+      setConnectingId(null);
+      if (data.oauthUrl) {
+        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
+        toast({ title: "eBay authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+      }
+    },
+    onError: (err: Error) => {
+      setConnectingId(null);
+      const isSetup = err.message.includes("not configured");
+      toast({
+        title: isSetup ? "eBay app credentials not set up yet" : "Could not start eBay connection",
+        description: isSetup
+          ? "Set EBAY_APP_ID, EBAY_CERT_ID, and EBAY_RUNAME in the server environment, then try again."
+          : err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectEbayMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/surfaces/accounts/${accountId}/ebay-disconnect`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      toast({ title: "eBay account disconnected" });
+    },
+    onError: (err: Error) => toast({ title: "Disconnect failed", description: err.message, variant: "destructive" }),
+  });
+
   const handleConnectAmazon = (accountId: string) => {
     setConnectingId(accountId);
     connectAmazonMutation.mutate(accountId);
+  };
+
+  const handleConnectEbay = (accountId: string) => {
+    setConnectingId(accountId);
+    connectEbayMutation.mutate(accountId);
   };
 
   const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "", feePercent: "0" });
@@ -258,6 +318,14 @@ export function AccountsSection() {
                             ? <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />SP-API Connected</Badge>
                             : <Badge variant="outline" className="text-xs text-muted-foreground">Not Connected</Badge>
                         )}
+                        {acct.platform === "ebay" && (
+                          acct.ebayConnected
+                            ? <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />OAuth Connected</Badge>
+                            : <Badge variant="outline" className="text-xs text-muted-foreground">Not Connected</Badge>
+                        )}
+                        {acct.platform === "ebay" && acct.ebayUsername && (
+                          <span className="text-xs text-muted-foreground">{acct.ebayUsername}</span>
+                        )}
                         {acct.feePercent > 0 && (
                           <span className="text-xs text-muted-foreground">{acct.feePercent}% fee</span>
                         )}
@@ -287,6 +355,31 @@ export function AccountsSection() {
                           {connectingId === acct.id && connectAmazonMutation.isPending
                             ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Connecting…</>
                             : <><SiAmazon className="h-3 w-3 mr-1" />Connect</>}
+                        </Button>
+                      )
+                    )}
+                    {acct.platform === "ebay" && (
+                      acct.ebayConnected ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { if (confirm("Disconnect this eBay account?")) disconnectEbayMutation.mutate(acct.id); }}
+                          disabled={disconnectEbayMutation.isPending}
+                          data-testid={`button-ebay-disconnect-${acct.id}`}
+                        >
+                          {disconnectEbayMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConnectEbay(acct.id)}
+                          disabled={connectingId === acct.id && connectEbayMutation.isPending}
+                          data-testid={`button-ebay-connect-${acct.id}`}
+                        >
+                          {connectingId === acct.id && connectEbayMutation.isPending
+                            ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Connecting…</>
+                            : <><SiEbay className="h-3 w-3 mr-1" />Connect</>}
                         </Button>
                       )
                     )}
@@ -780,6 +873,159 @@ function PushToAmazonDialog({
   );
 }
 
+// ─── Push to eBay dialog ──────────────────────────────────────────────────────
+
+function PushToEbayDialog({
+  open,
+  onClose,
+  surfaceId,
+  surfaceTitle,
+  surfaceSku,
+}: {
+  open: boolean;
+  onClose: () => void;
+  surfaceId: string;
+  surfaceTitle: string;
+  surfaceSku?: string;
+}) {
+  const { toast } = useToast();
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
+
+  const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
+    queryKey: ["/api/admin/surfaces/accounts"],
+    enabled: open,
+  });
+
+  const ebayAccounts = allAccounts.filter(
+    (a) => a.platform === "ebay" && a.ebayConnected && a.isActive
+  );
+
+  useEffect(() => {
+    if (ebayAccounts.length === 1 && !selectedAccountId) {
+      setSelectedAccountId(ebayAccounts[0].id);
+    }
+  }, [ebayAccounts.length]);
+
+  const pushMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-ebay`, {
+        accountId: selectedAccountId,
+        ...(skuOverride ? { sku: skuOverride } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Push failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({
+          title: "Pushed to eBay",
+          description: `Listing published (SKU: ${data.sku}${data.listingId ? `, Listing ID: ${data.listingId}` : ""}).`,
+        });
+      } else {
+        toast({
+          title: "eBay push failed",
+          description: data.error || "Unknown error",
+          variant: "destructive",
+        });
+      }
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Push failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleClose = () => {
+    if (pushMutation.isPending) return;
+    setSelectedAccountId("");
+    setSkuOverride(surfaceSku || "");
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Push to eBay</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            Publish <span className="font-medium">{surfaceTitle || "this surface"}</span> as an active eBay listing via the Inventory API.
+          </p>
+
+          {ebayAccounts.length === 0 ? (
+            <div className="rounded-md border p-4 space-y-2">
+              <p className="text-sm font-medium text-destructive">No connected eBay accounts</p>
+              <p className="text-xs text-muted-foreground">Go to the Accounts tab, add an eBay account, and complete the OAuth flow first.</p>
+            </div>
+          ) : (
+            <>
+              {ebayAccounts.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">eBay Seller Account</Label>
+                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                    <SelectTrigger data-testid="select-ebay-push-account">
+                      <SelectValue placeholder="Select account…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ebayAccounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id} data-testid={`option-ebay-push-account-${a.id}`}>
+                          {a.accountName}
+                          {a.ebayUsername && <span className="text-muted-foreground ml-2 text-xs">{a.ebayUsername}</span>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {ebayAccounts.length === 1 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <SiEbay className="h-4 w-4 text-blue-500" />
+                  <span className="font-medium">{ebayAccounts[0].accountName}</span>
+                  {ebayAccounts[0].ebayUsername && (
+                    <span className="text-muted-foreground text-xs">({ebayAccounts[0].ebayUsername})</span>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-xs">SKU</Label>
+                <Input
+                  value={skuOverride}
+                  onChange={(e) => setSkuOverride(e.target.value)}
+                  placeholder={`Auto: QRG-${surfaceId.slice(0, 8).toUpperCase()}`}
+                  data-testid="input-ebay-push-sku"
+                />
+                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={pushMutation.isPending} data-testid="button-ebay-push-cancel">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => pushMutation.mutate()}
+            disabled={!selectedAccountId || pushMutation.isPending || ebayAccounts.length === 0}
+            data-testid="button-ebay-push-confirm"
+          >
+            {pushMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pushing…</>
+            ) : (
+              <><SiEbay className="h-4 w-4 mr-2" />Push to eBay</>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Admin instance shape used by the generate dialog ────────────────────────
 
 interface AdminInstancePreview {
@@ -961,6 +1207,7 @@ export function SurfacesSection() {
   const [showAdd, setShowAdd] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
   const [pushTarget, setPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
+  const [ebayPushTarget, setEbayPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SurfaceForm>(DEFAULT_FORM);
 
@@ -1109,6 +1356,16 @@ export function SurfacesSection() {
         />
       )}
 
+      {ebayPushTarget && (
+        <PushToEbayDialog
+          open={!!ebayPushTarget}
+          onClose={() => setEbayPushTarget(null)}
+          surfaceId={ebayPushTarget.id}
+          surfaceTitle={ebayPushTarget.title}
+          surfaceSku={ebayPushTarget.sku}
+        />
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : surfaces.length === 0 ? (
@@ -1177,6 +1434,17 @@ export function SurfacesSection() {
                         data-testid={`button-push-amazon-${surface.id}`}
                       >
                         <SiAmazon className="h-3 w-3 mr-1 text-yellow-500" />
+                        Push
+                      </Button>
+                    )}
+                    {(surface.enabledPlatforms?.includes("ebay") || surface.supportsEbay) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEbayPushTarget({ id: surface.id, title: surface.title || "Untitled", sku: surface.sku })}
+                        data-testid={`button-push-ebay-${surface.id}`}
+                      >
+                        <SiEbay className="h-3 w-3 mr-1 text-blue-500" />
                         Push
                       </Button>
                     )}

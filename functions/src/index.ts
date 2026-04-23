@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260423-amazon-sp-api-oauth-v1';
+const _BUILD_ID = '20260423-ebay-oauth-inventory-api-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -54,6 +54,7 @@ import { registerPpCatalogBrowseRoutes } from './routes/pp-catalog-browse';
 import { register as registerPpPricingPackets } from './routes/pp-pricing-packets';
 import { registerAdminBuildSessions } from './routes/admin-build-sessions';
 import { register as registerAmazonOAuth } from './routes/amazon-oauth';
+import { register as registerEbayOAuth } from './routes/ebay-oauth';
 
 const app = express();
 
@@ -112,6 +113,7 @@ registerPpCatalogBrowseRoutes(app);
 registerPpPricingPackets(app);
 registerAdminBuildSessions(app);
 registerAmazonOAuth(app);
+registerEbayOAuth(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);
