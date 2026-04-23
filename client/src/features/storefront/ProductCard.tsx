@@ -1,8 +1,7 @@
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { QrCode, Star, Sparkles, ArrowRight } from "lucide-react";
+import { QrCode, Star, Sparkles } from "lucide-react";
 import type { StoreProduct } from "./types";
 
 export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -83,15 +82,6 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full mt-auto hidden sm:flex gap-2 items-center justify-center"
-            tabIndex={-1}
-            data-testid={`button-view-product-${product.id}`}
-          >
-            Shop <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
         </CardContent>
       </Card>
     </Link>
