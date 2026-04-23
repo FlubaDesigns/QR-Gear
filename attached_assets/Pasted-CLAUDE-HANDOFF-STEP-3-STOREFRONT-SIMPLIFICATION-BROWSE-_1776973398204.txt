@@ -1,0 +1,321 @@
+CLAUDE HANDOFF — STEP 3: STOREFRONT SIMPLIFICATION (BROWSE VS DECIDE) — THIS ZIP ONLY
+
+This is the THIRD MOST IMPORTANT fix before launch.
+
+Step 1 makes the member/public surface real.
+Step 2 makes the member area trustworthy.
+Step 3 makes the STOREFRONT feel inviting, easy to navigate, and much less friction-heavy.
+
+Do NOT redesign the store architecture.
+Do NOT change the store/channel/collection/product hierarchy.
+Do NOT create a second storefront system.
+Do NOT remove product detail pages.
+Do NOT flatten everything into one giant page.
+
+This is a UX SIMPLIFICATION pass using the current structure.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Separate:
+- BROWSE
+from
+- DECIDE
+
+Right now the storefront still mixes:
+- browsing
+- configuring
+- buying
+
+too early, especially on collection/listing pages.
+
+The target model is:
+
+Store / Channel / Collection pages
+= BROWSE
+
+Product page
+= DECIDE + BUY
+
+This is the key correction.
+
+==================================================
+CURRENT PROBLEM (FROM THIS ZIP)
+==================================================
+
+Collection/listing pages still carry too much cognitive load.
+
+Product cards are still doing too much or are too close to doing too much:
+- too much information density
+- too much interaction too early
+- too much configuration pressure before the product page
+
+The result:
+- mobile browsing feels heavier than it should
+- the store feels more “builder-shaped” than “shopping-shaped”
+- users have to think too early instead of just browsing
+
+This is one of the biggest public-facing friction points in the entire product.
+
+==================================================
+PART 1 — MAKE COLLECTION PAGES BROWSE-ONLY
+==================================================
+
+This is the main fix.
+
+Pages like:
+- /shop/internal/qrgear/usa250/armed-forces
+- and equivalent collection/listing pages
+
+must become clearly browse-first surfaces.
+
+That means product cards on these pages should ONLY do the job of helping the user:
+- notice an item
+- understand what it is
+- see the price
+- open the product page
+
+Required product card contents on collection/listing pages:
+- one main image only
+- product title
+- price
+- optional simple badge if important
+- tap/click behavior to open product page
+
+Do NOT keep heavy decision UI on collection cards.
+
+==================================================
+PART 2 — REMOVE CONFIGURATION FROM LISTING CARDS
+==================================================
+
+On collection/listing pages, REMOVE from product cards:
+- color selectors
+- size selectors
+- option dropdowns
+- add-to-cart controls
+- embedded heavy gallery behavior
+- multi-step selection interactions
+
+Main rule:
+If the user has to make a meaningful choice, it belongs on the PRODUCT PAGE, not the listing card.
+
+This is especially important on mobile.
+The listing page should feel fast and calm, not interactive in a stressful way.
+
+==================================================
+PART 3 — PRODUCT CARDS MUST BECOME ENTRY POINTS, NOT MINI PRODUCT PAGES
+==================================================
+
+Treat StoreProductCard (or equivalent listing card component) as an entry point.
+
+The card should answer only:
+- what is it?
+- what does it cost?
+- does it look appealing enough to tap?
+
+It should NOT attempt to become:
+- a mini configurator
+- a mini cart form
+- a mini gallery system
+- a mini decision workflow
+
+If there are multiple images, you may support:
+- a subtle image count indicator
+or
+- a very light secondary cue
+
+But do NOT embed a full heavy gallery experience in every listing card.
+
+The full gallery belongs on the product page.
+
+==================================================
+PART 4 — PRODUCT PAGE BECOMES THE TRUE DECISION PAGE
+==================================================
+
+All meaningful interaction must happen on the product page.
+
+The product page should be the only place where the user:
+- explores the full image gallery
+- selects color
+- selects size
+- reads deeper details
+- adds to cart
+
+This is where the richer interaction belongs.
+
+Required behavior on the product page:
+- full gallery/media set
+- clearer product detail layout
+- option selection UX
+- add-to-cart flow
+
+The storefront should guide users naturally:
+browse on collection page
+→ decide on product page
+
+==================================================
+PART 5 — KEEP THE HIERARCHY INTACT
+==================================================
+
+Do NOT change the hierarchy:
+- Store
+- Channel
+- Collection
+- Product
+
+This pass is not about changing routing or architecture.
+It is about making each layer feel like its proper role.
+
+Role definitions:
+
+STORE ROOT
+- orientation and direction
+
+CHANNEL PAGE
+- themed destination and collection entry
+
+COLLECTION PAGE
+- product browsing
+
+PRODUCT PAGE
+- product decision and purchase
+
+Do not blur these layers again.
+
+==================================================
+PART 6 — MOBILE-FIRST REQUIREMENTS
+==================================================
+
+This pass must prioritize mobile.
+
+On mobile, collection/listing pages should:
+- scroll fast
+- feel light
+- avoid dense cards
+- avoid hidden or nested interactions
+- use large card tap targets
+
+The user should be able to:
+- skim products quickly
+- tap a product confidently
+- land on the product page to make decisions
+
+If listing pages still feel like work on mobile, the pass is not complete.
+
+==================================================
+PART 7 — VISUAL SIMPLIFICATION OF LISTING CARDS
+==================================================
+
+Reduce clutter in collection/listing cards.
+
+Desired card feel:
+- calm
+- clear
+- scannable
+- image-forward
+
+Avoid:
+- too many controls
+- too much small text
+- too many stacked interaction zones
+- too many competing visual elements
+
+Use spacing and hierarchy to make the card easy to parse fast.
+
+The goal is not “minimal for minimal’s sake.”
+The goal is:
+less friction, faster recognition, easier tapping.
+
+==================================================
+PART 8 — DO NOT BREAK PRODUCT OPTION LOGIC, JUST MOVE IT
+==================================================
+
+This pass is NOT Step 4 (product option UX redesign), but it must prepare for it correctly.
+
+That means:
+- remove option selection from listing cards
+- keep option selection on product page
+- do not destroy the underlying option system
+- do not break add-to-cart logic
+
+You are moving decision UI to the right place, not deleting product options.
+
+==================================================
+PART 9 — DO NOT BREAK MEDIA / GALLERY LOGIC, JUST RELOCATE THE EXPERIENCE
+==================================================
+
+If the product has rich media:
+- keep it on the product page
+- do not force it into collection cards
+
+You may keep a single strong hero image on cards.
+But the full gallery experience belongs on product detail.
+
+This helps:
+- performance
+- clarity
+- mobile usability
+- perceived simplicity
+
+==================================================
+PART 10 — KEEP THE STORE INVITING
+==================================================
+
+This fix is not only about less interaction.
+It is about making the store feel easier to enter.
+
+After the pass, a user should feel:
+- “I can browse this”
+not
+- “I have to work through this”
+
+This means:
+- cleaner collection pages
+- clearer card hierarchy
+- easier movement into product pages
+- less tension before decision time
+
+==================================================
+PART 11 — WHAT NOT TO DO
+==================================================
+
+Do NOT:
+- redesign the whole storefront
+- change the store/channel/collection routing
+- create a second product-card system unless necessary
+- move heavy business logic into page files
+- keep options/add-to-cart inside listing cards
+- replace the product page with quick-buy logic everywhere
+
+This is a simplification pass, not a rebuild.
+
+==================================================
+EXPECTED END STATE
+==================================================
+
+After this pass, I should be able to say:
+
+1. Collection pages are clearly browse-first.
+2. Product cards are simple, clean entry points.
+3. Product cards no longer carry heavy configuration UI.
+4. Product pages are now the main place for decision-making.
+5. Mobile browsing feels faster and less cluttered.
+6. The store hierarchy remains intact.
+7. The storefront feels more inviting and easier to navigate.
+
+==================================================
+WHAT I WANT BACK
+==================================================
+
+When done, give me:
+
+1. Exact files changed
+2. Which product card/listing components were simplified
+3. Exactly what interaction/UI was removed from listing cards
+4. How product pages now carry the decision workflow
+5. What was done specifically for mobile improvement
+6. Confirmation that routing and hierarchy were preserved
+7. Confirmation that no second storefront/rendering system was introduced
+
+Patch this in THIS ZIP only. Be explicit. This is the browse-vs-decide correction pass.
