@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 23, 2026 (rev 20)
+Last updated: April 23, 2026 (rev 21)
 
 ---
 
@@ -491,6 +491,41 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 23, 2026 — Amazon SP-API OAuth Connection + Listing Push (rev 21)
+
+Full Amazon Selling Partner API integration for marketplace accounts and surfaces.
+
+**Accounts section — Amazon connect/disconnect:**
+- Amazon accounts now show an **SP-API Connected** badge when linked, or a **Not Connected** badge when not
+- **Connect** button starts the Seller Central OAuth flow: opens a new tab → admin approves → Amazon redirects back → refresh token + seller ID stored on the account document
+- **Disconnect** button removes stored credentials
+- On return from Amazon OAuth, the page detects `?amazon_connect=success/error` query params and shows a result toast
+
+**Surfaces section — Push to Amazon button:**
+- Any surface with "amazon" in its `enabledPlatforms` shows a **Push** button
+- Clicking it opens a dialog to confirm the target Amazon account (auto-selects if only one connected) and optionally override the SKU
+- Backend maps the surface's title, description, bullet points, tags, images, and price to the SP-API Listings Items API (PUT /listings/2021-08-01/items/{sellerId}/{sku})
+- Push result (success, issues, submission ID) is stored in `amazonPushHistory` on the surface document
+
+**One-time server setup required before connecting:**
+Four environment variables must be set in the Firebase Functions environment:
+| Variable | Purpose |
+|---|---|
+| `AMAZON_SP_APP_ID` | Seller Central App ID (amzn1.sellerapps.app.XXX) — from Seller Central Dev Console |
+| `AMAZON_SP_CLIENT_ID` | LWA Client ID for the QR Gear SP-API application |
+| `AMAZON_SP_CLIENT_SECRET` | LWA Client Secret |
+| `AMAZON_SP_REDIRECT_URI` | `https://qrgear.com/api/marketplace/amazon/oauth/callback` |
+
+Register QR Gear as a developer app at: `sellercentral.amazon.com → Apps & Services → Develop Apps`
+
+| File | Change |
+|---|---|
+| `functions/src/services/amazon-sp-api.ts` | NEW — LWA token exchange, `pushListingToAmazon`, `buildOAuthUrl`, `getSellerIdFromToken` |
+| `functions/src/routes/amazon-oauth.ts` | NEW — OAuth start, callback, disconnect routes |
+| `functions/src/routes/marketplace.ts` | `POST /admin/surfaces/:id/push-to-amazon` endpoint added |
+| `functions/src/index.ts` | Registered `registerAmazonOAuth`, bumped build ID |
+| `client/src/pages/marketplaces-accounts.tsx` | `MarketplaceAccount` type extended; Connect/Disconnect buttons; `PushToAmazonDialog`; Push button on surface cards |
 
 ### April 23, 2026 — Surface Auto-Generation from Built Product Pipeline (rev 20)
 
