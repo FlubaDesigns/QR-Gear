@@ -360,7 +360,7 @@ const QUICK_ACTIONS = [
   { label: "Orders", icon: ShoppingCart, href: "/admin/orders" },
   { label: "Payouts", icon: CreditCard, href: "/admin/external-sites" },
   { label: "Email Health", icon: Mail, href: "/admin/email-health" },
-  { label: "System", icon: Activity, href: "/admin/health" },
+  { label: "Pre-Launch", icon: Zap, href: "/admin/launch" },
 ];
 
 function QuickActions() {

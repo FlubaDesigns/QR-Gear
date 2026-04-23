@@ -82,6 +82,7 @@ import AdminARDemo from "@/pages/admin-ar-demo";
 import AdminBlanks from "@/pages/admin-blanks";
 import AdminMarketplaces from "@/pages/admin-marketplaces";
 import AdminExternalSites from "@/pages/admin-external-sites";
+import AdminLaunch from "@/pages/admin-launch";
 import FontManagement from "@/pages/admin-fonts";
 import Members from "@/features/members/MembersPage";
 import PlayLanding from "@/pages/play";
@@ -170,6 +171,7 @@ function Router() {
       <Route path="/shop/:storeType/:storeName/:channel/:collection" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName/:segment" component={ShopSegment} />
       <Route path="/shop/:storeType/:storeName" component={ShopSegment} />
+      <Route path="/admin/launch">{() => <AdminRoute><AdminLaunch /></AdminRoute>}</Route>
       <Route path="/admin/blanks">{() => <AdminRoute><AdminBlanks /></AdminRoute>}</Route>
       <Route path="/admin/marketplaces">{() => <AdminRoute><AdminMarketplaces /></AdminRoute>}</Route>
       <Route path="/admin/external-sites">{() => <AdminRoute><AdminExternalSites /></AdminRoute>}</Route>
