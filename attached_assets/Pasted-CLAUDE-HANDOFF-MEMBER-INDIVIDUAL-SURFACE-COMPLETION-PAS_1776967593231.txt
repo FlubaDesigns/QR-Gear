@@ -1,0 +1,396 @@
+CLAUDE HANDOFF — MEMBER INDIVIDUAL SURFACE COMPLETION PASS (THIS ZIP ONLY)
+
+This pass is focused ONLY on completing the member → individual surface/store connection.
+
+Do NOT redesign the whole member area.
+Do NOT remove channels.
+Do NOT remove the existing store/channel/product architecture.
+Do NOT create a second storefront engine.
+
+This is a COMPLETION + UNIFICATION pass for the member-owned surface model.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Make the member-owned individual surface/store actually complete end to end.
+
+The intended path is:
+
+member
+→ owns channel / surface identity
+→ creates products / packets
+→ attaches them to that channel
+→ shares a real public-facing individual surface
+→ public visitors can browse that surface correctly
+
+Right now this is only PARTLY complete.
+
+The member side can create and own channels.
+Products and packets can attach to channels.
+Public store/channel APIs exist.
+
+But the full connection to a real public-facing member surface is not finished.
+
+This pass must complete that bridge.
+
+==================================================
+WHAT IS ALREADY TRUE (DO NOT BREAK)
+==================================================
+
+1. Members can create channels.
+2. Channels are member-owned (`ownerId`, `type: 'member'`, etc.).
+3. Products and packets can attach to `channelId`.
+4. Public store/channel APIs already exist, including endpoints for:
+   - channels
+   - channel products
+   - channel collections
+   - channel content
+
+Do NOT destroy this.
+Build on it.
+
+==================================================
+THE CURRENT GAPS
+==================================================
+
+Based on this ZIP, these are the major incompletions:
+
+1. MEMBER SHARE URL IS NOT WIRED TO A REAL FRONTEND ROUTE
+The member channel UI currently builds share links like:
+- `/channel/:channelId`
+
+But the frontend app does NOT currently expose a matching route in `App.tsx`.
+
+That means members are being given a share URL for an individual surface that is not actually routable in the frontend.
+
+This must be fixed.
+
+2. MEMBER IDENTITY FIELDS ARE NOT FULLY ACTIVATED
+The onboarding/profile system stores values like:
+- `storeName`
+- `creatorSlug`
+
+But those values do not yet appear to drive a fully resolved public-facing member surface in a meaningful, canonical way.
+
+3. STORE / CHANNEL / SURFACE RESOLUTION IS NOT FULLY UNIFIED
+There are signs that:
+- channels may live under a platform store
+- products/packets may carry storeId separately
+- public store APIs exist independently
+But the exact member → store → channel → public surface relationship is not yet explicit enough.
+
+4. MEMBER UX DOES NOT FULLY REALIZE THE COLLECTION LAYER
+If the intended model is:
+- store
+- channel
+- collection
+- product
+then the member-facing flow is still strongest at:
+- channel
+- mixed items (products + packets)
+
+The collection layer is not yet strongly completed in the member-owned surface flow.
+
+==================================================
+TARGET END STATE
+==================================================
+
+After this pass, the member-owned surface model must work like this:
+
+A. MEMBER IDENTITY
+A member has:
+- memberId
+- creatorSlug and/or storeName
+- a channel/surface identity
+
+B. MEMBER CHANNEL
+That channel is the member’s public-facing surface context.
+
+C. MEMBER PRODUCTS / CONTENT
+Products and packets attach to that channel and are available for display on that channel surface.
+
+D. PUBLIC SURFACE
+There is a real frontend route that resolves and displays the member’s individual surface/store.
+
+E. SHARE URL
+When the member shares their surface, the URL must be real and browsable.
+
+==================================================
+PART 1 — CREATE OR USE A REAL PUBLIC ROUTE FOR MEMBER SURFACES
+==================================================
+
+The first concrete fix is to stop generating fake or incomplete share URLs.
+
+Current behavior appears to build:
+- `/channel/:channelId`
+
+But this route is not actually present in the frontend router.
+
+You must do ONE of these:
+
+OPTION A — add a real route for `/channel/:channelId`
+or
+
+OPTION B — update the share URL generator to point to an already-existing real public route shape that resolves the member channel surface
+
+Use the approach that best fits the existing storefront architecture in this ZIP.
+
+The rule is simple:
+DO NOT hand the member a share URL that the app does not resolve.
+
+Required outcome:
+- shared member channel URL opens a real page
+- real page loads the right channel surface
+- real page displays the right member-owned items/content
+
+==================================================
+PART 2 — DEFINE ONE CLEAR MEMBER SURFACE RESOLUTION MODEL
+==================================================
+
+You need one authoritative rule for how member identity becomes a public surface.
+
+At minimum, define clearly:
+
+- how memberId relates to channelId
+- whether member public surface resolves by:
+  - channelId
+  - creatorSlug
+  - storeName / slug
+  - a parent store + channel path
+- how the system resolves the correct parent store/storeId
+- how the UI decides what branding/title to show
+
+This must be explicit in code, not scattered assumptions.
+
+I do NOT care whether the final public path is:
+- `/channel/:id`
+- `/store/:storeId/channel/:channelId`
+- `/members/:creatorSlug/store`
+- or another route already aligned with the current app
+
+I DO care that:
+- it is real
+- it is canonical
+- it is consistent
+- it is shareable
+- it is backed by the current store/channel/product model
+
+==================================================
+PART 3 — ACTIVATE `creatorSlug` / `storeName` MEANINGFULLY
+==================================================
+
+Right now member onboarding/profile appears to save:
+- `creatorSlug`
+- `storeName`
+
+These values should not just sit in profile data.
+
+Use them meaningfully for the member-owned surface model, for example:
+- branding/title shown on public surface
+- public slug routing or aliasing
+- share identity
+- surface header content
+
+If the canonical route must still resolve primarily by channelId internally, that is fine.
+But `creatorSlug` / `storeName` should still matter in the public-facing member surface.
+
+At minimum:
+- use them in display
+- and if appropriate, support them in routing/aliasing or permalink structure
+
+==================================================
+PART 4 — UNIFY STORE / CHANNEL ATTRIBUTION
+==================================================
+
+This is critical.
+
+The member-owned surface must not feel like:
+- channel belongs one place
+- packet belongs another
+- product belongs another
+- public store belongs elsewhere
+
+You need one stable resolution rule that says:
+
+- member channel belongs under the correct parent store/storeId
+- products attached to that channel resolve into that same surface context
+- packets attached to that channel also resolve into that same surface context
+- public API and frontend route both agree on the same parent-child relationship
+
+If the system uses a platform store such as a parent store ID under which member channels live, that is acceptable.
+But it must be explicit and consistent.
+
+Do NOT let:
+- packets
+- products
+- channels
+- public store resolution
+all infer different store context rules.
+
+==================================================
+PART 5 — STRENGTHEN THE MEMBER SURFACE DATA MODEL
+==================================================
+
+The member-facing surface should not just be “channel with mixed objects.”
+
+Create or enforce a normalized member surface data layer that can answer:
+
+- surface identity (title, slug, branding)
+- owner/member identity
+- products on this surface
+- collections on this surface
+- optional non-product content on this surface
+- QR Dynamics-related content if applicable
+- counts/metadata needed by the UI
+
+In other words:
+the public member surface should consume a normalized “surface model,” not raw mixed data where the frontend has to infer too much.
+
+This does NOT require destroying the underlying product/packet/channel model.
+It means:
+- normalize before render
+
+==================================================
+PART 6 — COMPLETE THE COLLECTION LAYER FOR MEMBERS
+==================================================
+
+If the intended long-term hierarchy is:
+- store
+- channel
+- collection
+- product
+
+then the member-owned surface must support that more explicitly.
+
+Right now the member side appears strongest at:
+- channel
+- products
+- packets
+
+You need to either:
+
+A. explicitly support collections in the member surface flow
+or
+
+B. define clearly that collections are optional and channel can directly surface mixed items until collection support is fully enabled
+
+But do NOT leave the current state ambiguous.
+
+Recommended direction:
+- support collections as first-class grouping objects under the member channel
+- member surface can then display:
+  - featured collections
+  - products within collections
+  - optionally ungrouped items if the model allows it
+
+If collection support already exists in the public/store APIs, connect the member flow to that instead of leaving it half-present.
+
+==================================================
+PART 7 — MAKE THE PUBLIC MEMBER SURFACE A REAL USER EXPERIENCE
+==================================================
+
+The public member surface should not just be a raw channel dump.
+
+It needs:
+- identity/header area
+- member/creator/store name
+- optional description/tagline
+- product or collection listing
+- correct item/media rendering
+- navigable structure
+- shareable URL
+
+This must feel like:
+- a real surface/store
+not
+- a backend object rendered directly
+
+Use existing storefront/view/rendering systems where possible.
+Do NOT create a second storefront engine.
+
+==================================================
+PART 8 — KEEP THE CURRENT STORE/CHANNEL/PRODUCT SYSTEM, DO NOT FORK IT
+==================================================
+
+This is important.
+
+Do NOT solve this by creating:
+- a special member storefront engine
+- a special member-only product model
+- a special second router unrelated to the public store model
+
+Instead:
+- complete the current system properly
+- route member surfaces through the same core store/channel/product logic
+- normalize where needed
+
+One system.
+Many contexts.
+No duplicate engines.
+
+==================================================
+PART 9 — SHARE FLOW MUST BE TRUSTWORTHY
+==================================================
+
+The share action in the member area must only produce a URL that is:
+- real
+- canonical
+- stable
+- routable
+- publicly renderable
+
+Required:
+- remove or replace any fake/incomplete share URL logic
+- if the route uses channelId internally, share that
+- if a nicer slug route exists, share that
+- but the final URL must actually work
+
+Also ensure:
+- copying the link gives the right final path
+- viewing it unauthenticated still renders the public surface correctly
+
+==================================================
+PART 10 — WHAT NOT TO DO
+==================================================
+
+Do NOT:
+- create a parallel member-storefront engine
+- leave `/channel/:id` share links if the router does not support them
+- keep `creatorSlug` / `storeName` as dead profile fields
+- let packets/products/channels resolve against inconsistent store contexts
+- pretend collections exist for members if the surface cannot actually use them
+- destroy the existing store/channel/public API structure
+
+==================================================
+EXPECTED END STATE
+==================================================
+
+After this pass, I should be able to say:
+
+1. A member can create and own a channel/surface.
+2. A member can attach products/packets to that channel.
+3. The member can share a real public URL for that surface.
+4. The frontend has a real route that resolves the member surface.
+5. `creatorSlug` / `storeName` meaningfully contribute to member surface identity.
+6. Store/channel/product attribution is consistent.
+7. The member surface feels like a real public-facing store/surface.
+8. The current store/channel/product architecture was completed, not forked.
+
+==================================================
+WHAT I WANT BACK
+==================================================
+
+When done, give me:
+
+1. Exact files changed
+2. The final public member surface route you chose
+3. How member share URLs now work
+4. How member identity resolves into channel/surface identity
+5. How `creatorSlug` / `storeName` are now used
+6. How store/channel/product attribution was unified
+7. Whether collections are now supported in the member-owned surface flow
+8. How the public member surface data is normalized before render
+9. Confirmation that no duplicate storefront engine was created
+
+Patch this in THIS ZIP only. Be explicit. Complete the member individual surface properly.
