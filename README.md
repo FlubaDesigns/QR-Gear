@@ -23,12 +23,12 @@ QR Gear links physical products to living digital experiences through QR codes. 
 
 | Tier | QR State | What It Does |
 |---|---|---|
-| **QR Basic** | Static | QR encodes a direct URL or text. No server. No hosting. Permanently dumb. |
-| **QR Plus** | Static | Same as Basic but with header/footer text composed around the QR on the product graphic. Gets a bridge URL — upgradeable. |
-| **QR Canvas** | Fixed | QR links to a custom full-screen image landing page (creator-set, does not change). Hosting required. |
+| **QR Basic** | Static | QR encodes a direct URL or text. No server. No hosting. Permanently fixed destination. |
+| **QR Plus** | Static | Same as Basic but header/footer text is composed around the QR on the product graphic. Still permanent destination. |
+| **QR Canvas** | Fixed | QR links to a custom full-screen image landing page (creator-set). Hosting required. |
 | **QR Play** | Fixed | QR links to a video player page. Creator uploads video. Hosting required. |
-| **QR Compose** | Living | QR cycles through a playlist of Canvas + Play moments on a schedule. Member configures the rotation. |
-| **QR Dynamics** | Living | Post-purchase buyer dashboard. Owner controls content rotation, swaps moments, manages schedule. |
+| **QR Compose** | Living | QR cycles through a rotating playlist of Canvas + Play items on a schedule. Member configures the rotation. Hosting required. |
+| **QR Dynamics** *(future)* | Living | Post-purchase buyer dashboard. Owner controls their instance — swaps content, reorders rotation, renews term. Buyer-side companion to Compose. |
 
 **QR States:**
 - **Static** — Destination is permanent. Encoded directly. No hosting needed.
@@ -41,13 +41,13 @@ QR Gear links physical products to living digital experiences through QR codes. 
 
 QR Gear is one engine with five revenue paths — all feeding the same core system (packets, instances, ownership, dynamic control):
 
-| Layer | Name | Description | Revenue |
+| Layer | Name | Engine | Revenue |
 |---|---|---|---|
-| 1 | Member / Creator | Members build + sell products, earn 25% of profit | 75% to QR Gear |
-| 2 | Direct Buyer | Visitor builds + buys directly on qrgear.com | 100% to QR Gear |
-| 3 | Owner / QR Dynamic | Buyer claims item, controls content post-purchase | Subscription revenue |
-| 4 | API / Embedded Stores | Partner sites embed QR Gear UX; orders route through QR Gear | Revenue share |
-| 5 | Marketplaces | Etsy/eBay/Amazon listings drive buyers back to QR Gear platform | Listing revenue |
+| 1 | Member / Creator | Affiliate Engine — members build + sell, earn 25% of profit | 75% to QR Gear |
+| 2 | Direct Buyer / Buyer-Creator | House Revenue Engine — visitor builds + buys directly on qrgear.com | 100% to QR Gear |
+| 3 | Owner / QR Dynamic | Retention Engine — buyer claims item, controls content post-purchase | Subscription revenue |
+| 4 | API / Embedded Mini-Stores | Network Engine — partner sites embed QR Gear UX; orders route through QR Gear | Revenue share |
+| 5 | External Marketplaces | Acquisition Engine — Etsy/eBay/Amazon listings drive buyers to QR Gear platform | Net after fees |
 
 **Growth Flywheel:** Visitor → Builder → Buyer → Owner → Member → Distributor
 
@@ -158,15 +158,15 @@ firebase deploy --only functions --project qrgear-c1ffd
 
 ## Admin Interface
 
-The admin panel is organized into five sections accessible from the **Run** dashboard (`/admin`):
+The admin panel is organized into four nav modes plus a landing dashboard (`/admin`):
 
-| Section | Route | Purpose |
-|---------|-------|---------|
-| **Run** | `/admin` | Operating cockpit — live metrics, in-progress drafts, quick actions |
-| **Build** | `/admin/products` | Product builder, templates, library, blanks, dynamics |
-| **Place** | `/admin/store-builder` | Catalog, channels, stores, partners, library |
-| **Sell** | `/admin/orders` | Orders, customers, pricing, coupons, gifts |
-| **System** | `/admin/settings` | Settings, health, email, manual |
+| Mode | Root Route | Nav Items |
+|------|-----------|-----------|
+| **Dashboard** | `/admin` | Landing page — live metrics, in-progress drafts, quick actions |
+| **Build** | `/admin/products` | Products, Library, Blanks, Dynamics, Videos, Fonts, Categories, Tags |
+| **Place** | `/admin/store-builder` | Store Builder, Library, Partners, External Sites, Marketplaces |
+| **Sell** | `/admin/orders` | Orders, Customers, Pricing, Coupons, Gifts, Orchestration |
+| **System** | `/admin/settings` | Settings, Health, Email, Email Health, Manual |
 
 ### Store Builder — Catalog Tab
 
