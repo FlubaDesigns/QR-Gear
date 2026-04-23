@@ -47,6 +47,12 @@ export interface MarketplaceAccount {
   ebayUserId?: string;
   ebayUsername?: string;
   ebayConnectedAt?: string;
+  // Etsy OAuth fields
+  etsyConnected?: boolean;
+  etsyUserId?: string;
+  etsyShopId?: string;
+  etsyShopName?: string;
+  etsyConnectedAt?: string;
 }
 
 export function AccountsSection() {
@@ -88,6 +94,19 @@ export function AccountsSection() {
       } else if (ebayResult === "error") {
         const reason = params.get("reason") || "unknown error";
         toast({ title: "eBay connection failed", description: reason, variant: "destructive" });
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+
+    const etsyResult = params.get("etsy_connect");
+    if (etsyResult) {
+      if (etsyResult === "success") {
+        toast({ title: "Etsy account connected", description: "Your Etsy shop is now linked and ready to push listings." });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      } else if (etsyResult === "error") {
+        const reason = params.get("reason") || "unknown error";
+        toast({ title: "Etsy connection failed", description: reason, variant: "destructive" });
       }
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -236,6 +255,50 @@ export function AccountsSection() {
     connectEbayMutation.mutate(accountId);
   };
 
+  const connectEtsyMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const res = await apiRequest("GET", `/api/marketplace/etsy/oauth/start?accountId=${accountId}`, undefined);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
+    },
+    onSuccess: (data) => {
+      setConnectingId(null);
+      if (data.oauthUrl) {
+        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
+        toast({ title: "Etsy authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+      }
+    },
+    onError: (err: Error) => {
+      setConnectingId(null);
+      const isSetup = err.message.includes("not configured");
+      toast({
+        title: isSetup ? "Etsy app credentials not set up yet" : "Could not start Etsy connection",
+        description: isSetup
+          ? "Set ETSY_KEYSTRING and ETSY_REDIRECT_URI in the server environment, then try again."
+          : err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const disconnectEtsyMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/surfaces/accounts/${accountId}/etsy-disconnect`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
+      toast({ title: "Etsy account disconnected" });
+    },
+    onError: (err: Error) => toast({ title: "Disconnect failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleConnectEtsy = (accountId: string) => {
+    setConnectingId(accountId);
+    connectEtsyMutation.mutate(accountId);
+  };
+
   const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "", feePercent: "0" });
 
   const openEdit = (acct: MarketplaceAccount) => {
@@ -326,6 +389,14 @@ export function AccountsSection() {
                         {acct.platform === "ebay" && acct.ebayUsername && (
                           <span className="text-xs text-muted-foreground">{acct.ebayUsername}</span>
                         )}
+                        {acct.platform === "etsy" && (
+                          acct.etsyConnected
+                            ? <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />OAuth Connected</Badge>
+                            : <Badge variant="outline" className="text-xs text-muted-foreground">Not Connected</Badge>
+                        )}
+                        {acct.platform === "etsy" && acct.etsyShopName && (
+                          <span className="text-xs text-muted-foreground">{acct.etsyShopName}</span>
+                        )}
                         {acct.feePercent > 0 && (
                           <span className="text-xs text-muted-foreground">{acct.feePercent}% fee</span>
                         )}
@@ -380,6 +451,31 @@ export function AccountsSection() {
                           {connectingId === acct.id && connectEbayMutation.isPending
                             ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Connecting…</>
                             : <><SiEbay className="h-3 w-3 mr-1" />Connect</>}
+                        </Button>
+                      )
+                    )}
+                    {acct.platform === "etsy" && (
+                      acct.etsyConnected ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { if (confirm("Disconnect this Etsy account?")) disconnectEtsyMutation.mutate(acct.id); }}
+                          disabled={disconnectEtsyMutation.isPending}
+                          data-testid={`button-etsy-disconnect-${acct.id}`}
+                        >
+                          {disconnectEtsyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConnectEtsy(acct.id)}
+                          disabled={connectingId === acct.id && connectEtsyMutation.isPending}
+                          data-testid={`button-etsy-connect-${acct.id}`}
+                        >
+                          {connectingId === acct.id && connectEtsyMutation.isPending
+                            ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Connecting…</>
+                            : <><SiEtsy className="h-3 w-3 mr-1" />Connect</>}
                         </Button>
                       )
                     )}
@@ -1026,6 +1122,238 @@ function PushToEbayDialog({
   );
 }
 
+// ─── Push surface to Etsy ────────────────────────────────────────────────────
+
+function PushToEtsyDialog({
+  open,
+  onClose,
+  surfaceId,
+  surfaceTitle,
+  surfaceSku,
+}: {
+  open: boolean;
+  onClose: () => void;
+  surfaceId: string;
+  surfaceTitle: string;
+  surfaceSku?: string;
+}) {
+  const { toast } = useToast();
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
+  const [taxonomyId, setTaxonomyId] = useState("");
+  const [shippingProfileId, setShippingProfileId] = useState("");
+  const [returnPolicyId, setReturnPolicyId] = useState("");
+  const [whoMade, setWhoMade] = useState<"i_did" | "someone_else" | "collective">("i_did");
+  const [whenMade, setWhenMade] = useState("made_to_order");
+
+  const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
+    queryKey: ["/api/admin/surfaces/accounts"],
+    enabled: open,
+  });
+
+  const etsyAccounts = allAccounts.filter(
+    (a) => a.platform === "etsy" && a.etsyConnected && a.isActive
+  );
+
+  useEffect(() => {
+    if (etsyAccounts.length === 1 && !selectedAccountId) {
+      setSelectedAccountId(etsyAccounts[0].id);
+    }
+  }, [etsyAccounts.length]);
+
+  const pushMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-etsy`, {
+        accountId: selectedAccountId,
+        taxonomyId: parseInt(taxonomyId, 10),
+        shippingProfileId: parseInt(shippingProfileId, 10),
+        ...(returnPolicyId ? { returnPolicyId: parseInt(returnPolicyId, 10) } : {}),
+        whoMade,
+        whenMade,
+        ...(skuOverride ? { sku: skuOverride } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Push failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        const desc = [
+          `State: ${data.state || "unknown"}`,
+          data.listingId ? `Listing ID: ${data.listingId}` : null,
+          data.imagesUploaded != null ? `Images uploaded: ${data.imagesUploaded}` : null,
+          ...(data.warnings || []),
+        ].filter(Boolean).join(" • ");
+        toast({ title: "Pushed to Etsy", description: desc });
+      } else {
+        toast({ title: "Etsy push failed", description: data.error || "Unknown error", variant: "destructive" });
+      }
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Push failed", description: err.message, variant: "destructive" }),
+  });
+
+  const handleClose = () => {
+    if (pushMutation.isPending) return;
+    setSelectedAccountId("");
+    setSkuOverride(surfaceSku || "");
+    setTaxonomyId("");
+    setShippingProfileId("");
+    setReturnPolicyId("");
+    setWhoMade("i_did");
+    setWhenMade("made_to_order");
+    onClose();
+  };
+
+  const canPush = !!selectedAccountId && !!taxonomyId && !!shippingProfileId && etsyAccounts.length > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Push to Etsy</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            Publish <span className="font-medium">{surfaceTitle || "this surface"}</span> as an Etsy listing via the Listings API.
+          </p>
+
+          {etsyAccounts.length === 0 ? (
+            <div className="rounded-md border p-4 space-y-2">
+              <p className="text-sm font-medium text-destructive">No connected Etsy accounts</p>
+              <p className="text-xs text-muted-foreground">Go to the Accounts tab, add an Etsy account, and complete the OAuth flow first.</p>
+            </div>
+          ) : (
+            <>
+              {etsyAccounts.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Etsy Shop Account</Label>
+                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                    <SelectTrigger data-testid="select-etsy-push-account">
+                      <SelectValue placeholder="Select account…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {etsyAccounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id} data-testid={`option-etsy-push-account-${a.id}`}>
+                          {a.accountName}
+                          {a.etsyShopName && <span className="text-muted-foreground ml-2 text-xs">{a.etsyShopName}</span>}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {etsyAccounts.length === 1 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <SiEtsy className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium">{etsyAccounts[0].accountName}</span>
+                  {etsyAccounts[0].etsyShopName && (
+                    <span className="text-muted-foreground text-xs">({etsyAccounts[0].etsyShopName})</span>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-xs">Taxonomy ID * <span className="text-muted-foreground">(Etsy category)</span></Label>
+                <Input
+                  value={taxonomyId}
+                  onChange={(e) => setTaxonomyId(e.target.value)}
+                  placeholder="e.g. 2078"
+                  data-testid="input-etsy-push-taxonomy-id"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Find yours at{" "}
+                  <a href="https://www.etsy.com/developers/documentation/getting_started/taxonomy" target="_blank" rel="noopener noreferrer" className="underline">
+                    Etsy Taxonomy docs
+                  </a>
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Shipping Profile ID *</Label>
+                <Input
+                  value={shippingProfileId}
+                  onChange={(e) => setShippingProfileId(e.target.value)}
+                  placeholder="From your Etsy shop's shipping settings"
+                  data-testid="input-etsy-push-shipping-profile-id"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Return Policy ID <span className="text-muted-foreground">(optional)</span></Label>
+                <Input
+                  value={returnPolicyId}
+                  onChange={(e) => setReturnPolicyId(e.target.value)}
+                  placeholder="From your Etsy shop's return policies"
+                  data-testid="input-etsy-push-return-policy-id"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Who Made</Label>
+                  <Select value={whoMade} onValueChange={(v) => setWhoMade(v as typeof whoMade)}>
+                    <SelectTrigger data-testid="select-etsy-push-who-made"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="i_did">I did</SelectItem>
+                      <SelectItem value="someone_else">Someone else</SelectItem>
+                      <SelectItem value="collective">Collective</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">When Made</Label>
+                  <Select value={whenMade} onValueChange={setWhenMade}>
+                    <SelectTrigger data-testid="select-etsy-push-when-made"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="made_to_order">Made to order</SelectItem>
+                      <SelectItem value="2020_2024">2020 – 2024</SelectItem>
+                      <SelectItem value="2010_2019">2010 – 2019</SelectItem>
+                      <SelectItem value="2004_2009">2004 – 2009</SelectItem>
+                      <SelectItem value="before_2004">Before 2004</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">SKU</Label>
+                <Input
+                  value={skuOverride}
+                  onChange={(e) => setSkuOverride(e.target.value)}
+                  placeholder={`Auto: QRG-${surfaceId.slice(0, 8).toUpperCase()}`}
+                  data-testid="input-etsy-push-sku"
+                />
+                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={pushMutation.isPending} data-testid="button-etsy-push-cancel">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => pushMutation.mutate()}
+            disabled={!canPush || pushMutation.isPending}
+            data-testid="button-etsy-push-confirm"
+          >
+            {pushMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pushing…</>
+            ) : (
+              <><SiEtsy className="h-4 w-4 mr-2" />Push to Etsy</>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Admin instance shape used by the generate dialog ────────────────────────
 
 interface AdminInstancePreview {
@@ -1208,6 +1536,7 @@ export function SurfacesSection() {
   const [showGenerate, setShowGenerate] = useState(false);
   const [pushTarget, setPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
   const [ebayPushTarget, setEbayPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
+  const [etsyPushTarget, setEtsyPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<SurfaceForm>(DEFAULT_FORM);
 
@@ -1366,6 +1695,16 @@ export function SurfacesSection() {
         />
       )}
 
+      {etsyPushTarget && (
+        <PushToEtsyDialog
+          open={!!etsyPushTarget}
+          onClose={() => setEtsyPushTarget(null)}
+          surfaceId={etsyPushTarget.id}
+          surfaceTitle={etsyPushTarget.title}
+          surfaceSku={etsyPushTarget.sku}
+        />
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : surfaces.length === 0 ? (
@@ -1445,6 +1784,17 @@ export function SurfacesSection() {
                         data-testid={`button-push-ebay-${surface.id}`}
                       >
                         <SiEbay className="h-3 w-3 mr-1 text-blue-500" />
+                        Push
+                      </Button>
+                    )}
+                    {(surface.enabledPlatforms?.includes("etsy") || surface.supportsEtsy) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEtsyPushTarget({ id: surface.id, title: surface.title || "Untitled", sku: surface.sku })}
+                        data-testid={`button-push-etsy-${surface.id}`}
+                      >
+                        <SiEtsy className="h-3 w-3 mr-1 text-orange-500" />
                         Push
                       </Button>
                     )}

@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260423-ebay-oauth-inventory-api-v1';
+const _BUILD_ID = '20260423-etsy-oauth-listings-api-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -55,6 +55,7 @@ import { register as registerPpPricingPackets } from './routes/pp-pricing-packet
 import { registerAdminBuildSessions } from './routes/admin-build-sessions';
 import { register as registerAmazonOAuth } from './routes/amazon-oauth';
 import { register as registerEbayOAuth } from './routes/ebay-oauth';
+import { register as registerEtsyOAuth } from './routes/etsy-oauth';
 
 const app = express();
 
@@ -114,6 +115,7 @@ registerPpPricingPackets(app);
 registerAdminBuildSessions(app);
 registerAmazonOAuth(app);
 registerEbayOAuth(app);
+registerEtsyOAuth(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

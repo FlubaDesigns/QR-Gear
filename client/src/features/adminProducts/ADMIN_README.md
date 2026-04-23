@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 23, 2026 (rev 22)
+Last updated: April 23, 2026 (rev 23)
 
 ---
 
@@ -491,6 +491,41 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 23, 2026 — Etsy OAuth 2.0 (PKCE) + Listings API Push (rev 23)
+
+Full Etsy Sell API integration following the same pattern as Amazon and eBay. Uses OAuth 2.0 with PKCE (Proof Key for Code Exchange) — the code_verifier is temporarily stored in a Firestore `oauth_pkce_state` collection during the OAuth round-trip and deleted immediately after exchange. The Listings API push creates a draft, uploads images (fetched from surface image URLs and multipart-posted to Etsy), then activates the listing.
+
+**Accounts section — Etsy connect/disconnect:**
+- Etsy accounts now show an **OAuth Connected** badge when linked and the shop name, or a **Not Connected** badge when not
+- **Connect** button starts the PKCE OAuth flow: opens a new tab → seller approves on etsy.com → Etsy redirects back → access + refresh tokens, userId, shopId, shopName stored on the account document
+- **Disconnect** button removes all stored Etsy credentials
+- On return from Etsy OAuth, the page detects `?etsy_connect=success/error` query params and shows a result toast
+
+**Surfaces section — Push to Etsy button:**
+- Any surface with "etsy" in `enabledPlatforms` or `supportsEtsy=true` shows a **Push** (Etsy) button
+- Clicking it opens a dialog to select account and fill in Etsy-required fields: Taxonomy ID (category), Shipping Profile ID, optional Return Policy ID, Who Made, When Made, and optional SKU override
+- Backend creates a draft listing, uploads up to 10 images from the surface's `images` array, then activates the listing (or leaves it as draft if image upload fails)
+- Push result (success, listingId, state, imagesUploaded, any warnings) is stored in `etsyPushHistory` on the surface document
+
+**One-time server setup required before connecting:**
+Three environment variables must be set in the Firebase Functions environment (register the app at developers.etsy.com first):
+| Variable | Description |
+|---|---|
+| `ETSY_KEYSTRING` | API key / Client ID from Etsy developer portal |
+| `ETSY_SHARED_SECRET` | Shared Secret from Etsy developer portal (kept for reference; PKCE flow doesn't need it at runtime) |
+| `ETSY_REDIRECT_URI` | Callback URL: `https://qrgear.com/api/marketplace/etsy/oauth/callback` |
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/services/etsy-api.ts` | **NEW** — Etsy service: PKCE helpers (verifier + challenge), OAuth URL builder, token exchange, token refresh, getEtsyShopInfo, pushListingToEtsy (create draft → upload images → activate) |
+| `functions/src/routes/etsy-oauth.ts` | **NEW** — OAuth routes: start (PKCE state → Firestore), callback (exchange + shop fetch + store creds), disconnect |
+| `functions/src/routes/marketplace.ts` | Added `POST /admin/surfaces/:surfaceId/push-to-etsy` endpoint |
+| `functions/src/index.ts` | Registered registerEtsyOAuth; bumped BUILD_ID to `20260423-etsy-oauth-listings-api-v1` |
+| `client/src/pages/marketplaces-accounts.tsx` | Added Etsy OAuth fields on MarketplaceAccount, connect/disconnect mutations + UI, PushToEtsyDialog (with taxonomy/shipping/policy/who_made/when_made fields), Etsy Push button on surfaces |
+
+---
 
 ### April 23, 2026 — eBay OAuth + Inventory API Listing Push (rev 22)
 

@@ -60,3 +60,9 @@ id = "vYFqJMii7X-7kzP-0fcEp"
 uri = "file://downloads/QR_Gear_Site_Overview.md"
 type = "text"
 title = "QR Gear Site Overview & Architecture Reference"
+
+[[outputs]]
+id = "xJcvE2Pbaq35IjnEuSPb4"
+uri = "file://downloads/etsy-integration-rev23.zip"
+type = "unspecified"
+title = "Etsy Integration — Rev 23 (changed files)"

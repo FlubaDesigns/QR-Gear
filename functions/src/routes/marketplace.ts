@@ -19,6 +19,8 @@ import { pushListingToAmazon } from '../services/amazon-sp-api';
 import type { AmazonListingProduct } from '../services/amazon-sp-api';
 import { pushListingToEbay } from '../services/ebay-api';
 import type { EbayListingProduct } from '../services/ebay-api';
+import { pushListingToEtsy, refreshAccessToken as refreshEtsyToken } from '../services/etsy-api';
+import type { EtsyListingProduct } from '../services/etsy-api';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -738,6 +740,127 @@ app.post('/admin/surfaces/:surfaceId/push-to-ebay', requireAdmin, async (req: Re
     res.json({ ...result, surfaceId, accountId });
   } catch (error: any) {
     console.error('[eBay Push] push-to-ebay error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Push Surface to Etsy ---
+
+app.post('/admin/surfaces/:surfaceId/push-to-etsy', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { surfaceId } = req.params;
+    const {
+      accountId,
+      sku: skuOverride,
+      taxonomyId,
+      shippingProfileId,
+      returnPolicyId,
+      whoMade = 'i_did',
+      whenMade = 'made_to_order',
+    } = req.body;
+
+    if (!accountId) {
+      res.status(400).json({ error: 'accountId is required' });
+      return;
+    }
+    if (!taxonomyId) {
+      res.status(400).json({ error: 'taxonomyId is required (Etsy category ID). Find yours at https://www.etsy.com/developers/documentation/getting_started/taxonomy' });
+      return;
+    }
+    if (!shippingProfileId) {
+      res.status(400).json({ error: 'shippingProfileId is required. Create a shipping profile in your Etsy shop and paste its ID here.' });
+      return;
+    }
+
+    // Load surface
+    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!surfaceDoc.exists) {
+      res.status(404).json({ error: 'Surface not found' });
+      return;
+    }
+    const surface = surfaceDoc.data() as any;
+
+    // Load account and verify
+    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+    if (!accountDoc.exists) {
+      res.status(404).json({ error: 'Account not found' });
+      return;
+    }
+    const account = accountDoc.data() as any;
+
+    if (account.platform !== 'etsy') {
+      res.status(400).json({ error: 'Account is not an Etsy account' });
+      return;
+    }
+    if (!account.etsyConnected || !account.etsyRefreshToken) {
+      res.status(400).json({
+        error: 'Etsy account not connected. Complete the OAuth flow first.',
+        setupRequired: true,
+      });
+      return;
+    }
+    if (!account.etsyShopId) {
+      res.status(400).json({ error: 'Etsy Shop ID not found on this account. Reconnect via OAuth to re-fetch your shop.' });
+      return;
+    }
+
+    if (surface.retailPrice == null || surface.retailPrice <= 0) {
+      res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to Etsy.' });
+      return;
+    }
+
+    const sku = skuOverride || surface.sku || `QRG-${surfaceId.slice(0, 8).toUpperCase()}`;
+
+    const credentials = {
+      accessToken: '',  // will be refreshed inside pushListingToEtsy
+      refreshToken: account.etsyRefreshToken,
+      shopId: account.etsyShopId,
+      shopName: account.etsyShopName || '',
+      userId: account.etsyUserId || '',
+    };
+
+    const product: EtsyListingProduct = {
+      title: (surface.title || 'QR Gear Product').slice(0, 140),
+      description: surface.description || '',
+      price: surface.retailPrice || surface.price || surface.basePrice || 0,
+      currencyCode: surface.currency || 'USD',
+      quantity: 100,
+      tags: (surface.tags || []).slice(0, 13),
+      imageUrls: (surface.images || []).map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean),
+      taxonomyId: parseInt(String(taxonomyId), 10),
+      shippingProfileId: parseInt(String(shippingProfileId), 10),
+      returnPolicyId: returnPolicyId ? parseInt(String(returnPolicyId), 10) : undefined,
+      whoMade: whoMade || 'i_did',
+      whenMade: whenMade || 'made_to_order',
+      materials: surface.brand ? [surface.brand] : undefined,
+      sku,
+    };
+
+    console.log(`[Etsy Push] Pushing surface ${surfaceId} as SKU ${sku} to account ${accountId} (shop ${account.etsyShopId})`);
+    const result = await pushListingToEtsy(credentials, product);
+
+    // Record the push attempt on the surface
+    const now = new Date().toISOString();
+    const updateData: Record<string, any> = {
+      [`etsyPushHistory.${now.replace(/[:.]/g, '_')}`]: {
+        accountId,
+        sku,
+        success: result.success,
+        state: result.state || null,
+        listingId: result.listingId || null,
+        url: result.url || null,
+        error: result.error || null,
+        pushedAt: now,
+      },
+      lastEtsyPushAt: now,
+      lastEtsyPushSuccess: result.success,
+      lastEtsyPushSku: sku,
+    };
+    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updateData);
+
+    res.json({ ...result, surfaceId, accountId });
+  } catch (error: any) {
+    console.error('[Etsy Push] push-to-etsy error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -1,0 +1,201 @@
+/**
+ * Etsy OAuth 2.0 (PKCE) routes
+ *
+ * GET  /marketplace/etsy/oauth/start?accountId=XXX
+ *   → Generates PKCE verifier, stores it in Firestore, returns the Etsy auth URL.
+ *
+ * GET  /marketplace/etsy/oauth/callback?code=XXX&state=ACCOUNT_ID
+ *   → Retrieves PKCE verifier from Firestore, exchanges code for tokens,
+ *     fetches shop info, stores everything on the account doc, redirects to admin UI.
+ *
+ * DELETE /admin/surfaces/accounts/:accountId/etsy-disconnect
+ *   → Removes stored Etsy credentials from the account document.
+ */
+
+import { Request, Response } from 'express';
+import express from 'express';
+import { db } from '../core';
+import { requireAdmin } from '../middleware';
+import { MARKETPLACE_ACCOUNTS_COLLECTION } from '../constants';
+import {
+  buildOAuthUrl,
+  exchangeAuthCodeForTokens,
+  generateCodeVerifier,
+  generateCodeChallenge,
+  getEtsyShopInfo,
+} from '../services/etsy-api';
+
+const ADMIN_UI_BASE = process.env.ETSY_ADMIN_REDIRECT_BASE || 'https://qrgear.com/admin/marketplaces';
+const PKCE_COLLECTION = 'oauth_pkce_state';
+
+export function register(app: express.Express): void {
+
+  // ── Start OAuth flow ────────────────────────────────────────────────────────
+  app.get('/marketplace/etsy/oauth/start', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { accountId } = req.query as { accountId?: string };
+
+      if (!accountId) {
+        res.status(400).json({ error: 'accountId is required' });
+        return;
+      }
+
+      // Verify the account exists and is an Etsy account
+      const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+      if (!doc.exists) {
+        res.status(404).json({ error: 'Account not found' });
+        return;
+      }
+      const data = doc.data() as any;
+      if (data.platform !== 'etsy') {
+        res.status(400).json({ error: 'Account is not an Etsy account' });
+        return;
+      }
+
+      // Generate PKCE verifier + challenge
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = generateCodeChallenge(codeVerifier);
+
+      // Store verifier in Firestore keyed by accountId (TTL: 10 minutes)
+      await db.collection(PKCE_COLLECTION).doc(accountId).set({
+        codeVerifier,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      });
+
+      let oauthUrl: string;
+      try {
+        oauthUrl = buildOAuthUrl(accountId, codeChallenge);
+      } catch (err: any) {
+        res.status(503).json({
+          error: 'Etsy app credentials not configured on this server yet.',
+          detail: err.message,
+          setupRequired: true,
+        });
+        return;
+      }
+
+      res.json({ oauthUrl, accountId });
+    } catch (error: any) {
+      console.error('[Etsy OAuth] start error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── OAuth callback ──────────────────────────────────────────────────────────
+  app.get('/marketplace/etsy/oauth/callback', async (req: Request, res: Response): Promise<void> => {
+    const { code, state: accountId, error: oauthError, error_description } = req.query as Record<string, string>;
+
+    if (oauthError) {
+      console.error('[Etsy OAuth] callback error from Etsy:', oauthError, error_description);
+      res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=${encodeURIComponent(error_description || oauthError)}`);
+      return;
+    }
+
+    if (!code || !accountId) {
+      res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=missing_params`);
+      return;
+    }
+
+    try {
+      // Retrieve stored PKCE verifier
+      const pkceDoc = await db.collection(PKCE_COLLECTION).doc(accountId).get();
+      if (!pkceDoc.exists) {
+        res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=pkce_state_not_found`);
+        return;
+      }
+
+      const pkceData = pkceDoc.data() as any;
+      const codeVerifier: string = pkceData?.codeVerifier;
+
+      if (!codeVerifier) {
+        res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=pkce_verifier_missing`);
+        return;
+      }
+
+      // Check expiry
+      if (pkceData.expiresAt && new Date(pkceData.expiresAt) < new Date()) {
+        res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=pkce_state_expired`);
+        return;
+      }
+
+      // Clean up PKCE state
+      await db.collection(PKCE_COLLECTION).doc(accountId).delete();
+
+      // Exchange code for tokens
+      const tokens = await exchangeAuthCodeForTokens(code, codeVerifier);
+      const accessToken = tokens.access_token;
+      const refreshToken = tokens.refresh_token;
+
+      if (!refreshToken) {
+        console.error('[Etsy OAuth] No refresh token in token response');
+        res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=no_refresh_token`);
+        return;
+      }
+
+      // Fetch shop info
+      let userId = '';
+      let shopId = '';
+      let shopName = '';
+      try {
+        const shopInfo = await getEtsyShopInfo(accessToken);
+        userId = shopInfo.userId;
+        shopId = shopInfo.shopId;
+        shopName = shopInfo.shopName;
+      } catch (err: any) {
+        console.warn('[Etsy OAuth] Could not auto-retrieve shop info:', err.message);
+      }
+
+      // Verify account still exists
+      const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+      if (!doc.exists) {
+        res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=account_not_found`);
+        return;
+      }
+
+      // Store credentials
+      const updates: Record<string, any> = {
+        etsyConnected: true,
+        etsyRefreshToken: refreshToken,
+        etsyConnectedAt: new Date().toISOString(),
+      };
+      if (userId) updates.etsyUserId = userId;
+      if (shopId) updates.etsyShopId = shopId;
+      if (shopName) updates.etsyShopName = shopName;
+
+      await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).update(updates);
+
+      console.log(`[Etsy OAuth] Connected account ${accountId}, shopId=${shopId}, shopName=${shopName}`);
+      res.redirect(`${ADMIN_UI_BASE}?etsy_connect=success&accountId=${accountId}`);
+    } catch (error: any) {
+      console.error('[Etsy OAuth] callback processing error:', error);
+      res.redirect(`${ADMIN_UI_BASE}?etsy_connect=error&reason=${encodeURIComponent(error.message)}`);
+    }
+  });
+
+  // ── Disconnect Etsy account ─────────────────────────────────────────────────
+  app.delete('/admin/surfaces/accounts/:accountId/etsy-disconnect', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { accountId } = req.params;
+      const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
+      if (!doc.exists) {
+        res.status(404).json({ error: 'Account not found' });
+        return;
+      }
+
+      await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).update({
+        etsyConnected: false,
+        etsyRefreshToken: '',
+        etsyUserId: '',
+        etsyShopId: '',
+        etsyShopName: '',
+        etsyConnectedAt: null,
+      });
+
+      res.json({ success: true, accountId });
+    } catch (error: any) {
+      console.error('[Etsy OAuth] disconnect error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+}

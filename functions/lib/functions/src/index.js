@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BUILD_TAG = exports.api = void 0;
-const _BUILD_ID = '20260423-ebay-oauth-inventory-api-v1';
+const _BUILD_ID = '20260423-etsy-oauth-listings-api-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -60,6 +60,7 @@ const pp_pricing_packets_1 = require("./routes/pp-pricing-packets");
 const admin_build_sessions_1 = require("./routes/admin-build-sessions");
 const amazon_oauth_1 = require("./routes/amazon-oauth");
 const ebay_oauth_1 = require("./routes/ebay-oauth");
+const etsy_oauth_1 = require("./routes/etsy-oauth");
 const app = (0, express_1.default)();
 app.use(middleware_1.corsMiddleware);
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -116,6 +117,7 @@ app.use(middleware_1.apiPrefixMiddleware);
 (0, admin_build_sessions_1.registerAdminBuildSessions)(app);
 (0, amazon_oauth_1.register)(app);
 (0, ebay_oauth_1.register)(app);
+(0, etsy_oauth_1.register)(app);
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
