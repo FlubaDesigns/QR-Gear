@@ -316,6 +316,15 @@ The 1563-line `qr-dynamics.routes.ts` monolith has been split into 4 domain-alig
 ### System Truth Sheet
 - `docs/SYSTEM_TRUTH_SHEET.md` — Single canonical reference: official product model, storage ownership (Firestore vs Postgres), legacy translation map, platform constants, security rules
 
+### Storefront UX Pass (COMPLETED — deployed)
+- **StoreRootView** (`client/src/features/storefront/StoreRootView.tsx`) — Full hero section with lifestyle image (`attached_assets/store_hero.png`), dark wash overlay, "Wear the Story. Scan the Experience." headline, two CTAs, "Scan. Learn. Connect." 3-step section, channel entry cards below.
+- **ChannelHubView** (`client/src/features/storefront/ChannelHubView.tsx`) — Channel header with full-width image (`attached_assets/usa250_header.png`), dark gradient overlay, title + intro text. Collection cards replaced with image-background cards (armed-forces/monuments/founding-fathers images) + text overlay (title + subtitle).
+- **CollectionView** (`client/src/features/storefront/CollectionView.tsx`) — Replaced un-clickable breadcrumb text with `StorefrontBreadcrumb` component. Browse-only product grid (no color/size selectors on cards).
+- **StorefrontBreadcrumb** (`client/src/features/storefront/StorefrontBreadcrumb.tsx`) — NEW shared breadcrumb component: takes `crumbs: { label, href? }[]`, renders linked path with `ChevronRight` separators. Used in CollectionView, ChannelHubView, shop-product.tsx.
+- **shop-product.tsx** — Added breadcrumb (QR Gear → Channel → Collection → Product Name) built from product.channel + product.collection fields via `getChannelConfig` reverse-lookup. Removed `window.history.back()` back button — breadcrumb replaces it.
+- **shopHierarchy.ts** — Added `subtitle` field to `CollectionConfig`. Three collections now have subtitles: "Honor. Service. Sacrifice.", "Symbols That Stand the Test of Time", "The Minds That Built a Nation".
+- **Images** (in `attached_assets/`): `store_hero.png` (lifestyle hero), `usa250_header.png` (channel header), `collection_armed_forces.png`, `collection_monuments.png`, `collection_founding_fathers.png` — all AI-generated, 16:9 or 4:3 as appropriate.
+
 ## External Dependencies
 - **Printify**: Print-on-demand fulfillment.
 - **Printful**: Product mockup generation.

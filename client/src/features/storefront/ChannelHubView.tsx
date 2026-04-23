@@ -5,21 +5,30 @@
  *        e.g. /shop/internal/qrgear/usa250
  *
  * Responsibilities:
- *  - Channel identity block (title, intro) from config
- *  - Collection tiles driven by config (slugs + labels + descriptions)
+ *  - Channel header with hero image
+ *  - Collection image-cards driven by config
  *  - Product count badges (bridged via segmentValue → Firestore segment field)
- *  - Optional all-products section below
  */
 
 import { useMemo } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, ArrowRight, Flag, QrCode } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, QrCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import StorefrontLayout from "@/components/StorefrontLayout";
 import { getChannelConfig } from "@/data/shopHierarchy";
+import { StorefrontBreadcrumb } from "./StorefrontBreadcrumb";
 import type { StoreResponse } from "./types";
+import channelHeaderImg from "@assets/usa250_header.png";
+import armedForcesImg from "@assets/collection_armed_forces.png";
+import monumentsImg from "@assets/collection_monuments.png";
+import foundingFathersImg from "@assets/collection_founding_fathers.png";
+
+const COLLECTION_IMAGES: Record<string, string> = {
+  "armed-forces": armedForcesImg,
+  "monuments": monumentsImg,
+  "founding-fathers": foundingFathersImg,
+};
 
 interface ChannelHubViewProps {
   storeType: string;
@@ -54,73 +63,92 @@ export function ChannelHubView({
   }, [data?.products]);
 
   const label = channelConfig?.label ?? channelNameFromApi ?? channelSlug;
-  const intro = channelConfig?.intro ?? "";
   const collections = channelConfig?.collections ?? [];
 
   return (
     <StorefrontLayout>
-      <div className="container max-w-6xl py-8 px-4">
-        {/* Back to store root */}
-        <Link href={storeBasePath}>
-          <Button variant="ghost" className="mb-6" data-testid="button-back-store">
-            <ArrowLeft className="mr-2 h-5 w-5" />
-            Back to QR Gear
-          </Button>
-        </Link>
-
-        {/* Channel identity */}
-        <div className="text-center mb-10">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-            QR Gear
+      {/* ── Channel hero header ───────────────────────────────────────────────── */}
+      <div className="relative w-full overflow-hidden" style={{ minHeight: "360px" }}>
+        <img
+          src={channelHeaderImg}
+          alt={label}
+          className="absolute inset-0 w-full h-full object-cover"
+          data-testid="img-channel-header"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/50 to-black/65" />
+        <div className="relative z-10 flex flex-col items-center justify-center text-center px-6 py-20">
+          <h1
+            className="text-4xl md:text-5xl font-bold text-white tracking-tight mb-3"
+            data-testid="text-channel-title"
+          >
+            {label} Collection
+          </h1>
+          <p className="text-base md:text-lg text-white/80 max-w-xl leading-relaxed">
+            A tribute to American history, service, and legacy. Each design connects
+            you to a deeper story — one you can wear and share.
           </p>
-          <div className="inline-flex items-center gap-3 mb-3">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Flag className="h-6 w-6 text-primary" />
-            </div>
-            <h1
-              className="text-3xl md:text-4xl font-bold"
-              data-testid="text-channel-title"
-            >
-              {label.toUpperCase()}
-            </h1>
-          </div>
-          {intro && (
-            <p className="text-muted-foreground max-w-xl mx-auto">{intro}</p>
-          )}
         </div>
+      </div>
 
-        {/* Collection tiles — driven by config */}
+      <div className="container max-w-5xl py-10 px-4">
+        {/* Breadcrumb */}
+        <StorefrontBreadcrumb
+          crumbs={[
+            { label: "QR Gear", href: storeBasePath },
+            { label: label },
+          ]}
+        />
+
+        {/* Collection image-cards */}
         {collections.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {collections.map((col) => {
-              // Bridge: count is keyed by Firestore segmentValue, not URL slug
               const count = collectionCounts[col.segmentValue] || 0;
+              const colImg = COLLECTION_IMAGES[col.slug];
               return (
                 <Link key={col.slug} href={`${hubPath}/${col.slug}`}>
-                  <Card
-                    className="hover-elevate cursor-pointer h-full"
+                  <div
+                    className="relative rounded-md overflow-hidden cursor-pointer group"
+                    style={{ minHeight: "260px" }}
                     data-testid={`card-collection-${col.slug}`}
                   >
-                    <CardContent className="p-5 flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <h3 className="font-semibold text-base">{col.label}</h3>
-                        {count > 0 && (
-                          <Badge
-                            variant="secondary"
-                            data-testid={`badge-count-${col.slug}`}
-                          >
-                            {count}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground flex-1">
-                        {col.description}
+                    {colImg ? (
+                      <img
+                        src={colImg}
+                        alt={col.label}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-muted" />
+                    )}
+                    {/* Dark overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+
+                    {/* Text overlay — bottom aligned */}
+                    <div className="relative z-10 flex flex-col justify-end h-full p-6" style={{ minHeight: "260px" }}>
+                      {count > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="self-start mb-3 text-xs"
+                          data-testid={`badge-count-${col.slug}`}
+                        >
+                          {count} items
+                        </Badge>
+                      )}
+                      <h3
+                        className="font-bold text-xl text-white leading-snug mb-1"
+                        data-testid={`text-collection-label-${col.slug}`}
+                      >
+                        {col.label}
+                      </h3>
+                      <p className="text-sm text-white/75 leading-snug mb-3">
+                        {col.subtitle}
                       </p>
-                      <div className="flex items-center gap-1 text-xs text-primary mt-1">
-                        Browse <ArrowRight className="h-3 w-3" />
+                      <div className="flex items-center gap-1.5 text-sm text-white/90 font-medium">
+                        Browse <ArrowRight className="h-3.5 w-3.5" />
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </Link>
               );
             })}

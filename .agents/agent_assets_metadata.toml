@@ -1,5 +1,34 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "GoS9bTeYt8n1UkLfTsDEE"
+uri = "file://attached_assets/store_hero.png"
+type = "image"
+title = "store hero lifestyle"
+
+[[generated]]
+id = "NXI8OvQ2gFahikEpqo6wU"
+uri = "file://attached_assets/usa250_header.png"
+type = "image"
+title = "usa250 channel header"
+
+[[generated]]
+id = "8Kk0gdmZNvgQZhWLoO_Lx"
+uri = "file://attached_assets/collection_armed_forces.png"
+type = "image"
+title = "armed forces collection"
+
+[[generated]]
+id = "jlvurF-bPbnWsHkXcPXB9"
+uri = "file://attached_assets/collection_monuments.png"
+type = "image"
+title = "monuments collection"
+
+[[generated]]
+id = "DR7hQG0UZZGYJhQQEYBvB"
+uri = "file://attached_assets/collection_founding_fathers.png"
+type = "image"
+title = "founding fathers collection"
 
 [[outputs]]
 id = "VvjPq9Vo5UHfXlSuYHRTX"

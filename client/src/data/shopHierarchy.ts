@@ -23,6 +23,7 @@
 export interface CollectionConfig {
   slug: string;        // URL slug, e.g. "armed-forces"
   label: string;       // Display label, e.g. "Armed Forces"
+  subtitle: string;    // Short tagline for collection card overlay
   description: string;
   /** Firestore `segment` field value for this collection. Bridge layer only. */
   segmentValue: string;
@@ -65,6 +66,7 @@ export const QR_GEAR: StoreConfig = {
         {
           slug: "monuments",
           label: "Monuments",
+          subtitle: "Symbols That Stand the Test of Time",
           description:
             "Iconic landmarks and national monuments that define the American landscape.",
           segmentValue: "Monuments",
@@ -72,6 +74,7 @@ export const QR_GEAR: StoreConfig = {
         {
           slug: "armed-forces",
           label: "Armed Forces",
+          subtitle: "Honor. Service. Sacrifice.",
           description:
             "Honoring those who serve and have served to protect America's freedom.",
           segmentValue: "Armed Forces",
@@ -79,6 +82,7 @@ export const QR_GEAR: StoreConfig = {
         {
           slug: "founding-fathers",
           label: "Founding Fathers",
+          subtitle: "The Minds That Built a Nation",
           description:
             "The visionaries who built a nation from a bold idea and relentless conviction.",
           segmentValue: "Founding Fathers",

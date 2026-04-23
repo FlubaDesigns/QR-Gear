@@ -17,6 +17,8 @@ import { useCart } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
+import { StorefrontBreadcrumb } from "@/features/storefront/StorefrontBreadcrumb";
+import { getChannelConfig } from "@/data/shopHierarchy";
 
 const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   "qr-basics": { label: "QR Basics", color: "bg-slate-500" },
@@ -222,6 +224,32 @@ export default function ShopProductPage() {
 
   const typeInfo = QR_PRODUCT_TYPE_LABELS[product.qrProductType];
 
+  // Build breadcrumb crumbs from product channel/collection data
+  const breadcrumbs = (() => {
+    const crumbs: Array<{ label: string; href?: string }> = [
+      { label: "QR Gear", href: "/shop/internal/qrgear" },
+    ];
+    if (product.channel) {
+      const channelCfg = getChannelConfig("qrgear", product.channel);
+      if (channelCfg) {
+        crumbs.push({ label: channelCfg.label, href: `/shop/internal/qrgear/${product.channel}` });
+        if (product.collection) {
+          const collCfg = channelCfg.collections.find(
+            (c) => c.segmentValue === product.collection || c.label === product.collection
+          );
+          if (collCfg) {
+            crumbs.push({
+              label: collCfg.label,
+              href: `/shop/internal/qrgear/${product.channel}/${collCfg.slug}`,
+            });
+          }
+        }
+      }
+    }
+    crumbs.push({ label: product.name });
+    return crumbs;
+  })();
+
   return (
     <StorefrontLayout>
       <SEO
@@ -229,15 +257,7 @@ export default function ShopProductPage() {
         description={product.description || `Custom QR merchandise - ${product.name}`}
       />
       <div className="container max-w-6xl py-6 px-4">
-        <Button
-          variant="ghost"
-          className="mb-4"
-          onClick={() => window.history.back()}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Store
-        </Button>
+        <StorefrontBreadcrumb crumbs={breadcrumbs} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
