@@ -99,6 +99,55 @@ export function registerStoreRoutes(app: Express): void {
     }
   });
 
+  // ── All-channels list (Channels tab — lists every channel with store name + orphan flag) ──
+  app.get("/api/admin/channels", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeChannels').get();
+      const storeIds = [...new Set(
+        snapshot.docs.map((d: any) => d.data().storeId).filter(Boolean)
+      )] as string[];
+      const storeMap: Record<string, string> = {};
+      for (const id of storeIds) {
+        const doc = await fsDb.collection('stores').doc(id).get();
+        storeMap[id] = doc.exists ? (doc.data() as any)?.name || id : '(orphaned)';
+      }
+      const channels = snapshot.docs.map((doc: any) => {
+        const d = doc.data();
+        const name = storeMap[d.storeId] || '(orphaned)';
+        return {
+          id: doc.id,
+          ...d,
+          storeName: name,
+          storeExists: !!storeMap[d.storeId] && !name.includes('orphaned'),
+        };
+      });
+      channels.sort((a: any, b: any) =>
+        (a.storeName || '').localeCompare(b.storeName || '') ||
+        (a.name || '').localeCompare(b.name || '')
+      );
+      res.json(channels);
+    } catch (error: any) {
+      console.error('[AllChannels] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Delete channel directly by ID (no storeId required) ──────────────────
+  app.delete("/api/admin/channels/:channelId", isAdmin, async (req: any, res) => {
+    try {
+      const { channelId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('storeChannels').doc(channelId).delete();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[AllChannels] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/stores", async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
