@@ -526,6 +526,32 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
     }
   });
 
+  // ── Curated image list for a blank within a catalog ──────────────────────
+  // An empty array restores the master images (clears the override).
+  app.put("/api/admin/catalogs/:id/blank-images", isAdmin, async (req: any, res) => {
+    try {
+      const { blankId, images } = req.body;
+      if (!blankId || !Array.isArray(images)) {
+        return res.status(400).json({ error: "blankId and images[] are required" });
+      }
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const blankImages = { ...(catalog.blankImages || {}) };
+      if (images.length > 0) {
+        blankImages[String(blankId)] = images.map(String);
+      } else {
+        // Empty array = restore master — remove override entry
+        delete blankImages[String(blankId)];
+      }
+      await fsUpdate("catalogs", req.params.id, { blankImages });
+      console.log(`[Catalogs] Updated images for blank ${blankId} in catalog ${req.params.id}: ${images.length} images`);
+      res.json({ success: true, blankId, imageCount: images.length });
+    } catch (error: any) {
+      console.error("[Catalogs] Set blank images error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/admin/catalog-defaults", isAdmin, async (req: any, res) => {
     try {
       const doc = await fsGet("systemSettings", "catalog-defaults");
