@@ -1,45 +1,61 @@
 import { useState, useRef } from "react";
-import { Loader2, CheckCircle2, Clock, ChevronsDownUp, ChevronsUpDown, Bookmark, BookmarkCheck, X, AlertTriangle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Play, FolderOpen, Plus, Bookmark, BookmarkCheck, Wand2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBuilderContext } from "../BuilderContext";
-import { useCollapseAll } from "@/features/shared/components/CollapsibleModule";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { QR_PRODUCT_STATES } from "../types";
 
-export function BuilderStickyBar() {
-  const { state, autoSaveFailed } = useBuilderContext();
-  const { collapseAll, expandAll } = useCollapseAll();
+interface CommandButtonProps {
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+  testId: string;
+  active?: boolean;
+  disabled?: boolean;
+}
+
+function CommandButton({ icon: Icon, label, onClick, testId, active, disabled }: CommandButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-testid={testId}
+      className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-3 min-h-[56px] text-xs font-medium transition-colors hover-elevate active-elevate-2 ${
+        active ? "text-primary" : "text-foreground"
+      } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+    >
+      <Icon className="h-5 w-5" />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+interface BuilderCommandStripProps {
+  onOpenSaved: () => void;
+  onOpenTemplates: () => void;
+  onOpenOutput: () => void;
+}
+
+export function BuilderCommandStrip({ onOpenSaved, onOpenTemplates, onOpenOutput }: BuilderCommandStripProps) {
+  const { state, resetBuilder } = useBuilderContext();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [draftMode, setDraftMode] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedName, setSavedName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!state.selectedProduct) return null;
-
-  const { activeSessionId, activePacketId, sessionStatus } = state;
-  const productTitle = state.selectedProduct.title;
-  const brand = state.selectedProduct.brand;
+  const { activeSessionId } = state;
   const canSaveDraft = !!activeSessionId;
-  const qrLabel = QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label;
-
-  const handleToggle = () => {
-    if (isCollapsed) {
-      expandAll();
-      setIsCollapsed(false);
-    } else {
-      collapseAll();
-      setIsCollapsed(true);
-    }
-  };
 
   const openDraftInput = () => {
+    if (!canSaveDraft) {
+      toast({ title: "No active session", description: "Select a product first to enable saving.", variant: "destructive" });
+      return;
+    }
     setDraftName(savedName || "");
     setDraftMode(true);
     setTimeout(() => inputRef.current?.focus(), 50);
@@ -53,10 +69,7 @@ export function BuilderStickyBar() {
   const saveDraft = async () => {
     if (!activeSessionId) return;
     const name = draftName.trim();
-    if (!name) {
-      inputRef.current?.focus();
-      return;
-    }
+    if (!name) { inputRef.current?.focus(); return; }
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
@@ -69,7 +82,7 @@ export function BuilderStickyBar() {
       setSavedName(name);
       setDraftMode(false);
       setDraftName("");
-      toast({ title: "Draft saved", description: `"${name}" will appear on your Run dashboard.` });
+      toast({ title: "Draft saved", description: `"${name}" saved.` });
     } catch {
       toast({ title: "Could not save draft", variant: "destructive" });
     } finally {
@@ -77,148 +90,54 @@ export function BuilderStickyBar() {
     }
   };
 
+  if (draftMode) {
+    return (
+      <div
+        className="sticky top-0 z-50 px-3 py-2 bg-background/95 backdrop-blur border-b flex items-center gap-2"
+        data-testid="builder-command-strip"
+      >
+        <Input
+          ref={inputRef}
+          value={draftName}
+          onChange={e => setDraftName(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") saveDraft(); if (e.key === "Escape") cancelDraft(); }}
+          placeholder="Name this draft…"
+          className="flex-1 min-w-0"
+          data-testid="input-command-strip-draft-name"
+        />
+        <Button
+          size="default"
+          onClick={saveDraft}
+          disabled={saving || !draftName.trim()}
+          data-testid="button-command-strip-save-confirm"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+        </Button>
+        <Button size="icon" variant="ghost" onClick={cancelDraft} data-testid="button-command-strip-cancel">
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="sticky top-0 z-50 px-3 py-2 bg-background/95 backdrop-blur border-b"
-      data-testid="builder-sticky-bar"
+      className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b"
+      data-testid="builder-command-strip"
     >
-      {draftMode && canSaveDraft ? (
-        <div className="flex items-center gap-2 w-full">
-          <Input
-            ref={inputRef}
-            value={draftName}
-            onChange={e => setDraftName(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") saveDraft(); if (e.key === "Escape") cancelDraft(); }}
-            placeholder="Name this draft…"
-            className="flex-1 min-w-0 h-8 text-sm px-3"
-            data-testid="input-draft-name"
-          />
-          <Button
-            size="sm"
-            onClick={saveDraft}
-            disabled={saving || !draftName.trim()}
-            data-testid="button-save-draft-confirm"
-          >
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={cancelDraft}
-            data-testid="button-cancel-draft"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="min-w-0 flex-1">
-          <p
-            className="text-sm font-medium truncate leading-tight"
-            data-testid="sticky-bar-product-title"
-          >
-            {productTitle}
-          </p>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {brand && (
-              <p className="text-xs text-muted-foreground truncate leading-tight">
-                {brand}
-              </p>
-            )}
-            {qrLabel && (
-              <span
-                className="text-[10px] font-medium bg-primary/10 text-primary rounded-full px-1.5 py-0 leading-tight"
-                data-testid="sticky-bar-qr-label"
-              >
-                {qrLabel}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleToggle}
-            data-testid="button-collapse-all"
-            className="text-xs text-muted-foreground gap-1.5"
-          >
-            {isCollapsed ? (
-              <>
-                <ChevronsUpDown className="h-3.5 w-3.5" />
-                Expand All
-              </>
-            ) : (
-              <>
-                <ChevronsDownUp className="h-3.5 w-3.5" />
-                Collapse All
-              </>
-            )}
-          </Button>
-
-          {canSaveDraft && (
-            <Button
-              variant={savedName ? "ghost" : "outline"}
-              size="sm"
-              onClick={openDraftInput}
-              data-testid="button-save-draft"
-              className={`text-xs gap-1.5 ${savedName ? "text-primary" : ""}`}
-            >
-              {savedName ? (
-                <>
-                  <BookmarkCheck className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-24">{savedName}</span>
-                </>
-              ) : (
-                <>
-                  <Bookmark className="h-3.5 w-3.5" />
-                  Name draft
-                </>
-              )}
-            </Button>
-          )}
-
-          {activeSessionId === null && state.selectedProduct && (
-            <Badge variant="outline" className="text-xs gap-1" data-testid="sticky-badge-starting">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Starting…
-            </Badge>
-          )}
-          {activeSessionId && sessionStatus === "working" && !autoSaveFailed && (
-            <Badge variant="outline" className="text-xs gap-1" data-testid="sticky-badge-working">
-              <Clock className="h-3 w-3 text-amber-500" />
-              In progress
-            </Badge>
-          )}
-          {autoSaveFailed && (
-            <Badge variant="outline" className="text-xs gap-1 border-red-500/40 text-red-600 dark:text-red-400" data-testid="sticky-badge-save-failed">
-              <AlertTriangle className="h-3 w-3" />
-              Save failed
-            </Badge>
-          )}
-          {activeSessionId && sessionStatus === "artifact_ready" && (
-            <Badge
-              variant="outline"
-              className="text-xs gap-1 border-green-500/40 text-green-700 dark:text-green-400"
-              data-testid="sticky-badge-artifact-ready"
-            >
-              <CheckCircle2 className="h-3 w-3" />
-              Packet ready
-            </Badge>
-          )}
-          {activeSessionId && sessionStatus === "committed" && (
-            <Badge
-              variant="outline"
-              className="text-xs gap-1 border-blue-500/40 text-blue-700 dark:text-blue-400"
-              data-testid="sticky-badge-committed"
-            >
-              <CheckCircle2 className="h-3 w-3" />
-              Saved
-            </Badge>
-          )}
-        </div>
+      <div className="flex items-stretch divide-x divide-border">
+        <CommandButton icon={Play} label="Resume" onClick={onOpenSaved} testId="button-strip-resume" />
+        <CommandButton icon={FolderOpen} label="Templates" onClick={onOpenTemplates} testId="button-strip-templates" />
+        <CommandButton icon={Plus} label="New" onClick={resetBuilder} testId="button-strip-new" />
+        <CommandButton
+          icon={savedName ? BookmarkCheck : Bookmark}
+          label={savedName ? "Saved" : "Save"}
+          onClick={openDraftInput}
+          testId="button-strip-save"
+          active={!!savedName}
+        />
+        <CommandButton icon={Wand2} label="Generate" onClick={onOpenOutput} testId="button-strip-generate" />
       </div>
-      )}
     </div>
   );
 }

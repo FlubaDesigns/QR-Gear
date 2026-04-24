@@ -1,13 +1,17 @@
+import { Wand2, CheckCircle2, Bookmark, BookmarkCheck, Loader2, X } from "lucide-react";
 import { useState, useRef } from "react";
-import { Bookmark, BookmarkCheck, Wand2, CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBuilderContext } from "../BuilderContext";
 import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-export function BuilderBottomBar() {
-  const { state, autoSaveFailed } = useBuilderContext();
+interface BuilderBottomBarProps {
+  onOpenOutput: () => void;
+}
+
+export function BuilderBottomBar({ onOpenOutput }: BuilderBottomBarProps) {
+  const { state } = useBuilderContext();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
   const [draftMode, setDraftMode] = useState(false);
@@ -21,11 +25,6 @@ export function BuilderBottomBar() {
   const { activeSessionId, activePacketId, sessionStatus } = state;
   const canSaveDraft = !!activeSessionId;
   const hasPacket = !!activePacketId || sessionStatus === "artifact_ready" || sessionStatus === "committed";
-
-  const scrollToCreate = () => {
-    const el = document.getElementById("builder-create-section");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   const openDraftInput = () => {
     setDraftName(savedName || "");
@@ -64,7 +63,7 @@ export function BuilderBottomBar() {
 
   return (
     <div
-      className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur border-t safe-area-bottom"
+      className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur border-t safe-area-bottom"
       data-testid="builder-bottom-bar"
     >
       {draftMode ? (
@@ -112,7 +111,7 @@ export function BuilderBottomBar() {
             <Button
               variant="outline"
               size="default"
-              onClick={scrollToCreate}
+              onClick={onOpenOutput}
               className="flex-1 gap-1.5 text-sm text-green-700 dark:text-green-400 border-green-500/40"
               data-testid="button-bottom-bar-view-packet"
             >
@@ -122,12 +121,12 @@ export function BuilderBottomBar() {
           ) : (
             <Button
               size="default"
-              onClick={scrollToCreate}
+              onClick={onOpenOutput}
               className="flex-1 gap-1.5 text-sm"
               data-testid="button-bottom-bar-create"
             >
               <Wand2 className="h-4 w-4" />
-              Create Packet
+              Generate
             </Button>
           )}
         </div>

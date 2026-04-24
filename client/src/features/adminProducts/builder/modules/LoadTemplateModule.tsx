@@ -93,12 +93,26 @@ function templateToSkinItem(item: TemplateItem): SkinItem {
   };
 }
 
-export function LoadTemplateModule() {
+interface LoadTemplateModuleProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideCard?: boolean;
+}
+
+export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExternalOpenChange, hideCard }: LoadTemplateModuleProps = {}) {
   const { loadFromPacketData, setTemplateProductResolved, setActiveSession, state } = useBuilderContext();
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
 
-  const [open, setOpen] = useState(false);
+  const controlled = externalOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlled ? externalOpen! : internalOpen;
+
+  const setOpen = (v: boolean) => {
+    if (!controlled) setInternalOpen(v);
+    if (onExternalOpenChange) onExternalOpenChange(v);
+  };
+
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [selecting, setSelecting] = useState(false);
@@ -283,31 +297,33 @@ export function LoadTemplateModule() {
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/40 rounded-md border">
-        <div className="flex items-center gap-2 min-w-0">
-          <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-medium leading-tight">Start from a template</p>
-            <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-              Load a saved design and create a new packet from it
-            </p>
+      {!hideCard && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/40 rounded-md border">
+          <div className="flex items-center gap-2 min-w-0">
+            <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight">Start from a template</p>
+              <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                Load a saved design and create a new packet from it
+              </p>
+            </div>
           </div>
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => setOpen(true)}
+            data-testid="button-load-template"
+            className="w-full sm:w-auto flex-shrink-0"
+          >
+            <FolderOpen className="h-4 w-4 mr-2" />
+            Load Template
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          size="default"
-          onClick={() => setOpen(true)}
-          data-testid="button-load-template"
-          className="w-full sm:w-auto flex-shrink-0"
-        >
-          <FolderOpen className="h-4 w-4 mr-2" />
-          Load Template
-        </Button>
-      </div>
+      )}
 
       {productUnavailable && hint && (
         <div
-          className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-md"
+          className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-md mx-3"
           data-testid="banner-product-unavailable"
         >
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />

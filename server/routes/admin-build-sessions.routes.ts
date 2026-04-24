@@ -312,6 +312,34 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
     }
   });
 
+  // ── Delete a build session ────────────────────────────────────────────────
+  app.delete("/api/admin/build-sessions/:id", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
+      const doc = await ref.get();
+
+      if (!doc.exists) {
+        return res.status(404).json({ error: "Build session not found" });
+      }
+
+      const session = doc.data()!;
+      if (session.ownerAdminId !== req.user?.uid) {
+        return res.status(403).json({ error: "Not authorized to delete this session" });
+      }
+
+      await ref.delete();
+      console.log(`[BuildSessions] Deleted session ${id} for admin ${req.user?.uid}`);
+      res.json({ success: true, sessionId: id });
+    } catch (err: any) {
+      console.error("[BuildSessions] delete error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Generate artifact — saves packet/template refs, gates commit ─────────
   // Caller supplies packet fields built from working state.
   // Sets generated.artifactReady = true and status = 'artifact_ready'.

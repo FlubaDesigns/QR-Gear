@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Archive, Loader2, Image, CheckCircle2, Package } from "lucide-react";
+import { Archive, Loader2, Image, CheckCircle2, Package, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,9 +38,13 @@ function relativeDate(date: string | null | undefined): string {
 function SessionCard({
   session,
   onSelect,
+  onDelete,
+  isDeleting,
 }: {
   session: SavedSession;
   onSelect: (s: SavedSession) => void;
+  onDelete: (s: SavedSession, e: React.MouseEvent) => void;
+  isDeleting: boolean;
 }) {
   const title = session.draftName || session.working?.title || 'Untitled';
   const imageUrl = session.generated?.previewImageUrl;
@@ -76,6 +80,18 @@ function SessionCard({
             </Badge>
           )}
         </div>
+        <button
+          type="button"
+          className="absolute top-2 left-2 p-1 rounded-md bg-background/80 hover-elevate text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+          onClick={(e) => onDelete(session, e)}
+          disabled={isDeleting}
+          data-testid={`button-delete-saved-${session.id}`}
+        >
+          {isDeleting
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <Trash2 className="h-3.5 w-3.5" />
+          }
+        </button>
       </div>
       <CardContent className="p-3 space-y-1">
         <p className="font-medium text-sm truncate" data-testid="text-saved-session-name">
@@ -89,14 +105,29 @@ function SessionCard({
   );
 }
 
-export function LoadSavedModule() {
+interface LoadSavedModuleProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideCard?: boolean;
+}
+
+export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOpenChange, hideCard }: LoadSavedModuleProps = {}) {
   const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
 
-  const [open, setOpen] = useState(false);
+  const controlled = externalOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlled ? externalOpen! : internalOpen;
+
+  const setOpen = (v: boolean) => {
+    if (!controlled) setInternalOpen(v);
+    if (onExternalOpenChange) onExternalOpenChange(v);
+  };
+
   const [sessions, setSessions] = useState<SavedSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [selecting, setSelecting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -127,31 +158,55 @@ export function LoadSavedModule() {
 
   const handleSelect = useCallback((session: SavedSession) => {
     setSelecting(true);
-    // Full page reload so DraftResumeHandler picks up the ?resume= param fresh
     window.location.href = `/admin/products?resume=${session.id}`;
   }, []);
 
+  const handleDelete = useCallback(async (session: SavedSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const label = session.draftName || session.working?.title || 'Untitled';
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    setDeletingId(session.id);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${apiBase}/build-sessions/${session.id}`, {
+        method: 'DELETE',
+        headers,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSessions(prev => prev.filter(s => s.id !== session.id));
+      toast({ title: 'Draft deleted' });
+    } catch {
+      toast({ title: 'Could not delete draft', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
+    }
+  }, [apiBase, getAuthHeaders, toast]);
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/40 rounded-md border">
-      <div className="flex items-center gap-2 min-w-0">
-        <Archive className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium leading-tight">Resume a saved build</p>
-          <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-            Pick up any item that already has a packet or was saved
-          </p>
+    <>
+      {!hideCard && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/40 rounded-md border">
+          <div className="flex items-center gap-2 min-w-0">
+            <Archive className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight">Resume a saved build</p>
+              <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                Pick up any item that already has a packet or was saved
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => setOpen(true)}
+            data-testid="button-load-saved"
+            className="w-full sm:w-auto flex-shrink-0"
+          >
+            <Archive className="h-4 w-4 mr-2" />
+            Load Saved
+          </Button>
         </div>
-      </div>
-      <Button
-        variant="outline"
-        size="default"
-        onClick={() => setOpen(true)}
-        data-testid="button-load-saved"
-        className="w-full sm:w-auto flex-shrink-0"
-      >
-        <Archive className="h-4 w-4 mr-2" />
-        Load Saved
-      </Button>
+      )}
 
       <ModalView
         open={open}
@@ -175,18 +230,23 @@ export function LoadSavedModule() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {sessions.map(s => (
                 <div key={s.id} className="relative">
-                  {selecting && (
+                  {selecting && deletingId !== s.id && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg">
                       <Loader2 className="h-5 w-5 animate-spin" />
                     </div>
                   )}
-                  <SessionCard session={s} onSelect={handleSelect} />
+                  <SessionCard
+                    session={s}
+                    onSelect={handleSelect}
+                    onDelete={handleDelete}
+                    isDeleting={deletingId === s.id}
+                  />
                 </div>
               ))}
             </div>
           )}
         </div>
       </ModalView>
-    </div>
+    </>
   );
 }
