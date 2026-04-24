@@ -90,7 +90,7 @@ function getSectionSummary(key: SectionKey, state: BuilderState): string {
   switch (key) {
     case "product": {
       if (!state.selectedProduct) return "No product selected";
-      const qrLabel = QR_LABEL[state.qrProductState] || state.qrProductState;
+      const qrLabel = state.qrProductState ? (QR_LABEL[state.qrProductState] ?? state.qrProductState) : "";
       return [state.selectedProduct.title, qrLabel].filter(Boolean).join(" · ");
     }
     case "design":

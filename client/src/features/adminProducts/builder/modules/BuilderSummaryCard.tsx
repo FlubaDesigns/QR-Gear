@@ -54,7 +54,7 @@ function StatusDot({ label, status }: StatusDotProps) {
   return (
     <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground" data-testid={`status-section-${label.toLowerCase().replace(/ /g, '-')}`}>
       {icon}
-      <span className="hidden sm:inline">{label}</span>
+      <span>{label}</span>
     </span>
   );
 }
@@ -118,7 +118,7 @@ export function BuilderSummaryCard() {
       <div className="flex items-center gap-3 mt-2 flex-wrap" data-testid="section-status-row">
         <StatusDot label="Product" status={statuses.product} />
         <StatusDot label="Design" status={statuses.design} />
-        <StatusDot label="QR" status={statuses.qr} />
+        <StatusDot label="QR Content" status={statuses.qr} />
         <StatusDot label="Layout" status={statuses.layout} />
         <StatusDot label="Output" status={statuses.output} />
       </div>

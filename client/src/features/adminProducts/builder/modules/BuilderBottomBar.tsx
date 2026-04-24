@@ -20,8 +20,6 @@ export function BuilderBottomBar({ onOpenOutput }: BuilderBottomBarProps) {
   const [savedName, setSavedName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!state.selectedProduct) return null;
-
   const { activeSessionId, activePacketId, sessionStatus } = state;
   const canSaveDraft = !!activeSessionId;
   const hasPacket = !!activePacketId || sessionStatus === "artifact_ready" || sessionStatus === "committed";
@@ -91,21 +89,20 @@ export function BuilderBottomBar({ onOpenOutput }: BuilderBottomBarProps) {
         </div>
       ) : (
         <div className="flex items-center gap-2 px-3 py-2">
-          {canSaveDraft && (
-            <Button
-              variant="outline"
-              size="default"
-              onClick={openDraftInput}
-              className="flex-1 gap-1.5 text-sm"
-              data-testid="button-bottom-bar-save-draft"
-            >
-              {savedName ? (
-                <><BookmarkCheck className="h-4 w-4" /><span className="truncate max-w-[80px]">{savedName}</span></>
-              ) : (
-                <><Bookmark className="h-4 w-4" />Save Draft</>
-              )}
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="default"
+            onClick={openDraftInput}
+            disabled={!canSaveDraft}
+            className="flex-1 gap-1.5 text-sm"
+            data-testid="button-bottom-bar-save-draft"
+          >
+            {savedName ? (
+              <><BookmarkCheck className="h-4 w-4" /><span className="truncate max-w-[80px]">{savedName}</span></>
+            ) : (
+              <><Bookmark className="h-4 w-4" />Save Draft</>
+            )}
+          </Button>
 
           {hasPacket ? (
             <Button
