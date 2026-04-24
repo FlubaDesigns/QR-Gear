@@ -103,7 +103,7 @@ function registerAdminBuildSessions(app) {
     // ── Create or load a build session from a master catalog item ─────────────
     app.post('/admin/build-sessions/from-master', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { sourceMasterId, catalogId } = req.body;
+            const { sourceMasterId, catalogId, blankKey: bodyBlankKey } = req.body;
             if (!sourceMasterId) {
                 res.status(400).json({ error: 'sourceMasterId is required' });
                 return;
@@ -129,7 +129,13 @@ function registerAdminBuildSessions(app) {
             if (!existing.empty) {
                 const doc = existing.docs[0];
                 const d = doc.data();
-                await doc.ref.update({ lastActiveAt: firestore_1.FieldValue.serverTimestamp() });
+                // Touch lastActiveAt and back-fill blankKey/catalogId if the session predates those fields
+                const existingPatch = { lastActiveAt: firestore_1.FieldValue.serverTimestamp() };
+                if (bodyBlankKey && !d.blankKey)
+                    existingPatch.blankKey = bodyBlankKey;
+                if (catalogId && !d.catalogId)
+                    existingPatch.catalogId = catalogId;
+                await doc.ref.update(existingPatch);
                 res.json({
                     success: true,
                     sessionId: doc.id,
@@ -137,6 +143,8 @@ function registerAdminBuildSessions(app) {
                     session: {
                         id: doc.id,
                         ...d,
+                        blankKey: d.blankKey || bodyBlankKey || null,
+                        catalogId: d.catalogId || catalogId || null,
                         createdAt: d.createdAt?.toDate?.() || null,
                         updatedAt: d.updatedAt?.toDate?.() || null,
                     },
@@ -171,6 +179,7 @@ function registerAdminBuildSessions(app) {
                 sourceMasterId,
                 ownerAdminId,
                 catalogId: catalogId || null,
+                blankKey: bodyBlankKey || null,
                 working: {
                     title: master.title || null,
                     description: master.description || null,
@@ -266,7 +275,10 @@ function registerAdminBuildSessions(app) {
                 return;
             }
             const existing = doc.data();
-            if (existing.status === 'committed' || existing.status === 'abandoned') {
+            // draftName is a display-only label — allow it on any session status.
+            // Only block working-state writes on sessions that are already finalized.
+            const isDraftNameOnly = draftName !== undefined && !working;
+            if (!isDraftNameOnly && (existing.status === 'committed' || existing.status === 'abandoned')) {
                 res.status(409).json({
                     error: `Cannot update a ${existing.status} session. Start a new session instead.`,
                 });
@@ -421,11 +433,14 @@ function registerAdminBuildSessions(app) {
                         const blankTitles = catData.blankTitles || {};
                         const blankDescriptions = catData.blankDescriptions || {};
                         const blankImages = catData.blankImages || {};
-                        if (blankTitles[session.sourceMasterId])
-                            curatedTitle = blankTitles[session.sourceMasterId];
-                        if (blankDescriptions[session.sourceMasterId])
-                            curatedDescription = blankDescriptions[session.sourceMasterId];
-                        const trimmed = blankImages[session.sourceMasterId] || [];
+                        // blankKey is the correct lookup key (e.g. "pf:71" or "36").
+                        // sourceMasterId is the Firestore doc ID — wrong key for blankImages.
+                        const lookupKey = session.blankKey || session.sourceMasterId;
+                        if (blankTitles[lookupKey])
+                            curatedTitle = blankTitles[lookupKey];
+                        if (blankDescriptions[lookupKey])
+                            curatedDescription = blankDescriptions[lookupKey];
+                        const trimmed = blankImages[lookupKey] || [];
                         if (trimmed.length > 0)
                             curatedImages = trimmed;
                     }

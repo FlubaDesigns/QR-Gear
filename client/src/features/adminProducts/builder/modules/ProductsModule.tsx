@@ -640,6 +640,7 @@ export function ProductsModule() {
     apiRequest("POST", "/api/admin/build-sessions/from-master", {
       sourceMasterId,
       catalogId: activeCatalog?.id || null,
+      blankKey: entry.blankKey || null,
     })
       .then(r => r.json())
       .then(data => {

@@ -109,7 +109,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
   // ── Create or load a build session from a master catalog item ─────────────
   app.post('/admin/build-sessions/from-master', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
-      const { sourceMasterId, catalogId } = req.body;
+      const { sourceMasterId, catalogId, blankKey: bodyBlankKey } = req.body;
 
       if (!sourceMasterId) {
         res.status(400).json({ error: 'sourceMasterId is required' });
@@ -141,7 +141,11 @@ export function registerAdminBuildSessions(app: express.Express): void {
       if (!existing.empty) {
         const doc = existing.docs[0];
         const d = doc.data();
-        await doc.ref.update({ lastActiveAt: FieldValue.serverTimestamp() });
+        // Touch lastActiveAt and back-fill blankKey/catalogId if the session predates those fields
+        const existingPatch: Record<string, any> = { lastActiveAt: FieldValue.serverTimestamp() };
+        if (bodyBlankKey && !d.blankKey) existingPatch.blankKey = bodyBlankKey;
+        if (catalogId && !d.catalogId) existingPatch.catalogId = catalogId;
+        await doc.ref.update(existingPatch);
         res.json({
           success: true,
           sessionId: doc.id,
@@ -149,6 +153,8 @@ export function registerAdminBuildSessions(app: express.Express): void {
           session: {
             id: doc.id,
             ...d,
+            blankKey: d.blankKey || bodyBlankKey || null,
+            catalogId: d.catalogId || catalogId || null,
             createdAt: d.createdAt?.toDate?.() || null,
             updatedAt: d.updatedAt?.toDate?.() || null,
           },
@@ -188,6 +194,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         sourceMasterId,
         ownerAdminId,
         catalogId: catalogId || null,
+        blankKey: bodyBlankKey || null,
         working: {
           title: master.title || null,
           description: master.description || null,
@@ -287,7 +294,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       const existing = doc.data()!;
 
-      if (existing.status === 'committed' || existing.status === 'abandoned') {
+      // draftName is a display-only label — allow it on any session status.
+      // Only block working-state writes on sessions that are already finalized.
+      const isDraftNameOnly = draftName !== undefined && !working;
+      if (!isDraftNameOnly && (existing.status === 'committed' || existing.status === 'abandoned')) {
         res.status(409).json({
           error: `Cannot update a ${existing.status} session. Start a new session instead.`,
         });
@@ -462,9 +472,12 @@ export function registerAdminBuildSessions(app: express.Express): void {
             const blankTitles = catData.blankTitles || {};
             const blankDescriptions = catData.blankDescriptions || {};
             const blankImages = catData.blankImages || {};
-            if (blankTitles[session.sourceMasterId]) curatedTitle = blankTitles[session.sourceMasterId];
-            if (blankDescriptions[session.sourceMasterId]) curatedDescription = blankDescriptions[session.sourceMasterId];
-            const trimmed: string[] = blankImages[session.sourceMasterId] || [];
+            // blankKey is the correct lookup key (e.g. "pf:71" or "36").
+            // sourceMasterId is the Firestore doc ID — wrong key for blankImages.
+            const lookupKey = session.blankKey || session.sourceMasterId;
+            if (blankTitles[lookupKey]) curatedTitle = blankTitles[lookupKey];
+            if (blankDescriptions[lookupKey]) curatedDescription = blankDescriptions[lookupKey];
+            const trimmed: string[] = blankImages[lookupKey] || [];
             if (trimmed.length > 0) curatedImages = trimmed;
           }
         } catch (_) { /* fall back to master values */ }
@@ -669,3 +682,4 @@ export function registerAdminBuildSessions(app: express.Express): void {
     }
   });
 }
+
