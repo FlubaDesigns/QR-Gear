@@ -736,4 +736,56 @@ export function registerPacketRoutes(app: Express): void {
     }
   });
 
+  // ── Admin templates list (Library page → Templates tab) ──────────────────
+  app.get("/api/admin/templates", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('productTemplates').orderBy('createdAt', 'desc').get();
+      const templates = snapshot.docs.map((d: any) => {
+        const data = d.data();
+        const hasPacketData = !!(
+          data.packetId || data.qrContent || data.artworkUrl ||
+          data.thumbnailUrl || data.priorityMockupUrl || data.compositeUrl
+        );
+        const packet = hasPacketData ? {
+          id: data.packetId || null,
+          compositeUrl: data.artworkUrl || data.thumbnailUrl || data.compositeUrl || null,
+          priorityMockupUrl: data.priorityMockupUrl || null,
+          qrOnlyUrl: data.qrOnlyUrl || null,
+          qrContent: data.qrContent || null,
+          headerText: data.headerText || null,
+          footerText: data.footerText || null,
+          qrProductState: data.qrProductState || null,
+          productName: data.productName || data.name || null,
+          landingPageSnapshotUrl: data.landingPageSnapshotUrl || null,
+        } : null;
+        return {
+          id: d.id,
+          ...data,
+          packetId: data.packetId || null,
+          packet,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || null,
+        };
+      });
+      res.json({ templates });
+    } catch (error: any) {
+      console.error('[Templates] GET error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/templates/:templateId", isAdmin, async (req: any, res) => {
+    try {
+      const { templateId } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      await fsDb.collection('productTemplates').doc(templateId).delete();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Templates] DELETE error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
 }

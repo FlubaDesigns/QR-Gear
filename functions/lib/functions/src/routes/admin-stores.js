@@ -302,5 +302,37 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // Store Library: products assigned to a channel (reads storeProductLinks by channel name)
+    app.get('/admin/stores/:storeId/channels/:channelName/products', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { storeId, channelName } = req.params;
+            const snapshot = await core_1.db.collection('storeProductLinks')
+                .where('storeId', '==', storeId)
+                .where('channel', '==', channelName)
+                .get();
+            const products = snapshot.docs.map((doc) => {
+                const d = doc.data();
+                return {
+                    id: doc.id,
+                    linkId: doc.id,
+                    packetId: d.packetId || null,
+                    templateId: d.templateId || null,
+                    name: d.productName || d.name || 'Untitled',
+                    imageUrl: d.mockupUrl || d.compositeUrl || d.qrOnlyUrl || '',
+                    baseProductId: d.baseProductId || null,
+                    enabledColors: d.enabledColors || [],
+                    enabledSizes: d.enabledSizes || [],
+                    selectedGraphicSize: d.selectedGraphicSize || null,
+                    defaultColor: d.defaultColor || null,
+                    qrContent: d.qrContent || null,
+                    pricing: d.pricing || null,
+                };
+            });
+            res.json(products);
+        }
+        catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 }
 //# sourceMappingURL=admin-stores.js.map

@@ -148,6 +148,41 @@ export function registerStoreRoutes(app: Express): void {
     }
   });
 
+  // ── Store Library: products assigned to a channel (reads storeProductLinks) ─
+  app.get("/api/admin/stores/:storeId/channels/:channelName/products", isAdmin, async (req: any, res) => {
+    try {
+      const { storeId, channelName } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      const snapshot = await fsDb.collection('storeProductLinks')
+        .where('storeId', '==', storeId)
+        .where('channel', '==', channelName)
+        .get();
+      const products = snapshot.docs.map((doc: any) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          linkId: doc.id,
+          packetId: d.packetId || null,
+          templateId: d.templateId || null,
+          name: d.productName || d.name || 'Untitled',
+          imageUrl: d.mockupUrl || d.compositeUrl || d.qrOnlyUrl || '',
+          baseProductId: d.baseProductId || null,
+          enabledColors: d.enabledColors || [],
+          enabledSizes: d.enabledSizes || [],
+          selectedGraphicSize: d.selectedGraphicSize || null,
+          defaultColor: d.defaultColor || null,
+          qrContent: d.qrContent || null,
+          pricing: d.pricing || null,
+        };
+      });
+      res.json(products);
+    } catch (error: any) {
+      console.error('[StoreLibrary] GET channel products error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/stores", async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
