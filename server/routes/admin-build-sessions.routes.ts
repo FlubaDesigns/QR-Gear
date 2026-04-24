@@ -406,7 +406,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
   app.post("/api/admin/build-sessions/:id/commit", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { catalogId } = req.body;
+      const { catalogId, pricing: bodyPricing } = req.body;
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const { FieldValue } = await import("firebase-admin/firestore");
@@ -423,7 +423,6 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const session = doc.data()!;
 
       if (session.status === "committed") {
-        // Already committed — return the existing instance id
         return res.json({
           success: true,
           alreadyCommitted: true,
@@ -442,7 +441,6 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         });
       }
 
-      // Fetch master to build the baseSnapshot
       const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(session.sourceMasterId).get();
       if (!masterDoc.exists) {
         console.error(`[BuildSessions] Commit — master not found: ${session.sourceMasterId}`);
@@ -453,11 +451,57 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const now = FieldValue.serverTimestamp();
       const effectiveCatalogId = catalogId || session.catalogId || null;
 
-      // Build baseSnapshot from master (canonical, read-only lineage anchor)
+      // ── Resolve curated title, description, and image list from catalog overrides ──
+      // Priority: catalog blankTitles/blankDescriptions/blankImages > master catalog
+      let curatedTitle: string = master.title || "";
+      let curatedDescription: string | null = master.description || null;
+      let curatedImages: string[] = master.images || [];
+      if (effectiveCatalogId) {
+        try {
+          const catDoc = await db.collection("catalogs").doc(effectiveCatalogId).get();
+          if (catDoc.exists) {
+            const catData = catDoc.data() as any;
+            const blankTitles = catData.blankTitles || {};
+            const blankDescriptions = catData.blankDescriptions || {};
+            const blankImages = catData.blankImages || {};
+            if (blankTitles[session.sourceMasterId]) curatedTitle = blankTitles[session.sourceMasterId];
+            if (blankDescriptions[session.sourceMasterId]) curatedDescription = blankDescriptions[session.sourceMasterId];
+            const trimmed: string[] = blankImages[session.sourceMasterId] || [];
+            if (trimmed.length > 0) curatedImages = trimmed;
+          }
+        } catch (_) { /* fall back to master values */ }
+      }
+
+      // ── Fetch packet for priorityMockupUrl + admin-curated enabledColors/enabledSizes ──
+      const packetId = session.generated?.packetId || null;
+      let mockupUrl: string | null = null;
+      let packetEnabledColors: string[] | null = null;
+      let packetEnabledSizes: string[] | null = null;
+      if (packetId) {
+        try {
+          const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+          if (packetDoc.exists) {
+            const pkt = packetDoc.data() as any;
+            mockupUrl = pkt.priorityMockupUrl || null;
+            const rawColors = pkt.colors || pkt.enabledColors || [];
+            const rawSizes = pkt.sizes || pkt.enabledSizes || [];
+            const normalizedColors = rawColors
+              .map((c: any) => (typeof c === "string" ? c : c?.name || c?.label || null))
+              .filter(Boolean) as string[];
+            const normalizedSizes = rawSizes
+              .filter((s: any) => typeof s === "string" && s.length > 0) as string[];
+            if (normalizedColors.length > 0) packetEnabledColors = normalizedColors;
+            if (normalizedSizes.length > 0) packetEnabledSizes = normalizedSizes;
+          }
+        } catch (_) { /* no mockup */ }
+      }
+      const finalImages = mockupUrl ? [mockupUrl, ...curatedImages] : curatedImages;
+      // ────────────────────────────────────────────────────────────────────────────
+
       const baseSnapshot = {
-        title: master.title || "",
-        description: master.description || null,
-        images: master.images || [],
+        title: curatedTitle,
+        description: curatedDescription,
+        images: finalImages,
         brand: master.brand || null,
         colors: master.colors || [],
         sizes: master.sizes || [],
@@ -469,18 +513,26 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         printfulProductId: master.printfulProductId || null,
       };
 
-      // Build overrides from session working state (only fields that differ from master)
       const overrides: Record<string, any> = {};
       const w = session.working || {};
       if (w.title && w.title !== master.title) overrides.title = w.title;
       if (w.description && w.description !== master.description) overrides.description = w.description;
-      if (w.images?.length) overrides.images = w.images;
-      if (w.pricing) overrides.pricing = w.pricing;
+      // When a catalog is active, curatedImages is the authority — do NOT stomp with working.images
+      if (!effectiveCatalogId && w.images?.length) overrides.images = w.images;
+      const effectivePricing = bodyPricing || w.pricing || null;
+      if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;
 
       const resolved = resolveFields(baseSnapshot, overrides);
 
-      const instanceData = {
+      const meta = w.metadata || {};
+      const selectedStore = meta.selectedStore || null;
+      const selectedChannel = meta.selectedChannel || null;
+      const selectedCollection = meta.selectedCollection || null;
+      const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
+        .filter(Boolean).join(" / ") || null;
+
+      const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
         instanceType: "admin",
         sourceMasterId: session.sourceMasterId,
         sourceSessionId: id,
@@ -489,20 +541,26 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         baseSnapshot,
         overrides,
         resolved,
-        currentPacketId: session.generated?.packetId || null,
+        enabledColors: packetEnabledColors,
+        enabledSizes: packetEnabledSizes,
+        currentPacketId: packetId,
         currentTemplateId: session.generated?.templateId || null,
         currentGraphicSetId: session.generated?.graphicSetId || null,
+        storeId: selectedStore?.id || null,
+        storeName: selectedStore?.name || null,
+        channelId: selectedChannel?.id || null,
+        channelName: selectedChannel?.name || null,
+        collectionId: selectedCollection?.id || null,
+        collectionName: selectedCollection?.name || null,
+        folderPath,
         status: "draft",
         createdAt: now,
         updatedAt: now,
-      };
-
-      const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add(instanceData);
+      });
       const instanceId = instanceRef.id;
 
-      // If there's a packet, backfill its lineage with the real instance id
-      if (session.generated?.packetId) {
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(session.generated.packetId).update({
+      if (packetId) {
+        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
           ownerType: "admin",
           ownerInstanceId: instanceId,
           sourceAdminInstanceId: instanceId,
@@ -510,7 +568,6 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         });
       }
 
-      // Mark session as committed
       await ref.update({
         status: "committed",
         committedInstanceId: instanceId,
@@ -523,7 +580,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         sessionId: id,
         instanceId,
         sourceMasterId: session.sourceMasterId,
-        packetId: session.generated?.packetId || null,
+        packetId,
       });
     } catch (err: any) {
       console.error("[BuildSessions] commit error:", err.message);

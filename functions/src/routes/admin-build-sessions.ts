@@ -516,7 +516,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const w = session.working || {};
       if (w.title && w.title !== master.title) overrides.title = w.title;
       if (w.description && w.description !== master.description) overrides.description = w.description;
-      if (w.images?.length) overrides.images = w.images;
+      // When a catalog is active, curatedImages (embedded in finalImages / baseSnapshot) is the
+      // authority for images — do NOT let working.images blindly stomp it.
+      // working.images starts from master.images and will restore deleted images if applied.
+      if (!effectiveCatalogId && w.images?.length) overrides.images = w.images;
       const effectivePricing = bodyPricing || w.pricing || null;
       if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;

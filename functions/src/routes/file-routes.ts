@@ -137,6 +137,32 @@ export async function processQueueInBackground(): Promise<void> {
             if (isUpgrade) {
               await packetRef.update({ priorityMockupUrl: bestUrl });
               console.log(`[Queue Background] Updated packet ${packetId} priorityMockupUrl with ${mockupResult.lifestyleMockupUrl ? 'lifestyle' : 'flat'} mockup`);
+
+              // Also prepend the mockup into the committed admin_catalog_instance, if one exists.
+              // Chain: packet.ownerInstanceId → admin_catalog_instances doc → resolved.images
+              const ownerInstanceId: string | null = packetData.ownerInstanceId || null;
+              if (ownerInstanceId) {
+                try {
+                  const instanceRef = db.collection('admin_catalog_instances').doc(ownerInstanceId);
+                  const instanceSnap = await instanceRef.get();
+                  if (instanceSnap.exists) {
+                    const instanceData = instanceSnap.data() || {};
+                    const existingImages: string[] = instanceData.resolved?.images || [];
+                    if (!existingImages[0] || existingImages[0] !== bestUrl) {
+                      const filtered = existingImages.filter((img: string) => img !== bestUrl);
+                      const newImages = [bestUrl, ...filtered];
+                      await instanceRef.update({
+                        'resolved.images': newImages,
+                        'baseSnapshot.images': newImages,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                      });
+                      console.log(`[Queue Background] Updated instance ${ownerInstanceId} resolved.images with mockup`);
+                    }
+                  }
+                } catch (instanceErr: any) {
+                  console.error(`[Queue Background] Failed to write-back mockup to instance ${ownerInstanceId}:`, instanceErr.message);
+                }
+              }
             }
           }
         } catch (packetErr: any) {

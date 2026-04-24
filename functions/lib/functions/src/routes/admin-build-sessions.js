@@ -481,7 +481,10 @@ function registerAdminBuildSessions(app) {
                 overrides.title = w.title;
             if (w.description && w.description !== master.description)
                 overrides.description = w.description;
-            if (w.images?.length)
+            // When a catalog is active, curatedImages (embedded in finalImages / baseSnapshot) is the
+            // authority for images — do NOT let working.images blindly stomp it.
+            // working.images starts from master.images and will restore deleted images if applied.
+            if (!effectiveCatalogId && w.images?.length)
                 overrides.images = w.images;
             const effectivePricing = bodyPricing || w.pricing || null;
             if (effectivePricing)

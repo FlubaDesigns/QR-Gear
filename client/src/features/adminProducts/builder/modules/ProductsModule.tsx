@@ -401,7 +401,14 @@ export function ProductsModule() {
     const entry = selectItemMap.get(id);
     if (!entry) return;
     if (!state.selectedProduct || String(state.selectedProduct.id) !== id) {
-      selectProduct(entry.catalog);
+      const curatedProduct = {
+        ...entry.catalog,
+        title: entry.selectItem.name || entry.catalog.title,
+        description: entry.selectItem.description ?? entry.catalog.description,
+        images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
+        imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
+      } as typeof entry.catalog;
+      selectProduct(curatedProduct);
     }
     setProductDescription(description || null);
 
@@ -422,7 +429,14 @@ export function ProductsModule() {
     const entry = selectItemMap.get(id);
     if (!entry) return;
     if (!state.selectedProduct || String(state.selectedProduct.id) !== id) {
-      selectProduct(entry.catalog);
+      const curatedProduct = {
+        ...entry.catalog,
+        title: entry.selectItem.name || entry.catalog.title,
+        description: entry.selectItem.description ?? entry.catalog.description,
+        images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
+        imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
+      } as typeof entry.catalog;
+      selectProduct(curatedProduct);
     }
     setProductTitle(title || null);
 
@@ -601,7 +615,16 @@ export function ProductsModule() {
       internalProviderSwitch.current = true;
       setSelectedProviders([catalogProduct.fulfillmentProvider]);
     }
-    selectProduct(entry.catalog);
+
+    // Build curated product — prefer admin-overridden title/description/images over master
+    const curatedProduct = {
+      ...entry.catalog,
+      title: entry.selectItem.name || entry.catalog.title,
+      description: entry.selectItem.description ?? entry.catalog.description,
+      images: entry.selectItem.images?.length ? entry.selectItem.images : (catalogProduct.images || []),
+      imageUrl: entry.selectItem.primaryImageUrl || catalogProduct.imageUrl,
+    } as typeof entry.catalog;
+    selectProduct(curatedProduct);
 
     // Immediately load the catalog's admin overrides into builder state so the
     // description and title the admin saved always appear — never revert to master
@@ -614,7 +637,10 @@ export function ProductsModule() {
     setActiveSession(null, null, null);
     // Use the Firestore document ID (docId), not the blueprint number (id)
     const sourceMasterId = entry.catalog.docId ?? String(entry.catalog.id);
-    apiRequest("POST", "/api/admin/build-sessions/from-master", { sourceMasterId })
+    apiRequest("POST", "/api/admin/build-sessions/from-master", {
+      sourceMasterId,
+      catalogId: activeCatalog?.id || null,
+    })
       .then(r => r.json())
       .then(data => {
         if (!data.sessionId) {
@@ -634,8 +660,8 @@ export function ProductsModule() {
         }
 
         if (data.isExisting && data.session?.working && Object.keys(data.session.working).length > 0) {
-          loadFromWorkingState(data.session.working, entry.catalog);
-          const draftName = data.session.draftName || entry.catalog.title || "your draft";
+          loadFromWorkingState(data.session.working, curatedProduct);
+          const draftName = data.session.draftName || curatedProduct.title || "your draft";
           toast({ title: "Draft resumed", description: `Picked up where you left off on "${draftName}".` });
           console.log(`[ProductsModule] Working state restored for session ${data.sessionId}`);
         } else {
