@@ -143,7 +143,8 @@ export function registerMemberSandboxRoutes(app: Express): void {
       const { 
         blueprintId, printProviderId, colorName, colorHex, 
         placement, artworkUrl, qrSize = "medium",
-        fulfillmentProvider = "printify"
+        fulfillmentProvider = "printify",
+        packetId,
       } = req.body;
 
       if (!blueprintId || !colorName || !artworkUrl) {
@@ -169,6 +170,28 @@ export function registerMemberSandboxRoutes(app: Express): void {
       }, storage);
 
       console.log(`[Member Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+
+      // Write-back: save mockup URL to the packet so it persists for gallery display
+      if (packetId && result.mockupUrl) {
+        try {
+          const { getFirestoreDb } = await import("../lib/firebase-admin");
+          const firestoreDb = getFirestoreDb();
+          const updateData: Record<string, any> = { mockupUrl: result.mockupUrl };
+          if (result.lifestyleMockupUrl) updateData.lifestyleMockupUrl = result.lifestyleMockupUrl;
+          // Try productPackets first (admin-created packets assigned to members)
+          const pRef = firestoreDb.collection('productPackets').doc(packetId);
+          const pDoc = await pRef.get();
+          if (pDoc.exists) {
+            await pRef.update(updateData);
+          } else {
+            const { MEMBER_PACKETS_COLLECTION } = await import("../lib/constants");
+            await firestoreDb.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update(updateData);
+          }
+          console.log(`[Member Mockup] Saved mockupUrl to packet ${packetId}`);
+        } catch (writeErr) {
+          console.warn(`[Member Mockup] Failed to write mockupUrl to packet ${packetId}:`, writeErr);
+        }
+      }
 
       res.json({
         success: true,

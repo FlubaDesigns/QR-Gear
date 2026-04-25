@@ -57,9 +57,9 @@ function register(app) {
                 if (price === null && link.pricing) {
                     price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
                 }
-                // Build ordered gallery: lifestyle first → primary flat mockup → additional placement views → any extras
+                // Build ordered gallery: kept catalog images first → digital markup mockups appended at end
                 const lifestyleUrl = link.lifestyleMockupUrl || null;
-                const flatMockupUrl = link.mockupUrl || packetImageUrl || link.compositeUrl || link.qrOnlyUrl || null;
+                const flatMockupUrl = link.mockupUrl || packetImageUrl || null;
                 const storedImages = toUrlArr(link.images || []);
                 // Merge placement mockup URLs — link overrides packet (admin can override via PATCH)
                 const mergedPlacementUrls = {
@@ -69,18 +69,27 @@ function register(app) {
                         : {}),
                 };
                 const EXTRA_PLACEMENT_ORDER = ['back', 'left_sleeve', 'right_sleeve'];
-                const allImages = [];
+                // Collect all mockup/graphic URLs to append after catalog images
+                const mockupImages = [];
                 if (lifestyleUrl)
-                    allImages.push(lifestyleUrl);
+                    mockupImages.push(lifestyleUrl);
                 if (flatMockupUrl && flatMockupUrl !== lifestyleUrl)
-                    allImages.push(flatMockupUrl);
-                // Back and sleeve views follow the primary mockup
+                    mockupImages.push(flatMockupUrl);
                 EXTRA_PLACEMENT_ORDER.forEach(p => {
                     const u = mergedPlacementUrls[p];
-                    if (u && !allImages.includes(u))
-                        allImages.push(u);
+                    if (u && !mockupImages.includes(u))
+                        mockupImages.push(u);
                 });
+                // Also include QR artwork if distinct from above
+                const qrArtUrl = link.compositeUrl || link.qrOnlyUrl || null;
+                if (qrArtUrl && !mockupImages.includes(qrArtUrl))
+                    mockupImages.push(qrArtUrl);
+                const allImages = [];
+                // Kept catalog images first
                 storedImages.forEach((u) => { if (!allImages.includes(u))
+                    allImages.push(u); });
+                // Digital markup mockups appended at the end
+                mockupImages.forEach((u) => { if (!allImages.includes(u))
                     allImages.push(u); });
                 res.json({
                     id: linkDoc.id,
@@ -107,7 +116,7 @@ function register(app) {
                     packetId: link.packetId || null,
                     options: (0, storefrontTypes_1.buildStructuredOptions)(availableColors, availableSizes),
                     cardMode: (0, storefrontTypes_1.deriveCardMode)(availableColors, availableSizes),
-                    media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
+                    media: { images: allImages, mockupPriority: true, heroStrategy: 'catalogFirst' },
                 });
                 return;
             }
@@ -134,13 +143,13 @@ function register(app) {
                 catch (_) { }
             }
             const toStrArr = (arr) => (arr || []).map((v) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
-            // Build ordered gallery: packet mockup first, then provider catalog images
+            // Build ordered gallery: kept catalog images first → digital markup mockup appended
             const providerImages = toUrlArr(resolved.images || []);
             const allImages = [];
-            if (packetMockupUrl)
-                allImages.push(packetMockupUrl);
-            providerImages.forEach((u) => { if (u !== packetMockupUrl)
+            providerImages.forEach((u) => { if (!allImages.includes(u))
                 allImages.push(u); });
+            if (packetMockupUrl && !allImages.includes(packetMockupUrl))
+                allImages.push(packetMockupUrl);
             const bColors = toStrArr(d.enabledColors || resolved.colors || []);
             const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
             res.json({
@@ -168,7 +177,7 @@ function register(app) {
                 packetId: d.currentPacketId || null,
                 options: (0, storefrontTypes_1.buildStructuredOptions)(bColors, bSizes),
                 cardMode: (0, storefrontTypes_1.deriveCardMode)(bColors, bSizes),
-                media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
+                media: { images: allImages, mockupPriority: true, heroStrategy: 'catalogFirst' },
             });
         }
         catch (e) {
@@ -326,13 +335,13 @@ function register(app) {
                     const toImgUrl = (img) => typeof img === 'string' ? img : (img?.url || null);
                     const rawColors = d.enabledColors || resolved.colors || [];
                     const rawSizes = d.enabledSizes || resolved.sizes || [];
-                    // Build ordered gallery: packet mockup first, then provider images
+                    // Build ordered gallery: kept catalog images first → digital markup mockup appended
                     const providerImgs = (resolved.images || []).map(toImgUrl).filter(Boolean);
                     const allImages = [];
-                    if (packetImageUrl)
-                        allImages.push(packetImageUrl);
-                    providerImgs.forEach((u) => { if (u !== packetImageUrl)
+                    providerImgs.forEach((u) => { if (!allImages.includes(u))
                         allImages.push(u); });
+                    if (packetImageUrl && !allImages.includes(packetImageUrl))
+                        allImages.push(packetImageUrl);
                     const l1Colors = toStringArray(rawColors);
                     const l1Sizes = toStringArray(rawSizes);
                     return {
@@ -355,7 +364,7 @@ function register(app) {
                         createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                         options: (0, storefrontTypes_1.buildStructuredOptions)(l1Colors, l1Sizes),
                         cardMode: (0, storefrontTypes_1.deriveCardMode)(l1Colors, l1Sizes),
-                        media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
+                        media: { images: allImages, mockupPriority: true, heroStrategy: 'catalogFirst' },
                     };
                 }));
                 console.log(`[Public Store] Channel "${storeName}" in store "${storeId}": ${products.length} catalog instances`);
@@ -448,10 +457,10 @@ function register(app) {
                     const toImgUrlCh = (img) => typeof img === 'string' ? img : (img?.url || null);
                     const providerImgsCh = (resolved.images || []).map(toImgUrlCh).filter(Boolean);
                     const allImagesCh = [];
-                    if (packetImageUrl)
-                        allImagesCh.push(packetImageUrl);
-                    providerImgsCh.forEach((u) => { if (u !== packetImageUrl)
+                    providerImgsCh.forEach((u) => { if (!allImagesCh.includes(u))
                         allImagesCh.push(u); });
+                    if (packetImageUrl && !allImagesCh.includes(packetImageUrl))
+                        allImagesCh.push(packetImageUrl);
                     const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
                     const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
                     return {
@@ -474,7 +483,7 @@ function register(app) {
                         createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                         options: (0, storefrontTypes_1.buildStructuredOptions)(l2Colors, l2Sizes),
                         cardMode: (0, storefrontTypes_1.deriveCardMode)(l2Colors, l2Sizes),
-                        media: { images: allImagesCh, mockupPriority: true, heroStrategy: 'mockupFirst' },
+                        media: { images: allImagesCh, mockupPriority: true, heroStrategy: 'catalogFirst' },
                     };
                 }));
                 console.log(`[Public Store] Channel "${channel}" in "${matchedStore.name}": ${channelProducts.length} instances${collection ? ` / collection: ${collection}` : ''}`);
@@ -525,10 +534,10 @@ function register(app) {
                 const toImgUrlSt = (img) => typeof img === 'string' ? img : (img?.url || null);
                 const providerImgsSt = (resolved.images || []).map(toImgUrlSt).filter(Boolean);
                 const allImagesSt = [];
-                if (packetImageUrl)
-                    allImagesSt.push(packetImageUrl);
-                providerImgsSt.forEach((u) => { if (u !== packetImageUrl)
+                providerImgsSt.forEach((u) => { if (!allImagesSt.includes(u))
                     allImagesSt.push(u); });
+                if (packetImageUrl && !allImagesSt.includes(packetImageUrl))
+                    allImagesSt.push(packetImageUrl);
                 const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
                 const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
                 return {
@@ -551,7 +560,7 @@ function register(app) {
                     createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                     options: (0, storefrontTypes_1.buildStructuredOptions)(l3Colors, l3Sizes),
                     cardMode: (0, storefrontTypes_1.deriveCardMode)(l3Colors, l3Sizes),
-                    media: { images: allImagesSt, mockupPriority: true, heroStrategy: 'mockupFirst' },
+                    media: { images: allImagesSt, mockupPriority: true, heroStrategy: 'catalogFirst' },
                 };
             }));
             console.log(`[Public Store] Store "${matchedStore.name}" (${storeType}): ${products.length} catalog instances, ${channels.length} channels`);
@@ -677,4 +686,5 @@ function register(app) {
         }
     });
 }
+// build-marker: catalogFirst-gallery-fix
 //# sourceMappingURL=store-files.js.map

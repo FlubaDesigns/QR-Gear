@@ -465,6 +465,7 @@ export function useCreatePacket({
         body: JSON.stringify({ limit: 3 }),
       }).catch(() => {});
 
+      let createdLinkId: string | null = null;
       if (selectedStore?.id && selectedChannel?.name) {
         try {
           const linkHeaders = await getAuthHeaders();
@@ -488,7 +489,8 @@ export function useCreatePacket({
           });
           if (linkRes.ok) {
             const linkData = await linkRes.json();
-            console.log(`[CreatePacket] Store product link created: ${linkData.linkId}`);
+            createdLinkId = linkData.linkId || null;
+            console.log(`[CreatePacket] Store product link created: ${createdLinkId}`);
           }
         } catch (linkErr) {
           console.warn('[CreatePacket] Store product link creation error:', linkErr);
@@ -585,10 +587,22 @@ export function useCreatePacket({
         .then(res => res.json())
         .then(async data => {
           if (data.success && data.mockupUrl) {
+            // Save the priority mockup URL to the packet
             await authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders, {
               method: "PATCH",
               body: JSON.stringify({ priorityMockupUrl: data.mockupUrl }),
             }).catch(() => {});
+            // Write-back: save the digital markup mockup URL on the store product link
+            // so the storefront gallery can append it to the catalog images
+            if (createdLinkId) {
+              authFetch(`${apiBase}/store-product-links/${createdLinkId}`, getAuthHeaders, {
+                method: "PATCH",
+                body: JSON.stringify({
+                  mockupUrl: data.mockupUrl,
+                  ...(data.lifestyleMockupUrl ? { lifestyleMockupUrl: data.lifestyleMockupUrl } : {}),
+                }),
+              }).catch(() => {});
+            }
             setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
             toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
           } else {
