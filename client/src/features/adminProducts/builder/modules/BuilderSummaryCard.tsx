@@ -5,7 +5,7 @@ import type { BuilderState } from "../types";
 
 type SectionStatus = "complete" | "partial" | "missing";
 
-function getSectionStatuses(state: BuilderState, autoSaveFailed: boolean) {
+function getSectionStatuses(state: BuilderState) {
   const product: SectionStatus =
     state.selectedProduct && state.qrProductState ? "complete" :
     state.selectedProduct ? "partial" : "missing";
@@ -63,7 +63,7 @@ export function BuilderSummaryCard() {
   const { state, autoSaveFailed, selectedStore, selectedChannel, selectedCollection } =
     useBuilderContext();
 
-  const statuses = getSectionStatuses(state, autoSaveFailed);
+  const statuses = getSectionStatuses(state);
   const { sessionStatus } = state;
 
   const sessionBadge = (() => {
