@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Package, Search, Loader2, ChevronRight, Flag, Link2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
-import { adminFetch } from "@/lib/adminFetch";
 
 interface CatalogItem {
   id: string;
@@ -43,9 +42,11 @@ export function CatalogBrowserModule() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
-    queryKey: ["/api/admin/master-catalog", { provider: providerFilter }],
+    queryKey: ["/api/master-catalog", { provider: providerFilter }],
     queryFn: async () => {
-      const data = await adminFetch<CatalogCategory[]>("/master-catalog");
+      const res = await fetch("/api/master-catalog");
+      if (!res.ok) throw new Error("Failed to load catalog");
+      const data: CatalogCategory[] = await res.json();
       if (providerFilter === 'all') return data;
       return data.map(cat => ({
         ...cat,
