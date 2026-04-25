@@ -153,7 +153,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
         if (pDoc.exists) {
           const pkt = pDoc.data()!;
-          packetMockupUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+          packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
           if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
         }
       } catch (_) {}
@@ -353,7 +353,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                 const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
-                  packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                  packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
               } catch (_) {}
@@ -481,7 +481,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                 const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
-                  packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                  packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
               } catch (_) {}
@@ -565,7 +565,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
               if (pDoc.exists) {
                 const pkt = pDoc.data()!;
-                packetImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                 if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
               }
             } catch (_) {}

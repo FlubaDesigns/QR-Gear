@@ -483,10 +483,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
         } catch (_) { /* fall back to master values */ }
       }
 
-      // Prepend the generated mockup as the hero image if available
-      // Also capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes
+      // Capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes.
+      // NOTE: mockup URL is intentionally NOT baked into resolved.images — the gallery reads it
+      // dynamically from pkt.priorityMockupUrl at request time and appends it after catalog images.
       const packetId = session.generated?.packetId || null;
-      let mockupUrl: string | null = null;
       let packetEnabledColors: string[] | null = null;
       let packetEnabledSizes: string[] | null = null;
       if (packetId) {
@@ -494,7 +494,6 @@ export function registerAdminBuildSessions(app: express.Express): void {
           const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
           if (packetDoc.exists) {
             const pkt = packetDoc.data() as any;
-            mockupUrl = pkt.priorityMockupUrl || null;
             const rawColors = pkt.colors || pkt.enabledColors || [];
             const rawSizes = pkt.sizes || pkt.enabledSizes || [];
             const normalizedColors = rawColors
@@ -505,9 +504,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
             if (normalizedColors.length > 0) packetEnabledColors = normalizedColors;
             if (normalizedSizes.length > 0) packetEnabledSizes = normalizedSizes;
           }
-        } catch (_) { /* no mockup */ }
+        } catch (_) { /* no packet */ }
       }
-      const finalImages = mockupUrl ? [mockupUrl, ...curatedImages] : curatedImages;
+      // resolved.images = only the admin-curated catalog images (mockup appended by gallery at read time)
+      const finalImages = curatedImages;
       // ----------------------------------------
 
       const baseSnapshot = {
