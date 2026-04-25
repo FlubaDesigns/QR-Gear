@@ -34,33 +34,83 @@ function normalizeImageUrl(item: string | { url?: string; alt?: string }): strin
   return item?.url || null;
 }
 
-/** Strip common color name prefixes for fuzzy matching (e.g. "Solid Black" → "black"). */
+/** Strip common color name prefixes and normalize to lowercase (e.g. "Solid Black" → "black"). */
 function normalizeColorName(name: string): string {
-  return name.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim();
+  return name.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
 }
 
 /**
- * Find the best mockup entry for a given color from a mockupsByColor map.
- * Tries exact match first, then normalized (prefix-stripped) match, then any available.
+ * Extract just the color portion from a compound key like "navy_large_front" → "navy".
+ * Keys are stored as {color}_{size}_{placement} or just {color}.
+ */
+function extractColorFromKey(key: string): string {
+  // Compound keys use underscores — the color is always the first segment
+  return key.split('_')[0];
+}
+
+/**
+ * Find and aggregate all mockup entries for a given color from a mockupsByColor map.
+ *
+ * Handles both simple keys ("navy", "Navy") and compound keys ("navy_large_front").
+ * Aggregates multiple placement entries (front, back, sleeve) into a single result:
+ *   - front  → the "front" placement image (hero)
+ *   - lifestyle → lifestyle/model shot if present
+ *   - angles → all non-front placement images (back, sleeve, etc.)
  */
 function findColorMockup(
-  mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[] }>,
+  mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[]; placement?: string }>,
   targetColor: string | null | undefined,
 ): { front?: string; lifestyle?: string; angles?: string[] } | null {
-  if (!targetColor) {
-    const firstKey = Object.keys(mockupsByColor)[0];
-    return firstKey ? mockupsByColor[firstKey] : null;
-  }
+  const keys = Object.keys(mockupsByColor);
+  if (keys.length === 0) return null;
 
-  if (mockupsByColor[targetColor]) return mockupsByColor[targetColor];
+  // No color selected — return the first available entry
+  if (!targetColor) {
+    return mockupsByColor[keys[0]] ?? null;
+  }
 
   const normalizedTarget = normalizeColorName(targetColor);
-  for (const [key, val] of Object.entries(mockupsByColor)) {
-    if (normalizeColorName(key) === normalizedTarget) return val;
+
+  // Collect all entries whose color portion matches the target
+  const matches = keys.filter((key) => {
+    const keyColor = normalizeColorName(extractColorFromKey(key));
+    return keyColor === normalizedTarget;
+  });
+
+  // If no compound-key matches, try a full-key normalized match (simple keys like "Navy")
+  if (matches.length === 0) {
+    for (const key of keys) {
+      if (normalizeColorName(key) === normalizedTarget) return mockupsByColor[key];
+    }
+    // Still nothing — fall back to first available entry
+    return mockupsByColor[keys[0]] ?? null;
   }
 
-  const firstKey = Object.keys(mockupsByColor)[0];
-  return firstKey ? mockupsByColor[firstKey] : null;
+  // Aggregate all matching placements into one result
+  const aggregated: { front?: string; lifestyle?: string; angles: string[] } = { angles: [] };
+
+  for (const key of matches) {
+    const entry = mockupsByColor[key];
+    const placement = entry.placement ?? (key.includes('_') ? key.split('_').pop() : 'front');
+    const isFront = placement === 'front' || placement === 'front-center';
+
+    if (entry.lifestyle && !aggregated.lifestyle) {
+      aggregated.lifestyle = entry.lifestyle;
+    }
+
+    if (isFront && entry.front && !aggregated.front) {
+      aggregated.front = entry.front;
+    } else if (!isFront && entry.front) {
+      aggregated.angles.push(entry.front);
+    }
+  }
+
+  // If we collected anything, return it
+  if (aggregated.front || aggregated.lifestyle || aggregated.angles.length > 0) {
+    return aggregated;
+  }
+
+  return mockupsByColor[keys[0]] ?? null;
 }
 
 export function buildProductGallery(
