@@ -586,6 +586,42 @@ The frontend assumed a plain array and called `.map()` directly on whichever res
 
 ---
 
+### API Authentication Refactor: Central Fetch Utilities — COMPLETED
+
+**What changed:** All member-facing and admin-facing API calls across the frontend have been migrated from a scattered pattern (direct `fetch()` + manual `getAuthHeaders()` + hardcoded base URL) to two centralized utilities.
+
+**Before (old pattern — now removed from admin and member files):**
+```ts
+const { apiBase, getAuthHeaders } = useAdminAuth();
+const headers = await getAuthHeaders();
+const res = await fetch(`${apiBase}/some-route`, { headers });
+```
+
+**After (new pattern):**
+```ts
+import { adminFetch } from "@/lib/adminFetch";
+const data = await adminFetch("/some-route", { json: payload });
+
+import { memberFetch } from "@/lib/memberFetch";
+const data = await memberFetch(`/${userId}/channels`);
+```
+
+**Files migrated:**
+- `client/src/lib/adminFetch.ts` — new utility, prepends `/api/admin`, auto-injects admin auth
+- `client/src/lib/memberFetch.ts` — new utility, prepends `/api/members`, auto-injects member auth
+- All admin feature files (`adminProducts`, `adminStores`, `adminOrders`, etc.)
+- All member feature files: `wizard-context-actions.ts`, `WizardContext.tsx`, `MembersPage.tsx`, `SocialHubView.tsx`, `SocialHubSections.tsx`, `member-channels-view.tsx`, `member-index-view.tsx`, `MemberIndexView.tsx`, `PayoutsView.tsx`, `wizard-context-navigation.ts`, `SuperSimpleWizard.tsx`
+- Shared wizard components: `VideoSourcePicker.tsx`, `BackgroundLibraryPicker.tsx`, `wizardSteps/ChannelStep.tsx`
+
+**Legitimate exceptions** — these three cases intentionally keep using `getAuthHeaders()` directly:
+- `PayoutsView.tsx` — calls `/api/connect/...` (Stripe Connect), a different route prefix with no dedicated utility
+- `member-channels-view.tsx` — calls `/api/member/packets` (singular route), separate from `/api/members/` (plural)
+- `wizard-context-actions.ts` XHR video upload — uses `XMLHttpRequest` for upload progress tracking, which requires headers on the XHR object directly
+
+**Impact:** No user-visible change. Auth behavior is identical. All API calls now fail loudly with a descriptive error instead of silently returning empty data on auth failure.
+
+---
+
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.

@@ -230,6 +230,22 @@ Everything runs through named catalogs. Admin creates catalogs (curated subsets 
 
 **Good/Better/Best Tier System:** Products tagged with tiers. Stored as `blankTiers: { blankId: "good"|"better"|"best" }` on catalog docs. `TierPickerStep` shows tier cards in wizards; falls back to flat list when no tiers configured.
 
+### Central Fetch Utilities
+
+Two utilities replace all scattered `apiBase` + `getAuthHeaders` + raw `fetch` patterns:
+
+| Utility | File | Base URL | Use For |
+|---|---|---|---|
+| `adminFetch` | `client/src/lib/adminFetch.ts` | `/api/admin` | All admin feature API calls |
+| `memberFetch` | `client/src/lib/memberFetch.ts` | `/api/members` | All member feature API calls |
+
+Both accept `json: payload` for JSON bodies and `body` for FormData/multipart. Auth headers are injected automatically.
+
+**Legitimate exceptions** (keep using `getAuthHeaders()` directly):
+- `/api/connect/...` endpoints — different route prefix, no dedicated utility
+- `/api/member/...` (singular) endpoints — separate route tree from `/api/members/` (plural)
+- XHR video uploads — need raw `XMLHttpRequest` for progress event tracking
+
 ### Cart Architecture
 
 Single React Context (`client/src/contexts/CartContext.tsx`) wraps the entire app. One shared instance per session. localStorage is persistence-only (cross-tab sync via storage events). Deduplication: same productId+color+size increments quantity. `mergeGuestCartOnLogin` fires once per login session. Guest items remain visible during merge (no empty-cart flicker).
@@ -354,16 +370,17 @@ Products in the store are managed as **catalog instances** (`admin_catalog_insta
 
 ## Canon Rules for Future Agents
 
-1. **NEVER** add `originalDescription`, `adminDescription`, or `customDescription` to client code
-2. **NEVER** create a second viewer system — use `SharedViewer` with canon views and skins
-3. **NEVER** put business logic in viewers, views, or skins — controllers own authority
-4. **NEVER** invent new view types — compose from the 5 canon views
-5. **NEVER** use `collectionTag` — it has been fully removed; use `collectionId`
-6. **ALWAYS** use `canonicalBlankKey` for product identity; never reconstruct from raw IDs
-7. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
-8. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
-9. **ALWAYS** import collection names from `functions/src/constants.ts` — never redefine locally
-10. **ALWAYS** deploy to production after every change; update the ZIP
+1. **NEVER** use raw `fetch()` with `getAuthHeaders()` for `/api/admin/` or `/api/members/` calls — always use `adminFetch` or `memberFetch` from `client/src/lib/`. Exception: `/api/connect/`, `/api/member/` (singular), and XHR calls (for progress tracking) may keep using `getAuthHeaders()` directly.
+2. **NEVER** add `originalDescription`, `adminDescription`, or `customDescription` to client code
+3. **NEVER** create a second viewer system — use `SharedViewer` with canon views and skins
+4. **NEVER** put business logic in viewers, views, or skins — controllers own authority
+5. **NEVER** invent new view types — compose from the 5 canon views
+6. **NEVER** use `collectionTag` — it has been fully removed; use `collectionId`
+7. **ALWAYS** use `canonicalBlankKey` for product identity; never reconstruct from raw IDs
+8. **ALWAYS** use `resolveDescription()` or `resolvePublicDescription()` for description resolution
+9. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
+10. **ALWAYS** import collection names from `functions/src/constants.ts` — never redefine locally
+11. **ALWAYS** deploy to production after every change; update the ZIP
 
 ---
 
