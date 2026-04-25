@@ -314,7 +314,7 @@ function registerMembersLibraryRoutes(app) {
     // ============ BATCH: MEMBER MOCKUP & GRAPHIC ROUTES ============
     app.post('/members/mockup/priority', middleware_1.requireAuth, async (req, res) => {
         try {
-            const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
+            const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify", packetId } = req.body;
             if (!blueprintId || !colorName || !artworkUrl) {
                 res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" });
                 return;
@@ -329,6 +329,26 @@ function registerMembersLibraryRoutes(app) {
                 hasCompositeGraphic: true,
             });
             console.log(`[CF Member Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+            // Write-back: save mockup URL to the packet so gallery can read it dynamically
+            if (packetId && result.mockupUrl) {
+                try {
+                    const updateData = { mockupUrl: result.mockupUrl };
+                    if (result.lifestyleMockupUrl)
+                        updateData.lifestyleMockupUrl = result.lifestyleMockupUrl;
+                    const pRef = core_1.db.collection('productPackets').doc(packetId);
+                    const pDoc = await pRef.get();
+                    if (pDoc.exists) {
+                        await pRef.update(updateData);
+                    }
+                    else {
+                        await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update(updateData);
+                    }
+                    console.log(`[CF Member Mockup] Saved mockupUrl to packet ${packetId}`);
+                }
+                catch (writeErr) {
+                    console.warn(`[CF Member Mockup] Failed to write mockupUrl to packet ${packetId}:`, writeErr.message);
+                }
+            }
             res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
         }
         catch (error) {

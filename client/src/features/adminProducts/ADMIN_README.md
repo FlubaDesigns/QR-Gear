@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 25, 2026 (rev 26)
+Last updated: April 25, 2026 (rev 27)
 
 ---
 
@@ -491,6 +491,18 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 25, 2026 — Member Mockup Write-Back + Frontend Storefront Gallery (rev 27)
+
+Completed the storefront gallery fix. The CF member mockup priority endpoint now accepts an optional `packetId` and writes the generated mockup URL back to the packet in Firestore (tries `productPackets` first, falls back to `memberPackets`). The admin builder's `useCreatePacket` write-back to `storeProductLinks` (so the storefront gallery can dynamically append the digital markup at the end of catalog images) was deployed to Firebase Hosting. Both changes were in `server/` routes (dead code in production) and have now been ported to the live Cloud Functions layer.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/members-library.ts` | `/members/mockup/priority` now accepts `packetId` and writes mockup URL back to Firestore packet after generation |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Deployed to hosting — storeProductLink write-back after priority mockup generates |
+
+---
 
 ### April 25, 2026 — Delete Button for Resume List (rev 26)
 

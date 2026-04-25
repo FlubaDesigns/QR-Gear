@@ -203,7 +203,7 @@ app.post('/member/play-packets', requireAuth, async (req: Request, res: Response
 
 app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
+    const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify", packetId } = req.body;
     if (!blueprintId || !colorName || !artworkUrl) {
       res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" }); return;
     }
@@ -217,6 +217,25 @@ app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Resp
       hasCompositeGraphic: true,
     });
     console.log(`[CF Member Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
+
+    // Write-back: save mockup URL to the packet so gallery can read it dynamically
+    if (packetId && result.mockupUrl) {
+      try {
+        const updateData: Record<string, any> = { mockupUrl: result.mockupUrl };
+        if (result.lifestyleMockupUrl) updateData.lifestyleMockupUrl = result.lifestyleMockupUrl;
+        const pRef = db.collection('productPackets').doc(packetId);
+        const pDoc = await pRef.get();
+        if (pDoc.exists) {
+          await pRef.update(updateData);
+        } else {
+          await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update(updateData);
+        }
+        console.log(`[CF Member Mockup] Saved mockupUrl to packet ${packetId}`);
+      } catch (writeErr: any) {
+        console.warn(`[CF Member Mockup] Failed to write mockupUrl to packet ${packetId}:`, writeErr.message);
+      }
+    }
+
     res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
   } catch (error: any) {
     console.error("[CF Member Mockup] Error:", error);
