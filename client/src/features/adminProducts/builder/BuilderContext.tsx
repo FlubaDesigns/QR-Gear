@@ -444,22 +444,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     });
   }, []);
 
-  const selectProduct = useCallback((product: CatalogProduct | null) => {
-    if (!product) {
-      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
-      return;
-    }
-
-    const masterTitle = (product.title || "").trim() || null;
-    const masterDescription = (product.description || "").trim() || null;
-
-    if (product.placements && product.placements.length > 0) {
-      setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
-      return;
-    }
-
-    setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true, placementsError: null }));
-
+  // Shared placement fetch — called by selectProduct, loadFromWorkingState, loadFromPacketData
+  const fetchPlacementsForProduct = useCallback((product: CatalogProduct) => {
     const provider = product.fulfillmentProvider || 'printify';
     const params = new URLSearchParams({ provider });
     if (provider === 'printify') {
@@ -469,7 +455,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       params.set('productId', String(product.id));
     }
 
-    api.getAuthHeaders().then(headers => 
+    api.getAuthHeaders().then(headers =>
       fetch(`${api.baseUrl}/catalog/placements?${params}`, { headers })
     )
       .then(r => r.json())
@@ -498,6 +484,24 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         });
       });
   }, []);
+
+  const selectProduct = useCallback((product: CatalogProduct | null) => {
+    if (!product) {
+      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
+      return;
+    }
+
+    const masterTitle = (product.title || "").trim() || null;
+    const masterDescription = (product.description || "").trim() || null;
+
+    if (product.placements && product.placements.length > 0) {
+      setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
+      return;
+    }
+
+    setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true, placementsError: null }));
+    fetchPlacementsForProduct(product);
+  }, [fetchPlacementsForProduct]);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {
     setState(prev => ({
@@ -620,6 +624,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     if (metadata.selectedChannel) setSelectedChannel(metadata.selectedChannel as Channel);
     if (metadata.selectedCollection) setSelectedCollection(metadata.selectedCollection as Collection);
 
+    // Catalog products never carry placements — we need to re-fetch from the API
+    const product = resolvedProduct ?? null;
+    const needsPlacementFetch = !!(product && (!product.placements || product.placements.length === 0));
+
     setState(prev => ({
       ...prev,
       content: { ...initialContent, ...cleanContent },
@@ -635,8 +643,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementMethods: (layoutConfig.placementMethods as PrintMethodSelection) ?? {},
       adminCatalogTitle: working.title ?? null,
       productDescription: working.description ?? null,
-      selectedProduct: resolvedProduct ?? prev.selectedProduct,
-      placementsLoading: false,
+      selectedProduct: product ?? prev.selectedProduct,
+      placementsLoading: needsPlacementFetch,
       placementsError: null,
       activePacketId: null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
@@ -647,7 +655,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       genderFilter: (metadata.genderFilter as GenderFilter) ?? prev.genderFilter,
       sourceType: (metadata.sourceType as SourceType) ?? prev.sourceType,
     }));
-  }, [setSelectedStore, setSelectedChannel, setSelectedCollection]);
+
+    if (needsPlacementFetch && product) {
+      fetchPlacementsForProduct(product);
+    }
+  }, [setSelectedStore, setSelectedChannel, setSelectedCollection, fetchPlacementsForProduct]);
 
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
@@ -761,6 +773,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       blueprintId,
     );
 
+    // Catalog products never carry placements — we need to re-fetch from the API
+    const needsPlacementFetch = !!(resolvedProduct && (!resolvedProduct.placements || resolvedProduct.placements.length === 0));
+
     setState(prev => ({
       ...prev,
       qrProductState: (packetData.qrProductState as QRProductState) || 'qr_canvas',
@@ -777,10 +792,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       templateProductHint: hint,
       selectedProduct: resolvedProduct ?? null,
       productDescription: packetData.productDescription ?? resolvedProduct?.description ?? null,
-      placementsLoading: false,
+      placementsLoading: needsPlacementFetch,
       placementsError: null,
     }));
-  }, []);
+
+    if (needsPlacementFetch && resolvedProduct) {
+      fetchPlacementsForProduct(resolvedProduct);
+    }
+  }, [fetchPlacementsForProduct]);
 
   const hasChangesFromBaseline = useCallback((): boolean => {
     if (!state.templateBaseline) return true;

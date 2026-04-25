@@ -345,15 +345,23 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         }
 
         const { placements } = await syncProductPlacements(blueprintId, resolvedProviderId);
-        const mapped = placements.map(p => {
-          const normalized = normalizePlacement('printify', p.position);
-          return {
-            id: normalized,
-            type: normalized,
-            title: p.label,
-            additionalPrice: 0,
-          };
-        });
+        const seenIds = new Set<string>();
+        const mapped = placements
+          .map(p => {
+            const normalized = normalizePlacement('printify', p.position);
+            return {
+              id: normalized,
+              type: normalized,
+              title: p.label,
+              additionalPrice: 0,
+            };
+          })
+          .filter(p => {
+            if (seenIds.has(p.id)) return false;
+            seenIds.add(p.id);
+            return true;
+          });
+        console.log(`[Placements] blueprint=${blueprintId} provider=${resolvedProviderId} → ${placements.length} raw, ${mapped.length} unique normalized`);
         return res.json({ placements: mapped, source: 'printify-api' });
       }
 
