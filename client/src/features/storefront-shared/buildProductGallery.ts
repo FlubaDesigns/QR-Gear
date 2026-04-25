@@ -5,9 +5,9 @@
  * StorefrontMediaItem[] for any storefront product gallery or card.
  *
  * Priority order:
- *   1. API-provided `images[]` array  ← primary source of truth
- *   2. `mockupsByColor` (color-specific mockup data) with normalized color matching
- *   3. `imageUrl` + `packetImageUrl` as a 2-image fallback set
+ *   1. `mockupsByColor` for the selected color — color-reactive gallery
+ *   2. API-provided `images[]` array — static fallback when no color mockups exist
+ *   3. `imageUrl` + `packetImageUrl` as a 2-image final fallback
  *   4. Empty array (caller handles empty state)
  */
 
@@ -71,7 +71,22 @@ export function buildProductGallery(
 
   const productName = product.name || 'Product';
 
-  // ── Priority 1: API-provided images array ────────────────────────────────
+  // ── Priority 1: mockupsByColor for the selected color ────────────────────
+  // This is what makes the gallery react to color changes.
+  if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
+    const mockup = findColorMockup(product.mockupsByColor, selectedColor);
+    if (mockup) {
+      const items: StorefrontMediaItem[] = [];
+      if (mockup.lifestyle) items.push({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
+      if (mockup.front)     items.push({ url: mockup.front,     label: 'Front',     alt: `${productName} — front`,     type: 'mockup'  });
+      (mockup.angles || []).forEach((url, i) => {
+        items.push({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' });
+      });
+      if (items.length > 0) return items;
+    }
+  }
+
+  // ── Priority 2: API-provided images[] — fallback when no color mockups ───
   if (product.images && product.images.length > 0) {
     const items: StorefrontMediaItem[] = [];
     product.images.forEach((item, i) => {
@@ -84,20 +99,6 @@ export function buildProductGallery(
       });
     });
     if (items.length > 0) return items;
-  }
-
-  // ── Priority 2: mockupsByColor (with normalized color matching) ───────────
-  if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
-    const mockup = findColorMockup(product.mockupsByColor, selectedColor);
-    if (mockup) {
-      const items: StorefrontMediaItem[] = [];
-      if (mockup.lifestyle) items.push({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
-      if (mockup.front)     items.push({ url: mockup.front,     label: 'Front',     alt: `${productName} — front`,     type: 'gallery'  });
-      (mockup.angles || []).forEach((url, i) => {
-        items.push({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' });
-      });
-      if (items.length > 0) return items;
-    }
   }
 
   // ── Priority 3: single imageUrl + optional packetImageUrl ────────────────
