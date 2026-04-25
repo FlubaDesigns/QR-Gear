@@ -492,6 +492,23 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### April 25, 2026 — URL Landing Text Block Change Detection Fix (rev 28)
+
+Added `landingTextBlocks` to the baseline snapshot and change-detection logic in `BuilderContext.tsx`. Previously, adding, editing, moving, or deleting URL landing text blocks did not trigger dirty-state, which could silently suppress autosave, template save confidence, and reload expectations.
+
+**What changed:**
+- Added `normalizeLandingTextBlocks()` module-level helper that maps every `TextStyleConfig` field (`text`, `enabled`, `fontFamily`, `fontSize`, `fontWeight`, `color`, `warpPreset`, `letterSpacing`, `strokeColor`, `strokeWidth`, `verticalOffset`, `horizontalOffset`, `mode`, `imageUrl`, `imageScale`) to stable normalized values so `undefined`/`null`/empty don't cause false positives.
+- `buildBaselineSnapshot()` now includes `landingTextBlocks: normalizeLandingTextBlocks(content.landingTextBlocks)` in the serialized baseline JSON.
+- `hasChangesFromBaseline()` now includes the same normalized blocks in the current-state JSON for comparison.
+- Existing packets with no `landingTextBlocks` field load safely as `[]` — no false positives on old data.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added `normalizeLandingTextBlocks`, added key to `buildBaselineSnapshot` and `hasChangesFromBaseline` |
+
+---
+
 ### April 25, 2026 — Member Mockup Write-Back + Frontend Storefront Gallery (rev 27)
 
 Completed the storefront gallery fix. The CF member mockup priority endpoint now accepts an optional `packetId` and writes the generated mockup URL back to the packet in Firestore (tries `productPackets` first, falls back to `memberPackets`). The admin builder's `useCreatePacket` write-back to `storeProductLinks` (so the storefront gallery can dynamically append the digital markup at the end of catalog images) was deployed to Firebase Hosting. Both changes were in `server/` routes (dead code in production) and have now been ported to the live Cloud Functions layer.

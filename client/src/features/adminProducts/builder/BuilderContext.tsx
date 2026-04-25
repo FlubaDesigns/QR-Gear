@@ -139,6 +139,27 @@ interface BuilderSnapshotContext {
   selectedCollection: Collection | null;
 }
 
+function normalizeLandingTextBlocks(blocks: any[]): any[] {
+  if (!Array.isArray(blocks)) return [];
+  return blocks.map((b) => ({
+    text: b.text || '',
+    enabled: b.enabled ?? false,
+    fontFamily: b.fontFamily || '',
+    fontSize: b.fontSize || '',
+    fontWeight: b.fontWeight || '',
+    color: b.color || '',
+    warpPreset: b.warpPreset || '',
+    letterSpacing: Number(b.letterSpacing ?? 0),
+    strokeColor: b.strokeColor || '',
+    strokeWidth: Number(b.strokeWidth ?? 0),
+    verticalOffset: Number(b.verticalOffset ?? 0),
+    horizontalOffset: Number(b.horizontalOffset ?? 0),
+    mode: b.mode || '',
+    imageUrl: b.imageUrl || '',
+    imageScale: Number(b.imageScale ?? 0),
+  }));
+}
+
 function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
   const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
   return {
@@ -666,6 +687,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       qrPositionY: content.qrPositionY ?? 50,
       qrSizePercent: content.qrSizePercent ?? 75,
       backgroundUrl,
+      landingTextBlocks: normalizeLandingTextBlocks(content.landingTextBlocks as any[]),
     });
   };
 
@@ -794,6 +816,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       qrPositionY: c.qrPositionY ?? 50,
       qrSizePercent: c.qrSizePercent ?? 75,
       backgroundUrl: s.loadedBackground?.url || null,
+      landingTextBlocks: normalizeLandingTextBlocks(c.landingTextBlocks as any[]),
     });
     return current !== state.templateBaseline;
   }, [state]);
