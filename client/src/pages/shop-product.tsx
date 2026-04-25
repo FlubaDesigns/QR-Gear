@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
   ScanLine, Shield, Truck,
 } from "lucide-react";
@@ -396,19 +403,48 @@ export default function ShopProductPage() {
                   <label className="text-sm font-medium mb-2 block">
                     Color
                   </label>
-                  <select
-                    className="w-full border rounded-md p-2 text-sm bg-background"
+                  <Select
                     value={selectedColor ?? ''}
-                    onChange={e => setSelectedColor(e.target.value)}
+                    onValueChange={(val) => setSelectedColor(val)}
                     data-testid="select-color"
                   >
-                    <option value="">Select a color</option>
-                    {colorOption.values.map(cv => (
-                      <option key={cv.label} value={cv.label} disabled={!cv.available}>
-                        {cv.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full">
+                      {selectedColor ? (
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="w-4 h-4 rounded-full border border-border flex-shrink-0"
+                            style={{ backgroundColor: colorOption.values.find(cv => cv.label === selectedColor)?.hex || getColorHexByName(selectedColor) || '#ccc' }}
+                          />
+                          {selectedColor}
+                        </span>
+                      ) : (
+                        <SelectValue placeholder="Select a color" />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {colorOption.values.map(cv => {
+                        const hex = cv.hex || getColorHexByName(cv.label) || '#ccc';
+                        return (
+                          <SelectItem
+                            key={cv.label}
+                            value={cv.label}
+                            disabled={!cv.available}
+                            data-testid={`option-color-${cv.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="w-4 h-4 rounded-full border border-border flex-shrink-0"
+                                style={{ backgroundColor: hex }}
+                              />
+                              <span className={!cv.available ? 'opacity-40' : ''}>
+                                {cv.label}
+                              </span>
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
               );
             })()}
