@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import {
   type ViewMode, type WizardTier, type MemberChannel,
-  getAuthHeaders,
 } from "@/features/shared/components/wizardSteps";
+import { memberFetch } from "@/lib/memberFetch";
 
 interface MemberProduct {
   id: string;
@@ -51,10 +51,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
     queryKey: ['/api/members', memberId, 'channels'],
     queryFn: async () => {
       if (!memberId) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels`, { headers });
-      if (!res.ok) return [];
-      return res.json();
+      return memberFetch<MemberChannel[]>(`/${memberId}/channels`).catch(() => []);
     },
     enabled: !!memberId
   });
@@ -63,10 +60,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
     queryKey: ['/api/members', memberId, 'products'],
     queryFn: async () => {
       if (!memberId) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/products`, { headers });
-      if (!res.ok) return [];
-      return res.json();
+      return memberFetch<MemberProduct[]>(`/${memberId}/products`).catch(() => []);
     },
     enabled: !!memberId
   });
@@ -75,10 +69,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
     queryKey: ['/api/members', memberId, 'earnings'],
     queryFn: async () => {
       if (!memberId) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/earnings`, { headers });
-      if (!res.ok) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
-      return res.json();
+      return memberFetch<EarningsSummary>(`/${memberId}/earnings`).catch(() => ({ total: 0, pending: 0, paid: 0, profitShare: 25 }));
     },
     enabled: !!memberId
   });

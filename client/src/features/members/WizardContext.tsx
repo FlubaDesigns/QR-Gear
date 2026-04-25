@@ -5,7 +5,6 @@ import { PROFILE_QUERY_KEY } from './useMemberRuntimeState';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembersContext } from "@/features/members/MembersContext";
-import { useMemberAuth } from "@/features/members/MemberAuthContext";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { type PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import { type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
@@ -56,7 +55,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   }, [apiUser, firebaseUser?.uid]);
   const { toast } = useToast();
   const { api } = useMembersContext();
-  const { apiBase, getAuthHeaders: getMemberAuthHeaders } = useMemberAuth();
+
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -270,7 +269,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front' as PlacementOption;
 
   const actionCtx = {
-    user, toast, api, apiBase, getMemberAuthHeaders, incrementPublishCount, pricingSettings,
+    user, toast, api, incrementPublishCount, pricingSettings,
     selectedChannel, selectedProductType, selectedColor, selectedShirtSize, selectedPlacements,
     perPlacementConfigs, perPlacementSizes, graphicSize, textLayoutChoice, headerStyle, footerStyle,
     qrType, qrDestination, qrGraphic, productGraphic, urlGraphic, originalUrlGraphic, videoUrl,

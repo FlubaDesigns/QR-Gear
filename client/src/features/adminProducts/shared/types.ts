@@ -63,8 +63,6 @@ export interface LibraryAsset {
 }
 
 export interface ProductsApi {
-  baseUrl: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   getQueryKey: (type: string) => string[];
   invalidateProducts: (type?: string) => void;
   fetchProducts: (provider?: string) => Promise<Product[]>;

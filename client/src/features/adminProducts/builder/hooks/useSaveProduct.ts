@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import type { PartnerStore } from "@shared/schema";
 
 interface PricingData {
@@ -66,13 +65,10 @@ interface SaveResult {
 
 export function useSaveProduct() {
   const queryClient = useQueryClient();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
 
   const invalidateLibrary = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
-    queryClient.invalidateQueries({ queryKey: [`${apiBase}/library-assets`] });
     queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
-    queryClient.invalidateQueries({ queryKey: [`${apiBase}/templates`] });
   };
 
   const saveToStoreMutation = useMutation({
@@ -83,11 +79,9 @@ export function useSaveProduct() {
         throw new Error("No product selected");
       }
 
-      const currentProductsRes = await authFetch(`${apiBase}/partner-stores/${store.id}/products`, getAuthHeaders);
-      const currentProducts = await currentProductsRes.json();
+      const currentProducts = await adminFetch<any[]>(`/partner-stores/${store.id}/products`);
       const existingProductIds = currentProducts.map((p: any) => p.productId);
       
-      // Add this product if not already in store
       if (!existingProductIds.includes(selectedProduct.id)) {
         const syncRes = await apiRequest("POST", `/api/admin/partner-stores/${store.id}/products`, {
           productIds: [...existingProductIds, selectedProduct.id],
@@ -97,7 +91,6 @@ export function useSaveProduct() {
         }
       }
 
-      // Update product's channel assignment
       const updateRes = await apiRequest("PUT", `/api/admin/products/${selectedProduct.id}`, {
         segment: channel,
         storeType: store.isInternal ? "Internal" : "External",
@@ -127,7 +120,6 @@ export function useSaveProduct() {
       throw new Error("No product selected");
     }
 
-    // Use full-save endpoint for batch mockup generation
     const pricing = (builderState as any).pricing;
     const titleText = content.titleStyle?.text || content.title || "";
     const descText = content.descriptionStyle?.text || content.description || "";
@@ -138,7 +130,7 @@ export function useSaveProduct() {
       productId: selectedProduct.id,
       blueprintId: selectedProduct.blueprintId || 0,
       printProviderId: selectedProduct.printProviderId || 0,
-      fulfillmentProvider: (builderState as any).fulfillmentProvider || selectedProduct.fulfillmentProvider || 'printify',
+      fulfillmentProvider: (builderState as any).fulfillmentProvider || selectedProduct.fulfillmentProvider || "printify",
       colors: colors || [],
       placements: placements || ["front"],
       placementMethods: placementMethods || {},
@@ -181,8 +173,6 @@ export function useSaveProduct() {
     
     const qrOnlyUrl = qrOnlyUrlFromState || "";
     const compositeUrl = artworkUrl || "";
-    
-    // URLs are generated after packet creation, so no validation here
 
     const graphicsPricing = (builderState as any).pricing;
     const gfxTitleText = content.titleStyle?.text || content.title || "";
@@ -248,7 +238,6 @@ export function useSaveProduct() {
         results.push({ success: false, message: `Store failed: ${e.message}` });
       }
 
-      // Check if all failed
       const allFailed = results.every(r => !r.success);
       if (allFailed) {
         throw new Error(results.map(r => r.message).join("; "));

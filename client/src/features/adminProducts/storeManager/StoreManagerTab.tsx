@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { RoleType, Store as StoreType, Channel, Collection } from "../shared/types";
 import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
@@ -119,14 +119,10 @@ function SizeChip({ size, enabled, onToggle }: { size: string; enabled: boolean;
 
 function MoveDialog({
   instance,
-  apiBase,
-  getAuthHeaders,
   onClose,
   onMoved,
 }: {
   instance: AdminInstance;
-  apiBase: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   onClose: () => void;
   onMoved: () => void;
 }) {
@@ -140,9 +136,7 @@ function MoveDialog({
     queryKey: ["stores", role],
     queryFn: async () => {
       if (!role) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores?roleType=${role}`, { headers });
-      const d = await res.json();
+      const d = await adminFetch<any>(`/stores?roleType=${role}`);
       return d.stores ?? d ?? [];
     },
     enabled: !!role,
@@ -152,9 +146,7 @@ function MoveDialog({
     queryKey: ["channels", destStore?.id],
     queryFn: async () => {
       if (!destStore) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${destStore.id}/channels`, { headers });
-      const d = await res.json();
+      const d = await adminFetch<any>(`/stores/${destStore.id}/channels`);
       return d.channels ?? d ?? [];
     },
     enabled: !!destStore,
@@ -164,9 +156,7 @@ function MoveDialog({
     queryKey: ["collections", destStore?.id, destChannel?.id],
     queryFn: async () => {
       if (!destStore || !destChannel) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${destStore.id}/channels/${destChannel.id}/collections`, { headers });
-      const d = await res.json();
+      const d = await adminFetch<any>(`/stores/${destStore.id}/channels/${destChannel.id}/collections`);
       const raw: any[] = d.collections ?? (Array.isArray(d) ? d : []);
       return raw.map(c => typeof c === "string" ? { name: c } : c);
     },
@@ -175,7 +165,6 @@ function MoveDialog({
 
   const moveMutation = useMutation({
     mutationFn: async () => {
-      const headers = await getAuthHeaders();
       const folderUpdate = {
         storeId: destStore!.id,
         storeName: destStore!.name,
@@ -187,12 +176,7 @@ function MoveDialog({
           ? `${destStore!.name} / ${destChannel!.name} / ${destCollection.name}`
           : `${destStore!.name} / ${destChannel!.name}`,
       };
-      const res = await fetch(`${apiBase}/catalog-instances/${instance.id}`, {
-        method: "PATCH",
-        headers: { ...(headers as Record<string, string>), "Content-Type": "application/json" },
-        body: JSON.stringify({ folderUpdate }),
-      });
-      if (!res.ok) throw new Error("Move failed");
+      await adminFetch(`/catalog-instances/${instance.id}`, { method: "PATCH", json: { folderUpdate } });
     },
     onSuccess: () => {
       toast({ title: "Moved", description: "Item moved successfully." });
@@ -301,14 +285,10 @@ function ImageLightbox({ url, alt, onClose }: { url: string; alt: string; onClos
 
 function InstanceCard({
   instance,
-  apiBase,
-  getAuthHeaders,
   onDeleted,
   onMoved,
 }: {
   instance: AdminInstance;
-  apiBase: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   onDeleted: () => void;
   onMoved: () => void;
 }) {
@@ -325,15 +305,8 @@ function InstanceCard({
   const enabledSizes = instance.enabledSizes?.length ? instance.enabledSizes : allSizes;
 
   const patchMutation = useMutation({
-    mutationFn: async (body: Record<string, any>) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/catalog-instances/${instance.id}`, {
-        method: "PATCH",
-        headers: { ...(headers as Record<string, string>), "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error("Save failed");
-    },
+    mutationFn: (body: Record<string, any>) =>
+      adminFetch(`/catalog-instances/${instance.id}`, { method: "PATCH", json: body }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-instances"] });
     },
@@ -341,14 +314,8 @@ function InstanceCard({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/catalog-instances/${instance.id}`, {
-        method: "DELETE",
-        headers: headers as Record<string, string>,
-      });
-      if (!res.ok) throw new Error("Delete failed");
-    },
+    mutationFn: () =>
+      adminFetch(`/catalog-instances/${instance.id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Deleted", description: "Item removed." });
       onDeleted();
@@ -464,8 +431,6 @@ function InstanceCard({
         {showMove && (
           <MoveDialog
             instance={instance}
-            apiBase={apiBase}
-            getAuthHeaders={getAuthHeaders}
             onClose={() => setShowMove(false)}
             onMoved={onMoved}
           />
@@ -548,16 +513,12 @@ function DeleteConfirmRow({
 function CollectionList({
   storeId,
   channel,
-  apiBase,
-  getAuthHeaders,
   selectedCollectionName,
   onSelect,
   onCollectionDeleted,
 }: {
   storeId: string;
   channel: Channel;
-  apiBase: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   selectedCollectionName: string | null;
   onSelect: (name: string) => void;
   onCollectionDeleted: () => void;
@@ -569,23 +530,15 @@ function CollectionList({
   const { data: collections = [], isLoading } = useQuery<Collection[]>({
     queryKey: ["collections", storeId, channel.id],
     queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channel.id}/collections`, { headers });
-      const d = await res.json();
+      const d = await adminFetch<any>(`/stores/${storeId}/channels/${channel.id}/collections`);
       const raw: any[] = d.collections ?? (Array.isArray(d) ? d : []);
       return raw.map(c => typeof c === "string" ? { name: c } : c);
     },
   });
 
   const deleteColMutation = useMutation({
-    mutationFn: async (colName: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(
-        `${apiBase}/stores/${storeId}/channels/${channel.id}/collections/${encodeURIComponent(colName)}`,
-        { method: "DELETE", headers: headers as Record<string, string> }
-      );
-      if (!res.ok) throw new Error("Delete failed");
-    },
+    mutationFn: (colName: string) =>
+      adminFetch(`/stores/${storeId}/channels/${channel.id}/collections/${encodeURIComponent(colName)}`, { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Collection deleted" });
       setConfirmCol(null);
@@ -647,8 +600,6 @@ function CollectionList({
 
 function ChannelTree({
   channels,
-  apiBase,
-  getAuthHeaders,
   storeId,
   selectedChannelId,
   selectedCollectionName,
@@ -656,8 +607,6 @@ function ChannelTree({
   onChannelDeleted,
 }: {
   channels: Channel[];
-  apiBase: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   storeId: string;
   selectedChannelId: string | null;
   selectedCollectionName: string | null;
@@ -677,14 +626,8 @@ function ChannelTree({
   };
 
   const deleteChannelMutation = useMutation({
-    mutationFn: async (channelId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channelId}`, {
-        method: "DELETE",
-        headers: headers as Record<string, string>,
-      });
-      if (!res.ok) throw new Error("Delete failed");
-    },
+    mutationFn: (channelId: string) =>
+      adminFetch(`/stores/${storeId}/channels/${channelId}`, { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Channel deleted" });
       setConfirmChannelId(null);
@@ -746,8 +689,6 @@ function ChannelTree({
               <CollectionList
                 storeId={storeId}
                 channel={channel}
-                apiBase={apiBase}
-                getAuthHeaders={getAuthHeaders}
                 selectedCollectionName={selectedChannelId === channel.id ? selectedCollectionName : null}
                 onSelect={name => onSelect(channel.id, name)}
                 onCollectionDeleted={onChannelDeleted}
@@ -761,7 +702,6 @@ function ChannelTree({
 }
 
 export function StoreManagerTab() {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -774,12 +714,7 @@ export function StoreManagerTab() {
   const deleteStoreMutation = useMutation({
     mutationFn: async () => {
       if (!selectedStore) return;
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${selectedStore.id}`, {
-        method: "DELETE",
-        headers: headers as Record<string, string>,
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      await adminFetch(`/stores/${selectedStore.id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       toast({ title: "Store deleted" });
@@ -796,9 +731,7 @@ export function StoreManagerTab() {
     queryKey: ["stores", selectedRole],
     queryFn: async () => {
       if (!selectedRole) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores?roleType=${selectedRole}`, { headers });
-      const d = await res.json();
+      const d = await adminFetch<any>(`/stores?roleType=${selectedRole}`);
       return d.stores ?? d ?? [];
     },
     enabled: !!selectedRole,
@@ -808,9 +741,7 @@ export function StoreManagerTab() {
     queryKey: ["channels", selectedStore?.id],
     queryFn: async () => {
       if (!selectedStore) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${selectedStore.id}/channels`, { headers });
-      const d = await res.json();
+      const d = await adminFetch<any>(`/stores/${selectedStore.id}/channels`);
       return d.channels ?? d ?? [];
     },
     enabled: !!selectedStore,
@@ -821,13 +752,11 @@ export function StoreManagerTab() {
     queryKey: instancesQueryKey,
     queryFn: async () => {
       if (!selectedStore) return { instances: [] };
-      const headers = await getAuthHeaders();
       const params = new URLSearchParams();
       params.set("storeId", selectedStore.id);
       if (selectedChannelId) params.set("channelId", selectedChannelId);
       if (selectedCollectionName) params.set("collectionName", selectedCollectionName);
-      const res = await fetch(`${apiBase}/catalog-instances?${params}`, { headers });
-      return res.json();
+      return adminFetch<any>(`/catalog-instances?${params}`);
     },
     enabled: !!selectedStore,
   });
@@ -951,8 +880,6 @@ export function StoreManagerTab() {
               ) : (
                 <ChannelTree
                   channels={channels}
-                  apiBase={apiBase}
-                  getAuthHeaders={getAuthHeaders}
                   storeId={selectedStore.id}
                   selectedChannelId={selectedChannelId}
                   selectedCollectionName={selectedCollectionName}
@@ -1003,8 +930,6 @@ export function StoreManagerTab() {
                       <InstanceCard
                         key={inst.id}
                         instance={inst}
-                        apiBase={apiBase}
-                        getAuthHeaders={getAuthHeaders}
                         onDeleted={refreshInstances}
                         onMoved={refreshInstances}
                       />

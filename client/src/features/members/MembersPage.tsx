@@ -16,8 +16,8 @@ import { MemberAuthProvider } from "@/features/members/MemberAuthContext";
 import { MembersProvider } from "@/features/members/MembersContext";
 import {
   type ViewMode, type WizardTier,
-  getAuthHeaders,
 } from "@/features/shared/components/wizardSteps";
+import { memberFetch } from "@/lib/memberFetch";
 import { WizardProvider, useWizardContext } from "./WizardContext";
 import { MemberIndexView } from "./member-index-view";
 import { ChannelsView } from "./member-channels-view";
@@ -49,10 +49,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'dynamics'],
     queryFn: async () => {
       if (!memberId) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/published-items?types=qr-compose`, { headers });
-      if (!res.ok) throw new Error(`Failed to load QR Dynamics (${res.status})`);
-      const data = await res.json();
+      const data = await memberFetch<any>(`/${memberId}/published-items?types=qr-compose`);
       return data.items || [];
     },
     enabled: !!memberId,
@@ -130,10 +127,7 @@ function EarningsView({ memberId }: { memberId: string }) {
     queryKey: ['/api/members', memberId, 'earnings'],
     queryFn: async () => {
       if (!memberId) return { earnings: [], summary: { total: 0, pending: 0, paid: 0, profitShare: 0.25 } };
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/earnings`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch earnings');
-      return res.json();
+      return memberFetch<any>(`/${memberId}/earnings`);
     },
     enabled: !!memberId
   });

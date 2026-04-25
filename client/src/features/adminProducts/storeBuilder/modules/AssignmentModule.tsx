@@ -5,9 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Trash2, Package, Loader2, Plus, CheckCircle } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
 export function AssignmentModule() {
   const {
@@ -19,19 +18,15 @@ export function AssignmentModule() {
     setStep,
     reset,
   } = useStoreBuilderContext();
-  const { apiBase } = useAdminAuth();
   const { toast } = useToast();
   const [assignmentSuccess, setAssignmentSuccess] = useState(false);
 
   const assignMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest(
-        "POST",
-        `${apiBase}/stores/${currentStore!.id}/channels/${currentChannel!.id}/products`,
-        { products: configuredProducts }
-      );
-      return response.json();
-    },
+    mutationFn: () =>
+      adminFetch<any>(`/stores/${currentStore!.id}/channels/${currentChannel!.id}/products`, {
+        method: "POST",
+        json: { products: configuredProducts },
+      }),
     onSuccess: (data) => {
       toast({
         title: "Products Assigned",

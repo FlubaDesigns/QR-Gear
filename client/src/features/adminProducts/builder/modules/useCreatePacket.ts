@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
@@ -39,7 +38,6 @@ export function useCreatePacket({
   state, selectedRole, selectedStore, selectedChannel, selectedCollection,
   loadGraphic, resetBuilder, pricingSettings,
 }: UseCreatePacketArgs) {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
@@ -146,7 +144,6 @@ export function useCreatePacket({
         availablePlacements,
         sizes: availableSizes,
         colors: availableColors,
-        // Declared display contract — persisted so storefront can prefer it over regenerated structure
         options: [
           ...(availableColors.length > 0 ? [{
             name: 'Color', type: 'color', displayType: 'swatches',
@@ -195,12 +192,10 @@ export function useCreatePacket({
         packetPayload.playMediaUrl = state.content.playMediaUrl;
       }
 
-      const packetRes = await authFetch(`${apiBase}/packets`, getAuthHeaders, {
+      const packetData = await adminFetch<any>("/packets", {
         method: "POST",
-        body: JSON.stringify(packetPayload),
+        json: packetPayload,
       });
-
-      const packetData = await packetRes.json();
       const packetId = packetData.packetId;
 
       let uploadedPlayMediaUrl: string | null = null;
@@ -229,26 +224,18 @@ export function useCreatePacket({
             reader.readAsDataURL(file);
           });
 
-          const authHeaders = await getAuthHeaders();
-          const uploadRes = await fetch(`${apiBase}/content/upload`, {
+          const uploadData = await adminFetch<any>("/content/upload", {
             method: "POST",
-            headers: { ...authHeaders, "Content-Type": "application/json" },
-            body: JSON.stringify({
+            json: {
               mode: "play",
               userId: "admin",
               packetId,
               base64Data,
               mimeType: file.type || state.content.playMediaMimeType || "video/mp4",
               fileName,
-            }),
+            },
           });
 
-          if (!uploadRes.ok) {
-            const errData = await uploadRes.json().catch(() => ({}));
-            throw new Error(errData.error || `Upload failed: ${uploadRes.status}`);
-          }
-
-          const uploadData = await uploadRes.json();
           uploadedPlayMediaUrl = uploadData.publicUrl;
           uploadedPlayMediaType = file.type || state.content.playMediaMimeType || "video/mp4";
         } catch (uploadErr: any) {
@@ -316,16 +303,10 @@ export function useCreatePacket({
           const rendererBlocks = rawBlocks
             .filter((b: any) => b.enabled && b.text)
             .map((b: any) => ({
-              text: b.text,
-              enabled: b.enabled,
-              fontFamily: b.fontFamily,
-              fontSize: b.fontSize,
-              color: b.color,
-              letterSpacing: b.letterSpacing,
-              strokeColor: b.strokeColor,
-              strokeWidth: b.strokeWidth,
-              verticalOffset: b.verticalOffset,
-              horizontalOffset: b.horizontalOffset,
+              text: b.text, enabled: b.enabled, fontFamily: b.fontFamily,
+              fontSize: b.fontSize, color: b.color, letterSpacing: b.letterSpacing,
+              strokeColor: b.strokeColor, strokeWidth: b.strokeWidth,
+              verticalOffset: b.verticalOffset, horizontalOffset: b.horizontalOffset,
             }));
           landingPageSnapshotUrl = await renderLandingPage({
             backgroundUrl,
@@ -343,79 +324,65 @@ export function useCreatePacket({
                    state.qrProductState === "qr_compose" ? "compose" : "basics";
 
       try {
-        const graphicAuthHeaders = await getAuthHeaders();
-        const uploadRes = await fetch(`${apiBase}/content/upload`, {
+        const uploadData = await adminFetch<any>("/content/upload", {
           method: "POST",
-          headers: { ...graphicAuthHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify({
+          json: {
             mode, userId: "admin", packetId,
             base64Data: productGraphicUrl, mimeType: "image/png",
             fileName: `${packetId}-product-graphic.png`,
-          }),
+          },
         });
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          productGraphicUrl = uploadData.publicUrl;
-        }
+        if (uploadData?.publicUrl) productGraphicUrl = uploadData.publicUrl;
       } catch (uploadErr) {
         console.warn("Product graphic upload error, using data URL:", uploadErr);
       }
 
       if (landingPageSnapshotUrl) {
         try {
-          const snapshotAuthHeaders = await getAuthHeaders();
-          const uploadRes = await fetch(`${apiBase}/content/upload`, {
+          const uploadData = await adminFetch<any>("/content/upload", {
             method: "POST",
-            headers: { ...snapshotAuthHeaders, "Content-Type": "application/json" },
-            body: JSON.stringify({
+            json: {
               mode, userId: "admin", packetId,
               base64Data: landingPageSnapshotUrl, mimeType: "image/png",
               fileName: `${packetId}-landing-snapshot.png`,
-            }),
+            },
           });
-          if (uploadRes.ok) {
-            const uploadData = await uploadRes.json();
-            landingPageSnapshotUrl = uploadData.publicUrl;
-          }
+          if (uploadData?.publicUrl) landingPageSnapshotUrl = uploadData.publicUrl;
         } catch (uploadErr) {
           console.warn("Landing page snapshot upload error:", uploadErr);
         }
       }
 
-      await authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders, {
+      await adminFetch(`/packets/${packetId}`, {
         method: "PATCH",
-        body: JSON.stringify({
+        json: {
           qrOnlyUrl: qrUrl, productGraphicUrl,
           landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
           qrContent: finalQrContent.trim(),
           playMediaUrl: uploadedPlayMediaUrl || null,
           playMediaType: uploadedPlayMediaType || null,
-        }),
+        },
       });
 
-      const graphicsSaveHeaders = await getAuthHeaders();
-      await fetch(`${apiBase}/graphics/save`, {
+      await adminFetch("/graphics/save", {
         method: "POST",
-        headers: { ...graphicsSaveHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           name: state.content?.title || `Graphic - ${new Date().toLocaleDateString()}`,
           description: state.content?.description || "",
           category: state.qrProductState || "General",
           qrOnlyUrl: qrUrl, compositeUrl: productGraphicUrl,
           qrContent: finalQrContent, pricing, packetId,
-        }),
-      });
+        },
+      }).catch(() => {});
 
       const productColors = availableColors.length > 0
         ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
         : [{ name: state.selectedColor?.name || 'Black', hex: state.selectedColor?.hex || '#000000' }];
 
-      const templateSaveHeaders = await getAuthHeaders();
-      const templateSaveRes = await fetch(`${apiBase}/templates/full-save`, {
+      const templateData = await adminFetch<any>("/templates/full-save", {
         method: "POST",
-        headers: { ...templateSaveHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           name: state.content?.title || `Template - ${new Date().toLocaleDateString()}`,
           description: state.content?.description || "",
           category: state.qrProductState || "General",
@@ -452,100 +419,75 @@ export function useCreatePacket({
           qrSizePercent: state.content?.qrSizePercent ?? 75,
           qrPositionX: state.content?.qrPositionX ?? 50,
           qrPositionY: state.content?.qrPositionY ?? 50,
-        }),
-      });
+        },
+      }).catch(() => ({}));
 
-      const templateData = await templateSaveRes.json().catch(() => ({}));
-      console.log(`[CreatePacket] Template saved, mockup jobs queued: ${templateData.jobsQueued || 0}`);
+      console.log(`[CreatePacket] Template saved, mockup jobs queued: ${templateData?.jobsQueued || 0}`);
 
-      const queueHeaders = await getAuthHeaders();
-      fetch(`${apiBase}/queue/process`, {
+      adminFetch("/queue/process", {
         method: "POST",
-        headers: { ...queueHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ limit: 3 }),
+        json: { limit: 3 },
       }).catch(() => {});
 
       let createdLinkId: string | null = null;
       if (selectedStore?.id && selectedChannel?.name) {
         try {
-          const linkHeaders = await getAuthHeaders();
-          const linkRes = await fetch(`${apiBase}/store-product-links`, {
+          const linkData = await adminFetch<any>("/store-product-links", {
             method: "POST",
-            headers: { ...linkHeaders, "Content-Type": "application/json" },
-            body: JSON.stringify({
+            json: {
               storeId: selectedStore.id, storeName: selectedStore.name,
               channel: selectedChannel.name, packetId,
-              templateId: templateData.template?.id || templateData.templateId || null,
+              templateId: templateData?.template?.id || templateData?.templateId || null,
               productName: state.selectedProduct?.title || product?.name || null,
               compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl,
               qrContent: finalQrContent, pricing,
               enabledColors: availableColors.map((c: any) => c.name || c),
               enabledSizes: availableSizes,
-              // Catalog images from provider so storefront gallery has real product photos
               images: product?.images || [],
               selectedGraphicSize: state.placementSizes?.[(state.selectedPlacements || ["front"])[0]] || "medium",
               defaultColor: state.selectedColor?.name || null,
-            }),
+            },
           });
-          if (linkRes.ok) {
-            const linkData = await linkRes.json();
-            createdLinkId = linkData.linkId || null;
-            console.log(`[CreatePacket] Store product link created: ${createdLinkId}`);
-          }
+          createdLinkId = linkData?.linkId || null;
+          console.log(`[CreatePacket] Store product link created: ${createdLinkId}`);
         } catch (linkErr) {
           console.warn('[CreatePacket] Store product link creation error:', linkErr);
         }
       }
 
-      // Link packet to build session, generate artifact, then immediately commit.
-      // Single button press = full save to catalog. No second "commit" step needed.
       if (state.activeSessionId) {
         try {
-          const sessionHeaders = await getAuthHeaders();
-          const artifactRes = await fetch(
-            `${apiBase}/build-sessions/${state.activeSessionId}/generate-artifact`,
+          const artifactData = await adminFetch<any>(
+            `/build-sessions/${state.activeSessionId}/generate-artifact`,
             {
               method: "POST",
-              headers: { ...sessionHeaders, "Content-Type": "application/json" },
-              body: JSON.stringify({ existingPacketId: packetId, previewImageUrl: productGraphicUrl || null }),
+              json: { existingPacketId: packetId, previewImageUrl: productGraphicUrl || null },
             },
-          );
-          if (artifactRes.ok) {
+          ).catch((e) => { console.error("[CreatePacket] generate-artifact failed:", e.message); return null; });
+
+          if (artifactData) {
             console.log(`[CreatePacket] Session ${state.activeSessionId} → artifact_ready (packet ${packetId}), committing…`);
-            // Auto-commit immediately — saves to admin_catalog_instances
-            const commitHeaders = await getAuthHeaders();
-            const commitRes = await fetch(
-              `${apiBase}/build-sessions/${state.activeSessionId}/commit`,
-              {
-                method: "POST",
-                headers: { ...commitHeaders, "Content-Type": "application/json" },
-                body: JSON.stringify({ pricing }),
-              },
-            );
-            if (commitRes.ok) {
-              const commitData = await commitRes.json();
+            const commitData = await adminFetch<any>(
+              `/build-sessions/${state.activeSessionId}/commit`,
+              { method: "POST", json: { pricing } },
+            ).catch((e) => {
+              console.error("[CreatePacket] auto-commit failed:", e.message);
+              setActiveSession(state.activeSessionId, 'artifact_ready', null);
+              setArtifactError(`Packet was created but couldn't be saved to your catalog (${e.message}). Use the commit button below to retry.`);
+              return null;
+            });
+
+            if (commitData) {
               setActiveSession(state.activeSessionId, 'committed', commitData.instanceId);
               setCommitResult({ instanceId: commitData.instanceId, sessionId: state.activeSessionId, packetId });
               console.log(`[CreatePacket] Auto-committed → instance ${commitData.instanceId}`);
-            } else {
-              // Artifact ready but commit failed — fall back to artifact_ready so
-              // the manual commit button is still available
-              const errData = await commitRes.json().catch(() => ({}));
-              const commitErrMsg = errData.error || `HTTP ${commitRes.status}`;
-              console.error("[CreatePacket] auto-commit failed:", commitErrMsg);
-              setActiveSession(state.activeSessionId, 'artifact_ready', null);
-              setArtifactError(`Packet was created but couldn't be saved to your catalog (${commitErrMsg}). Use the commit button below to retry.`);
             }
           } else {
-            const errData = await artifactRes.json().catch(() => ({}));
-            const artifactErrMsg = errData.error || `HTTP ${artifactRes.status}`;
-            console.error("[CreatePacket] generate-artifact failed:", artifactErrMsg);
-            setArtifactError(`Packet was created but the catalog entry failed to generate (${artifactErrMsg}). You can still proceed or retry.`);
+            setArtifactError(`Packet was created but the catalog entry failed to generate. You can still proceed or retry.`);
           }
         } catch (sessionErr: any) {
-          const sessionErrMsg = sessionErr.message || String(sessionErr);
-          console.error("[CreatePacket] session save failed:", sessionErrMsg);
-          setArtifactError(`Session could not be saved (${sessionErrMsg}). Your packet data may not persist.`);
+          console.error("[CreatePacket] session save failed:", sessionErr.message);
+          setArtifactError(`Session could not be saved (${sessionErr.message}). Your packet data may not persist.`);
         }
       }
 
@@ -570,11 +512,9 @@ export function useCreatePacket({
       const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
       const canonicalPlacement = (selectedPlacement || "front").toLowerCase();
 
-      const mockupHeaders = await getAuthHeaders();
-      fetch(`${apiBase}/mockup/priority`, {
+      adminFetch<any>("/mockup/priority", {
         method: "POST",
-        headers: { ...mockupHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({
+        json: {
           blueprintId: product?.blueprintId || 0,
           printProviderId: product?.printProviderId || null,
           colorName: state.selectedColor?.name || 'Black',
@@ -582,25 +522,21 @@ export function useCreatePacket({
           placement: canonicalPlacement, artworkUrl: productGraphicUrl,
           qrSize: selectedSize,
           fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-        }),
+        },
       })
-        .then(res => res.json())
-        .then(async data => {
+        .then(async (data) => {
           if (data.success && data.mockupUrl) {
-            // Save the priority mockup URL to the packet
-            await authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders, {
+            await adminFetch(`/packets/${packetId}`, {
               method: "PATCH",
-              body: JSON.stringify({ priorityMockupUrl: data.mockupUrl }),
+              json: { priorityMockupUrl: data.mockupUrl },
             }).catch(() => {});
-            // Write-back: save the digital markup mockup URL on the store product link
-            // so the storefront gallery can append it to the catalog images
             if (createdLinkId) {
-              authFetch(`${apiBase}/store-product-links/${createdLinkId}`, getAuthHeaders, {
+              adminFetch(`/store-product-links/${createdLinkId}`, {
                 method: "PATCH",
-                body: JSON.stringify({
+                json: {
                   mockupUrl: data.mockupUrl,
                   ...(data.lifestyleMockupUrl ? { lifestyleMockupUrl: data.lifestyleMockupUrl } : {}),
-                }),
+                },
               }).catch(() => {});
             }
             setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
@@ -642,7 +578,7 @@ export function useCreatePacket({
     if (!packetResult?.packetId || isDeleting) return;
     setIsDeleting(true);
     try {
-      await authFetch(`${apiBase}/packets/${packetResult.packetId}`, getAuthHeaders, { method: "DELETE" });
+      await adminFetch(`/packets/${packetResult.packetId}`, { method: "DELETE" });
       toast({ title: "Packet Deleted", description: "Starting fresh..." });
       setPacketResult(null);
       setError(null);
@@ -667,19 +603,11 @@ export function useCreatePacket({
 
     setIsCommitting(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions/${state.activeSessionId}/commit`, {
+      const data = await adminFetch<any>(`/build-sessions/${state.activeSessionId}/commit`, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        json: {},
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Commit failed: ${res.status}`);
-      }
-
-      const data = await res.json();
       const result: CommitResult = {
         instanceId: data.instanceId,
         sessionId: data.sessionId,

@@ -8,7 +8,7 @@ import {
   Share2, Save, Loader2, Copy, Send, Image as ImageIcon, ExternalLink, CheckCircle2
 } from 'lucide-react';
 import { SiInstagram, SiTiktok, SiX, SiFacebook, SiYoutube, SiLinkedin } from 'react-icons/si';
-import { getAuthHeaders } from '@/features/shared/components/wizardSteps';
+import { memberFetch } from "@/lib/memberFetch";
 import { useToast } from '@/hooks/use-toast';
 
 interface ScheduleEntry {
@@ -91,12 +91,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
 
   const { data: profileData, isLoading } = useQuery<{ isMember: boolean; profile?: any }>({
     queryKey: ['/api/members/profile'],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/members/profile', { headers });
-      if (!res.ok) throw new Error('Failed to fetch profile');
-      return res.json();
-    },
+    queryFn: () => memberFetch<any>('/profile'),
     enabled: !!memberId,
   });
 
@@ -122,22 +117,11 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
 
   const saveMutation = useMutation({
     mutationFn: async ({ socialHandles, contact }: { socialHandles: SocialHandles; contact: ContactInfo }) => {
-      const headers = await getAuthHeaders();
-      const [handlesRes, contactRes] = await Promise.all([
-        fetch(`/api/members/${memberId}/social-handles`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify({ socialHandles }),
-        }),
-        fetch(`/api/members/${memberId}/contact-info`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify(contact),
-        }),
+      const [handles, contactResult] = await Promise.all([
+        memberFetch(`/${memberId}/social-handles`, { method: 'PUT', json: { socialHandles } }),
+        memberFetch(`/${memberId}/contact-info`, { method: 'PUT', json: contact }),
       ]);
-      if (!handlesRes.ok) throw new Error('Failed to save social handles');
-      if (!contactRes.ok) throw new Error('Failed to save contact info');
-      return { handles: await handlesRes.json(), contact: await contactRes.json() };
+      return { handles, contact: contactResult };
     },
     onSuccess: () => {
       toast({ title: 'Profiles saved' });
@@ -258,12 +242,7 @@ export function ReadyToPostSection({ memberId }: { memberId: string }) {
 
   const { data: scheduleData } = useQuery<{ success: boolean; schedules: ScheduleEntry[] }>({
     queryKey: ['/api/members', memberId, 'social-schedule'],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch schedule');
-      return res.json();
-    },
+    queryFn: () => memberFetch<any>(`/${memberId}/social-schedule`),
     enabled: !!memberId,
   });
 
@@ -285,15 +264,8 @@ export function ReadyToPostSection({ memberId }: { memberId: string }) {
   }, [scheduleData]);
 
   const markPostedMutation = useMutation({
-    mutationFn: async (scheduleId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule/${scheduleId}/mark-posted`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-      if (!res.ok) throw new Error('Failed to mark posted');
-      return res.json();
-    },
+    mutationFn: (scheduleId: string) =>
+      memberFetch(`/${memberId}/social-schedule/${scheduleId}/mark-posted`, { method: 'POST' }),
     onSuccess: () => {
       toast({ title: 'Marked as posted' });
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'social-schedule'] });
@@ -301,15 +273,8 @@ export function ReadyToPostSection({ memberId }: { memberId: string }) {
   });
 
   const emailReminderMutation = useMutation({
-    mutationFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule/send-reminders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
-      });
-      if (!res.ok) throw new Error('Failed to send reminder');
-      return res.json();
-    },
+    mutationFn: () =>
+      memberFetch(`/${memberId}/social-schedule/send-reminders`, { method: 'POST' }),
     onSuccess: (data) => {
       if (data.sent) {
         toast({ title: 'Reminder sent!', description: `Email with ${data.itemCount} item${data.itemCount === 1 ? '' : 's'} sent to your inbox.` });

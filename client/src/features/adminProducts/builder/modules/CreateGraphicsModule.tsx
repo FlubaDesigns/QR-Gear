@@ -6,7 +6,7 @@ import { CollapsibleModule } from "@/features/shared/components/CollapsibleModul
 import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PacketResultDisplay } from "./PacketResultDisplay";
@@ -40,7 +40,6 @@ export interface PacketResult {
 
 export function CreateGraphicsModule() {
   const { state, setContent, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, setActivePacketId, setActiveSession } = useBuilderContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
@@ -51,7 +50,7 @@ export function CreateGraphicsModule() {
   const sessionStatus = state.sessionStatus;
 
   const { data: pricingSettings } = useQuery<PricingSettings>({
-    queryKey: [`${apiBase}/pricing-settings`],
+    queryKey: ["/api/pricing-settings"],
     queryFn: async () => {
       const res = await fetch(`/api/pricing-settings`);
       if (!res.ok) throw new Error(`pricing-settings HTTP ${res.status}`);
@@ -103,10 +102,8 @@ export function CreateGraphicsModule() {
 
     const restore = async () => {
       try {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/packets/${state.activePacketId}`, { headers });
-        if (!res.ok || cancelled) return;
-        const data = await res.json();
+        const data = await adminFetch<any>(`/packets/${state.activePacketId}`);
+        if (cancelled) return;
         const p = data.landingPage || data.packet || data;
         if (!p || !p.packetId || cancelled) return;
         setPacketResult({
@@ -133,14 +130,10 @@ export function CreateGraphicsModule() {
     if (isReopening || !state.activeSessionId) return;
     setIsReopening(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions/${state.activeSessionId}/reopen`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+      const data = await adminFetch<any>(`/build-sessions/${state.activeSessionId}/reopen`, {
+        method: "POST",
+        json: {},
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
       setActiveSession(state.activeSessionId, 'working', data.committedInstanceId || state.committedInstanceId);
       toast({ title: 'Ready to edit', description: 'Make changes, create a new packet, then save as admin instance.' });
     } catch (err: any) {
@@ -154,14 +147,10 @@ export function CreateGraphicsModule() {
     if (isCloningSession || !state.activeSessionId) return;
     setIsCloningSession(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions/clone`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceSessionId: state.activeSessionId }),
+      const data = await adminFetch<any>("/build-sessions/clone", {
+        method: "POST",
+        json: { sourceSessionId: state.activeSessionId },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
       window.location.href = `/admin/products?resume=${data.sessionId}`;
     } catch (err: any) {
       toast({ title: 'Could not save as new', description: err.message || 'Please try again.', variant: 'destructive' });

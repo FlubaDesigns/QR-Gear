@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useState, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { useMemberAuth } from "./MemberAuthContext";
+import { memberFetch } from "@/lib/memberFetch";
 
 export interface AllowedProduct {
   canonicalBlankKey?: string;
@@ -48,8 +49,6 @@ export interface ProductGraphicResult {
 }
 
 export interface MembersApi {
-  baseUrl: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   getQueryKey: (type?: string) => string[];
   invalidateMembers: (type?: string) => void;
   fetchAllowedProducts: (section?: string) => Promise<AllowedProduct[]>;
@@ -95,7 +94,7 @@ interface MembersProviderProps {
 }
 
 export function MembersProvider({ children, initialMemberId = null }: MembersProviderProps) {
-  const { requiresAuth, getAuthHeaders, apiBase } = useMemberAuth();
+  const { requiresAuth } = useMemberAuth();
   const [memberId, setMemberIdState] = useState<string | null>(initialMemberId);
 
   const setMemberId = useCallback((id: string | null) => {
@@ -103,124 +102,84 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
   }, []);
 
   const api = useMemo<MembersApi>(() => {
-    const getQueryKey = (type: string = "all"): string[] => ["members", apiBase, type];
+    const getQueryKey = (type: string = "all"): string[] => ["members", type];
 
     const invalidateMembers = (type?: string): void => {
       if (type) {
         queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
       } else {
-        queryClient.invalidateQueries({ queryKey: ["members", apiBase] });
+        queryClient.invalidateQueries({ queryKey: ["members"] });
       }
     };
 
     return {
-      baseUrl: apiBase,
-      getAuthHeaders,
       getQueryKey,
       invalidateMembers,
 
       fetchAllowedProducts: async (section?: string): Promise<AllowedProduct[]> => {
-        const headers = await getAuthHeaders();
         const sectionQuery = section ? `?section=${section}` : '';
-        const res = await fetch(`${apiBase}/allowed-products${sectionQuery}`, { headers });
-        if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
-        const data = await res.json();
+        const data = await memberFetch<any>(`/allowed-products${sectionQuery}`);
         return data.products || [];
       },
 
       fetchChannels: async (memberId: string): Promise<Channel[]> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/${memberId}/channels`, { headers });
-        if (!res.ok) {
-          if (res.status === 404) return [];
-          throw new Error(`Failed to fetch channels: ${res.status}`);
-        }
-        return res.json();
+        return memberFetch<Channel[]>(`/${memberId}/channels`);
       },
 
       createChannel: async (memberId: string, name: string, storeId?: string): Promise<Channel> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/${memberId}/channels`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({ name, storeId }),
-        });
-        if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
-        return res.json();
+        return memberFetch<Channel>(`/${memberId}/channels`, { method: "POST", json: { name, storeId } });
       },
 
       generateProductGraphic: async (params: ProductGraphicParams): Promise<ProductGraphicResult> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/generate-product-graphic`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({
-            qrUrl: params.qrUrl,
-            headerStyle: params.headerStyle,
-            footerStyle: params.footerStyle,
-            textLayoutChoice: params.textLayoutChoice,
-            qrColor: params.qrColor || 'black',
-          }),
-        });
-        
-        if (!res.ok) {
-          return {
-            success: false,
-            productGraphic: null,
-            error: `ProductGraphic API error: ${res.status}`,
-          };
+        try {
+          const data = await memberFetch<any>(`/generate-product-graphic`, {
+            method: "POST",
+            json: {
+              qrUrl: params.qrUrl,
+              headerStyle: params.headerStyle,
+              footerStyle: params.footerStyle,
+              textLayoutChoice: params.textLayoutChoice,
+              qrColor: params.qrColor || 'black',
+            },
+          });
+          return { success: data.success, productGraphic: data.productGraphic || null, error: data.error };
+        } catch (err: any) {
+          return { success: false, productGraphic: null, error: err?.message || "ProductGraphic API error" };
         }
-
-        const data = await res.json();
-        return {
-          success: data.success,
-          productGraphic: data.productGraphic || null,
-          error: data.error,
-        };
       },
 
       generateMockup: async (params: MockupParams): Promise<MockupResult> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/mockup/priority`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({
-            blueprintId: params.blueprintId,
-            printProviderId: params.printProviderId,
-            colorName: params.colorName,
-            colorHex: params.colorHex || '#000000',
-            placement: params.placement || 'front',
-            selectedPlacements: params.selectedPlacements && params.selectedPlacements.length > 0
-              ? params.selectedPlacements
-              : undefined,
-            artworkUrl: params.artworkUrl,
-            qrSize: params.qrSize || 'medium',
-            fulfillmentProvider: params.fulfillmentProvider || 'printify',
-          }),
-        });
-        
-        if (!res.ok) {
+        try {
+          const data = await memberFetch<any>(`/mockup/priority`, {
+            method: "POST",
+            json: {
+              blueprintId: params.blueprintId,
+              printProviderId: params.printProviderId,
+              colorName: params.colorName,
+              colorHex: params.colorHex || '#000000',
+              placement: params.placement || 'front',
+              selectedPlacements: params.selectedPlacements && params.selectedPlacements.length > 0
+                ? params.selectedPlacements
+                : undefined,
+              artworkUrl: params.artworkUrl,
+              qrSize: params.qrSize || 'medium',
+              fulfillmentProvider: params.fulfillmentProvider || 'printify',
+            },
+          });
           return {
-            success: false,
-            mockupUrl: null,
-            lifestyleMockupUrl: null,
-            fromCache: false,
-            error: `Mockup API error: ${res.status}`,
+            success: data.success,
+            mockupUrl: data.mockupUrl || null,
+            lifestyleMockupUrl: data.lifestyleMockupUrl || null,
+            placementMockupUrls: data.placementMockupUrls || undefined,
+            fromCache: data.fromCache || false,
+            error: data.error,
           };
+        } catch (err: any) {
+          return { success: false, mockupUrl: null, lifestyleMockupUrl: null, fromCache: false, error: err?.message || "Mockup API error" };
         }
-
-        const data = await res.json();
-        return {
-          success: data.success,
-          mockupUrl: data.mockupUrl || null,
-          lifestyleMockupUrl: data.lifestyleMockupUrl || null,
-          placementMockupUrls: data.placementMockupUrls || undefined,
-          fromCache: data.fromCache || false,
-          error: data.error,
-        };
       },
     };
-  }, [apiBase, getAuthHeaders]);
+  }, []);
 
   const value = useMemo<MembersContextValue>(
     () => ({

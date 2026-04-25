@@ -24,8 +24,7 @@ import AdminShell from "@/components/AdminShell";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { useAuth } from "@/hooks/useAuth";
-import { authFetch } from "@/features/adminAuth/authFetch";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import type { LibraryAsset } from "@shared/schema";
 
 const SEASONS = [
@@ -54,7 +53,6 @@ const EVENTS = [
 ];
 
 function VideosContent() {
-  const { getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<LibraryAsset | null>(null);
@@ -76,8 +74,7 @@ function VideosContent() {
     queryKey: ["/api/admin/library/admin", { assetType: "video", mediaType: "video" }],
     queryFn: async () => {
       const params = new URLSearchParams({ assetType: "video", mediaType: "video" });
-      const response = await authFetch(`/api/admin/library/admin?${params}`, getAuthHeaders);
-      return response.json();
+      return adminFetch<LibraryAsset[]>(`/library/admin?${params}`);
     },
   });
 
@@ -203,10 +200,7 @@ function VideosContent() {
         if (formData.season !== "none") formDataObj.append("season", formData.season);
         if (formData.event !== "none") formDataObj.append("event", formData.event);
 
-        const response = await authFetch("/api/admin/library/upload", getAuthHeaders, {
-          method: "POST",
-          body: formDataObj,
-        });
+        await adminFetch("/library/upload", { method: "POST", body: formDataObj });
 
         toast({ title: "Success", description: "Video uploaded successfully." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/library/admin"] });

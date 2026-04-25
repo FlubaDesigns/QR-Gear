@@ -3,8 +3,7 @@ import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { TemplatePickerSkin } from "@/features/shared/components/skins";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import type { PartnerStore } from "@shared/schema";
 import { getColorHex, type ProductPackage, type ProductConfiguration, type MockupJob, type StoreType } from "./store-builder-types";
 import { StoreBuilderOverview } from "./StoreBuilderOverview";
@@ -13,7 +12,6 @@ import { StoreBuilderDestination } from "./StoreBuilderDestination";
 import { executeCreateStore, executeCreateChannel, executeAssign } from "./store-builder-actions";
 
 export function StoreBuilderHarness() {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [location, navigate] = useLocation();
   const [productPackage, setProductPackage] = useState<ProductPackage | null>(null);
   const [originalPacketId, setOriginalPacketId] = useState<string | null>(null);
@@ -40,8 +38,7 @@ export function StoreBuilderHarness() {
   const queryClient = useQueryClient();
 
   const fetchTemplates = useCallback(async (): Promise<Array<{ id: string; name: string; primaryImage?: string | null; secondaryImage?: string | null; productName?: string | null; packetId?: string | null; qrMode?: string | null; colorCount?: number; sizeCount?: number }>> => {
-    const res = await authFetch(`${apiBase}/templates`, getAuthHeaders);
-    const data = await res.json();
+    const data = await adminFetch<any>("/templates");
     if (data.templates) {
       return data.templates.map((t: Record<string, unknown>) => ({
         id: t.id as string,
@@ -56,7 +53,7 @@ export function StoreBuilderHarness() {
       }));
     }
     return [];
-  }, [apiBase]);
+  }, []);
   
   const [configuration, setConfiguration] = useState<ProductConfiguration>({
     enabledColors: new Set<string>(),
@@ -70,11 +67,10 @@ export function StoreBuilderHarness() {
     summary: { total: number; completed: number; pending: number; processing: number; failed: number };
     mockups: MockupJob[];
   }>({
-    queryKey: [apiBase, "templates", productPackage?.templateId, "mockups"],
-    queryFn: async () => {
+    queryKey: ["/api/admin", "templates", productPackage?.templateId, "mockups"],
+    queryFn: () => {
       if (!productPackage?.templateId) return { success: false, summary: { total: 0, completed: 0, pending: 0, processing: 0, failed: 0 }, mockups: [] };
-      const res = await authFetch(`${apiBase}/templates/${productPackage.templateId}/mockups`, getAuthHeaders);
-      return res.json();
+      return adminFetch<any>(`/templates/${productPackage.templateId}/mockups`);
     },
     enabled: !!productPackage?.templateId,
     refetchInterval: 10000,
@@ -83,7 +79,7 @@ export function StoreBuilderHarness() {
   const mockups = mockupsData?.mockups || [];
 
   const { data: stores = [] } = useQuery<PartnerStore[]>({
-    queryKey: [`${apiBase}/partner-stores`],
+    queryKey: ["/api/admin/partner-stores"],
   });
 
   useEffect(() => {
@@ -133,8 +129,7 @@ export function StoreBuilderHarness() {
       setOriginalPacketId(packetId);
       setIsEditMode(true);
       setOriginalConfiguration(null);
-      authFetch(`${apiBase}/packets/${packetId}`, getAuthHeaders)
-        .then(res => res.json())
+      adminFetch<any>(`/packets/${packetId}`)
         .then(data => {
           if (data.success && data.packet) {
             const packet = data.packet;
@@ -185,8 +180,7 @@ export function StoreBuilderHarness() {
             }
             
             if (packet.storeId && packet.channelName) {
-              authFetch(`${apiBase}/stores/${packet.storeId}/channels/${packet.channelName}/collections`, getAuthHeaders)
-                .then(res => res.json())
+              adminFetch<any>(`/stores/${packet.storeId}/channels/${packet.channelName}/collections`)
                 .then(data => setExistingCollections(data.collections || []))
                 .catch(() => setExistingCollections([]));
             }
@@ -197,10 +191,9 @@ export function StoreBuilderHarness() {
               const colorHex = packet.defaultColorHex || (packet.colors?.[0]?.hex) || "#000000";
               const qrSize = packet.placementSizes?.[placement] || "medium";
               
-              authFetch(`${apiBase}/mockup/priority`, getAuthHeaders, {
+              adminFetch<any>("/mockup/priority", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                json: {
                   blueprintId: packet.blueprintId,
                   printProviderId: packet.printProviderId || 99,
                   colorName,
@@ -208,9 +201,8 @@ export function StoreBuilderHarness() {
                   placement: placement + "-center",
                   artworkUrl: packet.compositeUrl,
                   qrSize,
-                }),
+                },
               })
-                .then(res => res.json())
                 .then(mockupData => {
                   if (mockupData.success && mockupData.mockupUrl) {
                     setProductPackage(prev => prev ? { ...prev, priorityMockupUrl: mockupData.mockupUrl } : prev);
@@ -231,7 +223,7 @@ export function StoreBuilderHarness() {
     }
 
     setProductPackage(null);
-  }, [location, apiBase]);
+  }, [location]);
 
   const currentMockup = mockups.find(
     m => m.status === "completed" && m.mockupUrl && m.color === configuration.defaultColor
@@ -297,8 +289,8 @@ export function StoreBuilderHarness() {
   const handleCreateStore = async () => {
     setIsCreatingStore(true);
     try {
-      const result = await executeCreateStore(apiBase, getAuthHeaders, newStoreName, selectedStoreType);
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
+      const result = await executeCreateStore(newStoreName, selectedStoreType);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
       setNewStoreName("");
       setShowAddStore(false);
       if (result.id) {
@@ -315,8 +307,8 @@ export function StoreBuilderHarness() {
   const handleCreateChannel = async () => {
     setIsCreatingChannel(true);
     try {
-      const result = await executeCreateChannel(apiBase, getAuthHeaders, selectedStoreId!, newChannelName);
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/partner-stores`] });
+      const result = await executeCreateChannel(selectedStoreId!, newChannelName);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
       setNewChannelName("");
       setShowAddChannel(false);
       if (result.name) setSelectedChannel(result.name);
@@ -333,7 +325,7 @@ export function StoreBuilderHarness() {
     setSaveStatus(null);
     try {
       const result = await executeAssign({
-        apiBase, getAuthHeaders, productPackage, selectedStore, selectedChannel,
+        productPackage, selectedStore, selectedChannel,
         selectedCollection, configuration, isEditMode, originalPacketId, originalConfiguration,
       });
       if (!result.success) {
@@ -398,8 +390,7 @@ export function StoreBuilderHarness() {
     setSelectedCollection("");
     setWantsToChangeDestination(false);
     try {
-      const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels/${channel}/collections`, getAuthHeaders);
-      const data = await res.json();
+      const data = await adminFetch<any>(`/stores/${selectedStoreId}/channels/${channel}/collections`);
       setExistingCollections(data.collections || []);
     } catch {
       setExistingCollections([]);

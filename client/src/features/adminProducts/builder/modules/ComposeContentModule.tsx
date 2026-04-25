@@ -3,8 +3,7 @@ import { Sparkles, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import {
   ComposePickItemsStep,
   ComposeModePicker,
@@ -34,7 +33,6 @@ const STEP_LABELS: Record<string, string> = {
 
 export function ComposeContentModule() {
   const { state, setContent } = useBuilderContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -62,13 +60,11 @@ export function ComposeContentModule() {
   const fetchAvailableItems = async () => {
     setIsLoadingItems(true);
     try {
-      const res = await authFetch(`${apiBase}/published-compose-items`, getAuthHeaders);
-      const data = await res.json();
+      const data = await adminFetch<{ items: any[] }>("/published-compose-items");
       setAvailableItems(data.items || []);
     } catch {
       try {
-        const altRes = await authFetch(`${apiBase}/packets?status=published&types=qr-canvas,qr-play`, getAuthHeaders);
-        const data = await altRes.json();
+        const data = await adminFetch<any>("/packets?status=published&types=qr-canvas,qr-play");
         setAvailableItems(data.packets || data.items || data || []);
       } catch (altErr) {
         console.error('[ComposeModule] Error fetching items:', altErr);
@@ -194,11 +190,10 @@ export function ComposeContentModule() {
         color: state.selectedColor?.name || '',
         colorHex: state.selectedColor?.hex || '',
       };
-      const res = await authFetch(`${apiBase}/compose/publish`, getAuthHeaders, {
-        method: 'POST',
-        body: JSON.stringify(payload),
+      const result = await adminFetch<any>("/compose/publish", {
+        method: "POST",
+        json: payload,
       });
-      const result = await res.json();
       setContent({
         composeInstanceId: result.instanceId || result.composeInstanceId || null,
         composeStep: 'confirm',

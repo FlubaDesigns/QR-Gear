@@ -10,7 +10,7 @@ import { ProductsProvider } from "@/features/adminProducts/ProductsContext";
 import { BuilderProvider, useBuilderContext } from "@/features/adminProducts/builder/BuilderContext";
 import { ProductsModule } from "@/features/adminProducts/builder/modules/ProductsModule";
 import { useProductsContext } from "@/features/adminProducts/ProductsContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import AdminSectionCard from "@/components/admin/AdminSectionCard";
 
 interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
@@ -159,16 +159,11 @@ function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { stor
 }
 
 function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose: () => void }) {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [addedProducts, setAddedProducts] = useState<BareProduct[]>([]);
 
   const { data: existingData } = useQuery({
-    queryKey: [`${apiBase}/stores`, store.id, "allowed-products"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${store.id}/allowed-products`, { headers });
-      return res.json();
-    },
+    queryKey: ["/api/admin/stores", store.id, "allowed-products"],
+    queryFn: () => adminFetch<any>(`/stores/${store.id}/allowed-products`),
   });
 
   useEffect(() => {
@@ -176,18 +171,10 @@ function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose
   }, [existingData]);
 
   const saveMutation = useMutation({
-    mutationFn: async (products: BareProduct[]) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${store.id}/allowed-products`, { 
-        method: "POST", 
-        body: JSON.stringify({ products }), 
-        headers: { ...headers, "Content-Type": "application/json" } 
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      return res.json();
-    },
+    mutationFn: (products: BareProduct[]) =>
+      adminFetch(`/stores/${store.id}/allowed-products`, { method: "POST", json: { products } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`, store.id, "allowed-products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores", store.id, "allowed-products"] });
     },
   });
 
@@ -236,51 +223,34 @@ function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose
 
 export function StoreManager() {
   const { toast } = useToast();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreType, setNewStoreType] = useState<string>("member");
   const [editingStore, setEditingStore] = useState<StoreData | null>(null);
 
   const { data: stores = [], isLoading } = useQuery<StoreData[]>({
-    queryKey: [`${apiBase}/stores`],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores`, { headers });
-      return res.json();
-    },
+    queryKey: ["/api/admin/stores"],
+    queryFn: () => adminFetch<StoreData[]>("/stores"),
   });
 
   const createMutation = useMutation({
-    mutationFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newStoreName.trim(), roleType: newStoreType }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || "Failed to create");
-      return res.json();
-    },
+    mutationFn: () =>
+      adminFetch<any>("/stores", { method: "POST", json: { name: newStoreName.trim(), roleType: newStoreType } }),
     onSuccess: (data) => {
       toast({ title: "Store Created", description: `${data.name} (${data.roleType})` });
       setNewStoreName("");
       setShowCreateForm(false);
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (storeId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${storeId}`, { method: "DELETE", headers });
-      if (!res.ok) throw new Error("Failed to delete");
-      return res.json();
-    },
+    mutationFn: (storeId: string) =>
+      adminFetch(`/stores/${storeId}`, { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Deleted" });
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
     },
   });
 

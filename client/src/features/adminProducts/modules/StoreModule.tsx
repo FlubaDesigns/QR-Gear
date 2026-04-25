@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Store, Plus, Loader2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useProductsContext } from "../ProductsContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import type { Store as StoreType } from "../shared/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,7 +21,6 @@ export function StoreModule() {
     roles 
   } = useProductsContext();
   const { toast } = useToast();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   
   const [showAddStore, setShowAddStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -33,19 +32,8 @@ export function StoreModule() {
   });
 
   const createStoreMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, roleType: selectedRole }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create store");
-      }
-      return res.json();
-    },
+    mutationFn: (name: string) =>
+      adminFetch("/stores", { method: "POST", json: { name, roleType: selectedRole } }),
     onSuccess: (newStore) => {
       queryClient.invalidateQueries({ queryKey: ["stores", selectedRole] });
       setSelectedStore(newStore);

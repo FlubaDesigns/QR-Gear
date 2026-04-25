@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useBuilderContext } from "../BuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogProduct } from "../types";
 
@@ -63,7 +63,6 @@ async function resolveByBlueprintId(
 export function DraftResumeHandler() {
   const { loadFromPacketData, loadFromWorkingState, setActiveSession, setActivePacketId } =
     useBuilderContext();
-  const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
   const handledRef = useRef(false);
 
@@ -75,15 +74,13 @@ export function DraftResumeHandler() {
 
     async function resume() {
       try {
-        const headers = await getAuthHeaders();
-
         // ── 1. Fetch session ─────────────────────────────────────────────
-        const sessionRes = await fetch(`${apiBase}/build-sessions/${sessionId}`, { headers });
-        if (!sessionRes.ok) {
+        const sessionResult = await adminFetch<{ session: any }>(`/build-sessions/${sessionId}`).catch(() => null);
+        if (!sessionResult) {
           toast({ title: "Draft not found", variant: "destructive" });
           return;
         }
-        const { session } = await sessionRes.json();
+        const { session } = sessionResult;
         console.log("[DraftResumeHandler] Session loaded:", session?.id, "| sourceMasterId:", session?.sourceMasterId);
 
         // ── 2. Try to load packet (only if session has generated one) ────
@@ -91,9 +88,8 @@ export function DraftResumeHandler() {
         let packetData: Record<string, any> | null = null;
 
         if (packetId) {
-          const packetRes = await fetch(`${apiBase}/packets/${packetId}`, { headers });
-          if (packetRes.ok) {
-            const pd = await packetRes.json();
+          const pd = await adminFetch<any>(`/packets/${packetId}`).catch(() => null);
+          if (pd) {
             packetData = pd.packet || pd;
             console.log("[DraftResumeHandler] Packet loaded:", packetId);
           } else {

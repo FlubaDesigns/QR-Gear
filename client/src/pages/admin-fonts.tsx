@@ -10,8 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import { loadGoogleFont, loadGoogleFonts } from "@/hooks/use-fonts";
 import { GOOGLE_FONT_FAMILIES } from "@/data/google-fonts-list";
 
@@ -25,7 +24,6 @@ const FONTS_PER_PAGE = 40;
 
 function FontManagerInner() {
   const { toast } = useToast();
-  const { getAuthHeaders } = useAdminAuth();
   const [search, setSearch] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
   const [localFonts, setLocalFonts] = useState<string[]>([]);
@@ -45,13 +43,7 @@ function FontManagerInner() {
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: async (fonts: string[]) => {
-      const res = await authFetch("/api/admin/fonts", getAuthHeaders, {
-        method: "PUT",
-        body: JSON.stringify({ fonts }),
-      });
-      return res.json();
-    },
+    mutationFn: (fonts: string[]) => adminFetch("/fonts", { method: "PUT", json: { fonts } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/fonts"] });
       setHasChanges(false);

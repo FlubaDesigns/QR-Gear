@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import { queryClient } from "@/lib/queryClient";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import type { LibraryContextValue, LibraryApi, LibraryAssetWithProxy, UploadAssetParams, AssetType } from "./shared/types";
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
@@ -44,10 +44,8 @@ export function LibraryProvider({
   storageRoots,
   permissions,
 }: LibraryProviderProps) {
-  const { getAuthHeaders, apiBase } = useAdminAuth();
-
   const api = useMemo<LibraryApi>(() => {
-    const getQueryKey = (type: AssetType): string[] => ["library", apiBase, "assets", type];
+    const getQueryKey = (type: AssetType): string[] => ["library", "/api/admin", "assets", type];
 
     const invalidateAssets = (type: AssetType): void => {
       queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
@@ -57,59 +55,26 @@ export function LibraryProvider({
       getQueryKey,
       invalidateAssets,
 
-      fetchAssets: async (type: AssetType): Promise<LibraryAssetWithProxy[]> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/background-assets?type=${type}`, { headers });
-        if (!res.ok) throw new Error(`Failed to fetch assets: ${res.status}`);
-        return res.json();
-      },
+      fetchAssets: (type: AssetType) =>
+        adminFetch<LibraryAssetWithProxy[]>(`/background-assets?type=${type}`),
 
-      uploadAsset: async (params: UploadAssetParams): Promise<{ id: string; extractedCount?: number }> => {
-        const headers = await getAuthHeaders();
-        const res = await fetchWithRetry(`${apiBase}/background-assets`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify(params),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: `Upload failed: ${res.status}` }));
-          throw new Error(err.error || `Upload failed: ${res.status}`);
-        }
-        return res.json();
-      },
+      uploadAsset: (params: UploadAssetParams) =>
+        adminFetch<{ id: string; extractedCount?: number }>("/background-assets", { method: "POST", json: params }),
 
-      uploadZip: async (params: UploadAssetParams): Promise<{ extractedCount: number }> => {
-        const headers = await getAuthHeaders();
-        const res = await fetchWithRetry(`${apiBase}/background-assets`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify(params),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: `Upload failed: ${res.status}` }));
-          throw new Error(err.error || `Upload failed: ${res.status}`);
-        }
-        return res.json();
-      },
+      uploadZip: (params: UploadAssetParams) =>
+        adminFetch<{ extractedCount: number }>("/background-assets", { method: "POST", json: params }),
 
-      deleteAsset: async (id: string): Promise<void> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/background-assets/${id}`, {
-          method: "DELETE",
-          headers,
-        });
-        if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-      },
+      deleteAsset: (id: string) =>
+        adminFetch(`/background-assets/${id}`, { method: "DELETE" }).then(() => {}),
 
       fetchImageBlob: async (url: string): Promise<string> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(url, { headers });
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
         const blob = await res.blob();
         return URL.createObjectURL(blob);
       },
     };
-  }, [apiBase, getAuthHeaders]);
+  }, []);
 
   const value = useMemo<LibraryContextValue>(() => ({
     storeId: storeId ?? null,

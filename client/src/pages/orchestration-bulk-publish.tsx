@@ -18,8 +18,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import type { MasterProduct, ChannelConfig } from "@shared/schema";
 import type { BulkPublishJob } from "./orchestration-types";
-import { authFetch } from "@/features/adminAuth/authFetch";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 
 export function BulkPublishDialog({
   products,
@@ -35,7 +34,6 @@ export function BulkPublishDialog({
   const [activeJob, setActiveJob] = useState<BulkPublishJob | null>(null);
   const [polling, setPolling] = useState(false);
 
-  const { getAuthHeaders } = useAdminAuth();
 
   const startBulkPublishMutation = useMutation({
     mutationFn: async () => {
@@ -57,8 +55,7 @@ export function BulkPublishDialog({
 
   const pollJob = async (jobId: string) => {
     try {
-      const res = await authFetch(`/api/admin/orchestration/bulk-publish/${jobId}`, getAuthHeaders);
-      const job: BulkPublishJob = await res.json();
+      const job: BulkPublishJob = await adminFetch<BulkPublishJob>(`/orchestration/bulk-publish/${jobId}`);
       setActiveJob(job);
       
       if (job.status === "pending" || job.status === "running") {

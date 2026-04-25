@@ -15,6 +15,7 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import { getAuthHeaders } from "@/features/shared/components/wizardSteps";
+import { memberFetch } from "@/lib/memberFetch";
 
 interface ConnectStatus {
   connected: boolean;
@@ -76,10 +77,7 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
     queryKey: ['/api/members', memberId, 'earnings'],
     queryFn: async () => {
       if (!memberId) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/earnings`, { headers });
-      if (!res.ok) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
-      return res.json();
+      return memberFetch<EarningsSummary>(`/${memberId}/earnings`).catch(() => ({ total: 0, pending: 0, paid: 0, profitShare: 25 }));
     },
     enabled: !!memberId,
   });

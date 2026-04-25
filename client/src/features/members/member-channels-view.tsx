@@ -13,6 +13,7 @@ import {
   type ViewMode, type MemberChannel,
   getAuthHeaders,
 } from "@/features/shared/components/wizardSteps";
+import { memberFetch } from "@/lib/memberFetch";
 
 interface MemberProduct {
   id: string;
@@ -35,10 +36,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
     queryKey: ['/api/members', memberId, 'channels'],
     queryFn: async () => {
       if (!memberId) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch channels');
-      return res.json();
+      return memberFetch<MemberChannel[]>(`/${memberId}/channels`).catch(() => []);
     },
     enabled: !!memberId
   });
@@ -47,10 +45,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
     queryKey: ['/api/members', memberId, 'products'],
     queryFn: async () => {
       if (!memberId) return [];
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/products`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch products');
-      return res.json();
+      return memberFetch<MemberProduct[]>(`/${memberId}/products`).catch(() => []);
     },
     enabled: !!memberId
   });
@@ -70,10 +65,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
     queryKey: ['/api/members/profile', memberId],
     queryFn: async () => {
       if (!memberId) return { isMember: false };
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/members/profile', { headers });
-      if (!res.ok) return { isMember: false };
-      return res.json();
+      return memberFetch<any>('/profile').catch(() => ({ isMember: false }));
     },
     enabled: !!memberId,
   });
@@ -81,15 +73,8 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
   const creatorSlug = memberProfile?.profile?.creatorSlug || memberId;
 
   const createChannelMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) throw new Error('Failed to create channel');
-      return res.json();
-    },
+    mutationFn: (name: string) =>
+      memberFetch(`/${memberId}/channels`, { method: 'POST', json: { name } }),
     onSuccess: () => {
       toast({ title: 'Channel created' });
       setNewChannelName('');
@@ -100,14 +85,8 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
   });
 
   const deleteChannelMutation = useMutation({
-    mutationFn: async (channelId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels/${channelId}`, {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json', ...headers },
-      });
-      if (!res.ok) throw new Error('Failed to delete channel');
-      return res.json();
-    },
+    mutationFn: (channelId: string) =>
+      memberFetch(`/${memberId}/channels/${channelId}`, { method: 'DELETE' }),
     onSuccess: (data) => {
       toast({ title: 'Channel deleted', description: `${(data.unlinkedProducts || 0) + (data.unlinkedPackets || 0)} items moved back to your library.` });
       setSelectedChannelId(null);
@@ -120,15 +99,8 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
   });
 
   const removeFromChannelMutation = useMutation({
-    mutationFn: async ({ channelId, itemId, itemType }: { channelId: string; itemId: string; itemType: string }) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels/${channelId}/remove-item`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ itemId, itemType }),
-      });
-      if (!res.ok) throw new Error('Failed to remove item from channel');
-      return res.json();
-    },
+    mutationFn: ({ channelId, itemId, itemType }: { channelId: string; itemId: string; itemType: string }) =>
+      memberFetch(`/${memberId}/channels/${channelId}/remove-item`, { method: 'PUT', json: { itemId, itemType } }),
     onSuccess: () => {
       toast({ title: 'Removed from channel', description: 'Item is still in your library.' });
       setConfirmDeleteProduct(null);
@@ -139,14 +111,8 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
   });
 
   const deleteProductMutation = useMutation({
-    mutationFn: async (productId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/products/${productId}`, {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json', ...headers },
-      });
-      if (!res.ok) throw new Error('Failed to delete product');
-      return res.json();
-    },
+    mutationFn: (productId: string) =>
+      memberFetch(`/${memberId}/products/${productId}`, { method: 'DELETE' }),
     onSuccess: () => {
       toast({ title: 'Product deleted' });
       setConfirmDeleteProduct(null);

@@ -110,6 +110,10 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **Bottom navigation** (mobile only): Products, Collections, Channels, Orders, Store — shown on primary admin pages via `AdminBottomNav`
 - **Admin pages restructured**: `admin-products.tsx` (Builder + Tools tabs), `admin-store-builder.tsx` (Channels + Stores + Library tabs), `admin-store-library.tsx` (AdminShell wrapper), `admin-orders.tsx` (All/Pending/Production/Shipped tabs with stat cards + filters), `admin-marketplaces.tsx` (Accounts + Surfaces + Listings + Jobs + Logs tabs), `admin-external-sites.tsx` (Hosts + Profiles + Placements + Pricing + Revenue + Attribution + Payouts tabs)
 - **CSS classes**: Admin styles use `.qr-admin-*` classes in `client/src/styles/layout.css`. Button pattern: `qr-btn qr-btn--primary qr-btn--touch qr-btn--full`
+- **Central Fetch Utilities** — Two utilities replace all scattered `apiBase`+`getAuthHeaders`+raw-`fetch` patterns:
+  - `client/src/lib/adminFetch.ts` — `adminFetch(path, options?)` prepends `/api/admin` and injects admin auth headers automatically. Pass `json: payload` for JSON bodies; raw `body` for FormData/multipart.
+  - `client/src/lib/memberFetch.ts` — `memberFetch(path, options?)` prepends `/api/members` and injects member auth headers automatically. Same `json`/`body` options.
+  - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
 ### First-Scan Activation System (QR Gear Core Flow)
 - **QRG Numbering**: All 1,612 master_catalog products assigned `QRG-CCC-SSS` IDs (100=Tees, 200=Hoodies, 300=Hats, 400=Drinkware, etc.). Fields: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.

@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import AdminShell from "@/components/AdminShell";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { formatCurrency, formatTrend } from "@/lib/admin-utils";
 import { queryClient } from "@/lib/queryClient";
 
@@ -241,31 +241,18 @@ function MetricsSection() {
 }
 
 function InProgressSection() {
-  const { getAuthHeaders, apiBase } = useAdminAuth();
   const [, navigate] = useLocation();
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/admin/build-sessions", "working"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions?status=working`, { headers });
-      if (!res.ok) return { sessions: [] };
-      return res.json();
-    },
+    queryFn: () => adminFetch<any>("/build-sessions?status=working").catch(() => ({ sessions: [] })),
     staleTime: 30000,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (sessionId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions/${sessionId}/abandon`, {
-        method: "POST",
-        headers,
-      });
-      if (!res.ok) throw new Error("Failed to delete draft");
-      return res.json();
-    },
+    mutationFn: (sessionId: string) =>
+      adminFetch(`/build-sessions/${sessionId}/abandon`, { method: "POST" }),
     onSuccess: () => {
       setConfirmingDelete(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/build-sessions", "working"] });

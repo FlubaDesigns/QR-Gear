@@ -9,7 +9,7 @@ import {
   StoreProductViewLayout,
 } from "@/features/shared/components/skins/StoreProductSkin";
 import { useStoreLibraryContext, ProductInfo } from "../StoreLibraryContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,10 +45,9 @@ export function ProductGridModule() {
     addToSelection,
     removeFromSelection,
   } = useStoreLibraryContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
 
-  const productsQueryKey = `${apiBase}/stores/${selectedStore?.id}/channels/${selectedChannel?.name}/products`;
+  const productsQueryKey = `/api/admin/stores/${selectedStore?.id}/channels/${selectedChannel?.name}/products`;
 
   const { data: products = [], isLoading, error } = useQuery<ProductInfo[]>({
     queryKey: [productsQueryKey],
@@ -56,18 +55,8 @@ export function ProductGridModule() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (linkId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/store-product-links/${linkId}`, {
-        method: "DELETE",
-        headers: headers as Record<string, string>,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to delete item");
-      }
-      return res.json();
-    },
+    mutationFn: (linkId: string) =>
+      adminFetch(`/store-product-links/${linkId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [productsQueryKey] });
       toast({ title: "Item removed from store" });

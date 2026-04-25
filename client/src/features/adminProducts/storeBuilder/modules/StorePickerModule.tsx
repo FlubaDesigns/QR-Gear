@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Store, Plus, Loader2, Shield } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 
 interface PartnerStore {
@@ -21,31 +21,19 @@ interface PartnerStore {
 
 export function StorePickerModule() {
   const { step, currentStore, setCurrentStore, setCurrentChannel, setStep } = useStoreBuilderContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [showAddStore, setShowAddStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
 
   const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
-    queryKey: [`${apiBase}/stores`],
+    queryKey: ["/api/admin/stores"],
   });
 
   const createStoreMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, roleType: "internal" }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create store");
-      }
-      return res.json();
-    },
+    mutationFn: (name: string) =>
+      adminFetch<any>("/stores", { method: "POST", json: { name, roleType: "internal" } }),
     onSuccess: (newStore) => {
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
       setCurrentStore({
         id: newStore.id,
         name: newStore.name,

@@ -7,6 +7,7 @@ import { Store, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useToast } from "@/hooks/use-toast";
 import { useProductsContext } from "../ProductsContext";
+import { adminFetch } from "@/lib/adminFetch";
 import type { FulfillmentProvider } from "../shared/types";
 
 interface FulfillmentPickerModuleProps {
@@ -46,13 +47,8 @@ export function FulfillmentPickerModule({
 
   const pollSyncStatus = useCallback(async (syncId?: string) => {
     try {
-      const headers = await api.getAuthHeaders();
-      const url = syncId
-        ? `${api.baseUrl}/catalog/sync-status?syncId=${syncId}`
-        : `${api.baseUrl}/catalog/sync-status`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) return;
-      const data = await res.json();
+      const url = syncId ? `/catalog/sync-status?syncId=${syncId}` : `/catalog/sync-status`;
+      const data = await adminFetch<any>(url);
       setSyncStatus(data);
 
       if (data.status === 'completed' || data.status === 'failed') {
@@ -84,24 +80,11 @@ export function FulfillmentPickerModule({
     setSyncStatus(null);
 
     try {
-      const headers = await api.getAuthHeaders();
-      const endpoint = currentProvider === "printful"
-        ? `${api.baseUrl}/catalog/sync-printful`
-        : `${api.baseUrl}/catalog/sync`;
-      const res = await fetch(endpoint, {
+      const endpoint = currentProvider === "printful" ? `/catalog/sync-printful` : `/catalog/sync`;
+      const data = await adminFetch<any>(endpoint, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: currentProvider }),
+        json: { provider: currentProvider },
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Sync request failed' }));
-        toast({ title: "Sync Failed", description: err.error || 'Request failed', variant: "destructive" });
-        setSyncing(false);
-        return;
-      }
-
-      const data = await res.json();
       const syncId = data.syncId;
 
       if (syncId) {
@@ -117,6 +100,7 @@ export function FulfillmentPickerModule({
   };
 
   const handleProviderChange = (providerId: string) => {
+
     onSelectionChange([providerId]);
   };
 

@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Library } from "lucide-react";
 import { StoreLibraryProvider, useStoreLibraryContext, ProductInfo } from "./StoreLibraryContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { StoreTypeFilterModule } from "./modules/StoreTypeFilterModule";
 import { ProductGridModule } from "./modules/ProductGridModule";
 import { SharedLightbox, LightboxItem } from "@/features/shared/components/SharedLightbox";
@@ -75,9 +74,8 @@ function StoreLibraryInner() {
 }
 
 export function StoreLibraryHarness() {
-  const { apiBase } = useAdminAuth();
   return (
-    <StoreLibraryProvider apiBase={apiBase}>
+    <StoreLibraryProvider>
       <StoreLibraryInner />
     </StoreLibraryProvider>
   );

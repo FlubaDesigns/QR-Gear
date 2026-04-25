@@ -6,7 +6,7 @@ import {
   Loader2,
   ChevronLeft, ChevronRight
 } from "lucide-react";
-import { useMemberAuth } from "@/features/members/MemberAuthContext";
+import { memberFetch } from "@/lib/memberFetch";
 import { useQueryClient } from "@tanstack/react-query";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { useWizardContext } from './WizardContext';
@@ -56,7 +56,6 @@ export function SuperSimpleWizard() {
     setWizardTier,
   } = useWizardContext();
 
-  const { getAuthHeaders: getMemberAuthHeaders } = useMemberAuth();
   const queryClient = useQueryClient();
   const autoPublishTriggered = useRef(false);
 
@@ -67,35 +66,25 @@ export function SuperSimpleWizard() {
 
       (async () => {
         try {
-          const authHeaders = await getMemberAuthHeaders();
-
           if (selectedChannel?.id === 'temp-channel') {
-            const channelRes = await fetch(`/api/members/${user.id}/channels`, {
+            const channelData = await memberFetch<any>(`/${user.id}/channels`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...authHeaders },
-              body: JSON.stringify({ name: selectedChannel.name || 'My Products' }),
+              json: { name: selectedChannel.name || 'My Products' },
             });
-            if (channelRes.ok) {
-              const channelData = await channelRes.json();
-              const realId = channelData.id || channelData.channelId;
-              setSelectedChannel({ id: realId, name: selectedChannel.name || 'My Products' });
-            }
+            const realId = channelData.id || channelData.channelId;
+            setSelectedChannel({ id: realId, name: selectedChannel.name || 'My Products' });
           }
 
           if (pendingVideoFile && playVideoUrl?.startsWith('blob:')) {
             const formData = new FormData();
             formData.append('file', pendingVideoFile);
             formData.append('storeType', 'member');
-            const uploadRes = await fetch(`/api/members/${user.id}/videos/upload`, {
+            const uploadData = await memberFetch<any>(`/${user.id}/videos/upload`, {
               method: 'POST',
-              headers: { ...authHeaders },
               body: formData,
             });
-            if (uploadRes.ok) {
-              const uploadData = await uploadRes.json();
-              if (uploadData.url) {
-                setPlayVideoUrl(uploadData.url);
-              }
+            if (uploadData?.url) {
+              setPlayVideoUrl(uploadData.url);
             }
             setPendingVideoFile(null);
           }

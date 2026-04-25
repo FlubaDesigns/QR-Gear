@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { NumericInput } from "@/components/ui/numeric-input";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import {
   MIN_SAFE_QR_SIZE_PERCENT,
   clampQrPercent,
@@ -42,7 +42,6 @@ function ImageLibraryDialog({
   onClose: () => void;
   onSelect: (url: string) => void;
 }) {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [images, setImages] = useState<LibraryImage[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
@@ -55,13 +54,10 @@ function ImageLibraryDialog({
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const headers = await getAuthHeaders();
-      const [foldersRes, imagesRes] = await Promise.all([
-        fetch(`${apiBase}/images/folders`, { headers }),
-        fetch(`${apiBase}/images${activeFolder ? `?folder=${encodeURIComponent(activeFolder)}` : ''}`, { headers }),
+      const [folderList, adminImages] = await Promise.all([
+        adminFetch<string[]>("/images/folders").catch(() => []),
+        adminFetch<LibraryImage[]>(`/images${activeFolder ? `?folder=${encodeURIComponent(activeFolder)}` : ''}`).catch(() => []),
       ]);
-      const folderList = foldersRes.ok ? await foldersRes.json() : [];
-      const adminImages = imagesRes.ok ? await imagesRes.json() : [];
       setFolders(folderList);
       setImages(adminImages);
     } catch {
@@ -70,7 +66,7 @@ function ImageLibraryDialog({
     } finally {
       setLoading(false);
     }
-  }, [apiBase, getAuthHeaders, activeFolder]);
+  }, [activeFolder]);
 
   useEffect(() => {
     if (open) {
@@ -86,8 +82,7 @@ function ImageLibraryDialog({
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const headers = await getAuthHeaders();
-      await fetch(`${apiBase}/images/${id}`, { method: 'DELETE', headers });
+      await adminFetch(`/images/${id}`, { method: "DELETE" });
       setSelectedImage(null);
       loadData();
     } catch (e) {
@@ -105,26 +100,15 @@ function ImageLibraryDialog({
     setFolderError(null);
 
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/images/folders`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setFolderError(`Failed to create folder: ${errData.error || res.statusText}`);
-        return;
-      }
-      const foldersRes = await fetch(`${apiBase}/images/folders`, { headers });
-      const serverFolders = foldersRes.ok ? await foldersRes.json() : [];
+      await adminFetch("/images/folders", { method: "POST", json: { name: trimmed } });
+      const serverFolders = await adminFetch<string[]>("/images/folders").catch(() => []);
       setFolders(serverFolders);
       setActiveFolder(trimmed);
       setShowNewFolder(false);
       setNewFolderName("");
-    } catch (e) {
+    } catch (e: any) {
       console.error("Create folder failed:", e);
-      setFolderError(`Failed to create folder: ${e instanceof Error ? e.message : "Network error"}`);
+      setFolderError(`Failed to create folder: ${e.message || "Network error"}`);
     }
   };
 
@@ -295,7 +279,6 @@ function SaveToLibraryDialog({
   onClose: () => void;
   imageDataUrl: string;
 }) {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [folders, setFolders] = useState<string[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [imageName, setImageName] = useState("");
@@ -305,16 +288,11 @@ function SaveToLibraryDialog({
 
   useEffect(() => {
     if (!open) return;
-    (async () => {
-      try {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/images/folders`, { headers });
-        const list = res.ok ? await res.json() : [];
-        setFolders(list);
-        setSelectedFolder((current) => current || list[0] || "");
-      } catch { /* ignore */ }
-    })();
-  }, [open, apiBase, getAuthHeaders]);
+    adminFetch<string[]>("/images/folders").then(list => {
+      setFolders(list);
+      setSelectedFolder((current) => current || list[0] || "");
+    }).catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -331,8 +309,6 @@ function SaveToLibraryDialog({
     const name = imageName.trim() || `image-${Date.now()}`;
     setSaving(true);
     try {
-      const headers = await getAuthHeaders();
-      delete (headers as Record<string, string>)["Content-Type"];
       const mimeMatch = imageDataUrl.match(/data:([^;]+)/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/png";
       const resp64 = await fetch(imageDataUrl);
@@ -343,20 +319,11 @@ function SaveToLibraryDialog({
       formData.append("file", file);
       formData.append("name", name);
       formData.append("folder", folder);
-      const resp = await fetch(`${apiBase}/images`, {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        alert(`Save failed: ${errData.error || resp.statusText}`);
-        return;
-      }
+      await adminFetch("/images", { method: "POST", body: formData });
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Save to library failed:", e);
-      alert(`Save failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      alert(`Save failed: ${e.message || "Unknown error"}`);
     } finally {
       setSaving(false);
     }
@@ -370,26 +337,15 @@ function SaveToLibraryDialog({
     setFolderError2(null);
 
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/images/folders`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        setFolderError2(`Failed to create folder: ${errData.error || res.statusText}`);
-        return;
-      }
-      const foldersRes = await fetch(`${apiBase}/images/folders`, { headers });
-      const serverFolders = foldersRes.ok ? await foldersRes.json() : [];
+      await adminFetch("/images/folders", { method: "POST", json: { name: trimmed } });
+      const serverFolders = await adminFetch<string[]>("/images/folders").catch(() => []);
       setFolders(serverFolders);
       setSelectedFolder(trimmed);
       setShowNewFolder(false);
       setNewFolderName("");
-    } catch (e) {
+    } catch (e: any) {
       console.error("Create folder failed:", e);
-      setFolderError2(`Failed to create folder: ${e instanceof Error ? e.message : "Network error"}`);
+      setFolderError2(`Failed to create folder: ${e.message || "Network error"}`);
     }
   };
 

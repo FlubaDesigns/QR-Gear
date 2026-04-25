@@ -7,7 +7,7 @@ import { ChevronDown, ChevronRight, Check, Loader2, ImageIcon, RefreshCw } from 
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 
 interface ColorOption {
   name: string;
@@ -60,7 +60,6 @@ export function ProductConfigSkin({
   readOnly = false,
 }: ProductConfigSkinProps) {
   const { toast } = useToast();
-  const { getAuthHeaders } = useAdminAuth();
   const [enabledSizes, setEnabledSizes] = useState<Set<string>>(
     new Set(initialEnabledSizes || sizes)
   );
@@ -143,14 +142,7 @@ export function ProductConfigSkin({
   const triggerSync = async () => {
     setSyncing(true);
     try {
-      const res = await fetch(`${apiBase}/products/${productId}/sync-printify`, {
-        method: "POST",
-        headers: await getAuthHeaders(),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Sync failed");
-      }
+      await adminFetch(`/products/${productId}/sync-printify`, { method: "POST" });
       toast({ title: "Success", description: "Sizes and colors synced from Printify" });
       onUpdate?.();
     } catch (error: any) {

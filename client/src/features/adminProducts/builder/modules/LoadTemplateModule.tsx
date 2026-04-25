@@ -6,8 +6,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { TemplateCardSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { useBuilderContext } from "../BuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogProduct } from "../types";
 
@@ -101,7 +100,6 @@ interface LoadTemplateModuleProps {
 
 export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExternalOpenChange, hideCard }: LoadTemplateModuleProps = {}) {
   const { loadFromPacketData, setTemplateProductResolved, setActiveSession, state } = useBuilderContext();
-  const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
 
   const controlled = externalOpen !== undefined;
@@ -124,15 +122,14 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
-      const res = await authFetch(`/api/admin/templates`, getAuthHeaders);
-      const data = await res.json();
+      const data = await adminFetch<{ templates: TemplateItem[] }>("/templates");
       setTemplates(data.templates || []);
     } catch {
       toast({ title: "Could not load templates", variant: "destructive" });
     } finally {
       setLoadingTemplates(false);
     }
-  }, [getAuthHeaders, toast]);
+  }, [toast]);
 
   useEffect(() => {
     if (open) fetchTemplates();
@@ -177,10 +174,8 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
         let packet = item.packet;
 
         if (!packet && item.packetId) {
-          const headers = await getAuthHeaders();
-          const res = await fetch(`${apiBase}/packets/${item.packetId}`, { headers });
-          if (res.ok) {
-            const data = await res.json();
+          const data = await adminFetch<any>(`/packets/${item.packetId}`).catch(() => null);
+          if (data) {
             const p = data.landingPage || data.packet || data;
             if (p && (p.packetId || p.id)) {
               packet = { ...p, id: p.packetId || p.id };
@@ -213,23 +208,15 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
 
         if (sourceMasterId) {
           try {
-            const headers = await getAuthHeaders();
-            const sessionRes = await fetch(`${apiBase}/build-sessions/from-master`, {
+            const sessionData = await adminFetch<any>("/build-sessions/from-master", {
               method: "POST",
-              headers: { ...headers, "Content-Type": "application/json" },
-              body: JSON.stringify({ sourceMasterId }),
+              json: { sourceMasterId },
             });
-            if (sessionRes.ok) {
-              const sessionData = await sessionRes.json();
-              console.log(
-                `[LoadTemplateModule] Session ${sessionData.isExisting ? "resumed" : "created"}: ${sessionData.sessionId} ` +
-                  `(sourceMasterId: ${sourceMasterId})`
-              );
-              setActiveSession(sessionData.sessionId, "working", null);
-            } else {
-              const errBody = await sessionRes.json().catch(() => ({}));
-              console.warn(`[LoadTemplateModule] Session creation failed (${sessionRes.status}):`, errBody);
-            }
+            console.log(
+              `[LoadTemplateModule] Session ${sessionData.isExisting ? "resumed" : "created"}: ${sessionData.sessionId} ` +
+                `(sourceMasterId: ${sourceMasterId})`
+            );
+            setActiveSession(sessionData.sessionId, "working", null);
           } catch (e) {
             console.warn("[LoadTemplateModule] Session creation error:", e);
           }
@@ -259,7 +246,7 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
         setSelecting(false);
       }
     },
-    [apiBase, getAuthHeaders, loadFromPacketData, resolveProduct, setActiveSession, toast]
+    [loadFromPacketData, resolveProduct, setActiveSession, toast]
   );
 
   const handleDelete = useCallback(
@@ -269,15 +256,7 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
 
       setDeletingId(item.id);
       try {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`/api/admin/templates/${item.id}`, {
-          method: "DELETE",
-          headers,
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `HTTP ${res.status}`);
-        }
+        await adminFetch(`/templates/${item.id}`, { method: "DELETE" });
         setTemplates((prev) => prev.filter((t) => t.id !== item.id));
         toast({ title: "Template deleted" });
       } catch (err: any) {
@@ -286,7 +265,7 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
         setDeletingId(null);
       }
     },
-    [getAuthHeaders, toast]
+    [toast]
   );
 
   const handleDismissBanner = useCallback(() => {

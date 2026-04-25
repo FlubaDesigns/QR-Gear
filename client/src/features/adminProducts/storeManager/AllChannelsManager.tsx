@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Hash, Trash2, Loader2, X, Store, AlertTriangle } from "lucide-react";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 
 interface ChannelRow {
@@ -49,30 +49,18 @@ function DeleteConfirm({
 }
 
 export function AllChannelsManager() {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const { data: channels = [], isLoading } = useQuery<ChannelRow[]>({
     queryKey: ["all-channels"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/channels`, { headers });
-      if (!res.ok) throw new Error("Failed to load channels");
-      return res.json();
-    },
+    queryFn: () => adminFetch<ChannelRow[]>("/channels"),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (channelId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/channels/${channelId}`, {
-        method: "DELETE",
-        headers: headers as Record<string, string>,
-      });
-      if (!res.ok) throw new Error("Delete failed");
-    },
+    mutationFn: (channelId: string) =>
+      adminFetch(`/channels/${channelId}`, { method: "DELETE" }),
     onSuccess: (_, channelId) => {
       toast({ title: "Channel deleted" });
       setConfirmId(null);

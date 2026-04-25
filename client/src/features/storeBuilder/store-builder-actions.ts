@@ -1,38 +1,28 @@
-import { authFetch } from "@/features/adminAuth/authFetch";
+import { adminFetch } from "@/lib/adminFetch";
 import type { ProductPackage, ProductConfiguration, StoreType } from "./store-builder-types";
 import type { PartnerStore } from "@shared/schema";
 
 export async function executeCreateStore(
-  apiBase: string,
-  getAuthHeaders: () => Promise<HeadersInit>,
   newStoreName: string,
   selectedStoreType: StoreType,
 ): Promise<{ id?: string; error?: string }> {
   if (!newStoreName.trim() || !selectedStoreType) return { error: "Missing store name or type" };
-  const res = await authFetch(`${apiBase}/stores`, getAuthHeaders, {
+  const newStore = await adminFetch<any>("/stores", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: newStoreName.trim(), roleType: selectedStoreType }),
+    json: { name: newStoreName.trim(), roleType: selectedStoreType },
   });
-  if (!res.ok) throw new Error(`Failed to create store: ${res.status}`);
-  const newStore = await res.json();
   return { id: newStore?.id };
 }
 
 export async function executeCreateChannel(
-  apiBase: string,
-  getAuthHeaders: () => Promise<HeadersInit>,
   selectedStoreId: string,
   newChannelName: string,
 ): Promise<{ name?: string; error?: string }> {
   if (!newChannelName.trim() || !selectedStoreId) return { error: "Missing channel name or store" };
-  const res = await authFetch(`${apiBase}/stores/${selectedStoreId}/channels`, getAuthHeaders, {
+  const newChannel = await adminFetch<any>(`/stores/${selectedStoreId}/channels`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: newChannelName.trim() }),
+    json: { name: newChannelName.trim() },
   });
-  if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
-  const newChannel = await res.json();
   return { name: newChannel?.name };
 }
 
@@ -53,8 +43,6 @@ export function hasConfigurationChanges(
 }
 
 export async function executeAssign(params: {
-  apiBase: string;
-  getAuthHeaders: () => Promise<HeadersInit>;
   productPackage: ProductPackage;
   selectedStore: PartnerStore;
   selectedChannel: string;
@@ -71,7 +59,7 @@ export async function executeAssign(params: {
   wasForked?: boolean;
 }> {
   const {
-    apiBase, getAuthHeaders, productPackage, selectedStore, selectedChannel,
+    productPackage, selectedStore, selectedChannel,
     selectedCollection, configuration, isEditMode, originalPacketId, originalConfiguration,
   } = params;
 
@@ -87,9 +75,9 @@ export async function executeAssign(params: {
 
   if (shouldFork) {
     console.log("[StoreBuilder] Edit mode - creating new packet (fork from:", originalPacketId, ")");
-    const packetResponse = await authFetch(`${apiBase}/packets`, getAuthHeaders, {
+    const packetData = await adminFetch<any>("/packets", {
       method: "POST",
-      body: JSON.stringify({
+      json: {
         qrOnlyUrl: productPackage.qrOnlyUrl,
         compositeUrl: productPackage.compositeUrl,
         qrContent: productPackage.qrContent,
@@ -110,25 +98,17 @@ export async function executeAssign(params: {
         basePrice: productPackage.basePrice,
         customerPrice: productPackage.customerPrice,
         forkedFrom: originalPacketId,
-      }),
+      },
     });
-
-    if (packetResponse.ok) {
-      const packetData = await packetResponse.json();
-      currentPacketId = packetData.packetId;
-      templateId = undefined;
-      wasForked = true;
-    } else {
-      const errorData = await packetResponse.json().catch(() => ({}));
-      throw new Error(`Failed to create new version: ${errorData.error || 'Unknown error'}`);
-    }
+    currentPacketId = packetData.packetId;
+    templateId = undefined;
+    wasForked = true;
   }
 
   if (currentPacketId && !templateId) {
-    const templateResponse = await authFetch(`${apiBase}/templates`, getAuthHeaders, {
+    const templateData = await adminFetch<any>("/templates", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      json: {
         packetId: currentPacketId,
         name: productPackage.productName || `Template - ${new Date().toLocaleDateString()}`,
         productId: productPackage.productId,
@@ -143,19 +123,14 @@ export async function executeAssign(params: {
         enabledSizes: Array.from(configuration.enabledSizes),
         defaultColor: configuration.defaultColor,
         isActive: true,
-      }),
-    });
-
-    if (templateResponse.ok) {
-      const templateData = await templateResponse.json();
-      templateId = templateData.templateId;
-    }
+      },
+    }).catch(() => null);
+    if (templateData) templateId = templateData.templateId;
   }
 
-  const response = await authFetch(`${apiBase}/store-product-links`, getAuthHeaders, {
+  await adminFetch("/store-product-links", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    json: {
       storeId: selectedStore.id,
       storeName: selectedStore.name,
       channel: selectedChannel,
@@ -173,12 +148,8 @@ export async function executeAssign(params: {
       defaultColor: configuration.defaultColor,
       qrProductState: productPackage.qrProductState || null,
       mockupUrl: productPackage.priorityMockupUrl || null,
-    }),
+    },
   });
-
-  if (!response.ok) {
-    throw new Error("Failed to assign to store");
-  }
 
   const collectionSuffix = selectedCollection.trim() ? ` [${selectedCollection.trim()}]` : "";
   const successMsg = wasForked

@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
+import { adminFetch } from "@/lib/adminFetch";
+import { auth } from "@/lib/firebase";
 import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint } from "./types";
 import type { RoleType, Store, Channel, Collection } from "../shared/types";
 import { defaultTextStyle } from "./types";
@@ -228,12 +230,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     // even if the 1.5-second debounce timer hasn't fired yet when the user navigates away.
     const snapshot = buildWorkingSnapshot(state, { selectedStore, selectedChannel, selectedCollection });
     const sessionId = state.activeSessionId;
-    const baseUrl = api.baseUrl;
 
     flushSaveRef.current = () => {
       const headers = cachedAuthHeadersRef.current;
       if (!headers) return;
-      fetch(`${baseUrl}/build-sessions/${sessionId}`, {
+      fetch(`/api/admin/build-sessions/${sessionId}`, {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ working: snapshot }),
@@ -247,32 +248,28 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
-        const headers = await api.getAuthHeaders();
-        cachedAuthHeadersRef.current = headers as Record<string, string>;
+        const token = await auth.currentUser?.getIdToken(true);
+        if (token) {
+          cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
+        }
 
         // Primary: save full working state into the build session
-        const res = await fetch(`${baseUrl}/build-sessions/${sessionId}`, {
+        await adminFetch(`/build-sessions/${sessionId}`, {
           method: "PATCH",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ working: snapshot }),
+          json: { working: snapshot },
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setAutoSaveFailed(false);
         console.log(`[BuilderContext] Auto-saved to session ${sessionId}`);
 
         // Secondary: if a packet already exists, keep its builderSnapshot in sync too
         if (state.activePacketId) {
           const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
-          const packetRes = await fetch(`${baseUrl}/packets/${state.activePacketId}`, {
+          await adminFetch(`/packets/${state.activePacketId}`, {
             method: "PATCH",
-            headers: { ...headers, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              builderSnapshot: { content: serializableContent, loadedBackground: state.loadedBackground },
-            }),
+            json: { builderSnapshot: { content: serializableContent, loadedBackground: state.loadedBackground } },
+          }).catch((e) => {
+            console.warn(`[BuilderContext] Packet sync failed:`, e.message);
           });
-          if (!packetRes.ok) {
-            console.warn(`[BuilderContext] Packet sync failed: HTTP ${packetRes.status}`);
-          }
         }
       } catch (e) {
         console.warn("[BuilderContext] Auto-save failed:", e);
@@ -327,10 +324,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   // user navigates away before the first 1.5-second autosave timer fires.
   useEffect(() => {
     if (!state.activeSessionId) return;
-    api.getAuthHeaders().then(headers => {
-      cachedAuthHeadersRef.current = headers as Record<string, string>;
+    auth.currentUser?.getIdToken(true).then(token => {
+      if (token) cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
     }).catch(() => {});
-  }, [state.activeSessionId, api]);
+  }, [state.activeSessionId]);
 
   // Flush on tab-close / full-page reload. keepalive:true allows the browser
   // to complete the request even as the page is being torn down.
@@ -455,10 +452,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       params.set('productId', String(product.id));
     }
 
-    api.getAuthHeaders().then(headers =>
-      fetch(`${api.baseUrl}/catalog/placements?${params}`, { headers })
-    )
-      .then(r => r.json())
+    adminFetch<any>(`/catalog/placements?${params}`)
       .then(data => {
         if (data.placements && data.placements.length > 0) {
           setState(prev => {

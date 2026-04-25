@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
@@ -31,7 +31,6 @@ function imageToGridItem(img: AdminImage): GridViewItem {
 }
 
 export default function ImagesTab() {
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,36 +44,16 @@ export default function ImagesTab() {
 
   const foldersQuery = useQuery<string[]>({
     queryKey: ["admin-images", "folders"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/images/folders`, { headers });
-      if (!res.ok) throw new Error("Failed to fetch folders");
-      return res.json();
-    },
+    queryFn: () => adminFetch<string[]>("/images/folders"),
   });
 
   const imagesQuery = useQuery<AdminImage[]>({
     queryKey: ["admin-images", "list", activeFolder || "all"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const url = activeFolder
-        ? `${apiBase}/images?folder=${encodeURIComponent(activeFolder)}`
-        : `${apiBase}/images`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error("Failed to fetch images");
-      return res.json();
-    },
+    queryFn: () => adminFetch<AdminImage[]>(activeFolder ? `/images?folder=${encodeURIComponent(activeFolder)}` : "/images"),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/images/${id}`, {
-        method: "DELETE",
-        headers,
-      });
-      if (!res.ok) throw new Error("Delete failed");
-    },
+    mutationFn: (id: string) => adminFetch(`/images/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Image deleted" });
       queryClient.invalidateQueries({ queryKey: ["admin-images"] });
@@ -92,7 +71,6 @@ export default function ImagesTab() {
     setUploading(true);
 
     try {
-      const headers = await getAuthHeaders();
       for (const file of Array.from(files)) {
         const reader = new FileReader();
         const base64 = await new Promise<string>((resolve, reject) => {
@@ -104,20 +82,10 @@ export default function ImagesTab() {
           reader.readAsDataURL(file);
         });
 
-        const res = await fetch(`${apiBase}/images`, {
+        await adminFetch("/images", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({
-            name: file.name,
-            imageData: base64,
-            mimeType: file.type,
-            folder: activeFolder || "general",
-          }),
+          json: { name: file.name, imageData: base64, mimeType: file.type, folder: activeFolder || "general" },
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Upload failed" }));
-          throw new Error(err.error);
-        }
       }
       toast({ title: `Uploaded ${files.length} image${files.length > 1 ? "s" : ""}` });
       queryClient.invalidateQueries({ queryKey: ["admin-images"] });
@@ -127,33 +95,23 @@ export default function ImagesTab() {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  }, [apiBase, getAuthHeaders, activeFolder, toast, queryClient]);
+  }, [activeFolder, toast, queryClient]);
 
   const handleCreateFolder = useCallback(async () => {
     const name = newFolderName.trim();
     if (!name) return;
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/images/folders`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        toast({ title: "Failed to create folder", description: errData.error || res.statusText, variant: "destructive" });
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/images/folders"] });
+      await adminFetch("/images/folders", { method: "POST", json: { name } });
+      queryClient.invalidateQueries({ queryKey: ["admin-images", "folders"] });
       setActiveFolder(name);
       setNewFolderOpen(false);
       setNewFolderName("");
       toast({ title: `Folder "${name}" created` });
-    } catch (e) {
+    } catch (e: any) {
       console.error("Create folder failed:", e);
-      toast({ title: "Failed to create folder", description: e instanceof Error ? e.message : "Network error", variant: "destructive" });
+      toast({ title: "Failed to create folder", description: e.message || "Network error", variant: "destructive" });
     }
-  }, [newFolderName, toast, apiBase, getAuthHeaders, queryClient]);
+  }, [newFolderName, toast, queryClient]);
 
   const images = imagesQuery.data || [];
   const folders = foldersQuery.data || [];

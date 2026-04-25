@@ -4,7 +4,7 @@ import { Loader2, Image, RefreshCw, ChevronLeft, ChevronRight, X, ImageIcon, Lay
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { ScrollGridView } from "./views/ScrollGridView";
 import { ModalView } from "./views/ModalView";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
@@ -26,7 +26,6 @@ export interface SelectedBackground {
 }
 
 export interface LibraryBackgroundPickerProps {
-  apiBase: string;
   selectedId?: string | null;
   onSelect: (background: SelectedBackground) => void;
   onClear?: () => void;
@@ -49,7 +48,6 @@ function assetToSkinItem(asset: BackgroundAsset): SkinItem {
 }
 
 export function LibraryBackgroundPicker({
-  apiBase,
   selectedId,
   onSelect,
   onClear,
@@ -58,7 +56,6 @@ export function LibraryBackgroundPicker({
   showSourceTab = true,
 }: LibraryBackgroundPickerProps) {
   const { toast } = useToast();
-  const { getAuthHeaders } = useAdminAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>("cropped");
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
@@ -73,24 +70,14 @@ export function LibraryBackgroundPicker({
   const [bgShowConfirm, setBgShowConfirm] = useState(false);
 
   const { data: croppedBackgrounds = [], isLoading: loadingCropped } = useQuery<BackgroundAsset[]>({
-    queryKey: [`${apiBase}/background-assets`, "cropped"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/background-assets?type=cropped`, { headers });
-      if (!res.ok) return [];
-      return res.json();
-    },
+    queryKey: ["/api/admin/background-assets", "cropped"],
+    queryFn: () => adminFetch<BackgroundAsset[]>("/background-assets?type=cropped").catch(() => []),
     enabled,
   });
 
   const { data: backgrounds = [], isLoading: loadingBackgrounds } = useQuery<BackgroundAsset[]>({
-    queryKey: [`${apiBase}/background-assets`, "background"],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/background-assets?type=background`, { headers });
-      if (!res.ok) return [];
-      return res.json();
-    },
+    queryKey: ["/api/admin/background-assets", "background"],
+    queryFn: () => adminFetch<BackgroundAsset[]>("/background-assets?type=background").catch(() => []),
     enabled: enabled && showSourceTab && activeTab === "backgrounds",
   });
 
@@ -123,12 +110,9 @@ export function LibraryBackgroundPicker({
   const handleDelete = async (id: string) => {
     setDeleting(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/background-assets/${id}`, { method: "DELETE", headers });
-      if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: [`${apiBase}/background-assets`] });
-        toast({ title: "Image deleted" });
-      }
+      await adminFetch(`/background-assets/${id}`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets"] });
+      toast({ title: "Image deleted" });
     } catch (error) {
       console.error("Delete failed:", error);
       toast({ title: "Delete failed", variant: "destructive" });
@@ -140,25 +124,18 @@ export function LibraryBackgroundPicker({
   const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) return;
 
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(`${apiBase}/background-assets`, {
+    await adminFetch("/background-assets", {
       method: "POST",
-      headers: { ...authHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({
+      json: {
         name: `cropped_${sourceAsset.name}`,
         assetType: "cropped",
         imageData,
         mimeType: "image/jpeg",
         sourceAssetId: sourceAsset.id,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to save cropped image");
-    }
-
-    queryClient.invalidateQueries({ queryKey: [`${apiBase}/background-assets`, "cropped"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/background-assets", "cropped"] });
     setActiveTab("cropped");
   };
 

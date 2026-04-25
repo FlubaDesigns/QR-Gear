@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Store, Plus, Trash2, Loader2, Hash, Users, Layers } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
 import { useProductsContext } from "../ProductsContext";
+import { adminFetch } from "@/lib/adminFetch";
 import type { Store as StoreType, Channel, Collection, RoleType } from "../shared/types";
 
 export function StoreChannelDropdownModule() {
@@ -127,16 +128,8 @@ export function StoreChannelDropdownModule() {
   };
 
   const createStoreMutation = useMutation({
-    mutationFn: async ({ name, roleType }: { name: string; roleType: RoleType }) => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/stores`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name, roleType }),
-      });
-      if (!res.ok) throw new Error(`Failed to create store: ${res.status}`);
-      return res.json();
-    },
+    mutationFn: ({ name, roleType }: { name: string; roleType: RoleType }) =>
+      adminFetch("/stores", { method: "POST", json: { name, roleType } }),
     onSuccess: (newStore) => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       setNewStoreName("");
@@ -148,15 +141,8 @@ export function StoreChannelDropdownModule() {
   });
 
   const deleteStoreMutation = useMutation({
-    mutationFn: async (storeId: string) => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/stores/by-id/${storeId}`, {
-        method: "DELETE",
-        headers,
-      });
-      if (!res.ok) throw new Error(`Failed to delete store: ${res.status}`);
-      return res.json();
-    },
+    mutationFn: (storeId: string) =>
+      adminFetch(`/stores/by-id/${storeId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       setSelectedStore(null);
@@ -165,16 +151,8 @@ export function StoreChannelDropdownModule() {
   });
 
   const createChannelMutation = useMutation({
-    mutationFn: async ({ storeId, name }: { storeId: string; name: string }) => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/stores/${storeId}/channels`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) throw new Error(`Failed to create channel: ${res.status}`);
-      return res.json();
-    },
+    mutationFn: ({ storeId, name }: { storeId: string; name: string }) =>
+      adminFetch(`/stores/${storeId}/channels`, { method: "POST", json: { name } }),
     onSuccess: (newChannel) => {
       queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
       setNewChannelName("");
@@ -186,16 +164,8 @@ export function StoreChannelDropdownModule() {
   });
 
   const deleteChannelMutation = useMutation({
-    mutationFn: async ({ storeId, channelId }: { storeId: string; channelId: string }) => {
-      const headers = await api.getAuthHeaders();
-      const res = await fetch(`${api.baseUrl}/stores/${storeId}/channels`, {
-        method: "DELETE",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId }),
-      });
-      if (!res.ok) throw new Error(`Failed to delete channel: ${res.status}`);
-      return res.json();
-    },
+    mutationFn: ({ storeId, channelId }: { storeId: string; channelId: string }) =>
+      adminFetch(`/stores/${storeId}/channels`, { method: "DELETE", json: { channelId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
       setSelectedChannel(null);

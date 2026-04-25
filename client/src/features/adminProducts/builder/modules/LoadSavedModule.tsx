@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ModalView } from "@/features/shared/components/views/ModalView";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 
 interface SavedSession {
@@ -112,7 +112,6 @@ interface LoadSavedModuleProps {
 }
 
 export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOpenChange, hideCard }: LoadSavedModuleProps = {}) {
-  const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
 
   const controlled = externalOpen !== undefined;
@@ -132,10 +131,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions`, { headers });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await adminFetch<{ sessions: SavedSession[] }>("/build-sessions");
       const all: SavedSession[] = data.sessions || [];
       const relevant = all
         .filter(s => s.status === 'artifact_ready' || s.status === 'committed')
@@ -150,7 +146,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
     } finally {
       setLoading(false);
     }
-  }, [apiBase, getAuthHeaders, toast]);
+  }, [toast]);
 
   useEffect(() => {
     if (open) fetchSessions();
@@ -167,12 +163,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
     if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
     setDeletingId(session.id);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions/${session.id}`, {
-        method: 'DELETE',
-        headers,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await adminFetch(`/build-sessions/${session.id}`, { method: "DELETE" });
       setSessions(prev => prev.filter(s => s.id !== session.id));
       toast({ title: 'Draft deleted' });
     } catch {
@@ -180,7 +171,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
     } finally {
       setDeletingId(null);
     }
-  }, [apiBase, getAuthHeaders, toast]);
+  }, [toast]);
 
   return (
     <>

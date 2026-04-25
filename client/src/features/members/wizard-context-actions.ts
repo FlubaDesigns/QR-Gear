@@ -4,8 +4,10 @@ import {
   wizardProductToPacketBoundProduct,
   getDefaultPacketTitle,
   getDefaultPacketDescription,
+  getAuthHeaders,
 } from "@/features/shared/components/wizardSteps";
 import type { AllowedProduct } from "@/features/shared/components/wizardSteps";
+import { memberFetch } from "@/lib/memberFetch";
 
 export function executeGeneratePreviewQrCode(ctx: any): string {
   const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
@@ -26,7 +28,6 @@ export async function executeCreatePacketForProduct(ctx: any, product: AllowedPr
       baseCost: product.baseCost,
     });
 
-    const authHeaders = await ctx.getMemberAuthHeaders();
     const placeholderQrUrl = generateQRCodeUrl('placeholder', 200);
 
     const packetPayload = {
@@ -41,20 +42,16 @@ export async function executeCreatePacketForProduct(ctx: any, product: AllowedPr
       status: 'building',
     };
 
-    const res = await fetch(`${ctx.apiBase}/${ctx.user?.id}/packets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify(packetPayload),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
+    try {
+      const data = await memberFetch<any>(`/${ctx.user?.id}/packets`, {
+        method: 'POST',
+        json: packetPayload,
+      });
       console.log('[Wizard] Created packet on product select:', data.packetId);
       ctx.setCurrentPacketId(data.packetId);
       return data.packetId;
-    } else {
-      const errorData = await res.json();
-      console.error('[Wizard] Packet creation failed:', errorData);
+    } catch (packetErr) {
+      console.error('[Wizard] Packet creation failed:', packetErr);
     }
   } catch (error) {
     console.error('[Wizard] Failed to create packet:', error);
@@ -68,18 +65,12 @@ export async function executeUpdatePacket(ctx: any, updates: Record<string, any>
     return false;
   }
   try {
-    const authHeaders = await ctx.getMemberAuthHeaders();
-    const res = await fetch(`${ctx.apiBase}/${ctx.user.id}/packets/${ctx.currentPacketId}`, {
+    await memberFetch(`/${ctx.user.id}/packets/${ctx.currentPacketId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify(updates),
+      json: updates,
     });
-    if (res.ok) {
-      console.log('[Wizard] Updated packet:', ctx.currentPacketId, Object.keys(updates));
-      return true;
-    }
-    console.error('[Wizard] Packet update failed:', await res.json());
-    return false;
+    console.log('[Wizard] Updated packet:', ctx.currentPacketId, Object.keys(updates));
+    return true;
   } catch (error) {
     console.error('[Wizard] Failed to update packet:', error);
     return false;
@@ -99,39 +90,27 @@ export async function executeSimplePublish(ctx: any): Promise<void> {
   ctx.setIsPublishing(true);
   let resolvedVideoUrl = ctx.playVideoUrl;
   try {
-    const authHeaders = await ctx.getMemberAuthHeaders();
-
     let resolvedChannelId = ctx.selectedChannel.id;
     if (ctx.selectedChannel.id === 'temp-channel') {
-      const channelRes = await fetch(`/api/members/${ctx.user.id}/channels`, {
+      const channelData = await memberFetch<any>(`/${ctx.user.id}/channels`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ name: ctx.selectedChannel.name || 'My Products' }),
+        json: { name: ctx.selectedChannel.name || 'My Products' },
       });
-      if (channelRes.ok) {
-        const channelData = await channelRes.json();
-        resolvedChannelId = channelData.id || channelData.channelId;
-        ctx.setSelectedChannel({ id: resolvedChannelId, name: ctx.selectedChannel.name || 'My Products' });
-      } else {
-        throw new Error('Failed to create channel');
-      }
+      resolvedChannelId = channelData.id || channelData.channelId;
+      ctx.setSelectedChannel({ id: resolvedChannelId, name: ctx.selectedChannel.name || 'My Products' });
     }
 
     if (ctx.pendingVideoFile && ctx.playVideoUrl?.startsWith('blob:')) {
       const formData = new FormData();
       formData.append('file', ctx.pendingVideoFile);
       formData.append('storeType', 'member');
-      const uploadRes = await fetch(`/api/members/${ctx.user.id}/videos/upload`, {
+      const uploadData = await memberFetch<any>(`/${ctx.user.id}/videos/upload`, {
         method: 'POST',
-        headers: { ...authHeaders },
         body: formData,
       });
-      if (uploadRes.ok) {
-        const uploadData = await uploadRes.json();
-        if (uploadData.url) {
-          resolvedVideoUrl = uploadData.url;
-          ctx.setPlayVideoUrl(resolvedVideoUrl);
-        }
+      if (uploadData?.url) {
+        resolvedVideoUrl = uploadData.url;
+        ctx.setPlayVideoUrl(resolvedVideoUrl);
       }
       ctx.setPendingVideoFile(null);
     }
@@ -214,21 +193,15 @@ export async function executeSimplePublish(ctx: any): Promise<void> {
 
     if (ctx.currentPacketId) {
       packetData.existingPacketId = ctx.currentPacketId;
-      const res = await fetch(`/api/members/${ctx.user.id}/products`, {
+      result = await memberFetch<any>(`/${ctx.user.id}/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify(packetData)
+        json: packetData,
       });
-      if (!res.ok) throw new Error('Failed to publish');
-      result = await res.json();
     } else {
-      const res = await fetch(`/api/members/${ctx.user.id}/products`, {
+      result = await memberFetch<any>(`/${ctx.user.id}/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify(packetData)
+        json: packetData,
       });
-      if (!res.ok) throw new Error('Failed to publish');
-      result = await res.json();
     }
 
     const packetId = result.id || result.packetId || ctx.currentPacketId || null;
@@ -245,7 +218,6 @@ export async function executeSimplePublish(ctx: any): Promise<void> {
       ctx.setPublishedQrGraphicUrl(result.qrGraphic || null);
       ctx.setPublishedProductGraphicUrl(result.productGraphic || null);
       try {
-        const saveAuthHeaders = await ctx.getMemberAuthHeaders();
         const assetsToSave: { url: string; assetType: string; name: string }[] = [];
         if (result.productGraphic) {
           assetsToSave.push({ url: result.productGraphic, assetType: 'graphic', name: `${ctx.simpleTitle || 'Canvas'} - Product Graphic` });
@@ -258,17 +230,16 @@ export async function executeSimplePublish(ctx: any): Promise<void> {
         }
         for (const asset of assetsToSave) {
           try {
-            await fetch(`/api/members/${ctx.user.id}/library`, {
+            await memberFetch(`/${ctx.user.id}/library`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...saveAuthHeaders },
-              body: JSON.stringify({
+              json: {
                 publicUrl: asset.url,
                 storageUrl: asset.url,
                 assetType: asset.assetType,
                 mediaType: 'image',
                 name: asset.name,
                 fileName: asset.name.replace(/[^a-zA-Z0-9]/g, '_') + '.png'
-              })
+              },
             });
           } catch (err) {
             console.error('[Canvas Auto-Save] Failed:', asset.assetType, err);
@@ -306,7 +277,6 @@ export async function executeSaveCanvasToLibrary(ctx: any): Promise<boolean> {
 
   ctx.setIsCanvasSaving(true);
   try {
-    const authHeaders = await ctx.getMemberAuthHeaders();
     const assetsToSave: { url: string; assetType: string; name: string }[] = [];
 
     if ((ctx.canvasSaveChoice === 'item' || ctx.canvasSaveChoice === 'all') && ctx.publishedProductGraphicUrl) {
@@ -335,24 +305,18 @@ export async function executeSaveCanvasToLibrary(ctx: any): Promise<boolean> {
 
     for (const asset of assetsToSave) {
       try {
-        const saveRes = await fetch(`/api/members/${ctx.user.id}/library`, {
+        await memberFetch(`/${ctx.user.id}/library`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body: JSON.stringify({
+          json: {
             publicUrl: asset.url,
             storageUrl: asset.url,
             assetType: asset.assetType,
             mediaType: 'image',
             name: asset.name,
             fileName: asset.name.replace(/[^a-zA-Z0-9]/g, '_') + '.png'
-          })
+          },
         });
-        if (!saveRes.ok) {
-          console.error('[Canvas Save] Failed to save:', asset.assetType);
-          ctx.toast({ title: 'Library save warning', description: `Could not save ${asset.assetType} to your library.`, variant: 'destructive' });
-        } else {
-          console.log('[Canvas Save] Saved to library:', asset.assetType, asset.name);
-        }
+        console.log('[Canvas Save] Saved to library:', asset.assetType, asset.name);
       } catch (err) {
         console.error('[Canvas Save] Failed to save:', asset.assetType, err);
         ctx.toast({ title: 'Library save warning', description: `Could not save ${asset.assetType} to your library.`, variant: 'destructive' });
@@ -419,10 +383,8 @@ export async function executeVideoFileUpload(ctx: any, file: File): Promise<void
   ctx.setVideoUploadProgress(0);
 
   try {
-    const authHeaders = await ctx.getMemberAuthHeaders();
     const memberId = ctx.user.id;
-
-    const mimeType = file.type || 'video/mp4';
+    const authHeaders = await getAuthHeaders();
 
     const formData = new FormData();
     formData.append('file', file);
@@ -464,7 +426,7 @@ export async function executeVideoFileUpload(ctx: any, file: File): Promise<void
         reject(new Error('Upload was cancelled'));
       });
 
-      xhr.open('POST', `${ctx.apiBase}/${ctx.user.id}/media`);
+      xhr.open('POST', `/api/members/${memberId}/media`);
       const authHeader = (authHeaders as any)['Authorization'];
       if (authHeader) {
         xhr.setRequestHeader('Authorization', authHeader);
@@ -478,20 +440,17 @@ export async function executeVideoFileUpload(ctx: any, file: File): Promise<void
     console.log('[QR Play] Video uploaded successfully:', result.url);
 
     try {
-      const saveRes = await fetch(`/api/members/${memberId}/library/upload`, {
+      await memberFetch(`/${memberId}/library/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
+        json: {
           assetType: 'video',
           name: `${ctx.simpleTitle || 'QR Play'} - Video`,
           imageData: 'data:text/plain;base64,' + btoa(result.url),
           mimeType: 'text/plain',
           originalName: `video-url-${Date.now()}.txt`,
-        })
+        },
       });
-      if (saveRes.ok) {
-        console.log('[QR Play] Video auto-saved to member library');
-      }
+      console.log('[QR Play] Video auto-saved to member library');
     } catch (libErr) {
       console.warn('[QR Play] Auto-save to library failed (non-blocking):', libErr);
     }
@@ -510,18 +469,16 @@ export async function executeSavePlayToLibrary(ctx: any): Promise<void> {
   ctx.setIsPlaySaving(true);
   try {
     if (ctx.playVideoUrl && !ctx.playVideoUrl.startsWith('/api/member-files/')) {
-      const authHeaders = await ctx.getMemberAuthHeaders();
-      const res = await fetch(`/api/members/${ctx.user.id}/library/upload`, {
+      await memberFetch(`/${ctx.user.id}/library/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
+        json: {
           assetType: 'video',
           name: `${ctx.simpleTitle || 'QR Play'} - Video`,
           imageData: 'data:text/plain;base64,' + btoa(ctx.playVideoUrl),
           mimeType: 'text/plain',
           originalName: `video-url-${Date.now()}.txt`,
-        })
-      });
+        },
+      }).catch(() => {});
     }
   } catch (error) {
     console.error('[QR Play] Save to library error:', error);
@@ -534,14 +491,8 @@ export async function executeFetchPublishedCanvasPlayItems(ctx: any): Promise<vo
   if (!ctx.user?.id) return;
   ctx.setIsLoadingPublishedItems(true);
   try {
-    const authHeaders = await ctx.getMemberAuthHeaders();
-    const res = await fetch(`/api/members/${ctx.user.id}/published-items?types=qr-canvas,qr-play`, {
-      headers: authHeaders
-    });
-    if (res.ok) {
-      const data = await res.json();
-      ctx.setPublishedCanvasPlayItems(data.items || []);
-    }
+    const data = await memberFetch<any>(`/${ctx.user.id}/published-items?types=qr-canvas,qr-play`);
+    ctx.setPublishedCanvasPlayItems(data.items || []);
   } catch (error) {
     console.error('[QR Compose] Error fetching published items:', error);
   } finally {
@@ -651,8 +602,6 @@ export async function executeHandlePublish(ctx: any): Promise<void> {
 
   ctx.setIsPublishing(true);
   try {
-    const authHeaders = await ctx.getMemberAuthHeaders();
-
     const textLines = ctx.textLayoutChoice === 'both' ? 2 : (ctx.textLayoutChoice === 'header' || ctx.textLayoutChoice === 'footer') ? 1 : 0;
     const textUpcharge = textLines * (ctx.pricingSettings?.textLineUpcharge || 2);
     const extraPlacements = Math.max(0, ctx.selectedPlacements.length - 1);
@@ -660,10 +609,9 @@ export async function executeHandlePublish(ctx: any): Promise<void> {
     const baseProductPrice = (ctx.selectedProduct as any).retailPrice || ctx.pricingSettings?.baseRetailPrice || 0;
     const calculatedBasePrice = baseProductPrice + textUpcharge + placementUpcharge;
 
-    const productRes = await fetch(`/api/members/${ctx.user.id}/products`, {
+    await memberFetch(`/${ctx.user.id}/products`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders },
-      body: JSON.stringify({
+      json: {
         printfulProductId: ctx.selectedProduct.productId,
         variantId: ctx.selectedProduct.id,
         qrType: ctx.qrType,
@@ -680,10 +628,8 @@ export async function executeHandlePublish(ctx: any): Promise<void> {
         textUpcharge,
         placementUpcharge,
         memberEarnings: ctx.runningEarnings
-      })
+      },
     });
-
-    if (!productRes.ok) throw new Error('Failed to create product');
 
     ctx.setCompletedSteps((prev: Set<any>) => new Set([...Array.from(prev), 'publish']));
     ctx.incrementPublishCount();

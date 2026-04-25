@@ -9,8 +9,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { TemplateCardSkin, TemplateDetailSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { authFetch } from "@/features/adminAuth/authFetch";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 
 interface ProductTemplate {
   id: string;
@@ -75,7 +74,6 @@ export default function TemplatesTab() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { getAuthHeaders } = useAdminAuth();
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showPrimary, setShowPrimary] = useState(true);
@@ -84,8 +82,7 @@ export default function TemplatesTab() {
   const { data, isLoading } = useQuery<{ success: boolean; templates: ProductTemplate[] }>({
     queryKey: ["/api/admin/templates", "templates-tab"],
     queryFn: async () => {
-      const res = await authFetch("/api/admin/templates", getAuthHeaders);
-      return res.json();
+      return adminFetch<any>("/templates");
     },
   });
 
@@ -94,10 +91,10 @@ export default function TemplatesTab() {
   const deleteMutation = useMutation({
     mutationFn: async (templateId: string) => {
       const template = templates.find(t => t.id === templateId);
-      await authFetch(`/api/admin/templates/${templateId}`, getAuthHeaders, { method: "DELETE" });
+      await adminFetch(`/templates/${templateId}`, { method: "DELETE" });
       if (template?.packetId) {
         try {
-          await authFetch(`/api/admin/packets/${template.packetId}`, getAuthHeaders, { method: "DELETE" });
+          await adminFetch(`/packets/${template.packetId}`, { method: "DELETE" });
         } catch {
           console.warn("Failed to delete associated packet");
         }

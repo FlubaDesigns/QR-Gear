@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Store, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import { useProductsContext } from "../ProductsContext";
+import { adminFetch } from "@/lib/adminFetch";
 
 export function ProductsControlBar() {
   const { api, providers, selectedProviders, setSelectedProviders } = useProductsContext();
@@ -39,26 +40,17 @@ export function ProductsControlBar() {
 
   const rebuildMasterProducts = useCallback(async () => {
     try {
-      const headers = await api.getAuthHeaders();
-      await fetch("/api/admin/sync-master-products", {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-      });
+      await adminFetch("/sync-master-products", { method: "POST" });
     } catch (e) {
       console.error("[rebuildMasterProducts] Failed:", e);
     }
-  }, [api]);
+  }, []);
 
   const pollSyncStatus = useCallback(
     async (syncId?: string) => {
       try {
-        const headers = await api.getAuthHeaders();
-        const url = syncId
-          ? `${api.baseUrl}/catalog/sync-status?syncId=${syncId}`
-          : `${api.baseUrl}/catalog/sync-status`;
-        const res = await fetch(url, { headers });
-        if (!res.ok) return;
-        const data = await res.json();
+        const url = syncId ? `/catalog/sync-status?syncId=${syncId}` : `/catalog/sync-status`;
+        const data = await adminFetch<any>(url);
         setSyncStatus(data);
 
         if (data.status === "completed" || data.status === "failed") {
@@ -82,7 +74,7 @@ export function ProductsControlBar() {
         }
       } catch {}
     },
-    [api, toast, stopPolling, rebuildMasterProducts]
+    [toast, stopPolling, rebuildMasterProducts]
   );
 
   useEffect(() => {
@@ -96,29 +88,11 @@ export function ProductsControlBar() {
     setSyncStatus(null);
 
     try {
-      const headers = await api.getAuthHeaders();
-      const endpoint =
-        currentProvider === "printful"
-          ? `${api.baseUrl}/catalog/sync-printful`
-          : `${api.baseUrl}/catalog/sync`;
-      const res = await fetch(endpoint, {
+      const endpoint = currentProvider === "printful" ? `/catalog/sync-printful` : `/catalog/sync`;
+      const data = await adminFetch<any>(endpoint, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: currentProvider }),
+        json: { provider: currentProvider },
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Sync request failed" }));
-        toast({
-          title: "Sync Failed",
-          description: err.error || "Request failed",
-          variant: "destructive",
-        });
-        setSyncing(false);
-        return;
-      }
-
-      const data = await res.json();
       const syncId = data.syncId;
 
       if (syncId) {

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Layers, Plus, Loader2, Package } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 
 interface StoreChannel {
@@ -20,32 +20,20 @@ interface StoreChannel {
 
 export function ChannelPickerModule() {
   const { step, currentStore, currentChannel, setCurrentChannel, setStep } = useStoreBuilderContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const { toast } = useToast();
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
 
   const { data: channels = [], isLoading } = useQuery<StoreChannel[]>({
-    queryKey: [`${apiBase}/stores`, currentStore?.id, "channels"],
+    queryKey: ["/api/admin/stores", currentStore?.id, "channels"],
     enabled: !!currentStore?.id,
   });
 
   const createChannelMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/stores/${currentStore!.id}/channels`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to create channel");
-      }
-      return res.json();
-    },
+    mutationFn: (name: string) =>
+      adminFetch<any>(`/stores/${currentStore!.id}/channels`, { method: "POST", json: { name } }),
     onSuccess: (newChannel) => {
-      queryClient.invalidateQueries({ queryKey: [`${apiBase}/stores`, currentStore?.id, "channels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores", currentStore?.id, "channels"] });
       setCurrentChannel({
         id: newChannel.id,
         storeId: newChannel.storeId,

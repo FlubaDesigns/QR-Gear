@@ -9,8 +9,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/components/skins/GraphicsSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { authFetch } from "@/features/adminAuth/authFetch";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 
 interface ProductPacket {
   id: string;
@@ -57,7 +56,6 @@ export default function GraphicsTab() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { getAuthHeaders } = useAdminAuth();
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showPrimary, setShowPrimary] = useState(true);
@@ -66,18 +64,13 @@ export default function GraphicsTab() {
   const { data, isLoading } = useQuery<{ success: boolean; packets: ProductPacket[] }>({
     queryKey: ["/api/admin/packets", "graphics"],
     queryFn: async () => {
-      const res = await authFetch("/api/admin/packets", getAuthHeaders);
-      return res.json();
+      return adminFetch<any>("/packets");
     },
   });
 
   const archiveMutation = useMutation({
     mutationFn: async (packetId: string) => {
-      const res = await authFetch(`/api/admin/packets/${packetId}`, getAuthHeaders, {
-        method: "PATCH",
-        body: JSON.stringify({ archived: true }),
-      });
-      return res.json();
+      return adminFetch<any>(`/packets/${packetId}`, { method: "PATCH", json: { archived: true } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/packets"] });

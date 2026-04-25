@@ -5,10 +5,10 @@ import { CollapsibleModule } from "@/features/shared/components/CollapsibleModul
 import { useStoreLibraryContext, ChannelInfo } from "../StoreLibraryContext";
 
 export function ChannelListModule() {
-  const { selectedStore, selectedChannel, setSelectedChannel, apiBase } = useStoreLibraryContext();
+  const { selectedStore, selectedChannel, setSelectedChannel } = useStoreLibraryContext();
 
   const { data: channels = [], isLoading, error } = useQuery<ChannelInfo[]>({
-    queryKey: [`${apiBase}/stores`, selectedStore?.id, "channels"],
+    queryKey: ["/api/admin/stores", selectedStore?.id, "channels"],
     enabled: !!selectedStore,
   });
 

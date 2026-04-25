@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBuilderContext } from "../BuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 
 interface BuilderBottomBarProps {
@@ -12,7 +12,6 @@ interface BuilderBottomBarProps {
 
 export function BuilderBottomBar({ onOpenOutput }: BuilderBottomBarProps) {
   const { state } = useBuilderContext();
-  const { getAuthHeaders, apiBase } = useAdminAuth();
   const { toast } = useToast();
   const [draftMode, setDraftMode] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -41,13 +40,10 @@ export function BuilderBottomBar({ onOpenOutput }: BuilderBottomBarProps) {
     if (!name) { inputRef.current?.focus(); return; }
     setSaving(true);
     try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/build-sessions/${activeSessionId}`, {
+      await adminFetch(`/build-sessions/${activeSessionId}`, {
         method: "PATCH",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ draftName: name }),
+        json: { draftName: name },
       });
-      if (!res.ok) throw new Error("Failed to save");
       setSavedName(name);
       setDraftMode(false);
       setDraftName("");

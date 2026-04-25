@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { useAdminAuth } from "../shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 import type { 
   ProductsContextValue, 
   ProductsApi, 
@@ -34,32 +34,23 @@ interface ProductsProviderProps {
 }
 
 export function ProductsProvider({ children }: ProductsProviderProps) {
-  const { requiresAuth, getAuthHeaders, apiBase } = useAdminAuth();
   const [selectedProviders, setSelectedProvidersState] = useState<string[]>(["printful"]);
   const [selectedRole, setSelectedRoleState] = useState<RoleType | null>(null);
   const [selectedStore, setSelectedStoreState] = useState<Store | null>(null);
   const [selectedChannel, setSelectedChannelState] = useState<Channel | null>(null);
   const [selectedCollection, setSelectedCollectionState] = useState<Collection | null>(null);
 
-  // Fetch actual provider configuration from API
   const { data: apiProviders } = useQuery<FulfillmentProvider[]>({
-    queryKey: ["fulfillment-providers", apiBase],
+    queryKey: ["fulfillment-providers"],
     queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const endpoint = `${apiBase}/fulfillment-providers`;
       try {
-        const res = await fetch(endpoint, { headers });
-        if (!res.ok) {
-          console.warn(`[ProductsContext] Failed to fetch providers (${res.status}), using fallback`);
-          return FALLBACK_PROVIDERS;
-        }
-        return res.json();
+        return await adminFetch<FulfillmentProvider[]>("/fulfillment-providers");
       } catch (error) {
-        console.warn('[ProductsContext] Error fetching providers, using fallback:', error);
+        console.warn("[ProductsContext] Error fetching providers, using fallback:", error);
         return FALLBACK_PROVIDERS;
       }
     },
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 60000,
   });
 
   const providers = apiProviders || FALLBACK_PROVIDERS;
@@ -88,122 +79,96 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   useEffect(() => {
     const loadDefaults = async () => {
       try {
-        const headers = await getAuthHeaders();
-        
-        const storesRes = await fetch(`${apiBase}/stores?roleType=internal`, { headers });
-        if (!storesRes.ok) return;
-        const stores: Store[] = await storesRes.json();
-        
+        const stores = await adminFetch<Store[]>("/stores?roleType=internal");
         const qrGearStore = stores.find(s => s.id === "qr-gear" || s.name.toLowerCase().includes("qr gear"));
         if (!qrGearStore) return;
-        
         setSelectedRoleState("internal");
         setSelectedStoreState(qrGearStore);
       } catch (err) {
         console.log("[ProductsContext] Could not load defaults:", err);
       }
     };
-    
     loadDefaults();
-  }, [apiBase, getAuthHeaders]);
+  }, []);
 
   const api = useMemo<ProductsApi>(() => {
-    const getQueryKey = (type: string = "all"): string[] => ["products", apiBase, type];
+    const getQueryKey = (type: string = "all"): string[] => ["products", type];
 
     const invalidateProducts = (type?: string): void => {
       if (type) {
         queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
       } else {
-        queryClient.invalidateQueries({ queryKey: ["products", apiBase] });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     };
 
     return {
-      baseUrl: apiBase,
-      getAuthHeaders,
       getQueryKey,
       invalidateProducts,
 
       fetchProducts: async (provider?: string): Promise<Product[]> => {
-        const headers = await getAuthHeaders();
         const providerParam = provider ? `?provider=${provider}` : "";
-        const res = await fetch(`${apiBase}/products${providerParam}`, { headers });
-        if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
-        return res.json();
+        return adminFetch<Product[]>(`/products${providerParam}`);
       },
 
       syncCatalog: async (provider?: string): Promise<{ synced: number; syncId?: string }> => {
-        const headers = await getAuthHeaders();
-        const syncEndpoint = provider === "printful"
-          ? `${apiBase}/catalog/sync-printful`
-          : `${apiBase}/catalog/sync`;
-        const res = await fetch(syncEndpoint, {
+        const endpoint = provider === "printful" ? "/catalog/sync-printful" : "/catalog/sync";
+        return adminFetch<{ synced: number; syncId?: string }>(endpoint, {
           method: "POST",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ provider }),
+          json: { provider },
         });
-        if (!res.ok) throw new Error(`Sync failed: ${res.status}`);
-        return res.json();
       },
 
       fetchStores: async (roleType: RoleType): Promise<Store[]> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/stores?roleType=${roleType}`, { headers });
-        if (!res.ok) {
-          if (res.status === 404) return [];
-          throw new Error(`Failed to fetch stores: ${res.status}`);
+        try {
+          return await adminFetch<Store[]>(`/stores?roleType=${roleType}`);
+        } catch (err: any) {
+          if (err?.message?.includes("404")) return [];
+          throw err;
         }
-        return res.json();
       },
 
       fetchChannels: async (storeId: string): Promise<Channel[]> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/stores/${storeId}/channels`, { headers });
-        if (!res.ok) {
-          if (res.status === 404) return [];
-          throw new Error(`Failed to fetch channels: ${res.status}`);
+        try {
+          return await adminFetch<Channel[]>(`/stores/${storeId}/channels`);
+        } catch (err: any) {
+          if (err?.message?.includes("404")) return [];
+          throw err;
         }
-        return res.json();
       },
 
       fetchCollections: async (storeId: string, channelId: string): Promise<Collection[]> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channelId}/collections`, { headers });
-        if (!res.ok) {
-          if (res.status === 404) return [];
-          throw new Error(`Failed to fetch collections: ${res.status}`);
+        try {
+          const data = await adminFetch<{ collections: string[] }>(`/stores/${storeId}/channels/${channelId}/collections`);
+          return (data.collections || []).map((name: string) => ({ name }));
+        } catch (err: any) {
+          if (err?.message?.includes("404")) return [];
+          throw err;
         }
-        const data = await res.json();
-        return (data.collections || []).map((name: string) => ({ name }));
       },
 
       createCollection: async (storeId: string, channelId: string, name: string): Promise<Collection> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/stores/${storeId}/channels/${channelId}/collections`, {
+        const data = await adminFetch<{ name?: string }>(`/stores/${storeId}/channels/${channelId}/collections`, {
           method: "POST",
-          headers: { ...headers, "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          json: { name },
         });
-        if (!res.ok) throw new Error(`Failed to create collection: ${res.status}`);
-        const data = await res.json();
         return { name: data.name || name };
       },
 
       fetchLibraryAssets: async (assetType: string): Promise<any[]> => {
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${apiBase}/background-assets?type=${assetType}`, { headers });
-        if (!res.ok) {
-          if (res.status === 404) return [];
-          throw new Error(`Failed to fetch library assets: ${res.status}`);
+        try {
+          return await adminFetch<any[]>(`/background-assets?type=${assetType}`);
+        } catch (err: any) {
+          if (err?.message?.includes("404")) return [];
+          throw err;
         }
-        return res.json();
       },
     };
-  }, [apiBase, getAuthHeaders]);
+  }, []);
 
   const value = useMemo<ProductsContextValue>(
     () => ({
-      requiresAuth,
+      requiresAuth: true,
       api,
       providers,
       selectedProviders,
@@ -219,7 +184,6 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       setSelectedCollection,
     }),
     [
-      requiresAuth, 
       api, 
       providers,
       selectedProviders, 

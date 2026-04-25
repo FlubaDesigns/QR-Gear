@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { adminFetch } from "@/lib/adminFetch";
 
 export type StoreType = "internal" | "marketplace" | "partner" | "external" | "member";
 
@@ -43,7 +43,6 @@ interface StoreLibraryContextValue {
   addToSelection: (product: ProductInfo) => void;
   removeFromSelection: (productId: string) => void;
   clearSelection: () => void;
-  apiBase: string;
 }
 
 const StoreLibraryContext = createContext<StoreLibraryContextValue | null>(null);
@@ -58,11 +57,9 @@ export function useStoreLibraryContext() {
 
 interface StoreLibraryProviderProps {
   children: ReactNode;
-  apiBase?: string;
 }
 
-export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: StoreLibraryProviderProps) {
-  const { getAuthHeaders } = useAdminAuth();
+export function StoreLibraryProvider({ children }: StoreLibraryProviderProps) {
   const [selectedType, setSelectedType] = useState<StoreType>("internal");
   const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<ChannelInfo | null>(null);
@@ -77,10 +74,7 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
     const urlChannel = urlParams.get("channel");
     
     if (urlStoreId && urlStoreId !== "null") {
-      getAuthHeaders().then(headers =>
-        fetch(`${apiBase}/stores/by-id/${urlStoreId}`, { headers })
-      )
-        .then(res => res.ok ? res.json() : null)
+      adminFetch<any>(`/stores/by-id/${urlStoreId}`)
         .then(async (store) => {
           if (store && store.id) {
             setSelectedType((store.type || store.roleType || "internal") as StoreType);
@@ -92,14 +86,10 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
             
             if (urlChannel && urlChannel !== "null") {
               try {
-                const headers = await getAuthHeaders();
-                const channelsRes = await fetch(`${apiBase}/stores/${urlStoreId}/channels`, { headers });
-                if (channelsRes.ok) {
-                  const channels: ChannelInfo[] = await channelsRes.json();
-                  const channel = channels.find(c => c.name === urlChannel || c.id === urlChannel);
-                  if (channel) {
-                    setSelectedChannel(channel);
-                  }
+                const channels: ChannelInfo[] = await adminFetch<ChannelInfo[]>(`/stores/${urlStoreId}/channels`);
+                const channel = channels.find(c => c.name === urlChannel || c.id === urlChannel);
+                if (channel) {
+                  setSelectedChannel(channel);
                 }
               } catch (e) {
                 console.warn("Failed to load channels from URL params:", e);
@@ -112,7 +102,7 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
     } else {
       setUrlParamsProcessed(true);
     }
-  }, [urlParamsProcessed, apiBase, getAuthHeaders]);
+  }, [urlParamsProcessed]);
 
   const addToSelection = (product: ProductInfo) => {
     setSelectedProducts(prev => {
@@ -153,7 +143,6 @@ export function StoreLibraryProvider({ children, apiBase = "/api/admin" }: Store
         addToSelection,
         removeFromSelection,
         clearSelection,
-        apiBase,
       }}
     >
       {children}

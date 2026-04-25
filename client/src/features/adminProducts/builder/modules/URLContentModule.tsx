@@ -2,7 +2,6 @@ import { FileText, Plus, Trash2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
 import { LibraryBackgroundPicker, type SelectedBackground } from "@/features/shared/components/LibraryBackgroundPicker";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
@@ -16,7 +15,6 @@ const DEFAULT_BLOCK: TextStyleConfig = {
 
 export function URLContentModule() {
   const { state, loadBackground, setContent } = useBuilderContext();
-  const { apiBase } = useAdminAuth();
 
   const needsUrlContent = state.qrProductState === "qr_canvas";
 
@@ -77,7 +75,6 @@ export function URLContentModule() {
           </p>
 
           <LibraryBackgroundPicker
-            apiBase={apiBase}
             selectedId={state.loadedBackground?.id}
             onSelect={handleSelectBackground}
             onClear={handleClearBackground}

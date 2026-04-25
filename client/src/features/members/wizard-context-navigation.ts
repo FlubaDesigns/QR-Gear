@@ -25,8 +25,6 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
   if (ctx.simpleStep === 'qr-basic-input') {
     ctx.setIsGeneratingBasicMockup(true);
     try {
-      const authHeaders = await ctx.getMemberAuthHeaders();
-
       const qrContent = ctx.qrBasicContent;
       const qrApiUrl = generateQRCodeUrl(qrContent, 1000);
 

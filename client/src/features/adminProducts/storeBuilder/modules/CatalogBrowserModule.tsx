@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Package, Search, Loader2, ChevronRight, Flag, Link2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useStoreBuilderContext } from "../StoreBuilderContext";
-import { useAdminAuth } from "@/features/shared/AdminAuthContext";
+import { adminFetch } from "@/lib/adminFetch";
 
 interface CatalogItem {
   id: string;
@@ -37,19 +37,15 @@ type ProviderFilter = 'all' | 'printify' | 'printful' | 'matched';
 
 export function CatalogBrowserModule() {
   const { step, currentChannel, selectedBaseProduct, setSelectedBaseProduct, setStep } = useStoreBuilderContext();
-  const { apiBase, getAuthHeaders } = useAdminAuth();
   const [search, setSearch] = useState("");
   const [usaOnly, setUsaOnly] = useState(false);
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
-    queryKey: [`${apiBase}/master-catalog`, { provider: providerFilter }],
+    queryKey: ["/api/admin/master-catalog", { provider: providerFilter }],
     queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${apiBase}/master-catalog`, { headers });
-      if (!res.ok) throw new Error('Failed to load catalog');
-      const data = await res.json() as CatalogCategory[];
+      const data = await adminFetch<CatalogCategory[]>("/master-catalog");
       if (providerFilter === 'all') return data;
       return data.map(cat => ({
         ...cat,

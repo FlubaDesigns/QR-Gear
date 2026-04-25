@@ -11,7 +11,7 @@ import {
   Send, Image as ImageIcon
 } from "lucide-react";
 import { SiInstagram, SiTiktok, SiX, SiFacebook, SiYoutube, SiLinkedin } from "react-icons/si";
-import { getAuthHeaders } from "@/features/shared/components/wizardSteps";
+import { memberFetch } from "@/lib/memberFetch";
 import { useToast } from "@/hooks/use-toast";
 import { SocialProfilesSection, ReadyToPostSection } from "./SocialHubSections";
 
@@ -116,43 +116,23 @@ function ContentCalendarSection({ memberId, showAddSchedule, setShowAddSchedule 
 
   const { data: scheduleData, isLoading } = useQuery<{ success: boolean; schedules: ScheduleEntry[] }>({
     queryKey: ['/api/members', memberId, 'social-schedule'],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch schedule');
-      return res.json();
-    },
+    queryFn: () => memberFetch<any>(`/${memberId}/social-schedule`),
     enabled: !!memberId,
   });
 
   const schedules = scheduleData?.schedules || [];
 
   const toggleMutation = useMutation({
-    mutationFn: async ({ scheduleId, isActive }: { scheduleId: string; isActive: boolean }) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule/${scheduleId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ isActive }),
-      });
-      if (!res.ok) throw new Error('Failed to update');
-      return res.json();
-    },
+    mutationFn: ({ scheduleId, isActive }: { scheduleId: string; isActive: boolean }) =>
+      memberFetch(`/${memberId}/social-schedule/${scheduleId}`, { method: 'PUT', json: { isActive } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'social-schedule'] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (scheduleId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule/${scheduleId}`, {
-        method: 'DELETE',
-        headers: { ...headers },
-      });
-      if (!res.ok) throw new Error('Failed to delete');
-      return res.json();
-    },
+    mutationFn: (scheduleId: string) =>
+      memberFetch(`/${memberId}/social-schedule/${scheduleId}`, { method: 'DELETE' }),
     onSuccess: () => {
       toast({ title: 'Schedule removed' });
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'social-schedule'] });
@@ -160,16 +140,8 @@ function ContentCalendarSection({ memberId, showAddSchedule, setShowAddSchedule 
   });
 
   const updateCadenceMutation = useMutation({
-    mutationFn: async ({ scheduleId, cadence }: { scheduleId: string; cadence: string }) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule/${scheduleId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ cadence }),
-      });
-      if (!res.ok) throw new Error('Failed to update');
-      return res.json();
-    },
+    mutationFn: ({ scheduleId, cadence }: { scheduleId: string; cadence: string }) =>
+      memberFetch(`/${memberId}/social-schedule/${scheduleId}`, { method: 'PUT', json: { cadence } }),
     onSuccess: () => {
       toast({ title: 'Cadence updated' });
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'social-schedule'] });
@@ -298,22 +270,12 @@ function AddScheduleForm({ memberId, onComplete }: { memberId: string; onComplet
 
   const { data: profileData } = useQuery<{ isMember: boolean; profile?: any }>({
     queryKey: ['/api/members/profile'],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch('/api/members/profile', { headers });
-      if (!res.ok) throw new Error('Failed to fetch profile');
-      return res.json();
-    },
+    queryFn: () => memberFetch<any>('/profile'),
   });
 
   const { data: packetsData, isLoading: packetsLoading } = useQuery<{ items: any[] }>({
     queryKey: ['/api/members', memberId, 'published-items'],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/published-items`, { headers });
-      if (!res.ok) throw new Error('Failed to fetch products');
-      return res.json();
-    },
+    queryFn: () => memberFetch<any>(`/${memberId}/published-items`),
     enabled: !!memberId,
   });
 
@@ -326,17 +288,10 @@ function AddScheduleForm({ memberId, onComplete }: { memberId: string; onComplet
     mutationFn: async () => {
       if (!selectedPacketId) throw new Error('Select a product');
       if (selectedPlatforms.length === 0) throw new Error('Select at least one platform');
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/social-schedule`, {
+      return memberFetch(`/${memberId}/social-schedule`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ packetId: selectedPacketId, cadence, platforms: selectedPlatforms }),
+        json: { packetId: selectedPacketId, cadence, platforms: selectedPlatforms },
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to create schedule');
-      }
-      return res.json();
     },
     onSuccess: () => {
       toast({ title: 'Product added to calendar' });
