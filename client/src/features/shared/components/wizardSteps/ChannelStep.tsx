@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Check, Plus, Loader2, Layers } from "lucide-react";
-import { type MemberChannel, getAuthHeaders } from "./wizardTypes";
+import { type MemberChannel } from "./wizardTypes";
+import { memberFetch } from "@/lib/memberFetch";
 
 export function ChannelStep({ 
   selectedChannel, 
@@ -29,24 +30,17 @@ export function ChannelStep({
   const { data: channels = [], isLoading, refetch } = useQuery<MemberChannel[]>({
     queryKey: ["/api/members", memberId, "channels"],
     queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels`, { headers });
-      if (!res.ok) return [];
-      return res.json();
+      return memberFetch<MemberChannel[]>(`/${memberId}/channels`);
     },
     enabled: !!memberId,
   });
 
   const createChannelMutation = useMutation({
     mutationFn: async (name: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/members/${memberId}/channels`, {
+      return memberFetch<any>(`/${memberId}/channels`, {
         method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        json: { name },
       });
-      if (!res.ok) throw new Error("Failed to create channel");
-      return res.json();
     },
     onSuccess: (data) => {
       toast({ title: "Channel Created", description: `"${data.name}" is ready to use.` });

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Upload, Library, User, X } from "lucide-react";
-import { auth } from "@/lib/firebase";
+import { memberFetch } from "@/lib/memberFetch";
 import { ScrollGridView } from "./views/ScrollGridView";
 import type { GridViewItem } from "./views/index";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
@@ -27,11 +27,6 @@ interface BackgroundLibraryPickerProps {
   onSelect: (croppedUrl: string, originalUrl: string) => void;
   onClose: () => void;
   assetType?: 'background' | 'video';
-}
-
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const token = await auth.currentUser?.getIdToken();
-  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 }
 
 function assetToGridItem(asset: LibraryAsset): GridViewItem {
@@ -69,36 +64,23 @@ export function BackgroundLibraryPicker({
   const { data: commonAssets = [], isLoading: loadingCommon } = useQuery({
     queryKey: ['/api/members/common-library', assetType],
     queryFn: async () => {
-      const res = await fetch(`/api/members/common-library?assetType=${assetType}`, {
-        headers: await getAuthHeaders()
-      });
-      if (!res.ok) throw new Error('Failed to fetch common library');
-      const data = await res.json();
-      return data.assets as LibraryAsset[];
+      const data = await memberFetch<{ assets: LibraryAsset[] }>(`/common-library?assetType=${assetType}`);
+      return data.assets;
     }
   });
 
   const { data: personalAssets = [], isLoading: loadingPersonal } = useQuery({
     queryKey: ['/api/members', memberId, 'library', assetType],
     queryFn: async () => {
-      const res = await fetch(`/api/members/${memberId}/library?assetType=${assetType}`, {
-        headers: await getAuthHeaders()
-      });
-      if (!res.ok) throw new Error('Failed to fetch personal library');
-      const data = await res.json();
-      return data.assets as LibraryAsset[];
+      const data = await memberFetch<{ assets: LibraryAsset[] }>(`/${memberId}/library?assetType=${assetType}`);
+      return data.assets;
     },
     enabled: !!memberId
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (assetId: string) => {
-      const res = await fetch(`/api/members/${memberId}/library/${assetId}`, {
-        method: 'DELETE',
-        headers: await getAuthHeaders()
-      });
-      if (!res.ok) throw new Error('Delete failed');
-      return res.json();
+      return memberFetch<any>(`/${memberId}/library/${assetId}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       toast({ title: "Image deleted" });
@@ -119,19 +101,16 @@ export function BackgroundLibraryPicker({
       });
       const imageData = await base64Promise;
 
-      const res = await fetch(`/api/members/${memberId}/library/upload`, {
+      return memberFetch<any>(`/${memberId}/library/upload`, {
         method: 'POST',
-        headers: await getAuthHeaders(),
-        body: JSON.stringify({
+        json: {
           assetType,
           name: file.name,
           imageData,
           mimeType: file.type,
           originalName: file.name
-        })
+        }
       });
-      if (!res.ok) throw new Error('Upload failed');
-      return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'library'] });

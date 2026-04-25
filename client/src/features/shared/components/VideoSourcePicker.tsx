@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { auth } from "@/lib/firebase";
+import { memberFetch } from "@/lib/memberFetch";
 
 export type VideoSourceType = "upload" | "external";
 
@@ -28,11 +28,6 @@ interface VideoSourcePickerProps {
   onChange: (source: VideoSource | null) => void;
   onError?: (error: string) => void;
   className?: string;
-}
-
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const token = await auth.currentUser?.getIdToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function detectPlatform(url: string): VideoSource["platform"] {
@@ -91,21 +86,14 @@ export function VideoSourcePicker({
       });
       const videoData = await base64Promise;
 
-      const res = await fetch(`/api/members/${memberId}/videos/upload`, {
+      const data = await memberFetch<any>(`/${memberId}/videos/upload`, {
         method: "POST",
-        headers: {
-          ...await getAuthHeaders(),
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
+        json: {
           videoData,
           mimeType: file.type,
           fileName: file.name
-        })
+        }
       });
-
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
 
       onChange({
         type: "upload",
@@ -141,23 +129,16 @@ export function VideoSourcePicker({
       });
       const imageData = await base64Promise;
 
-      const res = await fetch(`/api/members/${memberId}/library/upload`, {
+      const data = await memberFetch<any>(`/${memberId}/library/upload`, {
         method: "POST",
-        headers: {
-          ...await getAuthHeaders(),
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
+        json: {
           assetType: "poster",
           name: `poster-${Date.now()}`,
           imageData,
           mimeType: file.type,
           originalName: file.name
-        })
+        }
       });
-
-      if (!res.ok) throw new Error("Poster upload failed");
-      const data = await res.json();
       
       setPosterUrl(data.asset.publicUrl);
       
