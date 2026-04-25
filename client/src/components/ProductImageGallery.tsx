@@ -8,6 +8,8 @@ interface GalleryImage {
   url: string;
   alt?: string;
   label?: string;
+  /** Type hint from buildProductGallery — used to pick object-fit */
+  type?: string;
 }
 
 interface ProductImageGalleryProps {
@@ -221,7 +223,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           <img
             src={images[0].url}
             alt={images[0].alt || "Product image"}
-            className="w-full h-full object-cover"
+            className={`w-full h-full ${images[0].type === 'mockup' || images[0].type === 'graphic' ? 'object-contain' : 'object-cover'}`}
             data-testid="img-product-single"
           />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
@@ -256,7 +258,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           <img
             src={images[currentIndex].url}
             alt={images[currentIndex].alt || `Product image ${currentIndex + 1}`}
-            className="w-full h-full object-cover transition-opacity duration-300"
+            className={`w-full h-full transition-opacity duration-300 ${images[currentIndex].type === 'mockup' || images[currentIndex].type === 'graphic' ? 'object-contain' : 'object-cover'}`}
             data-testid={`img-product-${currentIndex}`}
           />
           

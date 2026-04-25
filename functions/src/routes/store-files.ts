@@ -90,6 +90,32 @@ function extractPacketMockups(pkt: Record<string, any>): {
   return { mockupsByColor: result, mockupImages, defaultColor };
 }
 
+/**
+ * Handle the simpler 2-level format used in the `packets` collection:
+ *   { colorKey: { front?: string; lifestyle?: string; angles?: string[] } }
+ *
+ * `extractPacketMockups` handles the 3-level productPackets format.
+ * This handles the 2-level member/wizard packet format.
+ */
+function tryFlatMockupsByColor(
+  raw: Record<string, any>,
+): Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null {
+  const result: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> = {};
+  for (const [colorKey, val] of Object.entries(raw)) {
+    if (!val || typeof val !== 'object' || Array.isArray(val)) continue;
+    if (typeof val.front === 'string' || typeof val.lifestyle === 'string') {
+      result[colorKey] = {
+        ...(val.lifestyle ? { lifestyle: val.lifestyle as string } : {}),
+        ...(val.front ? { front: val.front as string } : {}),
+        ...(Array.isArray(val.angles)
+          ? { angles: (val.angles as any[]).filter((u) => typeof u === 'string') }
+          : {}),
+      };
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
   export function register(app: express.Express): void {
   // ============ BATCH: STORE/LIBRARY FILE ROUTES ============
 
@@ -115,6 +141,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let productLine = '';
       let packetImageUrl: string | null = null;
       let packetPlacementMockupUrls: Record<string, string> = {};
+      let packetMockupsByColorA: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
 
       if (link.packetId) {
         const packetDoc = await db.collection('packets').doc(link.packetId).get();
@@ -123,6 +150,12 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
           packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
           if (packet.placementMockupUrls && typeof packet.placementMockupUrls === 'object') {
             packetPlacementMockupUrls = packet.placementMockupUrls as Record<string, string>;
+          }
+          // Extract color-keyed mockups — try 3-level format (productPackets) then 2-level flat (packets)
+          const rawMockups = packet.mockupsByColor;
+          if (rawMockups && typeof rawMockups === 'object' && !Array.isArray(rawMockups)) {
+            const extracted3 = extractPacketMockups(packet);
+            packetMockupsByColorA = extracted3.mockupsByColor ?? tryFlatMockupsByColor(rawMockups as Record<string, any>);
           }
           const productId = packet.productId;
           if (productId) {
@@ -162,7 +195,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       };
       const EXTRA_PLACEMENT_ORDER = ['back', 'left_sleeve', 'right_sleeve'];
 
-      // Collect all mockup/graphic URLs to append after catalog images
+      // Collect all mockup/graphic URLs ordered: lifestyle → front → placements → QR art
       const mockupImages: string[] = [];
       if (lifestyleUrl) mockupImages.push(lifestyleUrl);
       if (flatMockupUrl && flatMockupUrl !== lifestyleUrl) mockupImages.push(flatMockupUrl);
@@ -174,11 +207,26 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       const qrArtUrl = link.compositeUrl || link.qrOnlyUrl || null;
       if (qrArtUrl && !mockupImages.includes(qrArtUrl)) mockupImages.push(qrArtUrl);
 
+      // If no per-color data yet, build a synthetic single-color entry from flat fields
+      if (!packetMockupsByColorA) {
+        const synColorKey = link.defaultColor || null;
+        const synAngles = EXTRA_PLACEMENT_ORDER.map((p) => mergedPlacementUrls[p]).filter(Boolean) as string[];
+        if (synColorKey && (flatMockupUrl || lifestyleUrl || synAngles.length > 0)) {
+          packetMockupsByColorA = {
+            [synColorKey]: {
+              ...(lifestyleUrl ? { lifestyle: lifestyleUrl } : {}),
+              ...(flatMockupUrl ? { front: flatMockupUrl } : {}),
+              ...(synAngles.length > 0 ? { angles: synAngles } : {}),
+            },
+          };
+        }
+      }
+
       const allImages: string[] = [];
-      // Kept catalog images first
-      storedImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      // Digital markup mockups appended at the end
+      // Mockups first (lifestyle → front → placements → QR art)
       mockupImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
+      // Catalog/provider images after
+      storedImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
 
       res.json({
         id: linkDoc.id,
@@ -196,7 +244,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         availableColors,
         availablePlacements,
         defaultColor: link.defaultColor || null,
-        mockupsByColor: null,
+        mockupsByColor: packetMockupsByColorA,
         selectedGraphicSize: link.selectedGraphicSize || null,
         storeId: link.storeId || null,
         storeName: link.storeName || null,
