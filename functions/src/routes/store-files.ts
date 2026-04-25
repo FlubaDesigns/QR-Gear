@@ -15,6 +15,81 @@ import { printfulClient } from '../services/printful';
 import { COLOR_HEX_MAP } from '../../../shared/colorUtils';
 import { buildStructuredOptions, deriveCardMode } from '../../../shared/storefrontTypes';
 
+/**
+ * Convert a productPackets.mockupsByColor nested structure into the flat frontend format.
+ *
+ * Stored format in Firestore:
+ *   { [colorKey]: { [placementKey]: { [sizeKey]: url, lifestyle: url } } }
+ *
+ * Returned format for the frontend:
+ *   { [colorKey]: { lifestyle?, front?, angles?: string[] } }
+ *
+ * Also returns an ordered `mockupImages` array built from the first (default) color:
+ *   [lifestyle, front, ...other placements]
+ * and the `defaultColor` key so the API can advertise which color is pre-selected.
+ */
+function extractPacketMockups(pkt: Record<string, any>): {
+  mockupsByColor: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null;
+  mockupImages: string[];
+  defaultColor: string | null;
+} {
+  const raw = pkt.mockupsByColor;
+  const fallbackUrl: string | null =
+    pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { mockupsByColor: null, mockupImages: fallbackUrl ? [fallbackUrl] : [], defaultColor: null };
+  }
+
+  const result: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> = {};
+
+  for (const [colorKey, placementsRaw] of Object.entries(raw)) {
+    if (!placementsRaw || typeof placementsRaw !== 'object') continue;
+    const placements = placementsRaw as Record<string, any>;
+    const colorEntry: { lifestyle?: string; front?: string; angles: string[] } = { angles: [] };
+
+    for (const [placementKey, sizeDataRaw] of Object.entries(placements)) {
+      if (!sizeDataRaw || typeof sizeDataRaw !== 'object') continue;
+      const sizeData = sizeDataRaw as Record<string, any>;
+
+      if (sizeData.lifestyle && !colorEntry.lifestyle) {
+        colorEntry.lifestyle = sizeData.lifestyle;
+      }
+
+      const mockupUrl = Object.entries(sizeData)
+        .filter(([k]) => k !== 'lifestyle')
+        .map(([, v]) => v as string)
+        .find((v) => typeof v === 'string' && v.startsWith('http'));
+
+      if (mockupUrl) {
+        const isFront = ['front', 'front-center', 'chest', 'front_center'].includes(placementKey);
+        if (isFront && !colorEntry.front) {
+          colorEntry.front = mockupUrl;
+        } else if (!isFront) {
+          colorEntry.angles.push(mockupUrl);
+        }
+      }
+    }
+
+    if (colorEntry.lifestyle || colorEntry.front || colorEntry.angles.length > 0) {
+      result[colorKey] = colorEntry;
+    }
+  }
+
+  if (Object.keys(result).length === 0) {
+    return { mockupsByColor: null, mockupImages: fallbackUrl ? [fallbackUrl] : [], defaultColor: null };
+  }
+
+  const defaultColor = Object.keys(result)[0];
+  const first = result[defaultColor];
+  const mockupImages: string[] = [];
+  if (first.lifestyle) mockupImages.push(first.lifestyle);
+  if (first.front) mockupImages.push(first.front);
+  (first.angles || []).forEach((u) => mockupImages.push(u));
+
+  return { mockupsByColor: result, mockupImages, defaultColor };
+}
+
   export function register(app: express.Express): void {
   // ============ BATCH: STORE/LIBRARY FILE ROUTES ============
 
@@ -147,26 +222,38 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
     let price: number | null = resolved.pricing?.customerPrice ?? null;
     let packetMockupUrl: string | null = null;
+    let packetMockupsByColor: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
+    let packetMockupImages: string[] = [];
+    let packetDefaultColor: string | null = null;
 
     if (d.currentPacketId) {
       try {
         const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
         if (pDoc.exists) {
           const pkt = pDoc.data()!;
+          const extracted = extractPacketMockups(pkt);
+          packetMockupsByColor = extracted.mockupsByColor;
+          packetMockupImages = extracted.mockupImages;
+          packetDefaultColor = extracted.defaultColor;
           packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
           if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
         }
-      } catch (_) {}
+      } catch (e: any) {
+        console.error('[Store API] Failed to read productPacket for', d.currentPacketId, e.message);
+      }
     }
 
     const toStrArr = (arr: any[]): string[] =>
       (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
 
-    // Build ordered gallery: kept catalog images first → digital markup mockup appended
+    // Build ordered gallery: packet mockups first → provider catalog images after
     const providerImages = toUrlArr(resolved.images || []);
     const allImages: string[] = [];
+    packetMockupImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
     providerImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-    if (packetMockupUrl && !allImages.includes(packetMockupUrl)) allImages.push(packetMockupUrl);
+    if (packetMockupImages.length === 0 && packetMockupUrl && !allImages.includes(packetMockupUrl)) {
+      allImages.unshift(packetMockupUrl);
+    }
 
     const bColors = toStrArr(d.enabledColors || resolved.colors || []);
     const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
@@ -186,8 +273,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       availableSizes: bSizes,
       availableColors: bColors,
       availablePlacements: [],
-      defaultColor: null,
-      mockupsByColor: null,
+      defaultColor: packetDefaultColor,
+      mockupsByColor: packetMockupsByColor,
       selectedGraphicSize: null,
       storeId: d.storeId || null,
       storeName: d.storeName || null,
@@ -196,7 +283,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       packetId: d.currentPacketId || null,
       options: buildStructuredOptions(bColors, bSizes),
       cardMode: deriveCardMode(bColors, bSizes),
-      media: { images: allImages, mockupPriority: true, heroStrategy: 'catalogFirst' },
+      media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
     });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -347,16 +434,25 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             const imageUrl = getFirstImageUrl(resolved.images || []);
             // QR graphic mockup from the packet — shown as secondary image
             let packetImageUrl: string | null = null;
+            let pktMockupsByColor1: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
+            let pktMockupImages1: string[] = [];
+            let pktDefaultColor1: string | null = null;
 
             if (d.currentPacketId) {
               try {
                 const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
+                  const extracted = extractPacketMockups(pkt);
+                  pktMockupsByColor1 = extracted.mockupsByColor;
+                  pktMockupImages1 = extracted.mockupImages;
+                  pktDefaultColor1 = extracted.defaultColor;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
-              } catch (_) {}
+              } catch (e: any) {
+                console.error('[Store API] Listing1: failed to read productPacket', d.currentPacketId, e.message);
+              }
             }
 
             const toStringArray = (arr: any[]): string[] =>
@@ -367,11 +463,14 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             const rawColors = d.enabledColors || resolved.colors || [];
             const rawSizes = d.enabledSizes || resolved.sizes || [];
 
-            // Build ordered gallery: kept catalog images first → digital markup mockup appended
+            // Build ordered gallery: packet mockups first → provider catalog images after
             const providerImgs = (resolved.images || []).map(toImgUrl).filter(Boolean) as string[];
             const allImages: string[] = [];
+            pktMockupImages1.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
             providerImgs.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-            if (packetImageUrl && !allImages.includes(packetImageUrl)) allImages.push(packetImageUrl);
+            if (pktMockupImages1.length === 0 && packetImageUrl && !allImages.includes(packetImageUrl)) {
+              allImages.unshift(packetImageUrl);
+            }
 
             const l1Colors = toStringArray(rawColors);
             const l1Sizes = toStringArray(rawSizes);
@@ -389,13 +488,13 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               qrCodeUrl: null,
               selectedColors: l1Colors,
               availableSizes: l1Sizes,
-              defaultColor: null,
-              mockupsByColor: null,
+              defaultColor: pktDefaultColor1,
+              mockupsByColor: pktMockupsByColor1,
               price: price !== null ? Math.round(price * 100) / 100 : null,
               createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
               options: buildStructuredOptions(l1Colors, l1Sizes),
               cardMode: deriveCardMode(l1Colors, l1Sizes),
-              media: { images: allImages, mockupPriority: true, heroStrategy: 'catalogFirst' },
+              media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
             };
           })
       );
@@ -475,24 +574,36 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let price: number | null = resolved.pricing?.customerPrice ?? null;
             const imageUrl = getFirstImgUrl(resolved.images || []);
             let packetImageUrl: string | null = null;
+            let pktMockupsByColor2: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
+            let pktMockupImages2: string[] = [];
+            let pktDefaultColor2: string | null = null;
 
             if (d.currentPacketId) {
               try {
                 const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
+                  const extracted = extractPacketMockups(pkt);
+                  pktMockupsByColor2 = extracted.mockupsByColor;
+                  pktMockupImages2 = extracted.mockupImages;
+                  pktDefaultColor2 = extracted.defaultColor;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
-              } catch (_) {}
+              } catch (e: any) {
+                console.error('[Store API] Listing2: failed to read productPacket', d.currentPacketId, e.message);
+              }
             }
 
             const toImgUrlCh = (img: any): string | null =>
               typeof img === 'string' ? img : (img?.url || null);
             const providerImgsCh = (resolved.images || []).map(toImgUrlCh).filter(Boolean) as string[];
             const allImagesCh: string[] = [];
+            pktMockupImages2.forEach((u) => { if (!allImagesCh.includes(u)) allImagesCh.push(u); });
             providerImgsCh.forEach((u) => { if (!allImagesCh.includes(u)) allImagesCh.push(u); });
-            if (packetImageUrl && !allImagesCh.includes(packetImageUrl)) allImagesCh.push(packetImageUrl);
+            if (pktMockupImages2.length === 0 && packetImageUrl && !allImagesCh.includes(packetImageUrl)) {
+              allImagesCh.unshift(packetImageUrl);
+            }
 
             const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
             const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
@@ -510,8 +621,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               qrCodeUrl: null,
               selectedColors: l2Colors,
               availableSizes: l2Sizes,
-              defaultColor: null,
-              mockupsByColor: null,
+              defaultColor: pktDefaultColor2,
+              mockupsByColor: pktMockupsByColor2,
               price: price !== null ? Math.round(price * 100) / 100 : null,
               createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
               options: buildStructuredOptions(l2Colors, l2Sizes),
@@ -560,23 +671,36 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           const imageUrl = getFirstImgUrl2(resolved.images || []);
           let packetImageUrl: string | null = null;
 
+          let pktMockupsByColor3: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
+          let pktMockupImages3: string[] = [];
+          let pktDefaultColor3: string | null = null;
+
           if (d.currentPacketId) {
             try {
               const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
               if (pDoc.exists) {
                 const pkt = pDoc.data()!;
+                const extracted = extractPacketMockups(pkt);
+                pktMockupsByColor3 = extracted.mockupsByColor;
+                pktMockupImages3 = extracted.mockupImages;
+                pktDefaultColor3 = extracted.defaultColor;
                 packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                 if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
               }
-            } catch (_) {}
+            } catch (e: any) {
+              console.error('[Store API] Listing3: failed to read productPacket', d.currentPacketId, e.message);
+            }
           }
 
           const toImgUrlSt = (img: any): string | null =>
             typeof img === 'string' ? img : (img?.url || null);
           const providerImgsSt = (resolved.images || []).map(toImgUrlSt).filter(Boolean) as string[];
           const allImagesSt: string[] = [];
+          pktMockupImages3.forEach((u) => { if (!allImagesSt.includes(u)) allImagesSt.push(u); });
           providerImgsSt.forEach((u) => { if (!allImagesSt.includes(u)) allImagesSt.push(u); });
-          if (packetImageUrl && !allImagesSt.includes(packetImageUrl)) allImagesSt.push(packetImageUrl);
+          if (pktMockupImages3.length === 0 && packetImageUrl && !allImagesSt.includes(packetImageUrl)) {
+            allImagesSt.unshift(packetImageUrl);
+          }
 
           const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
           const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
@@ -594,13 +718,13 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             qrCodeUrl: null,
             selectedColors: l3Colors,
             availableSizes: l3Sizes,
-            defaultColor: null,
-            mockupsByColor: null,
+            defaultColor: pktDefaultColor3,
+            mockupsByColor: pktMockupsByColor3,
             price: price !== null ? Math.round(price * 100) / 100 : null,
             createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
             options: buildStructuredOptions(l3Colors, l3Sizes),
             cardMode: deriveCardMode(l3Colors, l3Sizes),
-            media: { images: allImagesSt, mockupPriority: true, heroStrategy: 'catalogFirst' },
+            media: { images: allImagesSt, mockupPriority: true, heroStrategy: 'mockupFirst' },
           };
         })
     );

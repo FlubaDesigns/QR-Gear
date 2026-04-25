@@ -15,6 +15,7 @@ export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: stri
 export function StoreProductCard({ product }: { product: StoreProduct }) {
   const href = `/shop/product/${product.id}`;
   const heroImage = (product as any).images?.[0] ?? product.imageUrl;
+  const hasMockup = !!(product as any).packetImageUrl;
   const typeInfo = product.qrProductType ? QR_PRODUCT_TYPE_LABELS[product.qrProductType] : null;
 
   return (
@@ -28,7 +29,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
             <img
               src={heroImage}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className={`w-full h-full transition-transform duration-300 group-hover:scale-105 ${hasMockup ? 'object-contain' : 'object-cover'}`}
               data-testid={`img-product-${product.id}`}
             />
           ) : (

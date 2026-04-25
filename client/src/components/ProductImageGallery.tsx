@@ -151,6 +151,12 @@ export default function ProductImageGallery({ images, className }: ProductImageG
 
   const minSwipeDistance = 50;
 
+  // Reset to first image whenever the gallery changes (e.g. color selection swap)
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsLightboxOpen(false);
+  }, [images[0]?.url]);
+
   // Close lightbox on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
