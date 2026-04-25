@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 23, 2026 (rev 25)
+Last updated: April 25, 2026 (rev 26)
 
 ---
 
@@ -491,6 +491,17 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 25, 2026 — Delete Button for Resume List (rev 26)
+
+Added a working DELETE route so the trash icon on each saved build session card in the "Resume a Saved Build" modal actually removes the session from Firestore. Previously the button was rendered in the UI but silently failed with a 404 because the backend route was missing.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/admin-build-sessions.ts` | Added `DELETE /admin/build-sessions/:id` route — permanently removes the session document from Firestore |
+
+---
 
 ### April 23, 2026 — Pre-Launch Checklist Page (rev 25)
 

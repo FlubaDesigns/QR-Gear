@@ -656,6 +656,27 @@ export function registerAdminBuildSessions(app: express.Express): void {
     }
   });
 
+  // ── Permanently delete a build session ───────────────────────────────────
+  app.delete('/admin/build-sessions/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
+      const doc = await ref.get();
+
+      if (!doc.exists) {
+        res.status(404).json({ error: 'Build session not found' });
+        return;
+      }
+
+      await ref.delete();
+      console.log(`[BuildSessions] Deleted session ${id}`);
+      res.json({ success: true, sessionId: id });
+    } catch (err: any) {
+      console.error('[BuildSessions] delete error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Cleanup stale sessions ────────────────────────────────────────────────
   app.post('/admin/build-sessions/cleanup', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
     try {
