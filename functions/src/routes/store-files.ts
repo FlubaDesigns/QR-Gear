@@ -470,8 +470,11 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       const products = await Promise.all(
         instancesSnap.docs
           .filter((doc: any) => {
+            const d = doc.data();
+            // Exclude soft-deleted / hidden instances from the public store
+            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
             if (!segment) return true;
-            return doc.data().collectionName === segment;
+            return d.collectionName === segment;
           })
           .map(async (doc: any) => {
             const d = doc.data();
@@ -612,8 +615,11 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       const channelProducts = await Promise.all(
         instancesSnap.docs
           .filter((doc: any) => {
+            const d = doc.data();
+            // Exclude soft-deleted / hidden instances from the public store
+            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
             if (!collection) return true;
-            const name: string = doc.data().collectionName || '';
+            const name: string = d.collectionName || '';
             return name === collection || toSlug(name) === collectionSlug;
           })
           .map(async (doc: any) => {
@@ -711,7 +717,12 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
     const products = await Promise.all(
       storeInstancesSnap.docs
-        .filter((doc: any) => !segment || doc.data().collectionName === segment)
+        .filter((doc: any) => {
+          const d = doc.data();
+          // Exclude soft-deleted / hidden instances from the public store
+          if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+          return !segment || d.collectionName === segment;
+        })
         .map(async (doc: any) => {
           const d = doc.data();
           const resolved = d.resolved || {};

@@ -161,26 +161,41 @@ function register(app) {
     });
     app.delete('/admin/stores/:storeId/channels/:channelId', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { channelId } = req.params;
-            await core_1.db.collection('storeChannels').doc(channelId).delete();
-            res.json({ success: true });
+            const { storeId, channelId } = req.params;
+            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+            // Soft-delete every catalog instance in this channel so the public store
+            // stops showing them immediately without permanently destroying data.
+            const instancesSnap = await core_1.db.collection('admin_catalog_instances')
+                .where('storeId', '==', storeId)
+                .where('channelId', '==', channelId)
+                .get();
+            const batch = core_1.db.batch();
+            instancesSnap.docs.forEach(doc => {
+                batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
+            });
+            batch.delete(core_1.db.collection('storeChannels').doc(channelId));
+            await batch.commit();
+            res.json({ success: true, archivedInstances: instancesSnap.size });
         }
         catch (error) {
             console.error('[Channels] DELETE error:', error);
             res.status(500).json({ error: error.message });
         }
     });
-    // Admin: Delete a collection (removes all catalog instances in it)
+    // Admin: Delete a collection (soft-deletes all catalog instances in it)
     app.delete('/admin/stores/:storeId/channels/:channelId/collections/:collectionName', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { storeId, channelId, collectionName } = req.params;
+            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
             const snap = await core_1.db.collection('admin_catalog_instances')
                 .where('storeId', '==', storeId)
                 .where('channelId', '==', channelId)
                 .where('collectionName', '==', collectionName)
                 .get();
             const batch = core_1.db.batch();
-            snap.docs.forEach(doc => batch.delete(doc.ref));
+            snap.docs.forEach(doc => {
+                batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
+            });
             await batch.commit();
             res.json({ success: true, deleted: snap.size });
         }
@@ -199,12 +214,16 @@ function register(app) {
             }
             const collectionsSet = new Set();
             // 1. From admin_catalog_instances (primary source for Catalog tab)
+            // Exclude soft-deleted instances so their collections don't appear in the sidebar.
             const instancesSnapshot = await core_1.db.collection('admin_catalog_instances')
                 .where('storeId', '==', storeId)
                 .where('channelId', '==', channelId)
                 .get();
             instancesSnapshot.docs.forEach(doc => {
-                const col = doc.data().collectionName;
+                const d = doc.data();
+                if (d.isVisible === false || d.status === 'deleted')
+                    return;
+                const col = d.collectionName;
                 if (col)
                     collectionsSet.add(col);
             });

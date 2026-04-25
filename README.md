@@ -366,6 +366,8 @@ Each item is expandable — tap to see the fix and a deep link to the relevant a
 
 Products in the store are managed as **catalog instances** (`admin_catalog_instances` Firestore collection). Each instance references a product packet, has enabled colors/sizes, pricing, and a folder path (store/channel/collection). Admin can toggle colors/sizes, move items between collections, and delete items directly from each card.
 
+**Delete behavior (soft-delete):** Deleting a catalog instance sets `isVisible: false`, `status: 'deleted'`, and `deletedAt` — it does NOT hard-delete the Firestore document. Deleting a channel or store cascades this soft-delete to all matching `admin_catalog_instances`. All public store endpoints (`store-files.ts`) filter out any instance where `isVisible === false` or `status === 'deleted'`, so deleted products are immediately invisible to shoppers.
+
 ---
 
 ## Canon Rules for Future Agents
@@ -381,6 +383,7 @@ Products in the store are managed as **catalog instances** (`admin_catalog_insta
 9. **ALWAYS** use `normalizeWizardProduct()` when building wizard product objects
 10. **ALWAYS** import collection names from `functions/src/constants.ts` — never redefine locally
 11. **ALWAYS** deploy to production after every change; update the ZIP
+12. **NEVER** hard-delete `admin_catalog_instances` documents — always soft-delete (`isVisible: false`, `status: 'deleted'`, `deletedAt`). Store/channel deletes must cascade this soft-delete to all child instances.
 
 ---
 

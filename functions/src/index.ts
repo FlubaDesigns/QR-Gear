@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260423-stripe-connect-payouts-v1';
+const _BUILD_ID = '20260425-store-delete-visibility-fix-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -131,7 +131,7 @@ export const api = onRequest(
     timeoutSeconds: 540,
     memory: '1GiB',
     cors: true,
-    labels: { 'build-id': '20260423-oil-change-rules-indexes-v1' },
+    labels: { 'build-id': '20260425-store-delete-visibility-fix-v1' },
   },
   app
 );

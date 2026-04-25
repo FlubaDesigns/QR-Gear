@@ -54,12 +54,25 @@ app.post('/stores', requireAdmin, async (req: Request, res: Response): Promise<v
 app.delete('/stores/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId } = req.params;
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Soft-delete every catalog instance belonging to this store so the public
+    // store immediately stops showing them without permanently destroying data.
+    const instancesSnap = await db.collection('admin_catalog_instances')
+      .where('storeId', '==', storeId)
+      .get();
+
     const channelsSnapshot = await db.collection('storeChannels').where('storeId', '==', storeId).get();
     const batch = db.batch();
+
+    instancesSnap.docs.forEach(doc => {
+      batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
+    });
     channelsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
     batch.delete(db.collection('stores').doc(storeId));
     await batch.commit();
-    res.json({ success: true, deletedChannels: channelsSnapshot.size });
+
+    res.json({ success: true, deletedChannels: channelsSnapshot.size, archivedInstances: instancesSnap.size });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
@@ -87,9 +100,24 @@ app.post('/stores/:storeId/channels', requireAdmin, async (req: Request, res: Re
 
 app.delete('/stores/:storeId/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { channelId } = req.params;
-    await db.collection('storeChannels').doc(channelId).delete();
-    res.json({ success: true });
+    const { storeId, channelId } = req.params;
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Soft-delete every catalog instance in this channel so the public store
+    // stops showing them immediately.
+    const instancesSnap = await db.collection('admin_catalog_instances')
+      .where('storeId', '==', storeId)
+      .where('channelId', '==', channelId)
+      .get();
+
+    const batch = db.batch();
+    instancesSnap.docs.forEach(doc => {
+      batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
+    });
+    batch.delete(db.collection('storeChannels').doc(channelId));
+    await batch.commit();
+
+    res.json({ success: true, archivedInstances: instancesSnap.size });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

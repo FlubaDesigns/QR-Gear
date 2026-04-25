@@ -68,6 +68,30 @@ function extractPacketMockups(pkt) {
     (first.angles || []).forEach((u) => mockupImages.push(u));
     return { mockupsByColor: result, mockupImages, defaultColor };
 }
+/**
+ * Handle the simpler 2-level format used in the `packets` collection:
+ *   { colorKey: { front?: string; lifestyle?: string; angles?: string[] } }
+ *
+ * `extractPacketMockups` handles the 3-level productPackets format.
+ * This handles the 2-level member/wizard packet format.
+ */
+function tryFlatMockupsByColor(raw) {
+    const result = {};
+    for (const [colorKey, val] of Object.entries(raw)) {
+        if (!val || typeof val !== 'object' || Array.isArray(val))
+            continue;
+        if (typeof val.front === 'string' || typeof val.lifestyle === 'string') {
+            result[colorKey] = {
+                ...(val.lifestyle ? { lifestyle: val.lifestyle } : {}),
+                ...(val.front ? { front: val.front } : {}),
+                ...(Array.isArray(val.angles)
+                    ? { angles: val.angles.filter((u) => typeof u === 'string') }
+                    : {}),
+            };
+        }
+    }
+    return Object.keys(result).length > 0 ? result : null;
+}
 function register(app) {
     // ============ BATCH: STORE/LIBRARY FILE ROUTES ============
     app.get('/store/product/:linkId', async (req, res) => {
@@ -88,6 +112,7 @@ function register(app) {
                 let productLine = '';
                 let packetImageUrl = null;
                 let packetPlacementMockupUrls = {};
+                let packetMockupsByColorA = null;
                 if (link.packetId) {
                     const packetDoc = await core_1.db.collection('packets').doc(link.packetId).get();
                     if (packetDoc.exists) {
@@ -95,6 +120,12 @@ function register(app) {
                         packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
                         if (packet.placementMockupUrls && typeof packet.placementMockupUrls === 'object') {
                             packetPlacementMockupUrls = packet.placementMockupUrls;
+                        }
+                        // Extract color-keyed mockups — try 3-level format (productPackets) then 2-level flat (packets)
+                        const rawMockups = packet.mockupsByColor;
+                        if (rawMockups && typeof rawMockups === 'object' && !Array.isArray(rawMockups)) {
+                            const extracted3 = extractPacketMockups(packet);
+                            packetMockupsByColorA = extracted3.mockupsByColor ?? tryFlatMockupsByColor(rawMockups);
                         }
                         const productId = packet.productId;
                         if (productId) {
@@ -132,7 +163,7 @@ function register(app) {
                         : {}),
                 };
                 const EXTRA_PLACEMENT_ORDER = ['back', 'left_sleeve', 'right_sleeve'];
-                // Collect all mockup/graphic URLs to append after catalog images
+                // Collect all mockup/graphic URLs ordered: lifestyle → front → placements → QR art
                 const mockupImages = [];
                 if (lifestyleUrl)
                     mockupImages.push(lifestyleUrl);
@@ -147,12 +178,26 @@ function register(app) {
                 const qrArtUrl = link.compositeUrl || link.qrOnlyUrl || null;
                 if (qrArtUrl && !mockupImages.includes(qrArtUrl))
                     mockupImages.push(qrArtUrl);
+                // If no per-color data yet, build a synthetic single-color entry from flat fields
+                if (!packetMockupsByColorA) {
+                    const synColorKey = link.defaultColor || null;
+                    const synAngles = EXTRA_PLACEMENT_ORDER.map((p) => mergedPlacementUrls[p]).filter(Boolean);
+                    if (synColorKey && (flatMockupUrl || lifestyleUrl || synAngles.length > 0)) {
+                        packetMockupsByColorA = {
+                            [synColorKey]: {
+                                ...(lifestyleUrl ? { lifestyle: lifestyleUrl } : {}),
+                                ...(flatMockupUrl ? { front: flatMockupUrl } : {}),
+                                ...(synAngles.length > 0 ? { angles: synAngles } : {}),
+                            },
+                        };
+                    }
+                }
                 const allImages = [];
-                // Kept catalog images first
-                storedImages.forEach((u) => { if (!allImages.includes(u))
-                    allImages.push(u); });
-                // Digital markup mockups appended at the end
+                // Mockups first (lifestyle → front → placements → QR art)
                 mockupImages.forEach((u) => { if (!allImages.includes(u))
+                    allImages.push(u); });
+                // Catalog/provider images after
+                storedImages.forEach((u) => { if (!allImages.includes(u))
                     allImages.push(u); });
                 res.json({
                     id: linkDoc.id,
@@ -170,7 +215,7 @@ function register(app) {
                     availableColors,
                     availablePlacements,
                     defaultColor: link.defaultColor || null,
-                    mockupsByColor: null,
+                    mockupsByColor: packetMockupsByColorA,
                     selectedGraphicSize: link.selectedGraphicSize || null,
                     storeId: link.storeId || null,
                     storeName: link.storeName || null,
@@ -381,9 +426,13 @@ function register(app) {
                 };
                 const products = await Promise.all(instancesSnap.docs
                     .filter((doc) => {
+                    const d = doc.data();
+                    // Exclude soft-deleted / hidden instances from the public store
+                    if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived')
+                        return false;
                     if (!segment)
                         return true;
-                    return doc.data().collectionName === segment;
+                    return d.collectionName === segment;
                 })
                     .map(async (doc) => {
                     const d = doc.data();
@@ -518,9 +567,13 @@ function register(app) {
                 const collectionSlug = collection ? toSlug(collection) : null;
                 const channelProducts = await Promise.all(instancesSnap.docs
                     .filter((doc) => {
+                    const d = doc.data();
+                    // Exclude soft-deleted / hidden instances from the public store
+                    if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived')
+                        return false;
                     if (!collection)
                         return true;
-                    const name = doc.data().collectionName || '';
+                    const name = d.collectionName || '';
                     return name === collection || toSlug(name) === collectionSlug;
                 })
                     .map(async (doc) => {
@@ -611,7 +664,13 @@ function register(app) {
                 .where('storeId', '==', matchedStore.id)
                 .get();
             const products = await Promise.all(storeInstancesSnap.docs
-                .filter((doc) => !segment || doc.data().collectionName === segment)
+                .filter((doc) => {
+                const d = doc.data();
+                // Exclude soft-deleted / hidden instances from the public store
+                if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived')
+                    return false;
+                return !segment || d.collectionName === segment;
+            })
                 .map(async (doc) => {
                 const d = doc.data();
                 const resolved = d.resolved || {};

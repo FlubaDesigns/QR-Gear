@@ -61,6 +61,11 @@ function register(app) {
             }
             const snap = await q.limit(500).get();
             let instances = snap.docs.map(toSerializable);
+            // Default: hide soft-deleted / invisible instances unless the caller
+            // explicitly requests a specific status (e.g. status=deleted for audit).
+            if (!status) {
+                instances = instances.filter(inst => inst.status !== 'deleted' && inst.isVisible !== false);
+            }
             // In-memory filters for channel / collection.
             // An instance with null/missing channelId is treated as belonging to ALL
             // channels within its store (backward compat with pre-folder-path commits).
@@ -230,6 +235,7 @@ function register(app) {
         }
     });
     // ── DELETE /admin/catalog-instances/:id ─────────────────────────────────────
+    // Soft-deletes so the public store immediately hides the item without losing data.
     app.delete('/admin/catalog-instances/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
             const ref = core_1.db.collection(ADMIN_INSTANCES).doc(req.params.id);
@@ -238,8 +244,28 @@ function register(app) {
                 res.status(404).json({ error: 'Instance not found' });
                 return;
             }
-            await ref.delete();
-            console.log(`[AdminInstances] Deleted ${req.params.id}`);
+            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+            await ref.update({
+                isVisible: false,
+                status: 'deleted',
+                deletedAt: now,
+                deletedBy: req.user?.uid ?? 'system',
+                updatedAt: now,
+                updatedBy: req.user?.uid ?? 'system',
+            });
+            // Best-effort: clean up matching legacy storeProductLinks
+            try {
+                const legacySnap = await core_1.db.collection('storeProductLinks')
+                    .where('instanceId', '==', req.params.id)
+                    .get();
+                if (!legacySnap.empty) {
+                    const batch = core_1.db.batch();
+                    legacySnap.docs.forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                }
+            }
+            catch (_) { /* non-fatal */ }
+            console.log(`[AdminInstances] Soft-deleted ${req.params.id}`);
             res.json({ success: true, instanceId: req.params.id });
         }
         catch (e) {
