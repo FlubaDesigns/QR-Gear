@@ -78,7 +78,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/build", label: "Create" },
-    { href: "/gallery", label: "Shop" },
+    { href: "/shop/internal/qrgear", label: "Shop" },
   ];
 
   return (

@@ -64,6 +64,9 @@ export function ChannelHubView({
 
   const label = channelConfig?.label ?? channelNameFromApi ?? channelSlug;
   const collections = channelConfig?.collections ?? [];
+  const visibleCollections = collections.filter(
+    (col) => (collectionCounts[col.segmentValue] || 0) > 0,
+  );
 
   return (
     <StorefrontLayout>
@@ -101,10 +104,10 @@ export function ChannelHubView({
           ]}
         />
 
-        {/* Collection image-cards */}
-        {collections.length > 0 && (
+        {/* Collection image-cards — only show collections that have products */}
+        {visibleCollections.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {collections.map((col) => {
+            {visibleCollections.map((col) => {
               const count = collectionCounts[col.segmentValue] || 0;
               const colImg = COLLECTION_IMAGES[col.slug];
               return (
@@ -157,7 +160,7 @@ export function ChannelHubView({
           </div>
         )}
 
-        {collections.length === 0 && (
+        {visibleCollections.length === 0 && (
           <Card className="max-w-md mx-auto">
             <CardContent className="py-12 text-center">
               <QrCode className="h-12 w-12 mx-auto text-muted-foreground mb-4" />

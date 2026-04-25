@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
-  ScanLine, Gift, Shield, Truck,
+  ScanLine, Shield, Truck,
 } from "lucide-react";
 import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
@@ -80,6 +80,8 @@ interface StoreProduct {
   options?: ProductOption[] | null;
   /** Card display mode */
   cardMode?: 'browseOnly' | 'quickAdd' | null;
+  /** Screenshot/preview of the linked digital experience — shown as "Where it takes you" */
+  landingPageSnapshotUrl?: string | null;
 }
 
 export default function ShopProductPage() {
@@ -298,6 +300,7 @@ export default function ShopProductPage() {
           </div>
 
           <div className="space-y-6">
+            {/* ── Title block ───────────────────────────────────────────── */}
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 {typeInfo && (
@@ -312,16 +315,51 @@ export default function ShopProductPage() {
               <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-product-name">
                 {product.name}
               </h1>
-              {product.description && (
-                <p className="text-muted-foreground mt-2" data-testid="text-product-description">
-                  {product.description}
-                </p>
-              )}
-              <p className="text-sm text-foreground mt-3 leading-relaxed">
-                More than apparel — this piece connects to a story you can wear, scan, and share.
+              <p className="text-base font-semibold text-foreground mt-2">
+                Scan it. It opens something real.
               </p>
             </div>
 
+            {/* ── What You're Holding ───────────────────────────────────── */}
+            <div className="rounded-md border p-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                What You're Holding
+              </p>
+              <p className="text-sm leading-relaxed text-foreground">
+                This isn't just a design printed on fabric.
+              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Every piece is a gateway. Scan the code and it opens a living digital experience tied to what you're wearing.
+              </p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
+                <ScanLine className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                No app. Just scan.
+              </p>
+            </div>
+
+            {/* ── Where it takes you (shown only when snapshot exists) ─── */}
+            {product.landingPageSnapshotUrl && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Where it takes you
+                </p>
+                <img
+                  src={product.landingPageSnapshotUrl}
+                  alt="Digital experience preview"
+                  className="w-full rounded-md border object-cover"
+                  data-testid="img-landing-snapshot"
+                />
+              </div>
+            )}
+
+            {/* ── Physical layer ────────────────────────────────────────── */}
+            {product.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed" data-testid="text-product-description">
+                {product.description}
+              </p>
+            )}
+
+            {/* ── Price + benefit bullets ───────────────────────────────── */}
             <div>
               {product.price !== null ? (
                 <p className="text-3xl font-bold text-foreground" data-testid="text-product-price">
@@ -333,19 +371,18 @@ export default function ShopProductPage() {
                 </p>
               )}
 
-              {/* Benefit micro-bullets */}
               <ul className="mt-3 space-y-1.5" data-testid="list-product-benefits">
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ScanLine className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                  Scannable QR experience built in
-                </li>
-                <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Package className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                  Premium print-on-demand, made to order
+                  Made to order in the USA
                 </li>
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Gift className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                  Great for gifts, history lovers, and collectors
+                  <Truck className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                  Premium print quality
+                </li>
+                <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Shield className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+                  Yours alone — not sold in stores
                 </li>
               </ul>
             </div>
@@ -354,82 +391,24 @@ export default function ShopProductPage() {
 
             {(() => {
               if (!colorOption || colorOption.values.length === 0) return null;
-              const displayType = colorOption.displayType ?? 'swatches';
               return (
                 <div>
                   <label className="text-sm font-medium mb-2 block">
-                    Color:{" "}
-                    <span className="text-muted-foreground font-normal">
-                      {selectedColor || "Select a color"}
-                    </span>
+                    Color
                   </label>
-                  {displayType === 'swatches' && (
-                    <div className="flex flex-wrap gap-2.5">
-                      {colorOption.values.map((cv) => {
-                        const hex = cv.hex || getColorHexByName(cv.label) || "#CCCCCC";
-                        const isSelected = selectedColor === cv.label;
-                        const isLight = isLightColor(hex);
-                        return (
-                          <button
-                            key={cv.label}
-                            className={`w-11 h-11 rounded-full border-2 transition-all relative flex-shrink-0 ${
-                              !cv.available
-                                ? "opacity-40 cursor-not-allowed"
-                                : isSelected
-                                ? "border-primary ring-2 ring-primary/30 scale-110"
-                                : "border-border hover:scale-105"
-                            }`}
-                            style={{ backgroundColor: hex }}
-                            onClick={() => cv.available && setSelectedColor(cv.label)}
-                            title={cv.label}
-                            aria-label={cv.label}
-                            aria-pressed={isSelected}
-                            aria-disabled={!cv.available}
-                            data-testid={`swatch-${cv.label.toLowerCase().replace(/\s+/g, "-")}`}
-                          >
-                            {isSelected && cv.available && (
-                              <Check
-                                className={`h-4 w-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
-                                  isLight ? "text-black" : "text-white"
-                                }`}
-                              />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {displayType === 'pills' && (
-                    <div className="flex flex-wrap gap-2">
-                      {colorOption.values.map((cv) => (
-                        <Button
-                          key={cv.label}
-                          variant={selectedColor === cv.label ? "default" : "outline"}
-                          size="sm"
-                          disabled={!cv.available}
-                          onClick={() => cv.available && setSelectedColor(cv.label)}
-                          data-testid={`pill-color-${cv.label.toLowerCase().replace(/\s+/g, "-")}`}
-                        >
-                          {cv.label}
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  {displayType === 'dropdown' && (
-                    <select
-                      className="w-full border rounded-md p-2 text-sm bg-background"
-                      value={selectedColor ?? ''}
-                      onChange={e => setSelectedColor(e.target.value)}
-                      data-testid="select-color"
-                    >
-                      <option value="">Select a color</option>
-                      {colorOption.values.map(cv => (
-                        <option key={cv.label} value={cv.label} disabled={!cv.available}>
-                          {cv.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  <select
+                    className="w-full border rounded-md p-2 text-sm bg-background"
+                    value={selectedColor ?? ''}
+                    onChange={e => setSelectedColor(e.target.value)}
+                    data-testid="select-color"
+                  >
+                    <option value="">Select a color</option>
+                    {colorOption.values.map(cv => (
+                      <option key={cv.label} value={cv.label} disabled={!cv.available}>
+                        {cv.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               );
             })()}
@@ -533,10 +512,8 @@ export default function ShopProductPage() {
             <Separator />
 
             <div className="space-y-3">
-              {/* Scan context — remind buyer what makes this special */}
-              <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
-                <ScanLine className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                Scan with your phone to unlock the linked experience
+              <p className="text-xs text-muted-foreground text-center">
+                You're buying access, not just fabric.
               </p>
 
               <Button
@@ -584,11 +561,6 @@ export default function ShopProductPage() {
               </div>
             </div>
 
-            {product.storeName && (
-              <p className="text-xs text-muted-foreground text-center">
-                Sold by {product.storeName}
-              </p>
-            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 25, 2026 (rev 27)
+Last updated: April 25, 2026 (rev 29)
 
 ---
 
@@ -491,6 +491,18 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### April 25, 2026 — Storefront UX & Product Page Messaging Overhaul (rev 29)
+
+Rebuilt the public-facing product page messaging to position QR Gear products as digital experiences, not apparel. Also fixed navigation, breadcrumbs, and empty collection display across the storefront.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/shop-product.tsx` | Restructured right column: added "Scan it. It opens something real." hook, "What You're Holding" section, conditional "Where it takes you" snapshot panel, moved description to physical layer, replaced benefit bullets, updated CTA context line to "You're buying access, not just fabric.", removed "Sold by" line. Color selector now always renders as a dropdown. Added `landingPageSnapshotUrl` to `StoreProduct` interface. |
+| `client/src/components/Navbar.tsx` | "Shop" nav link now goes to `/shop/internal/qrgear` (QR Gear store) instead of `/gallery` (admin panel). |
+| `client/src/components/BreadcrumbTrail.tsx` | Added proper labels for `qrgear`, `usa250`, `monuments`, `armed-forces`, `founding-fathers` — prevents raw slug capitalization artifacts like "Usa250". |
+| `client/src/features/storefront/ChannelHubView.tsx` | Collections with zero products are now hidden from the channel hub grid. Empty-state card shown only when no collections have products. |
 
 ### April 25, 2026 — URL Landing Text Block Change Detection Fix (rev 28)
 
