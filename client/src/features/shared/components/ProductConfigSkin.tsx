@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, Check, Loader2, ImageIcon, RefreshCw } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/adminFetch";
 
 interface ColorOption {
@@ -28,7 +27,6 @@ interface ProductConfigSkinProps {
   mockupsByColor?: Record<string, { front?: string; lifestyle?: string }>;
   blueprintId?: number;
   printProviderId?: number;
-  apiBase?: string;
   onUpdate?: () => void;
   readOnly?: boolean;
 }
@@ -55,7 +53,6 @@ export function ProductConfigSkin({
   mockupsByColor,
   blueprintId,
   printProviderId,
-  apiBase = "/api/admin",
   onUpdate,
   readOnly = false,
 }: ProductConfigSkinProps) {
@@ -94,10 +91,13 @@ export function ProductConfigSkin({
   const saveOptions = async (newSizes: string[], newColors: string[], newDefaultColor?: string) => {
     setSaving(true);
     try {
-      await apiRequest("PATCH", `${apiBase}/products/${productId}/options`, {
-        enabledSizes: newSizes,
-        enabledColors: newColors,
-        defaultColor: newDefaultColor || defaultColor,
+      await adminFetch(`/products/${productId}/options`, {
+        method: "PATCH",
+        json: {
+          enabledSizes: newSizes,
+          enabledColors: newColors,
+          defaultColor: newDefaultColor || defaultColor,
+        },
       });
       toast({ title: "Saved", description: "Product options updated" });
       onUpdate?.();

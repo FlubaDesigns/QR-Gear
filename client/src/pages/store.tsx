@@ -78,7 +78,6 @@ function ProductConfigDemo() {
               mockupsByColor={product.mockupsByColor}
               blueprintId={product.blueprintId}
               printProviderId={product.printProviderId}
-              apiBase="/api/admin"
               onUpdate={handleUpdate}
             />
           ))}

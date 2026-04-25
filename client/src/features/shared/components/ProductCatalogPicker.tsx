@@ -36,7 +36,6 @@ export interface ProductCatalogPickerProps {
   onOriginFilterChange: (filter: Partial<OriginFilter>) => void;
   selectedProductId?: number | null;
   onProductSelect: (product: CatalogProduct) => void;
-  apiBase?: string;
   showProviderIndicator?: boolean;
   showFilters?: boolean;
   gridHeight?: string;
@@ -60,15 +59,14 @@ export function ProductCatalogPicker({
   onOriginFilterChange,
   selectedProductId,
   onProductSelect,
-  apiBase = "/api/admin",
   showProviderIndicator = true,
   showFilters = true,
   gridHeight = "min(60vh, 500px)",
 }: ProductCatalogPickerProps) {
   const { data: categories = [], isLoading: loadingCategories } = useQuery<{ name: string; itemCount: number }[]>({
-    queryKey: ["shared-catalog-categories", "master", apiBase],
+    queryKey: ["shared-catalog-categories", "master"],
     queryFn: async () => {
-      const res = await fetch(`${apiBase}/master-catalog`);
+      const res = await fetch("/api/master-catalog");
       if (!res.ok) return [];
       const data = await res.json();
       return data.map((cat: { name: string; items?: unknown[]; count?: number }) => ({
@@ -95,10 +93,10 @@ export function ProductCatalogPicker({
   }));
 
   const { data: categoryData, isLoading: loadingProducts } = useQuery<{ items: CatalogProduct[] } | null>({
-    queryKey: ["shared-catalog-products", "master", category, apiBase],
+    queryKey: ["shared-catalog-products", "master", category],
     queryFn: async () => {
       if (!category) return null;
-      const res = await fetch(`${apiBase}/master-catalog`);
+      const res = await fetch("/api/master-catalog");
       if (!res.ok) return null;
       const data = await res.json();
       return data.find((cat: { name: string }) => cat.name === category) || null;
