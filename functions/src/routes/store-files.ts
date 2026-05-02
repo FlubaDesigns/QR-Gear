@@ -343,7 +343,75 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
     const { linkId } = req.params;
     const { selectedColor, selectedSize, quantity = 1 } = req.body;
 
-    // ── Path A: storeProductLinks ──────────────────────────────────────────
+    // ── Primary: admin_catalog_instances ──────────────────────────────────
+    const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
+    if (instanceDoc.exists) {
+      const d = instanceDoc.data()!;
+      const resolved = d.resolved || {};
+
+      let price: number | null = resolved.pricing?.customerPrice ?? null;
+      let heroImageUrl: string | null = null;
+      let printifyProductId: string | null = null;
+      let printifyVariantId: number | null = null;
+
+      if (d.currentPacketId) {
+        try {
+          const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
+          if (pDoc.exists) {
+            const pkt = pDoc.data()!;
+            heroImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+            if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
+
+            if (pkt.printifyProductId) {
+              printifyProductId = pkt.printifyProductId;
+              if (pkt.printifyVariantMap && selectedColor && selectedSize) {
+                const exactKey = `${selectedColor}/${selectedSize}`;
+                const variantMap: Record<string, number> = pkt.printifyVariantMap;
+                if (variantMap[exactKey] !== undefined) {
+                  printifyVariantId = variantMap[exactKey];
+                } else {
+                  const caseInsensitiveKey = Object.keys(variantMap).find(
+                    (k) => k.toLowerCase() === exactKey.toLowerCase()
+                  );
+                  if (caseInsensitiveKey) printifyVariantId = variantMap[caseInsensitiveKey];
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (!heroImageUrl && resolved.images?.length) {
+        const img = resolved.images[0];
+        heroImageUrl = typeof img === 'string' ? img : (img?.url || null);
+      }
+
+      if (price === null || price <= 0) {
+        res.status(400).json({ error: "Price could not be determined for this product" });
+        return;
+      }
+
+      res.json({
+        productId: linkId,
+        linkId,
+        price: Math.round(price * 100) / 100,
+        name: resolved.title || 'Untitled',
+        imageUrl: heroImageUrl,
+        selectedColor: selectedColor || null,
+        selectedSize: selectedSize || null,
+        quantity,
+        customization: {
+          instanceId: linkId,
+          packetId: d.currentPacketId || null,
+          printifyProductId,
+          printifyVariantId,
+        },
+      });
+      return;
+    }
+
+    // ── Legacy fallback: storeProductLinks ────────────────────────────────
+    console.warn('[Store API] add-to-cart: falling back to legacy storeProductLinks for', linkId);
     const linkDoc = await db.collection('storeProductLinks').doc(linkId).get();
     if (linkDoc.exists) {
       const link = linkDoc.data()!;
@@ -381,81 +449,12 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
         selectedColor: selectedColor || link.defaultColor || null,
         selectedSize: selectedSize || null,
         quantity,
+        isLegacy: true,
       });
       return;
     }
 
-    // ── Path B: admin_catalog_instances ────────────────────────────────────
-    const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
-    if (!instanceDoc.exists) {
-      res.status(404).json({ error: "Product not found" });
-      return;
-    }
-
-    const d = instanceDoc.data()!;
-    const resolved = d.resolved || {};
-
-    let price: number | null = resolved.pricing?.customerPrice ?? null;
-    let heroImageUrl: string | null = null;
-    let printifyProductId: string | null = null;
-    let printifyVariantId: number | null = null;
-
-    if (d.currentPacketId) {
-      try {
-        const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
-        if (pDoc.exists) {
-          const pkt = pDoc.data()!;
-          heroImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-          if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
-
-          // Resolve Printify product + variant IDs for fulfillment
-          if (pkt.printifyProductId) {
-            printifyProductId = pkt.printifyProductId;
-            if (pkt.printifyVariantMap && selectedColor && selectedSize) {
-              // Try exact match first, then case-insensitive color match
-              const exactKey = `${selectedColor}/${selectedSize}`;
-              const variantMap: Record<string, number> = pkt.printifyVariantMap;
-              if (variantMap[exactKey] !== undefined) {
-                printifyVariantId = variantMap[exactKey];
-              } else {
-                const caseInsensitiveKey = Object.keys(variantMap).find(
-                  (k) => k.toLowerCase() === exactKey.toLowerCase()
-                );
-                if (caseInsensitiveKey) printifyVariantId = variantMap[caseInsensitiveKey];
-              }
-            }
-          }
-        }
-      } catch (_) {}
-    }
-
-    // Fallback to first provider catalog image
-    if (!heroImageUrl && resolved.images?.length) {
-      const img = resolved.images[0];
-      heroImageUrl = typeof img === 'string' ? img : (img?.url || null);
-    }
-
-    if (price === null || price <= 0) {
-      res.status(400).json({ error: "Price could not be determined for this product" });
-      return;
-    }
-
-    res.json({
-      productId: linkId,
-      linkId,
-      price: Math.round(price * 100) / 100,
-      name: resolved.title || 'Untitled',
-      imageUrl: heroImageUrl,
-      selectedColor: selectedColor || null,
-      selectedSize: selectedSize || null,
-      quantity,
-      customization: {
-        instanceId: linkId,
-        packetId: d.currentPacketId || null,
-        printifyProductId,
-        printifyVariantId,
-      },
-    });
+    res.status(404).json({ error: "Product not found" });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -499,8 +498,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         instancesSnap.docs
           .filter((doc: any) => {
             const d = doc.data();
-            // Exclude soft-deleted / hidden instances from the public store
-            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+            // Exclude soft-deleted / hidden / draft instances from the public store
+            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft') return false;
             if (!segment) return true;
             return d.collectionName === segment;
           })
@@ -644,8 +643,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         instancesSnap.docs
           .filter((doc: any) => {
             const d = doc.data();
-            // Exclude soft-deleted / hidden instances from the public store
-            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+            // Exclude soft-deleted / hidden / draft instances from the public store
+            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft') return false;
             if (!collection) return true;
             const name: string = d.collectionName || '';
             return name === collection || toSlug(name) === collectionSlug;
@@ -747,8 +746,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       storeInstancesSnap.docs
         .filter((doc: any) => {
           const d = doc.data();
-          // Exclude soft-deleted / hidden instances from the public store
-          if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+          // Exclude soft-deleted / hidden / draft instances from the public store
+          if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft') return false;
           return !segment || d.collectionName === segment;
         })
         .map(async (doc: any) => {
