@@ -63,7 +63,7 @@ export default function PacketSuccessPage() {
           <Card className="max-w-md w-full border-slate-700 bg-slate-900/80">
             <CardContent className="p-6 text-center">
               <p className="text-slate-400">Invalid checkout session. Please try again.</p>
-              <Link href="/store">
+              <Link href="/shop/internal/qrgear">
                 <Button className="mt-4" data-testid="button-back-to-store">
                   Back to Store
                 </Button>

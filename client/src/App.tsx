@@ -118,7 +118,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/build" component={BuildPage} />
-      <Route path="/store" component={Store} />
+      <Route path="/store">{() => <AdminRoute><Store /></AdminRoute>}</Route>
       <Route path="/gallery" component={Gallery} />
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />

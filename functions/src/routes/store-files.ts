@@ -273,6 +273,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
     let packetMockupsByColor: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
     let packetMockupImages: string[] = [];
     let packetDefaultColor: string | null = null;
+    let packetLandingPageSnapshotUrl: string | null = null;
 
     if (d.currentPacketId) {
       try {
@@ -284,6 +285,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
           packetMockupImages = extracted.mockupImages;
           packetDefaultColor = extracted.defaultColor;
           packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+          packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
           if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
         }
       } catch (e: any) {
@@ -315,6 +317,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       imageUrl: allImages[0] || null,
       images: allImages,
       packetImageUrl: packetMockupUrl,
+      landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
       qrCodeUrl: null,
       qrProductType: d.qrProductType || 'qr-basics',
       price: price !== null ? Math.round(price * 100) / 100 : null,

@@ -59,7 +59,7 @@ const skipSegments = new Set(["internal", "external"]);
 
 // When a path would point to a non-existent route, remap it to a real one
 const hrefOverrides: Record<string, string> = {
-  "/shop": "/store",
+  "/shop": "/shop/internal/qrgear",
 };
 
 export default function BreadcrumbTrail() {

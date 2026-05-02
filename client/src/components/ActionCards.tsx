@@ -137,7 +137,7 @@ export function QuickLinks() {
             </div>
             <h3>Browse Products</h3>
             <p>Shop our full catalog of QR-enabled merchandise</p>
-            <Link href="/store">
+            <Link href="/shop/internal/qrgear">
               <QRButton variant="ghost" size="small" data-testid="button-browse-products">
                 View Store
               </QRButton>

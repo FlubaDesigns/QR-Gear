@@ -33,7 +33,7 @@ export default function CheckoutSuccess() {
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">
               <p className="text-muted-foreground">Invalid checkout session. Please try again.</p>
-              <Link href="/store">
+              <Link href="/shop/internal/qrgear">
                 <Button className="mt-4" data-testid="button-back-to-store">
                   Back to Store
                 </Button>

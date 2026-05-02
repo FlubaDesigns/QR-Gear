@@ -241,6 +241,7 @@ function register(app) {
             let packetMockupsByColor = null;
             let packetMockupImages = [];
             let packetDefaultColor = null;
+            let packetLandingPageSnapshotUrl = null;
             if (d.currentPacketId) {
                 try {
                     const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
@@ -251,6 +252,7 @@ function register(app) {
                         packetMockupImages = extracted.mockupImages;
                         packetDefaultColor = extracted.defaultColor;
                         packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                        packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
                         if (price === null && pkt.pricing?.customerPrice)
                             price = pkt.pricing.customerPrice;
                     }
@@ -281,6 +283,7 @@ function register(app) {
                 imageUrl: allImages[0] || null,
                 images: allImages,
                 packetImageUrl: packetMockupUrl,
+                landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
                 qrCodeUrl: null,
                 qrProductType: d.qrProductType || 'qr-basics',
                 price: price !== null ? Math.round(price * 100) / 100 : null,

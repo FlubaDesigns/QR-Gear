@@ -61,7 +61,7 @@ export default function Footer() {
 
           <FooterSection title="Shop">
             <nav className="footer__nav">
-              <Link href="/store" className="footer__link" data-testid="footer-link-store">All Products</Link>
+              <Link href="/shop/internal/qrgear" className="footer__link" data-testid="footer-link-store">All Products</Link>
               <Link href="/build" className="footer__link" data-testid="footer-link-creator">Create Custom</Link>
               <Link href="/gallery" className="footer__link" data-testid="footer-link-gallery">Gallery</Link>
             </nav>

@@ -176,7 +176,7 @@ export default function CustomsPage() {
               )}
               
               <div className="pt-4 border-t">
-                <Link href="/store">
+                <Link href="/shop/internal/qrgear">
                   <Button className="w-full" data-testid="button-shop-now">
                     Shop Now
                   </Button>

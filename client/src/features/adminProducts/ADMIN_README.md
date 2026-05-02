@@ -1216,6 +1216,31 @@ Each card shows:
 
 ---
 
+### May 2, 2026 — Routing & Breadcrumb Fix (Shop → public storefront)
+
+The breadcrumb "Shop" link was pointing to `/store` — the internal admin product config page — instead of the public storefront. Any public user clicking that crumb (or the footer "All Products" link, post-checkout "Back to Store" buttons, etc.) would land on an admin page. Fixed:
+
+- `BreadcrumbTrail.tsx` — `/shop` override changed from `/store` → `/shop/internal/qrgear`
+- `Footer.tsx`, `ActionCards.tsx`, `checkout-success.tsx`, `packet-success.tsx`, `customs.tsx` — all `/store` hrefs updated to `/shop/internal/qrgear`
+- `App.tsx` — `/store` route wrapped in `AdminRoute` so it is no longer publicly accessible
+
+Also added `landingPageSnapshotUrl` to the public store product API response (`store-files.ts`) so the "Where it takes you" section on the product detail page now displays the QR destination preview image stored on the packet.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/components/BreadcrumbTrail.tsx` | `hrefOverrides["/shop"]` → `/shop/internal/qrgear` |
+| `client/src/components/Footer.tsx` | "All Products" link → `/shop/internal/qrgear` |
+| `client/src/components/ActionCards.tsx` | "View Store" link → `/shop/internal/qrgear` |
+| `client/src/pages/checkout-success.tsx` | "Back to Store" → `/shop/internal/qrgear` |
+| `client/src/pages/packet-success.tsx` | "Back to Store" → `/shop/internal/qrgear` |
+| `client/src/pages/customs.tsx` | "Shop Now" → `/shop/internal/qrgear` |
+| `client/src/App.tsx` | `/store` route wrapped in `AdminRoute` |
+| `functions/src/routes/store-files.ts` | Reads `pkt.landingPageSnapshotUrl` and returns it as `landingPageSnapshotUrl` in catalog instance API response |
+| `functions/src/index.ts` | `_BUILD_ID` bumped to `20260502-landing-snapshot-passthrough-v2` |
+
+---
+
 ### May 2, 2026 — Mockup Image Write-Back Fix (per-color swatches)
 
 When a new catalog instance item is added and mockup jobs are queued with `productId: 'packet_xxx'`, the background queue processor now writes the full `mockupsByColor` 3-level structure (`{ colorKey: { placementKey: { sizeKey: url, lifestyle: url } } }`) back to the `productPackets` document after each job completes. Previously only `priorityMockupUrl` (a single URL) was written, so per-color mockup swatches never appeared in the public store. Now `store-files.ts`'s `extractPacketMockups()` reads the correct data and serves per-color images to the storefront. A new `POST /admin/catalog-instances/:id/requeue-mockups` endpoint was also added to re-queue jobs for existing instances (e.g. Navy) that were created before this fix.
