@@ -592,84 +592,227 @@ export function registerAdminLibraryRoutes(app: Express): void {
     }
   });
 
-  // Public: Get store products by store type/name/segment (for internal store pages)
-  // Used by pages like /shop/internal/qr-gear/featured or /shop/external/kingdom-connects/homepage
+  // Public: Get store products by store type/name/channel/collection (for internal store pages)
+  // Supports both legacy segment-based queries and the new channel/collection hierarchy.
+  // Route: /api/store/:storeType/:storeName?channel=usa250&collection=armed-forces
   app.get("/api/store/:storeType/:storeName", async (req, res) => {
     try {
       const { storeType: rawStoreType, storeName } = req.params;
       const segment = req.query.segment as string | undefined;
-      
-      // Normalize store type to title case (accept internal/Internal/INTERNAL)
+      const channel = req.query.channel as string | undefined;
+      const collection = req.query.collection as string | undefined;
+
       const normalizedType = rawStoreType.toLowerCase();
       if (!["internal", "external"].includes(normalizedType)) {
-        return res.status(400).json({ error: "Invalid store type. Use 'Internal' or 'External'" });
+        return res.status(400).json({ error: "Invalid store type. Use 'internal' or 'external'" });
       }
+
+      // ── Channel-scoped path: queries admin_catalog_instances ─────────────────
+      if (channel) {
+        const { getFirestoreDb } = await import("../lib/firebase-admin");
+        const db = getFirestoreDb();
+
+        // Resolve storeId from stores collection — match by name slug
+        const storesSnap = await db.collection('stores')
+          .where('roleType', '==', normalizedType)
+          .limit(20)
+          .get();
+
+        let matchedStoreId: string | null = null;
+        let matchedStoreName: string | null = null;
+        for (const doc of storesSnap.docs) {
+          const data = doc.data();
+          const slug = (data.name || '').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+          const slugCompact = slug.replace(/-/g, '');
+          if (doc.id === storeName || slug === storeName || slugCompact === storeName) {
+            matchedStoreId = doc.id;
+            matchedStoreName = data.name || doc.id;
+            break;
+          }
+        }
+
+        // Fallback: resolve via the channel doc itself
+        if (!matchedStoreId) {
+          const chanDoc = await db.collection('storeChannels').doc(channel).get();
+          if (chanDoc.exists) {
+            const storeId = chanDoc.data()?.storeId;
+            if (storeId) {
+              const storeDoc = await db.collection('stores').doc(storeId).get();
+              if (storeDoc.exists) {
+                matchedStoreId = storeDoc.id;
+                matchedStoreName = storeDoc.data()?.name || storeDoc.id;
+              }
+            }
+          }
+        }
+
+        if (!matchedStoreId) {
+          return res.status(404).json({ error: 'Store not found' });
+        }
+
+        // Verify channel belongs to this store
+        const channelDoc = await db.collection('storeChannels').doc(channel).get();
+        if (!channelDoc.exists || channelDoc.data()?.storeId !== matchedStoreId) {
+          return res.status(404).json({ error: 'Channel not found in this store' });
+        }
+        const channelData = channelDoc.data() || {};
+
+        // Query catalog instances
+        const instancesSnap = await db.collection('admin_catalog_instances')
+          .where('storeId', '==', matchedStoreId)
+          .where('channelId', '==', channel)
+          .get();
+
+        const toSlug = (s: string) => s.toLowerCase().replace(/[\s_]+/g, '-');
+        const collectionSlug = collection ? toSlug(collection) : null;
+
+        const toImgUrl = (img: any): string | null =>
+          typeof img === 'string' ? img : (img?.url || null);
+        const toStrArr = (arr: any[]): string[] =>
+          (arr || []).map((v: any) => typeof v === 'string' ? v : v?.name || v?.label || String(v)).filter(Boolean);
+
+        const buildOptions = (colors: string[], sizes: string[]) => {
+          const opts: any[] = [];
+          if (colors.length) opts.push({ name: 'Color', values: colors });
+          if (sizes.length) opts.push({ name: 'Size', values: sizes });
+          return opts;
+        };
+
+        const products = await Promise.all(
+          instancesSnap.docs
+            .filter((doc: any) => {
+              const d = doc.data();
+              if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+              if (!collection) return true;
+              const name: string = d.collectionName || '';
+              return name === collection || toSlug(name) === collectionSlug;
+            })
+            .map(async (doc: any) => {
+              const d = doc.data();
+              const resolved = d.resolved || {};
+              let price: number | null = resolved.pricing?.customerPrice ?? null;
+
+              const providerImgs = (resolved.images || []).map(toImgUrl).filter(Boolean) as string[];
+              let packetImageUrl: string | null = null;
+              let pktMockupImages: string[] = [];
+              let pktMockupsByColor: Record<string, any> | null = null;
+              let pktDefaultColor: string | null = null;
+
+              if (d.currentPacketId) {
+                try {
+                  const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
+                  if (pDoc.exists) {
+                    const pkt = pDoc.data()!;
+                    packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                    if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
+                    const byColor = pkt.mockupsByColor || {};
+                    const colorKeys = Object.keys(byColor);
+                    if (colorKeys.length) {
+                      pktMockupsByColor = byColor;
+                      pktDefaultColor = colorKeys[0];
+                      colorKeys.forEach(c => {
+                        const m = byColor[c];
+                        const urls = [m.lifestyle, m.front, ...(m.angles || [])].filter(Boolean) as string[];
+                        urls.forEach(u => { if (!pktMockupImages.includes(u)) pktMockupImages.push(u); });
+                      });
+                    }
+                  }
+                } catch (e: any) {
+                  console.error('[Store API] failed to read packet', d.currentPacketId, e.message);
+                }
+              }
+
+              const allImages: string[] = [];
+              pktMockupImages.forEach(u => { if (!allImages.includes(u)) allImages.push(u); });
+              providerImgs.forEach(u => { if (!allImages.includes(u)) allImages.push(u); });
+              if (pktMockupImages.length === 0 && packetImageUrl && !allImages.includes(packetImageUrl)) {
+                allImages.unshift(packetImageUrl);
+              }
+
+              const colors = toStrArr(d.enabledColors || resolved.colors || []);
+              const sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
+
+              return {
+                id: doc.id,
+                name: resolved.title || 'Untitled',
+                imageUrl: allImages[0] || null,
+                images: allImages,
+                packetImageUrl,
+                segment: d.collectionName || null,
+                isFeatured: false,
+                isSeasonalPromo: false,
+                templateVariant: null,
+                qrProductType: d.qrProductType || 'qr-canvas',
+                qrCodeUrl: null,
+                selectedColors: colors,
+                availableSizes: sizes,
+                defaultColor: pktDefaultColor,
+                mockupsByColor: pktMockupsByColor,
+                price: price !== null ? Math.round(price * 100) / 100 : null,
+                createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+                options: buildOptions(colors, sizes),
+                media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
+              };
+            })
+        );
+
+        console.log(`[Store API] Channel "${channel}" in "${matchedStoreName}": ${products.length} products${collection ? ` / collection: ${collection}` : ''}`);
+        return res.json({
+          storeType: normalizedType,
+          storeName: matchedStoreName,
+          channelId: channel,
+          channelName: channelData.name || channel,
+          collection: collection || null,
+          segment: null,
+          products,
+        });
+      }
+
+      // ── Legacy segment-based path: queries customDesigns ─────────────────────
       const storeType = normalizedType === "internal" ? "Internal" : "External";
-      
-      // Get custom designs saved to this store/segment
       const designs = await storage.getCustomDesignsByStoreSegment(storeType, storeName, segment);
-      
-      // Get partner store for this store type/name to lookup product configurations
+
       const allStores = await storage.getPartnerStores();
-      const matchingStore = allStores.find(s => 
+      const matchingStore = allStores.find((s: any) =>
         s.name.toLowerCase() === storeName.toLowerCase() &&
         (storeType === "Internal" ? s.isInternal === true : s.isInternal !== true)
       );
-      
-      // Get partner store products to get color/mockup configurations
+
       let storeProducts: any[] = [];
       if (matchingStore) {
         storeProducts = await storage.getPartnerStoreProducts(matchingStore.id);
       }
-      
-      // Create lookup map for partner store product configs by product ID
+
       const storeProductMap = new Map<string, any>();
       for (const sp of storeProducts) {
         storeProductMap.set(sp.productId, sp);
       }
-      
-      // Transform to product display format with QR product type detection
-      // Five product types: QR Basics, QR Plus, QR Canvas, QR Play, QR Dynamics
-      const products = designs.map(d => {
-        let qrProductType = "qr-basics"; // Default fallback
+
+      const products = designs.map((d: any) => {
+        let qrProductType = "qr-basics";
         const hasTopText = d.topText && typeof d.topText === 'object' && (d.topText as any).text;
         const hasBottomText = d.bottomText && typeof d.bottomText === 'object' && (d.bottomText as any).text;
         const hasBackground = !!d.backgroundImageUrl;
-        const hasVideo = !!(d as any).videoUrl; // Check for video content
+        const hasVideo = !!(d as any).videoUrl;
         const overlay = d.landingOverlay as any;
         const hasLandingOverlay = overlay?.enabled;
-        
+
         if (d.templateVariant === "plain-text") {
-          qrProductType = "qr-basics"; // Text encoded directly in QR
+          qrProductType = "qr-basics";
         } else if (d.templateVariant === "dynamics") {
-          qrProductType = "qr-dynamics"; // Updateable destination
+          qrProductType = "qr-dynamics";
         } else if (d.templateVariant === "external-url") {
-          qrProductType = "qr-basics"; // External URL redirects, similar to basics
+          qrProductType = "qr-basics";
         } else if (d.templateVariant === "url") {
-          // Hosted landing page - determine subtype
-          if (hasVideo) {
-            qrProductType = "qr-play"; // Video playback
-          } else if (hasBackground || hasLandingOverlay) {
-            qrProductType = "qr-canvas"; // Custom background/landing page
-          } else if (hasTopText || hasBottomText) {
-            qrProductType = "qr-plus"; // Printed text, no background
-          } else {
-            qrProductType = "qr-canvas"; // Default hosted type
-          }
+          if (hasVideo) qrProductType = "qr-play";
+          else if (hasBackground || hasLandingOverlay) qrProductType = "qr-canvas";
+          else if (hasTopText || hasBottomText) qrProductType = "qr-plus";
+          else qrProductType = "qr-canvas";
         }
-        
-        // Get QR code URL for overlay display
-        const qrCodeUrl = d.qrCodeUrl || null;
-        
-        // Get color/mockup data from partner_store_products (primary) or design (fallback)
-        // Product ID for custom designs is the design ID prefixed with 'custom_'
+
         const productId = d.id.startsWith('custom_') ? d.id : `custom_${d.id}`;
         const storeProduct = storeProductMap.get(productId) || storeProductMap.get(d.id);
-        
-        const selectedColors = storeProduct?.enabledColors || (d as any).selectedColors || null;
-        const defaultColor = storeProduct?.defaultColor || (d as any).defaultColor || null;
-        const mockupsByColor = storeProduct?.mockupsByColor || (d as any).mockupsByColor || null;
-        
+
         return {
           id: d.id,
           name: d.productName,
@@ -679,14 +822,14 @@ export function registerAdminLibraryRoutes(app: Express): void {
           isSeasonalPromo: d.isSeasonalPromo,
           templateVariant: d.templateVariant,
           qrProductType,
-          qrCodeUrl,
-          selectedColors,
-          defaultColor,
-          mockupsByColor,
+          qrCodeUrl: d.qrCodeUrl || null,
+          selectedColors: storeProduct?.enabledColors || (d as any).selectedColors || null,
+          defaultColor: storeProduct?.defaultColor || (d as any).defaultColor || null,
+          mockupsByColor: storeProduct?.mockupsByColor || (d as any).mockupsByColor || null,
           createdAt: d.createdAt,
         };
       });
-      
+
       res.json({
         storeType,
         storeName,
