@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260502-scan-this-composite-v3';
+const _BUILD_ID = '20260502-oswald-font-v6';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';

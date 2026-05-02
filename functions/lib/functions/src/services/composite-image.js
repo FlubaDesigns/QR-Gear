@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CF_PREVIEW_QR_SIZE = exports.CF_PREVIEW_WIDTH = exports.CF_PREVIEW_CONTAINER_WIDTH = exports.CF_FONT_MAP = exports.CF_PLACEMENT_DIMENSIONS = void 0;
 exports.getCanvas = getCanvas;
@@ -9,6 +42,9 @@ exports.cfUploadBufferToStorage = cfUploadBufferToStorage;
 exports.cfGetPreviewFontSize = cfGetPreviewFontSize;
 exports.cfWrapText = cfWrapText;
 const core_1 = require("../core");
+const https = __importStar(require("https"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 // ============ COMPOSITE IMAGE GENERATOR (Inlined from server/lib/composite-image-generator.ts) ============
 let _canvas = null;
 let _qrcode = null;
@@ -36,6 +72,113 @@ function getQRCode() {
     }
     return _qrcode;
 }
+// Track fonts already registered in this Cloud Function instance
+const CF_REGISTERED_FONTS = new Set([
+    'Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana',
+    'Courier New', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Palatino Linotype',
+]);
+async function cfFetchUrl(url, headers, maxRedirects = 5) {
+    return new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+        const options = {
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            headers: { ...(headers || {}), 'Accept-Encoding': 'identity' },
+        };
+        https.get(options, (res) => {
+            // Follow redirects
+            if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308)
+                && res.headers.location && maxRedirects > 0) {
+                res.resume();
+                const redirectUrl = res.headers.location.startsWith('http')
+                    ? res.headers.location
+                    : `https://${parsed.hostname}${res.headers.location}`;
+                cfFetchUrl(redirectUrl, headers, maxRedirects - 1).then(resolve).catch(reject);
+                return;
+            }
+            const chunks = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('end', () => resolve(Buffer.concat(chunks)));
+            res.on('error', reject);
+        }).on('error', reject);
+    });
+}
+// Resolve a Google Font TTF URL via GitHub's google/fonts repo.
+// Returns null if the font is not found.
+async function cfResolveFontUrlFromGitHub(fontName) {
+    const slug = fontName.replace(/\s+/g, '').toLowerCase();
+    // Licenses where Google Fonts stores fonts (ofl is most common, apache and ufl are others)
+    const licenses = ['ofl', 'apache', 'ufl'];
+    const GH_API = 'https://api.github.com';
+    for (const license of licenses) {
+        try {
+            const listBuf = await cfFetchUrl(`${GH_API}/repos/google/fonts/contents/${license}/${slug}`, {
+                'User-Agent': 'qrgear-cf/1.0',
+            });
+            const files = JSON.parse(listBuf.toString('utf8'));
+            if (!Array.isArray(files))
+                continue;
+            // Prefer variable font (has brackets), then Regular, then Bold
+            const ttfFiles = files.filter(f => f.name.endsWith('.ttf'));
+            const pick = ttfFiles.find(f => f.name.includes('['))
+                || ttfFiles.find(f => f.name.includes('Regular'))
+                || ttfFiles.find(f => f.name.includes('Bold'))
+                || ttfFiles[0];
+            if (pick) {
+                console.log(`[CF Fonts] GitHub resolved "${fontName}" → ${pick.name} (${license})`);
+                return pick.download_url;
+            }
+        }
+        catch { /* try next license */ }
+    }
+    return null;
+}
+async function cfEnsureFont(fontName) {
+    if (CF_REGISTERED_FONTS.has(fontName))
+        return fontName;
+    const safeKey = fontName.replace(/[^a-zA-Z0-9]/g, '_');
+    const tmpPath = path.join('/tmp', `gfont_${safeKey}.ttf`);
+    try {
+        const VALID_MAGIC = ['00010000', '4f54544f', '74727565', '74797031'];
+        // If cached file exists, validate it before using
+        if (fs.existsSync(tmpPath)) {
+            const existing = fs.readFileSync(tmpPath);
+            const existingMagic = existing.slice(0, 4).toString('hex');
+            if (!VALID_MAGIC.includes(existingMagic)) {
+                console.warn(`[CF Fonts] Cached file for "${fontName}" is invalid (magic: ${existingMagic}), re-downloading`);
+                fs.unlinkSync(tmpPath);
+            }
+        }
+        if (!fs.existsSync(tmpPath)) {
+            // Primary: download from GitHub google/fonts (guaranteed valid TTF/variable-TTF)
+            const fontUrl = await cfResolveFontUrlFromGitHub(fontName);
+            if (!fontUrl) {
+                console.warn(`[CF Fonts] Font "${fontName}" not found on GitHub google/fonts`);
+                CF_REGISTERED_FONTS.add(fontName);
+                return 'Arial';
+            }
+            console.log(`[CF Fonts] Fetching "${fontName}" from:`, fontUrl);
+            const fontBuffer = await cfFetchUrl(fontUrl, { 'User-Agent': 'qrgear-cf/1.0' });
+            const magic = fontBuffer.slice(0, 4).toString('hex');
+            if (!VALID_MAGIC.includes(magic)) {
+                console.warn(`[CF Fonts] Unexpected magic for "${fontName}": ${magic} (${fontBuffer.length} bytes)`);
+                CF_REGISTERED_FONTS.add(fontName);
+                return 'Arial';
+            }
+            fs.writeFileSync(tmpPath, fontBuffer);
+            console.log(`[CF Fonts] Saved "${fontName}" → ${tmpPath} (${fontBuffer.length} bytes)`);
+        }
+        getCanvas().registerFont(tmpPath, { family: fontName });
+        CF_REGISTERED_FONTS.add(fontName);
+        console.log(`[CF Fonts] Registered: "${fontName}"`);
+        return fontName;
+    }
+    catch (e) {
+        console.warn(`[CF Fonts] Failed to register "${fontName}":`, e?.message);
+        CF_REGISTERED_FONTS.add(fontName);
+        return 'Arial';
+    }
+}
 const CF_PLACEMENT_DIMENSIONS = {
     "front": { width: 3600, height: 4800 },
     "front_large": { width: 3600, height: 4800 },
@@ -46,6 +189,7 @@ const CF_PLACEMENT_DIMENSIONS = {
     "right_sleeve": { width: 1200, height: 1500 },
 };
 exports.CF_PLACEMENT_DIMENSIONS = CF_PLACEMENT_DIMENSIONS;
+// System fonts that don't need downloading
 const CF_FONT_MAP = {
     "Arial": "Arial", "Helvetica": "Helvetica", "Times New Roman": "Times New Roman",
     "Georgia": "Georgia", "Verdana": "Verdana", "Courier New": "Courier New",
@@ -193,7 +337,7 @@ async function cfGenerateCompositeImage(options) {
     else if (topText && topText.text) {
         const previewFontSize = cfGetPreviewFontSize(topText.fontSize);
         const fontSize = previewFontSize * scaleFactor;
-        const fontFamily = CF_FONT_MAP[topText.fontFamily] || "Arial";
+        const fontFamily = CF_FONT_MAP[topText.fontFamily] || await cfEnsureFont(topText.fontFamily);
         const fillColor = topText.color || textColor;
         ctx.font = `bold ${fontSize}px "${fontFamily}"`;
         ctx.fillStyle = fillColor;
@@ -266,7 +410,7 @@ async function cfGenerateCompositeImage(options) {
     else if (bottomText && bottomText.text) {
         const previewFontSize = cfGetPreviewFontSize(bottomText.fontSize);
         const fontSize = previewFontSize * scaleFactor;
-        const fontFamily = CF_FONT_MAP[bottomText.fontFamily] || "Arial";
+        const fontFamily = CF_FONT_MAP[bottomText.fontFamily] || await cfEnsureFont(bottomText.fontFamily);
         const fillColor = bottomText.color || textColor;
         ctx.font = `bold ${fontSize}px "${fontFamily}"`;
         ctx.fillStyle = fillColor;
