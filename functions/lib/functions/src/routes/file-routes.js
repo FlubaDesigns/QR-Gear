@@ -103,7 +103,9 @@ async function processQueueInBackground() {
                 completedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
             });
             // If this job belongs to a packet, write the best mockup URL back to the
-            // packet document so template cards always display a real printer mockup.
+            // packet document so template cards always display a real printer mockup,
+            // AND write the full mockupsByColor 3-level structure so the store can
+            // serve per-color swatches via extractPacketMockups().
             if (job.productId && typeof job.productId === 'string' && job.productId.startsWith('packet_')) {
                 const packetId = job.productId.slice('packet_'.length);
                 try {
@@ -113,6 +115,16 @@ async function processQueueInBackground() {
                         const packetData = packetSnap.data() || {};
                         const existingUrl = packetData.priorityMockupUrl || null;
                         const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl || null;
+                        // Always write mockupsByColor so per-color swatches appear in the store.
+                        const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
+                        const placementKey = job.placement || 'front';
+                        const sizeKey = job.qrSize || 'large';
+                        await packetRef.update({
+                            [`mockupsByColor.${colorKey}.${placementKey}.${sizeKey}`]: mockupResult.mockupUrl,
+                            [`mockupsByColor.${colorKey}.${placementKey}.lifestyle`]: mockupResult.lifestyleMockupUrl || null,
+                            updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                        });
+                        console.log(`[Queue Background] Wrote mockupsByColor to packet ${packetId}: ${colorKey}/${placementKey}/${sizeKey}`);
                         const isUpgrade = bestUrl &&
                             (!existingUrl || (mockupResult.lifestyleMockupUrl && existingUrl !== mockupResult.lifestyleMockupUrl));
                         if (isUpgrade) {

@@ -336,6 +336,101 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
+    // ── POST /admin/catalog-instances/:id/requeue-mockups ───────────────────────
+    // Re-queue mockup generation for an existing instance's packet.
+    // Use this to fix instances that were created before the mockupsByColor
+    // write-back fix, or when colors are added/changed on an existing instance.
+    app.post('/admin/catalog-instances/:id/requeue-mockups', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { colors: requestedColors } = req.body; // optional: specific colors to re-queue
+            const instanceDoc = await core_1.db.collection(ADMIN_INSTANCES).doc(id).get();
+            if (!instanceDoc.exists) {
+                res.status(404).json({ error: 'Instance not found' });
+                return;
+            }
+            const instance = instanceDoc.data();
+            if (!instance.currentPacketId) {
+                res.status(400).json({ error: 'Instance has no linked packet. Create a packet first via /create-packet.' });
+                return;
+            }
+            const packetDoc = await core_1.db.collection(PACKETS).doc(instance.currentPacketId).get();
+            if (!packetDoc.exists) {
+                res.status(404).json({ error: 'Packet not found' });
+                return;
+            }
+            const packet = packetDoc.data();
+            const artworkUrl = packet.artworkUrl || packet.compositeUrl || packet.productGraphicUrl || null;
+            if (!artworkUrl) {
+                res.status(400).json({ error: 'Packet has no artworkUrl. Upload artwork to the packet before generating mockups.' });
+                return;
+            }
+            const blueprintId = packet.blueprintId || instance.baseSnapshot?.printifyBlueprintId || null;
+            if (!blueprintId) {
+                res.status(400).json({ error: 'Packet has no blueprintId. Link a blueprint before generating mockups.' });
+                return;
+            }
+            const printProviderId = packet.printProviderId || 39;
+            const fulfillmentProvider = packet.fulfillmentProvider || 'printify';
+            // Resolve color list: caller override → packet colors → instance enabledColors → resolved colors
+            const rawColors = packet.colors || packet.enabledColors || instance.enabledColors || instance.resolved?.colors || [];
+            const allColors = rawColors.map((c) => typeof c === 'string' ? { name: c, hex: '#000000' } : { name: c.name || c.label || String(c), hex: c.hex || c.color || '#000000' }).filter((c) => c.name);
+            const colorsToQueue = requestedColors?.length
+                ? allColors.filter(c => requestedColors.includes(c.name))
+                : allColors;
+            if (colorsToQueue.length === 0) {
+                res.status(400).json({ error: 'No colors found to generate mockups for.' });
+                return;
+            }
+            const productIdForMockups = `packet_${instance.currentPacketId}`;
+            const placements = ['front'];
+            const qrSizes = ['small', 'medium', 'large'];
+            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+            const batch = core_1.db.batch();
+            let jobsQueued = 0;
+            for (const color of colorsToQueue) {
+                for (const placement of placements) {
+                    for (const qrSize of qrSizes) {
+                        const jobRef = core_1.db.collection('mockup_jobs').doc();
+                        batch.set(jobRef, {
+                            productId: productIdForMockups,
+                            colorName: color.name,
+                            colorHex: color.hex,
+                            qrSize,
+                            placement,
+                            jobData: {
+                                blueprintId,
+                                printProviderId,
+                                artworkUrl,
+                                artworkVariant: 'black',
+                                fulfillmentProvider,
+                            },
+                            status: 'pending',
+                            priority: jobsQueued,
+                            attempts: 0,
+                            maxAttempts: 5,
+                            createdAt: now,
+                            updatedAt: now,
+                        });
+                        jobsQueued++;
+                    }
+                }
+            }
+            await batch.commit();
+            console.log(`[AdminInstances] Queued ${jobsQueued} mockup jobs for instance ${id} / packet ${instance.currentPacketId}`);
+            res.json({
+                success: true,
+                instanceId: id,
+                packetId: instance.currentPacketId,
+                jobsQueued,
+                colors: colorsToQueue.map(c => c.name),
+                message: `Queued ${jobsQueued} mockup jobs for ${colorsToQueue.length} color(s). Jobs will process in the background.`,
+            });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
     // ── POST /admin/catalog-instances/:id/push-to-member ────────────────────────
     // Derive a member_library_instance from an admin instance.
     // Admin instance is NEVER mutated here.

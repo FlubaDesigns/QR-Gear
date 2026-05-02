@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: April 25, 2026 (rev 29)
+Last updated: May 2, 2026 (rev 30)
 
 ---
 
@@ -1213,6 +1213,19 @@ Each card shows:
 | `client/src/features/adminProducts/builder/modules/CreateGraphicsModule.tsx` | useEffect auto-titles from full folder path; `canCreate` gated on collection; passes `selectedCollection` to `useCreatePacket` |
 | `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | `selectedCollection` arg added; `collectionId`, `collectionName`, `folderPath` added to packet payload |
 | `functions/src/routes/admin-build-sessions.ts` | Commit handler extracts folder context from `session.working.metadata`; stores 7 new fields on instance |
+
+---
+
+### May 2, 2026 — Mockup Image Write-Back Fix (per-color swatches)
+
+When a new catalog instance item is added and mockup jobs are queued with `productId: 'packet_xxx'`, the background queue processor now writes the full `mockupsByColor` 3-level structure (`{ colorKey: { placementKey: { sizeKey: url, lifestyle: url } } }`) back to the `productPackets` document after each job completes. Previously only `priorityMockupUrl` (a single URL) was written, so per-color mockup swatches never appeared in the public store. Now `store-files.ts`'s `extractPacketMockups()` reads the correct data and serves per-color images to the storefront. A new `POST /admin/catalog-instances/:id/requeue-mockups` endpoint was also added to re-queue jobs for existing instances (e.g. Navy) that were created before this fix.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/file-routes.ts` | `processQueueInBackground()` — after generating a mockup for a `packet_xxx` job, now also writes `mockupsByColor.{colorKey}.{placementKey}.{sizeKey}` and `.lifestyle` to `productPackets` doc |
+| `functions/src/routes/admin-catalog-instances.ts` | New `POST /admin/catalog-instances/:id/requeue-mockups` endpoint — re-queues mockup generation jobs for all (or specified) colors on an existing instance's packet |
+| `functions/src/index.ts` | `_BUILD_ID` and `labels['build-id']` bumped to `20260502-mockup-color-writeback-v1` to force Cloud Run redeployment |
 
 ---
 
