@@ -21,12 +21,18 @@ order and avoid Firebase re-running a slow npm install + tsc before uploading.
 ## Step 1 — Bump BUILD_ID and build both targets (timeout: 60000ms)
 
 ```bash
-sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)'/" functions/src/index.ts \
+sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)-$RANDOM'/" functions/src/index.ts \
   && npm run build 2>&1 | tail -5 \
   && cd functions && npm run build 2>&1 | tail -3 && cd ..
 ```
 
-This must complete cleanly before any deploy. If tsc fails, stop — do not deploy.
+The `$RANDOM` suffix (0–32767) makes the BUILD_ID collision-proof even when two deploys
+happen in the same second. This must complete cleanly before any deploy — if tsc fails, stop.
+
+**What this does:** `_BUILD_ID` is a string constant on line 1 of `functions/src/index.ts`.
+Changing it changes the compiled bundle's bytes, which changes the hash Firebase uses to
+decide whether to deploy. Without this bump, Firebase silently skips ("No changes detected")
+even when source files changed.
 
 ## Step 2 — Deploy functions (timeout: 90000ms)
 
