@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutGrid, List, GalleryHorizontal, Palette, Ruler, Package, Trash2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
+import { PublishStatusBadge } from "@/features/adminProducts/storeLibrary/components/PublishStatusBadge";
 
 export type StoreProductViewLayout = "grid" | "list" | "swipe";
 
@@ -17,6 +18,10 @@ export interface StoreProductItem {
   sizes?: string[];
   price?: number;
   isSelected?: boolean;
+  publishStatus?: "synced" | "pending" | "error" | null;
+  lastPublishedAt?: string | null;
+  publishError?: string | null;
+  printifyProductId?: string | null;
 }
 
 export interface StoreProductSkinProps {
@@ -25,6 +30,8 @@ export interface StoreProductSkinProps {
   onSelect?: (item: StoreProductItem) => void;
   onItemClick?: (item: StoreProductItem) => void;
   onDelete?: (item: StoreProductItem) => void;
+  onRepublish?: (item: StoreProductItem) => void;
+  republishingIds?: Set<string>;
   layout?: StoreProductViewLayout;
   onLayoutChange?: (layout: StoreProductViewLayout) => void;
   initialLayout?: StoreProductViewLayout;
@@ -78,12 +85,16 @@ function ProductCard({
   isSelected,
   onClick,
   onDelete,
+  onRepublish,
+  isRepublishing,
   variant = "compact",
 }: {
   item: StoreProductItem;
   isSelected: boolean;
   onClick: () => void;
   onDelete?: () => void;
+  onRepublish?: () => void;
+  isRepublishing?: boolean;
   variant?: "compact" | "full";
 }) {
   if (variant === "full") {
@@ -135,6 +146,14 @@ function ProductCard({
               </Badge>
             )}
           </div>
+          <PublishStatusBadge
+            printifyProductId={item.printifyProductId}
+            publishStatus={item.publishStatus}
+            lastPublishedAt={item.lastPublishedAt}
+            publishError={item.publishError}
+            onRepublish={onRepublish}
+            isRepublishing={isRepublishing}
+          />
         </CardContent>
         {onDelete && (
           <button
@@ -179,6 +198,16 @@ function ProductCard({
           {item.colorCount} colors
         </div>
       )}
+      <div className="mt-1">
+        <PublishStatusBadge
+          printifyProductId={item.printifyProductId}
+          publishStatus={item.publishStatus}
+          lastPublishedAt={item.lastPublishedAt}
+          publishError={item.publishError}
+          onRepublish={onRepublish}
+          isRepublishing={isRepublishing}
+        />
+      </div>
       {isSelected && (
         <Badge 
           variant="default" 
@@ -207,6 +236,8 @@ export function StoreProductSkin({
   onSelect,
   onItemClick,
   onDelete,
+  onRepublish,
+  republishingIds = new Set(),
   layout: controlledLayout,
   onLayoutChange,
   initialLayout = "grid",
@@ -260,6 +291,8 @@ export function StoreProductSkin({
             isSelected={selectedIds.has(item.id)}
             onClick={() => handleClick(item)}
             onDelete={onDelete ? () => onDelete(item) : undefined}
+            onRepublish={onRepublish ? () => onRepublish(item) : undefined}
+            isRepublishing={republishingIds.has(item.id)}
             variant="compact"
           />
         ))}
@@ -281,6 +314,8 @@ export function StoreProductSkin({
             isSelected={selectedIds.has(item.id)}
             onClick={() => handleClick(item)}
             onDelete={onDelete ? () => onDelete(item) : undefined}
+            onRepublish={onRepublish ? () => onRepublish(item) : undefined}
+            isRepublishing={republishingIds.has(item.id)}
             variant="full"
           />
         ))}
@@ -302,6 +337,8 @@ export function StoreProductSkin({
               isSelected={selectedIds.has(item.id)}
               onClick={() => handleClick(item)}
               onDelete={onDelete ? () => onDelete(item) : undefined}
+              onRepublish={onRepublish ? () => onRepublish(item) : undefined}
+              isRepublishing={republishingIds.has(item.id)}
               variant="full"
             />
           </div>

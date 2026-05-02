@@ -360,6 +360,10 @@ function register(app) {
                         collectionName: d.collectionName || null,
                         status: d.status || 'active',
                         isVisible: d.isVisible !== false,
+                        publishStatus: d.publishStatus || null,
+                        lastPublishedAt: d.lastPublishedAt?.toDate?.()?.toISOString() || d.lastPublishedAt || null,
+                        publishError: d.publishError || null,
+                        printifyProductId: d.printifyProductId || null,
                     };
                 });
                 res.json(products);

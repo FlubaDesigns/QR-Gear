@@ -73,9 +73,20 @@ How it works:
 ---
 
 ### #22 — Admin Publish Status UI
-**Status: Queued** — After #21
+**Status: Complete** ✓ — Build `20260502-task22-publish-status-v1`
 
-Adds a status badge to every product card in the Store Library showing one of four states: Synced (with timestamp), Pending, Error (tappable for message), or Not Published (with a "Publish Now" button). Badge updates in real time as the auto-publish trigger fires.
+Every product card in the Store Library now shows a publish status badge in one of four states:
+- **Synced** (green) — `printifyProductId` present, `publishStatus === "synced"`. Shows timestamp of last successful publish.
+- **Syncing** (amber, spinner) — `publishStatus === "pending"`.
+- **Error** (red, tappable) — `publishStatus === "error"`. Tapping reveals the error message and a **Retry** button that calls `POST /admin/qrg/republish/:instanceId`.
+- **Not Published** (muted) — no `printifyProductId` on the instance.
+
+Implementation:
+- Backend: `admin-stores.ts` channel products endpoint now returns `publishStatus`, `lastPublishedAt`, `publishError`, `printifyProductId` from each `admin_catalog_instances` doc
+- Frontend: `PublishStatusBadge.tsx` — new standalone component handling all four states with accessible icons (CheckCircle2, Loader2, AlertCircle, CloudOff)
+- `StoreLibraryContext.tsx` — `ProductInfo` extended with four publish fields
+- `StoreProductSkin.tsx` — `StoreProductItem` extended; badge rendered in both compact (grid) and full (list/swipe) card variants; `onRepublish`/`republishingIds` props threaded through
+- `ProductGridModule.tsx` — republish `useMutation` added; per-item loading state tracked in `republishingIds` Set; Retry fires `POST /admin/qrg/republish/:instanceId` and invalidates the products query on success
 
 **Depends on:** #21
 

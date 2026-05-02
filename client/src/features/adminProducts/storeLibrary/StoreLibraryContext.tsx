@@ -30,6 +30,10 @@ export interface ProductInfo {
   defaultColor?: string;
   qrContent?: string;
   pricing?: any;
+  publishStatus?: 'synced' | 'pending' | 'error' | null;
+  lastPublishedAt?: string | null;
+  publishError?: string | null;
+  printifyProductId?: string | null;
 }
 
 interface StoreLibraryContextValue {

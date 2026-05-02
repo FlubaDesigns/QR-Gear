@@ -31,12 +31,17 @@ function productToSkinItem(product: ProductInfo): StoreProductItem {
     subtitle: product.baseProductId ? `Product: ${product.baseProductId}` : undefined,
     colorCount: product.enabledColors?.length,
     sizes: product.enabledSizes,
+    publishStatus: product.publishStatus ?? null,
+    lastPublishedAt: product.lastPublishedAt ?? null,
+    publishError: product.publishError ?? null,
+    printifyProductId: product.printifyProductId ?? null,
   };
 }
 
 export function ProductGridModule() {
   const [viewLayout, setViewLayout] = useState<StoreProductViewLayout>("grid");
   const [pendingDeleteItem, setPendingDeleteItem] = useState<StoreProductItem | null>(null);
+  const [republishingIds, setRepublishingIds] = useState<Set<string>>(new Set());
 
   const {
     selectedStore,
@@ -68,6 +73,31 @@ export function ProductGridModule() {
     },
   });
 
+  const republishMutation = useMutation({
+    mutationFn: (instanceId: string) =>
+      adminFetch(`/qrg/republish/${instanceId}`, { method: "POST" }),
+    onMutate: (instanceId: string) => {
+      setRepublishingIds((prev) => new Set(prev).add(instanceId));
+    },
+    onSuccess: (_data, instanceId) => {
+      setRepublishingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(instanceId);
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: [productsQueryKey] });
+      toast({ title: "Republish queued", description: "The product is being synced to Printify." });
+    },
+    onError: (err: Error, instanceId) => {
+      setRepublishingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(instanceId);
+        return next;
+      });
+      toast({ title: "Republish failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   if (!selectedStore || !selectedChannel) {
     return null;
   }
@@ -91,6 +121,11 @@ export function ProductGridModule() {
   const handleDeleteConfirm = () => {
     if (!pendingDeleteItem) return;
     deleteMutation.mutate(pendingDeleteItem.id);
+  };
+
+  const handleRepublish = (item: StoreProductItem) => {
+    if (republishingIds.has(item.id)) return;
+    republishMutation.mutate(item.id);
   };
 
   const skinItems = products.map(productToSkinItem);
@@ -121,6 +156,8 @@ export function ProductGridModule() {
             selectedIds={selectedIds}
             onSelect={handleSelect}
             onDelete={handleDeleteRequest}
+            onRepublish={handleRepublish}
+            republishingIds={republishingIds}
             layout={viewLayout}
             onLayoutChange={setViewLayout}
             showViewToggle={false}
