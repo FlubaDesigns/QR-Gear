@@ -242,6 +242,8 @@ function register(app) {
             let packetMockupImages = [];
             let packetDefaultColor = null;
             let packetLandingPageSnapshotUrl = null;
+            let packetCompositeUrl = null;
+            let packetQrOnlyUrl = null;
             if (d.currentPacketId) {
                 try {
                     const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
@@ -253,6 +255,8 @@ function register(app) {
                         packetDefaultColor = extracted.defaultColor;
                         packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                         packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
+                        packetCompositeUrl = pkt.compositeUrl || pkt.productGraphicUrl || null;
+                        packetQrOnlyUrl = pkt.qrOnlyUrl || null;
                         if (price === null && pkt.pricing?.customerPrice)
                             price = pkt.pricing.customerPrice;
                     }
@@ -284,7 +288,8 @@ function register(app) {
                 images: allImages,
                 packetImageUrl: packetMockupUrl,
                 landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
-                qrCodeUrl: null,
+                compositeUrl: packetCompositeUrl,
+                qrCodeUrl: packetQrOnlyUrl,
                 qrProductType: d.qrProductType || 'qr-basics',
                 price: price !== null ? Math.round(price * 100) / 100 : null,
                 availableSizes: bSizes,

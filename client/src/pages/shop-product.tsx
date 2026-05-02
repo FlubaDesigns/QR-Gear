@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
-  ScanLine, Shield, Truck,
+  ScanLine, Shield, Truck, ArrowRight,
 } from "lucide-react";
 import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
@@ -70,6 +70,8 @@ interface StoreProduct {
   images?: string[] | null;
   packetImageUrl?: string | null;
   qrCodeUrl: string | null;
+  /** The built graphic+QR composite image — shown as the "destination" preview */
+  compositeUrl?: string | null;
   qrProductType: string;
   price: number | null;
   availableSizes: string[];
@@ -344,18 +346,63 @@ export default function ShopProductPage() {
               </p>
             </div>
 
-            {/* ── Where it takes you (shown only when snapshot exists) ─── */}
-            {product.landingPageSnapshotUrl && (
+            {/* ── Scan this → go here ───────────────────────────────────── */}
+            {(product.compositeUrl || product.qrCodeUrl) && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Where it takes you
+                  Scan this
                 </p>
-                <img
-                  src={product.landingPageSnapshotUrl}
-                  alt="Digital experience preview"
-                  className="w-full rounded-md border object-cover"
-                  data-testid="img-landing-snapshot"
-                />
+                <div className="relative rounded-md overflow-hidden border bg-muted/30" style={{ minHeight: "180px" }}>
+                  {/* Large composite image — the built graphic with QR + text */}
+                  {product.compositeUrl && (
+                    <img
+                      src={product.compositeUrl}
+                      alt="QR graphic built for this product"
+                      className="w-full object-contain rounded-md"
+                      data-testid="img-composite-graphic"
+                    />
+                  )}
+
+                  {/* Arrow label — only when both images present */}
+                  {product.compositeUrl && product.qrCodeUrl && (
+                    <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded px-2 py-1">
+                      <ScanLine className="h-3.5 w-3.5 text-primary" />
+                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">Opens this</span>
+                    </div>
+                  )}
+
+                  {/* Small QR code — slightly larger, off-center to the right */}
+                  {product.qrCodeUrl && (
+                    <div
+                      className="absolute rounded-md border-2 border-background shadow-md bg-white overflow-hidden"
+                      style={{ width: "72px", height: "72px", bottom: "12px", right: "16px" }}
+                      data-testid="img-qr-code-overlay"
+                    >
+                      <img
+                        src={product.qrCodeUrl}
+                        alt="Scannable QR code"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Destination snapshot below if available */}
+                {product.landingPageSnapshotUrl && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                      <ArrowRight className="h-3 w-3" />
+                      Goes here
+                    </p>
+                    <img
+                      src={product.landingPageSnapshotUrl}
+                      alt="Digital experience preview"
+                      className="w-full rounded-md border object-cover"
+                      data-testid="img-landing-snapshot"
+                    />
+                  </div>
+                )}
               </div>
             )}
 

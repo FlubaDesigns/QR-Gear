@@ -1216,6 +1216,29 @@ Each card shows:
 
 ---
 
+### May 2, 2026 — "Scan This → Go Here" section on product detail page
+
+The shop product detail page now shows a visual "Scan this" section when a product has a built composite image and/or QR code. The section shows:
+- The **composite graphic** (the image built in the wizard — QR + text, the correct one with content) as the main large image
+- The **QR code** as a small overlay, positioned off-center to the right at the bottom
+- A "→ Opens this" label
+- If a `landingPageSnapshotUrl` also exists, a secondary "Goes here" preview below
+
+The API was updated to return two new fields from the `productPackets` document for catalog instance products:
+- `compositeUrl` — `pkt.compositeUrl || pkt.productGraphicUrl`
+- `qrCodeUrl` — `pkt.qrOnlyUrl`
+
+Previously `qrCodeUrl` was hardcoded `null` for catalog instance products and `compositeUrl` was never returned.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/store-files.ts` | Read `pkt.compositeUrl`, `pkt.productGraphicUrl`, `pkt.qrOnlyUrl` from packet; return as `compositeUrl` + `qrCodeUrl` in catalog instance API response |
+| `client/src/pages/shop-product.tsx` | Added `compositeUrl` to `StoreProduct` interface; replaced "Where it takes you" section with new "Scan this → go here" layout |
+| `functions/src/index.ts` | Build ID bumped to `20260502-scan-this-composite-v3` |
+
+---
+
 ### May 2, 2026 — Routing & Breadcrumb Fix (Shop → public storefront)
 
 The breadcrumb "Shop" link was pointing to `/store` — the internal admin product config page — instead of the public storefront. Any public user clicking that crumb (or the footer "All Products" link, post-checkout "Back to Store" buttons, etc.) would land on an admin page. Fixed:
