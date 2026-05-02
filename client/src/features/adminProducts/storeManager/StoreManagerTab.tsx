@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Hash, Layers, ChevronRight, ChevronDown,
-  Loader2, Trash2, MoveRight, Check, X, Package, ExternalLink
+  Loader2, Trash2, MoveRight, Check, X, Package, ExternalLink, RefreshCw
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -786,6 +786,20 @@ export function StoreManagerTab() {
     queryClient.invalidateQueries({ queryKey: instancesQueryKey });
   };
 
+  const backfillImagesMutation = useMutation({
+    mutationFn: () => adminFetch<any>("/catalog-instances/backfill-all-images", { method: "POST", json: {} }),
+    onSuccess: (data) => {
+      toast({
+        title: "Gallery images rebuilt",
+        description: `Updated ${data.updated ?? 0} of ${data.total ?? 0} products.`,
+      });
+      queryClient.invalidateQueries({ queryKey: instancesQueryKey });
+    },
+    onError: (err: any) => {
+      toast({ title: "Backfill failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const storeOptions = stores.map(s => ({
     value: s.id, label: s.name, icon: <Store className="h-4 w-4" />,
   }));
@@ -801,6 +815,21 @@ export function StoreManagerTab() {
     <div className="space-y-4">
       {/* Role + Store selectors */}
       <div className="glass-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="glass-subtitle text-xs uppercase tracking-wider">Store Manager</span>
+          <button
+            onClick={() => backfillImagesMutation.mutate()}
+            disabled={backfillImagesMutation.isPending}
+            className="flex items-center gap-1.5 text-xs text-white/30 hover-elevate rounded px-2 py-1"
+            title="Rebuild gallery images for all products from their packet mockups"
+            data-testid="button-backfill-images"
+          >
+            {backfillImagesMutation.isPending
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <RefreshCw className="h-3.5 w-3.5" />}
+            Rebuild gallery images
+          </button>
+        </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Role</label>

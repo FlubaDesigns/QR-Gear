@@ -391,4 +391,114 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── POST /api/admin/catalog-instances/backfill-all-images ──────────────────
+  // Local-dev mirror: iterate all instances with a currentPacketId and rebuild resolved.images.
+  // Must be registered BEFORE /:id routes.
+  app.post("/api/admin/catalog-instances/backfill-all-images", isAdmin, async (_req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const db = getFirestoreDb();
+
+      const PLACEMENT_ORDER = ["front", "front-center", "back", "left_sleeve", "right_sleeve"];
+      function buildPacketImageOrder(pkt: any): string[] {
+        const ordered: string[] = [];
+        const seen = new Set<string>();
+        function add(url: string | null | undefined) {
+          if (!url || seen.has(url)) return;
+          seen.add(url);
+          ordered.push(url);
+        }
+        add(pkt.lifestyleMockupUrl);
+        const placementMockupUrls: Record<string, string> = pkt.placementMockupUrls || {};
+        const placementKeys = Object.keys(placementMockupUrls);
+        const sortedKeys = [
+          ...PLACEMENT_ORDER.filter(p => placementKeys.includes(p)),
+          ...placementKeys.filter(p => !PLACEMENT_ORDER.includes(p)),
+        ];
+        for (const key of sortedKeys) add(placementMockupUrls[key]);
+        if (sortedKeys.length === 0) add(pkt.priorityMockupUrl);
+        add(pkt.compositeUrl || pkt.productGraphicUrl);
+        add(pkt.landingPageSnapshotUrl);
+        return ordered;
+      }
+
+      const snap = await db.collection(ADMIN_INSTANCES_COLLECTION)
+        .where("currentPacketId", "!=", null)
+        .limit(300)
+        .get();
+
+      let updated = 0; let skipped = 0; const errors: string[] = [];
+      for (const doc of snap.docs) {
+        try {
+          const inst = doc.data() as any;
+          const packetId = inst.currentPacketId;
+          if (!packetId) { skipped++; continue; }
+          const packetDoc = await db.collection("productPackets").doc(packetId).get();
+          if (!packetDoc.exists) { skipped++; continue; }
+          const pkt = packetDoc.data() as any;
+          const images = buildPacketImageOrder(pkt);
+          if (images.length === 0) { skipped++; continue; }
+          const qrgId: string | null = pkt.qrgId || null;
+          const update: Record<string, any> = { "resolved.images": images, updatedAt: FieldValue.serverTimestamp() };
+          if (qrgId) update["resolved.qrgId"] = qrgId;
+          await doc.ref.update(update);
+          updated++;
+        } catch (e: any) { errors.push(`${doc.id}: ${e.message}`); }
+      }
+      res.json({ success: true, total: snap.size, updated, skipped, ...(errors.length ? { errors } : {}) });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ── POST /api/admin/catalog-instances/:id/rebuild-images ───────────────────
+  // Local-dev mirror: rebuild resolved.images from linked packet for a single instance.
+  app.post("/api/admin/catalog-instances/:id/rebuild-images", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const db = getFirestoreDb();
+
+      const PLACEMENT_ORDER = ["front", "front-center", "back", "left_sleeve", "right_sleeve"];
+      function buildPacketImageOrder(pkt: any): string[] {
+        const ordered: string[] = [];
+        const seen = new Set<string>();
+        function add(url: string | null | undefined) {
+          if (!url || seen.has(url)) return;
+          seen.add(url);
+          ordered.push(url);
+        }
+        add(pkt.lifestyleMockupUrl);
+        const placementMockupUrls: Record<string, string> = pkt.placementMockupUrls || {};
+        const placementKeys = Object.keys(placementMockupUrls);
+        const sortedKeys = [
+          ...PLACEMENT_ORDER.filter(p => placementKeys.includes(p)),
+          ...placementKeys.filter(p => !PLACEMENT_ORDER.includes(p)),
+        ];
+        for (const key of sortedKeys) add(placementMockupUrls[key]);
+        if (sortedKeys.length === 0) add(pkt.priorityMockupUrl);
+        add(pkt.compositeUrl || pkt.productGraphicUrl);
+        add(pkt.landingPageSnapshotUrl);
+        return ordered;
+      }
+
+      const instanceDoc = await db.collection(ADMIN_INSTANCES_COLLECTION).doc(id).get();
+      if (!instanceDoc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
+      const instance = instanceDoc.data() as any;
+      if (!instance.currentPacketId) { res.status(400).json({ error: "Instance has no linked packet" }); return; }
+
+      const packetDoc = await db.collection("productPackets").doc(instance.currentPacketId).get();
+      if (!packetDoc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
+
+      const pkt = packetDoc.data() as any;
+      const images = buildPacketImageOrder(pkt);
+      const qrgId: string | null = pkt.qrgId || null;
+      const update: Record<string, any> = { "resolved.images": images, updatedAt: FieldValue.serverTimestamp() };
+      if (qrgId) update["resolved.qrgId"] = qrgId;
+      await db.collection(ADMIN_INSTANCES_COLLECTION).doc(id).update(update);
+
+      res.json({ success: true, instanceId: id, imageCount: images.length, qrgId });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+  });
 }

@@ -23,6 +23,31 @@ const ADMIN_INSTANCES = 'admin_catalog_instances';
 const MASTER_CATALOG = 'master_catalog';
 const MEMBER_INSTANCES = 'member_library_instances';
 const PACKETS = 'productPackets';
+const PLACEMENT_ORDER = ['front', 'front-center', 'back', 'left_sleeve', 'right_sleeve'];
+function buildPacketImageOrder(pkt) {
+    const ordered = [];
+    const seen = new Set();
+    function add(url) {
+        if (!url || seen.has(url))
+            return;
+        seen.add(url);
+        ordered.push(url);
+    }
+    add(pkt.lifestyleMockupUrl);
+    const placementMockupUrls = pkt.placementMockupUrls || {};
+    const placementKeys = Object.keys(placementMockupUrls);
+    const sortedKeys = [
+        ...PLACEMENT_ORDER.filter(p => placementKeys.includes(p)),
+        ...placementKeys.filter(p => !PLACEMENT_ORDER.includes(p)),
+    ];
+    for (const key of sortedKeys)
+        add(placementMockupUrls[key]);
+    if (sortedKeys.length === 0)
+        add(pkt.priorityMockupUrl);
+    add(pkt.compositeUrl || pkt.productGraphicUrl);
+    add(pkt.landingPageSnapshotUrl);
+    return ordered;
+}
 function toSerializable(doc) {
     const data = doc.data();
     return {
@@ -496,6 +521,101 @@ function register(app) {
             });
         }
         catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    // ── POST /admin/catalog-instances/backfill-all-images ───────────────────────
+    // Must be registered BEFORE /:id routes so Express doesn't treat "backfill-all-images" as an id.
+    // Iterates every admin_catalog_instance that has a currentPacketId, reads the linked
+    // packet, and rebuilds resolved.images in canonical order. Idempotent — safe to run repeatedly.
+    app.post('/admin/catalog-instances/backfill-all-images', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const snap = await core_1.db.collection(ADMIN_INSTANCES)
+                .where('currentPacketId', '!=', null)
+                .limit(300)
+                .get();
+            let updated = 0;
+            let skipped = 0;
+            const errors = [];
+            for (const doc of snap.docs) {
+                try {
+                    const instance = doc.data();
+                    const packetId = instance.currentPacketId;
+                    if (!packetId) {
+                        skipped++;
+                        continue;
+                    }
+                    const packetDoc = await core_1.db.collection(PACKETS).doc(packetId).get();
+                    if (!packetDoc.exists) {
+                        skipped++;
+                        continue;
+                    }
+                    const pkt = packetDoc.data();
+                    const images = buildPacketImageOrder(pkt);
+                    if (images.length === 0) {
+                        skipped++;
+                        continue;
+                    }
+                    const qrgId = pkt.qrgId || null;
+                    const update = {
+                        'resolved.images': images,
+                        updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                    };
+                    if (qrgId)
+                        update['resolved.qrgId'] = qrgId;
+                    await doc.ref.update(update);
+                    updated++;
+                }
+                catch (e) {
+                    errors.push(`${doc.id}: ${e.message}`);
+                }
+            }
+            console.log(`[AdminInstances] backfill-all-images: updated=${updated} skipped=${skipped} errors=${errors.length}`);
+            res.json({ success: true, total: snap.size, updated, skipped, ...(errors.length ? { errors } : {}) });
+        }
+        catch (e) {
+            console.error('[AdminInstances] backfill-all-images error:', e.message);
+            res.status(500).json({ error: e.message });
+        }
+    });
+    // ── POST /admin/catalog-instances/:id/rebuild-images ────────────────────────
+    // Reads the linked packet and rebuilds resolved.images in canonical order:
+    //   lifestyle → per-placement mockups → composite artwork → landing page snapshot
+    // Also syncs resolved.qrgId from the packet. Safe to call any time after a packet
+    // is created; the storefront gallery will reflect the update immediately.
+    app.post('/admin/catalog-instances/:id/rebuild-images', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const instanceDoc = await core_1.db.collection(ADMIN_INSTANCES).doc(id).get();
+            if (!instanceDoc.exists) {
+                res.status(404).json({ error: 'Instance not found' });
+                return;
+            }
+            const instance = instanceDoc.data();
+            if (!instance.currentPacketId) {
+                res.status(400).json({ error: 'Instance has no linked packet' });
+                return;
+            }
+            const packetDoc = await core_1.db.collection(PACKETS).doc(instance.currentPacketId).get();
+            if (!packetDoc.exists) {
+                res.status(404).json({ error: 'Packet not found' });
+                return;
+            }
+            const pkt = packetDoc.data();
+            const images = buildPacketImageOrder(pkt);
+            const qrgId = pkt.qrgId || null;
+            const update = {
+                'resolved.images': images,
+                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+            };
+            if (qrgId)
+                update['resolved.qrgId'] = qrgId;
+            await core_1.db.collection(ADMIN_INSTANCES).doc(id).update(update);
+            console.log(`[AdminInstances] rebuild-images: instance=${id} imageCount=${images.length}`);
+            res.json({ success: true, instanceId: id, imageCount: images.length, qrgId });
+        }
+        catch (e) {
+            console.error('[AdminInstances] rebuild-images error:', e.message);
             res.status(500).json({ error: e.message });
         }
     });

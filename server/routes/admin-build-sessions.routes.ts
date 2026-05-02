@@ -513,11 +513,11 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       }
 
       // ── Fetch packet for admin-curated enabledColors/enabledSizes ──
-      // NOTE: mockup URL is intentionally NOT baked into resolved.images — the gallery reads it
-      // dynamically from pkt.priorityMockupUrl at request time and appends it after catalog images.
+      // Also read qrgId so it can be written into resolved.qrgId on the new instance.
       const packetId = session.generated?.packetId || null;
       let packetEnabledColors: string[] | null = null;
       let packetEnabledSizes: string[] | null = null;
+      let packetQrgId: string | null = null;
       if (packetId) {
         try {
           const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
@@ -532,10 +532,12 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
               .filter((s: any) => typeof s === "string" && s.length > 0) as string[];
             if (normalizedColors.length > 0) packetEnabledColors = normalizedColors;
             if (normalizedSizes.length > 0) packetEnabledSizes = normalizedSizes;
+            if (pkt.qrgId) packetQrgId = pkt.qrgId;
           }
         } catch (_) { /* no packet */ }
       }
-      // resolved.images = only the admin-curated catalog images (mockup appended by gallery at read time)
+      // resolved.images starts from admin-curated catalog images.
+      // Placement mockup images are written afterward by the client calling /rebuild-images.
       const finalImages = curatedImages;
       // ────────────────────────────────────────────────────────────────────────────
 
@@ -565,6 +567,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       if (w.metadata) overrides.metadata = w.metadata;
 
       const resolved = resolveFields(baseSnapshot, overrides);
+      if (packetQrgId) (resolved as any).qrgId = packetQrgId;
 
       const meta = w.metadata || {};
       const selectedStore = meta.selectedStore || null;

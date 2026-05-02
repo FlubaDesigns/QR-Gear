@@ -453,6 +453,9 @@ export function useCreatePacket({
       // Legacy storeProductLinks creation removed — admin_catalog_instances
       // (created by the build session commit below) is now the sole source of truth.
 
+      // Track the committed instance so the mockup fire-and-forget can call rebuild-images afterward.
+      let committedInstanceId: string | null = null;
+
       if (state.activeSessionId) {
         try {
           const artifactData = await adminFetch<any>(
@@ -476,6 +479,7 @@ export function useCreatePacket({
             });
 
             if (commitData) {
+              committedInstanceId = commitData.instanceId;
               setActiveSession(state.activeSessionId, 'committed', commitData.instanceId);
               setCommitResult({ instanceId: commitData.instanceId, sessionId: state.activeSessionId, packetId });
               console.log(`[CreatePacket] Auto-committed → instance ${commitData.instanceId}`);
@@ -505,42 +509,82 @@ export function useCreatePacket({
 
       toast({ title: "Packet Created", description: "Generating digital proof..." });
 
-      const selectedPlacement = (state.selectedPlacements && state.selectedPlacements.length > 0)
-        ? state.selectedPlacements[0] : "front";
-      const selectedSize = state.placementSizes?.[selectedPlacement] || "medium";
-      const canonicalPlacement = (selectedPlacement || "front").toLowerCase();
+      // Fire mockup generation for every selected placement in parallel (fire-and-forget).
+      // When all results are in, save placementMockupUrls + lifestyleMockupUrl to the packet,
+      // then call rebuild-images on the committed instance to update resolved.images immediately.
+      const allPlacements: string[] = (state.selectedPlacements && state.selectedPlacements.length > 0)
+        ? state.selectedPlacements
+        : ["front"];
+      const capturedInstanceId = committedInstanceId;
+      const capturedPacketId = packetId;
 
-      adminFetch<any>("/mockup/priority", {
-        method: "POST",
-        json: {
-          blueprintId: product?.blueprintId || 0,
-          printProviderId: product?.printProviderId || null,
-          colorName: state.selectedColor?.name || 'Black',
-          colorHex: state.selectedColor?.hex || '#000000',
-          placement: canonicalPlacement, artworkUrl: productGraphicUrl,
-          qrSize: selectedSize,
-          fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-        },
-      })
-        .then(async (data) => {
-          if (data.success && data.mockupUrl) {
-            await adminFetch(`/packets/${packetId}`, {
-              method: "PATCH",
-              json: { priorityMockupUrl: data.mockupUrl },
-            }).catch(() => {});
-            setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
-            toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
-          } else {
-            const errorMsg = data.error || data.message || "Mockup generation failed";
-            setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
-            toast({ title: "Mockup Generation Failed", description: errorMsg, variant: "destructive" });
+      Promise.all(
+        allPlacements.map((placement: string) =>
+          adminFetch<any>("/mockup/priority", {
+            method: "POST",
+            json: {
+              blueprintId: product?.blueprintId || 0,
+              printProviderId: product?.printProviderId || null,
+              colorName: state.selectedColor?.name || 'Black',
+              colorHex: state.selectedColor?.hex || '#000000',
+              placement: placement.toLowerCase(),
+              artworkUrl: productGraphicUrl,
+              qrSize: state.placementSizes?.[placement] || "medium",
+              fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
+            },
+          }).catch(() => null)
+        )
+      ).then(async (results) => {
+        const placementMockupUrls: Record<string, string> = {};
+        let lifestyleMockupUrl: string | null = null;
+
+        results.forEach((data: any, i: number) => {
+          if (!data?.success || !data?.mockupUrl) return;
+          const placement = allPlacements[i];
+          placementMockupUrls[placement] = data.mockupUrl;
+          if (!lifestyleMockupUrl && data.lifestyleMockupUrl) {
+            lifestyleMockupUrl = data.lifestyleMockupUrl;
           }
-        })
-        .catch((err) => {
-          const errorMsg = err.message || "Failed to connect to mockup service";
-          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
-          toast({ title: "Mockup Service Error", description: errorMsg, variant: "destructive" });
         });
+
+        const primaryMockupUrl = placementMockupUrls[allPlacements[0]] || null;
+
+        if (!primaryMockupUrl) {
+          const errorMsg = "Mockup generation failed for all placements";
+          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+          toast({ title: "Mockup Generation Failed", description: errorMsg, variant: "destructive" });
+          return;
+        }
+
+        const packetPatch: Record<string, any> = {
+          placementMockupUrls,
+          priorityMockupUrl: primaryMockupUrl,
+        };
+        if (lifestyleMockupUrl) packetPatch.lifestyleMockupUrl = lifestyleMockupUrl;
+
+        await adminFetch(`/packets/${capturedPacketId}`, {
+          method: "PATCH",
+          json: packetPatch,
+        }).catch(() => {});
+
+        if (capturedInstanceId) {
+          await adminFetch(`/catalog-instances/${capturedInstanceId}/rebuild-images`, {
+            method: "POST",
+            json: {},
+          }).catch(() => {});
+        }
+
+        setPacketResult(prev => prev ? {
+          ...prev,
+          priorityMockupUrl: primaryMockupUrl,
+          priorityMockupLoading: false,
+        } : prev);
+        toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
+      }).catch((err) => {
+        const errorMsg = err.message || "Failed to connect to mockup service";
+        setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+        toast({ title: "Mockup Service Error", description: errorMsg, variant: "destructive" });
+      });
 
     } catch (err: any) {
       console.error("Create packet failed:", err);
