@@ -222,7 +222,60 @@ Implemented in `shared/descriptionLayers.ts`. Old field names (`originalDescript
 
 ### QRG Numbering System
 
-All 1,612 `master_catalog` products are assigned `QRG-CCC-SSS` IDs. Category codes: 100=Tees, 200=Hoodies, 300=Hats, 400=Drinkware, etc. Fields: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
+Every product, owner, and physical item in QR Gear is identified through a unified schema built on three layers:
+
+#### Blank Code (Product Identity)
+Format: `CCC` — a 3-digit code where the hundreds digit is the category and the tens+units digits are the specific blank within that category.
+
+| Range | Category | Example |
+|-------|----------|---------|
+| 101–199 | Tees | 101 = Bella+Canvas 3001, 102 = Next Level 3600 |
+| 201–299 | Hoodies | 201 = first hoodie blank, 202 = second, etc. |
+| 301–399 | Hats | 301 = first hat blank |
+| 401–499 | Drinkware | 401 = first drinkware blank |
+
+Up to 99 distinct blanks per category (x01–x99).
+
+**Model number (store-facing):** `QRG-101` — displayed on store listings. Same for all customers viewing that blank type.
+
+#### Owner Sequence (Per-Owner Identity)
+A 6-digit zero-padded integer assigned at purchase/claim time, unique per blank type. Supports up to 999,999 owners per blank.
+
+Example: `000001` = first owner of the Bella+Canvas tee (QRG-101).
+
+#### URL Schema (Permanent Owner Destination)
+```
+qrgear.com/QRG/[blank-code]/[owner-sequence]
+```
+Example: `qrgear.com/QRG/101/000001`
+
+- The URL IS the Firestore path and Firebase Storage key — no slug lookup table needed
+- The QR code on the physical product encodes this URL permanently
+- Owner content updates at this address; the QR code on the shirt never changes
+- Supports multi-brand namespacing (e.g. `QRG/`, `KC/`, `USA/` on the same platform)
+
+#### Barcode (Physical Item Serial Number)
+```
+QRG-[blank-code]-[owner-sequence]-[size][color]
+```
+Example: `QRG-101-000001-402`
+
+| Segment | Digits | Values |
+|---------|--------|--------|
+| Blank code | 3 | 101–499 |
+| Owner sequence | 6 | 000001–999999 |
+| Size | 1 | 0=reserved, 1=XXS, 2=XS, 3=S, 4=M, 5=L, 6=XL, 7=XXL, 8=XXXL, 9=reserved |
+| Color | 2 | 00–99 (mapped to color list) |
+
+`QRG-101-000001-402` = Bella+Canvas tee / owner #1 / Medium / Black
+
+The barcode is a complete physical item serial number. Every garment ever produced has a unique one. Encoded as Code 128.
+
+**Two scan experiences on every product:**
+- **QR code** → `qrgear.com/QRG/101/000001` — customer-facing dynamic landing page
+- **Barcode** → `QRG-101-000001-402` — full item verification / admin lookup
+
+**Firestore fields on `master_catalog`:** `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
 
 ### Catalog Management System
 

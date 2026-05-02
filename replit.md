@@ -116,7 +116,14 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
 ### First-Scan Activation System (QR Gear Core Flow)
-- **QRG Numbering**: All 1,612 master_catalog products assigned `QRG-CCC-SSS` IDs (100=Tees, 200=Hoodies, 300=Hats, 400=Drinkware, etc.). Fields: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
+- **QRG Numbering Schema**: Every product, owner, and physical item is identified through a three-layer schema:
+  - **Blank Code (CCC)**: 3-digit code — hundreds digit = category (1xx=Tees, 2xx=Hoodies, 3xx=Hats, 4xx=Drinkware), tens+units = specific blank within category (101=first tee blank, 102=second, up to x99). Up to 99 blanks per category.
+  - **Model number (store-facing)**: `QRG-101` — shown on store listings, same for all customers viewing that blank type.
+  - **Owner Sequence (SSSSSS)**: 6-digit zero-padded integer, assigned at purchase/claim time, unique per blank type. Supports up to 999,999 owners per blank.
+  - **Owner URL**: `qrgear.com/QRG/[blank-code]/[owner-sequence]` e.g. `qrgear.com/QRG/101/000001`. The URL IS the Firestore path and Storage key — no slug lookup table. The QR code on the physical product encodes this URL permanently. Owner content updates at this address; the shirt's QR never changes.
+  - **Barcode (physical item serial number)**: `QRG-[blank-code]-[owner-sequence]-[S][CC]` e.g. `QRG-101-000001-402`. S=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Encoded as Code 128. Every garment ever produced has a unique barcode.
+  - **Two scan experiences**: QR code → customer landing page. Barcode → full item verification/admin lookup.
+  - Firestore fields on `master_catalog`: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
 - **Activation Flow**: Buyer pays → activation code generated (`XXXX-XXXX` format) → activation email sent → buyer scans product QR → sees product landing page → enters code in activation panel → 1-year hosting starts from claim moment (NOT purchase date).
 - **Key Files**:
   - `server/lib/claimService.ts`: `generateClaimCodeForOrderItem()` — creates claim code in `claimCodes` Firestore collection with `status: 'unclaimed'`
