@@ -499,7 +499,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           .filter((doc: any) => {
             const d = doc.data();
             // Exclude soft-deleted / hidden / draft instances from the public store
-            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft') return false;
+            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
             if (!segment) return true;
             return d.collectionName === segment;
           })
@@ -644,7 +644,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           .filter((doc: any) => {
             const d = doc.data();
             // Exclude soft-deleted / hidden / draft instances from the public store
-            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft') return false;
+            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
             if (!collection) return true;
             const name: string = d.collectionName || '';
             return name === collection || toSlug(name) === collectionSlug;
@@ -747,7 +747,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         .filter((doc: any) => {
           const d = doc.data();
           // Exclude soft-deleted / hidden / draft instances from the public store
-          if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft') return false;
+          if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
           return !segment || d.collectionName === segment;
         })
         .map(async (doc: any) => {

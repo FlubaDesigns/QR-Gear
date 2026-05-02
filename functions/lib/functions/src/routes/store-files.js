@@ -454,7 +454,7 @@ function register(app) {
                     .filter((doc) => {
                     const d = doc.data();
                     // Exclude soft-deleted / hidden / draft instances from the public store
-                    if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft')
+                    if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived')
                         return false;
                     if (!segment)
                         return true;
@@ -595,7 +595,7 @@ function register(app) {
                     .filter((doc) => {
                     const d = doc.data();
                     // Exclude soft-deleted / hidden / draft instances from the public store
-                    if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft')
+                    if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived')
                         return false;
                     if (!collection)
                         return true;
@@ -693,7 +693,7 @@ function register(app) {
                 .filter((doc) => {
                 const d = doc.data();
                 // Exclude soft-deleted / hidden / draft instances from the public store
-                if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived' || d.status === 'draft')
+                if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived')
                     return false;
                 return !segment || d.collectionName === segment;
             })
