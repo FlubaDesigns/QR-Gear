@@ -122,7 +122,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
             <button
               key={index}
               className={cn(
-                "w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0",
+                "w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border-2 transition-all flex-shrink-0",
                 index === currentIndex 
                   ? "border-white ring-2 ring-white/50" 
                   : "border-transparent opacity-50 hover:opacity-80"
@@ -206,7 +206,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
 
   if (!images || images.length === 0) {
     return (
-      <div className={cn("aspect-square bg-muted rounded-lg flex items-center justify-center", className)}>
+      <div className={cn("aspect-square bg-muted flex items-center justify-center", className)}>
         <p className="text-muted-foreground">No images available</p>
       </div>
     );
@@ -216,7 +216,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
     return (
       <>
         <div 
-          className={cn("relative aspect-square rounded-lg overflow-hidden cursor-pointer group", className)}
+          className={cn("relative aspect-square overflow-hidden cursor-pointer group", className)}
           onClick={() => setIsLightboxOpen(true)}
           data-testid="container-image-single"
         >
@@ -248,7 +248,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
     <>
       <div className={cn("relative", className)}>
         <div 
-          className="relative aspect-square rounded-lg overflow-hidden cursor-pointer group"
+          className="relative aspect-square overflow-hidden cursor-pointer group"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -315,7 +315,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
             <button
               key={index}
               className={cn(
-                "w-12 h-12 rounded border-2 overflow-hidden transition-all qr-touch-48",
+                "w-12 h-12 border-2 overflow-hidden transition-all qr-touch-48",
                 index === currentIndex 
                   ? "border-primary ring-2 ring-primary/30" 
                   : "border-transparent opacity-60 hover:opacity-100"
