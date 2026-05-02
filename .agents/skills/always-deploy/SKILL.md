@@ -11,82 +11,71 @@ The full pipeline (build client + build functions + deploy functions + deploy ho
 100–110 seconds chained together — right at the edge where the sandbox kills the process.
 Chaining everything into one call causes unpredictable SIGKILL failures with no output.
 
-The fix: split into three separate bash calls, each well under 60 seconds.
-
-`firebase.json` has **no predeploy hooks** by design — we build manually so we control the
-order and avoid Firebase re-running a slow npm install + tsc before uploading.
+The fix: three separate bash calls using the scripts in the `deploy/` folder. The scripts
+encode the commands so you don't need to remember them mid-session.
 
 ---
 
-## Step 1 — Bump BUILD_ID and build both targets (timeout: 60000ms)
+## The Three Scripts — Always Run in Order
+
+### Step 1 — `deploy/1-build.sh` (timeout: 60000ms)
 
 ```bash
-sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)-$RANDOM'/" functions/src/index.ts \
-  && npm run build 2>&1 | tail -5 \
-  && cd functions && npm run build 2>&1 | tail -3 && cd ..
+bash deploy/1-build.sh
 ```
 
-The `$RANDOM` suffix (0–32767) makes the BUILD_ID collision-proof even when two deploys
-happen in the same second. This must complete cleanly before any deploy — if tsc fails, stop.
+Bumps `_BUILD_ID` with timestamp+random, builds frontend (`npm run build`), builds functions
+(`cd functions && npm run build`). Must complete cleanly — if tsc fails, stop.
 
-**What this does:** `_BUILD_ID` is a string constant on line 1 of `functions/src/index.ts`.
-Changing it changes the compiled bundle's bytes, which changes the hash Firebase uses to
-decide whether to deploy. Without this bump, Firebase silently skips ("No changes detected")
-even when source files changed.
-
-## Step 2 — Deploy functions (timeout: 90000ms)
+### Step 2 — `deploy/2-functions.sh` (timeout: 90000ms)
 
 ```bash
-echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
-  && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
-     npx firebase deploy --only functions --project qrgear-c1ffd --force 2>&1 | tail -10
+bash deploy/2-functions.sh
 ```
 
-**Success looks like:**
+Deploys Cloud Functions to Firebase. **Success looks like:**
 ```
 ✔  functions: functions source uploaded successfully
 ✔  functions[api(us-central1)] Successful update operation.
 ✔  Deploy complete!
 ```
 
-If you see `Skipped (No changes detected)` — the BUILD_ID bump in step 1 didn't make it into
-the compiled output. Verify step 1 ran `sed` BEFORE `cd functions && npm run build`.
+If you see `Skipped (No changes detected)` — step 1 didn't run or `sed` failed silently.
+Re-run step 1 and check that `_BUILD_ID` changed in `functions/src/index.ts`.
 
-## Step 3 — Deploy hosting (timeout: 60000ms)
+### Step 3 — `deploy/3-hosting.sh` (timeout: 60000ms)
 
 ```bash
-echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
-  && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
-     npx firebase deploy --only hosting --project qrgear-c1ffd --force 2>&1 | tail -8
+bash deploy/3-hosting.sh
 ```
 
-**Success looks like:**
+Deploys frontend to Firebase Hosting. **Success looks like:**
 ```
 ✔  hosting[qrgear-c1ffd]: release complete
 ✔  Deploy complete!
-Hosting URL: https://qrgear-c1ffd.web.app
 ```
 
 ---
 
 ## Rules
 
-1. **Always run all three steps** — functions and hosting must always match. Never skip hosting
-   after a functions deploy, or vice versa.
-2. **Bump `_BUILD_ID` in step 1, always** — without it, Firebase sees "No changes detected"
-   and silently skips the functions deploy even though source files changed.
-3. **Never chain deploy steps together** — keep step 2 and step 3 as separate bash calls.
-   Chaining them causes the combined ~80s deploy to race the sandbox timeout.
-4. **Never add predeploy hooks back to `firebase.json`** — Firebase's runner re-runs npm
-   install + tsc, which blows the time budget.
-5. **Always pass `--force`** — skips confirmation prompts (not a destructive flag).
-6. **If step 2 times out** — do NOT retry the full chain. Just re-run step 2 alone. The
-   compiled output in `functions/lib/` is already correct from step 1.
+1. **Always run all three steps** — functions and hosting must always match. Never skip one.
+2. **Each step is a separate bash call** — never chain step 2 and step 3 together.
+3. **If step 2 times out** — do NOT re-run step 1. Just re-run `bash deploy/2-functions.sh`
+   alone. The compiled output from step 1 is already in `functions/lib/` with the new BUILD_ID.
+4. **Never add predeploy hooks back to `firebase.json`** — causes timeout inside Firebase's runner.
+5. **Always pass `--force`** — already baked into the scripts.
+
+## Why BUILD_ID Matters
+
+`_BUILD_ID` is a string constant on line 1 of `functions/src/index.ts`. Changing it changes
+the compiled bundle's bytes, which changes the hash Firebase uses to decide whether to deploy.
+Without bumping it, Firebase silently skips ("No changes detected") even when source changed.
+The `$RANDOM` suffix makes it collision-proof even for same-second deploys.
 
 ## Project Details
 
 - **Firebase project:** `qrgear-c1ffd`
-- **Build ID location:** `functions/src/index.ts` line 0 — `const _BUILD_ID = '...'`
-- **Frontend build command:** `npm run build` (project root → outputs to `dist/public/`)
-- **Functions build command:** `cd functions && npm run build` (tsc → outputs to `functions/lib/`)
+- **Build ID location:** `functions/src/index.ts` line 1 — `const _BUILD_ID = '...'`
+- **Deploy scripts:** `deploy/1-build.sh`, `deploy/2-functions.sh`, `deploy/3-hosting.sh`
 - **Live URL:** https://qrgear-c1ffd.web.app

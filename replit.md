@@ -29,27 +29,13 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 - **BUTTON VISIBILITY RULE**: NEVER use black, dark slate, or low-contrast colors on buttons. ALL buttons must have clearly visible color (blue, green, orange, etc.) with strong contrast against their background. No dark-on-dark. No invisible borders. This applies to ALL button variants (outline, ghost, secondary, default). Defined once in the component, never overridden with inline dark classes.
 - **PRODUCTION-ONLY MODE**: The dev server is DISABLED. Do NOT start or use it. All work deploys directly to Firebase production. The `server/` directory exists only as build dependency — never run it.
-- **Firebase Deploy — THREE STEPS, always in this order (read `.agents/skills/always-deploy/SKILL.md` for full detail):**
-  - **Step 1** — Bump BUILD_ID + build both (timeout 60000ms):
-    ```bash
-    sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)-$RANDOM'/" functions/src/index.ts \
-      && npm run build 2>&1 | tail -5 \
-      && cd functions && npm run build 2>&1 | tail -3 && cd ..
-    ```
-  - **Step 2** — Deploy functions (timeout 90000ms):
-    ```bash
-    echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
-      && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
-         npx firebase deploy --only functions --project qrgear-c1ffd --force 2>&1 | tail -10
-    ```
-  - **Step 3** — Deploy hosting (timeout 60000ms):
-    ```bash
-    echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
-      && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
-         npx firebase deploy --only hosting --project qrgear-c1ffd --force 2>&1 | tail -8
-    ```
-  - **NEVER** chain all three into one command — it will timeout and die silently
+- **Firebase Deploy — THREE SCRIPTS in `deploy/`, always run in order as separate bash calls:**
+  - `bash deploy/1-build.sh` — timeout 60000ms — bumps BUILD_ID, builds frontend + functions
+  - `bash deploy/2-functions.sh` — timeout 90000ms — deploys Cloud Functions
+  - `bash deploy/3-hosting.sh` — timeout 60000ms — deploys frontend hosting
+  - **NEVER** chain these into one command — it will timeout and die silently
   - **NEVER** deploy `--only functions,hosting` together — same timeout problem
+  - Scripts are in `deploy/` folder at project root — no need to remember raw commands
 - **MODULAR API CODEBASE**: The Cloud Function entry point is `functions/src/index.ts` (~94 lines of wiring). All logic lives in modular files:
   - `functions/src/constants.ts` — Centralized platform constants: `MOSAICS_COLLECTION`, `MOSAIC_TEMPLATES_COLLECTION`, `CHANNEL_ITEMS_COLLECTION`, `CHANNEL_CONTENT_COLLECTION`, `COLLECTION_ITEMS_COLLECTION`, `DYNAMICS_SURFACES_COLLECTION`, `STORE_PRODUCT_LINKS_COLLECTION`, `PRODUCT_PACKETS_COLLECTION`, `QR_DYNAMICS_INSTANCES_COLLECTION`, `MEMBER_PACKETS_COLLECTION`, `PLATFORM_STORE_ID`, Surfaces system collections (`SURFACES_COLLECTION`, `SURFACE_VARIANTS_COLLECTION`, `MARKETPLACE_ACCOUNTS_COLLECTION`, `MARKETPLACE_LISTINGS_COLLECTION`, `MARKETPLACE_SYNC_JOBS_COLLECTION`, `MARKETPLACE_SYNC_LOGS_COLLECTION`), External Sites collections (`BUILDER_HOSTS_COLLECTION`, `BUILDER_PROFILES_COLLECTION`, `BUILDER_PLACEMENTS_COLLECTION`, `BUILDER_SESSIONS_COLLECTION`, `BUILDER_DRAFTS_COLLECTION`, `PRICING_POLICIES_COLLECTION`, `REVENUE_SPLITS_COLLECTION`, `EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION`, `AFFILIATE_PAYOUT_LEDGER_COLLECTION`), and type aliases for all status/mode/action enums
   - `shared/surfaces.ts` — Canonical types for the multi-channel publishing system: Surface (expanded with storeId, channelId, collectionId, productId, artifactId, mosaicId, supportsEmbed*, bulletPoints, keywords, mockupImages), SurfaceVariant (expanded with option1-3, titleSuffix, marketplaceOverrides), MarketplaceAccount, MarketplaceListing, MarketplaceSyncJob, MarketplaceSyncLog, BuilderHost, BuilderProfile, BuilderPermissionScope, BuilderPlacement, BuilderSession, BuilderDraft, PricingPolicy, RevenueSplit, AttributionContext, PricingSnapshot, ExternalCartContext, EmbeddedOrderAttribution, AffiliatePayoutLedgerEntry, plus `checkSurfaceReadiness()` validator and `computePricingSnapshot()` pricing engine
