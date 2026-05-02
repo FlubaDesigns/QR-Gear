@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
-  ScanLine, Shield, Truck, ArrowRight,
+  ScanLine, Shield, Truck,
 } from "lucide-react";
 import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 import { StorefrontBreadcrumb } from "@/features/storefront/StorefrontBreadcrumb";
 import { getChannelConfig } from "@/data/shopHierarchy";
+import PhoneMockupCard from "@/components/PhoneMockupCard";
 
 const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   "qr-basics": { label: "QR Basics", color: "bg-slate-500" },
@@ -91,6 +92,10 @@ interface StoreProduct {
   cardMode?: 'browseOnly' | 'quickAdd' | null;
   /** Screenshot/preview of the linked digital experience — shown as "Where it takes you" */
   landingPageSnapshotUrl?: string | null;
+  /** Autoplaying video URL — QR Play products only */
+  playMediaUrl?: string | null;
+  /** Cycling images for destination preview — QR Compose products only */
+  composeImages?: string[] | null;
 }
 
 export default function ShopProductPage() {
@@ -348,65 +353,16 @@ export default function ShopProductPage() {
               </p>
             </div>
 
-            {/* ── Scan this → go here ───────────────────────────────────── */}
-            {(product.compositeUrl || product.qrCodeUrl) && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Scan this
-                </p>
-                <div className="relative rounded-md overflow-hidden border bg-muted/30" style={{ minHeight: "180px" }}>
-                  {/* Large composite image — the built graphic with QR + text */}
-                  {product.compositeUrl && (
-                    <img
-                      src={product.compositeUrl}
-                      alt="QR graphic built for this product"
-                      className="w-full object-contain rounded-md"
-                      data-testid="img-composite-graphic"
-                    />
-                  )}
-
-                  {/* Arrow label — only when both images present */}
-                  {product.compositeUrl && product.qrCodeUrl && (
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded px-2 py-1">
-                      <ScanLine className="h-3.5 w-3.5 text-primary" />
-                      <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium text-foreground">Opens this</span>
-                    </div>
-                  )}
-
-                  {/* Small QR code — slightly larger, off-center to the right */}
-                  {product.qrCodeUrl && (
-                    <div
-                      className="absolute rounded-md border-2 border-background shadow-md bg-white overflow-hidden"
-                      style={{ width: "72px", height: "72px", bottom: "12px", right: "16px" }}
-                      data-testid="img-qr-code-overlay"
-                    >
-                      <img
-                        src={product.qrCodeUrl}
-                        alt="Scannable QR code"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Destination snapshot below if available */}
-                {product.landingPageSnapshotUrl && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                      <ArrowRight className="h-3 w-3" />
-                      Goes here
-                    </p>
-                    <img
-                      src={product.landingPageSnapshotUrl}
-                      alt="Digital experience preview"
-                      className="w-full rounded-md border object-cover"
-                      data-testid="img-landing-snapshot"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+            {/* ── Phone Mockup Experience Card ──────────────────────────── */}
+            <PhoneMockupCard
+              qrCodeUrl={product.qrCodeUrl}
+              landingPageSnapshotUrl={product.landingPageSnapshotUrl}
+              playMediaUrl={product.playMediaUrl}
+              composeImages={product.composeImages}
+              qrProductType={product.qrProductType}
+              productName={product.name}
+              data-testid="card-phone-mockup"
+            />
 
             {/* ── Physical layer ────────────────────────────────────────── */}
             {product.description && (
