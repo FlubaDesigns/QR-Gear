@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: May 2, 2026 (rev 30)
+Last updated: May 2, 2026 (rev 31)
 
 ---
 
@@ -1299,6 +1299,23 @@ When a new catalog instance item is added and mockup jobs are queued with `produ
 - **QR slider UX** — Range 40–85, step 2; preset buttons S(48)/M(56)/L(64)/XL(72); semantic labels; default 70%
 - **Favicon** — QR Gear "Q" logo as favicon.ico (multi-size), favicon.png, apple-touch-icon.png (180x180)
 - **Folder persistence** — Both `handleCreateFolder` functions check `res.ok`, refetch from server on success, show inline error on failure; Cloud Functions folder endpoint has case-insensitive duplicate detection, normalizedName field, 80-char max validation
+
+### May 2, 2026 — Phone Mockup Experience Card + Deploy Infrastructure
+
+Replaced the static "Scan this / Goes here" section on the store product page with a polished two-phone animated card. Also hardened the Firebase deploy process with three-step scripts and consistent skill documentation.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/components/PhoneMockupCard.tsx` | New component — two overlapping phone frames (small QR phone + large destination phone), animated entrance, color-coded glow per product type, scan-line animation, video/cycling-image/snapshot support |
+| `client/src/pages/shop-product.tsx` | Replaced "Scan this → Goes here" block with `<PhoneMockupCard>`, added `playMediaUrl` and `composeImages` to `StoreProduct` interface, removed unused `ArrowRight` import |
+| `deploy/1-build.sh` | New script — bumps `_BUILD_ID` with timestamp+random, builds frontend and functions |
+| `deploy/2-functions.sh` | New script — deploys Cloud Functions only (90s timeout budget) |
+| `deploy/3-hosting.sh` | New script — deploys Firebase Hosting only (60s timeout budget) |
+| `.agents/skills/always-deploy/SKILL.md` | Updated to three-step methodology with deploy scripts |
+| `.agents/skills/ask-before-starting/SKILL.md` | Removed broken combined deploy command, referenced always-deploy skill |
+| `replit.md` | Added READ SKILLS FIRST banner at top, updated deploy instructions throughout |
+| `README.md` | Updated Firebase Deployment section to three-step scripts |
 
 ### March 2026 — Builder Family Unification (Task #7)
 

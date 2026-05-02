@@ -363,35 +363,35 @@ Consumer files that now import from shared (do not define local copies):
 
 ## Firebase Deployment
 
-### Frontend (Hosting)
+**Always use the three-step scripts in `deploy/` — never chain them into one command (timeout risk).**
+
+### Step 1 — Bump BUILD_ID + build both (timeout 60s)
 
 ```bash
-npm run build
-echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
-export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-firebase deploy --only hosting --project qrgear-c1ffd
-rm /tmp/firebase-sa.json
+bash deploy/1-build.sh
 ```
 
-### Backend (Cloud Functions)
+### Step 2 — Deploy Cloud Functions (timeout 90s)
 
 ```bash
-cd functions && npm run build && cd ..
-echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
-export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-firebase deploy --only functions --project qrgear-c1ffd
-rm /tmp/firebase-sa.json
+bash deploy/2-functions.sh
 ```
+
+### Step 3 — Deploy Frontend Hosting (timeout 60s)
+
+```bash
+bash deploy/3-hosting.sh
+```
+
+> **Why BUILD_ID?** `_BUILD_ID` on line 1 of `functions/src/index.ts` is stamped with a timestamp+random before every build. This changes the compiled bundle hash so Firebase always deploys instead of silently skipping ("No changes detected").
+> **If step 2 times out:** re-run `bash deploy/2-functions.sh` alone — the compiled output from step 1 is still valid.
 
 ### Post-Deploy Verification
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/
 curl -s -o /dev/null -w "%{http_code}" https://qrgear-c1ffd.web.app/shop
-curl -s https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/api/health
 ```
-
-> **If Firebase says "No changes detected":** add a timestamp comment to `functions/src/index.ts`, rebuild, and redeploy — this forces a new package hash.
 
 ---
 
