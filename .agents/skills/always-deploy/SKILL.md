@@ -15,21 +15,10 @@ the compiled output differs from the last deploy.
 `firebase.json` has **no predeploy hooks** by design — we build manually so we control the
 order and avoid Firebase re-running a slow npm install + tsc before uploading.
 
-## One-Shot Functions Deploy
+## Standard Deploy (ALWAYS use this — functions + hosting)
 
-Run this single command after all code edits are complete:
-
-```bash
-sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)'/" functions/src/index.ts \
-  && cd functions && npm run build 2>&1 | tail -3 && cd .. \
-  && echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
-  && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
-     npx firebase deploy --only functions --project qrgear-c1ffd --force 2>&1 | tail -8
-```
-
-## One-Shot Full Deploy (functions + hosting)
-
-Use when frontend files in `client/` also changed:
+**Every deploy must update both Cloud Functions and hosting.** Run this single command
+after all code edits are complete:
 
 ```bash
 sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)'/" functions/src/index.ts \
@@ -40,37 +29,32 @@ sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)'/"
      npx firebase deploy --only functions,hosting --project qrgear-c1ffd --force 2>&1 | tail -10
 ```
 
+Set bash tool **timeout to 120000ms** — the full deploy takes 60–90 seconds.
+
 ## Rules
 
-1. **Bump `_BUILD_ID` first, always** — the `sed` command does this automatically.
-2. **Never add predeploy hooks back to `firebase.json`** — they make the deploy timeout (npm install + tsc inside Firebase's runner exceeds the 2-minute bash limit).
-3. **One bash call** — chain everything with `&&` so it's atomic. If tsc fails, deploy never runs.
-4. **Only `--force`** — always pass `--force` (skips confirmation prompts, not a "force redeploy").
-5. **Set timeout to 120000ms** for the bash tool — the deploy itself takes ~60–90 seconds.
+1. **Always deploy both `functions,hosting`** — never deploy functions-only or hosting-only. Production must always have matching frontend and backend.
+2. **Bump `_BUILD_ID` first, always** — the `sed` command does this automatically. Without it, Firebase sees "No changes detected" and skips the functions deploy silently.
+3. **Never add predeploy hooks back to `firebase.json`** — they cause the deploy to timeout (Firebase's runner re-runs npm install + tsc, which exceeds the 2-minute bash limit).
+4. **One bash call** — chain everything with `&&`. If tsc fails, deploy never runs.
+5. **Always pass `--force`** — skips confirmation prompts (not a destructive flag).
 
 ## Project Details
 
 - **Firebase project:** `qrgear-c1ffd`
 - **Build ID location:** `functions/src/index.ts` line 0 — `const _BUILD_ID = '...'`
-- **Frontend build output:** `dist/public/`
-- **Functions compiled output:** `functions/lib/`
-- **Hosting URL:** https://qrgear-c1ffd.web.app
-
-## What Counts as a Change Requiring Deploy
-
-Deploy after ANY edit to:
-- `functions/src/**` (any backend/Cloud Functions code)
-- `client/src/**` (any frontend code — needs hosting deploy too)
-- `shared/**`
-- `firestore.rules`, `firestore.indexes.json`, `storage.rules`
+- **Frontend build command:** `npm run build` (from project root — outputs to `dist/public/`)
+- **Functions build command:** `cd functions && npm run build` (tsc — outputs to `functions/lib/`)
+- **Live URL:** https://qrgear-c1ffd.web.app
 
 ## Success Indicators
 
 ```
 ✔  functions: functions source uploaded successfully
 ✔  functions[api(us-central1)] Successful update operation.
+✔  Hosting URL: https://qrgear-c1ffd.web.app
 ✔  Deploy complete!
 ```
 
-If you see `Skipped (No changes detected)` — the `_BUILD_ID` bump didn't make it into the
-compiled output. Check that `sed` ran before `npm run build`.
+If you see `Skipped (No changes detected)` on functions — the `_BUILD_ID` bump didn't make
+it into the compiled output. Verify `sed` ran before `cd functions && npm run build`.
