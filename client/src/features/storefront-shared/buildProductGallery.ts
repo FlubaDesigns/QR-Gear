@@ -113,6 +113,27 @@ function findColorMockup(
   return mockupsByColor[keys[0]] ?? null;
 }
 
+/**
+ * Type sort order — lower index = shown first.
+ * Lifestyle/model shots always lead; QR-only graphics always trail.
+ */
+const TYPE_ORDER: Record<string, number> = {
+  lifestyle: 0,
+  mockup:    1,
+  gallery:   2,
+  detail:    3,
+  graphic:   4,
+};
+
+function sortByType(items: StorefrontMediaItem[]): StorefrontMediaItem[] {
+  if (items.length <= 1) return items;
+  return [...items].sort((a, b) => {
+    const ra = TYPE_ORDER[a.type ?? 'gallery'] ?? 2;
+    const rb = TYPE_ORDER[b.type ?? 'gallery'] ?? 2;
+    return ra - rb;
+  });
+}
+
 export function buildProductGallery(
   product: ProductMediaSource | null | undefined,
   selectedColor?: string | null,
@@ -122,7 +143,7 @@ export function buildProductGallery(
   const productName = product.name || 'Product';
 
   // ── Priority 1: mockupsByColor for the selected color ────────────────────
-  // This is what makes the gallery react to color changes.
+  // Lifestyle (model/glamour shot) is always pushed first, then front mockup.
   if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
     const mockup = findColorMockup(product.mockupsByColor, selectedColor);
     if (mockup) {
@@ -137,21 +158,26 @@ export function buildProductGallery(
   }
 
   // ── Priority 2: API-provided images[] — fallback when no color mockups ───
+  // Sort so that mockup/gallery images appear before QR-only graphics.
   if (product.images && product.images.length > 0) {
     const items: StorefrontMediaItem[] = [];
     product.images.forEach((item, i) => {
       const url = normalizeImageUrl(item);
       if (!url) return;
+      // Heuristic: last image is often the QR graphic/composite; everything
+      // else is treated as a product mockup or gallery shot.
+      const isLastAndLikelyGraphic = i === product.images!.length - 1 && i > 0;
       items.push({
         url,
         alt: `${productName} — image ${i + 1}`,
-        type: i === 0 ? 'mockup' : 'gallery',
+        type: isLastAndLikelyGraphic ? 'graphic' : (i === 0 ? 'mockup' : 'gallery'),
       });
     });
-    if (items.length > 0) return items;
+    if (items.length > 0) return sortByType(items);
   }
 
   // ── Priority 3: single imageUrl + optional packetImageUrl ────────────────
+  // packetImageUrl is the QR graphic — always trails the product mockup.
   const fallback: StorefrontMediaItem[] = [];
   if (product.imageUrl) {
     fallback.push({ url: product.imageUrl, alt: productName, type: 'mockup' });

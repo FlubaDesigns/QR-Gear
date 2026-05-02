@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QrCode, Star, Sparkles, ScanLine } from "lucide-react";
 import type { StoreProduct } from "./types";
+import { buildProductGallery } from "@/features/storefront-shared/buildProductGallery";
 
 export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   "qr-basics": { label: "QR Basics", color: "bg-slate-500" },
@@ -14,7 +15,10 @@ export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: stri
 
 export function StoreProductCard({ product }: { product: StoreProduct }) {
   const href = `/shop/product/${product.id}`;
-  const heroImage = (product as any).images?.[0] ?? product.imageUrl;
+  // Always use gallery logic so lifestyle/model shot leads; QR graphic never appears first
+  const gallery = buildProductGallery(product as any);
+  const heroImage = gallery[0]?.url ?? product.imageUrl;
+  const heroType = gallery[0]?.type ?? 'mockup';
   const hasMockup = !!(product as any).packetImageUrl;
   const typeInfo = product.qrProductType ? QR_PRODUCT_TYPE_LABELS[product.qrProductType] : null;
 
@@ -29,7 +33,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
             <img
               src={heroImage}
               alt={product.name}
-              className={`w-full h-full transition-transform duration-300 group-hover:scale-105 ${hasMockup ? 'object-contain' : 'object-cover'}`}
+              className={`w-full h-full transition-transform duration-300 group-hover:scale-105 ${heroType === 'lifestyle' ? 'object-cover' : 'object-contain'}`}
               data-testid={`img-product-${product.id}`}
             />
           ) : (

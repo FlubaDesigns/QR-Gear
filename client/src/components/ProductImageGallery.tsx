@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ interface GalleryImage {
   url: string;
   alt?: string;
   label?: string;
-  /** Type hint from buildProductGallery — used to pick object-fit */
   type?: string;
 }
 
@@ -48,7 +47,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
   };
 
   const content = (
-    <div 
+    <div
       className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
       onClick={onClose}
       data-testid="lightbox-overlay"
@@ -68,7 +67,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
         </Button>
       </div>
 
-      <div 
+      <div
         className="flex-1 flex items-center justify-center px-4 relative"
         onClick={(e) => e.stopPropagation()}
         onTouchStart={onTouchStart}
@@ -90,7 +89,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
         <img
           src={images[currentIndex].url}
           alt={images[currentIndex].alt || `Image ${currentIndex + 1}`}
-          className="max-w-full max-h-[70vh] object-contain rounded-lg"
+          className="max-w-full max-h-[70vh] object-contain rounded-sm"
           data-testid="img-lightbox-main"
         />
 
@@ -114,7 +113,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
       )}
 
       {images.length > 1 && (
-        <div 
+        <div
           className="flex-shrink-0 flex justify-center gap-2 p-4 overflow-x-auto"
           onClick={(e) => e.stopPropagation()}
         >
@@ -122,16 +121,16 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
             <button
               key={index}
               className={cn(
-                "w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border-2 transition-all flex-shrink-0",
-                index === currentIndex 
-                  ? "border-white ring-2 ring-white/50" 
+                "w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border-2 transition-all flex-shrink-0 rounded-sm",
+                index === currentIndex
+                  ? "border-white ring-2 ring-white/50"
                   : "border-transparent opacity-50 hover:opacity-80"
               )}
               onClick={() => onIndexChange(index)}
               data-testid={`button-lightbox-thumb-${index}`}
             >
-              <img 
-                src={img.url} 
+              <img
+                src={img.url}
                 alt={img.alt || `Thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
@@ -151,15 +150,16 @@ export default function ProductImageGallery({ images, className }: ProductImageG
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
+  // Long-press to open lightbox on mobile
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
   const minSwipeDistance = 50;
 
-  // Reset to first image whenever the gallery changes (e.g. color selection swap)
   useEffect(() => {
     setCurrentIndex(0);
     setIsLightboxOpen(false);
   }, [images[0]?.url]);
 
-  // Close lightbox on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsLightboxOpen(false);
@@ -185,23 +185,31 @@ export default function ProductImageGallery({ images, className }: ProductImageG
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientX);
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      setIsLightboxOpen(true);
+    }, 500);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.targetTouches[0].clientX);
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   };
 
   const onTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (didLongPress.current) return;
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    
-    if (isLeftSwipe) {
-      goToNext();
-    } else if (isRightSwipe) {
-      goToPrev();
-    }
+    if (distance > minSwipeDistance) goToNext();
+    else if (distance < -minSwipeDistance) goToPrev();
   };
 
   if (!images || images.length === 0) {
@@ -212,10 +220,14 @@ export default function ProductImageGallery({ images, className }: ProductImageG
     );
   }
 
+  const objectFit = images[currentIndex]?.type === 'mockup' || images[currentIndex]?.type === 'graphic'
+    ? 'object-contain'
+    : 'object-cover';
+
   if (images.length === 1) {
     return (
       <>
-        <div 
+        <div
           className={cn("relative aspect-square overflow-hidden cursor-pointer group", className)}
           onClick={() => setIsLightboxOpen(true)}
           data-testid="container-image-single"
@@ -226,8 +238,12 @@ export default function ProductImageGallery({ images, className }: ProductImageG
             className={`w-full h-full ${images[0].type === 'mockup' || images[0].type === 'graphic' ? 'object-contain' : 'object-cover'}`}
             data-testid="img-product-single"
           />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-            <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          {/* Zoom hint — visible on hover (desktop) and always on mobile */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end justify-end p-2 pointer-events-none">
+            <div className="flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-sm opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+              <ZoomIn className="h-3.5 w-3.5" />
+              <span className="sm:hidden">Tap to zoom</span>
+            </div>
           </div>
         </div>
         {isLightboxOpen && (
@@ -247,27 +263,31 @@ export default function ProductImageGallery({ images, className }: ProductImageG
   return (
     <>
       <div className={cn("relative", className)}>
-        <div 
+        <div
           className="relative aspect-square overflow-hidden cursor-pointer group"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          onClick={() => setIsLightboxOpen(true)}
+          onClick={() => { if (!didLongPress.current) setIsLightboxOpen(true); }}
           data-testid="container-image-gallery"
         >
           <img
             src={images[currentIndex].url}
             alt={images[currentIndex].alt || `Product image ${currentIndex + 1}`}
-            className={`w-full h-full transition-opacity duration-300 ${images[currentIndex].type === 'mockup' || images[currentIndex].type === 'graphic' ? 'object-contain' : 'object-cover'}`}
+            className={`w-full h-full transition-opacity duration-300 ${objectFit}`}
             data-testid={`img-product-${currentIndex}`}
           />
-          
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
-            <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-70 transition-opacity drop-shadow-lg" />
+
+          {/* Zoom hint — always visible on mobile, hover-only on desktop */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-end justify-end p-2 pointer-events-none">
+            <div className="flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-sm opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+              <ZoomIn className="h-3.5 w-3.5" />
+              <span className="sm:hidden">Tap to zoom</span>
+            </div>
           </div>
-          
+
           {images[currentIndex].label && (
-            <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+            <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-sm">
               {images[currentIndex].label}
             </div>
           )}
@@ -293,14 +313,15 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           </Button>
         </div>
 
-        <div className="flex justify-center gap-2 mt-3">
+        {/* Dot indicators — mobile only (hidden when thumbs show below) */}
+        <div className="flex sm:hidden justify-center gap-2 mt-3">
           {images.map((_, index) => (
             <button
               key={index}
               className={cn(
                 "w-2 h-2 rounded-full transition-all qr-touch-48",
-                index === currentIndex 
-                  ? "bg-primary w-4" 
+                index === currentIndex
+                  ? "bg-primary w-4"
                   : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
               )}
               onClick={() => setCurrentIndex(index)}
@@ -310,21 +331,22 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           ))}
         </div>
 
-        <div className="hidden sm:flex justify-center gap-1 mt-2">
+        {/* Thumbnail strip — visible on ALL screen sizes */}
+        <div className="flex justify-center gap-1.5 mt-2 overflow-x-auto pb-1">
           {images.map((img, index) => (
             <button
               key={index}
               className={cn(
-                "w-12 h-12 border-2 overflow-hidden transition-all qr-touch-48",
-                index === currentIndex 
-                  ? "border-primary ring-2 ring-primary/30" 
-                  : "border-transparent opacity-60 hover:opacity-100"
+                "w-14 h-14 border-2 overflow-hidden transition-all flex-shrink-0 rounded-sm",
+                index === currentIndex
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-transparent opacity-50 hover:opacity-100"
               )}
               onClick={() => setCurrentIndex(index)}
               data-testid={`button-gallery-thumb-${index}`}
             >
-              <img 
-                src={img.url} 
+              <img
+                src={img.url}
                 alt={img.alt || `Thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
