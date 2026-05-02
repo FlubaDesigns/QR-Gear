@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260502-stabilize-v10';
+const _BUILD_ID = '20260502-task21-republish-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';

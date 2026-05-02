@@ -96,6 +96,10 @@ class PrintifyClient {
         const shopId = getPrintifyShopId();
         return this.request('GET', `/shops/${shopId}/products/${productId}.json`);
     }
+    async updateProduct(productId, updates) {
+        const shopId = getPrintifyShopId();
+        await this.request('PUT', `/shops/${shopId}/products/${productId}.json`, updates);
+    }
 }
 exports.PrintifyClient = PrintifyClient;
 const printifyClient = new PrintifyClient();

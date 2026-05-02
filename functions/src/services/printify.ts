@@ -150,6 +150,19 @@ class PrintifyClient {
     const shopId = getPrintifyShopId();
     return this.request<any>('GET', `/shops/${shopId}/products/${productId}.json`);
   }
+
+  async updateProduct(productId: string, updates: {
+    print_areas?: Array<{
+      variant_ids: number[];
+      placeholders: Array<{
+        position: string;
+        images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
+      }>;
+    }>;
+  }): Promise<void> {
+    const shopId = getPrintifyShopId();
+    await this.request<void>('PUT', `/shops/${shopId}/products/${productId}.json`, updates);
+  }
 }
 
 const printifyClient = new PrintifyClient();

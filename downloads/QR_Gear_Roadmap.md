@@ -56,9 +56,17 @@ Do these in order. Security before money. Money before distribution.
 ---
 
 ### #21 — Auto Re-Publish to Printify on Design Update
-**Status: Queued** — Start here
+**Status: Complete** ✓ — Build `20260502-task21-republish-v1`
 
-When a product's composite image is updated, the Printify listing currently goes stale until someone manually re-publishes. This task automates that: a Firestore trigger fires whenever a composite image changes, looks up every published Printify product linked to that design, and re-publishes each one automatically using the generic placement pipeline from #20. Works for any product, any placement combination.
+When a composite image is regenerated in the builder, the system now automatically re-publishes every linked Printify product with the new image — no manual step required. Works for any product, any placement combination (front, back, sleeve).
+
+How it works:
+- `printify-republish.ts` service contains the re-publish logic, decoupled from any HTTP handler
+- When the composite generation endpoint saves a new `compositeUrl`, it fires `republishAllInstancesForPacket()` as a background task (response goes out immediately, republish runs async)
+- Queries all `admin_catalog_instances` where `currentPacketId` matches and `printifyProductId` exists, re-uploads images to Printify, calls `updateProduct` on the existing listing
+- Writes `publishStatus: "synced"` + `lastPublishedAt` on success, or `publishStatus: "error"` + `publishError` on failure
+- Manual on-demand endpoint added: `POST /admin/qrg/republish/:instanceId` (used by task #22's "Publish Now" button)
+- `updateProduct()` method added to the Printify client
 
 **Depends on:** #20 (complete)
 

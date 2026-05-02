@@ -791,6 +791,11 @@ function registerAdminBuildSessions(app) {
                     updatedAt: firestore_1.FieldValue.serverTimestamp(),
                 });
             }
+            // ── 6. Auto re-publish to Printify if instances are already live ─────────
+            // Fire-and-forget: response goes out immediately, republish runs in background
+            Promise.resolve().then(() => __importStar(require('../services/printify-republish'))).then(({ republishAllInstancesForPacket }) => {
+                republishAllInstancesForPacket(packetId).catch((e) => console.error('[AutoRepublish] background error for packet', packetId, e.message));
+            }).catch(() => { });
             res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: realImages.length });
         }
         catch (err) {
@@ -928,6 +933,36 @@ function registerAdminBuildSessions(app) {
         }
         catch (err) {
             console.error('[PublishToPrintify] error:', err.message);
+            res.status(500).json({ error: err.message });
+        }
+    });
+    // ── Manual republish: re-push composite images to existing Printify product ─
+    app.post('/admin/qrg/republish/:instanceId', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { instanceId } = req.params;
+            const { republishInstanceToPrintify } = await Promise.resolve().then(() => __importStar(require('../services/printify-republish')));
+            const instanceDoc = await core_1.db.collection('admin_catalog_instances').doc(instanceId).get();
+            if (!instanceDoc.exists) {
+                res.status(404).json({ error: 'Instance not found' });
+                return;
+            }
+            if (!instanceDoc.data().printifyProductId) {
+                res.status(400).json({ error: 'Instance has no printifyProductId — publish it first via /admin/qrg/publish-to-printify/:packetId' });
+                return;
+            }
+            await core_1.db.collection('admin_catalog_instances').doc(instanceId).update({
+                publishStatus: 'pending',
+            });
+            const result = await republishInstanceToPrintify(instanceId);
+            if (result.success) {
+                res.json({ success: true, instanceId });
+            }
+            else {
+                res.status(500).json({ error: result.error });
+            }
+        }
+        catch (err) {
+            console.error('[ManualRepublish] error:', err.message);
             res.status(500).json({ error: err.message });
         }
     });
