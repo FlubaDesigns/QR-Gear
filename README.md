@@ -267,7 +267,7 @@ Up to 99 blanks per category (x01–x99).
 | **Packet** (admin build) | `QRG-[S]-[BBB]-[DDD]` | `QRG-I-101-001` |
 | **Packet** (member build) | `QRG-M-[BBB]-[DDD]` | `QRG-M-101-001` |
 | **Store model number** | `QRG-[S]-[BBB]` | `QRG-I-101` |
-| **Owner URL** | `qrgear.com/QRG/[S]/[BBB]/[DDD]/[SSSSSS]` | `qrgear.com/QRG/I/101/001/000001` |
+| **Owner URL** | `qrgear.com/QRG-[S]-[BBB]-[DDD]-[SSSSSS]` | `qrgear.com/QRG-I-101-001-000001` |
 | **Barcode** | `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` | `QRG-I-101-001-000001-402` |
 
 #### Examples — Army and Navy Tees (current store items)
@@ -287,7 +287,7 @@ Up to 99 blanks per category (x01–x99).
 - **Multi-brand ready** — `QRG/` is the namespace; `KC/`, `USA/` etc. use the same engine
 
 **Two scan experiences on every product:**
-- **QR code** → `qrgear.com/QRG/I/101/001/000001` — customer-facing dynamic landing page
+- **QR code** → `qrgear.com/QRG-I-101-001-000001` — customer-facing dynamic landing page
 - **Barcode** → `QRG-I-101-001-000001-402` — full item verification / admin lookup
 
 **Firestore fields on `master_catalog`:** `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.

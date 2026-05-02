@@ -162,6 +162,7 @@ function Router() {
       <Route path="/p/success" component={PacketSuccess} />
       <Route path="/p/:id" component={Packet} />
       <Route path="/play/:packetId" component={PlayLanding} />
+      <Route path="/QRG-:rest" component={ProductLanding} />
       <Route path="/i/:slug" component={ProductLanding} />
       <Route path="/e/:slug" component={ProductLanding} />
       <Route path="/m/:slug" component={ProductLanding} />

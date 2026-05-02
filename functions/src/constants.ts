@@ -74,3 +74,11 @@ export const PRINTIFY_PROVIDERS_COLLECTION = 'printify_print_providers';
 export const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 export const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 export const PROVIDER_MAPPING_COLLECTION = 'printify_printful_mapping';
+
+export const QRG_COUNTERS_COLLECTION = 'qrg_counters';
+
+export type QrgSource = 'I' | 'M' | 'E' | 'D';
+
+export const QRG_BLANK_CODES: Record<number, string> = {
+  12: '101',
+};

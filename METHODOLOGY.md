@@ -904,9 +904,9 @@ Zero-padded integer assigned at purchase/claim time, unique per source+blank+bui
 
 **Owner URL:**
 ```
-qrgear.com/QRG/[S]/[BBB]/[DDD]/[SSSSSS]
+qrgear.com/QRG-[S]-[BBB]-[DDD]-[SSSSSS]
 ```
-Example: `qrgear.com/QRG/I/101/001/000001`
+Example: `qrgear.com/QRG-I-101-001-000001`
 
 The URL IS the Firestore document path and Firebase Storage key — no slug lookup table. The QR code on the physical product encodes this URL permanently. Owner content updates at this address; the shirt never needs a new QR code.
 
@@ -933,14 +933,14 @@ Encoded as **Code 128**. Every garment ever produced has a globally unique barco
 |-------|-----------|---------|
 | Packet | `QRG-[S]-[BBB]-[DDD]` | `QRG-I-101-001` |
 | Store model number | `QRG-[S]-[BBB]` | `QRG-I-101` |
-| Owner URL | `qrgear.com/QRG/[S]/[BBB]/[DDD]/[SSSSSS]` | `qrgear.com/QRG/I/101/001/000001` |
+| Owner URL | `qrgear.com/QRG-[S]-[BBB]-[DDD]-[SSSSSS]` | `qrgear.com/QRG-I-101-001-000001` |
 | Physical barcode | `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` | `QRG-I-101-001-000001-402` |
 
 #### Two Scan Experiences Per Product
 
 | Code | Resolves To |
 |------|-------------|
-| QR code | `qrgear.com/QRG/I/101/001/000001` — customer-facing dynamic landing page |
+| QR code | `qrgear.com/QRG-I-101-001-000001` — customer-facing dynamic landing page |
 | Barcode (Code 128) | `QRG-I-101-001-000001-402` — full item verification / admin lookup |
 
 #### Why This Schema

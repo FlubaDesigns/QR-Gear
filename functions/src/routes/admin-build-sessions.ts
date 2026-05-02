@@ -22,6 +22,7 @@ const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
 const PRODUCT_PACKETS_COLLECTION = 'productPackets';
+const QRG_COUNTERS_COLLECTION = 'qrg_counters';
 
 const SESSION_EXPIRY_DAYS = 7;
 
@@ -699,6 +700,35 @@ export function registerAdminBuildSessions(app: express.Express): void {
       res.json({ success: true, cleaned: stale.size });
     } catch (err: any) {
       console.error('[BuildSessions] cleanup error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── QRG ID Allocation ─────────────────────────────────────────────────────
+  app.post('/admin/qrg/allocate', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { source, blankCode } = req.body;
+      if (!source || !blankCode) {
+        res.status(400).json({ error: 'source and blankCode are required' });
+        return;
+      }
+      const counterRef = db.collection(QRG_COUNTERS_COLLECTION).doc(`${source}-${blankCode}`);
+      let buildNumber = 0;
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(counterRef);
+        if (!snap.exists) {
+          buildNumber = 1;
+          tx.set(counterRef, { lastBuildNumber: 1, source, blankCode, createdAt: FieldValue.serverTimestamp() });
+        } else {
+          buildNumber = (snap.data()!.lastBuildNumber || 0) + 1;
+          tx.update(counterRef, { lastBuildNumber: buildNumber, updatedAt: FieldValue.serverTimestamp() });
+        }
+      });
+      const buildStr = String(buildNumber).padStart(3, '0');
+      const qrgId = `QRG-${source}-${blankCode}-${buildStr}`;
+      res.json({ success: true, qrgId, source, blankCode, buildNumber });
+    } catch (err: any) {
+      console.error('[QRG] allocate error:', err.message);
       res.status(500).json({ error: err.message });
     }
   });

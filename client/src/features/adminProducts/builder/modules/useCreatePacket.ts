@@ -98,7 +98,25 @@ export function useCreatePacket({
         return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
       };
 
-      const landingPageSlug = generateSlug(state.content?.title || 'product') + '-' + Date.now().toString(36);
+      const QRG_BLUEPRINT_BLANK_CODES: Record<number, string> = {
+        12: '101',
+      };
+
+      let qrgId: string | null = null;
+      const qrgBlankCode = QRG_BLUEPRINT_BLANK_CODES[product?.blueprintId] || null;
+      if (qrgBlankCode) {
+        try {
+          const allocData = await adminFetch<{ success: boolean; qrgId: string }>('/qrg/allocate', {
+            method: 'POST',
+            json: { source: 'I', blankCode: qrgBlankCode },
+          });
+          qrgId = allocData.qrgId;
+        } catch (e) {
+          console.warn('[QRG] Could not allocate QRG ID, falling back to slug', e);
+        }
+      }
+
+      const landingPageSlug = qrgId || (generateSlug(state.content?.title || 'product') + '-' + Date.now().toString(36));
       const isPlayMode = state.qrProductState === "qr_play";
 
       const packetPayload: Record<string, any> = {
@@ -162,6 +180,9 @@ export function useCreatePacket({
         landingPageBackgroundUrl: state.loadedBackground?.url || null,
         landingTextBlocks: state.content?.landingTextBlocks || [],
         landingPageSlug,
+        qrgId: qrgId || null,
+        qrgSource: qrgId ? 'I' : null,
+        qrgBlankCode: qrgId ? qrgBlankCode : null,
         roleType: selectedRole || null,
         storeId: selectedStore?.id || null,
         storeName: selectedStore?.name || null,
@@ -255,7 +276,7 @@ export function useCreatePacket({
       const baseUrl = window.location.origin;
       const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_compose" || state.qrProductState === "qr_plus";
       const finalQrContent = isLandingPageMode
-        ? `${baseUrl}/m/${landingPageSlug}`
+        ? qrgId ? `${baseUrl}/${qrgId}` : `${baseUrl}/m/${landingPageSlug}`
         : (state.content?.url || state.content?.title || "");
 
       const qrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000);

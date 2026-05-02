@@ -120,10 +120,10 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - **Source [S]** (1 letter): `I`=Internal/admin, `M`=Member, `E`=External, `D`=Direct buyer
   - **Blank [BBB]** (3 digits): hundreds=category (1xx=Tees,2xx=Hoodies,3xx=Hats,4xx=Drinkware), tens+units=specific blank (101=first tee, 102=second, up to x99)
   - **Build [DDD]** (3 digits): sequential build number per source+blank (001,002,003…). Each distinct design/colorway build gets its own number. Packet name = `QRG-I-101-001`.
-  - **Owner [SSSSSS]** (6 digits): zero-padded, assigned at claim time, unique per blank (000001–999999). Owner URL = `qrgear.com/QRG/I/101/001/000001`.
+  - **Owner [SSSSSS]** (6 digits): zero-padded, assigned at claim time, unique per blank (000001–999999). Owner URL = `qrgear.com/QRG-I-101-001-000001`.
   - **Size+Color [X][CC]** (3 digits, **barcode only — never in URL or packet name**): X=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Barcode = `QRG-I-101-001-000001-402`. Encoded as Code 128.
   - **Packet name = QRG ID**: every packet is automatically named by its QRG identifier at creation (e.g. Army tee=`QRG-I-101-001`, Navy tee=`QRG-I-101-002`)
-  - **Two scan experiences**: QR code → `qrgear.com/QRG/I/101/001/000001` (customer landing page). Barcode → full item verification/admin lookup.
+  - **Two scan experiences**: QR code → `qrgear.com/QRG-I-101-001-000001` (customer landing page). Barcode → full item verification/admin lookup.
   - Firestore fields on `master_catalog`: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
 - **Activation Flow**: Buyer pays → activation code generated (`XXXX-XXXX` format) → activation email sent → buyer scans product QR → sees product landing page → enters code in activation panel → 1-year hosting starts from claim moment (NOT purchase date).
 - **Key Files**:

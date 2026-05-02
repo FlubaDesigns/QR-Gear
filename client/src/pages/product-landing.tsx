@@ -112,7 +112,7 @@ function ActivationPanel() {
 
 export default function ProductLanding() {
   const params = useParams();
-  const slug = params.slug as string;
+  const slug = (params.slug || (params.rest ? `QRG-${params.rest}` : '')) as string;
   const [, setLocation] = useLocation();
 
   const { data, isLoading, error } = useQuery<{ success: boolean; landingPage: LandingPageData }>({
