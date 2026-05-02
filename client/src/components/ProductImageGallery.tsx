@@ -314,15 +314,15 @@ export default function ProductImageGallery({ images, className }: ProductImageG
         </div>
 
         {/* Dot indicators — mobile only (hidden when thumbs show below) */}
-        <div className="flex sm:hidden justify-center gap-2 mt-3">
+        <div className="flex sm:hidden justify-center gap-1.5 mt-2">
           {images.map((_, index) => (
             <button
               key={index}
               className={cn(
-                "w-2 h-2 rounded-full transition-all qr-touch-48",
+                "h-1.5 rounded-full transition-all",
                 index === currentIndex
-                  ? "bg-primary w-4"
-                  : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                  ? "bg-primary w-3"
+                  : "bg-muted-foreground/30 w-1.5"
               )}
               onClick={() => setCurrentIndex(index)}
               data-testid={`button-gallery-dot-${index}`}
