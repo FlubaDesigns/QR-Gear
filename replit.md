@@ -116,13 +116,14 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
 ### First-Scan Activation System (QR Gear Core Flow)
-- **QRG Numbering Schema**: Every product, owner, and physical item is identified through a three-layer schema:
-  - **Blank Code (CCC)**: 3-digit code — hundreds digit = category (1xx=Tees, 2xx=Hoodies, 3xx=Hats, 4xx=Drinkware), tens+units = specific blank within category (101=first tee blank, 102=second, up to x99). Up to 99 blanks per category.
-  - **Model number (store-facing)**: `QRG-101` — shown on store listings, same for all customers viewing that blank type.
-  - **Owner Sequence (SSSSSS)**: 6-digit zero-padded integer, assigned at purchase/claim time, unique per blank type. Supports up to 999,999 owners per blank.
-  - **Owner URL**: `qrgear.com/QRG/[blank-code]/[owner-sequence]` e.g. `qrgear.com/QRG/101/000001`. The URL IS the Firestore path and Storage key — no slug lookup table. The QR code on the physical product encodes this URL permanently. Owner content updates at this address; the shirt's QR never changes.
-  - **Barcode (physical item serial number)**: `QRG-[blank-code]-[owner-sequence]-[S][CC]` e.g. `QRG-101-000001-402`. S=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Encoded as Code 128. Every garment ever produced has a unique barcode.
-  - **Two scan experiences**: QR code → customer landing page. Barcode → full item verification/admin lookup.
+- **QRG Numbering Schema**: `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` — each layer adds digits only when that layer exists.
+  - **Source [S]** (1 letter): `I`=Internal/admin, `M`=Member, `E`=External, `D`=Direct buyer
+  - **Blank [BBB]** (3 digits): hundreds=category (1xx=Tees,2xx=Hoodies,3xx=Hats,4xx=Drinkware), tens+units=specific blank (101=first tee, 102=second, up to x99)
+  - **Build [DDD]** (3 digits): sequential build number per source+blank (001,002,003…). Each distinct design/colorway build gets its own number. Packet name = `QRG-I-101-001`.
+  - **Owner [SSSSSS]** (6 digits): zero-padded, assigned at claim time, unique per blank (000001–999999). Owner URL = `qrgear.com/QRG/I/101/001/000001`.
+  - **Size+Color [X][CC]** (3 digits, **barcode only — never in URL or packet name**): X=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Barcode = `QRG-I-101-001-000001-402`. Encoded as Code 128.
+  - **Packet name = QRG ID**: every packet is automatically named by its QRG identifier at creation (e.g. Army tee=`QRG-I-101-001`, Navy tee=`QRG-I-101-002`)
+  - **Two scan experiences**: QR code → `qrgear.com/QRG/I/101/001/000001` (customer landing page). Barcode → full item verification/admin lookup.
   - Firestore fields on `master_catalog`: `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
 - **Activation Flow**: Buyer pays → activation code generated (`XXXX-XXXX` format) → activation email sent → buyer scans product QR → sees product landing page → enters code in activation panel → 1-year hosting starts from claim moment (NOT purchase date).
 - **Key Files**:
