@@ -428,6 +428,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
 export default function AdminBlanks() {
   const [activeTab, setActiveTab] = useState<PageTab>("blanks");
   const [showCreate, setShowCreate] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const ctrl = useAdminBlanksController();
   const {
@@ -577,7 +578,7 @@ export default function AdminBlanks() {
             {catalogs.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Browse from:</p>
+                  <p className="text-sm font-medium text-muted-foreground">Choose products from:</p>
                   <select
                     value={sourceCatalogId || ""}
                     onChange={e => setSourceCatalogId(e.target.value || null)}
@@ -599,7 +600,7 @@ export default function AdminBlanks() {
                 </div>
 
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Adding to:</p>
+                  <p className="text-sm font-medium text-muted-foreground">Add products into:</p>
                   <select
                     value={selectedCatalogId || ""}
                     onChange={e => setSelectedCatalogId(e.target.value || null)}
@@ -622,24 +623,71 @@ export default function AdminBlanks() {
               </div>
             )}
 
-            {/* Target catalog strip */}
+            {/* Target catalog strip — sticky so it's always reachable while scrolling */}
             {validSelectedCatalogId && activeCatalog && (
+              <div className="sticky top-0 z-50">
               <Card className="border-primary/30 bg-primary/5">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Layers className="h-5 w-5 text-primary" />
                       <span className="text-base font-semibold">{activeCatalog.name}</span>
-                      <Badge variant="secondary" className="text-sm">{activeCatalog.blankIds?.length || 0} blanks</Badge>
+                      <Badge variant="secondary" className="text-sm">
+                        {activeCatalog.blankIds?.length || 0} blanks
+                      </Badge>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedCatalogId(null)}
-                      data-testid="button-clear-catalog"
-                    >
-                      <X className="h-4 w-4" /> Clear
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {catalogItems.length > 0 && !confirmClearAll && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive/70 text-xs"
+                          onClick={() => setConfirmClearAll(true)}
+                          data-testid="button-clear-all"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Clear All
+                        </Button>
+                      )}
+                      {confirmClearAll && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => {
+                              setConfirmClearAll(false);
+                              if (validSelectedCatalogId && catalogItems.length > 0) {
+                                removeBlanksMutation.mutate({
+                                  catalogId: validSelectedCatalogId,
+                                  blankIds: catalogItems.map(i => i.catalogKey),
+                                });
+                              }
+                            }}
+                            data-testid="button-confirm-clear-all"
+                          >
+                            Remove all
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => setConfirmClearAll(false)}
+                            data-testid="button-cancel-clear-all"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setSelectedCatalogId(null); setConfirmClearAll(false); }}
+                        data-testid="button-clear-catalog"
+                      >
+                        <X className="h-4 w-4" /> Deselect
+                      </Button>
+                    </div>
                   </div>
                   {catalogItems.length > 0 ? (
                     <ScrollArea className="w-full">
@@ -665,6 +713,7 @@ export default function AdminBlanks() {
                   )}
                 </CardContent>
               </Card>
+              </div>
             )}
 
             {/* No target selected hint */}
@@ -747,7 +796,6 @@ export default function AdminBlanks() {
               <ScrollGridView
                 items={scrollItems}
                 renderItem={(item) => renderCatalogCard(item as ScrollViewItem)}
-                height="calc(100vh - 200px)"
                 emptyMessage="No products match the current filters."
                 footer={null}
               />

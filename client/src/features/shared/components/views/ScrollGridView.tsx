@@ -5,6 +5,7 @@ export interface ScrollGridViewProps<T extends { id: string | number }> {
   items: T[];
   renderItem: (item: T, index: number) => React.ReactNode;
   columns?: string;
+  /** Fixed height for scroll container. Omit to let content flow naturally (recommended for mobile). */
   height?: string;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
@@ -17,7 +18,7 @@ export function ScrollGridView<T extends { id: string | number }>({
   items,
   renderItem,
   columns = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
-  height = "400px",
+  height,
   emptyMessage = "No items available",
   emptyIcon,
   isLoading = false,
@@ -41,15 +42,23 @@ export function ScrollGridView<T extends { id: string | number }>({
     );
   }
 
+  const grid = (
+    <div className={`grid ${columns} gap-3 p-1`} data-testid="scroll-grid-container">
+      {items.map((item, index) => (
+        <div key={item.id}>{renderItem(item, index)}</div>
+      ))}
+    </div>
+  );
+
   return (
     <div className={`relative ${className || ""}`}>
-      <ScrollArea style={{ height }} type="scroll">
-        <div className={`grid ${columns} gap-3 p-1`} data-testid="scroll-grid-container">
-          {items.map((item, index) => (
-            <div key={item.id}>{renderItem(item, index)}</div>
-          ))}
-        </div>
-      </ScrollArea>
+      {height ? (
+        <ScrollArea style={{ height }} type="scroll">
+          {grid}
+        </ScrollArea>
+      ) : (
+        grid
+      )}
       {footer !== undefined ? footer : (
         <p className="text-xs text-muted-foreground text-center mt-2">
           {items.length} items

@@ -26,7 +26,7 @@ const TIER_COLORS: Record<string, string> = {
 export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalogBlankSkinProps) {
   return (
     <div
-      className="flex-shrink-0 w-32 relative group rounded-md overflow-hidden border bg-muted"
+      className="flex-shrink-0 w-24 relative rounded-md overflow-hidden border bg-muted"
       data-testid={`catalog-blank-${item.catalogKey}`}
     >
       <div className="aspect-square flex items-center justify-center p-1">
@@ -42,41 +42,34 @@ export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalog
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1 py-0.5">
-        <p className="text-[10px] text-white truncate">{item.title}</p>
+      <div className="px-1 py-1 bg-muted/80">
+        <p className="text-[10px] text-foreground truncate leading-tight">{item.title}</p>
       </div>
 
       {item.tier && (
-        <Badge
-          className={`absolute top-1 left-1 text-[9px] px-1 py-0 ${TIER_COLORS[item.tier] || ""}`}
-        >
+        <Badge className={`absolute top-1 left-1 text-[9px] px-1 py-0 ${TIER_COLORS[item.tier] || ""}`}>
           {item.tier}
         </Badge>
       )}
 
       {item.isPrintful && (
-        <Badge className="absolute bottom-5 left-1 text-[9px] px-1 py-0 bg-purple-600 text-white">
+        <Badge className="absolute top-1 right-7 text-[9px] px-1 py-0 bg-purple-600 text-white">
           PF
-        </Badge>
-      )}
-
-      {item.hasMockupMapping && (
-        <Badge className="absolute bottom-5 right-1 text-[9px] px-1 py-0 bg-violet-600 text-white">
-          M
         </Badge>
       )}
 
       {onRemove && (
         <button
-          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-sm h-6 w-6 flex items-center justify-center transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(item.catalogKey);
           }}
           disabled={removing}
           data-testid={`button-remove-catalog-blank-${item.catalogKey}`}
+          aria-label={`Remove ${item.title}`}
         >
-          <X className="h-3 w-3" />
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

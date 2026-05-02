@@ -778,127 +778,84 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
           )}
         </div>
 
-        <CardContent className="p-4 space-y-3">
-          <div className="space-y-0.5">
-            <h3 className="font-semibold text-base leading-snug line-clamp-2" data-testid={`text-name-${item.id}`}>
-              {item.name}
-            </h3>
-            {qrgId && (
-              <p className="text-[11px] text-muted-foreground/70 font-mono tracking-wide" data-testid={`text-qrgid-${item.id}`}>
-                {qrgId}
-              </p>
-            )}
-          </div>
+        <CardContent className="p-3 space-y-2">
+          <h3
+            className="font-semibold text-sm leading-snug line-clamp-2"
+            data-testid={`text-name-${item.id}`}
+          >
+            {item.name}
+          </h3>
 
-          <div className="flex items-baseline gap-2 flex-wrap">
+          <div className="flex items-center justify-between gap-1 flex-wrap">
+            {fulfillmentProvider && (
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-background/80"
+                data-testid={`badge-provider-card-${item.id}`}
+              >
+                {fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider}
+              </Badge>
+            )}
             {item.price != null && (
-              <span className="text-lg font-bold" data-testid={`text-price-${item.id}`}>
+              <span className="text-sm font-bold ml-auto" data-testid={`text-price-${item.id}`}>
                 ${item.price.toFixed(2)}
               </span>
             )}
-            {item.cost != null && (
-              <span className="text-sm text-muted-foreground" data-testid={`text-cost-card-${item.id}`}>
-                Cost: ${item.cost.toFixed(2)}
-              </span>
-            )}
-            {item.price != null && item.cost != null && (
-              <span className="text-sm font-semibold text-green-600" data-testid={`text-profit-${item.id}`}>
-                +${(item.price - item.cost).toFixed(2)} profit
-              </span>
-            )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground flex-wrap">
-            {defaultColorEntry && (
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-full border border-border flex-shrink-0"
-                  style={{ backgroundColor: defaultColorEntry.hex || "#888" }}
-                />
-                <span className="truncate max-w-[140px]">{defaultColorEntry.name}</span>
-              </span>
+          <Button
+            variant={isSelected ? "secondary" : "default"}
+            className="w-full min-h-11 text-sm"
+            onClick={(e) => { e.stopPropagation(); onSelect(item.id, item); }}
+            disabled={isSelected && !!disableWhenSelected}
+            data-testid={`button-select-${item.id}`}
+          >
+            {isSelected ? (
+              selectedLabel ?? (
+                <>
+                  <Check className="w-4 h-4 mr-1.5" />
+                  Added
+                </>
+              )
+            ) : (
+              selectLabel ?? "Add"
             )}
-            {item.manufacturer && (
-              <span className="flex items-center gap-1.5">
-                {defaultColorEntry && <span className="opacity-60">&middot;</span>}
-                <Factory className="w-3.5 h-3.5" />
-                <span className="truncate max-w-[160px]">{item.manufacturer}</span>
-              </span>
-            )}
-          </div>
+          </Button>
 
-          <p className="text-xs text-muted-foreground line-clamp-2" data-testid={`text-desc-${item.id}`}>
-            {item.description || "No description set."}
-          </p>
-
-          <div className="flex items-center gap-2">
+          {onDelete && !confirmDelete && (
             <Button
-              variant={isSelected ? "secondary" : "default"}
-              className="flex-1 min-h-11 text-sm"
-              onClick={() => onSelect(item.id, item)}
-              disabled={isSelected && !!disableWhenSelected}
-              data-testid={`button-select-${item.id}`}
+              variant="ghost"
+              size="sm"
+              className="w-full text-destructive/70 text-xs"
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
+              disabled={deleting}
+              data-testid={`button-delete-${item.id}`}
             >
-              {isSelected ? (
-                selectedLabel ?? (
-                  <>
-                    <Check className="w-4 h-4 mr-1.5" />
-                    Selected
-                  </>
-                )
-              ) : (
-                selectLabel ?? "Select Product"
-              )}
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+              Remove from catalog
             </Button>
-            {onDelete && !confirmDelete && (
+          )}
+          {onDelete && confirmDelete && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); onDelete(item.id); }}
+                disabled={deleting}
+                data-testid={`button-confirm-delete-${item.id}`}
+              >
+                Remove
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleting}
-                data-testid={`button-delete-${item.id}`}
-                title="Remove from catalog"
+                className="flex-1 text-xs"
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
+                data-testid={`button-cancel-delete-${item.id}`}
               >
-                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Keep
               </Button>
-            )}
-            {onDelete && confirmDelete && (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => { setConfirmDelete(false); onDelete(item.id); }}
-                  disabled={deleting}
-                  data-testid={`button-confirm-delete-${item.id}`}
-                >
-                  Remove
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmDelete(false)}
-                  data-testid={`button-cancel-delete-${item.id}`}
-                >
-                  Keep
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {showTierControls && isSelected && onTierChange && (
-            <div className="flex gap-1.5" data-testid={`tier-controls-${item.id}`}>
-              {(["good", "better", "best"] as const).map((t) => (
-                <Button
-                  key={t}
-                  size="sm"
-                  variant={tier === t ? "default" : "outline"}
-                  className={`flex-1 text-xs ${tier === t ? TIER_COLORS[t] : ""}`}
-                  onClick={() => onTierChange(item.id, tier === t ? null : t)}
-                  data-testid={`button-tier-${t}-${item.id}`}
-                >
-                  {TIER_LABELS[t]}
-                </Button>
-              ))}
             </div>
           )}
         </CardContent>
