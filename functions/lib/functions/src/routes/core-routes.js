@@ -268,29 +268,60 @@ function register(app) {
     app.post('/cart', middleware_1.requireAuth, async (req, res) => {
         try {
             const userId = req.user.uid;
-            const { customization, quantity } = req.body;
+            const { customization, quantity, price: clientPrice } = req.body;
             const productId = customization?.productId;
             if (!productId) {
                 res.status(400).json({ error: 'Product ID is required' });
                 return;
             }
-            const pricingInput = {
-                productId,
-                productLine: customization?.productLine || 'text',
-                hasTextAbove: customization?.hasTextAbove || false,
-                hasTextBelow: customization?.hasTextBelow || false,
-                templateId: customization?.templateId,
-                hostingTierCode: customization?.hostingTierCode || customization?.dynamicHostingTier || '1_year',
-            };
-            const authoritativePrice = await (0, pricing_1.calculateAuthoritativePrice)(pricingInput);
-            if (authoritativePrice === null) {
+            // ── Resolve authoritative price ───────────────────────────────────────
+            // New store products use admin_catalog_instances (linkId/instanceId).
+            // Old products use the products collection.
+            // The add-to-cart endpoint already validated the price — trust it when
+            // a catalog instance is involved, falling back to old pricing logic.
+            let authoritativePrice = null;
+            // Path 1: catalog instance (new store system)
+            const instanceId = customization?.instanceId || customization?.linkId || productId;
+            const instanceDoc = await core_1.db.collection('admin_catalog_instances').doc(instanceId).get();
+            if (instanceDoc.exists) {
+                const d = instanceDoc.data();
+                authoritativePrice = d.resolved?.pricing?.customerPrice ?? null;
+                // If not on the instance, check the packet
+                if ((authoritativePrice === null || authoritativePrice <= 0) && d.currentPacketId) {
+                    try {
+                        const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
+                        if (pDoc.exists) {
+                            const pkt = pDoc.data();
+                            authoritativePrice = pkt.pricing?.customerPrice ?? null;
+                        }
+                    }
+                    catch (_) { }
+                }
+                // Last resort: trust the already-validated price from the add-to-cart step
+                if ((authoritativePrice === null || authoritativePrice <= 0) && clientPrice) {
+                    authoritativePrice = parseFloat(String(clientPrice));
+                }
+            }
+            // Path 2: legacy products collection (old builder flow)
+            if (authoritativePrice === null || authoritativePrice <= 0) {
+                const pricingInput = {
+                    productId,
+                    productLine: customization?.productLine || 'text',
+                    hasTextAbove: customization?.hasTextAbove || false,
+                    hasTextBelow: customization?.hasTextBelow || false,
+                    templateId: customization?.templateId,
+                    hostingTierCode: customization?.hostingTierCode || customization?.dynamicHostingTier || '1_year',
+                };
+                authoritativePrice = await (0, pricing_1.calculateAuthoritativePrice)(pricingInput);
+            }
+            if (authoritativePrice === null || authoritativePrice <= 0) {
                 res.status(400).json({ error: 'Product not found or has no valid price' });
                 return;
             }
             const cartItem = {
                 customization,
                 quantity: quantity || 1,
-                price: authoritativePrice.toString(),
+                price: (Math.round(authoritativePrice * 100) / 100).toString(),
                 userId,
                 createdAt: core_1.admin.firestore.FieldValue.serverTimestamp()
             };

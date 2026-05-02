@@ -297,25 +297,59 @@ app.get('/cart', requireAuth, async (req: Request, res: Response): Promise<void>
 app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
-    const { customization, quantity } = req.body;
-    
+    const { customization, quantity, price: clientPrice } = req.body;
+
     const productId = customization?.productId;
     if (!productId) {
       res.status(400).json({ error: 'Product ID is required' });
       return;
     }
 
-    const pricingInput: CustomizationPricing = {
-      productId,
-      productLine: customization?.productLine || 'text',
-      hasTextAbove: customization?.hasTextAbove || false,
-      hasTextBelow: customization?.hasTextBelow || false,
-      templateId: customization?.templateId,
-      hostingTierCode: customization?.hostingTierCode || customization?.dynamicHostingTier || '1_year',
-    };
+    // ── Resolve authoritative price ───────────────────────────────────────
+    // New store products use admin_catalog_instances (linkId/instanceId).
+    // Old products use the products collection.
+    // The add-to-cart endpoint already validated the price — trust it when
+    // a catalog instance is involved, falling back to old pricing logic.
+    let authoritativePrice: number | null = null;
 
-    const authoritativePrice = await calculateAuthoritativePrice(pricingInput);
-    if (authoritativePrice === null) {
+    // Path 1: catalog instance (new store system)
+    const instanceId = customization?.instanceId || customization?.linkId || productId;
+    const instanceDoc = await db.collection('admin_catalog_instances').doc(instanceId).get();
+    if (instanceDoc.exists) {
+      const d = instanceDoc.data()!;
+      authoritativePrice = d.resolved?.pricing?.customerPrice ?? null;
+
+      // If not on the instance, check the packet
+      if ((authoritativePrice === null || authoritativePrice <= 0) && d.currentPacketId) {
+        try {
+          const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
+          if (pDoc.exists) {
+            const pkt = pDoc.data()!;
+            authoritativePrice = pkt.pricing?.customerPrice ?? null;
+          }
+        } catch (_) {}
+      }
+
+      // Last resort: trust the already-validated price from the add-to-cart step
+      if ((authoritativePrice === null || authoritativePrice <= 0) && clientPrice) {
+        authoritativePrice = parseFloat(String(clientPrice));
+      }
+    }
+
+    // Path 2: legacy products collection (old builder flow)
+    if (authoritativePrice === null || authoritativePrice <= 0) {
+      const pricingInput: CustomizationPricing = {
+        productId,
+        productLine: customization?.productLine || 'text',
+        hasTextAbove: customization?.hasTextAbove || false,
+        hasTextBelow: customization?.hasTextBelow || false,
+        templateId: customization?.templateId,
+        hostingTierCode: customization?.hostingTierCode || customization?.dynamicHostingTier || '1_year',
+      };
+      authoritativePrice = await calculateAuthoritativePrice(pricingInput);
+    }
+
+    if (authoritativePrice === null || authoritativePrice <= 0) {
       res.status(400).json({ error: 'Product not found or has no valid price' });
       return;
     }
@@ -323,7 +357,7 @@ app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void
     const cartItem = {
       customization,
       quantity: quantity || 1,
-      price: authoritativePrice.toString(),
+      price: (Math.round(authoritativePrice * 100) / 100).toString(),
       userId,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     };

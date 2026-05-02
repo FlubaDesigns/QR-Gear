@@ -12,9 +12,11 @@ import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient as qc } from "@/lib/queryClient";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
 import { buildProductGallery } from "@/features/storefront-shared/buildProductGallery";
+import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/contexts/CartContext";
 import type { Product } from "@shared/schema";
 import baseShirtImage from "@assets/generated_images/white_t-shirt_mockup_template.png";
 
@@ -184,6 +186,8 @@ function ProductQuickView({
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
+  const { addItem } = useCart();
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [generatingColor, setGeneratingColor] = useState<string | null>(null);
