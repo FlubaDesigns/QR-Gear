@@ -1300,6 +1300,24 @@ When a new catalog instance item is added and mockup jobs are queued with `produ
 - **Favicon** — QR Gear "Q" logo as favicon.ico (multi-size), favicon.png, apple-touch-icon.png (180x180)
 - **Folder persistence** — Both `handleCreateFolder` functions check `res.ok`, refetch from server on success, show inline error on failure; Cloud Functions folder endpoint has case-insensitive duplicate detection, normalizedName field, 80-char max validation
 
+### May 2, 2026 — Member Library Instance UI (Item #3)
+
+Built the complete member-facing library UI on top of the already-finished backend.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/member-library.tsx` | New page at `/members/library` — grid of pushed library items, slide-in edit panel, auth guard, empty/error states |
+| `client/src/App.tsx` | Added `/members/library` route (ProtectedRoute, requireAdmin: false) |
+| `client/src/features/members/member-index-view.tsx` | Added "My Library" indigo CTA strip linking to `/members/library`; added `Library` + `useLocation` imports |
+
+#### Key Design Decisions
+- Uses `memberApiFetch` (inline helper) calling `/api/member/library-instances` directly — not `memberFetch` which would incorrectly prepend `/api/members`
+- Edit panel is a fixed right-side drawer with backdrop; member edits title + description; overrides merged server-side via `resolveInstance`; master catalog and admin instance never touched
+- "Personalized" badge on any item that has at least one override saved
+- Reset button appears only when the item has active overrides; clears them back to the admin-resolved defaults
+- Dark tech theme matches existing member hub (slate-900 bg, slate-800/50 cards, blue accents)
+
 ### May 2, 2026 — Phone Mockup Experience Card + Deploy Infrastructure
 
 Replaced the static "Scan this / Goes here" section on the store product page with a polished two-phone animated card. Also hardened the Firebase deploy process with three-step scripts and consistent skill documentation.

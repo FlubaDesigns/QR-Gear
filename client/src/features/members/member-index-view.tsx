@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   Users, Package, QrCode, Loader2, ChevronRight, Layers, User,
   DollarSign, Share2, Plus, ExternalLink, Wand2, Zap, Sparkles,
-  ArrowRight, BarChart3, CalendarPlus, Banknote
+  ArrowRight, BarChart3, CalendarPlus, Banknote, Library
 } from "lucide-react";
+import { useLocation } from "wouter";
 import {
   type ViewMode, type WizardTier, type MemberChannel,
 } from "@/features/shared/components/wizardSteps";
@@ -38,6 +39,7 @@ interface MemberIndexViewProps {
 
 export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCount }: MemberIndexViewProps) {
   const [hasSeenIntro, setHasSeenIntro] = useState(true);
+  const [, setLocation] = useLocation();
 
   const { data: channels } = useQuery<MemberChannel[]>({
     queryKey: ['/api/members', memberId, 'channels'],
@@ -274,6 +276,24 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
           </div>
         </CardContent>
       </Card>
+
+      {/* My Library entry point */}
+      <button
+        onClick={() => setLocation('/members/library')}
+        className="w-full text-left bg-gradient-to-r from-indigo-900/40 to-blue-900/40 border border-indigo-700/40 hover:border-indigo-500/60 rounded-lg p-4 transition-colors flex items-center justify-between gap-4"
+        data-testid="cta-my-library"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center shrink-0">
+            <Library className="w-5 h-5 text-indigo-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-white text-sm">My Library</p>
+            <p className="text-slate-400 text-xs">View and personalize items added to your library by the QR Gear team</p>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-indigo-400 shrink-0" />
+      </button>
 
       {channelCount > 0 && (
         <Card className="bg-slate-800/50 border-slate-700">

@@ -89,6 +89,7 @@ import Members from "@/features/members/MembersPage";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
 import Member from "@/pages/member";
+import MemberLibrary from "@/pages/member-library";
 import RenewPage from "@/pages/renew";
 import ClaimPage from "@/pages/claim";
 import MyItemPage from "@/pages/my-item";
@@ -124,6 +125,7 @@ function Router() {
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
       <Route path="/members" component={Members} />
+      <Route path="/members/library">{() => <ProtectedRoute requireAdmin={false}><MemberLibrary /></ProtectedRoute>}</Route>
       <Route path="/member">{() => <ProtectedRoute requireAdmin={false}><Member /></ProtectedRoute>}</Route>
       <Route path="/admin">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
       <Route path="/admin/run">{() => <Redirect to="/admin" />}</Route>
