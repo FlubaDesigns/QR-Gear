@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BUILD_TAG = exports.api = void 0;
-const _BUILD_ID = '20260425-store-delete-visibility-fix-v1';
+const _BUILD_ID = '20260425-memory-256mib-beta-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -128,9 +128,9 @@ app.use((err, _req, res, _next) => {
 });
 exports.api = (0, https_1.onRequest)({
     timeoutSeconds: 540,
-    memory: '1GiB',
+    memory: '256MiB',
     cors: true,
-    labels: { 'build-id': '20260425-store-delete-visibility-fix-v1' },
+    labels: { 'build-id': '20260425-memory-256mib-beta-v1' },
 }, app);
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z

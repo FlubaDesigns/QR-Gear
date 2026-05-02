@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260425-store-delete-visibility-fix-v1';
+const _BUILD_ID = '20260425-memory-256mib-beta-v1';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -129,9 +129,9 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
 export const api = onRequest(
   {
     timeoutSeconds: 540,
-    memory: '1GiB',
+    memory: '256MiB',
     cors: true,
-    labels: { 'build-id': '20260425-store-delete-visibility-fix-v1' },
+    labels: { 'build-id': '20260425-memory-256mib-beta-v1' },
   },
   app
 );
