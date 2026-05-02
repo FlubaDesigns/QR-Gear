@@ -10,9 +10,11 @@ description: CRITICAL rule — always ask clarifying questions before starting a
 **This project deploys exclusively to Firebase production (Cloud Functions + Firebase Hosting). The Express dev server (`server/`) is for local development only and is NEVER the target for fixes or features.**
 
 - All backend logic lives in `functions/src/routes/` — these are the Cloud Functions
-- All backend changes require: `cd functions && npm run build` then `firebase deploy --only functions --project qrgear-c1ffd --force`
-- All frontend changes require: `npm run build` then `firebase deploy --only hosting --project qrgear-c1ffd --force`
-- When both change: deploy `--only functions,hosting` together
+- All deploys use the THREE-STEP method from `.agents/skills/always-deploy/SKILL.md` — read it
+- Step 1: Bump BUILD_ID + build both (`sed` + `npm run build` + `cd functions && npm run build`)
+- Step 2: `firebase deploy --only functions` (separate bash call, timeout 90000ms)
+- Step 3: `firebase deploy --only hosting` (separate bash call, timeout 60000ms)
+- NEVER deploy `--only functions,hosting` together — it times out and dies silently
 - NEVER edit `server/` routes expecting production to reflect the change
 - NEVER consider a task done until it is deployed to Firebase production
 

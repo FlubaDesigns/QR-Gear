@@ -1,5 +1,25 @@
 # QR Gear - Compressed System Reference Guide
 
+---
+## !! READ SKILLS BEFORE DOING ANYTHING !!
+
+**Every session, every task, no exceptions — before touching a single file:**
+
+```
+Say "read the first skill" or read these manually in order:
+1. .agents/skills/read-all-skills/SKILL.md      ← orchestrates the rest
+2. .agents/skills/read-code-first/SKILL.md
+3. .agents/skills/ask-before-starting/SKILL.md
+4. .agents/skills/always-deploy/SKILL.md        ← THREE-STEP DEPLOY — read this
+5. .agents/skills/fail-loudly/SKILL.md
+6. .agents/skills/update-readmes/SKILL.md
+7. .agents/skills/present-changed-files/SKILL.md
+```
+
+**Then read this entire file.** Only after all skills + replit.md are loaded may any work begin.
+
+---
+
 ## Overview
 QR Gear is an e-commerce platform specializing in personalized promotional merchandise with custom QR codes. It integrates with Printify for print-on-demand services, streamlining the design and ordering process for QR-enhanced products. The platform aims to lead the personalized promotional goods market by offering advanced features for product management, custom QR code generation, and efficient order fulfillment.
 
@@ -9,22 +29,27 @@ QR Gear is an e-commerce platform specializing in personalized promotional merch
 - **Documentation**: Keep ADMIN_MANUAL.md updated as admin features evolve
 - **BUTTON VISIBILITY RULE**: NEVER use black, dark slate, or low-contrast colors on buttons. ALL buttons must have clearly visible color (blue, green, orange, etc.) with strong contrast against their background. No dark-on-dark. No invisible borders. This applies to ALL button variants (outline, ghost, secondary, default). Defined once in the component, never overridden with inline dark classes.
 - **PRODUCTION-ONLY MODE**: The dev server is DISABLED. Do NOT start or use it. All work deploys directly to Firebase production. The `server/` directory exists only as build dependency — never run it.
-- **Firebase Deploy — Hosting** (frontend):
-  ```bash
-  npm run build
-  echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
-  export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-  firebase deploy --only hosting --project qrgear-c1ffd
-  rm /tmp/firebase-sa.json
-  ```
-- **Firebase Deploy — Functions** (API):
-  ```bash
-  cd functions && npm run build && cd ..
-  echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/firebase-sa.json
-  export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json
-  firebase deploy --only functions --project qrgear-c1ffd
-  rm /tmp/firebase-sa.json
-  ```
+- **Firebase Deploy — THREE STEPS, always in this order (read `.agents/skills/always-deploy/SKILL.md` for full detail):**
+  - **Step 1** — Bump BUILD_ID + build both (timeout 60000ms):
+    ```bash
+    sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)-$RANDOM'/" functions/src/index.ts \
+      && npm run build 2>&1 | tail -5 \
+      && cd functions && npm run build 2>&1 | tail -3 && cd ..
+    ```
+  - **Step 2** — Deploy functions (timeout 90000ms):
+    ```bash
+    echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
+      && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
+         npx firebase deploy --only functions --project qrgear-c1ffd --force 2>&1 | tail -10
+    ```
+  - **Step 3** — Deploy hosting (timeout 60000ms):
+    ```bash
+    echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > /tmp/sa-key.json \
+      && GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json \
+         npx firebase deploy --only hosting --project qrgear-c1ffd --force 2>&1 | tail -8
+    ```
+  - **NEVER** chain all three into one command — it will timeout and die silently
+  - **NEVER** deploy `--only functions,hosting` together — same timeout problem
 - **MODULAR API CODEBASE**: The Cloud Function entry point is `functions/src/index.ts` (~94 lines of wiring). All logic lives in modular files:
   - `functions/src/constants.ts` — Centralized platform constants: `MOSAICS_COLLECTION`, `MOSAIC_TEMPLATES_COLLECTION`, `CHANNEL_ITEMS_COLLECTION`, `CHANNEL_CONTENT_COLLECTION`, `COLLECTION_ITEMS_COLLECTION`, `DYNAMICS_SURFACES_COLLECTION`, `STORE_PRODUCT_LINKS_COLLECTION`, `PRODUCT_PACKETS_COLLECTION`, `QR_DYNAMICS_INSTANCES_COLLECTION`, `MEMBER_PACKETS_COLLECTION`, `PLATFORM_STORE_ID`, Surfaces system collections (`SURFACES_COLLECTION`, `SURFACE_VARIANTS_COLLECTION`, `MARKETPLACE_ACCOUNTS_COLLECTION`, `MARKETPLACE_LISTINGS_COLLECTION`, `MARKETPLACE_SYNC_JOBS_COLLECTION`, `MARKETPLACE_SYNC_LOGS_COLLECTION`), External Sites collections (`BUILDER_HOSTS_COLLECTION`, `BUILDER_PROFILES_COLLECTION`, `BUILDER_PLACEMENTS_COLLECTION`, `BUILDER_SESSIONS_COLLECTION`, `BUILDER_DRAFTS_COLLECTION`, `PRICING_POLICIES_COLLECTION`, `REVENUE_SPLITS_COLLECTION`, `EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION`, `AFFILIATE_PAYOUT_LEDGER_COLLECTION`), and type aliases for all status/mode/action enums
   - `shared/surfaces.ts` — Canonical types for the multi-channel publishing system: Surface (expanded with storeId, channelId, collectionId, productId, artifactId, mosaicId, supportsEmbed*, bulletPoints, keywords, mockupImages), SurfaceVariant (expanded with option1-3, titleSuffix, marketplaceOverrides), MarketplaceAccount, MarketplaceListing, MarketplaceSyncJob, MarketplaceSyncLog, BuilderHost, BuilderProfile, BuilderPermissionScope, BuilderPlacement, BuilderSession, BuilderDraft, PricingPolicy, RevenueSplit, AttributionContext, PricingSnapshot, ExternalCartContext, EmbeddedOrderAttribution, AffiliatePayoutLedgerEntry, plus `checkSurfaceReadiness()` validator and `computePricingSnapshot()` pricing engine
@@ -63,7 +88,7 @@ These six rules apply to every task, every session, no exceptions. When the user
 
 2. **Ask Before Starting** — Before writing a single line of code or making any change, ask clarifying questions. Confirm: what exactly is the problem, where is it, what behavior is wanted, what must NOT change, and the scope. Do not assume. Do not start a build or deploy until the user confirms the plan.
 
-3. **Always Deploy** — Every code change — no matter how small — must be deployed to Firebase production before the task is considered done. The dev server is NOT the production environment. Order: (1) `npm run build`, (2) `firebase deploy --only hosting`, (3) `firebase deploy --only functions`. If functions deploy hits a GCP infra error, note it but do not block. Checklist: build clean, hosting live, functions deployed, production URL verified at https://qrgear-c1ffd.web.app.
+3. **Always Deploy** — Every code change — no matter how small — must be deployed to Firebase production before the task is considered done. The dev server is NOT the production environment. Use the THREE-STEP method (see `.agents/skills/always-deploy/SKILL.md`): Step 1 = bump BUILD_ID + build both (one bash call), Step 2 = deploy functions only (separate bash call), Step 3 = deploy hosting only (separate bash call). NEVER chain steps 2+3 together — it times out. If functions deploy hits a GCP infra error, note it but do not block. Verify at https://qrgear-c1ffd.web.app.
 
 4. **Fail Loudly** — When something fails to load, fetch, or initialize, surface the error explicitly — in the UI, in the console, and in the API response. No silent fallbacks. No swallowed errors. No `return []` when the real cause is a failure. Every caught error must log: which module failed, what it was trying to do, and the actual error message. Always handle TanStack Query `error` state, not just `isLoading`.
 
