@@ -674,6 +674,7 @@ function registerAdminBuildSessions(app) {
                 return;
             }
             const STORAGE_BUCKET = 'qrgear-c1ffd.firebasestorage.app';
+            const folder = `content/canvas/admin/${packetId}`;
             const resolveImageUrl = (url) => {
                 if (!url)
                     return url;
@@ -685,6 +686,8 @@ function registerAdminBuildSessions(app) {
             };
             const hs = packet.headerStyle;
             const fs = packet.footerStyle;
+            const graphicLayoutMode = packet.graphicLayoutMode || 'zone';
+            const qrSizePercent = packet.qrSizePercent ?? 75;
             const topText = hs?.enabled ? (hs.mode === 'image' && hs.imageUrl
                 ? { text: '', fontFamily: 'Arial', fontSize: '14', mode: 'image', imageUrl: resolveImageUrl(hs.imageUrl), imageScale: hs.imageScale ?? 100, horizontalOffset: hs.horizontalOffset ?? 50, verticalOffset: hs.verticalOffset ?? 50 }
                 : hs.text ? { text: hs.text, fontFamily: hs.fontFamily || 'Arial', fontSize: hs.fontSize || '14', color: hs.color || '#000000', strokeColor: hs.strokeColor || '', strokeWidth: hs.strokeWidth || 0 } : null) : null;
@@ -696,31 +699,66 @@ function registerAdminBuildSessions(app) {
                 strokeColor: fs.strokeColor || '',
                 strokeWidth: fs.strokeWidth || 0,
             } : null;
-            const placement = (packet.placements?.[0]) || 'front';
-            const graphicLayoutMode = packet.graphicLayoutMode || 'zone';
-            const qrSizePercent = packet.qrSizePercent ?? 75;
-            const compositeDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrContent, topText, bottomText, 1200, 1800, 'black', placement, graphicLayoutMode, qrSizePercent);
-            const base64 = compositeDataUrl.replace(/^data:image\/png;base64,/, '');
-            const buffer = Buffer.from(base64, 'base64');
-            const folder = `content/canvas/admin/${packetId}`;
-            const { publicUrl: compositeUrl } = await (0, composite_image_1.cfUploadBufferToStorage)(buffer, 'image/png', folder);
+            // ── 1. Front composite (with header/footer) ───────────────────────────
+            const frontPlacement = (packet.placements?.[0]) || 'front';
+            const frontDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrContent, topText, bottomText, 1200, 1800, 'black', frontPlacement, graphicLayoutMode, qrSizePercent);
+            const frontBuf = Buffer.from(frontDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
+            const { publicUrl: compositeUrl } = await (0, composite_image_1.cfUploadBufferToStorage)(frontBuf, 'image/png', folder);
+            // ── 2. Sleeve composites (QR code only — no header/footer) ───────────
+            const SLEEVE_PLACEMENTS = ['left_sleeve', 'right_sleeve'];
+            const packetPlacements = packet.placements || [];
+            const sleevePlacements = packetPlacements.filter((p) => SLEEVE_PLACEMENTS.includes(p));
+            const sleeveUrls = {};
+            for (const slv of sleevePlacements) {
+                const slvDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrContent, null, null, 1200, 1500, 'black', slv, 'zone', 90);
+                const slvBuf = Buffer.from(slvDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
+                const { publicUrl } = await (0, composite_image_1.cfUploadBufferToStorage)(slvBuf, 'image/png', folder);
+                sleeveUrls[slv] = publicUrl;
+            }
+            const sleeveCompositeUrl = sleeveUrls['left_sleeve'] || sleeveUrls['right_sleeve'] || null;
+            // ── 3. QR-only external URL ───────────────────────────────────────────
             const encodeUri = (s) => encodeURIComponent(s);
             const qrOnlyUrl = `https://api.qrserver.com/v1/create-qr-code/?size=3000x3000&data=${encodeUri(qrContent)}&format=png&qzone=0&ecc=H&color=000000&bgcolor=ffffff`;
-            await packetRef.update({ compositeUrl, qrOnlyUrl, updatedAt: firestore_1.FieldValue.serverTimestamp() });
-            // Update linked catalog instance images[0] and resolved.images[0]
+            // ── 4. Save composites to packet ──────────────────────────────────────
+            const packetUpdate = { compositeUrl, qrOnlyUrl, updatedAt: firestore_1.FieldValue.serverTimestamp() };
+            if (sleeveCompositeUrl)
+                packetUpdate.sleeveCompositeUrl = sleeveCompositeUrl;
+            await packetRef.update(packetUpdate);
+            // ── 5. Build resolved.images for catalog instance ─────────────────────
+            // Order: front composite, sleeve composite(s), priority mockup, qr-only URL
+            // Drop all stock images (images.printify.com) when we have ≥3 real images
+            const priorityMockupUrl = packet.priorityMockupUrl || null;
+            const realImages = [compositeUrl];
+            for (const slv of sleevePlacements) {
+                if (sleeveUrls[slv])
+                    realImages.push(sleeveUrls[slv]);
+            }
+            if (priorityMockupUrl)
+                realImages.push(priorityMockupUrl);
+            realImages.push(qrOnlyUrl);
+            // Use real images if ≥3; otherwise fall back to keeping existing non-stock images
             const instanceSnap = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION)
                 .where('currentPacketId', '==', packetId).limit(1).get();
             if (!instanceSnap.empty) {
                 const instRef = instanceSnap.docs[0].ref;
                 const instData = instanceSnap.docs[0].data();
-                const existingImages = instData.resolved?.images || [];
-                const updatedImages = [compositeUrl, ...existingImages.slice(1)];
+                let updatedImages;
+                if (realImages.length >= 3) {
+                    // We have enough real images — drop all stock printify images
+                    updatedImages = realImages;
+                }
+                else {
+                    // Not enough real images yet — keep existing non-stock images and prepend composite
+                    const existingImages = (instData.resolved?.images || [])
+                        .filter((u) => !u.includes('images.printify.com'));
+                    updatedImages = [compositeUrl, ...existingImages.filter((u) => u !== compositeUrl)];
+                }
                 await instRef.update({
                     'resolved.images': updatedImages,
                     updatedAt: firestore_1.FieldValue.serverTimestamp(),
                 });
             }
-            res.json({ success: true, packetId, compositeUrl, qrOnlyUrl });
+            res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: realImages.length });
         }
         catch (err) {
             console.error('[QRG] regenerate-composite error:', err.message);
