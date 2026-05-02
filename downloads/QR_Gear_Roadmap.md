@@ -1,138 +1,253 @@
 # QR Gear — Build Roadmap
 
-This document captures every planned, in-progress, and completed development task for the QR Gear platform. Tasks are numbered in rough priority order. Slots 14–19 are intentionally open for new work as the platform grows.
+This document is the single source of truth for all planned, in-progress, and completed development on the QR Gear platform. Tasks are ordered by execution priority — each group unblocks the one after it.
 
 ---
 
 ## Vision
 
-QR Gear is being built to run itself. Every task below moves the platform closer to a fully automated, AI-operated e-commerce system — one that designs products, publishes them to print providers, manages storefronts, tracks orders, and pays out affiliates without manual intervention. The architecture being built here is intentionally multi-site: the same engine will power additional branded stores beyond QR Gear.
+QR Gear is being built to run itself. Every task below moves the platform closer to a fully automated, AI-operated e-commerce system — one that designs products, publishes them to print providers, manages storefronts, tracks orders, and pays out affiliates without manual intervention. The architecture is intentionally multi-site: the same engine will power additional branded stores beyond QR Gear.
 
 ---
 
-## Task List
+## Track Status
+
+| Track | Description | Status |
+|-------|-------------|--------|
+| Track 1 — Foundation | Source-of-truth cleanup, instance system, generic publish pipeline | **Complete** |
+| Track 2 — Stabilization | Four targeted backend fixes (cart order, draft filter, legacy flags) | **Complete** |
+| Track 3 — Monetization | Security, checkout unification, affiliate, embed, marketplace | In queue |
+| Track 4 — Automation | Auto-publish, bulk tools, test coverage | In queue |
+| Track 5 — UX & Maintainability | Builder UX, file splits, admin shell, legacy cleanup | In queue |
 
 ---
 
-### #1 — Fix Cascading Product Description
-**Status:** Queued
+## Execution Order
 
-When a product is shown to a member or customer, the description should come from Printify's own rich product copy — not a model number like "3001." Right now the system never fetches the real description from Printify's detail endpoint, so it falls back to a generic placeholder. This task fetches the real description during blueprint sync, stores it in the database, and wires it through the full cascade: Printify original → admin override → member customization.
-
----
-
-### #2 — Order & Checkout Unification
-**Status:** Queued
-
-Three separate checkout paths exist (direct cart, public/packet purchase, external-site embed buy). Each one independently implements pricing, order creation, affiliate attribution, and payout logic. When one path is updated, the others drift. This task extracts one canonical order service that all three paths call, so pricing, attribution, and payouts are always consistent regardless of how the customer arrived at checkout.
+Tasks should be executed in the order shown. Dependencies are noted inline.
 
 ---
 
-### #3 — External-Sites Transaction Closure
-**Status:** Queued
-
-The external-sites system lets QR Gear products be sold on third-party websites via an embed. The buy flow needs hardening end-to-end: domain validation must strictly reject requests from unlisted sites, affiliate attribution must always resolve correctly through the placement → host → profile chain, and the purchase must atomically write both the order attribution and the payout ledger entry so no money is ever mis-credited.
-
----
-
-### #4 — Client Giant File Splits
-**Status:** Queued
-
-Several frontend files have grown past 800–1000 lines and mix multiple unrelated responsibilities into one file. This makes them slow to navigate and easy to break when editing. This task splits each oversized file into focused components by responsibility — no feature changes, just structure. Cleaner files mean faster future development.
-
----
-
-### #5 — Admin UX Shell Adoption
-**Status:** Queued
-
-A set of mobile-friendly admin UI building blocks already exists (card sections, sticky action bars, preview drawers, bottom nav) but the biggest admin pages haven't adopted them yet. Those pages are dense, desktop-only walls of controls. This task retrofits the admin store builder, admin products, admin pricing, and external-sites pages with the card-based shell so they work well on a phone with one hand.
-
----
-
-### #6 — Store Builder Restructure
-**Status:** Queued
-
-The store builder is currently a single 1000+ line component that tries to handle store settings, branding, product discovery, product configuration, and catalog management all at once. This task breaks it into four focused sections — Overview, Branding, Catalog, Access — each in its own file and navigated via tabs. The catalog section alone gets three sub-views: browse available products, configure a selected product, and manage products already in the store.
-
----
-
-### #7 — Builder Family Unification
-**Status:** Queued
-
-Five different product builder wizards exist (SuperSimple, Simple, Advanced, Studio, Owner) that share partial internals but are largely copy-pasted from each other. Every feature change has to be made in multiple places. This task moves toward one canonical builder engine with a capability/permission model that controls what each shell can do, so each wizard becomes a thin configuration on top of shared logic.
-
----
-
-### #8 — Marketplace Domain Hardening
-**Status:** Queued
-
-The platform has adapter stubs for Etsy, eBay, and Amazon but no working sync pipeline connecting them to the product catalog. This task establishes the canonical domain types for marketplace listings and builds a real sync pipeline — Surface (internal product representation) → MarketplaceListing. Etsy is the first fully connected marketplace. The marketplace listing and the external-sites embed will share the same canonical Surface so a product published everywhere starts from one source of truth.
-
----
-
-### #9 — Security & Trust-Boundary Pass
-**Status:** Queued
-
-The platform handles real money and real user data. Before scaling up, a focused security review is needed: verify every admin endpoint requires admin authentication, verify public endpoints don't leak sensitive fields (emails, payout amounts, internal IDs), confirm embed domain enforcement can't be bypassed, validate that file upload endpoints check type and size, and confirm affiliate ID resolution is server-side only and can't be spoofed from the client.
-
----
-
-### #10 — Test Coverage Expansion
-**Status:** Queued
-
-The platform currently has 4 test files covering only basic shared utilities. For a system that handles pricing math, affiliate payouts, order attribution, and multi-channel publishing, this is dangerously thin. This task adds at least 15 test files covering the most critical business logic: pricing snapshot calculations, order creation idempotency, affiliate resolution chain, external-sites domain validation, payout ledger writes, and builder capability parity.
-
----
-
-### #11 — Legacy Naming Cleanup
-**Status:** Queued
-
-Old service names and terminology from earlier versions of the platform (programService, channelItemsService, widget-auth, collectionTag, site_programs) still appear in the runtime code. The documentation uses current language but the code carries the old language alongside it, creating confusion. This task either removes the dead code entirely or wraps it in one explicit compatibility adapter, so the codebase speaks one consistent language throughout.
-
----
-
-### #12 — Builder One-Finger UX Refactor
-**Status:** Queued
-
-The admin product builder is a long flat scroll with no hierarchy. For someone operating it with one hand on a phone, finding and completing each step requires too much hunting. This task reorganizes the builder into a 5-section accordion with only one section open at a time, a command strip at the top with large labeled buttons (Resume, Templates, New, Save, Generate), a summary bar showing completion status for each section, and a sticky footer with Save and Generate always visible. Every existing capability stays — it's a layout restructure, not a feature change.
-
----
-
-### #13 — Table-First Placement Data Model
-**Status:** Queued
-
-Every time a product is selected in the admin builder, the system makes a live API call to Printify or Printful to fetch the available print placements (front, back, sleeve, etc.) and methods (DTG, DTF, embroidery). If the provider API is slow or down, the builder stalls. This task pre-syncs all placement data into QR Gear's own database on a weekly schedule and loads it instantly at build time. If a product hasn't been synced yet, a one-tap button fetches it on demand and stores it for next time.
-
----
-
-### #14–19 — Reserved
-**Status:** Open
-
-These slots are intentionally unassigned. New tasks will be numbered into these slots as the platform grows.
+## TRACK 2 — STABILIZATION (Complete)
 
 ---
 
 ### #20 — Generic Placement Support in Printify Publish Pipeline
-**Status:** **Complete** ✓
+**Status: Complete** ✓
 
-Previously the publish-to-Printify step only handled front and left_sleeve placements via hardcoded logic. This task replaced that with a generic loop driven by the packet's `placements` array and a placement-to-URL lookup map. Any product with back, right sleeve, or future placement combinations now publishes all of them automatically. Army and Navy products (front + left sleeve) are unaffected.
+Previously the publish-to-Printify step only handled front and left_sleeve placements via hardcoded logic. Replaced with a generic loop driven by the packet's `placements` array and a placement-to-URL lookup map. Any product with back, right sleeve, or future placement combinations now publishes all of them automatically. Army and Navy products (front + left sleeve) are unaffected.
+
+---
+
+### Stabilization Fixes — add-to-cart, draft filter, legacy flags
+**Status: Complete** ✓
+
+Four targeted backend fixes shipped in build `20260502-stabilize-v10`:
+- add-to-cart now checks `admin_catalog_instances` first (instances are the source of truth — storeProductLinks is legacy fallback only)
+- All three public store listing paths now exclude `status === 'draft'` so draft products never appear in the public store
+- Legacy `storeProductLinks` fallback now logs `console.warn` and sets `isLegacy: true` on the response so it's always visible in logs
+
+---
+
+## TRACK 3 — MONETIZATION
+
+Do these in order. Security before money. Money before distribution.
 
 ---
 
 ### #21 — Auto Re-Publish to Printify on Design Update
-**Status:** Queued
+**Status: Queued** — Start here
 
-When a product's composite image is updated — new graphic, new layout, new colors — the Printify listing currently goes stale until someone manually re-publishes. This task automates that: a trigger fires whenever a composite image changes, looks up every published Printify product linked to that design, and re-publishes each one automatically using the same generic placement pipeline from task #20. Works for any product, not just Army and Navy.
+When a product's composite image is updated, the Printify listing currently goes stale until someone manually re-publishes. This task automates that: a Firestore trigger fires whenever a composite image changes, looks up every published Printify product linked to that design, and re-publishes each one automatically using the generic placement pipeline from #20. Works for any product, any placement combination.
+
+**Depends on:** #20 (complete)
 
 ---
 
 ### #22 — Admin Publish Status UI
-**Status:** Queued
+**Status: Queued** — After #21
 
-Once task #21 is running, admins need visibility into the state of each product's Printify sync. This task adds a status badge to every product card in the Store Library showing one of four states: Synced (with timestamp), Pending, Error (tappable to see the error message), or Not Published (with a "Publish Now" button). The badge updates in real time as the auto-publish trigger fires, so you always know exactly where each product stands.
+Adds a status badge to every product card in the Store Library showing one of four states: Synced (with timestamp), Pending, Error (tappable for message), or Not Published (with a "Publish Now" button). Badge updates in real time as the auto-publish trigger fires.
+
+**Depends on:** #21
+
+---
+
+### #9 — Security & Trust-Boundary Pass
+**Status: Queued** — Before any checkout work
+
+The platform handles real money and real user data. Before scaling up monetization, a focused review is required: verify every admin endpoint requires admin auth, verify public endpoints don't expose sensitive fields (emails, payout amounts, internal IDs), confirm embed domain enforcement can't be bypassed, validate file upload size/type limits, and confirm affiliate ID resolution is server-side only and cannot be spoofed from the client.
+
+**Depends on:** nothing — can start any time, must complete before #2
+
+---
+
+### #2 — Order & Checkout Unification
+**Status: Queued**
+
+Three separate checkout paths exist (direct cart, public/packet purchase, external-site embed buy). Each one independently implements pricing, order creation, affiliate attribution, and payout logic. When one path is updated, the others drift. This task extracts one canonical order service that all three paths call — unified order model with `orderId`, `items[]`, `provider`, `pricing`, `status` — so pricing, attribution, and payouts are always consistent regardless of how the customer arrived at checkout. Normalizes provider responses from Printify and Printful into a single shape.
+
+**Depends on:** #9 (security pass first)
+
+---
+
+### #1 — Fix Cascading Product Description
+**Status: Queued**
+
+When a product is shown to a member or customer, the description currently comes from a model number like "3001" — not the real product copy. The system never fetches the real description from Printify's blueprint detail endpoint. This task fetches rich descriptions during blueprint sync, stores them in the database, and wires them through the full cascade: Printify original → admin override → member customization.
+
+**Depends on:** nothing — can run parallel to #2
+
+---
+
+### #14 — Affiliate System
+**Status: Queued** *(New task — added from expansion plan)*
+
+The platform has affiliate attribution wiring in the external-sites transaction path but no standalone affiliate membership system. This task adds: member affiliate IDs, unique tracking links per member per product, and the revenue split logic that credits the correct affiliate on every sale. Revenue split: platform share, affiliate share, creator share — defined per product, frozen in the pricing snapshot at order time.
+
+**Depends on:** #2 (canonical order service must exist first)
+
+---
+
+### #3 — External-Sites Transaction Closure
+**Status: Queued**
+
+The external-sites system lets QR Gear products be sold on third-party websites via an embed. The buy flow needs hardening end-to-end: domain validation must strictly reject requests from unlisted sites, affiliate attribution must always resolve correctly through the placement → host → profile chain, and the purchase must atomically write both the order attribution and the payout ledger entry so no money is ever mis-credited.
+
+**Depends on:** #2, #14
+
+---
+
+### #15 — External Embed System
+**Status: Queued** *(New task — split from #3, added from expansion plan)*
+
+Builds the embeddable widget runtime for selling QR Gear products on external websites. Creates the iframe/script embed, the public API surface that external sites call, and the channel mapping system that connects an external host's embed configuration to the correct store channel and affiliate attribution chain. Separate from the transaction closure hardening in #3 — this is the embed UI and API layer.
+
+**Depends on:** #3
+
+---
+
+### #8 — Marketplace Expansion
+**Status: Queued**
+
+The platform has adapter stubs for Etsy, eBay, and Amazon but no working sync pipeline. This task builds the canonical marketplace listing types and a real sync pipeline — internal product representation → MarketplaceListing. Etsy is the first fully connected marketplace (highest ROI). Creates the channel mapping system so one product published everywhere starts from one source of truth. Amazon and eBay follow Etsy's adapter pattern.
+
+**Depends on:** #2 (canonical order model), #20 (generic placement)
+
+---
+
+## TRACK 4 — AUTOMATION
+
+---
+
+### #16 — Product Automation
+**Status: Queued** *(New task — added from expansion plan)*
+
+Two automation capabilities: (1) Auto-generate mockups — when a new composite image is created in the builder, automatically generate the full set of color/angle mockups without manual trigger. (2) Bulk product creation tools — admin UI for creating multiple product variants (sizes, colors, placements) from a single template in one operation. Both capabilities feed into the auto-publish pipeline from #21.
+
+**Depends on:** #21, #7 (builder unification — shared engine makes bulk tools feasible)
+
+---
+
+### #10 — Test Coverage Expansion
+**Status: Queued**
+
+The platform currently has 4 test files covering only basic shared utilities. For a system handling pricing math, affiliate payouts, order attribution, and multi-channel publishing, this is dangerously thin. Target: 15+ test files covering pricing snapshot calculations, order creation idempotency, affiliate resolution chain, embed domain validation, payout ledger writes, and builder capability parity.
+
+**Can run:** any time, alongside other tracks
+
+---
+
+## TRACK 5 — UX & MAINTAINABILITY
+
+These don't block monetization but should be completed before the codebase grows further. Run them alongside Track 3 where capacity allows.
+
+---
+
+### #13 — Table-First Placement Data Model
+**Status: Queued**
+
+Every time a product is selected in the admin builder, the system makes a live API call to Printify or Printful to fetch available print placements. If the provider API is slow or down, the builder stalls. This task pre-syncs all placement data into QR Gear's own database on a weekly schedule and loads it instantly at build time. One-tap on-demand sync for products not yet cached.
+
+**Depends on:** nothing
+
+---
+
+### #12 — Builder One-Finger UX Refactor
+**Status: Queued**
+
+The admin product builder is a long flat scroll with no hierarchy. This task reorganizes it into a 5-section accordion — one section open at a time — with a command strip (Resume, Templates, New, Save, Generate), a summary bar showing completion status per section, and a sticky footer with Save and Generate always visible. No feature changes — layout restructure only.
+
+**Depends on:** nothing
+
+---
+
+### #7 — Builder Family Unification
+**Status: Queued**
+
+Five product builder wizards (SuperSimple, Simple, Advanced, Studio, Owner) share partial internals but are largely duplicated. Every feature change has to be made in multiple places. This task creates one canonical builder engine with a capability/permission model, so each wizard becomes a thin configuration shell on top of shared logic. Required before #16 (bulk tools) is feasible.
+
+**Depends on:** #12 (UX refactor should happen first so the engine reflects the new layout)
+
+---
+
+### #6 — Store Builder Restructure
+**Status: Queued**
+
+The store builder is a single 1000+ line component handling store settings, branding, product discovery, product configuration, and catalog management all at once. Splits into four focused sections — Overview, Branding, Catalog, Access — each in its own file, navigated via tabs. Catalog section gets three sub-views: browse, configure, manage.
+
+**Depends on:** nothing
+
+---
+
+### #5 — Admin UX Shell Adoption
+**Status: Queued**
+
+Mobile-friendly admin shell primitives exist but the biggest admin pages haven't adopted them. Admin store builder, admin products, admin pricing, and external-sites pages are retrofitted with the card-based shell so they work well on mobile with one hand.
+
+**Depends on:** #6 (store builder restructure first)
+
+---
+
+### #4 — Client Giant File Splits
+**Status: Queued**
+
+Several frontend files have grown past 800–1000 lines and mix multiple responsibilities. Split each into focused components by responsibility — no feature changes, just structure. Files targeted: AdvancedWizardStepContent.tsx (1087L), StoreBuilderHarness.tsx (1056L), CreateGraphicsModule.tsx (1008L), store-build.tsx (870L), OwnerWizard.tsx (801L).
+
+**Depends on:** #6, #7 (split after the restructure is done or they'll conflict)
+
+---
+
+### #11 — Legacy Naming Cleanup
+**Status: Queued**
+
+Old service names and terminology from earlier platform versions (programService, channelItemsService, widget-auth, collectionTag, site_programs) still appear in runtime code. This task removes dead code entirely or wraps it in one explicit compatibility adapter so the codebase speaks one consistent language throughout.
+
+**Depends on:** nothing — but easiest to do after #4 (smaller files are easier to clean)
+
+---
+
+## Reserved Slots
+
+### #17–19 — Reserved
+**Status: Open**
+
+Unassigned. New tasks are numbered into these slots as the platform grows.
+
+---
+
+## Rules — DO NOT Violate
+
+These rules were established during stabilization and must be maintained in all future work:
+
+- **Never reintroduce legacy logic.** `storeProductLinks` is a legacy fallback only. `admin_catalog_instances` is the source of truth.
+- **Never bypass the instance system.** All product state flows through `admin_catalog_instances`. No route may read product data from packets or links directly without checking instances first.
+- **Never add features before validation.** Security pass (#9) must complete before any monetization feature ships to production.
+- **Never hardcode placements.** All publish pipelines use the `PLACEMENT_URL_MAP` loop established in #20.
+- **Draft products never appear in the public store.** The `status === 'draft'` filter must be preserved in all store listing paths.
 
 ---
 
 ## Notes for Future Sites
 
-The architecture above — catalog instances as the source of truth, generic publish pipeline, marketplace sync, external-site embeds, canonical order service — is intentionally not QR Gear-specific. When additional branded stores are created, they get their own channels and stores in the same system. The same pipelines run. New sites are configuration, not new code.
+The architecture — catalog instances as the source of truth, generic publish pipeline, marketplace sync, external-site embeds, canonical order service, affiliate tracking — is intentionally not QR Gear-specific. When additional branded stores are created, they get their own channels and stores in the same system. The same pipelines run. New sites are configuration, not new code.
