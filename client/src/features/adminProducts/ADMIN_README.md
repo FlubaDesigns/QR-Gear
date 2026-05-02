@@ -1335,6 +1335,18 @@ Replaced the static "Scan this / Goes here" section on the store product page wi
 | `replit.md` | Added READ SKILLS FIRST banner at top, updated deploy instructions throughout |
 | `README.md` | Updated Firebase Deployment section to three-step scripts |
 
+### May 2, 2026 — Live Color Mockup Swap on Store Product Page (Item #4)
+
+When a customer picks a color from the store product page dropdown, the gallery now swaps immediately if that color's mockup is cached, or shows a spinner overlay while fetching a fresh mockup on demand.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/store-files.ts` | New public `POST /store/product/:linkId/mockup-for-color` endpoint — cache check (3-level mockupsByColor → placement → size) → on miss, generates via `generateMockupFromPrintful` using packet fields, writes result back to packet |
+| `client/src/pages/shop-product.tsx` | `localMockupsByColor` state seeded from API, enriched on-demand; `handleColorChange` replaces bare `setSelectedColor`; `mockupFetching` spinner overlay on gallery Card; `galleryImages` useMemo uses local cache |
+
+---
+
 ### March 2026 — Builder Family Unification (Task #7)
 
 - Unified admin builder and member builder into shared harness/context pattern

@@ -110,6 +110,11 @@ export default function ShopProductPage() {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [mockupFetching, setMockupFetching] = useState(false);
+  // Local mockup cache — starts from API data, enriched on-demand as colors are picked
+  const [localMockupsByColor, setLocalMockupsByColor] = useState<
+    Record<string, { front?: string; lifestyle?: string; angles?: string[] }> | null
+  >(null);
 
   const { data: product, isLoading, error } = useQuery<StoreProduct>({
     queryKey: ["/api/store/product", linkId],
@@ -124,6 +129,9 @@ export default function ShopProductPage() {
   // Initialise selection once per product load — use options[] contract first, fallback to raw fields
   useEffect(() => {
     if (!product) return;
+    // Seed local mockup cache from API data
+    setLocalMockupsByColor(product.mockupsByColor ?? null);
+
     const colorOpt = product.options?.find(o => o.name === 'color');
     const defaultColor =
       colorOpt?.values.find(v => v.available)?.label ??
@@ -140,9 +148,55 @@ export default function ShopProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
+  // Normalize color name the same way buildProductGallery does
+  const normalizeColorKey = (s: string) =>
+    s.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+
+  // Returns true if the color already has a mockup in the local cache
+  const isMockupCached = (color: string): boolean => {
+    if (!localMockupsByColor) return false;
+    const target = normalizeColorKey(color);
+    return Object.keys(localMockupsByColor).some(
+      (key) => normalizeColorKey(key.split('_')[0]) === target,
+    );
+  };
+
+  const handleColorChange = async (color: string) => {
+    setSelectedColor(color);
+    if (!linkId || isMockupCached(color)) return;
+    setMockupFetching(true);
+    try {
+      const res = await fetch(`/api/store/product/${linkId}/mockup-for-color`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colorName: color }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.mockupUrl) {
+          setLocalMockupsByColor((prev) => ({
+            ...(prev ?? {}),
+            [color]: {
+              front: data.mockupUrl,
+              ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
+            },
+          }));
+        }
+      }
+    } catch {
+      // Silent — gallery will fall back to generic images
+    } finally {
+      setMockupFetching(false);
+    }
+  };
+
+  // Build gallery using local (enriched) mockup cache so color swaps are instant when cached
   const galleryImages = useMemo(
-    () => buildProductGallery(product ?? null, selectedColor),
-    [product, selectedColor],
+    () => buildProductGallery(
+      product ? { ...product, mockupsByColor: localMockupsByColor } : null,
+      selectedColor,
+    ),
+    [product, selectedColor, localMockupsByColor],
   );
 
   const displayImage = galleryImages[0]?.url || product?.imageUrl;
@@ -302,7 +356,13 @@ export default function ShopProductPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             {/* overflow-hidden clips image to Card radius; no aspect-square wrapper so dots + thumbnails show below */}
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden relative">
+              {mockupFetching && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-sm">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Loading color mockup…</span>
+                </div>
+              )}
               {galleryImages.length > 0 ? (
                 <ProductImageGallery images={galleryImages} />
               ) : displayImage ? (
@@ -410,7 +470,7 @@ export default function ShopProductPage() {
                   </label>
                   <Select
                     value={selectedColor ?? ''}
-                    onValueChange={(val) => setSelectedColor(val)}
+                    onValueChange={(val) => handleColorChange(val)}
                     data-testid="select-color"
                   >
                     <SelectTrigger className="w-full">

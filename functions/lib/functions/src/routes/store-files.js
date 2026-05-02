@@ -4,6 +4,8 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const pricing_1 = require("../services/pricing");
+const mockup_generator_1 = require("../services/mockup-generator");
+const colorUtils_1 = require("../../../shared/colorUtils");
 const storefrontTypes_1 = require("../../../shared/storefrontTypes");
 /**
  * Convert a productPackets.mockupsByColor nested structure into the flat frontend format.
@@ -879,6 +881,131 @@ function register(app) {
         catch (e) {
             if (!res.headersSent)
                 res.status(500).json({ error: e.message });
+        }
+    });
+    // ── POST /store/product/:linkId/mockup-for-color ────────────────────────────
+    // Public endpoint. Checks packet mockupsByColor cache first. On miss, generates
+    // via Printful and writes back to the packet so the next hit is instant.
+    app.post('/store/product/:linkId/mockup-for-color', async (req, res) => {
+        try {
+            const { linkId } = req.params;
+            const { colorName } = req.body;
+            if (!colorName) {
+                res.status(400).json({ error: 'colorName is required' });
+                return;
+            }
+            // Normalize helper — matches buildProductGallery's normalizeColorName
+            const norm = (s) => s.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+            const targetNorm = norm(colorName);
+            // ── Load packet from admin_catalog_instances ──────────────────────────
+            let packetId = null;
+            let packetData = null;
+            let instanceData = null;
+            const instanceDoc = await core_1.db.collection('admin_catalog_instances').doc(linkId).get();
+            if (instanceDoc.exists) {
+                instanceData = instanceDoc.data();
+                packetId = instanceData.currentPacketId || null;
+                if (packetId) {
+                    const pDoc = await core_1.db.collection('productPackets').doc(packetId).get();
+                    if (pDoc.exists)
+                        packetData = pDoc.data();
+                }
+            }
+            // ── Cache check — 3-level format (colorKey → placement → size → url) ──
+            if (packetData?.mockupsByColor && typeof packetData.mockupsByColor === 'object') {
+                const raw = packetData.mockupsByColor;
+                for (const [colorKey, placementsRaw] of Object.entries(raw)) {
+                    if (norm(colorKey) !== targetNorm)
+                        continue;
+                    // Dig into placements → sizes for a URL
+                    if (placementsRaw && typeof placementsRaw === 'object') {
+                        let frontUrl = null;
+                        let lifestyleUrl = null;
+                        for (const [, sizeDataRaw] of Object.entries(placementsRaw)) {
+                            if (!sizeDataRaw || typeof sizeDataRaw !== 'object')
+                                continue;
+                            const sizeData = sizeDataRaw;
+                            if (sizeData.lifestyle && !lifestyleUrl)
+                                lifestyleUrl = sizeData.lifestyle;
+                            const hit = Object.entries(sizeData)
+                                .filter(([k]) => k !== 'lifestyle')
+                                .map(([, v]) => v)
+                                .find((v) => typeof v === 'string' && v.startsWith('http'));
+                            if (hit && !frontUrl)
+                                frontUrl = hit;
+                        }
+                        if (frontUrl || lifestyleUrl) {
+                            res.json({ success: true, fromCache: true, colorName, mockupUrl: frontUrl, lifestyleMockupUrl: lifestyleUrl });
+                            return;
+                        }
+                    }
+                    // Flat 2-level format fallback
+                    if (placementsRaw?.front || placementsRaw?.lifestyle) {
+                        const flat = placementsRaw;
+                        res.json({ success: true, fromCache: true, colorName, mockupUrl: flat.front || null, lifestyleMockupUrl: flat.lifestyle || null });
+                        return;
+                    }
+                }
+            }
+            // ── Cache miss — generate ─────────────────────────────────────────────
+            if (!packetData) {
+                res.json({ success: false, error: 'No packet data for this product', colorName });
+                return;
+            }
+            const artworkUrl = packetData.artworkUrl || packetData.compositeUrl || packetData.productGraphicUrl || null;
+            const blueprintId = packetData.blueprintId ||
+                (instanceData?.baseSnapshot?.printifyBlueprintId ?? null);
+            if (!artworkUrl || !blueprintId) {
+                res.json({ success: false, error: 'Insufficient packet data for mockup generation — artwork or blueprintId missing', colorName });
+                return;
+            }
+            const printProviderId = packetData.printProviderId || 39;
+            const fulfillmentProvider = packetData.fulfillmentProvider || 'printify';
+            const colorHex = colorUtils_1.COLOR_HEX_MAP[colorName]
+                || colorUtils_1.COLOR_HEX_MAP[colorName.toLowerCase()]
+                || '#ffffff';
+            console.log(`[StoreColorMockup] Generating for ${colorName} (${colorHex}) on ${linkId}`);
+            const result = await (0, mockup_generator_1.generateMockupFromPrintful)({
+                blueprintId,
+                printProviderId,
+                colorName,
+                colorHex,
+                artworkUrl,
+                artworkVariant: 'black',
+                fulfillmentProvider: fulfillmentProvider,
+                placement: 'front',
+                qrSize: 'medium',
+                hasCompositeGraphic: true,
+            });
+            // ── Save back to packet (3-level format) ──────────────────────────────
+            if (result.mockupUrl && packetId) {
+                try {
+                    const colorKey = norm(colorName);
+                    const update = {
+                        [`mockupsByColor.${colorKey}.front.medium`]: result.mockupUrl,
+                        updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                    };
+                    if (result.lifestyleMockupUrl) {
+                        update[`mockupsByColor.${colorKey}.front.lifestyle`] = result.lifestyleMockupUrl;
+                    }
+                    await core_1.db.collection('productPackets').doc(packetId).update(update);
+                    console.log(`[StoreColorMockup] Saved ${colorName} mockup to packet ${packetId}`);
+                }
+                catch (saveErr) {
+                    console.warn(`[StoreColorMockup] Save failed: ${saveErr.message}`);
+                }
+            }
+            res.json({
+                success: true,
+                fromCache: false,
+                colorName,
+                mockupUrl: result.mockupUrl || null,
+                lifestyleMockupUrl: result.lifestyleMockupUrl || null,
+            });
+        }
+        catch (e) {
+            console.error('[StoreColorMockup] Error:', e.message);
+            res.json({ success: false, error: e.message, colorName: req.body?.colorName });
         }
     });
 }
