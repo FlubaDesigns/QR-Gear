@@ -18,6 +18,7 @@ exports.registerAdminBuildSessions = registerAdminBuildSessions;
 const firestore_1 = require("firebase-admin/firestore");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
+const composite_image_1 = require("../services/composite-image");
 const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
@@ -653,6 +654,76 @@ function registerAdminBuildSessions(app) {
         }
         catch (err) {
             console.error('[BuildSessions] cleanup error:', err.message);
+            res.status(500).json({ error: err.message });
+        }
+    });
+    // ── QRG Composite Regeneration ────────────────────────────────────────────
+    app.post('/admin/qrg/regenerate-composite/:packetId', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { packetId } = req.params;
+            const packetRef = core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
+            const packetDoc = await packetRef.get();
+            if (!packetDoc.exists) {
+                res.status(404).json({ error: 'Packet not found' });
+                return;
+            }
+            const packet = packetDoc.data();
+            const qrContent = packet.qrContent;
+            if (!qrContent) {
+                res.status(400).json({ error: 'Packet has no qrContent' });
+                return;
+            }
+            const STORAGE_BUCKET = 'qrgear-c1ffd.firebasestorage.app';
+            const resolveImageUrl = (url) => {
+                if (!url)
+                    return url;
+                if (url.startsWith('/api/library-files/')) {
+                    const filename = url.replace('/api/library-files/', '');
+                    return `https://storage.googleapis.com/${STORAGE_BUCKET}/library-files/${filename}`;
+                }
+                return url;
+            };
+            const hs = packet.headerStyle;
+            const fs = packet.footerStyle;
+            const topText = hs?.enabled ? (hs.mode === 'image' && hs.imageUrl
+                ? { text: '', fontFamily: 'Arial', fontSize: '14', mode: 'image', imageUrl: resolveImageUrl(hs.imageUrl), imageScale: hs.imageScale ?? 100, horizontalOffset: hs.horizontalOffset ?? 50, verticalOffset: hs.verticalOffset ?? 50 }
+                : hs.text ? { text: hs.text, fontFamily: hs.fontFamily || 'Arial', fontSize: hs.fontSize || '14', color: hs.color || '#000000', strokeColor: hs.strokeColor || '', strokeWidth: hs.strokeWidth || 0 } : null) : null;
+            const bottomText = fs?.enabled && fs.text ? {
+                text: fs.text,
+                fontFamily: fs.fontFamily || 'Arial',
+                fontSize: fs.fontSize || '14',
+                color: fs.color || '#000000',
+                strokeColor: fs.strokeColor || '',
+                strokeWidth: fs.strokeWidth || 0,
+            } : null;
+            const placement = (packet.placements?.[0]) || 'front';
+            const graphicLayoutMode = packet.graphicLayoutMode || 'zone';
+            const qrSizePercent = packet.qrSizePercent ?? 75;
+            const compositeDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrContent, topText, bottomText, 1200, 1800, 'black', placement, graphicLayoutMode, qrSizePercent);
+            const base64 = compositeDataUrl.replace(/^data:image\/png;base64,/, '');
+            const buffer = Buffer.from(base64, 'base64');
+            const folder = `content/canvas/admin/${packetId}`;
+            const { publicUrl: compositeUrl } = await (0, composite_image_1.cfUploadBufferToStorage)(buffer, 'image/png', folder);
+            const encodeUri = (s) => encodeURIComponent(s);
+            const qrOnlyUrl = `https://api.qrserver.com/v1/create-qr-code/?size=3000x3000&data=${encodeUri(qrContent)}&format=png&qzone=0&ecc=H&color=000000&bgcolor=ffffff`;
+            await packetRef.update({ compositeUrl, qrOnlyUrl, updatedAt: firestore_1.FieldValue.serverTimestamp() });
+            // Update linked catalog instance images[0] and resolved.images[0]
+            const instanceSnap = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION)
+                .where('currentPacketId', '==', packetId).limit(1).get();
+            if (!instanceSnap.empty) {
+                const instRef = instanceSnap.docs[0].ref;
+                const instData = instanceSnap.docs[0].data();
+                const existingImages = instData.resolved?.images || [];
+                const updatedImages = [compositeUrl, ...existingImages.slice(1)];
+                await instRef.update({
+                    'resolved.images': updatedImages,
+                    updatedAt: firestore_1.FieldValue.serverTimestamp(),
+                });
+            }
+            res.json({ success: true, packetId, compositeUrl, qrOnlyUrl });
+        }
+        catch (err) {
+            console.error('[QRG] regenerate-composite error:', err.message);
             res.status(500).json({ error: err.message });
         }
     });
