@@ -170,7 +170,9 @@ export default function ShopProductPage() {
           productSize: resolved.selectedSize,
           qrType: product.qrProductType,
           linkId: resolved.linkId,
-          packetId: product.packetId,
+          packetId: resolved.customization?.packetId || product.packetId,
+          printifyProductId: resolved.customization?.printifyProductId || null,
+          printifyVariantId: resolved.customization?.printifyVariantId || null,
         },
       };
 

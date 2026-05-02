@@ -251,11 +251,34 @@ function ProductQuickView({
   const addToCartMutation = useMutation({
     mutationFn: async () => {
       if (!product || !selectedColor || !selectedSize) return;
+
+      // Resolve price + Printify IDs via the catalog add-to-cart endpoint first
+      const resolveRes = await fetch(`/api/store/product/${product.id}/add-to-cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selectedColor, selectedSize, quantity: 1 }),
+      });
+      if (!resolveRes.ok) {
+        const err = await resolveRes.json().catch(() => ({ error: "Failed to resolve product" }));
+        throw new Error(err.error || "Failed to resolve product");
+      }
+      const resolved = await resolveRes.json();
+
       const res = await apiRequest("POST", "/api/cart", {
-        productId: product.id,
+        productId: resolved.productId,
         quantity: 1,
-        selectedColor,
-        selectedSize,
+        price: resolved.price?.toFixed(2),
+        customization: {
+          productId: resolved.productId,
+          productName: resolved.name,
+          productImage: resolved.imageUrl,
+          productColor: resolved.selectedColor,
+          productSize: resolved.selectedSize,
+          linkId: resolved.linkId,
+          packetId: resolved.customization?.packetId || null,
+          printifyProductId: resolved.customization?.printifyProductId || null,
+          printifyVariantId: resolved.customization?.printifyVariantId || null,
+        },
       });
       return res.json();
     },
