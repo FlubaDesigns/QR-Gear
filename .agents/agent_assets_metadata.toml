@@ -173,3 +173,9 @@ id = "_SKmqheguJ74q_z9GB3eG"
 uri = "file://downloads/QR_Gear_LaunchPrep_Fixes.zip"
 type = "unspecified"
 title = "Launch Prep — All 7 Fixed Files"
+
+[[outputs]]
+id = "RhI1VByQkxkEiMiKONxhc"
+uri = "file://downloads/QR_Gear_Roadmap.md"
+type = "text"
+title = "QR Gear Roadmap — Tasks 1–22"
