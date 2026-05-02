@@ -868,23 +868,36 @@ function registerAdminBuildSessions(app) {
                 if (vColor && vSize)
                     printifyVariantMap[`${vColor}/${vSize}`] = v.id;
             }
-            // ── 3. Upload composite images to Printify ─────────────────────────────
-            const frontUpload = await printifyClient.uploadImage(`${packetId}-front.png`, packet.compositeUrl);
-            console.log(`[PublishToPrintify] Front image uploaded: ${frontUpload.id}`);
-            const placeholders = [
-                {
-                    position: 'front',
-                    images: [{ id: frontUpload.id, x: 0.5, y: 0.5, scale: 1, angle: 0 }],
-                },
-            ];
+            // ── 3. Upload composite images to Printify (generic — driven by placements array) ──
+            const PLACEMENT_URL_MAP = {
+                front: 'compositeUrl',
+                left_sleeve: 'sleeveCompositeUrl',
+                right_sleeve: 'rightSleeveCompositeUrl',
+                back: 'backCompositeUrl',
+            };
             const placements = packet.placements || ['front'];
-            if (placements.includes('left_sleeve') && packet.sleeveCompositeUrl) {
-                const sleeveUpload = await printifyClient.uploadImage(`${packetId}-sleeve.png`, packet.sleeveCompositeUrl);
-                console.log(`[PublishToPrintify] Sleeve image uploaded: ${sleeveUpload.id}`);
+            const placeholders = [];
+            for (const placement of placements) {
+                const urlField = PLACEMENT_URL_MAP[placement];
+                if (!urlField) {
+                    console.warn(`[PublishToPrintify] Unknown placement "${placement}" — skipping`);
+                    continue;
+                }
+                const imageUrl = packet[urlField];
+                if (!imageUrl) {
+                    console.warn(`[PublishToPrintify] Placement "${placement}" has no image URL (field: ${urlField}) — skipping`);
+                    continue;
+                }
+                const upload = await printifyClient.uploadImage(`${packetId}-${placement}.png`, imageUrl);
+                console.log(`[PublishToPrintify] ${placement} image uploaded: ${upload.id}`);
                 placeholders.push({
-                    position: 'left_sleeve',
-                    images: [{ id: sleeveUpload.id, x: 0.5, y: 0.5, scale: 1, angle: 0 }],
+                    position: placement,
+                    images: [{ id: upload.id, x: 0.5, y: 0.5, scale: 1, angle: 0 }],
                 });
+            }
+            if (placeholders.length === 0) {
+                res.status(400).json({ error: 'No placement images could be uploaded — check compositeUrl and placement fields' });
+                return;
             }
             // ── 4. Create the Printify product ─────────────────────────────────────
             const productTitle = packet.productName || packet.title || 'QR Gear T-Shirt';

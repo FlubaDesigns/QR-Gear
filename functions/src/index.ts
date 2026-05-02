@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260502-sleeve-composite-v7';
+const _BUILD_ID = '20260502-generic-placements-v8';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
