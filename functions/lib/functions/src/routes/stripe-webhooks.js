@@ -8,6 +8,7 @@ const core_1 = require("../core");
 const order_service_1 = require("../services/order-service");
 const stripe_1 = __importDefault(require("stripe"));
 const nexusmail_1 = require("../nexusmail");
+const printify_1 = require("../services/printify");
 function register(app) {
     app.post('/webhooks/stripe', async (req, res) => {
         try {
@@ -101,6 +102,24 @@ function register(app) {
                         if (alreadyExisted) {
                             console.log(`[Webhook] Order already exists for session ${session.id}, skipping side effects`);
                             break;
+                        }
+                        // Auto-submit to Printify for fulfillment (non-fatal if it fails)
+                        if (shippingAddress) {
+                            try {
+                                const fulfillResult = await (0, printify_1.submitOrderToPrintify)(orderId, shippingAddress);
+                                if (fulfillResult.success) {
+                                    console.log(`[Webhook] Printify order submitted: ${fulfillResult.printifyOrderId} for order ${orderId}`);
+                                }
+                                else {
+                                    console.warn(`[Webhook] Printify submission skipped/failed for order ${orderId}: ${fulfillResult.error}`);
+                                }
+                            }
+                            catch (fulfillErr) {
+                                console.error(`[Webhook] Printify auto-submit non-fatal error for order ${orderId}:`, fulfillErr.message);
+                            }
+                        }
+                        else {
+                            console.warn(`[Webhook] No shipping address for order ${orderId} — skipping Printify auto-submit`);
                         }
                         const referrerId = session.metadata?.referrerId;
                         if (referrerId) {

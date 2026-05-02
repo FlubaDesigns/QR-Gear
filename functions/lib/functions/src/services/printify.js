@@ -73,6 +73,29 @@ class PrintifyClient {
     async getVariants(blueprintId, printProviderId) {
         return this.request('GET', `/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/variants.json`);
     }
+    async uploadImage(fileName, url) {
+        return this.request('POST', '/uploads/images.json', { file_name: fileName, url });
+    }
+    async createProduct(product) {
+        const shopId = getPrintifyShopId();
+        return this.request('POST', `/shops/${shopId}/products.json`, product);
+    }
+    async publishProduct(productId) {
+        const shopId = getPrintifyShopId();
+        await this.request('POST', `/shops/${shopId}/products/${productId}/publish.json`, {
+            title: true,
+            description: true,
+            images: true,
+            variants: true,
+            tags: true,
+            keyFeatures: true,
+            shipping_template: true,
+        });
+    }
+    async getProduct(productId) {
+        const shopId = getPrintifyShopId();
+        return this.request('GET', `/shops/${shopId}/products/${productId}.json`);
+    }
 }
 exports.PrintifyClient = PrintifyClient;
 const printifyClient = new PrintifyClient();

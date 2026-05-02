@@ -4,6 +4,7 @@ import { Request, Response } from 'express';
   import { createCanonicalOrder, writePayoutAttribution, confirmEmbedOrderPayout } from '../services/order-service';
 import Stripe from 'stripe';
 import { sendOrderConfirmation as nexusOrderConfirmation } from '../nexusmail';
+import { submitOrderToPrintify } from '../services/printify';
 
   export function register(app: express.Express): void {
 
@@ -114,6 +115,22 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
           if (alreadyExisted) {
             console.log(`[Webhook] Order already exists for session ${session.id}, skipping side effects`);
             break;
+          }
+
+          // Auto-submit to Printify for fulfillment (non-fatal if it fails)
+          if (shippingAddress) {
+            try {
+              const fulfillResult = await submitOrderToPrintify(orderId, shippingAddress);
+              if (fulfillResult.success) {
+                console.log(`[Webhook] Printify order submitted: ${fulfillResult.printifyOrderId} for order ${orderId}`);
+              } else {
+                console.warn(`[Webhook] Printify submission skipped/failed for order ${orderId}: ${fulfillResult.error}`);
+              }
+            } catch (fulfillErr: any) {
+              console.error(`[Webhook] Printify auto-submit non-fatal error for order ${orderId}:`, fulfillErr.message);
+            }
+          } else {
+            console.warn(`[Webhook] No shipping address for order ${orderId} — skipping Printify auto-submit`);
           }
 
           const referrerId = session.metadata?.referrerId;

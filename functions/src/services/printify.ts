@@ -110,6 +110,46 @@ class PrintifyClient {
   async getVariants(blueprintId: number, printProviderId: number): Promise<any> {
     return this.request<any>('GET', `/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/variants.json`);
   }
+
+  async uploadImage(fileName: string, url: string): Promise<{ id: string; preview_url: string }> {
+    return this.request<{ id: string; preview_url: string }>('POST', '/uploads/images.json', { file_name: fileName, url });
+  }
+
+  async createProduct(product: {
+    title: string;
+    description: string;
+    blueprint_id: number;
+    print_provider_id: number;
+    variants: Array<{ id: number; price: number; is_enabled: boolean }>;
+    print_areas: Array<{
+      variant_ids: number[];
+      placeholders: Array<{
+        position: string;
+        images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
+      }>;
+    }>;
+  }): Promise<{ id: string }> {
+    const shopId = getPrintifyShopId();
+    return this.request<{ id: string }>('POST', `/shops/${shopId}/products.json`, product);
+  }
+
+  async publishProduct(productId: string): Promise<void> {
+    const shopId = getPrintifyShopId();
+    await this.request<void>('POST', `/shops/${shopId}/products/${productId}/publish.json`, {
+      title: true,
+      description: true,
+      images: true,
+      variants: true,
+      tags: true,
+      keyFeatures: true,
+      shipping_template: true,
+    });
+  }
+
+  async getProduct(productId: string): Promise<any> {
+    const shopId = getPrintifyShopId();
+    return this.request<any>('GET', `/shops/${shopId}/products/${productId}.json`);
+  }
 }
 
 const printifyClient = new PrintifyClient();

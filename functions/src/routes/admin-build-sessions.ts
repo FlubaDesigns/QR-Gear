@@ -822,6 +822,155 @@ export function registerAdminBuildSessions(app: express.Express): void {
     }
   });
 
+  // ── Publish Packet to Printify ────────────────────────────────────────────
+  // Creates a Printify product from the packet's composites, stores printifyProductId
+  // and a full color/size → variantId map back on the packet so orders can be fulfilled.
+  app.post('/admin/qrg/publish-to-printify/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { packetId } = req.params;
+      // printProviderId can be overridden via body; defaults to 99 (Monster Digital – US)
+      const overrideProviderId: number | undefined = req.body.printProviderId
+        ? parseInt(req.body.printProviderId, 10)
+        : undefined;
+
+      const packetDoc = await db.collection('productPackets').doc(packetId).get();
+      if (!packetDoc.exists) {
+        res.status(404).json({ error: `Packet ${packetId} not found` });
+        return;
+      }
+      const packet = packetDoc.data()!;
+
+      if (!packet.blueprintId) {
+        res.status(400).json({ error: 'Packet is missing blueprintId' });
+        return;
+      }
+      if (!packet.compositeUrl) {
+        res.status(400).json({ error: 'Packet is missing compositeUrl — regenerate composite first' });
+        return;
+      }
+
+      const blueprintId = parseInt(packet.blueprintId, 10);
+      const printProviderId = overrideProviderId || packet.printProviderId || 99;
+
+      // ── 1. Resolve enabled colors + sizes ──────────────────────────────────
+      const enabledColors: string[] = (packet.colors || packet.enabledColors || []).map((c: any) =>
+        typeof c === 'string' ? c : c?.name || c?.label || String(c)
+      ).filter(Boolean);
+      const enabledSizes: string[] = (packet.sizes || packet.enabledSizes || []).map((s: any) =>
+        typeof s === 'string' ? s : s?.name || s?.label || String(s)
+      ).filter(Boolean);
+
+      if (enabledColors.length === 0 || enabledSizes.length === 0) {
+        res.status(400).json({ error: 'Packet has no enabled colors or sizes — add them before publishing' });
+        return;
+      }
+
+      // ── 2. Fetch Printify variants for this blueprint + provider ───────────
+      const { printifyClient } = await import('../services/printify');
+      const variantsData = await printifyClient.getVariants(blueprintId, printProviderId);
+      const allVariants: Array<{ id: number; title: string; options?: any }> = variantsData.variants || [];
+
+      // Match variants: Printify variant title is typically "Color / Size"
+      const matchedVariants = allVariants.filter((v) => {
+        const parts = (v.title || '').split(' / ');
+        const vColor = parts[0]?.trim();
+        const vSize = parts[1]?.trim();
+        if (!vColor || !vSize) return false;
+        const colorMatch = enabledColors.some(
+          (c) => c.toLowerCase() === vColor.toLowerCase()
+        );
+        const sizeMatch = enabledSizes.some((s) => s === vSize);
+        return colorMatch && sizeMatch;
+      });
+
+      if (matchedVariants.length === 0) {
+        res.status(400).json({
+          error: `No Printify variants matched for colors [${enabledColors.join(', ')}] and sizes [${enabledSizes.join(', ')}] on blueprint ${blueprintId} / provider ${printProviderId}. Check spelling or choose a different print provider.`,
+        });
+        return;
+      }
+
+      const priceInCents = Math.round((packet.pricing?.customerPrice || 29.99) * 100);
+      const variantObjs = matchedVariants.map((v) => ({
+        id: v.id,
+        price: priceInCents,
+        is_enabled: true,
+      }));
+      const variantIds = variantObjs.map((v) => v.id);
+
+      // Build color/size → variantId lookup map stored on the packet
+      const printifyVariantMap: Record<string, number> = {};
+      for (const v of matchedVariants) {
+        const parts = (v.title || '').split(' / ');
+        const vColor = parts[0]?.trim();
+        const vSize = parts[1]?.trim();
+        if (vColor && vSize) printifyVariantMap[`${vColor}/${vSize}`] = v.id;
+      }
+
+      // ── 3. Upload composite images to Printify ─────────────────────────────
+      const frontUpload = await printifyClient.uploadImage(
+        `${packetId}-front.png`,
+        packet.compositeUrl
+      );
+      console.log(`[PublishToPrintify] Front image uploaded: ${frontUpload.id}`);
+
+      const placeholders: Array<{
+        position: string;
+        images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
+      }> = [
+        {
+          position: 'front',
+          images: [{ id: frontUpload.id, x: 0.5, y: 0.5, scale: 1, angle: 0 }],
+        },
+      ];
+
+      const placements: string[] = packet.placements || ['front'];
+      if (placements.includes('left_sleeve') && packet.sleeveCompositeUrl) {
+        const sleeveUpload = await printifyClient.uploadImage(
+          `${packetId}-sleeve.png`,
+          packet.sleeveCompositeUrl
+        );
+        console.log(`[PublishToPrintify] Sleeve image uploaded: ${sleeveUpload.id}`);
+        placeholders.push({
+          position: 'left_sleeve',
+          images: [{ id: sleeveUpload.id, x: 0.5, y: 0.5, scale: 1, angle: 0 }],
+        });
+      }
+
+      // ── 4. Create the Printify product ─────────────────────────────────────
+      const productTitle = packet.productName || packet.title || 'QR Gear T-Shirt';
+      const printifyProduct = await printifyClient.createProduct({
+        title: productTitle,
+        description: packet.productDescription || packet.description || '',
+        blueprint_id: blueprintId,
+        print_provider_id: printProviderId,
+        variants: variantObjs,
+        print_areas: [{ variant_ids: variantIds, placeholders }],
+      });
+      console.log(`[PublishToPrintify] Product created: ${printifyProduct.id} for packet ${packetId}`);
+
+      // ── 5. Persist back to packet ──────────────────────────────────────────
+      await db.collection('productPackets').doc(packetId).update({
+        printifyProductId: printifyProduct.id,
+        printProviderId,
+        printifyVariantMap,
+        printifyPublishedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      res.json({
+        success: true,
+        printifyProductId: printifyProduct.id,
+        printProviderId,
+        variantCount: variantObjs.length,
+        printifyVariantMap,
+      });
+    } catch (err: any) {
+      console.error('[PublishToPrintify] error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── QRG ID Allocation ─────────────────────────────────────────────────────
   app.post('/admin/qrg/allocate', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {

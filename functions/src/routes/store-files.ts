@@ -403,6 +403,8 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
 
     let price: number | null = resolved.pricing?.customerPrice ?? null;
     let heroImageUrl: string | null = null;
+    let printifyProductId: string | null = null;
+    let printifyVariantId: number | null = null;
 
     if (d.currentPacketId) {
       try {
@@ -411,6 +413,24 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
           const pkt = pDoc.data()!;
           heroImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
           if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
+
+          // Resolve Printify product + variant IDs for fulfillment
+          if (pkt.printifyProductId) {
+            printifyProductId = pkt.printifyProductId;
+            if (pkt.printifyVariantMap && selectedColor && selectedSize) {
+              // Try exact match first, then case-insensitive color match
+              const exactKey = `${selectedColor}/${selectedSize}`;
+              const variantMap: Record<string, number> = pkt.printifyVariantMap;
+              if (variantMap[exactKey] !== undefined) {
+                printifyVariantId = variantMap[exactKey];
+              } else {
+                const caseInsensitiveKey = Object.keys(variantMap).find(
+                  (k) => k.toLowerCase() === exactKey.toLowerCase()
+                );
+                if (caseInsensitiveKey) printifyVariantId = variantMap[caseInsensitiveKey];
+              }
+            }
+          }
         }
       } catch (_) {}
     }
@@ -435,6 +455,12 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
       selectedColor: selectedColor || null,
       selectedSize: selectedSize || null,
       quantity,
+      customization: {
+        instanceId: linkId,
+        packetId: d.currentPacketId || null,
+        printifyProductId,
+        printifyVariantId,
+      },
     });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
