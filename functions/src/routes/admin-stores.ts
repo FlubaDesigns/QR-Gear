@@ -330,15 +330,60 @@ app.post('/admin/partner-stores/:id/products', requireAdmin, async (req: Request
   }
 });
 
-// Store Library: products assigned to a channel (reads storeProductLinks by channel name)
+// Store Library: products assigned to a channel — admin_catalog_instances is the primary source
 app.get('/admin/stores/:storeId/channels/:channelName/products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId, channelName } = req.params;
-    const snapshot = await db.collection('storeProductLinks')
+
+    // Primary: admin_catalog_instances — the committed source of truth
+    const snap = await db.collection('admin_catalog_instances')
+      .where('storeId', '==', storeId)
+      .get();
+
+    const instances = snap.docs
+      .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+      .filter((d: any) => {
+        // Exclude soft-deleted / hidden / archived
+        if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+        // Match channel by ID or name (URL param may be either)
+        return d.channelId === channelName || d.channelName === channelName;
+      });
+
+    if (instances.length > 0) {
+      console.log(`[Store Library] ${storeId}/${channelName}: ${instances.length} catalog instances`);
+      const products = instances.map((d: any) => {
+        const resolved = d.resolved || {};
+        const rawImg = resolved.images?.[0];
+        const imageUrl = typeof rawImg === 'string' ? rawImg : (rawImg?.url || '');
+        return {
+          id: d.id,
+          linkId: d.id,
+          instanceId: d.id,
+          packetId: d.currentPacketId || null,
+          currentPacketId: d.currentPacketId || null,
+          templateId: d.currentTemplateId || null,
+          name: resolved.title || 'Untitled',
+          imageUrl,
+          enabledColors: d.enabledColors || [],
+          enabledSizes: d.enabledSizes || [],
+          defaultColor: d.defaultColor || null,
+          pricing: resolved.pricing || null,
+          collectionName: d.collectionName || null,
+          status: d.status || 'active',
+          isVisible: d.isVisible !== false,
+        };
+      });
+      res.json(products);
+      return;
+    }
+
+    // Legacy fallback: storeProductLinks (for any pre-instance products)
+    console.log(`[Store Library] ${storeId}/${channelName}: no instances found, falling back to storeProductLinks`);
+    const legacySnap = await db.collection('storeProductLinks')
       .where('storeId', '==', storeId)
       .where('channel', '==', channelName)
       .get();
-    const products = snapshot.docs.map((doc: any) => {
+    const legacyProducts = legacySnap.docs.map((doc: any) => {
       const d = doc.data();
       return {
         id: doc.id,
@@ -356,7 +401,7 @@ app.get('/admin/stores/:storeId/channels/:channelName/products', requireAdmin, a
         pricing: d.pricing || null,
       };
     });
-    res.json(products);
+    res.json(legacyProducts);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

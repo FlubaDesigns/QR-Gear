@@ -450,31 +450,8 @@ export function useCreatePacket({
         json: { limit: 3 },
       }).catch(() => {});
 
-      let createdLinkId: string | null = null;
-      if (selectedStore?.id && selectedChannel?.name) {
-        try {
-          const linkData = await adminFetch<any>("/store-product-links", {
-            method: "POST",
-            json: {
-              storeId: selectedStore.id, storeName: selectedStore.name,
-              channel: selectedChannel.name, packetId,
-              templateId: templateData?.template?.id || templateData?.templateId || null,
-              productName: state.selectedProduct?.title || product?.name || null,
-              compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl,
-              qrContent: finalQrContent, pricing,
-              enabledColors: availableColors.map((c: any) => c.name || c),
-              enabledSizes: availableSizes,
-              images: product?.images || [],
-              selectedGraphicSize: state.placementSizes?.[(state.selectedPlacements || ["front"])[0]] || "medium",
-              defaultColor: state.selectedColor?.name || null,
-            },
-          });
-          createdLinkId = linkData?.linkId || null;
-          console.log(`[CreatePacket] Store product link created: ${createdLinkId}`);
-        } catch (linkErr) {
-          console.warn('[CreatePacket] Store product link creation error:', linkErr);
-        }
-      }
+      // Legacy storeProductLinks creation removed — admin_catalog_instances
+      // (created by the build session commit below) is now the sole source of truth.
 
       if (state.activeSessionId) {
         try {
@@ -551,15 +528,6 @@ export function useCreatePacket({
               method: "PATCH",
               json: { priorityMockupUrl: data.mockupUrl },
             }).catch(() => {});
-            if (createdLinkId) {
-              adminFetch(`/store-product-links/${createdLinkId}`, {
-                method: "PATCH",
-                json: {
-                  mockupUrl: data.mockupUrl,
-                  ...(data.lifestyleMockupUrl ? { lifestyleMockupUrl: data.lifestyleMockupUrl } : {}),
-                },
-              }).catch(() => {});
-            }
             setPacketResult(prev => prev ? { ...prev, priorityMockupUrl: data.mockupUrl, priorityMockupLoading: false } : prev);
             toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
           } else {

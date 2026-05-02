@@ -55,8 +55,8 @@ export function ProductGridModule() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (linkId: string) =>
-      adminFetch(`/store-product-links/${linkId}`, { method: "DELETE" }),
+    mutationFn: (instanceId: string) =>
+      adminFetch(`/catalog-instances/${instanceId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [productsQueryKey] });
       toast({ title: "Item removed from store" });

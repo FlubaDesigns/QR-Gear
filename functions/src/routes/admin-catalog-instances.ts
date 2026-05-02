@@ -264,13 +264,30 @@ export function register(app: express.Express): void {
       });
       // Best-effort: clean up matching legacy storeProductLinks
       try {
-        const legacySnap = await db.collection('storeProductLinks')
+        const instance = doc.data() as any;
+        const toDelete: FirebaseFirestore.DocumentReference[] = [];
+
+        // Match by instanceId (set on links created after instance-linking was added)
+        const byInstanceId = await db.collection('storeProductLinks')
           .where('instanceId', '==', req.params.id)
           .get();
-        if (!legacySnap.empty) {
+        byInstanceId.docs.forEach(d => toDelete.push(d.ref));
+
+        // Also match by packetId for links created before instanceId was stored
+        if (instance.currentPacketId) {
+          const byPacketId = await db.collection('storeProductLinks')
+            .where('packetId', '==', instance.currentPacketId)
+            .get();
+          byPacketId.docs.forEach(d => {
+            if (!toDelete.find(r => r.id === d.id)) toDelete.push(d.ref);
+          });
+        }
+
+        if (toDelete.length > 0) {
           const batch = db.batch();
-          legacySnap.docs.forEach(d => batch.delete(d.ref));
+          toDelete.forEach(ref => batch.delete(ref));
           await batch.commit();
+          console.log(`[AdminInstances] Removed ${toDelete.length} legacy storeProductLink(s) for instance ${req.params.id}`);
         }
       } catch (_) { /* non-fatal */ }
       console.log(`[AdminInstances] Soft-deleted ${req.params.id}`);

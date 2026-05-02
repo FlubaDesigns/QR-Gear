@@ -99,7 +99,87 @@ function register(app) {
             const { linkId } = req.params;
             // Helper: normalize images array (items may be strings or {url} objects)
             const toUrlArr = (imgs) => (imgs || []).map((img) => (typeof img === 'string' ? img : img?.url || null)).filter(Boolean);
-            // ── Path A: storeProductLinks (original path) ───────────────────────────
+            // ── Primary: admin_catalog_instances ────────────────────────────────────
+            const instanceDoc = await core_1.db.collection('admin_catalog_instances').doc(linkId).get();
+            if (instanceDoc.exists) {
+                console.log('[Store API] Product detail: serving from admin_catalog_instances', linkId);
+                const d = instanceDoc.data();
+                const resolved = d.resolved || {};
+                let price = resolved.pricing?.customerPrice ?? null;
+                let packetMockupUrl = null;
+                let packetMockupsByColor = null;
+                let packetMockupImages = [];
+                let packetDefaultColor = null;
+                let packetLandingPageSnapshotUrl = null;
+                let packetCompositeUrl = null;
+                let packetQrOnlyUrl = null;
+                if (d.currentPacketId) {
+                    try {
+                        const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
+                        if (pDoc.exists) {
+                            const pkt = pDoc.data();
+                            const extracted = extractPacketMockups(pkt);
+                            packetMockupsByColor = extracted.mockupsByColor;
+                            packetMockupImages = extracted.mockupImages;
+                            packetDefaultColor = extracted.defaultColor;
+                            packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                            packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
+                            packetCompositeUrl = pkt.compositeUrl || pkt.productGraphicUrl || null;
+                            packetQrOnlyUrl = pkt.qrOnlyUrl || null;
+                            if (price === null && pkt.pricing?.customerPrice)
+                                price = pkt.pricing.customerPrice;
+                        }
+                    }
+                    catch (e) {
+                        console.error('[Store API] Failed to read productPacket for', d.currentPacketId, e.message);
+                    }
+                }
+                const toStrArr = (arr) => (arr || []).map((v) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
+                // Build ordered gallery: packet mockups first → provider catalog images after
+                const providerImages = toUrlArr(resolved.images || []);
+                const allImages = [];
+                packetMockupImages.forEach((u) => { if (!allImages.includes(u))
+                    allImages.push(u); });
+                providerImages.forEach((u) => { if (!allImages.includes(u))
+                    allImages.push(u); });
+                if (packetMockupImages.length === 0 && packetMockupUrl && !allImages.includes(packetMockupUrl)) {
+                    allImages.unshift(packetMockupUrl);
+                }
+                const bColors = toStrArr(d.enabledColors || resolved.colors || []);
+                const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
+                res.json({
+                    id: instanceDoc.id,
+                    name: resolved.title || 'Untitled',
+                    description: resolved.description || '',
+                    category: resolved.category || '',
+                    productLine: resolved.productLine || '',
+                    imageUrl: allImages[0] || null,
+                    images: allImages,
+                    packetImageUrl: packetMockupUrl,
+                    landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
+                    compositeUrl: packetCompositeUrl,
+                    qrCodeUrl: packetQrOnlyUrl,
+                    qrProductType: d.qrProductType || 'qr-basics',
+                    price: price !== null ? Math.round(price * 100) / 100 : null,
+                    availableSizes: bSizes,
+                    availableColors: bColors,
+                    availablePlacements: [],
+                    defaultColor: packetDefaultColor,
+                    mockupsByColor: packetMockupsByColor,
+                    selectedGraphicSize: null,
+                    storeId: d.storeId || null,
+                    storeName: d.storeName || null,
+                    channel: d.channelId || null,
+                    collection: d.collectionName || null,
+                    packetId: d.currentPacketId || null,
+                    options: (0, storefrontTypes_1.buildStructuredOptions)(bColors, bSizes),
+                    cardMode: (0, storefrontTypes_1.deriveCardMode)(bColors, bSizes),
+                    media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
+                });
+                return;
+            }
+            // ── Legacy fallback: storeProductLinks ──────────────────────────────────
+            console.log('[Store API] Product detail: falling back to storeProductLinks for', linkId);
             const linkDoc = await core_1.db.collection('storeProductLinks').doc(linkId).get();
             if (linkDoc.exists) {
                 const link = linkDoc.data();
@@ -121,7 +201,6 @@ function register(app) {
                         if (packet.placementMockupUrls && typeof packet.placementMockupUrls === 'object') {
                             packetPlacementMockupUrls = packet.placementMockupUrls;
                         }
-                        // Extract color-keyed mockups — try 3-level format (productPackets) then 2-level flat (packets)
                         const rawMockups = packet.mockupsByColor;
                         if (rawMockups && typeof rawMockups === 'object' && !Array.isArray(rawMockups)) {
                             const extracted3 = extractPacketMockups(packet);
@@ -151,11 +230,9 @@ function register(app) {
                 if (price === null && link.pricing) {
                     price = parseFloat(link.pricing.customerPrice || link.pricing.totalPrice || link.pricing.retailPrice || '0');
                 }
-                // Build ordered gallery: kept catalog images first → digital markup mockups appended at end
                 const lifestyleUrl = link.lifestyleMockupUrl || null;
                 const flatMockupUrl = link.mockupUrl || packetImageUrl || null;
                 const storedImages = toUrlArr(link.images || []);
-                // Merge placement mockup URLs — link overrides packet (admin can override via PATCH)
                 const mergedPlacementUrls = {
                     ...packetPlacementMockupUrls,
                     ...(link.placementMockupUrls && typeof link.placementMockupUrls === 'object'
@@ -163,7 +240,6 @@ function register(app) {
                         : {}),
                 };
                 const EXTRA_PLACEMENT_ORDER = ['back', 'left_sleeve', 'right_sleeve'];
-                // Collect all mockup/graphic URLs ordered: lifestyle → front → placements → QR art
                 const mockupImages = [];
                 if (lifestyleUrl)
                     mockupImages.push(lifestyleUrl);
@@ -174,11 +250,9 @@ function register(app) {
                     if (u && !mockupImages.includes(u))
                         mockupImages.push(u);
                 });
-                // Also include QR artwork if distinct from above
                 const qrArtUrl = link.compositeUrl || link.qrOnlyUrl || null;
                 if (qrArtUrl && !mockupImages.includes(qrArtUrl))
                     mockupImages.push(qrArtUrl);
-                // If no per-color data yet, build a synthetic single-color entry from flat fields
                 if (!packetMockupsByColorA) {
                     const synColorKey = link.defaultColor || null;
                     const synAngles = EXTRA_PLACEMENT_ORDER.map((p) => mergedPlacementUrls[p]).filter(Boolean);
@@ -193,10 +267,8 @@ function register(app) {
                     }
                 }
                 const allImages = [];
-                // Mockups first (lifestyle → front → placements → QR art)
                 mockupImages.forEach((u) => { if (!allImages.includes(u))
                     allImages.push(u); });
-                // Catalog/provider images after
                 storedImages.forEach((u) => { if (!allImages.includes(u))
                     allImages.push(u); });
                 res.json({
@@ -224,89 +296,11 @@ function register(app) {
                     packetId: link.packetId || null,
                     options: (0, storefrontTypes_1.buildStructuredOptions)(availableColors, availableSizes),
                     cardMode: (0, storefrontTypes_1.deriveCardMode)(availableColors, availableSizes),
-                    media: { images: allImages, mockupPriority: true, heroStrategy: 'catalogFirst' },
+                    media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
                 });
                 return;
             }
-            // ── Path B: admin_catalog_instances (products from store catalog listing) ─
-            const instanceDoc = await core_1.db.collection('admin_catalog_instances').doc(linkId).get();
-            if (!instanceDoc.exists) {
-                res.status(404).json({ error: "Product not found" });
-                return;
-            }
-            const d = instanceDoc.data();
-            const resolved = d.resolved || {};
-            let price = resolved.pricing?.customerPrice ?? null;
-            let packetMockupUrl = null;
-            let packetMockupsByColor = null;
-            let packetMockupImages = [];
-            let packetDefaultColor = null;
-            let packetLandingPageSnapshotUrl = null;
-            let packetCompositeUrl = null;
-            let packetQrOnlyUrl = null;
-            if (d.currentPacketId) {
-                try {
-                    const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
-                    if (pDoc.exists) {
-                        const pkt = pDoc.data();
-                        const extracted = extractPacketMockups(pkt);
-                        packetMockupsByColor = extracted.mockupsByColor;
-                        packetMockupImages = extracted.mockupImages;
-                        packetDefaultColor = extracted.defaultColor;
-                        packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-                        packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
-                        packetCompositeUrl = pkt.compositeUrl || pkt.productGraphicUrl || null;
-                        packetQrOnlyUrl = pkt.qrOnlyUrl || null;
-                        if (price === null && pkt.pricing?.customerPrice)
-                            price = pkt.pricing.customerPrice;
-                    }
-                }
-                catch (e) {
-                    console.error('[Store API] Failed to read productPacket for', d.currentPacketId, e.message);
-                }
-            }
-            const toStrArr = (arr) => (arr || []).map((v) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
-            // Build ordered gallery: packet mockups first → provider catalog images after
-            const providerImages = toUrlArr(resolved.images || []);
-            const allImages = [];
-            packetMockupImages.forEach((u) => { if (!allImages.includes(u))
-                allImages.push(u); });
-            providerImages.forEach((u) => { if (!allImages.includes(u))
-                allImages.push(u); });
-            if (packetMockupImages.length === 0 && packetMockupUrl && !allImages.includes(packetMockupUrl)) {
-                allImages.unshift(packetMockupUrl);
-            }
-            const bColors = toStrArr(d.enabledColors || resolved.colors || []);
-            const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
-            res.json({
-                id: instanceDoc.id,
-                name: resolved.title || 'Untitled',
-                description: resolved.description || '',
-                category: resolved.category || '',
-                productLine: resolved.productLine || '',
-                imageUrl: allImages[0] || null,
-                images: allImages,
-                packetImageUrl: packetMockupUrl,
-                landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
-                compositeUrl: packetCompositeUrl,
-                qrCodeUrl: packetQrOnlyUrl,
-                qrProductType: d.qrProductType || 'qr-basics',
-                price: price !== null ? Math.round(price * 100) / 100 : null,
-                availableSizes: bSizes,
-                availableColors: bColors,
-                availablePlacements: [],
-                defaultColor: packetDefaultColor,
-                mockupsByColor: packetMockupsByColor,
-                selectedGraphicSize: null,
-                storeId: d.storeId || null,
-                storeName: d.storeName || null,
-                channel: d.channelId || null,
-                collection: d.collectionName || null,
-                packetId: d.currentPacketId || null,
-                options: (0, storefrontTypes_1.buildStructuredOptions)(bColors, bSizes),
-                cardMode: (0, storefrontTypes_1.deriveCardMode)(bColors, bSizes),
-                media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
-            });
+            res.status(404).json({ error: "Product not found" });
         }
         catch (e) {
             res.status(500).json({ error: e.message });
@@ -668,7 +662,7 @@ function register(app) {
                         createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
                         options: (0, storefrontTypes_1.buildStructuredOptions)(l2Colors, l2Sizes),
                         cardMode: (0, storefrontTypes_1.deriveCardMode)(l2Colors, l2Sizes),
-                        media: { images: allImagesCh, mockupPriority: true, heroStrategy: 'catalogFirst' },
+                        media: { images: allImagesCh, mockupPriority: true, heroStrategy: 'mockupFirst' },
                     };
                 }));
                 console.log(`[Public Store] Channel "${channel}" in "${matchedStore.name}": ${channelProducts.length} instances${collection ? ` / collection: ${collection}` : ''}`);
