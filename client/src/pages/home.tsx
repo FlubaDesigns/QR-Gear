@@ -254,11 +254,13 @@ export default function Home() {
         <ActionCards />
         {/* Shop path — surface early so buyers get a direct route */}
         <FeaturedStores />
-        {hasProducts ? (
-          <FeaturedProducts />
-        ) : (
-          <NoProductsYet />
-        )}
+        <div className="hidden md:block">
+          {hasProducts ? (
+            <FeaturedProducts />
+          ) : (
+            <NoProductsYet />
+          )}
+        </div>
         <div className="hidden md:block">
           <MarketingMessage />
         </div>
