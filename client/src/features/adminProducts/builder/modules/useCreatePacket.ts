@@ -495,6 +495,10 @@ export function useCreatePacket({
 
       loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl });
 
+      const enabledColorNames: string[] = (availableColors || [])
+        .map((c: any) => (typeof c === 'string' ? c : c?.name || c?.label || null))
+        .filter(Boolean);
+
       const initialResult: PacketResult = {
         packetId,
         landingPageUrl: finalQrContent,
@@ -504,6 +508,11 @@ export function useCreatePacket({
         pricing,
         priorityMockupUrl: null,
         priorityMockupLoading: true,
+        compositeUrl: productGraphicUrl,
+        printifyProductId: null,
+        printifyPublishedAt: null,
+        printifyVariantMap: null,
+        enabledColors: enabledColorNames,
       };
       setPacketResult(initialResult);
 

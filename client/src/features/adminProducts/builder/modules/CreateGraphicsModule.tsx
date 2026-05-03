@@ -36,6 +36,11 @@ export interface PacketResult {
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
+  compositeUrl?: string | null;
+  printifyProductId?: string | null;
+  printifyPublishedAt?: string | Date | null;
+  printifyVariantMap?: Record<string, number> | null;
+  enabledColors?: string[];
 }
 
 export function CreateGraphicsModule() {
@@ -102,19 +107,32 @@ export function CreateGraphicsModule() {
 
     const restore = async () => {
       try {
-        const data = await adminFetch<any>(`/packets/${state.activePacketId}`);
+        interface PacketGetResponse { success: boolean; packet: Record<string, unknown>; landingPage?: Record<string, unknown> }
+        const data = await adminFetch<PacketGetResponse>(`/packets/${state.activePacketId}`);
         if (cancelled) return;
-        const p = data.landingPage || data.packet || data;
-        if (!p || !p.packetId || cancelled) return;
+        const p: Record<string, unknown> = data.landingPage || data.packet || (data as unknown as Record<string, unknown>);
+        // Accept either `packetId` (legacy field) or `id` (canonical Firestore doc id)
+        if (!p || (!p.packetId && !p.id) || cancelled) return;
+        const rawColors: unknown[] = (p.colors as unknown[] | undefined) || (p.enabledColors as unknown[] | undefined) || [];
+        const enabledColors: string[] = rawColors
+          .map((c) => (typeof c === 'string' ? c : (c as Record<string, string>)?.name || (c as Record<string, string>)?.label || null))
+          .filter((c): c is string => typeof c === 'string' && c.length > 0);
+        const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+        const strOrNull = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
         setPacketResult({
           packetId: state.activePacketId ?? '',
-          landingPageUrl: p.qrContent || p.landingPageUrl || '',
-          landingPageSnapshotUrl: p.landingPageSnapshotUrl || '',
-          productGraphicUrl: p.productGraphicUrl || p.compositeUrl || '',
-          qrOnlyUrl: p.qrOnlyUrl || '',
+          landingPageUrl: str(p.qrContent) || str(p.landingPageUrl),
+          landingPageSnapshotUrl: str(p.landingPageSnapshotUrl),
+          productGraphicUrl: str(p.productGraphicUrl) || str(p.compositeUrl),
+          qrOnlyUrl: str(p.qrOnlyUrl),
           pricing: p.pricing as PricingBreakdown,
-          priorityMockupUrl: p.priorityMockupUrl || null,
+          priorityMockupUrl: strOrNull(p.priorityMockupUrl),
           priorityMockupLoading: false,
+          compositeUrl: strOrNull(p.compositeUrl),
+          printifyProductId: strOrNull(p.printifyProductId),
+          printifyPublishedAt: strOrNull(p.printifyPublishedAt),
+          printifyVariantMap: (p.printifyVariantMap as Record<string, number> | null | undefined) ?? null,
+          enabledColors,
         });
         console.log(`[CreateGraphicsModule] Restored packetResult for ${state.activePacketId}`);
       } catch {
@@ -236,6 +254,15 @@ export function CreateGraphicsModule() {
             onReset={handleReset}
             onDelete={handleDeletePacket}
             artifactError={artifactError}
+            onPrintifyPublished={(result) => {
+              setPacketResult((prev: PacketResult | null) => prev ? {
+                ...prev,
+                printifyProductId: result.printifyProductId,
+                enabledColors: result.enabledColors,
+                printifyPublishedAt: result.printifyPublishedAt,
+                printifyVariantMap: result.printifyVariantMap,
+              } : prev);
+            }}
           />
         )}
 

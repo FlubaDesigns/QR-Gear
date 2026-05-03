@@ -839,9 +839,12 @@ export function registerAdminBuildSessions(app: express.Express): void {
   app.post('/admin/qrg/publish-to-printify/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { packetId } = req.params;
-      // printProviderId can be overridden via body; defaults to 99 (Monster Digital – US)
+      // printProviderId and colors can be overridden via body
       const overrideProviderId: number | undefined = req.body.printProviderId
         ? parseInt(req.body.printProviderId, 10)
+        : undefined;
+      const overrideColors: string[] | undefined = Array.isArray(req.body.colors)
+        ? (req.body.colors as string[]).map((c: string) => String(c).trim()).filter(Boolean)
         : undefined;
 
       const packetDoc = await db.collection('productPackets').doc(packetId).get();
@@ -864,7 +867,8 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const printProviderId = overrideProviderId || packet.printProviderId || 99;
 
       // ── 1. Resolve enabled colors + sizes ──────────────────────────────────
-      const enabledColors: string[] = (packet.colors || packet.enabledColors || []).map((c: any) =>
+      const rawColors: string[] = overrideColors || (packet.colors || packet.enabledColors || []);
+      const enabledColors: string[] = rawColors.map((c: any) =>
         typeof c === 'string' ? c : c?.name || c?.label || String(c)
       ).filter(Boolean);
       const enabledSizes: string[] = (packet.sizes || packet.enabledSizes || []).map((s: any) =>
@@ -984,6 +988,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         printProviderId,
         variantCount: variantObjs.length,
         printifyVariantMap,
+        enabledColors,
       });
     } catch (err: any) {
       console.error('[PublishToPrintify] error:', err.message);

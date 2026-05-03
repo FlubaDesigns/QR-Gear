@@ -436,9 +436,11 @@ export function registerPacketRoutes(app: Express): void {
         success: true,
         packet: {
           id: doc.id,
+          packetId: doc.id,
           ...data,
-          createdAt: data?.createdAt?.toDate?.() || null,
-          updatedAt: data?.updatedAt?.toDate?.() || null,
+          createdAt: data?.createdAt?.toDate?.()?.toISOString() || null,
+          updatedAt: data?.updatedAt?.toDate?.()?.toISOString() || null,
+          printifyPublishedAt: data?.printifyPublishedAt?.toDate?.()?.toISOString() || null,
         },
       });
     } catch (error: any) {
@@ -622,6 +624,162 @@ export function registerPacketRoutes(app: Express): void {
       });
     } catch (error: any) {
       console.error("[Packets DELETE] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Publish Packet to Printify ─────────────────────────────────────────────
+  // Creates (or re-creates) a Printify product from the packet's composite images.
+  // Stores printifyProductId, printifyVariantMap, and printifyPublishedAt back on the packet.
+  app.post("/api/admin/packets/:packetId/publish-to-printify", isAdmin, async (req: any, res) => {
+    try {
+      const { packetId } = req.params;
+      const overrideProviderId: number | undefined = req.body.printProviderId
+        ? parseInt(req.body.printProviderId, 10)
+        : undefined;
+      const overrideColors: string[] | undefined = Array.isArray(req.body.colors)
+        ? req.body.colors
+        : undefined;
+
+      const { getFirestoreDb, FieldValue } = await import("../lib/firebase-admin");
+      const firestoreDb = getFirestoreDb();
+
+      const packetDoc = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+      if (!packetDoc.exists) {
+        return res.status(404).json({ error: `Packet ${packetId} not found` });
+      }
+      const packet = packetDoc.data()!;
+
+      if (!packet.blueprintId) {
+        return res.status(400).json({ error: "Packet is missing blueprintId" });
+      }
+      if (!packet.compositeUrl) {
+        return res.status(400).json({ error: "Packet is missing compositeUrl — regenerate the composite first" });
+      }
+
+      const blueprintId = parseInt(packet.blueprintId, 10);
+      const printProviderId = overrideProviderId || packet.printProviderId || 99;
+
+      // ── 1. Resolve enabled colors + sizes ──────────────────────────────────
+      const rawColors: any[] = overrideColors || packet.colors || packet.enabledColors || [];
+      const enabledColors: string[] = rawColors
+        .map((c: any) => (typeof c === "string" ? c : c?.name || c?.label || String(c)))
+        .filter(Boolean);
+      const enabledSizes: string[] = (packet.sizes || packet.enabledSizes || [])
+        .map((s: any) => (typeof s === "string" ? s : s?.name || s?.label || String(s)))
+        .filter(Boolean);
+
+      if (enabledColors.length === 0 || enabledSizes.length === 0) {
+        return res.status(400).json({ error: "Packet has no enabled colors or sizes — add them before publishing" });
+      }
+
+      // ── 2. Fetch Printify variants for this blueprint + provider ───────────
+      const { printify } = await import("../lib/printify");
+      const variantsData = await printify.getVariants(blueprintId, printProviderId);
+      const allVariants: Array<{ id: number; title: string }> = variantsData.variants || [];
+
+      const matchedVariants = allVariants.filter((v) => {
+        const parts = (v.title || "").split(" / ");
+        const vColor = parts[0]?.trim();
+        const vSize = parts[1]?.trim();
+        if (!vColor || !vSize) return false;
+        const colorMatch = enabledColors.some((c) => c.toLowerCase() === vColor.toLowerCase());
+        const sizeMatch = enabledSizes.some((s) => s === vSize);
+        return colorMatch && sizeMatch;
+      });
+
+      if (matchedVariants.length === 0) {
+        return res.status(400).json({
+          error: `No Printify variants matched for colors [${enabledColors.join(", ")}] and sizes [${enabledSizes.join(", ")}] on blueprint ${blueprintId} / provider ${printProviderId}. Check spelling or choose a different print provider.`,
+        });
+      }
+
+      const priceInCents = Math.round((packet.pricing?.customerPrice || 29.99) * 100);
+      const variantObjs = matchedVariants.map((v) => ({ id: v.id, price: priceInCents, is_enabled: true }));
+
+      // Build color/size → variantId lookup map
+      const printifyVariantMap: Record<string, number> = {};
+      for (const v of matchedVariants) {
+        const parts = (v.title || "").split(" / ");
+        const vColor = parts[0]?.trim();
+        const vSize = parts[1]?.trim();
+        if (vColor && vSize) printifyVariantMap[`${vColor}/${vSize}`] = v.id;
+      }
+
+      // ── 3. Upload composite images to Printify ─────────────────────────────
+      const PLACEMENT_URL_MAP: Record<string, string> = {
+        front: "compositeUrl",
+        left_sleeve: "sleeveCompositeUrl",
+        right_sleeve: "rightSleeveCompositeUrl",
+        back: "backCompositeUrl",
+      };
+
+      const placements: string[] = packet.placements || ["front"];
+
+      const placeholders: Array<{
+        position: string;
+        images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
+      }> = [];
+
+      for (const placement of placements) {
+        const urlField = PLACEMENT_URL_MAP[placement];
+        if (!urlField) {
+          console.warn(`[PublishToPrintify] Unknown placement "${placement}" — skipping`);
+          continue;
+        }
+        const imageUrl: string | undefined = packet[urlField];
+        if (!imageUrl) {
+          console.warn(`[PublishToPrintify] Placement "${placement}" has no image URL — skipping`);
+          continue;
+        }
+        const upload = await printify.uploadImage(imageUrl, `${packetId}-${placement}.png`);
+        console.log(`[PublishToPrintify] ${placement} image uploaded: ${upload.id}`);
+        placeholders.push({
+          position: placement,
+          images: [{ id: upload.id, x: 0.5, y: 0.5, scale: 1, angle: 0 }],
+        });
+      }
+
+      if (placeholders.length === 0) {
+        return res.status(400).json({ error: "No placement images could be uploaded to Printify" });
+      }
+
+      // ── 4. Create Printify product ─────────────────────────────────────────
+      const variantIds = variantObjs.map((v) => v.id);
+      const printifyProduct = await printify.createProduct({
+        title: packet.effectiveTitle || packet.masterTitle || "QR Gear Product",
+        description: packet.effectiveDescription || packet.masterDescription || "",
+        blueprint_id: blueprintId,
+        print_provider_id: printProviderId,
+        variants: variantObjs,
+        print_areas: [{ variant_ids: variantIds, placeholders }],
+      });
+
+      const printifyProductId: string = printifyProduct.id;
+
+      // ── 5. Persist back to Firestore ───────────────────────────────────────
+      const publishedAt = new Date();
+      await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
+        printifyProductId,
+        printifyVariantMap,
+        printifyPublishedAt: FieldValue.serverTimestamp(),
+        printProviderId,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      console.log(`[PublishToPrintify] Packet ${packetId} → Printify product ${printifyProductId} (${matchedVariants.length} variants)`);
+
+      res.json({
+        success: true,
+        printifyProductId,
+        printProviderId,
+        variantCount: matchedVariants.length,
+        printifyVariantMap,
+        enabledColors,
+        printifyPublishedAt: publishedAt.toISOString(),
+      });
+    } catch (error: any) {
+      console.error("[PublishToPrintify] Error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });

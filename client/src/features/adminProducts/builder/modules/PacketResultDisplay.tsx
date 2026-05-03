@@ -1,6 +1,11 @@
-import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2, AlertTriangle, ExternalLink, Package2, RefreshCw, Palette } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { adminFetch } from "@/lib/adminFetch";
+import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 
 interface PacketResult {
@@ -13,6 +18,19 @@ interface PacketResult {
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
+  compositeUrl?: string | null;
+  printifyProductId?: string | null;
+  printifyPublishedAt?: string | Date | null;
+  printifyVariantMap?: Record<string, number> | null;
+  enabledColors?: string[];
+}
+
+interface PricingSettings {
+  markupPercent: number;
+  markupFixed: number;
+  additionalPlacementCost: number;
+  textLineUpcharge: number;
+  hostingTiers: { code: string; name: string; price: number }[];
 }
 
 interface PacketResultDisplayProps {
@@ -22,7 +40,7 @@ interface PacketResultDisplayProps {
   selectedChannel: { id: string; name: string } | null;
   isPlayMode: boolean;
   isBasicsOrPlusMode: boolean;
-  pricingSettings: any;
+  pricingSettings: PricingSettings | undefined;
   isDeleting: boolean;
   thumbnailLightbox: string | null;
   onThumbnailLightbox: (url: string | null) => void;
@@ -30,6 +48,230 @@ interface PacketResultDisplayProps {
   onReset: () => void;
   onDelete: () => void;
   artifactError?: string | null;
+  onPrintifyPublished?: (result: { printifyProductId: string; enabledColors: string[]; printifyPublishedAt: string; printifyVariantMap: Record<string, number> }) => void;
+}
+
+function PrintifySection({
+  packetResult,
+  onPublished,
+}: {
+  packetResult: PacketResult;
+  onPublished?: PacketResultDisplayProps["onPrintifyPublished"];
+}) {
+  const { toast } = useToast();
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [selectedOverrideColors, setSelectedOverrideColors] = useState<Set<string>>(new Set());
+  const [showColorPicker, setShowColorPicker] = useState(false);
+
+  const availableColors: string[] = packetResult.enabledColors || [];
+  const hasOverride = showColorPicker && selectedOverrideColors.size > 0;
+
+  const toggleOverrideColor = (color: string) => {
+    setSelectedOverrideColors((prev) => {
+      const next = new Set(prev);
+      if (next.has(color)) next.delete(color); else next.add(color);
+      return next;
+    });
+  };
+
+  const isPublished = !!packetResult.printifyProductId;
+  const hasComposite = !!packetResult.compositeUrl;
+
+  const publishedColors: string[] = (() => {
+    if (!packetResult.printifyVariantMap) return packetResult.enabledColors || [];
+    const colors = new Set<string>();
+    for (const key of Object.keys(packetResult.printifyVariantMap)) {
+      const color = key.split("/")[0];
+      if (color) colors.add(color);
+    }
+    return Array.from(colors);
+  })();
+
+  const publishedDate: Date | null = (() => {
+    if (!packetResult.printifyPublishedAt) return null;
+    if (packetResult.printifyPublishedAt instanceof Date) return packetResult.printifyPublishedAt;
+    const d = new Date(packetResult.printifyPublishedAt as string);
+    return isNaN(d.getTime()) ? null : d;
+  })();
+
+  const printifyDashboardUrl = packetResult.printifyProductId
+    ? `https://app.printify.com/app/shop/products/${packetResult.printifyProductId}/edit`
+    : null;
+
+  const handlePublish = async () => {
+    if (isPublishing) return;
+    setIsPublishing(true);
+    try {
+      const body: { colors?: string[] } = {};
+      if (hasOverride) {
+        body.colors = Array.from(selectedOverrideColors);
+      }
+      const result = await adminFetch<{
+        success: boolean;
+        printifyProductId: string;
+        enabledColors: string[];
+        printifyVariantMap: Record<string, number>;
+        printifyPublishedAt: string;
+      }>(`/packets/${packetResult.packetId}/publish-to-printify`, {
+        method: "POST",
+        json: body,
+      });
+      toast({
+        title: isPublished ? "Re-published to Printify" : "Published to Printify",
+        description: `Product ID: ${result.printifyProductId}`,
+      });
+      onPublished?.({ printifyProductId: result.printifyProductId, enabledColors: result.enabledColors, printifyPublishedAt: result.printifyPublishedAt, printifyVariantMap: result.printifyVariantMap });
+    } catch (err: unknown) {
+      toast({
+        title: "Publish failed",
+        description: (err instanceof Error ? err.message : null) || "Could not publish to Printify. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  return (
+    <Card className="border">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Package2 className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold">Printify</span>
+          {isPublished ? (
+            <Badge variant="default" className="text-xs" data-testid="badge-printify-published">
+              Published
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="text-xs" data-testid="badge-printify-unpublished">
+              Not Published
+            </Badge>
+          )}
+        </div>
+
+        {isPublished && (
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-muted-foreground">Product ID:</span>
+              {printifyDashboardUrl ? (
+                <a
+                  href={printifyDashboardUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
+                  data-testid="link-printify-product"
+                >
+                  {packetResult.printifyProductId}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span className="font-mono text-xs" data-testid="text-printify-product-id">{packetResult.printifyProductId}</span>
+              )}
+            </div>
+
+            {publishedDate && (
+              <div className="flex items-center gap-2 text-muted-foreground text-xs" data-testid="text-printify-published-at">
+                Last published: {publishedDate.toLocaleString()}
+              </div>
+            )}
+
+            {publishedColors.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Palette className="h-3 w-3" />
+                  Published colors ({publishedColors.length}):
+                </p>
+                <div className="flex flex-wrap gap-1" data-testid="list-printify-colors">
+                  {publishedColors.map((color) => (
+                    <Badge key={color} variant="outline" className="text-xs" data-testid={`badge-color-${color.toLowerCase().replace(/\s+/g, "-")}`}>
+                      {color}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!hasComposite && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1" data-testid="text-printify-no-composite">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+            Composite image is missing — regenerate the packet before publishing.
+          </p>
+        )}
+
+        <div className="space-y-2">
+          {availableColors.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+                onClick={() => setShowColorPicker((v) => !v)}
+                data-testid="button-toggle-color-override"
+              >
+                {showColorPicker ? "Use all colors" : "Override colors before publishing"}
+              </button>
+            </div>
+          )}
+
+          {showColorPicker && availableColors.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Select colors to publish (deselect to exclude):</p>
+              <div className="flex flex-wrap gap-1" data-testid="list-color-override-chips">
+                {availableColors.map((color) => {
+                  const selected = selectedOverrideColors.has(color);
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => toggleOverrideColor(color)}
+                      data-testid={`chip-color-${color.toLowerCase().replace(/\s+/g, "-")}`}
+                      className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                        selected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-border"
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedOverrideColors.size > 0 && (
+                <p className="text-xs text-muted-foreground">{selectedOverrideColors.size} color{selectedOverrideColors.size !== 1 ? "s" : ""} selected</p>
+              )}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            size="sm"
+            className="w-full"
+            onClick={handlePublish}
+            disabled={isPublishing || !hasComposite}
+            data-testid={isPublished ? "button-republish-printify" : "button-publish-printify"}
+          >
+            {isPublishing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                Publishing…
+              </>
+            ) : isPublished ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                Re-publish to Printify
+              </>
+            ) : (
+              <>
+                <Package2 className="h-3.5 w-3.5 mr-1.5" />
+                Publish to Printify
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function PacketResultDisplay({
@@ -47,6 +289,7 @@ export function PacketResultDisplay({
   onReset,
   onDelete,
   artifactError,
+  onPrintifyPublished,
 }: PacketResultDisplayProps) {
   return (
     <div className="space-y-4">
@@ -161,6 +404,8 @@ export function PacketResultDisplay({
           </p>
         </CardContent>
       </Card>
+
+      <PrintifySection packetResult={packetResult} onPublished={onPrintifyPublished} />
 
       <p className="text-base font-bold mb-3">Generated Thumbnails</p>
       <div className="grid grid-cols-2 gap-3">
