@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = true }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated, isAdmin, user } = useAuth();
+  const { isLoading, isAuthenticated, isAdmin } = useAuth();
 
   if (isLoading) {
     return (
