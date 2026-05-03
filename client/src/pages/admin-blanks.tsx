@@ -458,10 +458,18 @@ export default function AdminBlanks() {
       const itemTier = blankTiers[blankKey] as "good" | "better" | "best" | undefined;
       const hasMappingBadge = getItemMappingBadge(String(scrollItem.id));
 
+      // Provider badge — derived from availableVia on the QRG master record
+      const availableVia: string[] = (product as any)?.availableVia || [];
+      const providerBadgeText = availableVia.length > 1 ? 'Both' : availableVia[0] === 'printful' ? 'Printful' : 'Printify';
+      const providerBadgeColor = availableVia.length > 1
+        ? 'bg-violet-600 text-white'
+        : availableVia[0] === 'printful'
+          ? 'bg-sky-600 text-white'
+          : 'bg-orange-600 text-white';
+
       const handleSelect = () => {
         if (validSelectedCatalogId) {
           if (!inTarget) onAddToCatalog(blankKey);
-          // Already in target — do nothing; remove via the strip below
         } else {
           onToggleItem(String(scrollItem.id), product);
         }
@@ -483,17 +491,23 @@ export default function AdminBlanks() {
             onTitleSave={(id: string, title: string) => onSaveTitle(id, title, blankKey)}
             titleSaving={saveTitleMutation.isPending}
             selectLabel={validSelectedCatalogId ? `Add to ${targetName}` : undefined}
-            selectedLabel={validSelectedCatalogId ? `✓ In ${targetName}` : undefined}
+            selectedLabel={validSelectedCatalogId ? `In ${targetName}` : undefined}
             disableWhenSelected={!!validSelectedCatalogId}
           />
-          {hasMappingBadge && (
-            <div className="absolute top-2 right-2 z-10">
+          {/* Provider badge — shows which fulfillment provider(s) carry this blank */}
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+            {hasMappingBadge && (
               <Badge className="bg-violet-600 text-white text-[10px] px-1.5 py-0.5 gap-0.5">
                 <ArrowLeftRight className="h-3 w-3" />
                 M
               </Badge>
-            </div>
-          )}
+            )}
+            {availableVia.length > 0 && (
+              <Badge className={`text-[10px] px-1.5 py-0.5 ${providerBadgeColor}`} data-testid={`badge-provider-${scrollItem.id}`}>
+                {providerBadgeText}
+              </Badge>
+            )}
+          </div>
         </div>
       );
     },
@@ -745,11 +759,19 @@ export default function AdminBlanks() {
                   className="text-base bg-background border rounded-md px-3 py-2"
                   data-testid="select-category-filter"
                 >
-                  {categoryNames.map(name => (
-                    <option key={name} value={name}>
-                      {name === "all" ? `All Categories (${totalProductCount})` : `${name} (${categoryCounts[name] || 0})`}
-                    </option>
-                  ))}
+                  {categoryNames.map(name => {
+                    const qrgRangeLabel: Record<string, string> = {
+                      'Tees': 'Tees (101–199)',
+                      'Hoodies': 'Hoodies (201–299)',
+                      'Hats': 'Hats (301–399)',
+                      'Drinkware': 'Drinkware (401–499)',
+                      'Unclassified': 'Unclassified',
+                    };
+                    const displayName = name === "all"
+                      ? `All Categories (${totalProductCount})`
+                      : `${qrgRangeLabel[name] ?? name} (${categoryCounts[name] || 0})`;
+                    return <option key={name} value={name}>{displayName}</option>;
+                  })}
                 </select>
 
                 {([

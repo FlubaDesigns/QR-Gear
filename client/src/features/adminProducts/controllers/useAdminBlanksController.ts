@@ -6,18 +6,19 @@ import { getCanonicalBlankKey, safeBlankId, isProviderPrintful } from "@shared/b
 import type { CatalogBlankItem } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
 
 /**
- * Build a Set that recognises ALL possible blankId formats for the same product
- * so catalog lookups work regardless of when the blankId was stored:
- *   old Printify format  : "123"
- *   old Printful format  : "pf:123"
- *   new Printify docId   : "py_123"
- *   new Printful docId   : "pf_123"
+ * Build a Set that recognises ALL possible blankId formats for the same product.
+ * QRG format (qrg_101, pending_py_123) is passed through as-is.
+ * Legacy formats (py_123, pf_123, pf:123, plain numeric) are expanded for backward compat.
  */
 function expandBlankIdSet(ids: string[]): Set<string> {
   const set = new Set<string>();
   for (const raw of ids) {
     const id = safeBlankId(raw);
     set.add(id);
+    // QRG and pending IDs are the new canonical format — no expansion needed
+    if (id.startsWith('qrg_') || id.startsWith('pending_')) {
+      continue;
+    }
     if (id.startsWith('py_')) {
       set.add(id.slice(3));                   // py_123 → 123
     } else if (id.startsWith('pf_')) {
@@ -26,7 +27,7 @@ function expandBlankIdSet(ids: string[]): Set<string> {
     } else if (id.startsWith('pf:')) {
       set.add(`pf_${id.slice(3)}`);           // pf:123 → pf_123
     } else {
-      // Plain numeric — add all prefixed variants
+      // Plain numeric — add all prefixed variants for backward compat
       set.add(`py_${id}`);
       set.add(`pf_${id}`);
       set.add(`pf:${id}`);
@@ -37,6 +38,10 @@ function expandBlankIdSet(ids: string[]): Set<string> {
 
 interface CatalogProduct {
   id: number;
+  docId?: string;
+  qrgBlankId?: number | null;
+  qrgCategory?: string | null;
+  categorySource?: string | null;
   title: string;
   description?: string;
   brand?: string;
@@ -46,6 +51,7 @@ interface CatalogProduct {
   thumbnailUrl?: string;
   madeInUSA?: boolean;
   blueprintId?: number;
+  printfulId?: number;
   printProviderId?: number;
   minPrice?: string;
   maxPrice?: string;
@@ -54,14 +60,18 @@ interface CatalogProduct {
   availableSizes?: string[];
   fulfillmentProvider?: string;
   availableVia?: string[];
-  printfulId?: number;
   providers?: string[];
+  printifyImages?: string[];
+  printfulImages?: string[];
 }
 
 interface CatalogCategory {
   name: string;
   items: CatalogProduct[];
   count: number;
+  printifyCount?: number;
+  printfulCount?: number;
+  bothCount?: number;
 }
 
 interface AdminCatalog {
@@ -111,6 +121,10 @@ export interface NormalizedSourceBlank {
 export type ProviderFilter = "printify" | "printful";
 export type LocationFilter = "all" | "usa" | "other";
 
+function getProductKey(p: CatalogProduct): string {
+  return p.docId || String(p.id);
+}
+
 function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, adminCatalogDesc?: string, adminCatalogTitle?: string): NormalizedSourceBlank {
   const cost = p.minPrice ? parseFloat(p.minPrice) : null;
   const retailPrice = cost !== null
@@ -123,7 +137,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
   const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0 ? adminCatalogTitle : null;
   const effectiveTitle = normalizedAdminTitle ?? providerTitle;
   return {
-    id: String(p.id),
+    id: getProductKey(p),
     name: effectiveTitle,
     providerTitle,
     adminCatalogTitle: normalizedAdminTitle,
@@ -142,6 +156,18 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
   };
 }
 
+/** Returns true if this product is available via the given provider */
+function isAvailableVia(p: CatalogProduct, provider: ProviderFilter): boolean {
+  // New: check availableVia array (QRG format)
+  if (Array.isArray(p.availableVia) && p.availableVia.length > 0) {
+    return p.availableVia.includes(provider);
+  }
+  // Legacy: check fulfillmentProvider field
+  if (p.fulfillmentProvider === 'both') return true;
+  if (p.fulfillmentProvider === provider) return true;
+  return false;
+}
+
 export function useAdminBlanksController() {
   const { toast } = useToast();
   const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
@@ -152,7 +178,7 @@ export function useAdminBlanksController() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
 
-  // Single source of truth: master_products collection
+  // Single source of truth: master_catalog collection via /api/master-catalog
   const { data: masterCategories = [], isLoading: loadingMasterCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/master-catalog"],
     queryFn: async () => {
@@ -217,15 +243,17 @@ export function useAdminBlanksController() {
     return set;
   }, [mappingsData]);
 
-  // Derive flat product lists from master-catalog by provider
+  // ── Flat product lists filtered by provider ───────────────────────────────────
+  // With QRG architecture, a single blank can be in BOTH providers.
+  // Both product lists may contain the same blank (e.g., one bridged blank).
   const printifyProducts = useMemo(() => {
     const items: CatalogProduct[] = [];
-    const seen = new Set<number>();
+    const seen = new Set<string>();
     for (const cat of masterCategories) {
       for (const item of (cat.items || [])) {
-        if (item.fulfillmentProvider === "printify" && !seen.has(item.id)) {
-          seen.add(item.id);
-          items.push(item);
+        if (isAvailableVia(item, 'printify')) {
+          const key = getProductKey(item);
+          if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }
     }
@@ -234,25 +262,25 @@ export function useAdminBlanksController() {
 
   const printfulProducts = useMemo(() => {
     const items: CatalogProduct[] = [];
-    const seen = new Set<number>();
+    const seen = new Set<string>();
     for (const cat of masterCategories) {
       for (const item of (cat.items || [])) {
-        if (item.fulfillmentProvider === "printful" && !seen.has(item.id)) {
-          seen.add(item.id);
-          items.push(item);
+        if (isAvailableVia(item, 'printful')) {
+          const key = getProductKey(item);
+          if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }
     }
     return items;
   }, [masterCategories]);
 
-  // Derive per-provider category lists from master-catalog
+  // ── Per-provider category views (same data, filtered by provider) ──────────────
   const printifyCategories = useMemo(() => {
     return masterCategories
       .map(cat => ({
         name: cat.name,
-        items: cat.items.filter(i => i.fulfillmentProvider === "printify"),
-        count: cat.items.filter(i => i.fulfillmentProvider === "printify").length,
+        items: cat.items.filter(i => isAvailableVia(i, 'printify')),
+        count: cat.items.filter(i => isAvailableVia(i, 'printify')).length,
       }))
       .filter(c => c.count > 0);
   }, [masterCategories]);
@@ -261,30 +289,47 @@ export function useAdminBlanksController() {
     return masterCategories
       .map(cat => ({
         name: cat.name,
-        items: cat.items.filter(i => i.fulfillmentProvider === "printful"),
-        count: cat.items.filter(i => i.fulfillmentProvider === "printful").length,
+        items: cat.items.filter(i => isAvailableVia(i, 'printful')),
+        count: cat.items.filter(i => isAvailableVia(i, 'printful')).length,
       }))
       .filter(c => c.count > 0);
   }, [masterCategories]);
 
   const activeCategories = providerFilter === "printful" ? printfulCategories : printifyCategories;
-
   const allProducts = useMemo(() => {
     return providerFilter === "printful" ? printfulProducts : printifyProducts;
   }, [providerFilter, printifyProducts, printfulProducts]);
 
+  // ── Product map — indexed by all known keys for backward compat ───────────────
   const allProductMap = useMemo(() => {
     const map = new Map<string, CatalogProduct>();
-    // Index by numeric id and old-style keys for backward compat
-    printifyProducts.forEach(p => map.set(String(p.id), p));
-    printfulProducts.forEach(p => map.set(`pf:${p.id}`, p));
-    printifyProducts.forEach(p => { if (p.printfulId) map.set(`pf:${p.printfulId}`, p); });
-    // Index by master_catalog docId (py_X / pf_X) — the canonical format
     const allItems = [...printifyProducts, ...printfulProducts];
-    allItems.forEach(p => {
-      const docId = (p as any).docId as string | undefined;
-      if (docId) map.set(docId, p);
-    });
+    const seen = new Set<string>();
+
+    for (const p of allItems) {
+      const docId = p.docId;
+      const numId = String(p.id);
+
+      // Primary index: QRG docId (qrg_101, pending_py_123)
+      if (docId && !seen.has(docId)) {
+        map.set(docId, p);
+        seen.add(docId);
+      }
+
+      // Numeric id (blueprint ID for Printify, product ID for Printful-only)
+      if (numId && !map.has(numId)) map.set(numId, p);
+
+      // Legacy keys for backward compat with catalog blankIds stored in old formats
+      if (p.blueprintId) {
+        map.set(String(p.blueprintId), p);
+        map.set(`py_${p.blueprintId}`, p);
+      }
+      if (p.printfulId) {
+        map.set(`pf:${p.printfulId}`, p);
+        map.set(`pf_${p.printfulId}`, p);
+        map.set(String(p.printfulId), p);
+      }
+    }
     return map;
   }, [printifyProducts, printfulProducts]);
 
@@ -296,9 +341,7 @@ export function useAdminBlanksController() {
   useEffect(() => {
     if (!defaultLoaded && defaultsData?.defaultCatalogId && catalogs.length > 0) {
       const exists = catalogs.find(c => c.id === defaultsData.defaultCatalogId);
-      if (exists) {
-        setSourceCatalogId(defaultsData.defaultCatalogId);
-      }
+      if (exists) setSourceCatalogId(defaultsData.defaultCatalogId);
       setDefaultLoaded(true);
     }
   }, [defaultsData, catalogs, defaultLoaded]);
@@ -339,9 +382,7 @@ export function useAdminBlanksController() {
       const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-tier`, { blankId, tier });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] }); },
     onError: (err: any) => toast({ title: "Error setting tier", description: err.message, variant: "destructive" }),
   });
 
@@ -378,8 +419,8 @@ export function useAdminBlanksController() {
     if (categoryFilter !== "all") {
       const cat = activeCategories.find(c => c.name === categoryFilter);
       if (cat) {
-        const catIds = new Set(cat.items.map(i => i.id));
-        items = items.filter(p => catIds.has(p.id));
+        const catKeys = new Set(cat.items.map(i => getProductKey(i)));
+        items = items.filter(p => catKeys.has(getProductKey(p)));
       }
     }
     if (locationFilter === "usa") items = items.filter(p => p.madeInUSA);
@@ -409,7 +450,7 @@ export function useAdminBlanksController() {
         const product = allProductMap.get(safe);
         if (!product) return null;
         return {
-          id: String(product.id),
+          id: getProductKey(product),
           catalogKey: safe,
           title: product.title,
           imageUrl: product.imageUrl || product.image_url || product.thumbnailUrl || null,
@@ -425,23 +466,26 @@ export function useAdminBlanksController() {
     const map = new Map<string, NormalizedSourceBlank>();
     const catalogProducts = catalogItems.map(c => allProductMap.get(c.catalogKey)).filter(Boolean) as CatalogProduct[];
     filtered.forEach(p => {
+      const key = getProductKey(p);
       const blankKey = getCanonicalBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
       const customTitle = blankTitles[blankKey];
-      map.set(String(p.id), normalizeSourceBlank(p, pricing, customDesc, customTitle));
+      map.set(key, normalizeSourceBlank(p, pricing, customDesc, customTitle));
     });
     catalogProducts.forEach(p => {
+      const key = getProductKey(p);
       const blankKey = getCanonicalBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
       const customTitle = blankTitles[blankKey];
-      map.set(String(p.id), normalizeSourceBlank(p, pricing, customDesc, customTitle));
+      map.set(key, normalizeSourceBlank(p, pricing, customDesc, customTitle));
     });
     return map;
   }, [filtered, catalogItems, allProductMap, pricing, blankDescriptions, blankTitles]);
 
+  // scrollItems — use docId as stable id so renderCatalogCard can look up the product
   const scrollItems = useMemo(() =>
     filtered.map(p => ({
-      id: String(p.id),
+      id: getProductKey(p),
       imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || "",
       title: p.title || "",
       subtitle: p.brand,
@@ -567,6 +611,12 @@ export function useAdminBlanksController() {
     totalProductCount,
     filteredCount,
     categoryCounts,
+
+    // Expose full categories for advanced UI features
+    masterCategories,
+    activeCategories,
+    printifyCategories,
+    printfulCategories,
   };
 }
 

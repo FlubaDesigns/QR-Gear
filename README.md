@@ -290,7 +290,28 @@ Up to 99 blanks per category (x01–x99).
 - **QR code** → `qrgear.com/QRG-I-101-001-000001` — customer-facing dynamic landing page
 - **Barcode** → `QRG-I-101-001-000001-402` — full item verification / admin lookup
 
-**Firestore fields on `master_catalog`:** `qrgId`, `qrgCategory`, `qrgSequence`. Returned by `GET /api/master-catalog`.
+**Firestore fields on `master_catalog`:** Each document uses `qrg_NNN` (or `pending_py_*` / `pending_pf_*`) as its doc ID.
+
+| Field | Type | Description |
+|---|---|---|
+| `qrgBlankId` | string | Doc ID — e.g. `qrg_101`, `pending_py_12` |
+| `qrgCategory` | string | `Tees` \| `Hoodies` \| `Hats` \| `Drinkware` \| `Unclassified` |
+| `categorySource` | string | `qrg` (classified) or `pending` (unclassified) |
+| `availableVia` | string[] | `["Printify"]`, `["Printful"]`, or `["Printful","Printify"]` |
+| `providerMappings` | object[] | `[{ provider, blueprintId/productId, title, printProviderId }]` |
+| `canonicalTitle` | string | Display name (brand + model) |
+| `brand` | string | e.g. `Bella+Canvas` |
+| `model` | string | e.g. `3001` |
+| `originCountry` | string | e.g. `USA`, `Nicaragua` |
+| `printifyImages` | string[] | Image URLs from Printify sync |
+| `printfulImages` | string[] | Image URLs from Printful sync |
+| `images` | string[] | Combined de-duped image set |
+| `colors` | object[] | `{ name, hex }` from Printful (preferred) or Printify |
+| `sizes` | string[] | Union of all provider sizes |
+| `minPrice` / `maxPrice` | number | Lowest/highest variant price (USD) |
+| `lastSyncedAt` | timestamp | When last provider sync ran |
+
+Returned by `GET /api/master-catalog`. Categories served: `Tees` (101–199), `Hoodies` (201–299), `Hats` (301–399), `Drinkware` (401–499).
 
 ### Catalog Management System
 

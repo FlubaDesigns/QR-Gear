@@ -392,48 +392,87 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
 
     for (const doc of snap.docs) {
       const p = doc.data() as any;
-      const category = (p.category && p.category !== 'Other') ? p.category : classifyCategory(p.title || '');
+
+      // Use QRG category from the record. Falls back to Unclassified.
+      const category = (p.qrgCategory && p.qrgCategory !== 'Unclassified') ? p.qrgCategory : (p.qrgCategory || 'Unclassified');
       if (!categories[category]) categories[category] = [];
-      const blueprintId = p.printifyBlueprintId ?? p.blueprintId ?? null;
-      const printfulId = p.printfulProductId ?? p.printfulId ?? null;
+
+      // Extract provider IDs from providerMappings (new format) or legacy fields
+      const providerMappings: any[] = Array.isArray(p.providerMappings) ? p.providerMappings : [];
+      const pyMapping = providerMappings.find((m: any) => m.provider === 'printify') || null;
+      const pfMapping = providerMappings.find((m: any) => m.provider === 'printful') || null;
+
+      const blueprintId = pyMapping?.blueprintId ?? p.printifyBlueprintId ?? p.blueprintId ?? null;
+      const printfulId = pfMapping?.productId ?? p.printfulProductId ?? p.printfulId ?? null;
+
+      // availableVia is the provider badge: ["printify"], ["printful"], or ["printify","printful"]
+      const availableVia: string[] = Array.isArray(p.availableVia) && p.availableVia.length > 0
+        ? p.availableVia
+        : (blueprintId != null && printfulId != null ? ['printify', 'printful'] : blueprintId != null ? ['printify'] : ['printful']);
+
+      // fulfillmentProvider for backward compat with existing frontend code
+      const fulfillmentProvider = availableVia.length > 1 ? 'both' : (availableVia[0] || 'printify');
+
       const colors = p.colors ?? p.availableColors ?? [];
       const sizes = p.sizes ?? p.availableSizes ?? [];
       const allImages: string[] = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
       const imageUrl = allImages[0] ?? null;
-      const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
+
+      // madeInUSA: true if any provider mapping is USA
+      const madeInUSA = p.madeInUSA ??
+        providerMappings.some((m: any) => m.isUSA) ??
+        ((p.originCountry || '').toUpperCase() === 'US');
+
+      // id: numeric ID for backward compat — prefer Printify blueprint ID
+      const id = blueprintId ?? printfulId;
+
       categories[category].push({
         docId: doc.id,
-        qrgId: p.qrgId ?? null,
+        qrgBlankId: p.qrgBlankId ?? null,
         qrgCategory: p.qrgCategory ?? null,
-        id: blueprintId ?? printfulId,
-        title: (p.title || "").trim(),
-        description: (p.description || "").trim() || null,
+        categorySource: p.categorySource ?? null,
+        id,
+        title: (p.canonicalTitle || p.title || '').trim(),
+        description: (p.description || '').trim() || null,
         brand: p.brand ?? null,
         model: p.model ?? null,
         images: allImages,
         imageUrl,
-        madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
+        printifyImages: Array.isArray(p.printifyImages) ? p.printifyImages : [],
+        printfulImages: Array.isArray(p.printfulImages) ? p.printfulImages : [],
+        madeInUSA,
         blueprintId,
-        printProviderId: p.printProviderId ?? null,
+        printfulId,
+        printProviderId: pyMapping?.printProviderId ?? p.printProviderId ?? null,
         minPrice: p.minPrice ?? null,
         maxPrice: p.maxPrice ?? null,
         colorCount: colors.length,
         availableColors: colors,
         availableSizes: sizes,
         fulfillmentProvider,
-        availableVia: p.availableVia ?? [fulfillmentProvider],
-        printfulId,
-        providers: p.providers ?? [fulfillmentProvider],
+        availableVia,
+        providers: availableVia,
+        providerMappings,
       });
     }
 
-    const CATEGORY_ORDER = ["T-Shirts & Tops","Sweatshirts & Hoodies","Hats & Caps","Drinkware","Bags & Accessories","Phone Cases & Tech","Stickers & Magnets","Wall Art & Posters","Home & Living","Stationery & Paper","Activewear & Specialty","Accessories","Pet Products","Holiday & Seasonal","Other"];
+    // QRG category order — defined ranges first, then Unclassified
+    const QRG_CATEGORY_ORDER = ['Tees', 'Hoodies', 'Hats', 'Drinkware', 'Unclassified'];
     const result = Object.entries(categories)
-      .map(([name, items]) => ({ name, items: items.sort((a: any, b: any) => a.title.localeCompare(b.title)), count: items.length }))
+      .map(([name, items]) => ({
+        name,
+        items: items.sort((a: any, b: any) => (a.title || '').localeCompare(b.title || '')),
+        count: items.length,
+        printifyCount: items.filter((i: any) => i.availableVia?.includes('printify')).length,
+        printfulCount: items.filter((i: any) => i.availableVia?.includes('printful')).length,
+        bothCount: items.filter((i: any) => i.availableVia?.length > 1).length,
+      }))
       .sort((a, b) => {
-        const ai = CATEGORY_ORDER.indexOf(a.name); const bi = CATEGORY_ORDER.indexOf(b.name);
+        const ai = QRG_CATEGORY_ORDER.indexOf(a.name);
+        const bi = QRG_CATEGORY_ORDER.indexOf(b.name);
         if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
-        if (ai === -1) return 1; if (bi === -1) return -1;
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
         return ai - bi;
       });
 

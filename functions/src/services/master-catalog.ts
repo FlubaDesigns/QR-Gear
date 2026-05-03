@@ -1,6 +1,20 @@
 import { db } from '../core';
 import { safeAssign, safeAssignRequired } from '../safeAssign';
-import { mergeImagesByUrl, mergeArrayUnionStrings, isMeaningfulValue } from './instance-resolver';
+import { mergeImagesByUrl, mergeArrayUnionStrings, isMeaningfulValue, ImageRecord } from './instance-resolver';
+
+/** Extract plain URL strings from an ImageRecord[] or mixed array */
+function toUrlArray(records: unknown[]): string[] {
+  return (records || []).map((r: any) => {
+    if (typeof r === 'string') return r.trim() || null;
+    if (r && typeof r === 'object' && typeof r.url === 'string') return r.url.trim() || null;
+    return null;
+  }).filter((u): u is string => !!u);
+}
+
+/** Merge image arrays and return plain URL strings */
+function mergeImages(existing: unknown[], incoming: unknown[]): string[] {
+  return toUrlArray(mergeImagesByUrl(existing, incoming) as ImageRecord[]);
+}
 
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
 const MASTER_CATALOG_SYNCS_COLLECTION = 'master_catalog_syncs';
@@ -8,72 +22,63 @@ const PRINTIFY_BLUEPRINTS_COLLECTION = 'printify_blueprints';
 const PRINTIFY_PROVIDERS_COLLECTION = 'printifyPrintProviders';
 const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
-const MAPPING_COLLECTION = 'printify_printful_mapping';
 
-export interface MasterCatalogProduct {
-  id: string;
-  title: string;
-  description: string | null;
-  brand: string | null;
-  images: string[];
-  minPrice: number | null;
-  maxPrice: number | null;
-  colors: Array<{ name: string; hex: string }>;
-  sizes: string[];
-  originCountry: string | null;
-  category: string | null;
-  printifyBlueprintId: number | null;
-  printfulProductId: number | null;
-  lastSyncedAt: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// ── QRG Blank Category Definitions (BBB segment of QRG numbering schema) ─────
+// Source of truth: README.md QRG Numbering System section
+export const QRG_BLANK_CATEGORIES = [
+  { name: 'Tees',      rangeStart: 101, rangeEnd: 199 },
+  { name: 'Hoodies',   rangeStart: 201, rangeEnd: 299 },
+  { name: 'Hats',      rangeStart: 301, rangeEnd: 399 },
+  { name: 'Drinkware', rangeStart: 401, rangeEnd: 499 },
+] as const;
 
-export interface SyncStats {
-  created: number;
-  updated: number;
-  matched: number;
-  printifyOnly: number;
-  printfulOnly: number;
+export type QRGCategoryName = 'Tees' | 'Hoodies' | 'Hats' | 'Drinkware';
+
+/**
+ * Classify a product into a QRG blank category based on title and typeName.
+ * Returns null if the product does not fit any defined category (Unclassified).
+ */
+function classifyToQRGCategory(title: string, typeName?: string | null): QRGCategoryName | null {
+  const t = ((title || '') + ' ' + (typeName || '')).toLowerCase();
+  if (/t-?shirt|tshirt|\btee\b|tank.?top|\bpolo\b|v-?neck|\bhenley\b|long.?sleeve|\bjersey\b|raglan|crop.?top|camisole|\bblouse\b|\bshirt\b|bodysuit|onesie/.test(t)) return 'Tees';
+  if (/hoodie|hoody|sweatshirt|pullover|\bfleece\b|zip.?up|crewneck|crew.?neck|\bsweater\b/.test(t)) return 'Hoodies';
+  if (/snapback|trucker.?hat|dad.?hat|baseball.?cap|bucket.?hat|\bbeanie\b|\bvisor\b|\bcap\b|\bhat\b/.test(t)) return 'Hats';
+  if (/\bmugs?\b|tumbler|water.?bottle|wine.?glass|beer.?stein|beer.?mug|\bflask\b|thermos|travel.?mug|\bpint\b|\bdrinkware\b|insulated.?bottle|insulated.?tumbler|shot.?glass/.test(t)) return 'Drinkware';
+  return null;
 }
 
 function normalizeForMatch(s: string | null | undefined): string {
   return (s || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 }
 
-function classifyCategory(title: string): string {
-  const t = (title || '').toLowerCase();
-  if (/christmas|holiday|ornament|halloween|easter|thanksgiving|valentine|xmas/.test(t)) return 'Holiday & Seasonal';
-  if (/\bpet\b|\bdog\b|\bcat\b|puppy|kitten|\banimal\b/.test(t)) return 'Pet Products';
-  if (/notebook|journal|planner|stationery|greeting card|postcard|notepad/.test(t)) return 'Stationery & Paper';
-  if (/acrylic print|acrylic sign|metal print|gallery wrap|art board|canvas wrap|canvas gallery|canvas print|wall art|poster|framed|tapestry|\bbanner\b|\bflag\b|art print/.test(t)) return 'Wall Art & Posters';
-  if (/tote bag|backpack|fanny pack|drawstring bag|duffel|duffle|messenger bag|crossbody|\bpouch\b|shopping bag|laptop bag/.test(t)) return 'Bags & Accessories';
-  if (/phone case|iphone|samsung case|airpod|laptop sleeve|mouse pad|mousepad|tablet case/.test(t)) return 'Phone Cases & Tech';
-  if (/sticker|magnet|decal|\bpatch\b/.test(t)) return 'Stickers & Magnets';
-  if (/mugs?|tumbler|water bottle|wine glass|beer stein|beer mug|\bflask\b|thermos|travel mug|\bpint\b|drinkware|insulated bottle|insulated tumbler|shot glass/.test(t)) return 'Drinkware';
-  if (/snapback|trucker hat|dad hat|baseball cap|bucket hat|\bbeanie\b|\bvisor\b|\bcap\b|\bhat\b/.test(t)) return 'Hats & Caps';
-  if (/hoodie|hoody|sweatshirt|pullover|\bfleece\b|zip.?up|crewneck|crew neck|\bsweater\b/.test(t)) return 'Sweatshirts & Hoodies';
-  if (/swimsuit|bikini|rash guard|windbreaker|biker short|boxer brief|bodycon|legging|yoga|jogger|sweatpant|sport bra|compression|activewear|athletic short/.test(t)) return 'Activewear & Specialty';
-  if (/t-shirt|tshirt|\btee\b|tank top|\bpolo\b|v-neck|\bhenley\b|long sleeve|\bjersey\b|raglan|crop top|camisole|\bblouse\b|\bshirt\b/.test(t)) return 'T-Shirts & Tops';
-  if (/\bpillow\b|blanket|\btowel\b|\bapron\b|\brug\b|doormat|table runner|cushion|coaster|shower curtain|duvet|bedding|\bbath\b|face mask|\bbandana\b|\bsock\b|calendar|\bclock\b|\bcandle\b|keychain|\bwallet\b|serving tray|phone stand/.test(t)) return 'Home & Living';
-  if (/bracelet|necklace|earring|\bring\b|\bwatch\b|sunglasse|\bscarf\b|\bglove\b|\bbelt\b|headband|neck gaiter|hair/.test(t)) return 'Accessories';
-  return 'Other';
+function isBrandModelMatch(
+  brandA: string | null | undefined,
+  modelA: string | null | undefined,
+  brandB: string | null | undefined,
+  modelB: string | null | undefined,
+): boolean {
+  if (!brandA || !modelA || !brandB || !modelB) return false;
+  const ba = normalizeForMatch(brandA);
+  const ma = normalizeForMatch(modelA);
+  const bb = normalizeForMatch(brandB);
+  const mb = normalizeForMatch(modelB);
+  const brandMatch = ba === bb || ba.includes(bb) || bb.includes(ba);
+  const modelMatch = ma === mb || ma.includes(mb) || mb.includes(ma);
+  return brandMatch && modelMatch;
 }
 
-function isBrandModelMatch(
-  printifyBrand: string | null | undefined,
-  printifyModel: string | null | undefined,
-  printfulBrand: string | null | undefined,
-  printfulModel: string | null | undefined,
-): boolean {
-  if (!printifyBrand || !printifyModel || !printfulBrand || !printfulModel) return false;
-  const pb = normalizeForMatch(printifyBrand);
-  const pm = normalizeForMatch(printifyModel);
-  const fb = normalizeForMatch(printfulBrand);
-  const fm = normalizeForMatch(printfulModel);
-  const brandMatch = pb === fb || pb.includes(fb) || fb.includes(pb);
-  const modelMatch = pm === fm || pm.includes(fm) || fm.includes(pm);
-  return brandMatch && modelMatch;
+function extractImageUrls(raw: unknown): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((img: any) => {
+        if (typeof img === 'string') return img;
+        return img?.src || img?.url || img?.imageUrl || null;
+      })
+      .filter((u): u is string => !!u && typeof u === 'string');
+  }
+  if (typeof raw === 'string') return [raw];
+  return [];
 }
 
 async function commitBatch(writes: Array<{ ref: FirebaseFirestore.DocumentReference; data: any; merge: boolean }>): Promise<void> {
@@ -92,18 +97,37 @@ async function commitBatch(writes: Array<{ ref: FirebaseFirestore.DocumentRefere
   }
 }
 
-export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}): Promise<SyncStats> {
-  console.log('[MasterCatalog] Starting sync...');
+export interface SyncStats {
+  created: number;
+  updated: number;
+  bridged: number;
+  printifyOnly: number;
+  printfulOnly: number;
+  unclassified: number;
+  byCategory: { tees: number; hoodies: number; hats: number; drinkware: number };
+}
 
-  const stats: SyncStats = { created: 0, updated: 0, matched: 0, printifyOnly: 0, printfulOnly: 0 };
+export async function syncMasterCatalog(_options: { forceRefresh?: boolean } = {}): Promise<SyncStats> {
+  console.log('[MasterCatalog] Starting QRG sync...');
+
+  const stats: SyncStats = {
+    created: 0,
+    updated: 0,
+    bridged: 0,
+    printifyOnly: 0,
+    printfulOnly: 0,
+    unclassified: 0,
+    byCategory: { tees: 0, hoodies: 0, hats: 0, drinkware: 0 },
+  };
+
   const writes: Array<{ ref: FirebaseFirestore.DocumentReference; data: any; merge: boolean }> = [];
 
-  const [bpSnap, provSnap, pfSnap, pvSnap, mapSnap, masterSnap] = await Promise.all([
+  // Load everything in parallel
+  const [bpSnap, provSnap, pfSnap, pvSnap, masterSnap] = await Promise.all([
     db.collection(PRINTIFY_BLUEPRINTS_COLLECTION).get(),
     db.collection(PRINTIFY_PROVIDERS_COLLECTION).get(),
     db.collection(PRINTFUL_PRODUCTS_COLLECTION).get(),
     db.collection(PRINTFUL_VARIANTS_COLLECTION).get(),
-    db.collection(MAPPING_COLLECTION).get(),
     db.collection(MASTER_CATALOG_COLLECTION).get(),
   ]);
 
@@ -112,38 +136,42 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
   const printfulProducts = pfSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
   const printfulVariants = pvSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
 
-  const existingMappings = mapSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
+  // Build existing master catalog map (docId → data)
   const existingMaster = new Map<string, any>();
   for (const doc of masterSnap.docs) {
     existingMaster.set(doc.id, { _docId: doc.id, ...doc.data() });
   }
 
-  console.log(`[MasterCatalog] Loaded: ${printifyBlueprints.length} blueprints, ${printfulProducts.length} Printful products, ${existingMappings.length} mappings`);
+  console.log(`[MasterCatalog] Loaded: ${printifyBlueprints.length} blueprints, ${printfulProducts.length} Printful products, ${existingMaster.size} existing master records`);
 
-  // Build lookup maps
-  const mappingByPrintifyId = new Map<number, any>();
-  const mappingByPrintfulId = new Map<number, any>();
-  for (const m of existingMappings) {
-    if (m.printifyBlueprintId) mappingByPrintifyId.set(Number(m.printifyBlueprintId), m);
-    if (m.printfulProductId) mappingByPrintfulId.set(Number(m.printfulProductId), m);
+  // ── Build lookups: providerKey → existing QRG docId ──────────────────────────
+  // Allows re-sync to find the correct QRG doc for a provider product
+  const blueprintToQrgDoc = new Map<number, string>(); // blueprintId → qrg_docId
+  const printfulToQrgDoc = new Map<number, string>();   // printfulProductId → qrg_docId
+  for (const [docId, data] of existingMaster.entries()) {
+    if (Array.isArray(data.providerMappings)) {
+      for (const m of data.providerMappings) {
+        if (m.provider === 'printify' && m.blueprintId) blueprintToQrgDoc.set(Number(m.blueprintId), docId);
+        if (m.provider === 'printful' && m.productId) printfulToQrgDoc.set(Number(m.productId), docId);
+      }
+    }
   }
 
-  // Build Printful lookup by id
-  const printfulById = new Map<number, any>();
-  for (const pf of printfulProducts) {
-    printfulById.set(Number(pf.id || pf._docId), pf);
+  // ── Build next available BBB number per category ──────────────────────────────
+  // On first run (empty collection) these start at range start.
+  // On re-sync they advance past existing assignments.
+  const nextBBB: Record<string, number> = {
+    'Tees': 101, 'Hoodies': 201, 'Hats': 301, 'Drinkware': 401,
+  };
+  for (const [, data] of existingMaster.entries()) {
+    if (data.qrgBlankId && data.qrgCategory && nextBBB[data.qrgCategory] !== undefined) {
+      if (Number(data.qrgBlankId) >= nextBBB[data.qrgCategory]) {
+        nextBBB[data.qrgCategory] = Number(data.qrgBlankId) + 1;
+      }
+    }
   }
 
-  // Build Printful variant lookup by productId
-  const variantsByPrintfulId = new Map<number, any[]>();
-  for (const v of printfulVariants) {
-    const pid = Number(v.productId || v.product_id);
-    if (!pid) continue;
-    if (!variantsByPrintfulId.has(pid)) variantsByPrintfulId.set(pid, []);
-    variantsByPrintfulId.get(pid)!.push(v);
-  }
-
-  // Build best Printify provider per blueprint (prefer USA, then lowest cost)
+  // ── Build best Printify provider per blueprint ──────────────────────────────
   const bestProviderByBlueprint = new Map<number, any>();
   for (const p of printifyProviders) {
     const bid = Number(p.blueprintId);
@@ -163,6 +191,52 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
     }
   }
 
+  // ── Build Printful variant and product lookups ──────────────────────────────
+  const variantsByPrintfulId = new Map<number, any[]>();
+  for (const v of printfulVariants) {
+    const pid = Number(v.productId || v.product_id);
+    if (!pid) continue;
+    if (!variantsByPrintfulId.has(pid)) variantsByPrintfulId.set(pid, []);
+    variantsByPrintfulId.get(pid)!.push(v);
+  }
+
+  const printfulById = new Map<number, any>();
+  for (const pf of printfulProducts) {
+    printfulById.set(Number(pf.id || pf._docId), pf);
+  }
+
+  // ── In-memory docs being built this sync ─────────────────────────────────────
+  // docId → accumulated entry (used for bridging within same sync run)
+  const inProgressDocs = new Map<string, any>();
+
+  function allocateQRGDocId(
+    existingDocId: string | undefined,
+    qrgCategory: QRGCategoryName | null,
+    pendingFallback: string,
+  ): { docId: string; alreadyExists: boolean } {
+    if (existingDocId) {
+      return { docId: existingDocId, alreadyExists: existingMaster.has(existingDocId) || inProgressDocs.has(existingDocId) };
+    }
+    if (qrgCategory) {
+      const bbb = nextBBB[qrgCategory];
+      const catDef = QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory);
+      if (catDef && bbb <= catDef.rangeEnd) {
+        nextBBB[qrgCategory] = bbb + 1;
+        return { docId: `qrg_${bbb}`, alreadyExists: false };
+      }
+    }
+    // No category match or range exhausted → pending doc
+    return { docId: `pending_${pendingFallback}`, alreadyExists: existingMaster.has(`pending_${pendingFallback}`) };
+  }
+
+  function bumpCategoryStats(qrgCategory: QRGCategoryName | null): void {
+    if (qrgCategory === 'Tees') stats.byCategory.tees++;
+    else if (qrgCategory === 'Hoodies') stats.byCategory.hoodies++;
+    else if (qrgCategory === 'Hats') stats.byCategory.hats++;
+    else if (qrgCategory === 'Drinkware') stats.byCategory.drinkware++;
+    else stats.unclassified++;
+  }
+
   const matchedPrintfulIds = new Set<number>();
 
   // ── Process Printify blueprints ──────────────────────────────────────────────
@@ -173,150 +247,170 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
     const provider = bestProviderByBlueprint.get(blueprintId);
     const now = new Date().toISOString();
 
-    // Find cross-provider mapping
-    let mapping = mappingByPrintifyId.get(blueprintId);
-    let printfulProduct: any = null;
+    // Classify into QRG category
+    const qrgCategory = classifyToQRGCategory(bp.title, bp.typeName) as QRGCategoryName | null;
 
-    if (mapping) {
-      printfulProduct = printfulById.get(Number(mapping.printfulProductId)) || null;
-    } else {
-      // Try to match by brand + model
-      for (const pf of printfulProducts) {
-        if (isBrandModelMatch(bp.brand, bp.model, pf.brand, pf.model)) {
-          printfulProduct = pf;
-          break;
-        }
-      }
-      if (printfulProduct) {
-        const mappingRef = db.collection(MAPPING_COLLECTION).doc();
-        writes.push({
-          ref: mappingRef,
-          data: {
-            printifyBlueprintId: blueprintId,
-            printifyBrand: bp.brand || null,
-            printifyModel: bp.model || null,
-            printfulProductId: Number(printfulProduct.id || printfulProduct._docId),
-            printfulBrand: printfulProduct.brand || null,
-            printfulModel: printfulProduct.model || null,
-            matchConfidence: 'brand_model',
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
-          },
-          merge: false,
-        });
-        stats.matched++;
+    // Try to match with a Printful product by brand+model
+    let matchedPrintful: any = null;
+    for (const pf of printfulProducts) {
+      if (isBrandModelMatch(bp.brand, bp.model, pf.brand, pf.model)) {
+        matchedPrintful = pf;
+        break;
       }
     }
 
-    if (printfulProduct) {
-      matchedPrintfulIds.add(Number(printfulProduct.id || printfulProduct._docId));
-    }
+    const pfId = matchedPrintful ? Number(matchedPrintful.id || matchedPrintful._docId) : null;
+    if (pfId !== null) matchedPrintfulIds.add(pfId);
 
-    const masterId = `py_${blueprintId}`;
-    const existing = existingMaster.get(masterId);
+    // Find existing QRG doc: check Printify mapping first, then Printful mapping
+    const existingViaBlueprint = blueprintToQrgDoc.get(blueprintId);
+    const existingViaPrintful = pfId !== null ? printfulToQrgDoc.get(pfId) : undefined;
+    const resolvedExistingId = existingViaBlueprint || existingViaPrintful;
 
-    // ── MERGE RULES ────────────────────────────────────────────────────────────
-    // safeAssign is used for every human-curated field so that null/empty
-    // provider payloads can NEVER wipe out previously-good catalog data.
+    const { docId, alreadyExists } = allocateQRGDocId(resolvedExistingId, qrgCategory, `py_${blueprintId}`);
 
-    // Title: Printful wins if matched, else Printify; existing always wins over empty
-    const providerTitle = printfulProduct?.title || printfulProduct?.typeName || bp.title || null;
-    const newTitle = safeAssignRequired(existing?.title, providerTitle);
+    // Register lookups so Printful processing can find this doc
+    blueprintToQrgDoc.set(blueprintId, docId);
+    if (pfId !== null) printfulToQrgDoc.set(pfId, docId);
 
-    // Description: Printify only. NEVER overwrite if already set.
-    const providerDesc = bp.description || null;
-    const newDescription = safeAssign(existing?.description, providerDesc);
+    const currentDoc = existingMaster.get(docId) || inProgressDocs.get(docId);
 
-    // Brand: Printful wins if matched; existing preserved over empty
-    const providerBrand = printfulProduct?.brand || bp.brand || null;
-    const newBrand = safeAssign(existing?.brand, providerBrand);
+    // ── Build Printify provider mapping ──────────────────────────────────────
+    const pyMapping: any = {
+      provider: 'printify',
+      blueprintId,
+      brand: bp.brand || null,
+      model: bp.model || null,
+      printProviderId: provider?.providerId || null,
+      originCountry: provider?.country || null,
+      isUSA: provider?.isUSA || false,
+    };
 
-    // Images: union-merge existing + Printify + Printful by URL; prefer richer metadata
-    const pyImagesRaw = Array.isArray(bp.images) ? bp.images : (bp.primaryImageUrl ? [bp.primaryImageUrl] : []);
-    const pfImagesRaw = printfulProduct
-      ? (Array.isArray(printfulProduct.images) ? printfulProduct.images : (printfulProduct.image ? [printfulProduct.image] : []))
-      : [];
-    const combinedImages = mergeImagesByUrl(
-      existing?.images ?? [],
-      [...pyImagesRaw, ...pfImagesRaw],
-    );
+    // ── Extract Printify images ───────────────────────────────────────────────
+    const pyImagesRaw = extractImageUrls(bp.images);
 
-    // Colors: Printful variants first, else Printify provider, else preserve existing
-    let incomingColors: Array<{ name: string; hex: string }> = [];
-    if (printfulProduct) {
-      const pfId = Number(printfulProduct.id || printfulProduct._docId);
+    // ── Build Printful data if matched ────────────────────────────────────────
+    let pfMapping: any = null;
+    let pfImagesRaw: string[] = [];
+    let pfColors: Array<{ name: string; hex: string }> = [];
+    let pfSizes: string[] = [];
+    let pfMinPrice: number | null = null;
+    let pfMaxPrice: number | null = null;
+    let pfOriginCountry: string | null = null;
+
+    if (matchedPrintful && pfId !== null) {
       const pfVars = variantsByPrintfulId.get(pfId) || [];
       const colorMap = new Map<string, string>();
-      for (const v of pfVars) {
-        if (v.color && !colorMap.has(v.color)) {
-          colorMap.set(v.color, v.colorCode || v.color_code || '#888888');
-        }
-      }
-      incomingColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
-    }
-    if (incomingColors.length === 0 && Array.isArray(provider?.availableColors)) {
-      incomingColors = provider.availableColors;
-    }
-    // Preserve existing colors if incoming is empty
-    const newColors = isMeaningfulValue(incomingColors) ? incomingColors : (existing?.colors ?? []);
-
-    // Sizes: Printful variants first, else Printify provider; union with existing so no size is ever lost
-    let incomingSizes: string[] = [];
-    if (printfulProduct) {
-      const pfId = Number(printfulProduct.id || printfulProduct._docId);
-      const pfVars = variantsByPrintfulId.get(pfId) || [];
       const sizeSet = new Set<string>();
-      for (const v of pfVars) { if (v.size) sizeSet.add(v.size); }
-      incomingSizes = Array.from(sizeSet);
+      for (const v of pfVars) {
+        if (v.color && !colorMap.has(v.color)) colorMap.set(v.color, v.colorCode || v.color_code || '#888888');
+        if (v.size) sizeSet.add(v.size);
+      }
+      pfColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+      pfSizes = Array.from(sizeSet);
+      pfImagesRaw = extractImageUrls(matchedPrintful.images);
+      if (pfImagesRaw.length === 0 && matchedPrintful.image) pfImagesRaw = [matchedPrintful.image];
+      pfMinPrice = matchedPrintful.minPrice ? parseFloat(String(matchedPrintful.minPrice)) : null;
+      pfMaxPrice = matchedPrintful.maxPrice ? parseFloat(String(matchedPrintful.maxPrice)) : null;
+      pfOriginCountry = matchedPrintful.originCountry || matchedPrintful.origin_country || null;
+      pfMapping = {
+        provider: 'printful',
+        productId: pfId,
+        brand: matchedPrintful.brand || null,
+        model: matchedPrintful.model || null,
+        originCountry: pfOriginCountry,
+        isUSA: (pfOriginCountry || '').toUpperCase() === 'US' || (pfOriginCountry || '').toUpperCase() === 'USA',
+      };
     }
-    if (incomingSizes.length === 0 && Array.isArray(provider?.availableSizes)) {
-      incomingSizes = provider.availableSizes;
+
+    // ── Merge provider mappings ───────────────────────────────────────────────
+    const existingMappings: any[] = currentDoc?.providerMappings || [];
+    const newMappings = [...existingMappings];
+    const pyIdx = newMappings.findIndex((m: any) => m.provider === 'printify' && m.blueprintId === blueprintId);
+    if (pyIdx >= 0) newMappings[pyIdx] = pyMapping; else newMappings.push(pyMapping);
+    if (pfMapping) {
+      const pfIdx = newMappings.findIndex((m: any) => m.provider === 'printful' && m.productId === pfId);
+      if (pfIdx >= 0) newMappings[pfIdx] = pfMapping; else newMappings.push(pfMapping);
     }
-    const newSizes = mergeArrayUnionStrings(existing?.sizes ?? [], incomingSizes);
 
-    // Origin country: Printful wins
-    const newOriginCountry = printfulProduct?.originCountry || printfulProduct?.origin_country || provider?.country || null;
+    // availableVia — provider badge: sorted array of providers that carry this blank
+    const availableVia: string[] = Array.from(new Set(newMappings.map((m: any) => m.provider))).sort();
 
-    // Price: take the higher of the two
-    const pyMinCents: number | null = provider?.minCost || null;
+    // ── Merge images by provider — stored separately AND combined ─────────────
+    const existingPyImages: string[] = currentDoc?.printifyImages || [];
+    const existingPfImages: string[] = currentDoc?.printfulImages || [];
+    const newPyImages = mergeImages(existingPyImages, pyImagesRaw);
+    const newPfImages = pfImagesRaw.length > 0
+      ? mergeImages(existingPfImages, pfImagesRaw)
+      : existingPfImages;
+    const combinedImages = mergeImages([], [...newPyImages, ...newPfImages]);
+
+    // ── Colors & sizes: Printful variants win if available, else Printify ─────
+    let incomingColors: Array<{ name: string; hex: string }> = pfColors;
+    if (incomingColors.length === 0 && Array.isArray(provider?.availableColors)) incomingColors = provider.availableColors;
+    const newColors = isMeaningfulValue(incomingColors) ? incomingColors : (currentDoc?.colors ?? []);
+
+    let incomingSizes: string[] = pfSizes;
+    if (incomingSizes.length === 0 && Array.isArray(provider?.availableSizes)) incomingSizes = provider.availableSizes;
+    const newSizes = mergeArrayUnionStrings(currentDoc?.sizes ?? [], incomingSizes);
+
+    // ── Pricing ───────────────────────────────────────────────────────────────
+    const pyMinCents: number | null = provider?.minCost ?? null;
     const pyMin: number | null = pyMinCents !== null ? pyMinCents / 100 : null;
-    const pyMaxCents: number | null = provider?.maxCost || null;
+    const pyMaxCents: number | null = provider?.maxCost ?? null;
     const pyMax: number | null = pyMaxCents !== null ? pyMaxCents / 100 : null;
-    const pfMin: number | null = printfulProduct?.minPrice ? parseFloat(String(printfulProduct.minPrice)) : null;
-    const pfMax: number | null = printfulProduct?.maxPrice ? parseFloat(String(printfulProduct.maxPrice)) : null;
-    const newMinPrice = pyMin !== null && pfMin !== null ? Math.max(pyMin, pfMin) : (pyMin ?? pfMin ?? null);
-    const newMaxPrice = pyMax !== null && pfMax !== null ? Math.max(pyMax, pfMax) : (pyMax ?? pfMax ?? null);
+    const newMinPrice = pyMin !== null && pfMinPrice !== null ? Math.max(pyMin, pfMinPrice) : (pyMin ?? pfMinPrice ?? null);
+    const newMaxPrice = pyMax !== null && pfMaxPrice !== null ? Math.max(pyMax, pfMaxPrice) : (pyMax ?? pfMaxPrice ?? null);
 
-    // Category — classify from title since source data rarely carries a category field
-    const newCategory = bp.category || printfulProduct?.category || classifyCategory(newTitle || bp.title || '');
+    // ── Canonical fields (safe merge — never overwrite with empty) ────────────
+    const providerTitle = matchedPrintful?.title || matchedPrintful?.typeName || bp.title || null;
+    const canonicalTitle = safeAssignRequired(currentDoc?.canonicalTitle, providerTitle);
+    const canonicalBrand = safeAssign(currentDoc?.brand, matchedPrintful?.brand || bp.brand || null);
+
+    // ── Determine categorySource ──────────────────────────────────────────────
+    // If existing doc was manually set by admin, respect it. Otherwise derive from classification.
+    const categorySource: string = currentDoc?.categorySource === 'manual'
+      ? 'manual'
+      : (qrgCategory ? 'mapped' : 'inferred');
 
     const entry: any = {
-      title: newTitle || existing?.title || '',
-      description: newDescription,
-      brand: newBrand || existing?.brand || null,
+      qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
+      qrgCategory: qrgCategory || 'Unclassified',
+      canonicalTitle,
+      brand: canonicalBrand || currentDoc?.brand || null,
+      model: safeAssign(currentDoc?.model, bp.model || matchedPrintful?.model || null),
+      description: safeAssign(currentDoc?.description, bp.description || null),
+      providerMappings: newMappings,
+      availableVia,
+      printifyImages: newPyImages,
+      printfulImages: newPfImages,
       images: combinedImages,
       colors: newColors,
       sizes: newSizes,
-      originCountry: newOriginCountry || existing?.originCountry || null,
-      category: newCategory || existing?.category || null,
-      printifyBlueprintId: blueprintId,
-      printfulProductId: printfulProduct ? Number(printfulProduct.id || printfulProduct._docId) : (existing?.printfulProductId || null),
+      originCountry: pfOriginCountry || provider?.country || currentDoc?.originCountry || null,
       minPrice: newMinPrice,
       maxPrice: newMaxPrice,
+      categorySource,
       lastSyncedAt: now,
       updatedAt: now,
     };
 
-    const masterRef = db.collection(MASTER_CATALOG_COLLECTION).doc(masterId);
-    if (existing) {
-      writes.push({ ref: masterRef, data: entry, merge: true });
-      stats.updated++;
-    } else {
+    inProgressDocs.set(docId, { ...currentDoc, ...entry });
+
+    const masterRef = db.collection(MASTER_CATALOG_COLLECTION).doc(docId);
+    const isFirstWrite = !alreadyExists;
+
+    if (isFirstWrite) {
       writes.push({ ref: masterRef, data: { ...entry, createdAt: now }, merge: false });
       stats.created++;
-      if (!printfulProduct) stats.printifyOnly++;
+      if (matchedPrintful) stats.bridged++;
+      else stats.printifyOnly++;
+    } else {
+      writes.push({ ref: masterRef, data: entry, merge: true });
+      stats.updated++;
     }
+
+    bumpCategoryStats(qrgCategory);
   }
 
   // ── Process unmatched Printful products ──────────────────────────────────────
@@ -325,8 +419,14 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
     if (matchedPrintfulIds.has(pfId)) continue;
 
     const now = new Date().toISOString();
-    const masterId = `pf_${pfId}`;
-    const existing = existingMaster.get(masterId);
+
+    const qrgCategory = classifyToQRGCategory(pf.title, pf.typeName) as QRGCategoryName | null;
+
+    const existingQrgDocId = printfulToQrgDoc.get(pfId);
+    const { docId, alreadyExists } = allocateQRGDocId(existingQrgDocId, qrgCategory, `pf_${pfId}`);
+    printfulToQrgDoc.set(pfId, docId);
+
+    const currentDoc = existingMaster.get(docId) || inProgressDocs.get(docId);
 
     const pfVars = variantsByPrintfulId.get(pfId) || [];
     const colorMap = new Map<string, string>();
@@ -335,51 +435,81 @@ export async function syncMasterCatalog(options: { forceRefresh?: boolean } = {}
       if (v.color && !colorMap.has(v.color)) colorMap.set(v.color, v.colorCode || v.color_code || '#888888');
       if (v.size) sizeSet.add(v.size);
     }
+    const incomingColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
+    const incomingSizes = Array.from(sizeSet);
 
-    // Images: union-merge existing + Printful by URL; prefer richer metadata
-    const pfImagesRaw: unknown[] = Array.isArray(pf.images) ? pf.images : (pf.image ? [pf.image] : []);
-    const combinedImages = mergeImagesByUrl(existing?.images ?? [], pfImagesRaw);
+    let pfImagesRaw = extractImageUrls(pf.images);
+    if (pfImagesRaw.length === 0 && pf.image) pfImagesRaw = [pf.image];
 
-    // Description: Printful never provides it — preserve existing (manually set) or null
-    const newDescription: string | null = safeAssign(existing?.description, null);
+    const pfOriginCountry = pf.originCountry || pf.origin_country || null;
+
+    const pfMapping: any = {
+      provider: 'printful',
+      productId: pfId,
+      brand: pf.brand || null,
+      model: pf.model || null,
+      originCountry: pfOriginCountry,
+      isUSA: (pfOriginCountry || '').toUpperCase() === 'US' || (pfOriginCountry || '').toUpperCase() === 'USA',
+    };
+
+    const existingMappings: any[] = currentDoc?.providerMappings || [];
+    const newMappings = [...existingMappings];
+    const pfIdx = newMappings.findIndex((m: any) => m.provider === 'printful' && m.productId === pfId);
+    if (pfIdx >= 0) newMappings[pfIdx] = pfMapping; else newMappings.push(pfMapping);
+
+    const availableVia: string[] = Array.from(new Set(newMappings.map((m: any) => m.provider))).sort();
+
+    const existingPfImages: string[] = currentDoc?.printfulImages || [];
+    const existingPyImages: string[] = currentDoc?.printifyImages || [];
+    const newPfImages = mergeImages(existingPfImages, pfImagesRaw);
+    const combinedImages = mergeImages([], [...existingPyImages, ...newPfImages]);
 
     const pfMin: number | null = pf.minPrice ? parseFloat(String(pf.minPrice)) : null;
     const pfMax: number | null = pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null;
 
-    const incomingPfColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
-    const incomingPfSizes  = Array.from(sizeSet);
+    const categorySource: string = currentDoc?.categorySource === 'manual'
+      ? 'manual'
+      : (qrgCategory ? 'mapped' : 'inferred');
 
     const entry: any = {
-      title: safeAssignRequired(existing?.title, pf.title || pf.typeName || null),
-      description: newDescription,
-      brand: safeAssign(existing?.brand, pf.brand || null),
+      qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
+      qrgCategory: qrgCategory || 'Unclassified',
+      canonicalTitle: safeAssignRequired(currentDoc?.canonicalTitle, pf.title || pf.typeName || null),
+      brand: safeAssign(currentDoc?.brand, pf.brand || null),
+      model: safeAssign(currentDoc?.model, pf.model || null),
+      description: safeAssign(currentDoc?.description, null),
+      providerMappings: newMappings,
+      availableVia,
+      printifyImages: existingPyImages,
+      printfulImages: newPfImages,
       images: combinedImages,
-      // Preserve existing colors/sizes if provider returns nothing
-      colors: isMeaningfulValue(incomingPfColors) ? incomingPfColors : (existing?.colors ?? []),
-      sizes: mergeArrayUnionStrings(existing?.sizes ?? [], incomingPfSizes),
-      originCountry: pf.originCountry || pf.origin_country || existing?.originCountry || null,
-      category: pf.category || existing?.category || classifyCategory(pf.title || pf.typeName || ''),
-      printifyBlueprintId: null,
-      printfulProductId: pfId,
-      minPrice: pfMin ?? existing?.minPrice ?? null,
-      maxPrice: pfMax ?? existing?.maxPrice ?? null,
+      colors: isMeaningfulValue(incomingColors) ? incomingColors : (currentDoc?.colors ?? []),
+      sizes: mergeArrayUnionStrings(currentDoc?.sizes ?? [], incomingSizes),
+      originCountry: pfOriginCountry || currentDoc?.originCountry || null,
+      minPrice: pfMin ?? currentDoc?.minPrice ?? null,
+      maxPrice: pfMax ?? currentDoc?.maxPrice ?? null,
+      categorySource,
       lastSyncedAt: now,
       updatedAt: now,
     };
 
-    const masterRef = db.collection(MASTER_CATALOG_COLLECTION).doc(masterId);
-    if (existing) {
-      writes.push({ ref: masterRef, data: entry, merge: true });
-      stats.updated++;
-    } else {
+    inProgressDocs.set(docId, { ...currentDoc, ...entry });
+
+    const masterRef = db.collection(MASTER_CATALOG_COLLECTION).doc(docId);
+    if (!alreadyExists) {
       writes.push({ ref: masterRef, data: { ...entry, createdAt: now }, merge: false });
       stats.created++;
       stats.printfulOnly++;
+    } else {
+      writes.push({ ref: masterRef, data: entry, merge: true });
+      stats.updated++;
     }
+
+    bumpCategoryStats(qrgCategory);
   }
 
   await commitBatch(writes);
-  console.log('[MasterCatalog] Sync complete:', stats);
+  console.log('[MasterCatalog] QRG sync complete:', stats);
   return stats;
 }
 

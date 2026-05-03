@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: May 2, 2026 (rev 31)
+Last updated: May 3, 2026 (rev 32)
 
 ---
 
@@ -894,6 +894,49 @@ Two gaps in the flush-on-leave autosave path were closed. (1) Auth headers were 
 | File | Change |
 |------|--------|
 | `client/src/features/adminProducts/builder/BuilderContext.tsx` | Added `selectedStore`, `selectedChannel`, `selectedCollection`, `state.selectedCatalogId` to autosave `useEffect` dep array |
+
+---
+
+### May 3, 2026 — Feature: QRG BBB Master Blank Catalog Architecture
+
+Full rebuild of the master blank catalog to use QRG BBB numbering as the master identity layer. Provider bridges (Printify + Printful) now resolve to a single canonical `qrg_NNN` record per blank type instead of separate per-provider docs.
+
+**What changed:**
+
+1. **QRG BBB sequential numbering** — Each blank type gets a permanent `qrg_NNN` Firestore doc ID (e.g. `qrg_101` = first Tee, `qrg_201` = first Hoodie). Numbers auto-assign at sync time in sequential order per category. Unclassified products fall back to `pending_py_*` or `pending_pf_*`.
+
+2. **Provider bridge** — When both Printify and Printful carry the same brand+model blank, they are merged into one `qrg_NNN` record via `providerMappings[]` array. `availableVia` field lists which providers stock the blank.
+
+3. **Separate images per provider** — `printifyImages[]` and `printfulImages[]` store images from each source. `images[]` holds the combined de-duped set. Avoids Printify images contaminating Printful-exclusive blanks and vice versa.
+
+4. **QRG categories on the API** — `GET /api/master-catalog` now groups items into QRG categories (Tees 101–199, Hoodies 201–299, Hats 301–399, Drinkware 401–499, Unclassified). `categorySource: "qrg"|"pending"` distinguishes classified vs. unclassified records.
+
+5. **Provider badge on admin blank cards** — Each blank card in the Admin Blanks page shows a colored badge: **Printify** (orange), **Printful** (sky blue), **Both** (violet). Badge reads from `availableVia[]` on the product map.
+
+6. **QRG category filter labels** — The category filter dropdown now shows QRG range labels: "Tees (101–199)", "Hoodies (201–299)", "Hats (301–399)", "Drinkware (401–499)" instead of raw strings.
+
+7. **Backward compat** — `fulfillmentProvider` field retained on API responses so older code paths still work. `getProductKey()` helper abstracts key lookup. `expandBlankIdSet()` passes `qrg_*` and `pending_*` IDs through without expansion.
+
+**Firestore schema for `master_catalog`:**
+| Field | Description |
+|---|---|
+| `qrgBlankId` | Doc ID (`qrg_101`, `pending_py_12`, …) |
+| `qrgCategory` | Tees / Hoodies / Hats / Drinkware / Unclassified |
+| `categorySource` | `qrg` or `pending` |
+| `availableVia` | `["Printify"]`, `["Printful"]`, or both |
+| `providerMappings` | `[{ provider, blueprintId/productId, title, printProviderId }]` |
+| `canonicalTitle` / `brand` / `model` | Display identity |
+| `originCountry` | e.g. `USA`, `Nicaragua` |
+| `printifyImages[]` / `printfulImages[]` / `images[]` | Per-provider + combined images |
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/services/master-catalog.ts` | Rewritten: full QRG sync engine with sequential BBB numbering, provider bridge, separate image arrays |
+| `functions/src/routes/pp-catalog-browse.ts` | Updated: `/master-catalog` endpoint serves QRG categories, adds `qrgBlankId`/`availableVia`/`providerMappings` to response |
+| `shared/blankKeys.ts` | Added `isQRGBlankId()`, `isPendingBlankId()`, `getQRGBlankNumber()` helpers |
+| `client/src/features/adminProducts/controllers/useAdminBlanksController.ts` | Rewritten: `isAvailableVia()` replaces direct provider check; `allProductMap` indexed by `docId`; `getProductKey()` helper |
+| `client/src/pages/admin-blanks.tsx` | Provider badge (Printify/Printful/Both) on blank cards; QRG range labels in category filter dropdown |
 
 ---
 
