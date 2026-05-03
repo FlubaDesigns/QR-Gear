@@ -142,11 +142,19 @@ export function StoreChannelDropdownModule() {
 
   const deleteStoreMutation = useMutation({
     mutationFn: (storeId: string) =>
-      adminFetch(`/stores/by-id/${storeId}`, { method: "DELETE" }),
+      adminFetch(`/stores/${storeId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["stores", "internal"] });
+      queryClient.invalidateQueries({ queryKey: ["stores", "external"] });
+      queryClient.invalidateQueries({ queryKey: ["stores", "member"] });
       setSelectedStore(null);
       setSelectedChannel(null);
+      setSelectedCollection(null);
+    },
+    onError: (err: any) => {
+      console.error("[StoreChannelDropdownModule] deleteStore error:", err);
+      alert(`Could not delete store: ${err?.message || "Unknown error"}`);
     },
   });
 
