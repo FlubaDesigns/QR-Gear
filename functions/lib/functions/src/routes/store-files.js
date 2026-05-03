@@ -174,6 +174,7 @@ function register(app) {
                     channel: d.channelId || null,
                     collection: d.collectionName || null,
                     packetId: d.currentPacketId || null,
+                    qrgId: resolved.qrgId || null,
                     options: (0, storefrontTypes_1.buildStructuredOptions)(bColors, bSizes),
                     cardMode: (0, storefrontTypes_1.deriveCardMode)(bColors, bSizes),
                     media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },

@@ -203,6 +203,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         channel: d.channelId || null,
         collection: d.collectionName || null,
         packetId: d.currentPacketId || null,
+        qrgId: resolved.qrgId || null,
         options: buildStructuredOptions(bColors, bSizes),
         cardMode: deriveCardMode(bColors, bSizes),
         media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },

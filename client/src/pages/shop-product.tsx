@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 import { StorefrontBreadcrumb } from "@/features/storefront/StorefrontBreadcrumb";
 import { getChannelConfig } from "@/data/shopHierarchy";
 import PhoneMockupCard from "@/components/PhoneMockupCard";
+import { buildVariantSuffix } from "../../../shared/qrgCodes";
 
 const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> = {
   "qr-basics": { label: "QR Basics", color: "bg-slate-500" },
@@ -86,6 +87,8 @@ interface StoreProduct {
   channel: string | null;
   collection: string | null;
   packetId: string | null;
+  /** QRG model number — everything up to the build segment, e.g. "QRG-I-101-001" */
+  qrgId?: string | null;
   /** Structured display-intent options from builder layer */
   options?: ProductOption[] | null;
   /** Card display mode */
@@ -115,6 +118,11 @@ export default function ShopProductPage() {
   const [localMockupsByColor, setLocalMockupsByColor] = useState<
     Record<string, { front?: string; lifestyle?: string; angles?: string[] }> | null
   >(null);
+  // Inline validation error flags — set on add-to-cart attempt, cleared on selection
+  const [colorError, setColorError] = useState(false);
+  const [sizeError, setSizeError] = useState(false);
+  const colorSectionRef = useRef<HTMLDivElement>(null);
+  const sizeSectionRef = useRef<HTMLDivElement>(null);
 
   const { data: product, isLoading, error } = useQuery<StoreProduct>({
     queryKey: ["/api/store/product", linkId],
@@ -163,6 +171,7 @@ export default function ShopProductPage() {
 
   const handleColorChange = async (color: string) => {
     setSelectedColor(color);
+    setColorError(false);
     if (!linkId || isMockupCached(color)) return;
     setMockupFetching(true);
     try {
@@ -203,6 +212,23 @@ export default function ShopProductPage() {
 
   const handleAddToCart = async (): Promise<boolean> => {
     if (!product || !product.price) return false;
+
+    // ── Inline validation ──────────────────────────────────────────────────
+    const needsColor = (product.availableColors?.length ?? 0) > 0;
+    const needsSize  = (product.availableSizes?.length ?? 0) > 0;
+    let blocked = false;
+    if (needsColor && !selectedColor) {
+      setColorError(true);
+      colorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      blocked = true;
+    }
+    if (needsSize && !selectedSize) {
+      setSizeError(true);
+      if (!blocked) sizeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      blocked = true;
+    }
+    if (blocked) return false;
+
     setAddingToCart(true);
 
     try {
@@ -216,6 +242,8 @@ export default function ShopProductPage() {
         throw new Error(err.error || "Failed to add to cart");
       }
       const resolved = await addToCartRes.json();
+
+      const variantSuffix = buildVariantSuffix(selectedSize, selectedColor);
 
       const cartData = {
         productId: resolved.productId,
@@ -232,6 +260,7 @@ export default function ShopProductPage() {
           packetId: resolved.customization?.packetId || product.packetId,
           printifyProductId: resolved.customization?.printifyProductId || null,
           printifyVariantId: resolved.customization?.printifyVariantId || null,
+          variantSuffix: variantSuffix || null,
         },
       };
 
@@ -391,6 +420,11 @@ export default function ShopProductPage() {
               <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-product-name">
                 {product.name}
               </h1>
+              {product.qrgId && (
+                <p className="text-xs text-muted-foreground mt-1 font-mono tracking-wide" data-testid="text-model-number">
+                  Model: {product.qrgId}
+                </p>
+              )}
               <p className="text-base font-semibold text-foreground mt-2">
                 Scan it. It opens something real.
               </p>
@@ -464,16 +498,19 @@ export default function ShopProductPage() {
             {(() => {
               if (!colorOption || colorOption.values.length === 0) return null;
               return (
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
+                <div ref={colorSectionRef}>
+                  <label className="text-sm font-medium mb-2 flex items-center gap-2">
                     Color
+                    {colorError && (
+                      <span className="text-xs font-normal text-destructive">— please select a color</span>
+                    )}
                   </label>
                   <Select
                     value={selectedColor ?? ''}
                     onValueChange={(val) => handleColorChange(val)}
                     data-testid="select-color"
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className={`w-full${colorError ? " ring-2 ring-destructive ring-offset-1" : ""}`}>
                       {selectedColor ? (
                         <span className="flex items-center gap-2">
                           <span
@@ -517,23 +554,30 @@ export default function ShopProductPage() {
             {(() => {
               if (!sizeOption || sizeOption.values.length === 0) return null;
               const displayType = sizeOption.displayType ?? 'pills';
+              const onSizePick = (label: string) => {
+                setSelectedSize(label);
+                setSizeError(false);
+              };
               return (
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
+                <div ref={sizeSectionRef}>
+                  <label className="text-sm font-medium mb-2 flex items-center gap-2">
                     Size:{" "}
                     <span className="text-muted-foreground font-normal">
                       {selectedSize || "Select a size"}
                     </span>
+                    {sizeError && (
+                      <span className="text-xs font-normal text-destructive">— please select a size</span>
+                    )}
                   </label>
                   {displayType === 'pills' && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className={`flex flex-wrap gap-2 rounded-md p-1 -m-1 transition-colors${sizeError ? " ring-2 ring-destructive ring-offset-1" : ""}`}>
                       {sizeOption.values.map((sv) => (
                         <Button
                           key={sv.label}
                           variant={selectedSize === sv.label ? "default" : "outline"}
                           size="sm"
                           disabled={!sv.available}
-                          onClick={() => sv.available && setSelectedSize(sv.label)}
+                          onClick={() => sv.available && onSizePick(sv.label)}
                           data-testid={`button-size-${sv.label.toLowerCase()}`}
                         >
                           {sv.label}
@@ -542,7 +586,7 @@ export default function ShopProductPage() {
                     </div>
                   )}
                   {displayType === 'swatches' && (
-                    <div className="flex flex-wrap gap-2.5">
+                    <div className={`flex flex-wrap gap-2.5 rounded-md p-1 -m-1 transition-colors${sizeError ? " ring-2 ring-destructive ring-offset-1" : ""}`}>
                       {sizeOption.values.map((sv) => {
                         const isSelected = selectedSize === sv.label;
                         return (
@@ -555,7 +599,7 @@ export default function ShopProductPage() {
                                 ? "border-primary ring-2 ring-primary/30 scale-110 bg-primary text-primary-foreground"
                                 : "border-border hover:scale-105"
                             }`}
-                            onClick={() => sv.available && setSelectedSize(sv.label)}
+                            onClick={() => sv.available && onSizePick(sv.label)}
                             aria-label={sv.label}
                             data-testid={`swatch-size-${sv.label.toLowerCase()}`}
                           >
@@ -567,9 +611,9 @@ export default function ShopProductPage() {
                   )}
                   {displayType === 'dropdown' && (
                     <select
-                      className="w-full border rounded-md p-2 text-sm bg-background"
+                      className={`w-full border rounded-md p-2 text-sm bg-background${sizeError ? " ring-2 ring-destructive" : ""}`}
                       value={selectedSize ?? ''}
-                      onChange={e => setSelectedSize(e.target.value)}
+                      onChange={e => { setSelectedSize(e.target.value); setSizeError(false); }}
                       data-testid="select-size"
                     >
                       <option value="">Select a size</option>

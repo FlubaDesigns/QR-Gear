@@ -1335,6 +1335,30 @@ Replaced the static "Scan this / Goes here" section on the store product page wi
 | `replit.md` | Added READ SKILLS FIRST banner at top, updated deploy instructions throughout |
 | `README.md` | Updated Firebase Deployment section to three-step scripts |
 
+### May 3, 2026 — QRG Model Number on Store Product Page (Item #6)
+
+Surfaces the QRG model number (e.g. `QRG-I-101-001`) directly on the store product page below the product title. The model number was already written to Firestore at commit time — this wires it through the API response and renders it as small mono muted text with a `data-testid="text-model-number"` attribute.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/store-files.ts` | Added `qrgId: resolved.qrgId \|\| null` to catalog-instances product API response |
+| `client/src/pages/shop-product.tsx` | Added `qrgId?` to `StoreProduct` interface; conditional `Model: {qrgId}` render below title |
+
+---
+
+### May 2, 2026 — Variant Selection Enforcement + QRG Barcode Suffix (Item #5)
+
+Enforces that customers must select both color and size before adding to cart. On attempt without a selection, the missing selector gets a red ring and inline error text; the page scrolls to the first missing one. Clears automatically on pick. Also introduces the QRG variant suffix (`{X}{CC}`) attached to every cart item for fulfillment barcode generation.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/qrgCodes.ts` | New — `SIZE_DIGIT_MAP` (S=3 … 2XL=7), `COLOR_CODE_MAP` (01–99 for all platform colors), `buildVariantSuffix(size, color)` helper |
+| `client/src/pages/shop-product.tsx` | `colorError`/`sizeError` state + refs; validation in `handleAddToCart`; error ring + inline label text on color/size selectors; `onSizePick` clears `sizeError`; `variantSuffix` attached to cart customization |
+
+---
+
 ### May 2, 2026 — Live Color Mockup Swap on Store Product Page (Item #4)
 
 When a customer picks a color from the store product page dropdown, the gallery now swaps immediately if that color's mockup is cached, or shows a spinner overlay while fetching a fresh mockup on demand.
