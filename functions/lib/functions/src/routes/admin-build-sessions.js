@@ -814,9 +814,12 @@ function registerAdminBuildSessions(app) {
     app.post('/admin/qrg/publish-to-printify/:packetId', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { packetId } = req.params;
-            // printProviderId can be overridden via body; defaults to 99 (Monster Digital – US)
+            // printProviderId and colors can be overridden via body
             const overrideProviderId = req.body.printProviderId
                 ? parseInt(req.body.printProviderId, 10)
+                : undefined;
+            const overrideColors = Array.isArray(req.body.colors)
+                ? req.body.colors.map((c) => String(c).trim()).filter(Boolean)
                 : undefined;
             const packetDoc = await core_1.db.collection('productPackets').doc(packetId).get();
             if (!packetDoc.exists) {
@@ -835,7 +838,8 @@ function registerAdminBuildSessions(app) {
             const blueprintId = parseInt(packet.blueprintId, 10);
             const printProviderId = overrideProviderId || packet.printProviderId || 99;
             // ── 1. Resolve enabled colors + sizes ──────────────────────────────────
-            const enabledColors = (packet.colors || packet.enabledColors || []).map((c) => typeof c === 'string' ? c : c?.name || c?.label || String(c)).filter(Boolean);
+            const rawColors = overrideColors || (packet.colors || packet.enabledColors || []);
+            const enabledColors = rawColors.map((c) => typeof c === 'string' ? c : c?.name || c?.label || String(c)).filter(Boolean);
             const enabledSizes = (packet.sizes || packet.enabledSizes || []).map((s) => typeof s === 'string' ? s : s?.name || s?.label || String(s)).filter(Boolean);
             if (enabledColors.length === 0 || enabledSizes.length === 0) {
                 res.status(400).json({ error: 'Packet has no enabled colors or sizes — add them before publishing' });
@@ -934,6 +938,7 @@ function registerAdminBuildSessions(app) {
                 printProviderId,
                 variantCount: variantObjs.length,
                 printifyVariantMap,
+                enabledColors,
             });
         }
         catch (err) {
