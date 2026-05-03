@@ -1402,6 +1402,120 @@ Enforces that customers must select both color and size before adding to cart. O
 
 ---
 
+### May 3, 2026 — Brand + Model Subtitle Display + Master Catalog Enrichment Attempts
+
+#### Overview
+
+Two goals were pursued in this session:
+1. **Brand + model subtitle on admin Blanks page** — DONE and deployed to production.
+2. **Master catalog enrichment** — populate `printPositions`, `printSizes`, `colors`, `sizes`, and `prices` on all 1,592 Firestore `master_catalog` docs by calling Printful and Printify provider APIs — **BLOCKED by Printful API hangs**. Status as of end of session: 2 docs enriched out of 304 T-Shirts attempted. Full explanation of what was tried is below.
+
+---
+
+#### Goal 1: Brand + Model Subtitle Display (COMPLETED + DEPLOYED)
+
+**Problem:** The admin Blanks page (`/admin/blanks`) showed product cards with only a generic category title (e.g. "T-Shirt"). Admins could not tell at a glance which specific blank they were looking at — a Bella+Canvas 3001 and a Gildan 5000 both just said "T-Shirt".
+
+**Fix:** Added brand + model as a subtitle line under the product title on both the scroll/browse card view and the admin catalog skin view. Also added manufacturer to the product detail modal.
+
+**What changed exactly:**
+- `NormalizedSourceBlank` interface in the controller got a new `model` field.
+- `normalizeSourceBlank()` maps `doc.model` → `model` on the interface.
+- `scrollItems` subtitle computation now joins `brand + " " + model` (e.g. `"Bella+Canvas 3001"`).
+- `ProductSelectCardSkin` renders the subtitle as a small gray line below the title, and the modal's "Manufacturer" row now shows brand + model together.
+- `AdminCatalogBlankSkin` renders the subtitle below the title in a smaller muted color.
+- `catalogItems` mapping in the controller passes `subtitle` through to the skin.
+
+**Files changed:**
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/controllers/useAdminBlanksController.ts` | Added `model` to `NormalizedSourceBlank`, set in `normalizeSourceBlank`, joined brand+model into `subtitle` for `scrollItems` and `catalogItems` |
+| `client/src/features/shared/components/skins/ProductSelectCardSkin.tsx` | Added `model` prop, renders brand+model subtitle line below title, updated modal manufacturer row |
+| `client/src/features/shared/components/skins/AdminCatalogBlankSkin.tsx` | Added `subtitle` prop, renders it below title |
+
+**Deployed:** Yes — full three-step Firebase deploy (build → functions → hosting) completed successfully.
+
+---
+
+#### Goal 2: Master Catalog Enrichment (IN PROGRESS — BLOCKED)
+
+**What enrichment means:** Each of the 1,592 `master_catalog` Firestore documents has `providerMappings[]` (which tells us which Printful product ID or Printify blueprint ID maps to this blank). Enrichment means calling each provider's API to fetch real `printPositions`, `printSizes` (canvas dimensions per placement), `colors`, `sizes`, and price ranges — and writing them back to Firestore so the admin UI and product builder have accurate data without hitting the provider APIs at build time.
+
+---
+
+#### Attempt 1: Simple background task, single category
+
+**What was tried:** Initial enrichment route spawned a background `setImmediate` loop that processed T-Shirts (304 docs) in batches of 8 concurrent docs, calling Printful's `getPrintfiles()` and Printify's blueprint printproviders API per doc.
+
+**What happened:** The Cloud Function default timeout (60 seconds) killed the job before it could finish even one batch. Confirmed: function timed out with 0 docs enriched.
+
+**Fix attempted:** Raised Cloud Function `timeoutSeconds` to 540 seconds in `functions/src/index.ts`.
+
+---
+
+#### Attempt 2: Raised timeout to 540s, loop all 32 categories
+
+**What was tried:** Route now starts a background task that loops all 32 categories sequentially, writing `currentCategory` / `categoryIndex` progress back to Firestore after each category finishes, so progress is observable without polling the CF directly. Timeout raised from 60s → 540s.
+
+**What happened:** Job `kciHBJth5NnomOEDPhTL` — still stalled on T-Shirts. Root cause identified: `printfulClient.request()` calls `fetch()` with no timeout option. Node.js `fetch` has no built-in timeout. Printful's API was hanging with zero response — the `fetch` call would sit open indefinitely. With BURST_SIZE=8 concurrent docs and each one waiting forever on Printful, the burst never resolved and the entire job froze. Only 2 docs enriched in 10+ minutes.
+
+---
+
+#### Attempt 3: Per-call 25s timeout + 3 retries with backoff
+
+**What was tried:** Wrapped every provider API call in a `withTimeout(25_000)` helper using `Promise.race([apiCall(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000))])`. Added `fetchWithRetry` with 3 retries and exponential backoff (2s → 4s → 8s). Also raised `timeoutSeconds` to 3600 (1 hour) in `functions/src/index.ts` and deployed updated functions.
+
+**What happened:** New job `HcCJcMBtQTQeI3YgajeP` triggered at 23:17:42 UTC. Monitored at 2-minute and 4-minute marks:
+- At 2 min: still on category 1 (T-Shirts), `categoryIndex: 1`
+- At 4 min: still on T-Shirts, **only 2 docs enriched** (confirmed via Firestore query filtering `lastEnrichedAt > job start time`)
+
+**Root cause analysis:** With 3 retries × 25s timeout + exponential backoff, a doc where Printful hangs every time costs: `25 + 2 + 25 + 4 + 25 + 8 = 89 seconds` before being skipped. With BURST_SIZE=8 concurrent docs and nearly all hanging, each burst takes ~89 seconds and yields close to zero enriched docs. T-Shirts has 304 docs → at this rate the T-Shirts category alone would take ~3,400 seconds (nearly an hour) and the full 1,592 docs would take many hours.
+
+**The underlying Printful problem:** The `getPrintfiles()` endpoint (`/mockup-generator/printfiles/:productId`) appears to respond extremely slowly or not at all from the Cloud Run environment. This is not a rate-limit error (which would return an HTTP response) — it is a network-level hang where the connection opens but no bytes are returned within 25 seconds. Whether this is a GCP egress issue, a Printful API change, or an environment-specific block is unknown.
+
+---
+
+#### What Files Were Touched for the Enrichment Work
+
+| File | What Changed |
+|------|-------------|
+| `functions/src/index.ts` | `timeoutSeconds` raised from default → 540 → 3600; `_BUILD_ID` bumped each deploy |
+| `functions/src/services/master-catalog.ts` | Added `QRG_TOP_LEVEL_CATEGORIES`, `QRG_BLANK_CATEGORIES` (full 32-category 4-digit scheme); added `withTimeout()` helper; rewrote `fetchWithRetry()` with per-call 25s timeout + 3 retries + exponential backoff; `enrichMasterCatalog()` accepts `categoryFilter` param to limit scope |
+| `functions/src/routes/master-catalog.ts` | `POST /admin/master-catalog/enrich` route now spawns a background task that loops all 32 categories sequentially; writes `currentCategory` / `categoryIndex` / `categoryTotal` progress fields to `master_catalog_syncs` Firestore doc after each category; job status (`running` / `completed` / `failed`) tracked in same doc |
+| `scripts/enrich-by-category.cjs` | Standalone monitoring script (Node.js CJS) — mints a Firebase custom token, exchanges it for an ID token, hits the enrich endpoint, and polls the Firestore job doc every 30 seconds printing progress. Not used in production — was an interim debugging tool before the server-side loop approach was adopted. |
+
+---
+
+#### Jobs Run (All Cancelled / Timed Out Except Current)
+
+| Job ID | Status | Notes |
+|--------|--------|-------|
+| `kciHBJth5NnomOEDPhTL` | `timed_out` | Attempt 1 — no per-call timeout, function timed out at 540s |
+| `BqO2tvEPQm6piXxBpaT3` | `cancelled` | Cancelled manually after confirmed stall |
+| `KHuPDRFzjoFoAIQ1jsVE` | `cancelled` | Cancelled manually after confirmed stall |
+| `EnGTdCwd0uVIeK9S3L4G` | `cancelled` | Cancelled manually after confirmed stall |
+| `HcCJcMBtQTQeI3YgajeP` | `running` | Current — 3600s timeout, 25s per-call timeout, 3 retries; still on T-Shirts at 4min mark, only 2 docs enriched |
+
+---
+
+#### Current State
+
+- Job `HcCJcMBtQTQeI3YgajeP` is still running (Cloud Function timeout = 3600s so it has up to 1 hour).
+- Printful `getPrintfiles()` API is hanging on nearly every call even with the 25s timeout guard.
+- **Net enrichment: 2 out of 304 T-Shirt docs** as of 23:22 UTC May 3, 2026.
+- The enrichment infrastructure (background task, sequential category loop, progress tracking, retry logic) is all in place and deployed — the bottleneck is exclusively the Printful API response time.
+
+---
+
+#### Recommended Next Steps for Enrichment
+
+1. **Skip Printful entirely for `printPositions`/`printSizes`** — use only Printify's blueprint API (which does respond) and populate those fields from Printify data only.
+2. **Or use cached `printful_products` Firestore collection** — if a prior sync already stored variant/printfile data in `printful_products`, query that collection directly instead of hitting the live Printful API.
+3. **Or reduce BURST_SIZE to 1** and add a 2-second delay between docs to stay well under any rate limit, accepting that enrichment takes hours but runs reliably.
+4. **Check Cloud Run → Printful network path** — it is possible GCP Cloud Run cannot reach Printful's mockup-generator endpoints without a proxy or VPC connector.
+
+---
+
 ### May 2, 2026 — Live Color Mockup Swap on Store Product Page (Item #4)
 
 When a customer picks a color from the store product page dropdown, the gallery now swaps immediately if that color's mockup is cached, or shows a spinner overlay while fetching a fresh mockup on demand.
@@ -1429,6 +1543,109 @@ When a customer picks a color from the store product page dropdown, the gallery 
 - Client-side file splits for performance
 - Admin UX shell adoption (Shadcn sidebar)
 - Store builder restructure
+
+---
+
+## QRG Blank ID System (4-Digit Catalog Numbering)
+
+Every blank product in the `master_catalog` Firestore collection is assigned a unique 4-digit numeric ID called `qrgBlankId`. This is separate from the QRG product serial number system (which tracks customer-owned items). The 4-digit blank ID is used purely to classify and identify the *type* of printable blank — the physical product before any design is applied.
+
+### Why It Was Built
+
+Before this system, blanks in Firestore were identified only by provider-specific IDs (e.g. Printify blueprint ID 12, Printful product ID 71). There was no stable, provider-agnostic way to refer to "a Bella+Canvas 3001 T-Shirt" as a single concept. If the provider changed their ID, or if the same blank was available on both Printify and Printful, there was no unified key. The 4-digit system is that unified key.
+
+### How the Numbers Work
+
+```
+X  X  0  0
+│  │
+│  └── Subcategory within parent (1–9, then x01–x99 for individual blanks)
+└───── Top-level parent category (1–6)
+```
+
+**Top-level categories (first digit):**
+
+| Code | Parent Category |
+|------|----------------|
+| 1xxx | Apparel |
+| 2xxx | Houseware |
+| 3xxx | Print & Display |
+| 4xxx | Accessories |
+| 5xxx | Pet Products |
+| 6xxx | Holiday & Seasonal |
+
+**Subcategory ranges (first two digits):**
+
+| Range | Subcategory |
+|-------|-------------|
+| 1101–1199 | T-Shirts |
+| 1201–1299 | Hoodies & Sweatshirts |
+| 1301–1399 | Bottoms & Active |
+| 1401–1499 | Hats & Caps |
+| 1501–1599 | Footwear & Socks |
+| 1601–1699 | Sleepwear & Underwear |
+| 1701–1799 | Baby & Kids |
+| 2101–2199 | Drinkware |
+| 2201–2299 | Barware |
+| 2301–2399 | Drinkware Accessories |
+| 2401–2499 | Kitchen & Dining |
+| 2501–2599 | Bedding & Textiles |
+| 2601–2699 | Home Décor |
+| 3101–3199 | Wall Art & Prints |
+| 3201–3299 | Stickers & Magnets |
+| 3301–3399 | Stationery & Paper |
+| 3401–3499 | Signs & Display |
+| 3501–3599 | Books & Photo |
+| 3601–3699 | Pins & Patches |
+| 3701–3799 | Tags |
+| 3801–3899 | Puzzles & Games |
+| 3901–3999 | Novelty |
+| 4101–4199 | Bags & Pouches |
+| 4201–4299 | Jewelry |
+| 4301–4399 | Phone & Tech Cases |
+| 4401–4499 | Travel Accessories |
+| 4501–4599 | Small Accessories |
+| 5101–5199 | Pet Apparel |
+| 5201–5299 | Pet Accessories |
+| 6101–6199 | Holiday Apparel |
+| 6201–6299 | Holiday Décor |
+| 6301–6399 | Seasonal Items |
+
+### Individual Blank IDs
+
+Within each subcategory range, each specific blank gets a sequential number in the last two digits. For example:
+- `1101` = first T-Shirt in the catalog (e.g. Bella+Canvas 3001)
+- `1102` = second T-Shirt (e.g. Gildan 5000)
+- `1103` = third T-Shirt
+- …up to `1199` = 99th T-Shirt
+
+### Firestore Fields
+
+Each `master_catalog` document stores:
+- `qrgBlankId` — the 4-digit numeric ID (integer), e.g. `1101`
+- `qrgCategory` — the human-readable subcategory name, e.g. `"T-Shirts"`
+- `qrgParentCategory` — the parent name, e.g. `"Apparel"`
+
+These are set during the master catalog sync that assigns IDs sequentially as blanks are classified.
+
+### What Changed
+
+The 4-digit system replaced an earlier scheme where blanks used `qrg_NNN` 3-digit string doc IDs (e.g. `qrg_101`, `qrg_201`). The new system:
+- Uses a true 4-digit integer (`qrgBlankId`) instead of a prefixed string
+- Has room for 6 top-level categories × up to 9 subcategories each × 99 blanks per subcategory = up to 5,346 classified blanks
+- Separates the "parent" and "subcategory" concepts cleanly into the first and second digit groups
+- Is defined in `functions/src/services/master-catalog.ts` as `QRG_TOP_LEVEL_CATEGORIES` and `QRG_BLANK_CATEGORIES`
+
+### How It Relates to the QRG Serial Number System
+
+These are two different systems that happen to share the "QRG" prefix:
+
+| System | Purpose | Example |
+|--------|---------|---------|
+| **4-digit blank ID** (`qrgBlankId`) | Identifies the *type* of printable blank in the master catalog | `1101` = "Bella+Canvas 3001 T-Shirt" |
+| **QRG serial number** (`QRG-I-101-001`) | Identifies a specific *built product* with design + owner | `QRG-I-101-001-000001` = owner's specific shirt |
+
+The blank ID is the catalog key. The serial number is the product identity key. They are related but distinct.
 
 ---
 

@@ -24,20 +24,32 @@ function delay(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-/** Fetch with automatic retry on 429 / 5xx, up to maxRetries attempts */
+/** Reject after timeoutMs with a timeout error */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
+/** Fetch with automatic retry on 429 / 5xx / timeout, up to maxRetries attempts */
 async function fetchWithRetry(
   fn: () => Promise<any>,
-  maxRetries = 4,
-  baseDelayMs = 2000
+  maxRetries = 3,
+  baseDelayMs = 2000,
+  timeoutMs = 25000
 ): Promise<any> {
   let attempt = 0;
   while (true) {
     try {
-      return await fn();
+      return await withTimeout(fn(), timeoutMs);
     } catch (e: any) {
       const isRateLimit = /429|rate.?limit|too.?many/i.test(e.message ?? '');
       const isServer   = /5\d\d|server.?error/i.test(e.message ?? '');
-      if ((isRateLimit || isServer) && attempt < maxRetries) {
+      const isTimeout  = /timed out/i.test(e.message ?? '');
+      if ((isRateLimit || isServer || isTimeout) && attempt < maxRetries) {
         const wait = baseDelayMs * Math.pow(2, attempt);
         console.warn(`[Enrich] Retry ${attempt + 1}/${maxRetries} after ${wait}ms — ${e.message}`);
         await delay(wait);
@@ -815,12 +827,15 @@ export interface EnrichStats {
  * unless forceRefresh is true.
  */
 export async function enrichMasterCatalog(
-  options: { forceRefresh?: boolean } = {}
+  options: { forceRefresh?: boolean; categoryFilter?: string } = {}
 ): Promise<EnrichStats> {
-  const { forceRefresh = false } = options;
+  const { forceRefresh = false, categoryFilter } = options;
   const stats: EnrichStats = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
 
-  const snap = await db.collection(MASTER_CATALOG_COLLECTION).get();
+  const baseQuery = categoryFilter
+    ? db.collection(MASTER_CATALOG_COLLECTION).where('qrgCategory', '==', categoryFilter)
+    : db.collection(MASTER_CATALOG_COLLECTION);
+  const snap = await baseQuery.get();
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   // ── Burst processing: N docs concurrently, then pause between bursts ───────

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
 import { requireAdmin } from '../middleware';
-import { syncMasterCatalog, enrichMasterCatalog, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
+import { syncMasterCatalog, enrichMasterCatalog, QRG_BLANK_CATEGORIES, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
 
 export function register(app: express.Express): void {
 
@@ -115,23 +115,48 @@ export function register(app: express.Express): void {
   app.post('/admin/master-catalog/enrich', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     const startedAt = new Date().toISOString();
     const forceRefresh = req.body?.forceRefresh === true;
+    const categoryFilter: string | undefined = req.body?.categoryFilter || undefined;
     const jobRef = await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
       type: 'enrich',
       status: 'running',
       forceRefresh,
+      ...(categoryFilter ? { categoryFilter } : {}),
       startedAt,
     });
     res.json({ success: true, jobId: jobRef.id, message: 'Enrichment started in background', startedAt });
 
     (async () => {
       try {
-        const result = await enrichMasterCatalog({ forceRefresh });
-        await jobRef.update({
-          status: 'completed',
-          ...result,
-          completedAt: new Date().toISOString(),
-        });
-        console.log('[MasterCatalog] Enrich job complete:', result);
+        if (categoryFilter) {
+          // Single-category mode
+          const result = await enrichMasterCatalog({ forceRefresh, categoryFilter });
+          await jobRef.update({ status: 'completed', ...result, completedAt: new Date().toISOString() });
+          console.log('[MasterCatalog] Enrich job complete (single category):', result);
+        } else {
+          // All-categories mode: process each subcategory sequentially, write progress to Firestore
+          const subcategories = QRG_BLANK_CATEGORIES.filter((c: any) => c.parent);
+          const totals = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
+          const categoryResults: Record<string, any> = {};
+
+          for (let i = 0; i < subcategories.length; i++) {
+            const cat = subcategories[i];
+            console.log(`[MasterCatalog] Enriching category ${i + 1}/${subcategories.length}: ${cat.name}`);
+            await jobRef.update({ currentCategory: cat.name, categoryIndex: i + 1, categoryTotal: subcategories.length });
+
+            const result = await enrichMasterCatalog({ forceRefresh, categoryFilter: cat.name });
+            categoryResults[cat.name] = result;
+            totals.total += result.total;
+            totals.printfulEnriched += result.printfulEnriched;
+            totals.printifyEnriched += result.printifyEnriched;
+            totals.skipped += result.skipped;
+            totals.errors += result.errors;
+
+            console.log(`[MasterCatalog] Category ${cat.name} done:`, result);
+          }
+
+          await jobRef.update({ status: 'completed', ...totals, categoryResults, completedAt: new Date().toISOString() });
+          console.log('[MasterCatalog] All-category enrich complete:', totals);
+        }
       } catch (e: any) {
         console.error('[MasterCatalog] Enrich job error:', e.message);
         await jobRef.update({ status: 'failed', error: e.message, completedAt: new Date().toISOString() });

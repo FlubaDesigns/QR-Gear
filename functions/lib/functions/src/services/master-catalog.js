@@ -28,17 +28,25 @@ function stripHtml(raw) {
 function delay(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
-/** Fetch with automatic retry on 429 / 5xx, up to maxRetries attempts */
-async function fetchWithRetry(fn, maxRetries = 4, baseDelayMs = 2000) {
+/** Reject after timeoutMs with a timeout error */
+function withTimeout(promise, timeoutMs) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Request timed out after ${timeoutMs}ms`)), timeoutMs)),
+    ]);
+}
+/** Fetch with automatic retry on 429 / 5xx / timeout, up to maxRetries attempts */
+async function fetchWithRetry(fn, maxRetries = 3, baseDelayMs = 2000, timeoutMs = 25000) {
     let attempt = 0;
     while (true) {
         try {
-            return await fn();
+            return await withTimeout(fn(), timeoutMs);
         }
         catch (e) {
             const isRateLimit = /429|rate.?limit|too.?many/i.test(e.message ?? '');
             const isServer = /5\d\d|server.?error/i.test(e.message ?? '');
-            if ((isRateLimit || isServer) && attempt < maxRetries) {
+            const isTimeout = /timed out/i.test(e.message ?? '');
+            if ((isRateLimit || isServer || isTimeout) && attempt < maxRetries) {
                 const wait = baseDelayMs * Math.pow(2, attempt);
                 console.warn(`[Enrich] Retry ${attempt + 1}/${maxRetries} after ${wait}ms — ${e.message}`);
                 await delay(wait);
@@ -770,9 +778,12 @@ async function syncMasterCatalog(_options = {}) {
  * unless forceRefresh is true.
  */
 async function enrichMasterCatalog(options = {}) {
-    const { forceRefresh = false } = options;
+    const { forceRefresh = false, categoryFilter } = options;
     const stats = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
-    const snap = await core_1.db.collection(MASTER_CATALOG_COLLECTION).get();
+    const baseQuery = categoryFilter
+        ? core_1.db.collection(MASTER_CATALOG_COLLECTION).where('qrgCategory', '==', categoryFilter)
+        : core_1.db.collection(MASTER_CATALOG_COLLECTION);
+    const snap = await baseQuery.get();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     // ── Burst processing: N docs concurrently, then pause between bursts ───────
     const BURST_SIZE = 8; // parallel requests per burst

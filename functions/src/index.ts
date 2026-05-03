@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260503-224551-30055';
+const _BUILD_ID = '20260503-231459-23078';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -131,7 +131,7 @@ export const api = onRequest(
     timeoutSeconds: 3600,
     memory: '256MiB',
     cors: true,
-    labels: { 'build-id': '20260503-timeout-3600' },
+    labels: { 'build-id': '20260503-timeout-fix-retry' },
   },
   app
 );

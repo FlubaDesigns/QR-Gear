@@ -111,22 +111,44 @@ function register(app) {
     app.post('/admin/master-catalog/enrich', middleware_1.requireAdmin, async (req, res) => {
         const startedAt = new Date().toISOString();
         const forceRefresh = req.body?.forceRefresh === true;
+        const categoryFilter = req.body?.categoryFilter || undefined;
         const jobRef = await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
             type: 'enrich',
             status: 'running',
             forceRefresh,
+            ...(categoryFilter ? { categoryFilter } : {}),
             startedAt,
         });
         res.json({ success: true, jobId: jobRef.id, message: 'Enrichment started in background', startedAt });
         (async () => {
             try {
-                const result = await (0, master_catalog_1.enrichMasterCatalog)({ forceRefresh });
-                await jobRef.update({
-                    status: 'completed',
-                    ...result,
-                    completedAt: new Date().toISOString(),
-                });
-                console.log('[MasterCatalog] Enrich job complete:', result);
+                if (categoryFilter) {
+                    // Single-category mode
+                    const result = await (0, master_catalog_1.enrichMasterCatalog)({ forceRefresh, categoryFilter });
+                    await jobRef.update({ status: 'completed', ...result, completedAt: new Date().toISOString() });
+                    console.log('[MasterCatalog] Enrich job complete (single category):', result);
+                }
+                else {
+                    // All-categories mode: process each subcategory sequentially, write progress to Firestore
+                    const subcategories = master_catalog_1.QRG_BLANK_CATEGORIES.filter((c) => c.parent);
+                    const totals = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
+                    const categoryResults = {};
+                    for (let i = 0; i < subcategories.length; i++) {
+                        const cat = subcategories[i];
+                        console.log(`[MasterCatalog] Enriching category ${i + 1}/${subcategories.length}: ${cat.name}`);
+                        await jobRef.update({ currentCategory: cat.name, categoryIndex: i + 1, categoryTotal: subcategories.length });
+                        const result = await (0, master_catalog_1.enrichMasterCatalog)({ forceRefresh, categoryFilter: cat.name });
+                        categoryResults[cat.name] = result;
+                        totals.total += result.total;
+                        totals.printfulEnriched += result.printfulEnriched;
+                        totals.printifyEnriched += result.printifyEnriched;
+                        totals.skipped += result.skipped;
+                        totals.errors += result.errors;
+                        console.log(`[MasterCatalog] Category ${cat.name} done:`, result);
+                    }
+                    await jobRef.update({ status: 'completed', ...totals, categoryResults, completedAt: new Date().toISOString() });
+                    console.log('[MasterCatalog] All-category enrich complete:', totals);
+                }
             }
             catch (e) {
                 console.error('[MasterCatalog] Enrich job error:', e.message);

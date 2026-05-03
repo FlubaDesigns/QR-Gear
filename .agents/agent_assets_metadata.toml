@@ -179,3 +179,9 @@ id = "RhI1VByQkxkEiMiKONxhc"
 uri = "file://downloads/QR_Gear_Roadmap.md"
 type = "text"
 title = "QR Gear Roadmap — Tasks 1–22"
+
+[[outputs]]
+id = "1Ktc2ZaSa2SD3JJTSXdyJ"
+uri = "file://downloads/qrgear_session_may3_2026.zip"
+type = "unspecified"
+title = "QR Gear — May 3 Session Files"
