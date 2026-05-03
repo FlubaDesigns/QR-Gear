@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
 import { requireAdmin } from '../middleware';
-import { syncMasterCatalog, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
+import { syncMasterCatalog, enrichMasterCatalog, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
 
 export function register(app: express.Express): void {
 
@@ -11,9 +11,10 @@ export function register(app: express.Express): void {
     const startedAt = new Date().toISOString();
     try {
       const forceRefresh = req.body?.forceRefresh === true;
-      console.log('[MasterCatalog] Sync requested, running synchronously...');
+      const cleanSweep = req.body?.cleanSweep === true;
+      console.log(`[MasterCatalog] Sync requested${cleanSweep ? ' (CLEAN SWEEP)' : ''}, running synchronously...`);
 
-      const result = await syncMasterCatalog({ forceRefresh });
+      const result = await syncMasterCatalog({ forceRefresh, cleanSweep });
 
       await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
         status: 'completed',
@@ -105,6 +106,37 @@ export function register(app: express.Express): void {
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // POST /admin/master-catalog/enrich — fetch print positions + sizes from provider APIs
+  // and store them on every master catalog doc for fast retrieval.
+  // Skips docs enriched within the last 7 days unless forceRefresh=true.
+  // Runs as a background job; responds immediately with a jobId.
+  app.post('/admin/master-catalog/enrich', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    const startedAt = new Date().toISOString();
+    const forceRefresh = req.body?.forceRefresh === true;
+    const jobRef = await db.collection(MASTER_CATALOG_SYNCS_COLLECTION).add({
+      type: 'enrich',
+      status: 'running',
+      forceRefresh,
+      startedAt,
+    });
+    res.json({ success: true, jobId: jobRef.id, message: 'Enrichment started in background', startedAt });
+
+    (async () => {
+      try {
+        const result = await enrichMasterCatalog({ forceRefresh });
+        await jobRef.update({
+          status: 'completed',
+          ...result,
+          completedAt: new Date().toISOString(),
+        });
+        console.log('[MasterCatalog] Enrich job complete:', result);
+      } catch (e: any) {
+        console.error('[MasterCatalog] Enrich job error:', e.message);
+        await jobRef.update({ status: 'failed', error: e.message, completedAt: new Date().toISOString() });
+      }
+    })();
   });
 
   // Alias: POST /admin/sync-master-products → same as /admin/master-catalog/sync

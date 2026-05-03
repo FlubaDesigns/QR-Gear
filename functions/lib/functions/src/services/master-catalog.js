@@ -3,9 +3,31 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MASTER_CATALOG_SYNCS_COLLECTION = exports.MASTER_CATALOG_COLLECTION = exports.QRG_LEGACY_CODE_MAP = exports.QRG_BLANK_CATEGORIES = exports.QRG_TOP_LEVEL_CATEGORIES = void 0;
 exports.resolveQrgCategoryLabel = resolveQrgCategoryLabel;
 exports.syncMasterCatalog = syncMasterCatalog;
+exports.enrichMasterCatalog = enrichMasterCatalog;
 const core_1 = require("../core");
 const safeAssign_1 = require("../safeAssign");
 const instance_resolver_1 = require("./instance-resolver");
+const printify_1 = require("./printify");
+const printful_1 = require("./printful");
+/** Strip HTML tags and collapse whitespace */
+function stripHtml(raw) {
+    if (!raw)
+        return null;
+    const stripped = raw
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+    return stripped || null;
+}
+function delay(ms) {
+    return new Promise(r => setTimeout(r, ms));
+}
 /** Extract plain URL strings from an ImageRecord[] or mixed array */
 function toUrlArray(records) {
     return (records || []).map((r) => {
@@ -283,7 +305,8 @@ async function commitBatch(writes) {
     }
 }
 async function syncMasterCatalog(_options = {}) {
-    console.log('[MasterCatalog] Starting QRG sync...');
+    const { cleanSweep = false } = _options;
+    console.log(`[MasterCatalog] Starting QRG sync${cleanSweep ? ' (CLEAN SWEEP — will wipe existing docs)' : ''}...`);
     const stats = {
         created: 0,
         updated: 0,
@@ -306,16 +329,39 @@ async function syncMasterCatalog(_options = {}) {
     const printifyProviders = provSnap.docs.map(d => ({ _docId: d.id, ...d.data() }));
     const printfulProducts = pfSnap.docs.map(d => ({ _docId: d.id, ...d.data() }));
     const printfulVariants = pvSnap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+    // ── Clean sweep: delete all existing master_catalog docs in batches ───────────
+    if (cleanSweep && masterSnap.size > 0) {
+        console.log(`[MasterCatalog] Clean sweep: deleting ${masterSnap.size} existing docs...`);
+        const deleteBatches = [];
+        let batch = core_1.db.batch();
+        let count = 0;
+        for (const doc of masterSnap.docs) {
+            batch.delete(doc.ref);
+            count++;
+            if (count % 400 === 0) {
+                deleteBatches.push(batch);
+                batch = core_1.db.batch();
+            }
+        }
+        if (count % 400 !== 0)
+            deleteBatches.push(batch);
+        for (const b of deleteBatches)
+            await b.commit();
+        console.log(`[MasterCatalog] Clean sweep: deleted ${masterSnap.size} docs.`);
+    }
     // Build existing master catalog map (docId → data)
+    // On clean sweep this is intentionally empty so all IDs are freshly allocated.
     const existingMaster = new Map();
-    for (const doc of masterSnap.docs) {
-        existingMaster.set(doc.id, { _docId: doc.id, ...doc.data() });
+    if (!cleanSweep) {
+        for (const doc of masterSnap.docs) {
+            existingMaster.set(doc.id, { _docId: doc.id, ...doc.data() });
+        }
     }
     console.log(`[MasterCatalog] Loaded: ${printifyBlueprints.length} blueprints, ${printfulProducts.length} Printful products, ${existingMaster.size} existing master records`);
     // ── Build lookups: providerKey → existing QRG docId ──────────────────────────
-    // Allows re-sync to find the correct QRG doc for a provider product
-    const blueprintToQrgDoc = new Map(); // blueprintId → qrg_docId
-    const printfulToQrgDoc = new Map(); // printfulProductId → qrg_docId
+    // On a clean sweep both maps are empty so every product gets a fresh 4-digit ID.
+    const blueprintToQrgDoc = new Map();
+    const printfulToQrgDoc = new Map();
     for (const [docId, data] of existingMaster.entries()) {
         if (Array.isArray(data.providerMappings)) {
             for (const m of data.providerMappings) {
@@ -327,8 +373,8 @@ async function syncMasterCatalog(_options = {}) {
         }
     }
     // ── Build next available BBB number per category ──────────────────────────────
-    // On first run (empty collection) these start at range start.
-    // On re-sync they advance past existing assignments.
+    // On first run or clean sweep these start at range start (e.g. 1101, 1201…).
+    // On incremental re-sync they advance past existing assignments.
     const nextBBB = {};
     for (const cat of exports.QRG_BLANK_CATEGORIES) {
         nextBBB[cat.name] = cat.rangeStart;
@@ -560,7 +606,7 @@ async function syncMasterCatalog(_options = {}) {
             canonicalTitle,
             brand: canonicalBrand || currentDoc?.brand || null,
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, bp.model || matchedPrintful?.model || null),
-            description: (0, safeAssign_1.safeAssign)(currentDoc?.description, bp.description || null),
+            description: (0, safeAssign_1.safeAssign)(currentDoc?.description, stripHtml(bp.richDescription || bp.description || null)),
             providerMappings: newMappings,
             availableVia,
             printifyImages: newPyImages,
@@ -649,7 +695,7 @@ async function syncMasterCatalog(_options = {}) {
             canonicalTitle: (0, safeAssign_1.safeAssignRequired)(currentDoc?.canonicalTitle, pf.title || pf.typeName || null),
             brand: (0, safeAssign_1.safeAssign)(currentDoc?.brand, pf.brand || null),
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, pf.model || null),
-            description: (0, safeAssign_1.safeAssign)(currentDoc?.description, null),
+            description: (0, safeAssign_1.safeAssign)(currentDoc?.description, stripHtml(pf.description || null)),
             providerMappings: newMappings,
             availableVia,
             printifyImages: existingPyImages,
@@ -679,6 +725,101 @@ async function syncMasterCatalog(_options = {}) {
     }
     await commitBatch(writes);
     console.log('[MasterCatalog] QRG sync complete:', stats);
+    return stats;
+}
+/**
+ * Enrich every master catalog doc with:
+ *   printPositions  – string[] of available print locations (e.g. ['front','back'])
+ *   printSizes      – { [position]: { width, height, dpi? } } in inches
+ *   description     – cleaned rich description (if not already set)
+ *   lastEnrichedAt  – ISO timestamp of this enrichment run
+ *
+ * Printful is tried first (gives dimensions).  Printify is used if Printful
+ * data is unavailable.  Docs enriched within the last 7 days are skipped
+ * unless forceRefresh is true.
+ */
+async function enrichMasterCatalog(options = {}) {
+    const { forceRefresh = false } = options;
+    const stats = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
+    const snap = await core_1.db.collection(MASTER_CATALOG_COLLECTION).get();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    for (const doc of snap.docs) {
+        const data = doc.data();
+        stats.total++;
+        // Skip recently-enriched docs unless forceRefresh
+        const alreadyEnriched = data.lastEnrichedAt && data.lastEnrichedAt > sevenDaysAgo && Array.isArray(data.printPositions) && data.printPositions.length > 0;
+        if (!forceRefresh && alreadyEnriched) {
+            stats.skipped++;
+            continue;
+        }
+        const providerMappings = Array.isArray(data.providerMappings) ? data.providerMappings : [];
+        const pyMapping = providerMappings.find((m) => m.provider === 'printify') || null;
+        const pfMapping = providerMappings.find((m) => m.provider === 'printful') || null;
+        const update = { lastEnrichedAt: new Date().toISOString() };
+        let enriched = false;
+        // ── 1. Printful — preferred (returns dimensions too) ────────────────────
+        if (!enriched && pfMapping?.productId && printful_1.printfulClient.isConfigured) {
+            try {
+                const printfileData = await printful_1.printfulClient.getPrintfiles(Number(pfMapping.productId));
+                const rawPlacements = printfileData?.available_placements ?? {};
+                const positions = [];
+                const sizes = {};
+                for (const [pos, info] of Object.entries(rawPlacements)) {
+                    // Skip embroidery-specific placements
+                    if (/embroid|emb_/i.test(pos))
+                        continue;
+                    positions.push(pos);
+                    if (info && (info.print_area_width || info.print_area_height)) {
+                        sizes[pos] = {
+                            width: Number(info.print_area_width ?? 0),
+                            height: Number(info.print_area_height ?? 0),
+                            ...(info.dpi ? { dpi: Number(info.dpi) } : {}),
+                        };
+                    }
+                }
+                if (positions.length > 0) {
+                    update.printPositions = positions;
+                    update.printSizes = sizes;
+                    enriched = true;
+                    stats.printfulEnriched++;
+                }
+                await delay(250);
+            }
+            catch (e) {
+                console.warn(`[Enrich] Printful printfiles error (product ${pfMapping.productId}):`, e.message);
+                stats.errors++;
+            }
+        }
+        // ── 2. Printify — fallback (positions only, no dimensions) ──────────────
+        if (!enriched && pyMapping?.blueprintId && pyMapping?.printProviderId && printify_1.printifyClient.isConfigured) {
+            try {
+                const variantData = await printify_1.printifyClient.getVariants(Number(pyMapping.blueprintId), Number(pyMapping.printProviderId));
+                const posSet = new Set();
+                for (const v of (variantData?.variants ?? [])) {
+                    for (const ph of (v.placeholders ?? [])) {
+                        if (ph.position)
+                            posSet.add(ph.position);
+                    }
+                }
+                if (posSet.size > 0) {
+                    update.printPositions = Array.from(posSet);
+                    // Printify doesn't return dimensions at this endpoint
+                    if (!update.printSizes)
+                        update.printSizes = {};
+                    enriched = true;
+                    stats.printifyEnriched++;
+                }
+                await delay(350);
+            }
+            catch (e) {
+                console.warn(`[Enrich] Printify variants error (bp ${pyMapping.blueprintId}):`, e.message);
+                stats.errors++;
+            }
+        }
+        // Always persist the lastEnrichedAt timestamp (marks the attempt)
+        await doc.ref.update(update);
+    }
+    console.log('[MasterCatalog] Enrich complete:', stats);
     return stats;
 }
 //# sourceMappingURL=master-catalog.js.map

@@ -10,8 +10,9 @@ function register(app) {
         const startedAt = new Date().toISOString();
         try {
             const forceRefresh = req.body?.forceRefresh === true;
-            console.log('[MasterCatalog] Sync requested, running synchronously...');
-            const result = await (0, master_catalog_1.syncMasterCatalog)({ forceRefresh });
+            const cleanSweep = req.body?.cleanSweep === true;
+            console.log(`[MasterCatalog] Sync requested${cleanSweep ? ' (CLEAN SWEEP)' : ''}, running synchronously...`);
+            const result = await (0, master_catalog_1.syncMasterCatalog)({ forceRefresh, cleanSweep });
             await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
                 status: 'completed',
                 ...result,
@@ -102,6 +103,36 @@ function register(app) {
         catch (error) {
             res.status(500).json({ error: error.message });
         }
+    });
+    // POST /admin/master-catalog/enrich — fetch print positions + sizes from provider APIs
+    // and store them on every master catalog doc for fast retrieval.
+    // Skips docs enriched within the last 7 days unless forceRefresh=true.
+    // Runs as a background job; responds immediately with a jobId.
+    app.post('/admin/master-catalog/enrich', middleware_1.requireAdmin, async (req, res) => {
+        const startedAt = new Date().toISOString();
+        const forceRefresh = req.body?.forceRefresh === true;
+        const jobRef = await core_1.db.collection(master_catalog_1.MASTER_CATALOG_SYNCS_COLLECTION).add({
+            type: 'enrich',
+            status: 'running',
+            forceRefresh,
+            startedAt,
+        });
+        res.json({ success: true, jobId: jobRef.id, message: 'Enrichment started in background', startedAt });
+        (async () => {
+            try {
+                const result = await (0, master_catalog_1.enrichMasterCatalog)({ forceRefresh });
+                await jobRef.update({
+                    status: 'completed',
+                    ...result,
+                    completedAt: new Date().toISOString(),
+                });
+                console.log('[MasterCatalog] Enrich job complete:', result);
+            }
+            catch (e) {
+                console.error('[MasterCatalog] Enrich job error:', e.message);
+                await jobRef.update({ status: 'failed', error: e.message, completedAt: new Date().toISOString() });
+            }
+        })();
     });
     // Alias: POST /admin/sync-master-products → same as /admin/master-catalog/sync
     // Used by the "Rebuild Master Products" button in the admin Products page.
