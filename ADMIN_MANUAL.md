@@ -622,29 +622,6 @@ const data = await memberFetch(`/${userId}/channels`);
 
 ---
 
-## Known Agent Failure — Admin UI Bypass for Testing
-
-**Date:** May 3, 2026
-
-**What was asked:** Add a way for the agent to visually inspect admin pages (e.g. `/admin/products`) during testing without being blocked by the login wall.
-
-**What the agent did wrong:**
-1. Built a `VITE_DEV_BYPASS=true` flag and wired it into `.env.development` — which only affects the local dev server. This project runs **production only** on Firebase. The dev server is disabled and irrelevant.
-2. Was told this explicitly. Did it again anyway by baking the flag into `deploy/1-build.sh`.
-3. Was told again. Finally reverted everything.
-
-**The correct approach (not yet implemented):**
-The agent cannot visually test admin pages on the production site without an active authenticated session. Options for a future fix:
-- Use the Firebase Emulator with a seeded admin user for visual testing.
-- Or accept that the agent uses code-tracing (reading route files, component files, and Firestore) to verify correctness instead of screenshots.
-
-**What is permanently true about this project:**
-- **Production only.** Firebase hosting at `https://qrgear-c1ffd.web.app`. The dev server (`npm run dev`) is disabled.
-- All backend logic lives in `functions/src/routes/`. Changes to `server/routes/` are secondary.
-- Deploy always uses the three scripts in `deploy/` in order.
-
----
-
 ## Need Help?
 
 Contact support if you encounter issues not covered in this manual.
