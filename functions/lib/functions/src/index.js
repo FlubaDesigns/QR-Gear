@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BUILD_TAG = exports.api = void 0;
-const _BUILD_ID = '20260503-223207-26526';
+const _BUILD_ID = '20260503-224551-30055';
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
 const express_1 = __importDefault(require("express"));
@@ -127,10 +127,10 @@ app.use((err, _req, res, _next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 exports.api = (0, https_1.onRequest)({
-    timeoutSeconds: 540,
+    timeoutSeconds: 3600,
     memory: '256MiB',
     cors: true,
-    labels: { 'build-id': '20260502-scan-this-composite-v3' },
+    labels: { 'build-id': '20260503-timeout-3600' },
 }, app);
 // deployed: 20260418T234106Z
 // deployed: 2026-04-19T00:21:12Z

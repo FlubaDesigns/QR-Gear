@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260503-223207-26526';
+const _BUILD_ID = '20260503-224551-30055';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -128,10 +128,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
 
 export const api = onRequest(
   {
-    timeoutSeconds: 540,
+    timeoutSeconds: 3600,
     memory: '256MiB',
     cors: true,
-    labels: { 'build-id': '20260502-scan-this-composite-v3' },
+    labels: { 'build-id': '20260503-timeout-3600' },
   },
   app
 );
