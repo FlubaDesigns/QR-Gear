@@ -5,6 +5,7 @@ export interface CatalogBlankItem {
   id: string;
   catalogKey: string;
   title: string;
+  subtitle?: string | null;
   imageUrl: string | null;
   tier?: "good" | "better" | "best" | null;
   isPrintful?: boolean;
@@ -44,6 +45,9 @@ export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalog
 
       <div className="px-1 py-1 bg-muted/80">
         <p className="text-[10px] text-foreground truncate leading-tight">{item.title}</p>
+        {item.subtitle && (
+          <p className="text-[9px] text-muted-foreground truncate leading-tight">{item.subtitle}</p>
+        )}
       </div>
 
       {item.tier && (

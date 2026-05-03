@@ -107,6 +107,7 @@ export interface NormalizedSourceBlank {
   price: number | null;
   cost: number | null;
   manufacturer: string | null;
+  model: string | null;
   madeInUSA: boolean;
   primaryImageUrl: string | null;
   description: string | null;
@@ -144,6 +145,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     price: retailPrice,
     cost,
     manufacturer: p.brand || null,
+    model: p.model || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
     description: effectiveDesc,
@@ -464,6 +466,7 @@ export function useAdminBlanksController() {
           id: getProductKey(product),
           catalogKey: safe,
           title: product.title,
+          subtitle: [product.brand, product.model].filter(Boolean).join(' ') || null,
           imageUrl: product.imageUrl || product.image_url || product.thumbnailUrl || null,
           tier: (blankTiers[safe] as "good" | "better" | "best") || null,
           isPrintful: isProviderPrintful(safe),
@@ -499,7 +502,7 @@ export function useAdminBlanksController() {
       id: getProductKey(p),
       imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || "",
       title: p.title || "",
-      subtitle: p.brand,
+      subtitle: [p.brand, p.model].filter(Boolean).join(' ') || undefined,
       minPrice: p.minPrice,
       maxPrice: p.maxPrice,
       colorCount: p.colorCount,

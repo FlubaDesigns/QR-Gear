@@ -33,6 +33,7 @@ export interface ProductSelectItem {
   price: number | null;
   cost: number | null;
   manufacturer: string | null;
+  model?: string | null;
   madeInUSA: boolean;
   primaryImageUrl: string | null;
   images?: string[];
@@ -499,11 +500,11 @@ function PreviewModal({
                   )}
                 </div>
 
-                {item.manufacturer && (
+                {(item.manufacturer || item.model) && (
                   <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Factory className="w-4 h-4" />
-                      <span>{item.manufacturer}</span>
+                      <span>{[item.manufacturer, item.model].filter(Boolean).join(' ')}</span>
                     </span>
                   </div>
                 )}
@@ -785,6 +786,12 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
           >
             {item.name}
           </h3>
+
+          {(item.manufacturer || item.model) && (
+            <p className="text-xs text-muted-foreground truncate" data-testid={`text-make-model-${item.id}`}>
+              {[item.manufacturer, item.model].filter(Boolean).join(' ')}
+            </p>
+          )}
 
           <div className="flex items-center justify-between gap-1 flex-wrap">
             {fulfillmentProvider && (
