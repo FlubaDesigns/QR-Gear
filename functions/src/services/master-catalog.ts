@@ -416,6 +416,10 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
         if (m.provider === 'printify' && m.blueprintId) blueprintToQrgDoc.set(Number(m.blueprintId), docId);
         if (m.provider === 'printful' && m.productId) printfulToQrgDoc.set(Number(m.productId), docId);
       }
+    } else {
+      // Support legacy flat-field schema (docs written before providerMappings[] was introduced)
+      if (data.printifyBlueprintId) blueprintToQrgDoc.set(Number(data.printifyBlueprintId), docId);
+      if (data.printfulProductId) printfulToQrgDoc.set(Number(data.printfulProductId), docId);
     }
   }
 

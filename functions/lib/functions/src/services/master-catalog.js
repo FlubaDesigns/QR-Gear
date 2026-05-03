@@ -393,6 +393,13 @@ async function syncMasterCatalog(_options = {}) {
                     printfulToQrgDoc.set(Number(m.productId), docId);
             }
         }
+        else {
+            // Support legacy flat-field schema (docs written before providerMappings[] was introduced)
+            if (data.printifyBlueprintId)
+                blueprintToQrgDoc.set(Number(data.printifyBlueprintId), docId);
+            if (data.printfulProductId)
+                printfulToQrgDoc.set(Number(data.printfulProductId), docId);
+        }
     }
     // ── Build next available BBB number per category ──────────────────────────────
     // On first run or clean sweep these start at range start (e.g. 1101, 1201…).
