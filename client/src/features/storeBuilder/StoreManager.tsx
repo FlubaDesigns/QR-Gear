@@ -227,6 +227,7 @@ export function StoreManager() {
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreType, setNewStoreType] = useState<string>("member");
   const [editingStore, setEditingStore] = useState<StoreData | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: stores = [], isLoading } = useQuery<StoreData[]>({
     queryKey: ["/api/admin/stores"],
@@ -249,9 +250,11 @@ export function StoreManager() {
     mutationFn: (storeId: string) =>
       adminFetch(`/stores/${storeId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast({ title: "Deleted" });
+      toast({ title: "Store deleted" });
+      setConfirmDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
     },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const memberStores = stores.filter(s => s.roleType === "member");
@@ -328,9 +331,21 @@ export function StoreManager() {
                     <div key={s.id} className="p-3 rounded-lg border bg-green-500/10 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-medium truncate">{s.name}</span>
-                        <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {confirmDeleteId === s.id ? (
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-destructive">Delete?</span>
+                            <Button size="sm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-confirm-delete-${s.id}`}>
+                              {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes"}
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => setConfirmDeleteId(null)} data-testid={`button-cancel-delete-${s.id}`}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => setConfirmDeleteId(s.id)} data-testid={`button-delete-${s.id}`}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                       <button 
                         className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
@@ -353,9 +368,21 @@ export function StoreManager() {
                     <div key={s.id} className="p-3 rounded-lg border space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm truncate">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
-                        <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-delete-${s.id}`}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {confirmDeleteId === s.id ? (
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-destructive">Delete?</span>
+                            <Button size="sm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-confirm-delete-${s.id}`}>
+                              {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes"}
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => setConfirmDeleteId(null)} data-testid={`button-cancel-delete-${s.id}`}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => setConfirmDeleteId(s.id)} data-testid={`button-delete-${s.id}`}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                       <button 
                         className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
