@@ -6,6 +6,11 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { RoleType, Store as StoreType, Channel, Collection } from "../shared/types";
@@ -295,7 +300,7 @@ function InstanceCard({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showMove, setShowMove] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const toStr = (v: any): string => typeof v === 'string' ? v : v?.name || v?.label || v?.hex || String(v ?? '');
@@ -317,6 +322,7 @@ function InstanceCard({
     mutationFn: () =>
       adminFetch(`/catalog-instances/${instance.id}`, { method: "DELETE" }),
     onSuccess: () => {
+      setDeleteOpen(false);
       toast({ title: "Deleted", description: "Item removed." });
       onDeleted();
     },
@@ -439,36 +445,37 @@ function InstanceCard({
 
       {/* Bottom-right delete */}
       <div className="flex justify-end mt-2 pt-2 border-t border-white/10">
-        {!confirmDelete ? (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="p-1.5 text-white/30 hover-elevate rounded"
-            title="Remove from store"
-            data-testid={`button-delete-${instance.id}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-red-300">Remove this item?</span>
-            <button
+        <button
+          onClick={() => setDeleteOpen(true)}
+          className="p-2 text-white/40 hover-elevate rounded"
+          title="Remove from store"
+          data-testid={`button-delete-${instance.id}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove <strong>{title}</strong> from the store. The underlying packet and template are not deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid={`button-cancel-delete-${instance.id}`}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="qr-btn qr-btn--touch text-xs px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded"
+              className="bg-destructive text-destructive-foreground"
               data-testid={`button-confirm-delete-${instance.id}`}
             >
-              {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes, delete"}
-            </button>
-            <button
-              onClick={() => setConfirmDelete(false)}
-              className="qr-btn qr-btn--ghost qr-btn--touch p-1"
-              data-testid={`button-cancel-delete-${instance.id}`}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        )}
-      </div>
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Yes, remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {lightboxOpen && imageUrl && (
         <ImageLightbox url={imageUrl} alt={title} onClose={() => setLightboxOpen(false)} />
@@ -477,38 +484,6 @@ function InstanceCard({
   );
 }
 
-function DeleteConfirmRow({
-  label,
-  onConfirm,
-  onCancel,
-  isPending,
-}: {
-  label: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isPending: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
-      <span className="text-xs text-red-300 flex-1 leading-snug">Delete {label}?</span>
-      <button
-        onClick={onConfirm}
-        disabled={isPending}
-        className="qr-btn qr-btn--touch text-xs px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded"
-        data-testid="button-confirm-del"
-      >
-        {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Yes"}
-      </button>
-      <button
-        onClick={onCancel}
-        className="qr-btn qr-btn--ghost qr-btn--touch p-1"
-        data-testid="button-cancel-del"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}
 
 function CollectionList({
   storeId,
@@ -526,6 +501,7 @@ function CollectionList({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [confirmCol, setConfirmCol] = useState<string | null>(null);
+  const [deleteColOpen, setDeleteColOpen] = useState(false);
 
   const { data: collections = [], isLoading } = useQuery<Collection[]>({
     queryKey: ["collections", storeId, channel.id],
@@ -542,6 +518,7 @@ function CollectionList({
     onSuccess: () => {
       toast({ title: "Collection deleted" });
       setConfirmCol(null);
+      setDeleteColOpen(false);
       queryClient.invalidateQueries({ queryKey: ["collections", storeId, channel.id] });
       onCollectionDeleted();
     },
@@ -557,44 +534,54 @@ function CollectionList({
   }
 
   return (
-    <div className="pl-6 space-y-0.5 mt-1">
-      {collections.map(col => {
-        const isSelected = selectedCollectionName === col.name;
-        if (confirmCol === col.name) {
+    <>
+      <div className="pl-6 space-y-0.5 mt-1">
+        {collections.map(col => {
+          const isSelected = selectedCollectionName === col.name;
           return (
-            <div key={col.name} className="px-1 py-0.5">
-              <DeleteConfirmRow
-                label={`"${col.name}"`}
-                onConfirm={() => deleteColMutation.mutate(col.name)}
-                onCancel={() => setConfirmCol(null)}
-                isPending={deleteColMutation.isPending}
-              />
+            <div key={col.name} className="flex items-center gap-1 group">
+              <button
+                onClick={() => onSelect(col.name)}
+                className={`flex-1 flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm text-left transition-all hover-elevate
+                  ${isSelected ? "bg-purple-500/20 text-purple-200" : "glass-subtitle"}`}
+                data-testid={`button-select-collection-${col.name}`}
+              >
+                <Layers className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">{col.name}</span>
+              </button>
+              <button
+                onClick={() => { setConfirmCol(col.name); setDeleteColOpen(true); }}
+                className="p-2 text-white/40 hover-elevate rounded flex-shrink-0"
+                data-testid={`button-delete-collection-${col.name}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           );
-        }
-        return (
-          <div key={col.name} className="flex items-center gap-1 group">
-            <button
-              onClick={() => onSelect(col.name)}
-              className={`flex-1 flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm text-left transition-all hover-elevate
-                ${isSelected ? "bg-purple-500/20 text-purple-200" : "glass-subtitle"}`}
-              data-testid={`button-select-collection-${col.name}`}
+        })}
+      </div>
+
+      <AlertDialog open={deleteColOpen} onOpenChange={(o) => { setDeleteColOpen(o); if (!o) setConfirmCol(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete collection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>"{confirmCol}"</strong>? Products inside will not be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmCol && deleteColMutation.mutate(confirmCol)}
+              disabled={deleteColMutation.isPending}
+              className="bg-destructive text-destructive-foreground"
             >
-              <Layers className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">{col.name}</span>
-            </button>
-            <button
-              onClick={() => setConfirmCol(col.name)}
-              className="p-1.5 text-white/20 hover-elevate rounded flex-shrink-0"
-              style={{ visibility: "visible" }}
-              data-testid={`button-delete-collection-${col.name}`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        );
-      })}
-    </div>
+              {deleteColMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -616,6 +603,7 @@ function ChannelTree({
   const { toast } = useToast();
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
   const [confirmChannelId, setConfirmChannelId] = useState<string | null>(null);
+  const [deleteChannelOpen, setDeleteChannelOpen] = useState(false);
 
   const toggleExpand = (channelId: string) => {
     setExpandedChannels(prev => {
@@ -631,28 +619,20 @@ function ChannelTree({
     onSuccess: () => {
       toast({ title: "Channel deleted" });
       setConfirmChannelId(null);
+      setDeleteChannelOpen(false);
       onChannelDeleted();
     },
     onError: () => toast({ title: "Error", description: "Could not delete channel.", variant: "destructive" }),
   });
 
+  const pendingChannel = channels.find(c => c.id === confirmChannelId);
+
   return (
+    <>
     <div className="space-y-0.5">
       {channels.map(channel => {
         const isExpanded = expandedChannels.has(channel.id);
         const isChannelSelected = selectedChannelId === channel.id && !selectedCollectionName;
-        if (confirmChannelId === channel.id) {
-          return (
-            <div key={channel.id} className="px-1 py-0.5">
-              <DeleteConfirmRow
-                label={`"${channel.name}"`}
-                onConfirm={() => deleteChannelMutation.mutate(channel.id)}
-                onCancel={() => setConfirmChannelId(null)}
-                isPending={deleteChannelMutation.isPending}
-              />
-            </div>
-          );
-        }
         return (
           <div key={channel.id}>
             <div className="flex items-center gap-1">
@@ -678,8 +658,8 @@ function ChannelTree({
                 )}
               </button>
               <button
-                onClick={() => setConfirmChannelId(channel.id)}
-                className="p-1.5 text-white/20 hover-elevate rounded flex-shrink-0"
+                onClick={() => { setConfirmChannelId(channel.id); setDeleteChannelOpen(true); }}
+                className="p-2 text-white/40 hover-elevate rounded flex-shrink-0"
                 data-testid={`button-delete-channel-${channel.id}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -698,6 +678,28 @@ function ChannelTree({
         );
       })}
     </div>
+
+      <AlertDialog open={deleteChannelOpen} onOpenChange={(o) => { setDeleteChannelOpen(o); if (!o) setConfirmChannelId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete channel?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>"{pendingChannel?.name}"</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmChannelId && deleteChannelMutation.mutate(confirmChannelId)}
+              disabled={deleteChannelMutation.isPending}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {deleteChannelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -709,7 +711,7 @@ export function StoreManagerTab() {
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
-  const [confirmDeleteStore, setConfirmDeleteStore] = useState(false);
+  const [deleteStoreOpen, setDeleteStoreOpen] = useState(false);
 
   const deleteStoreMutation = useMutation({
     mutationFn: async () => {
@@ -718,7 +720,7 @@ export function StoreManagerTab() {
     },
     onSuccess: () => {
       toast({ title: "Store deleted" });
-      setConfirmDeleteStore(false);
+      setDeleteStoreOpen(false);
       setSelectedStore(null);
       setSelectedChannelId(null);
       setSelectedCollectionName(null);
@@ -855,21 +857,21 @@ export function StoreManagerTab() {
                   data-testid="select-store-manager"
                 />
               </div>
-              {selectedStore && !confirmDeleteStore && (
+              {selectedStore && (
                 <>
                   <a
                     href={`/shop/${selectedRole}/${selectedStore.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 text-white/30 hover-elevate rounded flex-shrink-0 mt-0.5"
+                    className="p-2 text-white/40 hover-elevate rounded flex-shrink-0 mt-0.5"
                     data-testid="link-visit-store"
                     title="Visit store"
                   >
                     <ExternalLink className="h-4 w-4" />
                   </a>
                   <button
-                    onClick={() => setConfirmDeleteStore(true)}
-                    className="p-2 text-white/30 hover-elevate rounded flex-shrink-0 mt-0.5"
+                    onClick={() => setDeleteStoreOpen(true)}
+                    className="p-2 text-white/40 hover-elevate rounded flex-shrink-0 mt-0.5"
                     data-testid="button-delete-store"
                     title="Delete store"
                   >
@@ -877,17 +879,6 @@ export function StoreManagerTab() {
                   </button>
                 </>
               )}
-            </div>
-            {selectedStore && confirmDeleteStore && (
-              <div className="mt-2">
-                <DeleteConfirmRow
-                  label={`store "${selectedStore.name}"`}
-                  onConfirm={() => deleteStoreMutation.mutate()}
-                  onCancel={() => setConfirmDeleteStore(false)}
-                  isPending={deleteStoreMutation.isPending}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -979,6 +970,28 @@ export function StoreManagerTab() {
           <p className="text-sm">No stores found for this role</p>
         </div>
       )}
+
+      <AlertDialog open={deleteStoreOpen} onOpenChange={setDeleteStoreOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete store?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete <strong>"{selectedStore?.name}"</strong>? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-store">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteStoreMutation.mutate()}
+              disabled={deleteStoreMutation.isPending}
+              className="bg-destructive text-destructive-foreground"
+              data-testid="button-confirm-delete-store"
+            >
+              {deleteStoreMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete store"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
