@@ -58,12 +58,30 @@ function register(app) {
     app.delete('/admin/stores/:storeId', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { storeId } = req.params;
-            const channelsSnapshot = await core_1.db.collection('storeChannels').where('storeId', '==', storeId).get();
-            const batch = core_1.db.batch();
-            channelsSnapshot.docs.forEach((doc) => batch.delete(doc.ref));
-            batch.delete(core_1.db.collection('stores').doc(storeId));
-            await batch.commit();
-            res.json({ success: true, deletedChannels: channelsSnapshot.size });
+            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+            const [instancesSnap, channelsSnapshot] = await Promise.all([
+                core_1.db.collection('admin_catalog_instances').where('storeId', '==', storeId).get(),
+                core_1.db.collection('storeChannels').where('storeId', '==', storeId).get(),
+            ]);
+            const ops = [
+                ...instancesSnap.docs.map(doc => ({ type: 'update', ref: doc.ref, data: { isVisible: false, status: 'deleted', deletedAt: now } })),
+                ...channelsSnapshot.docs.map(doc => ({ type: 'delete', ref: doc.ref })),
+                { type: 'delete', ref: core_1.db.collection('stores').doc(storeId) },
+            ];
+            // Commit in chunks of 500 to respect Firestore batch limit
+            const CHUNK = 500;
+            for (let i = 0; i < ops.length; i += CHUNK) {
+                const batch = core_1.db.batch();
+                ops.slice(i, i + CHUNK).forEach(op => {
+                    if (op.type === 'update')
+                        batch.update(op.ref, op.data);
+                    else
+                        batch.delete(op.ref);
+                });
+                await batch.commit();
+            }
+            console.log(`[Stores] Deleted store ${storeId}: ${instancesSnap.size} instances archived, ${channelsSnapshot.size} channels removed`);
+            res.json({ success: true, deletedStoreId: storeId, deletedChannels: channelsSnapshot.size, archivedInstances: instancesSnap.size });
         }
         catch (error) {
             console.error('[Stores] DELETE error:', error);

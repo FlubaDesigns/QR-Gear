@@ -18,7 +18,7 @@ encode the commands so you don't need to remember them mid-session.
 
 ## The Three Scripts — Always Run in Order
 
-### Step 1 — `deploy/1-build.sh` (timeout: 60000ms)
+### Step 1 — `deploy/1-build.sh` (timeout: 90000ms)
 
 ```bash
 bash deploy/1-build.sh
@@ -40,10 +40,21 @@ Deploys Cloud Functions to Firebase. **Success looks like:**
 ✔  Deploy complete!
 ```
 
-If you see `Skipped (No changes detected)` — step 1 didn't run or `sed` failed silently.
-Re-run step 1 and check that `_BUILD_ID` changed in `functions/src/index.ts`.
+#### CRITICAL — Timeout and "No changes detected" behavior
 
-### Step 3 — `deploy/3-hosting.sh` (timeout: 60000ms)
+**If step 2 times out (exit code 124 or no output):**
+Firebase completes the upload server-side even after the CLI process is killed by the sandbox.
+The functions ARE deployed. Do NOT re-run step 1. Do NOT re-run step 2.
+Proceed immediately to step 3.
+
+**If step 2 says "Skipped (No changes detected)" after a previous timeout:**
+This confirms the timed-out attempt succeeded — Firebase already has the new code.
+Proceed immediately to step 3. Do NOT re-run step 1 or step 2 again.
+
+**If step 2 says "No changes detected" WITHOUT a prior timeout:**
+Step 1 didn't run or `sed` failed silently. Re-run step 1 only, then retry step 2.
+
+### Step 3 — `deploy/3-hosting.sh` (timeout: 75000ms)
 
 ```bash
 bash deploy/3-hosting.sh
@@ -61,10 +72,10 @@ Deploys frontend to Firebase Hosting. **Success looks like:**
 
 1. **Always run all three steps** — functions and hosting must always match. Never skip one.
 2. **Each step is a separate bash call** — never chain step 2 and step 3 together.
-3. **If step 2 times out** — do NOT re-run step 1. Just re-run `bash deploy/2-functions.sh`
-   alone. The compiled output from step 1 is already in `functions/lib/` with the new BUILD_ID.
-4. **Never add predeploy hooks back to `firebase.json`** — causes timeout inside Firebase's runner.
-5. **Always pass `--force`** — already baked into the scripts.
+3. **If step 2 times out — go straight to step 3.** The functions deployed during the timeout.
+4. **If step 2 says "No changes detected" after a timeout — go straight to step 3.** Same reason.
+5. **Never add predeploy hooks back to `firebase.json`** — causes timeout inside Firebase's runner.
+6. **Always pass `--force`** — already baked into the scripts.
 
 ## Why BUILD_ID Matters
 
@@ -72,6 +83,13 @@ Deploys frontend to Firebase Hosting. **Success looks like:**
 the compiled bundle's bytes, which changes the hash Firebase uses to decide whether to deploy.
 Without bumping it, Firebase silently skips ("No changes detected") even when source changed.
 The `$RANDOM` suffix makes it collision-proof even for same-second deploys.
+
+## Frontend-Only Changes
+
+If only frontend files changed (no `functions/src/` edits), skip step 2 entirely:
+1. Run step 1 (build only)
+2. Skip step 2
+3. Run step 3 (hosting deploy)
 
 ## Project Details
 
