@@ -23,27 +23,212 @@ const PRINTIFY_PROVIDERS_COLLECTION = 'printifyPrintProviders';
 const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 
-// ── QRG Blank Category Definitions (BBB segment of QRG numbering schema) ─────
-// Source of truth: README.md QRG Numbering System section
-export const QRG_BLANK_CATEGORIES = [
-  { name: 'Tees',      rangeStart: 101, rangeEnd: 199 },
-  { name: 'Hoodies',   rangeStart: 201, rangeEnd: 299 },
-  { name: 'Hats',      rangeStart: 301, rangeEnd: 399 },
-  { name: 'Drinkware', rangeStart: 401, rangeEnd: 499 },
+// ── QRG Top-Level Category Definitions ───────────────────────────────────────
+// Source of truth: replit.md — QRG Numbering System section
+// Each top-level gets a X000 code. Subcategories get X100–X900.
+// Each subcategory holds up to 99 products (X101–X199, etc.).
+export const QRG_TOP_LEVEL_CATEGORIES = [
+  { name: 'Apparel',            code: 1000 },
+  { name: 'Houseware',          code: 2000 },
+  { name: 'Print & Display',    code: 3000 },
+  { name: 'Accessories',        code: 4000 },
+  { name: 'Pet Products',       code: 5000 },
+  { name: 'Holiday & Seasonal', code: 6000 },
 ] as const;
 
-export type QRGCategoryName = 'Tees' | 'Hoodies' | 'Hats' | 'Drinkware';
+// ── QRG Blank Category Definitions (4-digit subcategory scheme) ───────────────
+export const QRG_BLANK_CATEGORIES = [
+  // ── 1000 Apparel ──────────────────────────────────────────────────────────
+  { name: 'T-Shirts',              parent: 'Apparel',            rangeStart: 1101, rangeEnd: 1199 },
+  { name: 'Hoodies & Sweatshirts', parent: 'Apparel',            rangeStart: 1201, rangeEnd: 1299 },
+  { name: 'Bottoms & Active',      parent: 'Apparel',            rangeStart: 1301, rangeEnd: 1399 },
+  { name: 'Hats & Caps',           parent: 'Apparel',            rangeStart: 1401, rangeEnd: 1499 },
+  { name: 'Footwear & Socks',      parent: 'Apparel',            rangeStart: 1501, rangeEnd: 1599 },
+  { name: 'Sleepwear & Underwear', parent: 'Apparel',            rangeStart: 1601, rangeEnd: 1699 },
+  { name: 'Baby & Kids',           parent: 'Apparel',            rangeStart: 1701, rangeEnd: 1799 },
+  // ── 2000 Houseware ────────────────────────────────────────────────────────
+  { name: 'Drinkware',             parent: 'Houseware',          rangeStart: 2101, rangeEnd: 2199 },
+  { name: 'Barware',               parent: 'Houseware',          rangeStart: 2201, rangeEnd: 2299 },
+  { name: 'Drinkware Accessories', parent: 'Houseware',          rangeStart: 2301, rangeEnd: 2399 },
+  { name: 'Kitchen & Dining',      parent: 'Houseware',          rangeStart: 2401, rangeEnd: 2499 },
+  { name: 'Bedding & Textiles',    parent: 'Houseware',          rangeStart: 2501, rangeEnd: 2599 },
+  { name: 'Home Décor',            parent: 'Houseware',          rangeStart: 2601, rangeEnd: 2699 },
+  // ── 3000 Print & Display ──────────────────────────────────────────────────
+  { name: 'Wall Art & Prints',     parent: 'Print & Display',    rangeStart: 3101, rangeEnd: 3199 },
+  { name: 'Stickers & Magnets',    parent: 'Print & Display',    rangeStart: 3201, rangeEnd: 3299 },
+  { name: 'Stationery & Paper',    parent: 'Print & Display',    rangeStart: 3301, rangeEnd: 3399 },
+  { name: 'Signs & Display',       parent: 'Print & Display',    rangeStart: 3401, rangeEnd: 3499 },
+  { name: 'Books & Photo',         parent: 'Print & Display',    rangeStart: 3501, rangeEnd: 3599 },
+  { name: 'Pins & Patches',        parent: 'Print & Display',    rangeStart: 3601, rangeEnd: 3699 },
+  { name: 'Tags',                  parent: 'Print & Display',    rangeStart: 3701, rangeEnd: 3799 },
+  { name: 'Puzzles & Games',       parent: 'Print & Display',    rangeStart: 3801, rangeEnd: 3899 },
+  { name: 'Novelty',               parent: 'Print & Display',    rangeStart: 3901, rangeEnd: 3999 },
+  // ── 4000 Accessories ──────────────────────────────────────────────────────
+  { name: 'Bags & Pouches',        parent: 'Accessories',        rangeStart: 4101, rangeEnd: 4199 },
+  { name: 'Jewelry',               parent: 'Accessories',        rangeStart: 4201, rangeEnd: 4299 },
+  { name: 'Phone & Tech Cases',    parent: 'Accessories',        rangeStart: 4301, rangeEnd: 4399 },
+  { name: 'Travel Accessories',    parent: 'Accessories',        rangeStart: 4401, rangeEnd: 4499 },
+  { name: 'Small Accessories',     parent: 'Accessories',        rangeStart: 4501, rangeEnd: 4599 },
+  // ── 5000 Pet Products ─────────────────────────────────────────────────────
+  { name: 'Pet Apparel',           parent: 'Pet Products',       rangeStart: 5101, rangeEnd: 5199 },
+  { name: 'Pet Accessories',       parent: 'Pet Products',       rangeStart: 5201, rangeEnd: 5299 },
+  // ── 6000 Holiday & Seasonal ───────────────────────────────────────────────
+  { name: 'Ornaments & Décor',     parent: 'Holiday & Seasonal', rangeStart: 6101, rangeEnd: 6199 },
+  { name: 'Stockings & Gifting',   parent: 'Holiday & Seasonal', rangeStart: 6201, rangeEnd: 6299 },
+  { name: 'Seasonal Apparel',      parent: 'Holiday & Seasonal', rangeStart: 6301, rangeEnd: 6399 },
+] as const;
+
+export type QRGCategoryName = typeof QRG_BLANK_CATEGORIES[number]['name'];
+
+// ── Legacy numeric-code → new subcategory label (for Firestore docs written
+//    before the 4-digit scheme was introduced) ─────────────────────────────
+export const QRG_LEGACY_CODE_MAP: Record<number, QRGCategoryName> = {
+  100: 'T-Shirts',
+  200: 'Hoodies & Sweatshirts',
+  300: 'Hats & Caps',
+  400: 'Drinkware',
+  500: 'Bags & Pouches',
+  510: 'Jewelry',
+  600: 'Phone & Tech Cases',
+  700: 'Stickers & Magnets',
+  710: 'Wall Art & Prints',
+  720: 'Stationery & Paper',
+  800: 'Home Décor',
+  810: 'Bottoms & Active',
+  900: 'Pet Accessories',
+  910: 'Ornaments & Décor',
+};
+
+// ── Old 3-word string names → new subcategory labels ─────────────────────────
+const QRG_LEGACY_NAME_MAP: Record<string, QRGCategoryName> = {
+  'Tees':        'T-Shirts',
+  'Hoodies':     'Hoodies & Sweatshirts',
+  'Hats':        'Hats & Caps',
+  'Drinkware':   'Drinkware',
+};
 
 /**
- * Classify a product into a QRG blank category based on title and typeName.
- * Returns null if the product does not fit any defined category (Unclassified).
+ * Resolve any qrgCategory value (old numeric, old string, or new string) to
+ * a canonical QRGCategoryName label. Returns 'Unclassified' if unresolvable.
+ */
+export function resolveQrgCategoryLabel(raw: unknown): string {
+  if (raw == null || raw === '') return 'Unclassified';
+  const n = Number(raw);
+  if (!isNaN(n) && QRG_LEGACY_CODE_MAP[n]) return QRG_LEGACY_CODE_MAP[n];
+  const s = String(raw).trim();
+  if (QRG_LEGACY_NAME_MAP[s]) return QRG_LEGACY_NAME_MAP[s];
+  const isKnown = QRG_BLANK_CATEGORIES.some(c => c.name === s);
+  if (isKnown) return s as QRGCategoryName;
+  return s || 'Unclassified';
+}
+
+/**
+ * Classify a product title+typeName into a QRG subcategory.
+ * Returns null if unclassified.
  */
 function classifyToQRGCategory(title: string, typeName?: string | null): QRGCategoryName | null {
   const t = ((title || '') + ' ' + (typeName || '')).toLowerCase();
-  if (/t-?shirt|tshirt|\btee\b|tank.?top|\bpolo\b|v-?neck|\bhenley\b|long.?sleeve|\bjersey\b|raglan|crop.?top|camisole|\bblouse\b|\bshirt\b|bodysuit|onesie/.test(t)) return 'Tees';
-  if (/hoodie|hoody|sweatshirt|pullover|\bfleece\b|zip.?up|crewneck|crew.?neck|\bsweater\b/.test(t)) return 'Hoodies';
-  if (/snapback|trucker.?hat|dad.?hat|baseball.?cap|bucket.?hat|\bbeanie\b|\bvisor\b|\bcap\b|\bhat\b/.test(t)) return 'Hats';
+
+  // ── Pet Products ────────────────────────────────────────────────────────────
+  if (/\bpet\b|\bdog\b|\bcat\b|puppy|kitten|pet.?collar|pet.?bandana/.test(t)) {
+    if (/collar|leash|\btag\b|bowl|feeder/.test(t)) return 'Pet Accessories';
+    return 'Pet Apparel';
+  }
+
+  // ── Holiday & Seasonal ──────────────────────────────────────────────────────
+  if (/christmas|holiday|ornament|halloween|easter|thanksgiving|valentine|xmas|stocking|tree.?skirt|snowflake/.test(t)) {
+    if (/\bsweater\b|\bshirt\b|\btee\b|hoodie|ugly/.test(t)) return 'Seasonal Apparel';
+    if (/\bstocking\b|gift|gifting/.test(t)) return 'Stockings & Gifting';
+    return 'Ornaments & Décor';
+  }
+
+  // ── Baby & Kids (check before general apparel) ──────────────────────────────
+  if (/\bbaby\b|onesie|bodysuit|\binfant\b|toddler|\byouth\b|kids?\b|children/.test(t)) {
+    if (/sneaker|sandal|slipper|\bslide\b|\bboot\b|\bshoe\b|clog/.test(t)) return 'Footwear & Socks';
+    if (/lounge.?pant|jogger|\bshort\b|legging/.test(t)) return 'Bottoms & Active';
+    if (/\bhat\b|\bcap\b|\bbeanie\b/.test(t)) return 'Hats & Caps';
+    if (/puzzle|coloring/.test(t)) return 'Puzzles & Games';
+    return 'Baby & Kids';
+  }
+
+  // ── Hats & Caps ─────────────────────────────────────────────────────────────
+  if (/snapback|trucker.?hat|dad.?hat|baseball.?cap|bucket.?hat|\bbeanie\b|\bvisor\b|\bcap\b|\bhat\b/.test(t)) return 'Hats & Caps';
+
+  // ── T-Shirts ─────────────────────────────────────────────────────────────────
+  if (/t-?shirt|tshirt|\btee\b|tank.?top|\bpolo\b|v-?neck|\bhenley\b|long.?sleeve|\bjersey\b|raglan|crop.?top|camisole|\bblouse\b/.test(t)) return 'T-Shirts';
+
+  // ── Hoodies & Sweatshirts ───────────────────────────────────────────────────
+  if (/hoodie|hoody|sweatshirt|pullover|\bfleece\b|zip.?up|crewneck|crew.?neck|\bsweater\b/.test(t)) return 'Hoodies & Sweatshirts';
+
+  // ── Sleepwear & Underwear ───────────────────────────────────────────────────
+  if (/pajama|pyjama|\bboxer\b|\bbrief\b|\bthong\b|\bunderwear\b|loungewear|nightwear/.test(t)) return 'Sleepwear & Underwear';
+
+  // ── Bottoms & Active (incl outerwear, dresses, skirts, swimwear) ────────────
+  if (/swimsuit|bikini|rash.?guard|windbreaker|biker.?short|bodycon|legging|yoga|jogger|sweatpant|sport.?bra|compression|activewear|athletic.?short|bomber|puffer.?jacket|denim.?jacket|work.?jacket|soft.?shell|varsity.?jacket|letterman|anorak|\bdress\b|\bskirt\b|dolman|swim.?trunk|\bshort\b/.test(t)) return 'Bottoms & Active';
+
+  // ── Footwear & Socks ─────────────────────────────────────────────────────────
+  if (/sneaker|sandal|slipper|flip.?flop|\bslide\b|\bboot\b|clog|\bsock\b/.test(t)) return 'Footwear & Socks';
+
+  // ── Barware (check before Drinkware to catch glass-word overlap) ────────────
+  if (/rocks.?glass|whiskey.?glass|champagne.?glass|sipper.?glass|mixing.?glass|can.?glass|can.?shaped.?glass|stubby.?cooler|highball/.test(t)) return 'Barware';
+
+  // ── Drinkware ────────────────────────────────────────────────────────────────
   if (/\bmugs?\b|tumbler|water.?bottle|wine.?glass|beer.?stein|beer.?mug|\bflask\b|thermos|travel.?mug|\bpint\b|\bdrinkware\b|insulated.?bottle|insulated.?tumbler|shot.?glass/.test(t)) return 'Drinkware';
+
+  // ── Drinkware Accessories ────────────────────────────────────────────────────
+  if (/beverage.?holder|can.?holder|mason.?jar|protein.?shaker|slim.?beverage|insulated.?food/.test(t)) return 'Drinkware Accessories';
+
+  // ── Kitchen & Dining ─────────────────────────────────────────────────────────
+  if (/cutting.?board|pizza.?board|charcuterie|bento|lunch.?box/.test(t)) return 'Kitchen & Dining';
+
+  // ── Bedding & Textiles ───────────────────────────────────────────────────────
+  if (/comforter|quilt|coverlet|duvet|\bsham\b|fitted.?sheet|flat.?sheet|bed.?runner|window.?curtain|\bcurtain\b|tablecloth|\bnapkin\b|oven.?mitt|beach.?cloth/.test(t)) return 'Bedding & Textiles';
+
+  // ── Home Décor ───────────────────────────────────────────────────────────────
+  if (/\bpillow\b|blanket|\btowel\b|\bapron\b|\brug\b|doormat|table.?runner|cushion|coaster|shower.?curtain|\bbath\b|face.?mask|\bbandana\b|calendar|\bclock\b|\bcandle\b|serving.?tray|phone.?stand|felt.?storage|light.?cube/.test(t)) return 'Home Décor';
+
+  // ── Wall Art & Prints ────────────────────────────────────────────────────────
+  if (/acrylic.?print|acrylic.?sign|metal.?print|gallery.?wrap|art.?board|canvas.?wrap|canvas.?gallery|canvas.?print|wall.?art|\bposter\b|\bframed\b|tapestry|\bflag\b|art.?print|wood.?panel.?painting|ceramic.?photo.?tile|photo.?block|gallery.?board/.test(t)) return 'Wall Art & Prints';
+
+  // ── Stickers & Magnets ───────────────────────────────────────────────────────
+  if (/\bsticker\b|\bmagnet\b|\bdecal\b|\bbumper.?sticker\b/.test(t)) return 'Stickers & Magnets';
+
+  // ── Books & Photo ────────────────────────────────────────────────────────────
+  if (/photo.?book|coloring.?book|board.?book|note.?cube|\bbookmark\b|bible.?cover|softcover|hardcover/.test(t)) return 'Books & Photo';
+
+  // ── Stationery & Paper ───────────────────────────────────────────────────────
+  if (/notebook|journal|planner|stationery|greeting.?card|postcard|notepad|business.?card|note.?pad|post.?it/.test(t)) return 'Stationery & Paper';
+
+  // ── Signs & Display ──────────────────────────────────────────────────────────
+  if (/yard.?sign|lawn.?sign|vinyl.?banner|\bpennant\b|license.?plate|vanity.?plate|foam.?board|aluminum.?composite|aluminum.?panel|\bstandee\b|\bstatue\b|wood.?sign|wooden.?sign|hanging.?sign|wooden.?hanging|free.?standing.?wooden|slate.?desk.?plaque|protest.?sign|plastic.?yard/.test(t)) return 'Signs & Display';
+
+  // ── Pins & Patches ───────────────────────────────────────────────────────────
+  if (/pin.?button|round.?pin|set.?of.?pin|\bpatch\b|embroidered.?patch|iron.?on.?patch/.test(t)) return 'Pins & Patches';
+
+  // ── Tags ─────────────────────────────────────────────────────────────────────
+  if (/luggage.?tag|keyring.?tag|key.?ring|photo.?keyring/.test(t)) return 'Tags';
+
+  // ── Puzzles & Games ──────────────────────────────────────────────────────────
+  if (/\bpuzzle\b|jigsaw|golf.?ball|hockey.?puck|pickleball|ping.?pong|frisbee|wham.?o/.test(t)) return 'Puzzles & Games';
+
+  // ── Novelty ──────────────────────────────────────────────────────────────────
+  if (/\bballoon\b|mylar|car.?seat.?cover|sun.?shade|car.?sun|temporary.?tattoo/.test(t)) return 'Novelty';
+
+  // ── Bags & Pouches ───────────────────────────────────────────────────────────
+  if (/tote.?bag|backpack|fanny.?pack|drawstring.?bag|duffel|duffle|messenger.?bag|crossbody|\bpouch\b|shopping.?bag|laptop.?bag|\bsack\b/.test(t)) return 'Bags & Pouches';
+
+  // ── Jewelry ──────────────────────────────────────────────────────────────────
+  if (/bracelet|necklace|earring|\bring\b|sunglasse|\bscarf\b|\bglove\b|\bbelt\b|headband|neck.?gaiter|\bhair\b|anklet|birthstone.?charm/.test(t)) return 'Jewelry';
+
+  // ── Phone & Tech Cases ───────────────────────────────────────────────────────
+  if (/phone.?case|iphone|samsung.?case|airpod|laptop.?sleeve|mouse.?pad|mousepad|tablet.?case/.test(t)) return 'Phone & Tech Cases';
+
+  // ── Travel Accessories ───────────────────────────────────────────────────────
+  if (/luggage.?cover|passport.?cover/.test(t)) return 'Travel Accessories';
+
+  // ── Small Accessories ─────────────────────────────────────────────────────────
+  if (/compact.?mirror|travel.?mirror|jewelry.?box|\bkeychain\b|\bwallet\b/.test(t)) return 'Small Accessories';
+
   return null;
 }
 
@@ -104,7 +289,14 @@ export interface SyncStats {
   printifyOnly: number;
   printfulOnly: number;
   unclassified: number;
-  byCategory: { tees: number; hoodies: number; hats: number; drinkware: number };
+  byCategory: {
+    apparel: number;
+    houseware: number;
+    printAndDisplay: number;
+    accessories: number;
+    petProducts: number;
+    holidayAndSeasonal: number;
+  };
 }
 
 export async function syncMasterCatalog(_options: { forceRefresh?: boolean } = {}): Promise<SyncStats> {
@@ -117,7 +309,7 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean } = {
     printifyOnly: 0,
     printfulOnly: 0,
     unclassified: 0,
-    byCategory: { tees: 0, hoodies: 0, hats: 0, drinkware: 0 },
+    byCategory: { apparel: 0, houseware: 0, printAndDisplay: 0, accessories: 0, petProducts: 0, holidayAndSeasonal: 0 },
   };
 
   const writes: Array<{ ref: FirebaseFirestore.DocumentReference; data: any; merge: boolean }> = [];
@@ -160,9 +352,10 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean } = {
   // ── Build next available BBB number per category ──────────────────────────────
   // On first run (empty collection) these start at range start.
   // On re-sync they advance past existing assignments.
-  const nextBBB: Record<string, number> = {
-    'Tees': 101, 'Hoodies': 201, 'Hats': 301, 'Drinkware': 401,
-  };
+  const nextBBB: Record<string, number> = {};
+  for (const cat of QRG_BLANK_CATEGORIES) {
+    nextBBB[cat.name] = cat.rangeStart;
+  }
   for (const [, data] of existingMaster.entries()) {
     if (data.qrgBlankId && data.qrgCategory && nextBBB[data.qrgCategory] !== undefined) {
       if (Number(data.qrgBlankId) >= nextBBB[data.qrgCategory]) {
@@ -230,11 +423,18 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean } = {
   }
 
   function bumpCategoryStats(qrgCategory: QRGCategoryName | null): void {
-    if (qrgCategory === 'Tees') stats.byCategory.tees++;
-    else if (qrgCategory === 'Hoodies') stats.byCategory.hoodies++;
-    else if (qrgCategory === 'Hats') stats.byCategory.hats++;
-    else if (qrgCategory === 'Drinkware') stats.byCategory.drinkware++;
-    else stats.unclassified++;
+    if (!qrgCategory) { stats.unclassified++; return; }
+    const cat = QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory);
+    if (!cat) { stats.unclassified++; return; }
+    switch (cat.parent) {
+      case 'Apparel':            stats.byCategory.apparel++; break;
+      case 'Houseware':          stats.byCategory.houseware++; break;
+      case 'Print & Display':    stats.byCategory.printAndDisplay++; break;
+      case 'Accessories':        stats.byCategory.accessories++; break;
+      case 'Pet Products':       stats.byCategory.petProducts++; break;
+      case 'Holiday & Seasonal': stats.byCategory.holidayAndSeasonal++; break;
+      default:                   stats.unclassified++;
+    }
   }
 
   const matchedPrintfulIds = new Set<number>();

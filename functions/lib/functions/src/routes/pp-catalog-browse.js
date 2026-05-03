@@ -5,6 +5,7 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const printful_1 = require("../services/printful");
 const printify_1 = require("../services/printify");
+const master_catalog_1 = require("../services/master-catalog");
 function registerPpCatalogBrowseRoutes(app) {
     app.get('/public/catalog/placements', async (req, res) => {
         try {
@@ -452,8 +453,8 @@ function registerPpCatalogBrowseRoutes(app) {
             const categories = {};
             for (const doc of snap.docs) {
                 const p = doc.data();
-                // Use QRG category from the record. Falls back to Unclassified.
-                const category = (p.qrgCategory && p.qrgCategory !== 'Unclassified') ? p.qrgCategory : (p.qrgCategory || 'Unclassified');
+                // Resolve raw qrgCategory (may be old numeric code, old string, or new label) → display label
+                const category = (0, master_catalog_1.resolveQrgCategoryLabel)(p.qrgCategory);
                 if (!categories[category])
                     categories[category] = [];
                 // Extract provider IDs from providerMappings (new format) or legacy fields
@@ -507,8 +508,11 @@ function registerPpCatalogBrowseRoutes(app) {
                     providerMappings,
                 });
             }
-            // QRG category order — defined ranges first, then Unclassified
-            const QRG_CATEGORY_ORDER = ['Tees', 'Hoodies', 'Hats', 'Drinkware', 'Unclassified'];
+            // QRG category order — subcategories in taxonomy order, then Unclassified
+            const QRG_CATEGORY_ORDER = [
+                ...master_catalog_1.QRG_BLANK_CATEGORIES.map(c => c.name),
+                'Unclassified',
+            ];
             const result = Object.entries(categories)
                 .map(([name, items]) => ({
                 name,

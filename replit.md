@@ -129,13 +129,54 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 ### First-Scan Activation System (QR Gear Core Flow)
 - **QRG Numbering Schema**: `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` — each layer adds digits only when that layer exists.
   - **Source [S]** (1 letter): `I`=Internal/admin, `M`=Member, `E`=External, `D`=Direct buyer
-  - **Blank [BBB]** (3 digits): hundreds=category (1xx=Tees,2xx=Hoodies,3xx=Hats,4xx=Drinkware), tens+units=specific blank (101=first tee, 102=second, up to x99)
-  - **Build [DDD]** (3 digits): sequential build number per source+blank (001,002,003…). Each distinct design/colorway build gets its own number. Packet name = `QRG-I-101-001`.
-  - **Owner [SSSSSS]** (6 digits): zero-padded, assigned at claim time, unique per blank (000001–999999). Owner URL = `qrgear.com/QRG-I-101-001-000001`.
-  - **Size+Color [X][CC]** (3 digits, **barcode only — never in URL or packet name**): X=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Barcode = `QRG-I-101-001-000001-402`. Encoded as Code 128.
-  - **Packet name = QRG ID**: every packet is automatically named by its QRG identifier at creation (e.g. Army tee=`QRG-I-101-001`, Navy tee=`QRG-I-101-002`)
-  - **Two scan experiences**: QR code → `qrgear.com/QRG-I-101-001-000001` (customer landing page). Barcode → full item verification/admin lookup.
-  - **Firestore fields on `master_catalog`**: Doc ID = `qrg_NNN` (classified) or `pending_py_*`/`pending_pf_*` (unclassified). Key fields: `qrgBlankId`, `qrgCategory` (Tees/Hoodies/Hats/Drinkware/Unclassified), `categorySource` (qrg|pending), `availableVia` (string[] of providers), `providerMappings` (array of `{ provider, blueprintId/productId, title, printProviderId }`), `canonicalTitle`, `brand`, `model`, `originCountry`, `printifyImages[]`, `printfulImages[]`, `images[]` (combined), `colors`, `sizes`, `minPrice`, `maxPrice`, `lastSyncedAt`. Returned by `GET /api/master-catalog`. QRG range labels: Tees=101–199, Hoodies=201–299, Hats=301–399, Drinkware=401–499.
+  - **Blank [BBB]** (4 digits — upgraded from 3): X000=top-level category, X100–X900=subcategory, X101–X199=specific blanks (99 slots per subcategory). Example: `1101`=first T-Shirt blank.
+  - **Build [DDD]** (3 digits): sequential build number per source+blank (001,002,003…). Each distinct design/colorway build gets its own number. Packet name = `QRG-I-1101-001`.
+  - **Owner [SSSSSS]** (6 digits): zero-padded, assigned at claim time, unique per blank (000001–999999). Owner URL = `qrgear.com/QRG-I-1101-001-000001`.
+  - **Size+Color [X][CC]** (3 digits, **barcode only — never in URL or packet name**): X=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Barcode = `QRG-I-1101-001-000001-402`. Encoded as Code 128.
+  - **Packet name = QRG ID**: every packet is automatically named by its QRG identifier at creation.
+  - **Two scan experiences**: QR code → `qrgear.com/QRG-I-1101-001-000001` (customer landing page). Barcode → full item verification/admin lookup.
+  - **Backward compat**: Old 3-digit doc IDs (`qrg_101`, `qrg_201`, etc.) remain in Firestore for existing products. New products get 4-digit IDs (`qrg_1101`, etc.). The `resolveQrgCategoryLabel()` function in `master-catalog.ts` maps both old numeric codes and old string names to new labels automatically.
+  - **Firestore fields on `master_catalog`**: Doc ID = `qrg_NNNN` (classified, new) or `qrg_NNN` (classified, legacy) or `pending_py_*`/`pending_pf_*` (unclassified). Key fields: `qrgBlankId`, `qrgCategory` (subcategory label, see taxonomy below), `categorySource` (manual|mapped|inferred), `availableVia` (string[] of providers), `providerMappings`, `canonicalTitle`, `brand`, `model`, `originCountry`, `printifyImages[]`, `printfulImages[]`, `images[]` (combined), `colors`, `sizes`, `minPrice`, `maxPrice`, `lastSyncedAt`. Returned by `GET /api/master-catalog`.
+
+  ### QRG 4-Digit Category Taxonomy
+  Defined in `functions/src/services/master-catalog.ts` (`QRG_TOP_LEVEL_CATEGORIES`, `QRG_BLANK_CATEGORIES`).
+
+  | Code | Top-Level | Sub-Code | Subcategory |
+  |------|-----------|----------|-------------|
+  | 1000 | **Apparel** | 1100 | T-Shirts |
+  | | | 1200 | Hoodies & Sweatshirts |
+  | | | 1300 | Bottoms & Active |
+  | | | 1400 | Hats & Caps |
+  | | | 1500 | Footwear & Socks |
+  | | | 1600 | Sleepwear & Underwear |
+  | | | 1700 | Baby & Kids |
+  | 2000 | **Houseware** | 2100 | Drinkware |
+  | | | 2200 | Barware |
+  | | | 2300 | Drinkware Accessories |
+  | | | 2400 | Kitchen & Dining |
+  | | | 2500 | Bedding & Textiles |
+  | | | 2600 | Home Décor |
+  | 3000 | **Print & Display** | 3100 | Wall Art & Prints |
+  | | | 3200 | Stickers & Magnets |
+  | | | 3300 | Stationery & Paper |
+  | | | 3400 | Signs & Display |
+  | | | 3500 | Books & Photo |
+  | | | 3600 | Pins & Patches |
+  | | | 3700 | Tags |
+  | | | 3800 | Puzzles & Games |
+  | | | 3900 | Novelty |
+  | 4000 | **Accessories** | 4100 | Bags & Pouches |
+  | | | 4200 | Jewelry |
+  | | | 4300 | Phone & Tech Cases |
+  | | | 4400 | Travel Accessories |
+  | | | 4500 | Small Accessories |
+  | 5000 | **Pet Products** | 5100 | Pet Apparel |
+  | | | 5200 | Pet Accessories |
+  | 6000 | **Holiday & Seasonal** | 6100 | Ornaments & Décor |
+  | | | 6200 | Stockings & Gifting |
+  | | | 6300 | Seasonal Apparel |
+
+  Each subcategory holds up to 99 product blanks (X101–X199). Slots X800–X900 reserved for future growth per top-level. Dropped categories: Food & Supplements, Electronics, Beauty & Personal Care, Fabric & Craft (not core business).
 - **Activation Flow**: Buyer pays → activation code generated (`XXXX-XXXX` format) → activation email sent → buyer scans product QR → sees product landing page → enters code in activation panel → 1-year hosting starts from claim moment (NOT purchase date).
 - **Key Files**:
   - `server/lib/claimService.ts`: `generateClaimCodeForOrderItem()` — creates claim code in `claimCodes` Firestore collection with `status: 'unclaimed'`

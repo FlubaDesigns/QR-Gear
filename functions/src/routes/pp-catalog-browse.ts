@@ -5,6 +5,7 @@ import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_I
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
+  import { resolveQrgCategoryLabel, QRG_BLANK_CATEGORIES, QRG_TOP_LEVEL_CATEGORIES } from '../services/master-catalog';
   import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
   import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
   import type { MockupRequest, MockupResult } from '../services/mockup-generator';
@@ -393,8 +394,8 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
     for (const doc of snap.docs) {
       const p = doc.data() as any;
 
-      // Use QRG category from the record. Falls back to Unclassified.
-      const category = (p.qrgCategory && p.qrgCategory !== 'Unclassified') ? p.qrgCategory : (p.qrgCategory || 'Unclassified');
+      // Resolve raw qrgCategory (may be old numeric code, old string, or new label) → display label
+      const category = resolveQrgCategoryLabel(p.qrgCategory);
       if (!categories[category]) categories[category] = [];
 
       // Extract provider IDs from providerMappings (new format) or legacy fields
@@ -456,8 +457,11 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       });
     }
 
-    // QRG category order — defined ranges first, then Unclassified
-    const QRG_CATEGORY_ORDER = ['Tees', 'Hoodies', 'Hats', 'Drinkware', 'Unclassified'];
+    // QRG category order — subcategories in taxonomy order, then Unclassified
+    const QRG_CATEGORY_ORDER = [
+      ...QRG_BLANK_CATEGORIES.map(c => c.name),
+      'Unclassified',
+    ];
     const result = Object.entries(categories)
       .map(([name, items]) => ({
         name,
