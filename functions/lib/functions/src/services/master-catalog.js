@@ -28,6 +28,28 @@ function stripHtml(raw) {
 function delay(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
+/** Fetch with automatic retry on 429 / 5xx, up to maxRetries attempts */
+async function fetchWithRetry(fn, maxRetries = 4, baseDelayMs = 2000) {
+    let attempt = 0;
+    while (true) {
+        try {
+            return await fn();
+        }
+        catch (e) {
+            const isRateLimit = /429|rate.?limit|too.?many/i.test(e.message ?? '');
+            const isServer = /5\d\d|server.?error/i.test(e.message ?? '');
+            if ((isRateLimit || isServer) && attempt < maxRetries) {
+                const wait = baseDelayMs * Math.pow(2, attempt);
+                console.warn(`[Enrich] Retry ${attempt + 1}/${maxRetries} after ${wait}ms — ${e.message}`);
+                await delay(wait);
+                attempt++;
+            }
+            else {
+                throw e;
+            }
+        }
+    }
+}
 /** Extract plain URL strings from an ImageRecord[] or mixed array */
 function toUrlArray(records) {
     return (records || []).map((r) => {
@@ -743,29 +765,38 @@ async function enrichMasterCatalog(options = {}) {
     const stats = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
     const snap = await core_1.db.collection(MASTER_CATALOG_COLLECTION).get();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    for (const doc of snap.docs) {
+    // ── Burst processing: N docs concurrently, then pause between bursts ───────
+    const BURST_SIZE = 8; // parallel requests per burst
+    const BURST_PAUSE_MS = 1500; // pause between bursts to stay under rate limits
+    async function enrichDoc(doc) {
         const data = doc.data();
         stats.total++;
-        // Skip recently-enriched docs unless forceRefresh
-        const alreadyEnriched = data.lastEnrichedAt && data.lastEnrichedAt > sevenDaysAgo && Array.isArray(data.printPositions) && data.printPositions.length > 0;
+        const alreadyEnriched = data.lastEnrichedAt &&
+            data.lastEnrichedAt > sevenDaysAgo &&
+            Array.isArray(data.printPositions) &&
+            data.printPositions.length > 0;
         if (!forceRefresh && alreadyEnriched) {
             stats.skipped++;
-            continue;
+            return;
         }
+        // Support both old flat schema and new providerMappings schema
         const providerMappings = Array.isArray(data.providerMappings) ? data.providerMappings : [];
-        const pyMapping = providerMappings.find((m) => m.provider === 'printify') || null;
-        const pfMapping = providerMappings.find((m) => m.provider === 'printful') || null;
+        const pyMap = providerMappings.find((m) => m.provider === 'printify') || null;
+        const pfMap = providerMappings.find((m) => m.provider === 'printful') || null;
+        const pfProductId = data.printfulProductId ?? pfMap?.productId ?? null;
+        const pyBlueprintId = data.printifyBlueprintId ?? pyMap?.blueprintId ?? null;
+        // Provider ID may be stored or we'll look it up lazily
+        let pyProviderId = pyMap?.printProviderId ?? data.printProviderId ?? null;
         const update = { lastEnrichedAt: new Date().toISOString() };
         let enriched = false;
-        // ── 1. Printful — preferred (returns dimensions too) ────────────────────
-        if (!enriched && pfMapping?.productId && printful_1.printfulClient.isConfigured) {
+        // ── 1. Printful — preferred (returns dimensions too) ──────────────────
+        if (!enriched && pfProductId && printful_1.printfulClient.isConfigured) {
             try {
-                const printfileData = await printful_1.printfulClient.getPrintfiles(Number(pfMapping.productId));
+                const printfileData = await fetchWithRetry(() => printful_1.printfulClient.getPrintfiles(pfProductId));
                 const rawPlacements = printfileData?.available_placements ?? {};
                 const positions = [];
                 const sizes = {};
                 for (const [pos, info] of Object.entries(rawPlacements)) {
-                    // Skip embroidery-specific placements
                     if (/embroid|emb_/i.test(pos))
                         continue;
                     positions.push(pos);
@@ -783,41 +814,54 @@ async function enrichMasterCatalog(options = {}) {
                     enriched = true;
                     stats.printfulEnriched++;
                 }
-                await delay(250);
             }
             catch (e) {
-                console.warn(`[Enrich] Printful printfiles error (product ${pfMapping.productId}):`, e.message);
+                console.warn(`[Enrich] Printful error (product ${pfProductId}):`, e.message);
                 stats.errors++;
             }
         }
-        // ── 2. Printify — fallback (positions only, no dimensions) ──────────────
-        if (!enriched && pyMapping?.blueprintId && pyMapping?.printProviderId && printify_1.printifyClient.isConfigured) {
+        // ── 2. Printify — fallback (positions only, no dimensions) ────────────
+        if (!enriched && pyBlueprintId && printify_1.printifyClient.isConfigured) {
             try {
-                const variantData = await printify_1.printifyClient.getVariants(Number(pyMapping.blueprintId), Number(pyMapping.printProviderId));
-                const posSet = new Set();
-                for (const v of (variantData?.variants ?? [])) {
-                    for (const ph of (v.placeholders ?? [])) {
-                        if (ph.position)
-                            posSet.add(ph.position);
+                // Look up the first available provider if we don't have one stored
+                if (!pyProviderId) {
+                    const providers = await fetchWithRetry(() => printify_1.printifyClient.getPrintProviders(pyBlueprintId));
+                    pyProviderId = providers?.[0]?.id ?? null;
+                }
+                if (pyProviderId) {
+                    const variantData = await fetchWithRetry(() => printify_1.printifyClient.getVariants(pyBlueprintId, pyProviderId));
+                    const posSet = new Set();
+                    for (const v of (variantData?.variants ?? [])) {
+                        for (const ph of (v.placeholders ?? [])) {
+                            if (ph.position)
+                                posSet.add(ph.position);
+                        }
+                    }
+                    if (posSet.size > 0) {
+                        update.printPositions = Array.from(posSet);
+                        if (!update.printSizes)
+                            update.printSizes = {};
+                        enriched = true;
+                        stats.printifyEnriched++;
                     }
                 }
-                if (posSet.size > 0) {
-                    update.printPositions = Array.from(posSet);
-                    // Printify doesn't return dimensions at this endpoint
-                    if (!update.printSizes)
-                        update.printSizes = {};
-                    enriched = true;
-                    stats.printifyEnriched++;
-                }
-                await delay(350);
             }
             catch (e) {
-                console.warn(`[Enrich] Printify variants error (bp ${pyMapping.blueprintId}):`, e.message);
+                console.warn(`[Enrich] Printify error (bp ${pyBlueprintId}):`, e.message);
                 stats.errors++;
             }
         }
-        // Always persist the lastEnrichedAt timestamp (marks the attempt)
         await doc.ref.update(update);
+    }
+    // Fire docs in bursts of BURST_SIZE, pause between each burst
+    for (let i = 0; i < snap.docs.length; i += BURST_SIZE) {
+        const burst = snap.docs.slice(i, i + BURST_SIZE);
+        await Promise.all(burst.map(enrichDoc));
+        const remaining = snap.docs.length - (i + BURST_SIZE);
+        if (remaining > 0) {
+            console.log(`[Enrich] Burst ${Math.floor(i / BURST_SIZE) + 1} done — ${i + burst.length}/${snap.docs.length} processed. Pausing ${BURST_PAUSE_MS}ms…`);
+            await delay(BURST_PAUSE_MS);
+        }
     }
     console.log('[MasterCatalog] Enrich complete:', stats);
     return stats;
