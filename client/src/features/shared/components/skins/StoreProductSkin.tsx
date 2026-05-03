@@ -157,7 +157,7 @@ function ProductCard({
         </CardContent>
         {onDelete && (
           <button
-            className="absolute top-2 left-2 z-10 invisible group-hover:visible p-1 rounded-md bg-destructive/90 text-destructive-foreground"
+            className="absolute top-2 left-2 z-10 p-1.5 rounded-md bg-destructive/90 text-destructive-foreground"
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             data-testid={`button-delete-product-${item.id}`}
             title="Remove from store"
@@ -218,7 +218,7 @@ function ProductCard({
       )}
       {onDelete && (
         <button
-          className="absolute top-1 left-1 z-10 invisible group-hover:visible p-1 rounded-md bg-destructive/90 text-destructive-foreground"
+          className="absolute top-1 left-1 z-10 p-1.5 rounded-md bg-destructive/90 text-destructive-foreground"
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           data-testid={`button-delete-product-${item.id}`}
           title="Remove from store"

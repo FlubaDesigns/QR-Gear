@@ -713,20 +713,25 @@ export function StoreManagerTab() {
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
   const [deleteStoreOpen, setDeleteStoreOpen] = useState(false);
 
+  const [deleteStoreError, setDeleteStoreError] = useState<string | null>(null);
   const deleteStoreMutation = useMutation({
     mutationFn: async () => {
       if (!selectedStore) return;
       await adminFetch(`/stores/${selectedStore.id}`, { method: "DELETE" });
     },
     onSuccess: () => {
-      toast({ title: "Store deleted" });
+      setDeleteStoreError(null);
       setDeleteStoreOpen(false);
       setSelectedStore(null);
       setSelectedChannelId(null);
       setSelectedCollectionName(null);
       queryClient.invalidateQueries({ queryKey: ["stores", selectedRole] });
+      toast({ title: "Store deleted" });
     },
-    onError: () => toast({ title: "Error", description: "Could not delete store.", variant: "destructive" }),
+    onError: (err: any) => {
+      console.error("[StoreManagerTab] deleteStore error:", err);
+      setDeleteStoreError(err?.message || "Could not delete store. Please try again.");
+    },
   });
 
   const { data: stores = [], isLoading: loadingStores } = useQuery<StoreType[]>({
@@ -971,7 +976,7 @@ export function StoreManagerTab() {
         </div>
       )}
 
-      <AlertDialog open={deleteStoreOpen} onOpenChange={setDeleteStoreOpen}>
+      <AlertDialog open={deleteStoreOpen} onOpenChange={(open) => { if (!deleteStoreMutation.isPending) { setDeleteStoreOpen(open); setDeleteStoreError(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete store?</AlertDialogTitle>
@@ -979,16 +984,19 @@ export function StoreManagerTab() {
               Delete <strong>"{selectedStore?.name}"</strong>? This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteStoreError && (
+            <p className="text-sm text-destructive px-1">{deleteStoreError}</p>
+          )}
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete-store">Cancel</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogCancel disabled={deleteStoreMutation.isPending} data-testid="button-cancel-delete-store">Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
               onClick={() => deleteStoreMutation.mutate()}
               disabled={deleteStoreMutation.isPending}
-              className="bg-destructive text-destructive-foreground"
               data-testid="button-confirm-delete-store"
             >
               {deleteStoreMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete store"}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
