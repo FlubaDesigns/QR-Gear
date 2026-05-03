@@ -402,14 +402,14 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
       const db = getFirestoreDb();
 
       const PLACEMENT_ORDER = ["front", "front-center", "back", "left_sleeve", "right_sleeve"];
-      function buildPacketImageOrder(pkt: any): string[] {
+      const buildPacketImageOrder = (pkt: any): string[] => {
         const ordered: string[] = [];
         const seen = new Set<string>();
-        function add(url: string | null | undefined) {
+        const add = (url: string | null | undefined) => {
           if (!url || seen.has(url)) return;
           seen.add(url);
           ordered.push(url);
-        }
+        };
         add(pkt.lifestyleMockupUrl);
         const placementMockupUrls: Record<string, string> = pkt.placementMockupUrls || {};
         const placementKeys = Object.keys(placementMockupUrls);
@@ -422,7 +422,7 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
         add(pkt.compositeUrl || pkt.productGraphicUrl);
         add(pkt.landingPageSnapshotUrl);
         return ordered;
-      }
+      };
 
       const snap = await db.collection(ADMIN_INSTANCES_COLLECTION)
         .where("currentPacketId", "!=", null)
@@ -461,14 +461,14 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
       const db = getFirestoreDb();
 
       const PLACEMENT_ORDER = ["front", "front-center", "back", "left_sleeve", "right_sleeve"];
-      function buildPacketImageOrder(pkt: any): string[] {
+      const buildPacketImageOrder = (pkt: any): string[] => {
         const ordered: string[] = [];
         const seen = new Set<string>();
-        function add(url: string | null | undefined) {
+        const add = (url: string | null | undefined) => {
           if (!url || seen.has(url)) return;
           seen.add(url);
           ordered.push(url);
-        }
+        };
         add(pkt.lifestyleMockupUrl);
         const placementMockupUrls: Record<string, string> = pkt.placementMockupUrls || {};
         const placementKeys = Object.keys(placementMockupUrls);
@@ -481,7 +481,7 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
         add(pkt.compositeUrl || pkt.productGraphicUrl);
         add(pkt.landingPageSnapshotUrl);
         return ordered;
-      }
+      };
 
       const instanceDoc = await db.collection(ADMIN_INSTANCES_COLLECTION).doc(id).get();
       if (!instanceDoc.exists) { res.status(404).json({ error: "Instance not found" }); return; }

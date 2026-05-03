@@ -585,9 +585,28 @@ export function registerProductRoutes(app: Express): void {
       const snap = await fsDb.collection('master_catalog').get();
       const categories: Record<string, any[]> = {};
 
+      // QRG category name mapping from numeric code to display label
+      const QRG_CATEGORY_LABELS: Record<number, string> = {
+        100: 'Tees', 200: 'Hoodies', 300: 'Hats', 400: 'Drinkware',
+      };
+
       for (const doc of snap.docs) {
         const p = doc.data() as any;
-        const category = (p.category && p.category !== 'Other') ? p.category : classifyCategory(p.title || '');
+
+        // Prefer QRG category string; fall back to numeric→label; then classifyCategory
+        let category: string;
+        if (p.qrgCategory && typeof p.qrgCategory === 'string') {
+          category = p.qrgCategory;
+        } else if (p.qrgCategory && typeof p.qrgCategory === 'number') {
+          const base = Math.floor(p.qrgCategory / 100) * 100;
+          category = QRG_CATEGORY_LABELS[base] || classifyCategory(p.title || '');
+        } else if (p.categorySource === 'pending') {
+          category = 'Unclassified';
+        } else if (p.category && p.category !== 'Other') {
+          category = p.category;
+        } else {
+          category = classifyCategory(p.title || '');
+        }
         if (!categories[category]) categories[category] = [];
 
         // Resolve fields — handle both CF schema (printifyBlueprintId/printfulProductId/colors/images)
@@ -597,23 +616,41 @@ export function registerProductRoutes(app: Express): void {
         const resolvedId = blueprintId ?? printfulId;
         const colors = p.colors ?? p.availableColors ?? [];
         const sizes = p.sizes ?? p.availableSizes ?? [];
-        const imageUrl = (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null) ?? p.imageUrl ?? null;
+        const printifyImages: string[] = p.printifyImages ?? [];
+        const printfulImages: string[] = p.printfulImages ?? [];
+        const allImages: string[] = p.images ?? [...printifyImages, ...printfulImages];
+        const imageUrl = (allImages.length > 0 ? allImages[0] : null) ?? p.imageUrl ?? null;
         const madeInUSA = p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US');
+        const availableVia: string[] = p.availableVia ?? (
+          printfulId != null && blueprintId != null ? ['Printify', 'Printful'] :
+          blueprintId != null ? ['Printify'] : ['Printful']
+        );
         const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
-        const providers = p.providers ?? (printfulId != null && blueprintId != null ? ['printify', 'printful'] : [fulfillmentProvider]);
+        const providers = p.providers ?? availableVia.map((v: string) => v.toLowerCase());
 
         categories[category].push({
           docId: doc.id,
-          qrgId: p.qrgId ?? null,
+          // QRG identity fields
+          qrgBlankId: p.qrgBlankId ?? doc.id,
           qrgCategory: p.qrgCategory ?? null,
+          categorySource: p.categorySource ?? null,
+          providerMappings: p.providerMappings ?? [],
+          canonicalTitle: p.canonicalTitle ?? null,
+          // Images per provider
+          printifyImages,
+          printfulImages,
+          // Legacy + compat fields
+          qrgId: p.qrgId ?? null,
           id: resolvedId,
-          title: (p.title || "").trim(),
+          title: (p.canonicalTitle || p.title || "").trim(),
           description: (p.description || "").trim() || null,
           brand: p.brand ?? null,
           model: p.model ?? null,
+          originCountry: p.originCountry ?? null,
           imageUrl,
           madeInUSA,
           blueprintId,
+          printfulId,
           printProviderId: p.printProviderId ?? null,
           minPrice: p.minPrice != null ? String(p.minPrice) : null,
           maxPrice: p.maxPrice != null ? String(p.maxPrice) : null,
@@ -621,17 +658,33 @@ export function registerProductRoutes(app: Express): void {
           availableColors: colors,
           availableSizes: sizes,
           fulfillmentProvider,
-          availableVia: p.availableVia ?? providers,
-          printfulId,
+          availableVia,
           providers,
         });
       }
 
-      const CATEGORY_ORDER = ["T-Shirts & Tops","Sweatshirts & Hoodies","Hats & Caps","Drinkware","Bags & Accessories","Phone Cases & Tech","Stickers & Magnets","Wall Art & Posters","Home & Living","Stationery & Paper","Activewear & Specialty","Accessories","Pet Products","Holiday & Seasonal","Other"];
+      // QRG categories first, then legacy order
+      const QRG_CATEGORY_ORDER = ['Tees', 'Hoodies', 'Hats', 'Drinkware', 'Unclassified'];
+      const LEGACY_CATEGORY_ORDER = ["T-Shirts & Tops","Sweatshirts & Hoodies","Hats & Caps","Drinkware","Bags & Accessories","Phone Cases & Tech","Stickers & Magnets","Wall Art & Posters","Home & Living","Stationery & Paper","Activewear & Specialty","Accessories","Pet Products","Holiday & Seasonal","Other"];
+      const ALL_ORDER = [...QRG_CATEGORY_ORDER, ...LEGACY_CATEGORY_ORDER];
+
       const result = Object.entries(categories)
-        .map(([name, items]) => ({ name, items: items.sort((a, b) => a.title.localeCompare(b.title)), count: items.length }))
+        .map(([name, items]) => {
+          const sorted = items.sort((a, b) => a.title.localeCompare(b.title));
+          return {
+            name,
+            items: sorted,
+            count: sorted.length,
+            printifyCount: sorted.filter(i => (i.availableVia as string[]).some((v: string) => v.toLowerCase() === 'printify')).length,
+            printfulCount: sorted.filter(i => (i.availableVia as string[]).some((v: string) => v.toLowerCase() === 'printful')).length,
+            bothCount: sorted.filter(i => {
+              const via = (i.availableVia as string[]).map((v: string) => v.toLowerCase());
+              return via.includes('printify') && via.includes('printful');
+            }).length,
+          };
+        })
         .sort((a, b) => {
-          const ai = CATEGORY_ORDER.indexOf(a.name); const bi = CATEGORY_ORDER.indexOf(b.name);
+          const ai = ALL_ORDER.indexOf(a.name); const bi = ALL_ORDER.indexOf(b.name);
           if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
           if (ai === -1) return 1; if (bi === -1) return -1;
           return ai - bi;

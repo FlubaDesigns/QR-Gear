@@ -130,7 +130,7 @@ export function StoreChannelDropdownModule() {
   const createStoreMutation = useMutation({
     mutationFn: ({ name, roleType }: { name: string; roleType: RoleType }) =>
       adminFetch("/stores", { method: "POST", json: { name, roleType } }),
-    onSuccess: (newStore) => {
+    onSuccess: (newStore: StoreType) => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       setNewStoreName("");
       setShowAddStore(false);
@@ -161,7 +161,7 @@ export function StoreChannelDropdownModule() {
   const createChannelMutation = useMutation({
     mutationFn: ({ storeId, name }: { storeId: string; name: string }) =>
       adminFetch(`/stores/${storeId}/channels`, { method: "POST", json: { name } }),
-    onSuccess: (newChannel) => {
+    onSuccess: (newChannel: Channel) => {
       queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
       setNewChannelName("");
       setShowAddChannel(false);

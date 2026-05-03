@@ -87,7 +87,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
   const deleteChannelMutation = useMutation({
     mutationFn: (channelId: string) =>
       memberFetch(`/${memberId}/channels/${channelId}`, { method: 'DELETE' }),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({ title: 'Channel deleted', description: `${(data.unlinkedProducts || 0) + (data.unlinkedPackets || 0)} items moved back to your library.` });
       setSelectedChannelId(null);
       setConfirmDeleteChannel(null);

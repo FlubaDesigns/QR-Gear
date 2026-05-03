@@ -275,7 +275,7 @@ export function ReadyToPostSection({ memberId }: { memberId: string }) {
   const emailReminderMutation = useMutation({
     mutationFn: () =>
       memberFetch(`/${memberId}/social-schedule/send-reminders`, { method: 'POST' }),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data.sent) {
         toast({ title: 'Reminder sent!', description: `Email with ${data.itemCount} item${data.itemCount === 1 ? '' : 's'} sent to your inbox.` });
       } else {

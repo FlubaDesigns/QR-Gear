@@ -218,7 +218,6 @@ export function registerAdminContentRoutes(app: Express): void {
 
       await storage.updatePartnerStoreProductByIds(storeId, productId, {
         mockupsByColor: existingMockups,
-        placementMockupUrls,
       });
 
       console.log(`[PartnerMockup] Saved ${Object.keys(placementMockupUrls).length} placement mockup(s) for ${color}`);

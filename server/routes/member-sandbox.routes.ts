@@ -654,6 +654,26 @@ export function registerMemberSandboxRoutes(app: Express): void {
         printfulCache.set(String(pf.id), pf);
       }
 
+      // Pre-fetch master_catalog docs for any QRG-format blankIds (qrg_NNN / pending_*)
+      const masterCatalogCache = new Map<string, any>();
+      const qrgBlankIds = (catalog.blankIds as string[]).filter((id: string) => {
+        const s = String(id ?? '');
+        return s.startsWith('qrg_') || s.startsWith('pending_');
+      });
+      if (qrgBlankIds.length > 0) {
+        const { getFirestoreDb } = await import("../lib/firebase-admin");
+        const fsDb = getFirestoreDb();
+        // Firestore in() supports up to 30 — chunk if needed
+        const CHUNK = 30;
+        for (let i = 0; i < qrgBlankIds.length; i += CHUNK) {
+          const chunk = qrgBlankIds.slice(i, i + CHUNK);
+          const snaps = await Promise.all(chunk.map((id: string) => fsDb.collection('master_catalog').doc(id).get()));
+          for (const snap of snaps) {
+            if (snap.exists) masterCatalogCache.set(snap.id, snap.data());
+          }
+        }
+      }
+
       const blankDescriptions = catalog.blankDescriptions || {};
       const blankTitleOverrides = catalog.blankTitles || {};
       const tiers: Record<string, Record<string, any>> = {};
@@ -662,10 +682,28 @@ export function registerMemberSandboxRoutes(app: Express): void {
 
       for (const blankId of catalog.blankIds) {
         const safeId = String(blankId ?? '');
-        const isPrintful = safeId.startsWith('pf:');
-        const rawId = isPrintful ? safeId.slice(3) : safeId;
         const canonicalKey = safeId;
-        const provider = isPrintful ? 'printful' : 'printify';
+
+        // Determine provider and rawId — handle QRG, pf:, and legacy numeric IDs
+        let isPrintful = safeId.startsWith('pf:');
+        let rawId = isPrintful ? safeId.slice(3) : safeId;
+        let provider = isPrintful ? 'printful' : 'printify';
+
+        // QRG format: resolve via master_catalog providerMappings
+        const isQrg = safeId.startsWith('qrg_') || safeId.startsWith('pending_');
+        if (isQrg) {
+          const masterDoc = masterCatalogCache.get(safeId);
+          if (!masterDoc) continue; // not yet synced — skip silently
+          const mappings: any[] = masterDoc.providerMappings ?? [];
+          // Prefer Printful if available, else Printify
+          const pfMapping = mappings.find((m: any) => m.provider === 'Printful');
+          const pyMapping = mappings.find((m: any) => m.provider === 'Printify');
+          const mapping = pfMapping ?? pyMapping;
+          if (!mapping) continue;
+          isPrintful = mapping.provider === 'Printful';
+          rawId = String(isPrintful ? (mapping.productId ?? mapping.blueprintId) : mapping.blueprintId);
+          provider = isPrintful ? 'printful' : 'printify';
+        }
 
         const tierKey = blankTiers[canonicalKey] || "good";
         if (!tiers[category][tierKey]) {

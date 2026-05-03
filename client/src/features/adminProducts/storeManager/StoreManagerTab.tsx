@@ -11,6 +11,7 @@ import {
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import type { RoleType, Store as StoreType, Channel, Collection } from "../shared/types";
@@ -427,7 +428,7 @@ function InstanceCard({
       <AccordionSection label="Actions">
         <div className="flex gap-2">
           <button
-            onClick={() => { setShowMove(!showMove); setConfirmDelete(false); }}
+            onClick={() => { setShowMove(!showMove); }}
             className="qr-btn qr-btn--outline qr-btn--touch flex-1 gap-2"
             data-testid={`button-move-${instance.id}`}
           >
@@ -886,6 +887,7 @@ export function StoreManagerTab() {
               )}
           </div>
         </div>
+      </div>
       </div>
 
       {selectedStore && (
