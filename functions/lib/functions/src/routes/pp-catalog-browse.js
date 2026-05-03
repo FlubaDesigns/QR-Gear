@@ -483,6 +483,7 @@ function registerPpCatalogBrowseRoutes(app) {
                     docId: doc.id,
                     qrgBlankId: p.qrgBlankId ?? null,
                     qrgCategory: p.qrgCategory ?? null,
+                    qrgParentCategory: p.qrgParentCategory ?? null,
                     categorySource: p.categorySource ?? null,
                     id,
                     title: (p.canonicalTitle || p.title || '').trim(),
@@ -537,6 +538,47 @@ function registerPpCatalogBrowseRoutes(app) {
         }
         catch (e) {
             console.error('[MasterCatalog] Error:', e.message);
+            res.status(500).json({ error: e.message });
+        }
+    });
+    // GET /master-catalog/taxonomy — returns distinct parent → subcategory counts
+    // derived entirely from live Firestore data, never hardcoded
+    app.get('/master-catalog/taxonomy', async (_req, res) => {
+        try {
+            const snap = await core_1.db.collection('master_catalog').get();
+            const tree = {};
+            for (const doc of snap.docs) {
+                const p = doc.data();
+                const parent = p.qrgParentCategory || 'Unclassified';
+                const sub = (0, master_catalog_1.resolveQrgCategoryLabel)(p.qrgCategory) || 'Unclassified';
+                if (!tree[parent])
+                    tree[parent] = {};
+                tree[parent][sub] = (tree[parent][sub] || 0) + 1;
+            }
+            // Order parents by the QRG_TOP_LEVEL_CATEGORIES definition, then Unclassified last
+            const TOP_ORDER = master_catalog_1.QRG_TOP_LEVEL_CATEGORIES.map(t => t.name);
+            const result = Object.entries(tree)
+                .map(([parent, subs]) => ({
+                parent,
+                count: Object.values(subs).reduce((a, b) => a + b, 0),
+                subcategories: Object.entries(subs)
+                    .map(([name, count]) => ({ name, count }))
+                    .sort((a, b) => b.count - a.count),
+            }))
+                .sort((a, b) => {
+                const ai = TOP_ORDER.indexOf(a.parent);
+                const bi = TOP_ORDER.indexOf(b.parent);
+                if (ai === -1 && bi === -1)
+                    return a.parent.localeCompare(b.parent);
+                if (ai === -1)
+                    return 1;
+                if (bi === -1)
+                    return -1;
+                return ai - bi;
+            });
+            res.json(result);
+        }
+        catch (e) {
             res.status(500).json({ error: e.message });
         }
     });

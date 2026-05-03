@@ -646,6 +646,7 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     const entry: any = {
       qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
       qrgCategory: qrgCategory || 'Unclassified',
+      qrgParentCategory: QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory)?.parent ?? 'Unclassified',
       canonicalTitle,
       brand: canonicalBrand || currentDoc?.brand || null,
       model: safeAssign(currentDoc?.model, bp.model || matchedPrintful?.model || null),
@@ -744,6 +745,7 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     const entry: any = {
       qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
       qrgCategory: qrgCategory || 'Unclassified',
+      qrgParentCategory: QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory)?.parent ?? 'Unclassified',
       canonicalTitle: safeAssignRequired(currentDoc?.canonicalTitle, pf.title || pf.typeName || null),
       brand: safeAssign(currentDoc?.brand, pf.brand || null),
       model: safeAssign(currentDoc?.model, pf.model || null),

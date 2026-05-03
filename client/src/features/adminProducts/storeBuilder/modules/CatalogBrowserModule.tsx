@@ -21,6 +21,7 @@ interface CatalogItem {
   provider?: 'printify' | 'printful';
   dualProvider?: boolean;
   matchedProviderId?: string | null;
+  qrgParentCategory?: string | null;
 }
 
 interface CatalogCategory {
@@ -32,6 +33,12 @@ interface CatalogCategory {
   printfulCount?: number;
 }
 
+interface TaxonomyParent {
+  parent: string;
+  count: number;
+  subcategories: { name: string; count: number }[];
+}
+
 type ProviderFilter = 'all' | 'printify' | 'printful' | 'matched';
 
 export function CatalogBrowserModule() {
@@ -39,7 +46,18 @@ export function CatalogBrowserModule() {
   const [search, setSearch] = useState("");
   const [usaOnly, setUsaOnly] = useState(false);
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all');
+  const [parentFilter, setParentFilter] = useState<string>("all");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  const { data: taxonomy = [] } = useQuery<TaxonomyParent[]>({
+    queryKey: ["/api/master-catalog/taxonomy"],
+    queryFn: async () => {
+      const res = await fetch("/api/master-catalog/taxonomy");
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 300000,
+  });
 
   const { data: categories = [], isLoading } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/master-catalog", { provider: providerFilter }],
@@ -60,9 +78,7 @@ export function CatalogBrowserModule() {
     enabled: !!currentChannel,
   });
 
-  if (!currentChannel) {
-    return null;
-  }
+  if (!currentChannel) return null;
 
   const searchLower = search.toLowerCase();
   const filteredCategories = categories.map(cat => ({
@@ -71,7 +87,8 @@ export function CatalogBrowserModule() {
       const matchesSearch = (item.title?.toLowerCase()?.includes(searchLower) ?? false) ||
         (item.brand?.toLowerCase()?.includes(searchLower) ?? false);
       const matchesUSA = !usaOnly || item.madeInUSA;
-      return matchesSearch && matchesUSA;
+      const matchesParent = parentFilter === "all" || (item as any).qrgParentCategory === parentFilter;
+      return matchesSearch && matchesUSA && matchesParent;
     }),
   })).filter(cat => cat.items.length > 0);
 
@@ -90,9 +107,9 @@ export function CatalogBrowserModule() {
     if (step === "catalog") setStep("configure");
   };
 
-  const providerLabel = providerFilter === 'all' ? '' : 
-    providerFilter === 'printify' ? ' from Printify' : 
-    providerFilter === 'printful' ? ' from Printful' : 
+  const providerLabel = providerFilter === 'all' ? '' :
+    providerFilter === 'printify' ? ' from Printify' :
+    providerFilter === 'printful' ? ' from Printful' :
     ' matched across both providers';
 
   return (
@@ -103,6 +120,38 @@ export function CatalogBrowserModule() {
       badge={selectedBaseProduct ? <Badge variant="secondary">{selectedBaseProduct.name}</Badge> : undefined}
     >
       <div className="space-y-3">
+
+        {/* Top-level parent category buttons — driven by live taxonomy data */}
+        {taxonomy.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            <Button
+              variant={parentFilter === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setParentFilter("all"); setExpandedCategory(null); }}
+              className="text-xs"
+              data-testid="button-parent-all"
+            >
+              All
+            </Button>
+            {taxonomy.filter(t => t.parent !== "Unclassified").map(t => (
+              <Button
+                key={t.parent}
+                variant={parentFilter === t.parent ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setParentFilter(t.parent); setExpandedCategory(null); }}
+                className="text-xs"
+                data-testid={`button-parent-${t.parent.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {t.parent}
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1 no-default-hover-elevate no-default-active-elevate">
+                  {t.count}
+                </Badge>
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {/* Provider filter row */}
         <div className="flex items-center gap-1 flex-wrap">
           <Button
             variant={providerFilter === 'all' ? "default" : "outline"}
@@ -173,6 +222,7 @@ export function CatalogBrowserModule() {
         <p className="text-xs text-muted-foreground" data-testid="text-catalog-count">
           {totalFiltered} products{usaOnly ? ` (${totalUSA} USA-made)` : ` of ${totalItems} total`}
           {providerLabel}
+          {parentFilter !== "all" ? ` in ${parentFilter}` : ""}
         </p>
 
         {isLoading ? (
@@ -212,9 +262,9 @@ export function CatalogBrowserModule() {
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           {product.imageUrl && (
-                            <img 
-                              src={product.imageUrl} 
-                              alt="" 
+                            <img
+                              src={product.imageUrl}
+                              alt=""
                               className="w-8 h-8 rounded object-cover flex-shrink-0"
                             />
                           )}

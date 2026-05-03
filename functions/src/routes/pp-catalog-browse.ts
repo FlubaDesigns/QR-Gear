@@ -431,6 +431,7 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
         docId: doc.id,
         qrgBlankId: p.qrgBlankId ?? null,
         qrgCategory: p.qrgCategory ?? null,
+        qrgParentCategory: p.qrgParentCategory ?? null,
         categorySource: p.categorySource ?? null,
         id,
         title: (p.canonicalTitle || p.title || '').trim(),
@@ -483,6 +484,46 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
     res.json(result);
   } catch (e: any) {
     console.error('[MasterCatalog] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /master-catalog/taxonomy — returns distinct parent → subcategory counts
+// derived entirely from live Firestore data, never hardcoded
+app.get('/master-catalog/taxonomy', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const snap = await db.collection('master_catalog').get();
+    const tree: Record<string, Record<string, number>> = {};
+
+    for (const doc of snap.docs) {
+      const p = doc.data() as any;
+      const parent: string = p.qrgParentCategory || 'Unclassified';
+      const sub: string = resolveQrgCategoryLabel(p.qrgCategory) || 'Unclassified';
+      if (!tree[parent]) tree[parent] = {};
+      tree[parent][sub] = (tree[parent][sub] || 0) + 1;
+    }
+
+    // Order parents by the QRG_TOP_LEVEL_CATEGORIES definition, then Unclassified last
+    const TOP_ORDER: string[] = QRG_TOP_LEVEL_CATEGORIES.map(t => t.name as string);
+    const result = Object.entries(tree)
+      .map(([parent, subs]) => ({
+        parent,
+        count: Object.values(subs).reduce((a, b) => a + b, 0),
+        subcategories: Object.entries(subs)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count),
+      }))
+      .sort((a, b) => {
+        const ai = TOP_ORDER.indexOf(a.parent);
+        const bi = TOP_ORDER.indexOf(b.parent);
+        if (ai === -1 && bi === -1) return a.parent.localeCompare(b.parent);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      });
+
+    res.json(result);
+  } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });

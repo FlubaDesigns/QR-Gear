@@ -178,6 +178,17 @@ export function useAdminBlanksController() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
 
+  // Taxonomy: top-level parents + subcategory counts — read dynamically from live data
+  const { data: taxonomyData = [] } = useQuery<{ parent: string; count: number; subcategories: { name: string; count: number }[] }[]>({
+    queryKey: ["/api/master-catalog/taxonomy"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/master-catalog/taxonomy");
+      const d = await res.json();
+      return Array.isArray(d) ? d : [];
+    },
+    staleTime: 300000,
+  });
+
   // Single source of truth: master_catalog collection via /api/master-catalog
   const { data: masterCategories = [], isLoading: loadingMasterCatalog } = useQuery<CatalogCategory[]>({
     queryKey: ["/api/master-catalog"],
@@ -584,6 +595,7 @@ export function useAdminBlanksController() {
     locationFilter,
     setLocationFilter,
     categoryNames,
+    taxonomyData,
 
     catalogItems,
     sourceItemMap,

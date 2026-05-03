@@ -625,6 +625,7 @@ async function syncMasterCatalog(_options = {}) {
         const entry = {
             qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
             qrgCategory: qrgCategory || 'Unclassified',
+            qrgParentCategory: exports.QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory)?.parent ?? 'Unclassified',
             canonicalTitle,
             brand: canonicalBrand || currentDoc?.brand || null,
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, bp.model || matchedPrintful?.model || null),
@@ -714,6 +715,7 @@ async function syncMasterCatalog(_options = {}) {
         const entry = {
             qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
             qrgCategory: qrgCategory || 'Unclassified',
+            qrgParentCategory: exports.QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory)?.parent ?? 'Unclassified',
             canonicalTitle: (0, safeAssign_1.safeAssignRequired)(currentDoc?.canonicalTitle, pf.title || pf.typeName || null),
             brand: (0, safeAssign_1.safeAssign)(currentDoc?.brand, pf.brand || null),
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, pf.model || null),
