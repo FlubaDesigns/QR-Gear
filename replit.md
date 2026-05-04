@@ -126,6 +126,20 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - `client/src/lib/memberFetch.ts` — `memberFetch(path, options?)` prepends `/api/members` and injects member auth headers automatically. Same `json`/`body` options.
   - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
+### GRF Graphic Reference Format
+- **GRF Identity Schema (FINAL)**: `GRF-[TT]-[K]-[H]-[ST]-[NNNNNN]` — all segments numeric, no letters. Authority file: `shared/graphicCodes.ts`.
+  - **Type `[TT]`** (2 digits): `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact Image · `07`=Template Graphic
+  - **Role `[K]`** (1 digit): `1`=Source · `2`=Derivative · `3`=Renderable · `4`=Final · `5`=Template
+  - **Hosting `[H]`** (1 digit): `0`=Online (hosted URL) · `1`=Local (design-layer construct)
+  - **Subtype `[ST]`** (1 digit, branches by H): Online→ `1`=Image · `2`=Video · `3`=Document · `4`=Audio · Local→ `5`=Zone · `6`=Canvas · `7`=Text · `8`=Graphic · `9`=Composite
+  - **Sequence `[NNNNNN]`** (6 digits): zero-padded, minted atomically from `grf_counters/{typeCode}_{roleCode}` in Firestore
+  - **Full example**: `GRF-04-3-0-1-000001` = QR Graphic, Renderable, Online, Image, #1
+  - **Regex**: `^GRF-(01|02|03|04|05|06|07)-[12345]-[01]-[123456789]-[0-9]{6}$`
+  - **Firestore**: `grf_counters` (atomic counters, doc ID = `{typeCode}_{roleCode}`) · `library_assets` (assetType=`graphic`, field `grfId`)
+  - **API**: `POST /admin/graphics/save-grf` — required body: `typeCode`, `roleCode`, `hostingMode`, `subtype`, `imageUrl`
+  - **Relationship to QRG**: QRG identifies products and instances. GRF identifies graphic assets — the visual building blocks products are assembled from. Independent schemas, never mixed. GRF-04 (QR Graphic) points to GRF-06 (URL Artifact Image) — the QR code is the key, the URL artifact is the door it opens.
+  - **Full spec**: METHODOLOGY.md Section 18
+
 ### First-Scan Activation System (QR Gear Core Flow)
 - **QRG Identity Schema (FINAL)**: `QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`
   - **Design/build data is NOT part of the QRG ID.** Design lives as a separate Firestore field, linked asset, or QR payload — never embedded in identity.

@@ -664,14 +664,14 @@ function register(app) {
                 });
                 return;
             }
-            if (!['O', 'L'].includes(hostingMode)) {
-                res.status(400).json({ error: 'Invalid hostingMode. Must be O (Online) or L (Local).' });
+            if (!['0', '1'].includes(hostingMode)) {
+                res.status(400).json({ error: 'Invalid hostingMode. Must be 0 (Online) or 1 (Local).' });
                 return;
             }
             const { isValidSubtypeForMode } = await Promise.resolve().then(() => __importStar(require('../../../shared/graphicCodes')));
             if (!isValidSubtypeForMode(hostingMode, subtype)) {
-                const validOnline = 'I, V, D, A';
-                const validLocal = 'Z, C, T, G, X';
+                const validOnline = '1=Image, 2=Video, 3=Document, 4=Audio';
+                const validLocal = '5=Zone, 6=Canvas, 7=Text, 8=Graphic, 9=Composite';
                 res.status(400).json({
                     error: `Invalid subtype "${subtype}" for hostingMode "${hostingMode}". Online subtypes: ${validOnline}. Local subtypes: ${validLocal}.`,
                 });

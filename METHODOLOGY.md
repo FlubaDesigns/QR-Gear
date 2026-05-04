@@ -10,7 +10,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
-| 2026-05-04 | Added GRF Graphic Reference Format identity system (Section 18) |
+| 2026-05-04 | Added GRF Graphic Reference Format identity system (Section 18) — all segments numeric, no letters |
 | 2026-04-23 | Added Builder→Storefront 5-Block Display Contract (Section 16) and Naming Standards reference (Section 17) |
 | 2026-04-09 | Added Collections sub-level within channels (Section 14) and Packet Auto-Save / Builder State Persistence (Section 15) |
 | 2026-03-07 | Added Four Store Types architecture — split "external" into marketplace + partner (Section 13) |
@@ -958,18 +958,20 @@ Every graphic asset in the platform is identified by a single unified GRF code. 
 ### Full Schema
 
 ```
-GRF - [TT] - [K] - [O/L] - [ST] - [NNNNNN]
-       ↑       ↑      ↑       ↑        ↑
-     type    role  hosting subtype  sequence
+GRF - [TT] - [K] - [H] - [ST] - [NNNNNN]
+       ↑       ↑     ↑      ↑       ↑
+     type    role  host  subtype sequence
 ```
+
+All segments are numeric. No letters.
 
 | Segment | Width | Description |
 |---------|-------|-------------|
 | `GRF` | 3 | Brand prefix — always present |
 | `[TT]` | 2 digits | Asset type code — what kind of graphic this is |
-| `[K]` | 1 letter | Role code — where this asset sits in the production pipeline |
-| `[O/L]` | 1 letter | Hosting mode — `O`=Online (hosted URL) · `L`=Local (design-layer construct) |
-| `[ST]` | 1 letter | Presentation subtype — branches by hosting mode (see below) |
+| `[K]` | 1 digit | Role code — where this asset sits in the production pipeline |
+| `[H]` | 1 digit | Hosting mode — `0`=Online (hosted URL) · `1`=Local (design-layer construct) |
+| `[ST]` | 1 digit | Presentation subtype — branches by hosting mode (see below) |
 | `[NNNNNN]` | 6 digits | Atomic sequence number, zero-padded (000001–999999) |
 
 ### Type Codes `[TT]`
@@ -988,60 +990,60 @@ GRF - [TT] - [K] - [O/L] - [ST] - [NNNNNN]
 
 | Code | Name | Description |
 |------|------|-------------|
-| `S` | Source | Original input — not yet processed |
-| `D` | Derivative | Derived from a source (crop, resize, transform) |
-| `R` | Renderable | Ready to be rendered into a product or surface |
-| `F` | Final | Finished, approved, committed output |
-| `T` | Template | Reusable master — spawns derivatives |
+| `1` | Source | Original input — not yet processed |
+| `2` | Derivative | Derived from a source (crop, resize, transform) |
+| `3` | Renderable | Ready to be rendered into a product or surface |
+| `4` | Final | Finished, approved, committed output |
+| `5` | Template | Reusable master — spawns derivatives |
 
-### Hosting Mode `[O/L]`
+### Hosting Mode `[H]`
 
 | Code | Name | Description |
 |------|------|-------------|
-| `O` | Online | Asset exists as a hosted URL — live and addressable |
-| `L` | Local | Design-layer construct — not yet or never published to a URL |
+| `0` | Online | Asset exists as a hosted URL — live and addressable |
+| `1` | Local | Design-layer construct — not yet or never published to a URL |
 
 ### Presentation Subtype `[ST]`
 
 Subtype meaning branches depending on the hosting mode.
 
-**When Online (`O`):**
+**When Online (`H=0`):**
 
 | Code | Name | Description |
 |------|------|-------------|
-| `I` | Image | PNG, JPG, WebP, SVG — static image file |
-| `V` | Video | MP4, WebM — video asset |
-| `D` | Document | PDF or document format |
-| `A` | Audio | Audio file |
+| `1` | Image | PNG, JPG, WebP, SVG — static image file |
+| `2` | Video | MP4, WebM — video asset |
+| `3` | Document | PDF or document format |
+| `4` | Audio | Audio file |
 
-**When Local (`L`):**
+**When Local (`H=1`):**
 
 | Code | Name | Description |
 |------|------|-------------|
-| `Z` | Zone | A defined spatial region on a canvas or product surface |
-| `C` | Canvas | A full canvas design — may contain multiple layers |
-| `T` | Text | Text-only layer or text-based graphic |
-| `G` | Graphic | Standalone graphic element |
-| `X` | Composite | Multiple elements combined into one construct |
+| `5` | Zone | A defined spatial region on a canvas or product surface |
+| `6` | Canvas | A full canvas design — may contain multiple layers |
+| `7` | Text | Text-only layer or text-based graphic |
+| `8` | Graphic | Standalone graphic element |
+| `9` | Composite | Multiple elements combined into one construct |
 
 ### Sequence Number `[NNNNNN]`
 
-Six-digit zero-padded integer. Minted atomically from the `grf_counters` Firestore collection, keyed by `{typeCode}_{roleCode}` (e.g. `04_R`, `05_F`). Same atomic counter pattern as `qrg_counters`. Guarantees uniqueness within each type+role bucket.
+Six-digit zero-padded integer. Minted atomically from the `grf_counters` Firestore collection, keyed by `{typeCode}_{roleCode}` (e.g. `04_3`). Same atomic counter pattern as `qrg_counters`. Guarantees uniqueness within each type+role bucket.
 
 ### Examples
 
 ```
-GRF-04-R-O-I-000001   QR Graphic · Renderable · Online · Image · #1
-GRF-05-F-L-C-000003   Canvas Design · Final · Local · Canvas · #3
-GRF-03-R-O-V-000012   Background · Renderable · Online · Video · #12
-GRF-01-S-L-G-000007   Upload Source · Source · Local · Graphic · #7
-GRF-07-T-L-X-000002   Template · Template role · Local · Composite · #2
+GRF-04-3-0-1-000001   QR Graphic · Renderable · Online · Image · #1
+GRF-05-4-1-6-000003   Canvas Design · Final · Local · Canvas · #3
+GRF-03-3-0-2-000012   Background · Renderable · Online · Video · #12
+GRF-01-1-1-8-000007   Upload Source · Source · Local · Graphic · #7
+GRF-07-5-1-9-000002   Template · Template role · Local · Composite · #2
 ```
 
 ### Regex
 
 ```
-^GRF-(01|02|03|04|05|06|07)-[SDRFT]-(O|L)-(I|V|D|A|Z|C|T|G|X)-[0-9]{6}$
+^GRF-(01|02|03|04|05|06|07)-[12345]-[01]-[123456789]-[0-9]{6}$
 ```
 
 ### Authority File

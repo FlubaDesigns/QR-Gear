@@ -37,11 +37,11 @@ const TYPE_CODE_LABELS: Record<string, string> = {
   '03': 'Background',
 };
 
-const HOSTING_LABELS: Record<string, string> = { O: 'Online', L: 'Local' };
+const HOSTING_LABELS: Record<string, string> = { '0': 'Online', '1': 'Local' };
 
 const SUBTYPE_LABELS: Record<string, string> = {
-  I: 'Image', V: 'Video', D: 'Document', A: 'Audio',
-  Z: 'Zone',  C: 'Canvas', T: 'Text',   G: 'Graphic', X: 'Composite',
+  '1': 'Image', '2': 'Video', '3': 'Document', '4': 'Audio',
+  '5': 'Zone',  '6': 'Canvas', '7': 'Text',   '8': 'Graphic', '9': 'Composite',
 };
 
 function GraphicCard({

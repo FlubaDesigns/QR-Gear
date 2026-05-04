@@ -349,28 +349,30 @@ Returned by `GET /api/master-catalog`. Categories served: `Tees` (101–199), `H
 Every graphic asset is identified by a GRF code. Parallel to QRG (which identifies products), GRF identifies the visual building blocks those products are assembled from. The two schemas are independent and never mixed.
 
 ```
-GRF - [TT] - [K] - [O/L] - [ST] - [NNNNNN]
-       ↑       ↑      ↑       ↑        ↑
-     type    role  hosting subtype  sequence
+GRF - [TT] - [K] - [H] - [ST] - [NNNNNN]
+       ↑       ↑     ↑      ↑       ↑
+     type    role  host  subtype sequence
 ```
+
+All segments are numeric. No letters.
 
 | Segment | Width | Description |
 |---------|-------|-------------|
 | `GRF` | 3 | Brand prefix |
 | `[TT]` | 2 digits | Type — `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact · `07`=Template |
-| `[K]` | 1 letter | Role — `S`=Source · `D`=Derivative · `R`=Renderable · `F`=Final · `T`=Template |
-| `[O/L]` | 1 letter | Hosting — `O`=Online (hosted URL) · `L`=Local (design-layer construct) |
-| `[ST]` | 1 letter | Subtype — **Online:** `I`=Image · `V`=Video · `D`=Document · `A`=Audio · **Local:** `Z`=Zone · `C`=Canvas · `T`=Text · `G`=Graphic · `X`=Composite |
+| `[K]` | 1 digit | Role — `1`=Source · `2`=Derivative · `3`=Renderable · `4`=Final · `5`=Template |
+| `[H]` | 1 digit | Hosting — `0`=Online (hosted URL) · `1`=Local (design-layer construct) |
+| `[ST]` | 1 digit | Subtype — **Online (H=0):** `1`=Image · `2`=Video · `3`=Document · `4`=Audio · **Local (H=1):** `5`=Zone · `6`=Canvas · `7`=Text · `8`=Graphic · `9`=Composite |
 | `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded, minted from `grf_counters` Firestore collection |
 
 **Examples:**
 ```
-GRF-04-R-O-I-000001   QR Graphic · Renderable · Online Image
-GRF-05-F-L-C-000003   Canvas Design · Final · Local Canvas
-GRF-03-R-O-V-000012   Background · Renderable · Online Video
+GRF-04-3-0-1-000001   QR Graphic · Renderable · Online · Image
+GRF-05-4-1-6-000003   Canvas Design · Final · Local · Canvas
+GRF-03-3-0-2-000012   Background · Renderable · Online · Video
 ```
 
-**Regex:** `^GRF-(01|02|03|04|05|06|07)-[SDRFT]-(O|L)-(I|V|D|A|Z|C|T|G|X)-[0-9]{6}$`
+**Regex:** `^GRF-(01|02|03|04|05|06|07)-[12345]-[01]-[123456789]-[0-9]{6}$`
 
 **Authority file:** `shared/graphicCodes.ts` — `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`
 
