@@ -730,7 +730,7 @@ Surfaces can now be auto-populated from a committed catalog instance via the pro
 - Price (MSRP from packet data), available sizes + colors
 - Auto-generated bullet points and tags from product attributes
 - eBay-specific: itemSpecifics (brand, material, color, size), department derivation
-- SKU: `QRG-[STNNN]-[C]-[IIIIII]` (e.g. `QRG-11101-I-000001`) — sourced from instance `qrgBaseCode`, never invented
+- SKU: `QRG-[STNNN]-[C]-[NNNNNN]` (e.g. `QRG-11101-I-000001`) — sourced from instance `qrgBaseCode`, never invented
 - Fields requiring external lookup (eBay category ID, shipping/payment/return policy IDs) are left blank for manual entry
 
 | File | Change |
@@ -1677,8 +1677,8 @@ These are two different systems that happen to share the "QRG" prefix:
 | System | Purpose | Example |
 |--------|---------|---------|
 | **4-digit blank ID** (`qrgBlankId`) | Identifies the *type* of printable blank in the master catalog | `1101` = "Bella+Canvas 3001 T-Shirt" |
-| **QRG base code** (`QRG-[STNNN]-[C]-[IIIIII]`) | Identifies a specific *built product* with design + context | `QRG-11101-I-000001` = internal catalog instance |
-| **QRG full code** (`QRG-[STNNN]-[C]-[IIIIII]-[SSCC]`) | Adds size+color variant suffix | `QRG-11101-I-000001-0102` = specific size/color |
+| **QRG base code** (`QRG-[STNNN]-[C]-[NNNNNN]`) | Identifies a specific *built product* with design + context | `QRG-11101-I-000001` = internal catalog instance |
+| **QRG full code** (`QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`) | Adds size+color variant suffix | `QRG-11101-I-000001-0102` = specific size/color |
 
 The blank ID is the catalog key. The serial number is the product identity key. They are related but distinct.
 
@@ -1691,8 +1691,8 @@ The blank ID is the catalog key. The serial number is the product identity key. 
 The QRG law defines two canonical code formats:
 
 ```
-Base:  QRG-[STNNN]-[C]-[IIIIII]
-Full:  QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+Base:  QRG-[STNNN]-[C]-[NNNNNN]
+Full:  QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
 ```
 
 Allowed contexts: `I` = Internal, `M` = Member, `E` = External, `O` = Owner.

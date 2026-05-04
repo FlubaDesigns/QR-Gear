@@ -152,7 +152,7 @@ export function MasterCatalogDebugModule() {
               </div>
 
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>QRG format: <code className="bg-muted px-1 rounded">QRG-[STNNN]-[C]-[IIIIII]-[SSCC]</code></p>
+                <p>QRG format: <code className="bg-muted px-1 rounded">QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]</code></p>
                 <p>Doc ID format: <code className="bg-muted px-1 rounded">qrg_STNNN</code> — Design is a separate field, not in identity.</p>
               </div>
             </>

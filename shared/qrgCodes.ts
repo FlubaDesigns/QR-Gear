@@ -8,7 +8,7 @@
  *   CC = 2-digit color code (01=Black, 02=White, 03=Navy, …)
  *
  * These codes are barcode-only — never in URLs or packet names.
- * Full QRG code format: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+ * Full QRG code format: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
  * Example: QRG-11101-I-000001-0501  (L=05, Black=01)
  *
  * Context letter [C]: I=Internal, M=Member, E=External, O=Owner
@@ -185,7 +185,7 @@ export function buildVariantSuffix(size: string | null, color: string | null): s
 // ── QRG Identity Helpers ──────────────────────────────────────────────────────
 // Format: STNNN where S=1-6 (super-category), T=1-9 (type), NNN=001-999 (item)
 // docId format: qrg_STNNN  e.g. qrg_11101
-// Full QRG code: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+// Full QRG code: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
 // Context [C]: I=Internal (admin), M=Member (user), E=External (API/partner), O=Owner (post-purchase)
 // Providers (Printify/Printful) are suppliers only — never in [C].
 // Design/build data is NOT embedded in the QRG code — stored as a separate field or linked asset.
@@ -268,7 +268,7 @@ export interface QrgCodeParts {
   colorCode: string;
 }
 
-/** Build the full QRG-[STNNN]-[C]-[IIIIII]-[SSCC] string */
+/** Build the full QRG-[STNNN]-[C]-[NNNNNN]-[SSCC] string */
 export function buildFullQrgCode(parts: QrgCodeParts): string {
   const { qrgBlankId, contextCode, instanceNumber, sizeCode, colorCode } = parts;
   if (!isValidQrgBlankId(qrgBlankId)) throw new Error(`Invalid qrgBlankId: ${qrgBlankId}`);

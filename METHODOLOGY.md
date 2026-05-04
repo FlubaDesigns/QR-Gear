@@ -840,7 +840,7 @@ Key rule: the duplicate Firestore collections (`libraryAssets`/`library_assets`,
 | 2026-04-23 | Added Naming Standards reference (Section 17) |
 | 2026-04-23 | Fixed collection name in Section 12: `product_packets` → `productPackets` (grandfathered camelCase) |
 | 2026-05-02 | Added QRG Unified Identity Schema (Section 18) — replaces old QRG-CCC-SSS with three-layer blank code + owner sequence + barcode system |
-| 2026-05-04 | Updated Section 18 — removed DDD (build/design number) from identity format. Design is a separate field/linked asset. New format: `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]`. Layers renumbered: Blank→1, Source→2, Instance→3, Variant→4. |
+| 2026-05-04 | Updated Section 18 — removed DDD (build/design number) from identity format. Design is a separate field/linked asset. New format: `QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`. Layers renumbered: Blank→1, Source→2, Instance→3, Variant→4. |
 
 ---
 
@@ -852,7 +852,7 @@ Every owner instance and physical item in QR Gear is identified through one unif
 #### The Full Schema
 
 ```
-QRG - [STNNN] - [C] - [IIIIII] - [SSCC]
+QRG - [STNNN] - [C] - [NNNNNN] - [SSCC]
          ↑       ↑        ↑          ↑
        blank   source  instance  barcode only
 ```
@@ -890,7 +890,7 @@ Design/colorway data is stored separately — as a Firestore field on the packet
 
 Rationale: multiple designs may be applied to the same blank by the same source. Embedding a design number would cause identity to shift every time a new design is created, breaking QR codes, owner URLs, and barcode sequences.
 
-#### Layer 3 — Owner Sequence (`[IIIIII]`, 6 digits)
+#### Layer 3 — Serial Number (`[NNNNNN]`, 6 digits)
 
 Zero-padded integer assigned at purchase/claim time, unique per blank+source.
 
@@ -900,7 +900,7 @@ Zero-padded integer assigned at purchase/claim time, unique per blank+source.
 
 **Owner URL:**
 ```
-qrgear.com/QRG-[STNNN]-[C]-[IIIIII]
+qrgear.com/QRG-[STNNN]-[C]-[NNNNNN]
 ```
 Example: `qrgear.com/QRG-11101-I-000001`
 
@@ -917,7 +917,7 @@ The URL IS the Firestore document path and Firebase Storage key — no slug look
 
 **Full barcode:**
 ```
-QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
 ```
 Example: `QRG-11101-I-000001-0401` = T-Shirt #101 / Internal / Owner #1 / Medium / Black
 
@@ -928,8 +928,8 @@ Encoded as **Code 128**. Every garment ever produced has a globally unique barco
 | Thing | Identifier | Example |
 |-------|-----------|---------|
 | Product/blank | `QRG-[STNNN]-[C]` | `QRG-11101-I` |
-| Owner URL | `qrgear.com/QRG-[STNNN]-[C]-[IIIIII]` | `qrgear.com/QRG-11101-I-000001` |
-| Physical barcode | `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]` | `QRG-11101-I-000001-0401` |
+| Owner URL | `qrgear.com/QRG-[STNNN]-[C]-[NNNNNN]` | `qrgear.com/QRG-11101-I-000001` |
+| Physical barcode | `QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]` | `QRG-11101-I-000001-0401` |
 
 #### Two Scan Experiences Per Product
 

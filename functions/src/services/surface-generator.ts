@@ -134,7 +134,7 @@ function deriveType(category: string | null | undefined): string | null {
 /**
  * Derive the SKU for a normalized product.
  * Priority:
- *   1. instance.qrgBaseCode — canonical QRG-[STNNN]-[C]-[IIIIII] (current schema)
+ *   1. instance.qrgBaseCode — canonical QRG-[STNNN]-[C]-[NNNNNN] (current schema)
  *   2. instance.qrgPacketCode — legacy field name (backward compat for existing docs)
  *   3. Reconstruct from parts if all three fields are present
  *

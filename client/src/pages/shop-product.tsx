@@ -87,7 +87,7 @@ interface StoreProduct {
   channel: string | null;
   collection: string | null;
   packetId: string | null;
-  /** QRG base code — canonical QRG-[STNNN]-[C]-[IIIIII] e.g. "QRG-11101-I-000001" */
+  /** QRG base code — canonical QRG-[STNNN]-[C]-[NNNNNN] e.g. "QRG-11101-I-000001" */
   qrgBaseCode?: string | null;
   /** Structured display-intent options from builder layer */
   options?: ProductOption[] | null;

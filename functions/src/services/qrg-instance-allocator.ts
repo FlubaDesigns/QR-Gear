@@ -6,8 +6,8 @@
  * must call allocateQrgInstance(). Nothing else may mint QRG identity.
  *
  * Final QRG formats:
- *   Base:    QRG-[STNNN]-[C]-[IIIIII]
- *   Variant: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+ *   Base:    QRG-[STNNN]-[C]-[NNNNNN]
+ *   Variant: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
  *
  * Context codes:
  *   I = Internal (admin-created catalog instance)
@@ -36,11 +36,11 @@ export interface QrgInstanceIdentity {
   qrgContext: QrgContext;
   /** 6-digit zero-padded e.g. "000001" */
   instanceNumber: string;
-  /** QRG-[STNNN]-[C]-[IIIIII] e.g. "QRG-11101-I-000001" */
+  /** QRG-[STNNN]-[C]-[NNNNNN] e.g. "QRG-11101-I-000001" */
   qrgBaseCode: string;
   /** [SSCC] e.g. "0501" — null when no size/color supplied */
   variantCode: string | null;
-  /** QRG-[STNNN]-[C]-[IIIIII]-[SSCC] — null when no size/color supplied */
+  /** QRG-[STNNN]-[C]-[NNNNNN]-[SSCC] — null when no size/color supplied */
   qrgFullCode: string | null;
 }
 

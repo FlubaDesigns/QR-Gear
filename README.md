@@ -227,7 +227,7 @@ Every packet, owner instance, and physical item is identified by a single unifie
 #### Full Schema
 
 ```
-QRG - [STNNN] - [C] - [IIIIII] - [SSCC]
+QRG - [STNNN] - [C] - [NNNNNN] - [SSCC]
          ↑       ↑        ↑          ↑
        blank   source  instance   variant (barcode only)
 ```
@@ -237,7 +237,7 @@ QRG - [STNNN] - [C] - [IIIIII] - [SSCC]
 | `QRG` | 3 | Brand prefix — always present |
 | Blank `[STNNN]` | 5 digits | Product identity — S=super-category (1–6), T=product-type (1–9), NNN=item number (101–999) |
 | Context `[C]` | 1 letter | `I`=Internal (admin-built), `M`=Member (user-built), `E`=External (API/embedded), `O`=Owner (post-purchase) |
-| Instance `[IIIIII]` | 6 digits | Unique per produced item — ownership + tracking (000001–999999) |
+| Instance `[NNNNNN]` | 6 digits | Unique per produced item — ownership + tracking (000001–999999) |
 | Variant `[SSCC]` | 4 digits | **Barcode only** — SS=2-digit size + CC=2-digit color, never in URL |
 
 > **Design is not part of identity.** Design/build data lives as a separate Firestore field, linked asset, or QR payload — never embedded in the QRG code.
@@ -286,8 +286,8 @@ Structure: `S` = super-category (1–6), `T` = product type (1–9), `NNN` = ite
 | Thing | Identifier | Example |
 |-------|-----------|---------|
 | **Product/Blank** | `QRG-[STNNN]-[C]` | `QRG-11101-I` |
-| **Owner URL** | `qrgear.com/QRG-[STNNN]-[C]-[IIIIII]` | `qrgear.com/QRG-11101-I-000001` |
-| **Barcode** | `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]` | `QRG-11101-I-000001-0401` |
+| **Owner URL** | `qrgear.com/QRG-[STNNN]-[C]-[NNNNNN]` | `qrgear.com/QRG-11101-I-000001` |
+| **Barcode** | `QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]` | `QRG-11101-I-000001-0401` |
 
 > Design/colorway is stored as a linked field or asset — never appended to the QRG code.
 
