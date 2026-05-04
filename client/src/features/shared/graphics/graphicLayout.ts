@@ -52,9 +52,15 @@ export const GRAPHIC_LAYOUT_DEFAULTS = {
   qrBgRadiusPct: 0.06,
   qrBgRadiusMin: 12,
 
-  logoSizePct: 0.22,
-  logoBgScale: 1.3,
-  logoBgRadiusPct: 0.12,
+  // Logo spec: container = 26% of QR, logo = 70% of container (18.2% of QR)
+  // logoBgScale = 0.26 / 0.182 ≈ 1.43 — single source of truth, imported by all renderers
+  logoSizePct: 0.182,
+  logoBgScale: 1.43,
+  logoBgRadiusPct: 0.10,
+
+  // Gap below the QR background box before the sub-bottom zone starts
+  subBottomGapPct: 0.04,
+  subBottomGapMin: 16,
 
   defaultQrPositionX: 50,
   defaultQrPositionY: 50,
@@ -114,7 +120,9 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     const bgPadding = Math.max(cfg.qrBgPaddingMin, qrSize * cfg.qrBgPaddingPct);
     const qrBgBottom = qrBottom + bgPadding; // true visual bottom of the white box
 
-    // 4. Sub-bottom strip hugs directly below QR background box (only when enabled)
+    // 4. Sub-bottom strip sits below QR background box + a clear gap (no edge overlap)
+    const subBottomGap    = Math.max(cfg.subBottomGapMin, qrSize * cfg.subBottomGapPct);
+    const subBottomTop    = qrBgBottom + subBottomGap;
     const subBottomHeight = subBottomActive ? Math.max(20, qrSize * 0.08) : 0;
 
     // 5. Header zone: fills from bleed top down to just above QR
@@ -131,16 +139,16 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
       height: qrSize,
     };
 
-    // 7. Sub-bottom zone: immediately below the QR background box
+    // 7. Sub-bottom zone: below the QR background box + gap
     const subBottomZone: Rect = {
-      x: SX, y: qrBgBottom,
+      x: SX, y: subBottomTop,
       width: SW,
       height: subBottomHeight,
     };
 
-    // 8. Footer zone: below sub-bottom (or QR bg) down to bleed bottom
+    // 8. Footer zone: below sub-bottom (or QR bg + gap) down to bleed bottom
     const footerPad = subBottomActive ? 6 : zonePadding;
-    const footerY   = qrBgBottom + subBottomHeight + footerPad;
+    const footerY   = subBottomTop + subBottomHeight + footerPad;
     const footerZone: Rect = {
       x: SX, y: footerY,
       width: SW,

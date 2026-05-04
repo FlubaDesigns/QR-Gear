@@ -296,7 +296,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     const logoImg = await loadImage(qLogoSrc);
     const lb = layout.qr.logoBg;
     const li = layout.qr.logoImg;
-    const lbRadius = lb.width * 0.12;
+    const lbRadius = lb.width * GRAPHIC_LAYOUT_DEFAULTS.logoBgRadiusPct;
 
     ctx.fillStyle = "#FFFFFF";
     ctx.beginPath();

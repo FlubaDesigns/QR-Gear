@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
 import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
 
 export function generateBrandedQRDataUrl(content: string, size: number = 200, qrColor: "black" | "white" = "black"): Promise<string> {
@@ -17,11 +18,11 @@ export function generateBrandedQRDataUrl(content: string, size: number = 200, qr
 
       const logoImg = new Image();
       logoImg.onload = () => {
-        const logoSize = size * 0.22;
-        const bgSize = logoSize * 1.3;
+        const logoSize = size * GRAPHIC_LAYOUT_DEFAULTS.logoSizePct;
+        const bgSize = logoSize * GRAPHIC_LAYOUT_DEFAULTS.logoBgScale;
         const bgX = (size - bgSize) / 2;
         const bgY = (size - bgSize) / 2;
-        const bgRadius = bgSize * 0.12;
+        const bgRadius = bgSize * GRAPHIC_LAYOUT_DEFAULTS.logoBgRadiusPct;
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
         ctx.roundRect(bgX, bgY, bgSize, bgSize, bgRadius);
@@ -76,11 +77,11 @@ export function BrandedQR({
 
       const logoImg = new Image();
       logoImg.onload = () => {
-        const logoSize = size * 0.22;
-        const bgSize = logoSize * 1.3;
+        const logoSize = size * GRAPHIC_LAYOUT_DEFAULTS.logoSizePct;
+        const bgSize = logoSize * GRAPHIC_LAYOUT_DEFAULTS.logoBgScale;
         const bgX = (size - bgSize) / 2;
         const bgY = (size - bgSize) / 2;
-        const bgRadius = bgSize * 0.12;
+        const bgRadius = bgSize * GRAPHIC_LAYOUT_DEFAULTS.logoBgRadiusPct;
 
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
