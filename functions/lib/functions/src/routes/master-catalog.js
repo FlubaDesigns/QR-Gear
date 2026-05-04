@@ -4,6 +4,8 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const master_catalog_1 = require("../services/master-catalog");
+const printify_1 = require("../services/printify");
+const printful_1 = require("../services/printful");
 function register(app) {
     // POST /admin/master-catalog/sync — trigger a full sync (runs synchronously)
     app.post('/admin/master-catalog/sync', middleware_1.requireAdmin, async (req, res) => {
@@ -159,6 +161,109 @@ function register(app) {
                 await jobRef.update({ status: 'failed', error: e.message, completedAt: new Date().toISOString() });
             }
         })();
+    });
+    // POST /admin/master-catalog/backfill-placements
+    // Fetches print placements from carrier APIs and stores them permanently on master_catalog docs.
+    // After this runs, /public/catalog/placements serves directly from master_catalog — no live API calls.
+    app.post('/admin/master-catalog/backfill-placements', middleware_1.requireAdmin, async (req, res) => {
+        const forceRefresh = req.body?.forceRefresh === true;
+        const categoryFilter = req.body?.categoryFilter || undefined;
+        const startedAt = new Date().toISOString();
+        try {
+            const baseQuery = categoryFilter
+                ? core_1.db.collection(master_catalog_1.MASTER_CATALOG_COLLECTION).where('qrgCategory', '==', categoryFilter)
+                : core_1.db.collection(master_catalog_1.MASTER_CATALOG_COLLECTION);
+            const snap = await baseQuery.get();
+            let synced = 0, skipped = 0, errors = 0;
+            for (const doc of snap.docs) {
+                const data = doc.data();
+                const providerMappings = Array.isArray(data.providerMappings) ? data.providerMappings : [];
+                const pyMap = providerMappings.find((m) => m.provider === 'printify') || null;
+                const pfMap = providerMappings.find((m) => m.provider === 'printful') || null;
+                const blueprintId = data.printifyBlueprintId ?? pyMap?.blueprintId ?? null;
+                const providerId = data.printifyPrintProviderId ?? pyMap?.printProviderId ?? null;
+                const printfulId = data.printfulProductId ?? (pfMap ? Number(pfMap.productId) : null) ?? null;
+                const hasPy = Array.isArray(data.printifyPlacements) && data.printifyPlacements.length > 0;
+                const hasPf = Array.isArray(data.printfulPlacements) && data.printfulPlacements.length > 0;
+                const needsPy = blueprintId && providerId && (!hasPy || forceRefresh);
+                const needsPf = printfulId && (!hasPf || forceRefresh);
+                if (!needsPy && !needsPf) {
+                    skipped++;
+                    continue;
+                }
+                const update = { lastPlacementSyncAt: new Date().toISOString() };
+                // Also persist top-level IDs so future queries work even on legacy docs
+                if (blueprintId)
+                    update.printifyBlueprintId = blueprintId;
+                if (providerId)
+                    update.printifyPrintProviderId = providerId;
+                if (printfulId)
+                    update.printfulProductId = printfulId;
+                // ── Printify: extract positions + dimensions from variant placeholders ──
+                if (needsPy && printify_1.printifyClient.isConfigured) {
+                    try {
+                        const variantData = await printify_1.printifyClient.getVariants(blueprintId, providerId);
+                        const seen = new Map();
+                        for (const v of (variantData?.variants ?? [])) {
+                            for (const ph of (v.placeholders ?? [])) {
+                                if (ph.position && !seen.has(ph.position)) {
+                                    seen.set(ph.position, {
+                                        position: ph.position,
+                                        label: ph.label || ph.position.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                                        width: ph.width ?? null,
+                                        height: ph.height ?? null,
+                                    });
+                                }
+                            }
+                        }
+                        if (seen.size > 0) {
+                            update.printifyPlacements = Array.from(seen.values());
+                            console.log(`[BackfillPlacements] ${doc.id}: ${seen.size} Printify placements`);
+                        }
+                    }
+                    catch (e) {
+                        console.warn(`[BackfillPlacements] Printify error blueprint=${blueprintId}:`, e.message);
+                        errors++;
+                    }
+                }
+                // ── Printful: extract positions + dimensions from printfiles ──
+                if (needsPf) {
+                    try {
+                        const printfileInfo = await printful_1.printfulClient.getPrintfiles(printfulId);
+                        if (printfileInfo?.available_placements) {
+                            const placements = Object.entries(printfileInfo.available_placements)
+                                .filter(([key]) => !(0, core_1.isEmbroideryPlacement)(key))
+                                .map(([key, val]) => ({
+                                position: key,
+                                label: val.title || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                                width: val.width ?? null,
+                                height: val.height ?? null,
+                            }));
+                            if (placements.length > 0) {
+                                update.printfulPlacements = placements;
+                                console.log(`[BackfillPlacements] ${doc.id}: ${placements.length} Printful placements`);
+                            }
+                        }
+                    }
+                    catch (e) {
+                        console.warn(`[BackfillPlacements] Printful error productId=${printfulId}:`, e.message);
+                        errors++;
+                    }
+                }
+                if (Object.keys(update).length > 1) {
+                    await doc.ref.update(update);
+                    synced++;
+                }
+                else {
+                    skipped++;
+                }
+            }
+            res.json({ success: true, synced, skipped, errors, total: snap.docs.length, startedAt, completedAt: new Date().toISOString() });
+        }
+        catch (error) {
+            console.error('[BackfillPlacements] Fatal error:', error.message);
+            res.status(500).json({ error: error.message });
+        }
     });
     // Alias: POST /admin/sync-master-products → same as /admin/master-catalog/sync
     // Used by the "Rebuild Master Products" button in the admin Products page.

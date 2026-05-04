@@ -668,6 +668,10 @@ async function syncMasterCatalog(_options = {}) {
             minPrice: newMinPrice,
             maxPrice: newMaxPrice,
             categorySource,
+            // ── Top-level carrier IDs for efficient Firestore querying ──
+            printifyBlueprintId: blueprintId,
+            printifyPrintProviderId: provider?.providerId ?? null,
+            printfulProductId: pfId ?? null,
             lastSyncedAt: now,
             updatedAt: now,
         };
@@ -758,6 +762,10 @@ async function syncMasterCatalog(_options = {}) {
             minPrice: pfMin ?? currentDoc?.minPrice ?? null,
             maxPrice: pfMax ?? currentDoc?.maxPrice ?? null,
             categorySource,
+            // ── Top-level carrier IDs for efficient Firestore querying ──
+            printifyBlueprintId: null,
+            printifyPrintProviderId: null,
+            printfulProductId: pfId,
             lastSyncedAt: now,
             updatedAt: now,
         };

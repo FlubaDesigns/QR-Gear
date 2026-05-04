@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: May 3, 2026 (rev 32)
+Last updated: May 4, 2026 (rev 33)
 
 ---
 
@@ -491,6 +491,40 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### May 4, 2026 — master_catalog as Single Source of Truth for Print Placements (rev 33)
+
+The builder no longer calls live carrier APIs (Printify / Printful) to fetch print placements at selection time. Instead, placements are stored directly on each `master_catalog` document as `printifyPlacements` and `printfulPlacements` arrays. The `/public/catalog/placements` API checks `master_catalog` first and only falls back to live APIs if placements have not yet been backfilled. Three new top-level queryable fields (`printifyBlueprintId`, `printifyPrintProviderId`, `printfulProductId`) were added to every sync write path so Firestore queries can locate docs by carrier ID without scanning the nested `providerMappings` array. A "Backfill Placements" button was added to the admin Sync panel; it calls `POST /api/admin/master-catalog/backfill-placements` which iterates all 1,749 `master_catalog` docs, fetches variant placeholders from Printify and printfiles from Printful, and stores the results. A focused Node.js backfill script (`scripts/backfill-qrg.cjs`) handles the 1,071 `qrg_*` docs in production with batch=3 concurrency and exponential back-off on Printful 429s.
+
+#### New Firestore Fields on `master_catalog`
+
+| Field | Type | Set By |
+|---|---|---|
+| `printifyBlueprintId` | number | sync + backfill endpoint |
+| `printifyPrintProviderId` | number | sync + backfill endpoint |
+| `printfulProductId` | number | sync + backfill endpoint |
+| `printifyPlacements` | `{position, label, width, height}[]` | backfill endpoint / script |
+| `printfulPlacements` | `{position, label, width, height}[]` | backfill endpoint / script |
+| `lastPlacementSyncAt` | timestamp | backfill endpoint / script |
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `functions/src/services/master-catalog.ts` | Both sync write paths (Printify+Printful match, Printful-only) now write `printifyBlueprintId`, `printifyPrintProviderId`, `printfulProductId` as top-level fields |
+| `functions/src/routes/master-catalog.ts` | Added `POST /admin/master-catalog/backfill-placements` endpoint; added imports for `printifyClient`, `printfulClient`, `isEmbroideryPlacement` |
+| `functions/src/routes/pp-catalog-browse.ts` | `GET /public/catalog/placements` now queries `master_catalog` first by `printifyBlueprintId` or `printfulProductId`; falls back to live API only when placements not stored |
+| `client/src/features/adminProducts/builder/types.ts` | Added `CarrierPlacement`, `CarrierSubData` types; added `printify` / `printful` carrier sub-object fields to `CatalogProduct` |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | `selectProduct` now resolves placements from stored carrier sub-objects, normalizes `CarrierPlacement[]`, skips live API call when placements already stored |
+| `client/src/features/adminProducts/modules/SyncModule.tsx` | Added "Backfill Placements" button — calls `POST /api/admin/master-catalog/backfill-placements` |
+| `scripts/backfill-placements.cjs` | Full backfill script (all 1,749 docs); timed out at 604 on Printful 429s — use `backfill-qrg.cjs` for targeted runs |
+| `scripts/backfill-qrg.cjs` | Focused backfill for `qrg_*` docs (1,071 docs); batch=3, 350ms Printify delay, 400ms Printful delay, exponential retry on 429, silently skips Printful 400s |
+
+#### Architecture Note
+
+The previous flow called `GET /public/catalog/placements?blueprintId=X&printProviderId=Y` (Printify) or `GET /public/catalog/placements?printfulProductId=Z` (Printful) at product-select time in the builder, hitting live carrier APIs on every selection. The new flow stores placements once at sync/backfill time and serves them from Firestore — zero carrier API calls for placement data during normal builder use.
+
+---
 
 ### April 25, 2026 — Storefront UX & Product Page Messaging Overhaul (rev 29)
 

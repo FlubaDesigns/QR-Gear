@@ -45,6 +45,26 @@ export interface ProductPlacement {
   methods?: PlacementMethodOption[];
 }
 
+export interface CarrierPlacement {
+  position: string;
+  label: string;
+  printArea?: { width: number; height: number };
+}
+
+export interface CarrierSubData {
+  title?: string;
+  description?: string;
+  colors?: ProductColor[];
+  sizes?: string[];
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  images?: string[];
+  placements?: CarrierPlacement[];
+  blueprintId?: number;
+  printProviderId?: number;
+  productId?: number;
+}
+
 export interface CatalogProduct {
   id: number;
   /** Firestore document ID — always send this as sourceMasterId to build-session endpoints */
@@ -67,6 +87,9 @@ export interface CatalogProduct {
   // Dynamic placements from print provider API
   placements?: ProductPlacement[];
   fulfillmentProvider?: 'printful' | 'printify';
+  // Per-carrier sub-objects — single source of truth
+  printify?: CarrierSubData;
+  printful?: CarrierSubData;
 }
 
 export interface OriginFilter {

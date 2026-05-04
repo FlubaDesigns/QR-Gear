@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import express from 'express';
-import { db } from '../core';
+import { db, isEmbroideryPlacement } from '../core';
 import { requireAdmin } from '../middleware';
 import { syncMasterCatalog, enrichMasterCatalog, syncPrintifyToStaging, syncPrintfulToStaging, QRG_BLANK_CATEGORIES, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
+import { printifyClient } from '../services/printify';
+import { printfulClient } from '../services/printful';
 
 export function register(app: express.Express): void {
 
@@ -166,6 +168,112 @@ export function register(app: express.Express): void {
         await jobRef.update({ status: 'failed', error: e.message, completedAt: new Date().toISOString() });
       }
     })();
+  });
+
+  // POST /admin/master-catalog/backfill-placements
+  // Fetches print placements from carrier APIs and stores them permanently on master_catalog docs.
+  // After this runs, /public/catalog/placements serves directly from master_catalog — no live API calls.
+  app.post('/admin/master-catalog/backfill-placements', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    const forceRefresh = req.body?.forceRefresh === true;
+    const categoryFilter: string | undefined = req.body?.categoryFilter || undefined;
+    const startedAt = new Date().toISOString();
+
+    try {
+      const baseQuery = categoryFilter
+        ? db.collection(MASTER_CATALOG_COLLECTION).where('qrgCategory', '==', categoryFilter)
+        : db.collection(MASTER_CATALOG_COLLECTION);
+
+      const snap = await baseQuery.get();
+      let synced = 0, skipped = 0, errors = 0;
+
+      for (const doc of snap.docs) {
+        const data = doc.data() as any;
+        const providerMappings: any[] = Array.isArray(data.providerMappings) ? data.providerMappings : [];
+        const pyMap = providerMappings.find((m: any) => m.provider === 'printify') || null;
+        const pfMap = providerMappings.find((m: any) => m.provider === 'printful') || null;
+
+        const blueprintId: number | null = data.printifyBlueprintId ?? pyMap?.blueprintId ?? null;
+        const providerId: number | null = data.printifyPrintProviderId ?? pyMap?.printProviderId ?? null;
+        const printfulId: number | null = data.printfulProductId ?? (pfMap ? Number(pfMap.productId) : null) ?? null;
+
+        const hasPy = Array.isArray(data.printifyPlacements) && data.printifyPlacements.length > 0;
+        const hasPf = Array.isArray(data.printfulPlacements) && data.printfulPlacements.length > 0;
+
+        const needsPy = blueprintId && providerId && (!hasPy || forceRefresh);
+        const needsPf = printfulId && (!hasPf || forceRefresh);
+
+        if (!needsPy && !needsPf) { skipped++; continue; }
+
+        const update: Record<string, any> = { lastPlacementSyncAt: new Date().toISOString() };
+        // Also persist top-level IDs so future queries work even on legacy docs
+        if (blueprintId) update.printifyBlueprintId = blueprintId;
+        if (providerId) update.printifyPrintProviderId = providerId;
+        if (printfulId) update.printfulProductId = printfulId;
+
+        // ── Printify: extract positions + dimensions from variant placeholders ──
+        if (needsPy && printifyClient.isConfigured) {
+          try {
+            const variantData: any = await printifyClient.getVariants(blueprintId!, providerId!);
+            const seen = new Map<string, any>();
+            for (const v of (variantData?.variants ?? [])) {
+              for (const ph of (v.placeholders ?? [])) {
+                if (ph.position && !seen.has(ph.position)) {
+                  seen.set(ph.position, {
+                    position: ph.position,
+                    label: ph.label || ph.position.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                    width: ph.width ?? null,
+                    height: ph.height ?? null,
+                  });
+                }
+              }
+            }
+            if (seen.size > 0) {
+              update.printifyPlacements = Array.from(seen.values());
+              console.log(`[BackfillPlacements] ${doc.id}: ${seen.size} Printify placements`);
+            }
+          } catch (e: any) {
+            console.warn(`[BackfillPlacements] Printify error blueprint=${blueprintId}:`, e.message);
+            errors++;
+          }
+        }
+
+        // ── Printful: extract positions + dimensions from printfiles ──
+        if (needsPf) {
+          try {
+            const printfileInfo = await printfulClient.getPrintfiles(printfulId!);
+            if (printfileInfo?.available_placements) {
+              const placements = Object.entries(printfileInfo.available_placements)
+                .filter(([key]) => !isEmbroideryPlacement(key))
+                .map(([key, val]: [string, any]) => ({
+                  position: key,
+                  label: val.title || key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                  width: val.width ?? null,
+                  height: val.height ?? null,
+                }));
+              if (placements.length > 0) {
+                update.printfulPlacements = placements;
+                console.log(`[BackfillPlacements] ${doc.id}: ${placements.length} Printful placements`);
+              }
+            }
+          } catch (e: any) {
+            console.warn(`[BackfillPlacements] Printful error productId=${printfulId}:`, e.message);
+            errors++;
+          }
+        }
+
+        if (Object.keys(update).length > 1) {
+          await doc.ref.update(update);
+          synced++;
+        } else {
+          skipped++;
+        }
+      }
+
+      res.json({ success: true, synced, skipped, errors, total: snap.docs.length, startedAt, completedAt: new Date().toISOString() });
+    } catch (error: any) {
+      console.error('[BackfillPlacements] Fatal error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Alias: POST /admin/sync-master-products → same as /admin/master-catalog/sync

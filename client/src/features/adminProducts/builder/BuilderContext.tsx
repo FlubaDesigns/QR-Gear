@@ -492,17 +492,62 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return;
     }
 
-    const masterTitle = (product.title || "").trim() || null;
-    const masterDescription = (product.description || "").trim() || null;
+    // Resolve fields using active carrier first, fall back to the other carrier field-by-field.
+    // This is the single source of truth resolution — active carrier leads on every field.
+    const activeProvider = state.fulfillmentProvider || 'printful';
+    const otherProvider = activeProvider === 'printify' ? 'printful' : 'printify';
+    const activeSub = (product as any)[activeProvider] || {};
+    const otherSub = (product as any)[otherProvider] || {};
 
-    if (product.placements && product.placements.length > 0) {
-      setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
+    const resolveStr = (field: string): string | null => {
+      const v = activeSub[field] ?? otherSub[field] ?? (product as any)[field];
+      return typeof v === 'string' && v.trim() ? v.trim() : null;
+    };
+    const resolveArr = (field: string, legacyField?: string): any[] => {
+      if (Array.isArray(activeSub[field]) && activeSub[field].length > 0) return activeSub[field];
+      if (Array.isArray(otherSub[field]) && otherSub[field].length > 0) return otherSub[field];
+      const legacy = legacyField ? (product as any)[legacyField] : null;
+      return Array.isArray(legacy) && legacy.length > 0 ? legacy : [];
+    };
+
+    const masterTitle = resolveStr('title');
+    const masterDescription = resolveStr('description');
+    const resolvedColors = resolveArr('colors', 'availableColors');
+    const resolvedSizes = resolveArr('sizes', 'availableSizes');
+
+    // Normalize stored carrier placements to the builder's ProductPlacement format
+    const rawPlacements = resolveArr('placements');
+    const seen = new Set<string>();
+    const resolvedPlacements = rawPlacements
+      .map((p: any) => {
+        const id = p.id ?? p.position ?? p.type ?? '';
+        return {
+          id,
+          type: id,
+          title: p.title ?? p.label ?? id.replace(/_/g, ' '),
+          additionalPrice: p.additionalPrice ?? 0,
+          methods: p.methods ?? [],
+          widthPx: p.printArea?.width ?? p.widthPx ?? null,
+          heightPx: p.printArea?.height ?? p.heightPx ?? null,
+        };
+      })
+      .filter((p: any) => p.id && !seen.has(p.id) && seen.add(p.id));
+
+    const resolvedProduct: CatalogProduct = {
+      ...product,
+      availableColors: resolvedColors.length > 0 ? resolvedColors : product.availableColors,
+      availableSizes: resolvedSizes.length > 0 ? resolvedSizes : product.availableSizes,
+      placements: resolvedPlacements.length > 0 ? resolvedPlacements : (product.placements || []),
+    };
+
+    if (resolvedProduct.placements && resolvedProduct.placements.length > 0) {
+      setState(prev => ({ ...prev, selectedProduct: resolvedProduct, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
       return;
     }
 
-    setState(prev => ({ ...prev, selectedProduct: product, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true, placementsError: null }));
-    fetchPlacementsForProduct(product);
-  }, [fetchPlacementsForProduct]);
+    setState(prev => ({ ...prev, selectedProduct: resolvedProduct, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true, placementsError: null }));
+    fetchPlacementsForProduct(resolvedProduct, activeProvider);
+  }, [fetchPlacementsForProduct, state.fulfillmentProvider]);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {
     setState(prev => ({

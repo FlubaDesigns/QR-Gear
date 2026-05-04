@@ -294,11 +294,15 @@ Up to 99 blanks per category (x01–x99).
 
 | Field | Type | Description |
 |---|---|---|
-| `qrgBlankId` | string | Doc ID — e.g. `qrg_101`, `pending_py_12` |
-| `qrgCategory` | string | `Tees` \| `Hoodies` \| `Hats` \| `Drinkware` \| `Unclassified` |
-| `categorySource` | string | `qrg` (classified) or `pending` (unclassified) |
-| `availableVia` | string[] | `["Printify"]`, `["Printful"]`, or `["Printful","Printify"]` |
-| `providerMappings` | object[] | `[{ provider, blueprintId/productId, title, printProviderId }]` |
+| `qrgBlankId` | number | QRG blank number — e.g. `1101` |
+| `qrgCategory` | string | `T-Shirts` \| `Hoodies & Sweatshirts` \| `Hats & Caps` \| etc. |
+| `qrgParentCategory` | string | Top-level: `Apparel` \| `Houseware` \| `Accessories` \| etc. |
+| `categorySource` | string | `mapped` (classified) \| `inferred` \| `manual` (admin override) |
+| `availableVia` | string[] | `["printify"]`, `["printful"]`, or both |
+| `providerMappings` | object[] | `[{ provider, blueprintId/productId, brand, model, printProviderId, originCountry, isUSA }]` |
+| `printifyBlueprintId` | number | **Top-level** Printify blueprint ID — queryable, set by sync + backfill |
+| `printifyPrintProviderId` | number | **Top-level** Printify print provider ID — set by sync + backfill |
+| `printfulProductId` | number | **Top-level** Printful catalog product ID — queryable, set by sync + backfill |
 | `canonicalTitle` | string | Display name (brand + model) |
 | `brand` | string | e.g. `Bella+Canvas` |
 | `model` | string | e.g. `3001` |
@@ -309,7 +313,14 @@ Up to 99 blanks per category (x01–x99).
 | `colors` | object[] | `{ name, hex }` from Printful (preferred) or Printify |
 | `sizes` | string[] | Union of all provider sizes |
 | `minPrice` / `maxPrice` | number | Lowest/highest variant price (USD) |
+| `printPositions` | string[] | Raw position strings — e.g. `["front","back"]` — from Printify enrich |
+| `printifyPlacements` | object[] | **Stored placements** `{ position, label, width, height }` — from backfill, Printify source |
+| `printfulPlacements` | object[] | **Stored placements** `{ position, label, width, height }` — from backfill, Printful source |
 | `lastSyncedAt` | timestamp | When last provider sync ran |
+| `lastEnrichedAt` | timestamp | When last enrich job ran (colors/sizes/prices) |
+| `lastPlacementSyncAt` | timestamp | When placements were last backfilled from carrier APIs |
+
+**Single source of truth for placements:** `GET /public/catalog/placements` checks `master_catalog` for stored `printifyPlacements` / `printfulPlacements` first. Falls back to live carrier APIs only when not yet stored. Run `POST /api/admin/master-catalog/backfill-placements` (or click "Backfill Placements" in the admin Sync panel) to populate stored placements across the entire catalog.
 
 Returned by `GET /api/master-catalog`. Categories served: `Tees` (101–199), `Hoodies` (201–299), `Hats` (301–399), `Drinkware` (401–499).
 

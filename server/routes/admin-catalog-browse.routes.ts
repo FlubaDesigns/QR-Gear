@@ -314,6 +314,43 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
           return res.status(503).json({ error: "Printify API not configured" });
         }
 
+        // ── Check master_catalog for stored placements first ──
+        try {
+          const { getFirestoreDb } = await import('../lib/firebase-admin');
+          const fsDb = getFirestoreDb();
+          if (fsDb) {
+            const mcSnap = await fsDb.collection('master_catalog')
+              .where('blueprintId', '==', blueprintId).limit(1).get();
+            if (!mcSnap.empty) {
+              const stored = mcSnap.docs[0].data()?.printify?.placements;
+              if (Array.isArray(stored) && stored.length > 0) {
+                const seenIds = new Set<string>();
+                const mapped = stored
+                  .map((p: any) => {
+                    const normalized = normalizePlacement('printify', p.position);
+                    return {
+                      id: normalized,
+                      type: normalized,
+                      title: p.label,
+                      additionalPrice: 0,
+                      widthPx: p.printArea?.width ?? null,
+                      heightPx: p.printArea?.height ?? null,
+                    };
+                  })
+                  .filter((p: any) => {
+                    if (seenIds.has(p.id)) return false;
+                    seenIds.add(p.id);
+                    return true;
+                  });
+                console.log(`[Placements] blueprint=${blueprintId} → ${mapped.length} from master_catalog`);
+                return res.json({ placements: mapped, source: 'master-catalog' });
+              }
+            }
+          }
+        } catch (mcErr: any) {
+          console.warn(`[Placements] master_catalog check failed, falling back to live API:`, mcErr.message);
+        }
+
         let resolvedProviderId = printProviderId;
 
         if (!resolvedProviderId) {
@@ -369,6 +406,42 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         if (!productId) {
           return res.status(400).json({ error: "productId required for Printful" });
         }
+
+        // ── Check master_catalog for stored Printful placements first ──
+        try {
+          const { getFirestoreDb } = await import('../lib/firebase-admin');
+          const fsDb = getFirestoreDb();
+          if (fsDb) {
+            const mcSnap = await fsDb.collection('master_catalog')
+              .where('printfulId', '==', productId).limit(1).get();
+            if (!mcSnap.empty) {
+              const stored = mcSnap.docs[0].data()?.printful?.placements;
+              if (Array.isArray(stored) && stored.length > 0) {
+                const { groupPlacementsByLocation } = await import('../../shared/placements');
+                const seenIds = new Set<string>();
+                const grouped = groupPlacementsByLocation('printful', stored.map((p: any) => p.position));
+                const mapped = grouped
+                  .filter((g: any) => {
+                    if (seenIds.has(g.internal)) return false;
+                    seenIds.add(g.internal);
+                    return true;
+                  })
+                  .map((g: any) => ({
+                    id: g.internal,
+                    type: g.internal,
+                    title: g.internal.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                    additionalPrice: 0,
+                    methods: g.methods.map((m: any) => ({ method: m.method, providerName: m.providerName })),
+                  }));
+                console.log(`[Placements] printfulId=${productId} → ${mapped.length} from master_catalog`);
+                return res.json({ placements: mapped, source: 'master-catalog' });
+              }
+            }
+          }
+        } catch (mcErr: any) {
+          console.warn(`[Placements] master_catalog check failed, falling back to live Printful API:`, mcErr.message);
+        }
+
         const { printfulClient } = await import('../lib/printful');
         const { groupPlacementsByLocation } = await import('../../shared/placements');
         const printfileInfo = await printfulClient.getPrintfiles(productId);

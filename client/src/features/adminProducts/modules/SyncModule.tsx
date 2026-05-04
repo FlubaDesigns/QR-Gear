@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Clock, MapPin } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useProductsContext } from "../ProductsContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -120,6 +120,27 @@ export function SyncModule({ selectedProviders: _selectedProviders }: SyncModule
     return <Clock className="h-3.5 w-3.5 text-muted-foreground/40" />;
   };
 
+  const [backfillResult, setBackfillResult] = useState<{ synced: number; skipped: number; errors: number; total: number } | null>(null);
+
+  const backfillMutation = useMutation({
+    mutationFn: async () => {
+      setBackfillResult(null);
+      const res = await apiRequest("POST", "/api/admin/master-catalog/backfill-placements", {});
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setBackfillResult(data);
+      toast({ title: "Placements backfill complete", description: `${data.synced} synced, ${data.skipped} skipped, ${data.errors} errors` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Placements backfill failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const isRunning = rebuildMutation.isPending || isPolling;
 
   return (
@@ -159,6 +180,26 @@ export function SyncModule({ selectedProviders: _selectedProviders }: SyncModule
             ))}
           </div>
         )}
+
+        <div className="border-t pt-3 flex flex-wrap items-center gap-4">
+          <Button
+            onClick={() => backfillMutation.mutate()}
+            disabled={backfillMutation.isPending}
+            size="sm"
+            variant="outline"
+            data-testid="button-backfill-placements"
+          >
+            {backfillMutation.isPending
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Backfilling…</>
+              : <><MapPin className="h-4 w-4 mr-2" />Backfill Placements</>
+            }
+          </Button>
+          {backfillResult && (
+            <span className="text-sm text-muted-foreground">
+              {backfillResult.synced} synced · {backfillResult.skipped} skipped · {backfillResult.errors} errors
+            </span>
+          )}
+        </div>
       </div>
     </CollapsibleModule>
   );

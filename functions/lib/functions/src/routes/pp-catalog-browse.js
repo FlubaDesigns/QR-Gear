@@ -18,6 +18,30 @@ function registerPpCatalogBrowseRoutes(app) {
                     res.status(400).json({ error: "blueprintId and printProviderId required for Printify" });
                     return;
                 }
+                // ── Check master_catalog for stored placements first (single source of truth) ──
+                try {
+                    const mcSnap = await core_1.db.collection('master_catalog')
+                        .where('printifyBlueprintId', '==', blueprintId).limit(1).get();
+                    if (!mcSnap.empty) {
+                        const stored = mcSnap.docs[0].data()?.printifyPlacements || [];
+                        if (stored.length > 0) {
+                            const seen = new Set();
+                            const mapped = stored
+                                .map((p) => {
+                                const normalized = (0, core_1.normalizePlacement)('printify', p.position);
+                                return { id: normalized, type: normalized, title: p.label || normalized.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), additionalPrice: 0, widthPx: p.width ?? null, heightPx: p.height ?? null };
+                            })
+                                .filter((p) => p.id && !seen.has(p.id) && seen.add(p.id));
+                            if (mapped.length > 0) {
+                                res.json({ placements: mapped, source: 'master-catalog' });
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (mcErr) {
+                    console.warn('[Placements] master_catalog check failed, falling back to live Printify API:', mcErr.message);
+                }
                 if (!printify_1.printifyClient.isConfigured) {
                     res.status(503).json({ error: "Printify API not configured" });
                     return;
@@ -51,6 +75,33 @@ function registerPpCatalogBrowseRoutes(app) {
                 if (!productId) {
                     res.status(400).json({ error: "productId required for Printful" });
                     return;
+                }
+                // ── Check master_catalog for stored placements first (single source of truth) ──
+                try {
+                    const mcSnap = await core_1.db.collection('master_catalog')
+                        .where('printfulProductId', '==', productId).limit(1).get();
+                    if (!mcSnap.empty) {
+                        const stored = mcSnap.docs[0].data()?.printfulPlacements || [];
+                        if (stored.length > 0) {
+                            const seen = new Set();
+                            const grouped = (0, core_1.groupPlacementsByLocation)('printful', stored.map((p) => p.position));
+                            const mapped = grouped
+                                .filter((g) => !seen.has(g.internal) && seen.add(g.internal))
+                                .map((g) => ({
+                                id: g.internal, type: g.internal,
+                                title: g.internal.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                                additionalPrice: 0,
+                                methods: g.methods.map((m) => ({ method: m.method, providerName: m.providerName })),
+                            }));
+                            if (mapped.length > 0) {
+                                res.json({ placements: mapped, source: 'master-catalog' });
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch (mcErr) {
+                    console.warn('[Placements] master_catalog Printful check failed, falling back to live API:', mcErr.message);
                 }
                 const printfileInfo = await printful_1.printfulClient.getPrintfiles(productId);
                 const rawPlacements = printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : [];

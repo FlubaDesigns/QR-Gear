@@ -495,6 +495,30 @@ export function registerProductRoutes(app: Express): void {
             printProviderId: provData?.providerId || null,
             availableVia: pfMatch ? ['printify', 'printful'] : ['printify'],
             lastSyncedAt: now,
+            // ── Per-carrier sub-objects (single source of truth) ──
+            printify: {
+              blueprintId: id,
+              printProviderId: provData?.providerId || null,
+              title: d.title || '',
+              description,
+              colors: provData?.colors || [],
+              sizes: provData?.sizes || [],
+              minPrice: pyMinPrice,
+              maxPrice: pyMaxPrice,
+              images: d.images || [],
+              placements: existing?.printify?.placements || [],
+            },
+            printful: pfMatch ? {
+              productId: pfMatch.pfId,
+              title: pfMatch.title,
+              description: null,
+              colors: pfMatch.colors || [],
+              sizes: pfMatch.sizes || [],
+              minPrice: pfMinPrice,
+              maxPrice: pfMaxPrice,
+              images: pfMatch.imageUrl ? [pfMatch.imageUrl] : [],
+              placements: existing?.printful?.placements || [],
+            } : null,
           },
         });
       }
@@ -533,6 +557,19 @@ export function registerProductRoutes(app: Express): void {
             printProviderId: null,
             availableVia: ['printful'],
             lastSyncedAt: now,
+            // ── Per-carrier sub-objects (single source of truth) ──
+            printify: null,
+            printful: {
+              productId: pf.pfId,
+              title: pf.title,
+              description: null,
+              colors: pf.colors || [],
+              sizes: pf.sizes || [],
+              minPrice: pf.minPrice ? parseFloat(String(pf.minPrice)) : null,
+              maxPrice: pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null,
+              images: pf.imageUrl ? [pf.imageUrl] : [],
+              placements: pfExisting?.printful?.placements || [],
+            },
           },
         });
       }
@@ -660,6 +697,9 @@ export function registerProductRoutes(app: Express): void {
           fulfillmentProvider,
           availableVia,
           providers,
+          // Per-carrier sub-objects — single source of truth
+          printify: p.printify ?? null,
+          printful: p.printful ?? null,
         });
       }
 

@@ -26,6 +26,31 @@ app.get('/public/catalog/placements', async (req: Request, res: Response): Promi
 
     if (provider === 'printify') {
       if (!blueprintId || !printProviderId) { res.status(400).json({ error: "blueprintId and printProviderId required for Printify" }); return; }
+
+      // ── Check master_catalog for stored placements first (single source of truth) ──
+      try {
+        const mcSnap = await db.collection('master_catalog')
+          .where('printifyBlueprintId', '==', blueprintId).limit(1).get();
+        if (!mcSnap.empty) {
+          const stored: any[] = mcSnap.docs[0].data()?.printifyPlacements || [];
+          if (stored.length > 0) {
+            const seen = new Set<string>();
+            const mapped = stored
+              .map((p: any) => {
+                const normalized = normalizePlacement('printify', p.position);
+                return { id: normalized, type: normalized, title: p.label || normalized.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()), additionalPrice: 0, widthPx: p.width ?? null, heightPx: p.height ?? null };
+              })
+              .filter((p: any) => p.id && !seen.has(p.id) && seen.add(p.id));
+            if (mapped.length > 0) {
+              res.json({ placements: mapped, source: 'master-catalog' });
+              return;
+            }
+          }
+        }
+      } catch (mcErr: any) {
+        console.warn('[Placements] master_catalog check failed, falling back to live Printify API:', mcErr.message);
+      }
+
       if (!printifyClient.isConfigured) { res.status(503).json({ error: "Printify API not configured" }); return; }
       try {
         const variantData = await printifyClient.getVariants(blueprintId, printProviderId);
@@ -51,6 +76,34 @@ app.get('/public/catalog/placements', async (req: Request, res: Response): Promi
 
     if (provider === 'printful') {
       if (!productId) { res.status(400).json({ error: "productId required for Printful" }); return; }
+
+      // ── Check master_catalog for stored placements first (single source of truth) ──
+      try {
+        const mcSnap = await db.collection('master_catalog')
+          .where('printfulProductId', '==', productId).limit(1).get();
+        if (!mcSnap.empty) {
+          const stored: any[] = mcSnap.docs[0].data()?.printfulPlacements || [];
+          if (stored.length > 0) {
+            const seen = new Set<string>();
+            const grouped = groupPlacementsByLocation('printful', stored.map((p: any) => p.position));
+            const mapped = grouped
+              .filter((g: any) => !seen.has(g.internal) && seen.add(g.internal))
+              .map((g: any) => ({
+                id: g.internal, type: g.internal,
+                title: g.internal.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                additionalPrice: 0,
+                methods: g.methods.map((m: any) => ({ method: m.method, providerName: m.providerName })),
+              }));
+            if (mapped.length > 0) {
+              res.json({ placements: mapped, source: 'master-catalog' });
+              return;
+            }
+          }
+        }
+      } catch (mcErr: any) {
+        console.warn('[Placements] master_catalog Printful check failed, falling back to live API:', mcErr.message);
+      }
+
       const printfileInfo = await printfulClient.getPrintfiles(productId);
       const rawPlacements = printfileInfo?.available_placements ? Object.keys(printfileInfo.available_placements) : [];
       const printPlacements = rawPlacements.filter(p => !isEmbroideryPlacement(p));

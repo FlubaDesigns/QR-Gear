@@ -395,6 +395,54 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
     }
   });
 
+  // ── Placement backfill — populate master_catalog carrier sub-objects with print positions ──
+  app.post("/api/admin/catalog/backfill-placements", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      const fsDb = getFirestoreDb();
+      if (!fsDb) return res.status(503).json({ error: 'Firestore not available' });
+      if (!printify) return res.status(503).json({ error: 'Printify not configured' });
+
+      const category = req.body.category as string | undefined;
+      const forceRefresh = req.body.forceRefresh === true;
+
+      const snap = await fsDb.collection('master_catalog').get();
+      const docs = snap.docs
+        .map(d => ({ _docId: d.id, ...d.data() } as any))
+        .filter((d: any) => d.blueprintId && d.printProviderId)
+        .filter((d: any) => !category || d.category === category)
+        .filter((d: any) => forceRefresh || !(d.printify?.placements?.length > 0));
+
+      console.log(`[BackfillPlacements] ${docs.length} docs to process (category=${category || 'all'}, force=${forceRefresh})`);
+
+      let synced = 0, skipped = 0, errors = 0;
+
+      for (const doc of docs) {
+        try {
+          const { placements } = await syncProductPlacements(doc.blueprintId, doc.printProviderId);
+          if (placements.length === 0) { skipped++; continue; }
+
+          await fsDb.collection('master_catalog').doc(doc._docId).update({
+            'printify.blueprintId': doc.blueprintId,
+            'printify.printProviderId': doc.printProviderId,
+            'printify.placements': placements,
+            lastPlacementSyncAt: new Date().toISOString(),
+          });
+          synced++;
+          console.log(`[BackfillPlacements] ${doc._docId} (${doc.title}): ${placements.length} placements`);
+        } catch (err: any) {
+          console.error(`[BackfillPlacements] Error for ${doc._docId}:`, err.message);
+          errors++;
+        }
+      }
+
+      res.json({ success: true, synced, skipped, errors, total: docs.length });
+    } catch (error: any) {
+      console.error('[BackfillPlacements] Fatal error:', error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/admin/catalog/sync-printful", isAdmin, async (req: any, res) => {
     try {
       const { syncPrintfulCatalog, printfulClient } = await import("../lib/printful");
