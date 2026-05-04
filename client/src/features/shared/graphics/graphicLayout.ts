@@ -52,9 +52,9 @@ export const GRAPHIC_LAYOUT_DEFAULTS = {
   qrBgRadiusPct: 0.06,
   qrBgRadiusMin: 12,
 
-  // Logo spec: logo = 10% of QR, container = logo * 1.38 ≈ 14% of QR
-  logoSizePct: 0.10,
-  logoBgScale: 1.38,
+  // Logo spec: logo = 9% of QR, container = logo * 1.75 ≈ 16% of QR (more breathing room)
+  logoSizePct: 0.09,
+  logoBgScale: 1.75,
   logoBgRadiusPct: 0.10,
 
   // Gap below the QR background box before the sub-bottom zone starts
