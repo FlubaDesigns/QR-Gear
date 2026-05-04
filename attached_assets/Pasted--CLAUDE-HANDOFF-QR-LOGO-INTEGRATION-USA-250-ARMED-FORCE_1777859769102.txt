@@ -1,0 +1,113 @@
+// CLAUDE HANDOFF – QR LOGO INTEGRATION (USA 250 / ARMED FORCES SERIES)
+
+// GOAL:
+// Clean, scannable QR code with centered Q logo that feels integrated (not overlaid),
+// maintains high scan reliability, and looks premium on apparel.
+
+// ========================================
+// QR CORE SETTINGS
+// ========================================
+
+qrSizePercent: 55
+qrPositionY: 45
+
+// Ensure QR remains dominant but leaves room for header/footer zones
+
+
+
+// ========================================
+// LOGO CONTAINER (WHITE SAFE ZONE)
+// ========================================
+
+// This is the white square behind the logo
+
+logoContainerSizePercentOfQR: 26
+// (Total white square = 26% of QR width)
+
+logoContainerBackground: "#FFFFFF"
+
+logoContainerBorderRadiusPercent: 10
+// Slight rounding for premium feel (not fully rounded)
+
+
+
+// ========================================
+// LOGO INSIDE CONTAINER
+// ========================================
+
+logoSizePercentOfContainer: 70
+// Leaves ~15% padding on all sides (critical for scan safety)
+
+logoColor: "#000000"
+// Force solid black version of Q logo (no gradients, no blue)
+
+logoCenter: true
+
+
+
+// ========================================
+// QR ERROR CORRECTION
+// ========================================
+
+qrErrorCorrectionLevel: "H"
+// REQUIRED when embedding logo to maintain scan reliability
+
+
+
+// ========================================
+// CLEARANCE / SAFE ZONES
+// ========================================
+
+// Ensure no overlap with QR detection zones (eyes)
+protectFinderPatterns: true
+
+// Minimum quiet zone around QR
+qrQuietZoneModules: 4
+
+
+
+// ========================================
+// POSITIONING RULES
+// ========================================
+
+// Logo must be perfectly centered within QR
+logoOffsetX: 0
+logoOffsetY: 0
+
+// Do NOT allow dynamic scaling beyond limits
+maxLogoContainerPercent: 28
+minLogoContainerPercent: 22
+
+
+
+// ========================================
+// RENDERING RULES
+// ========================================
+
+// Prevent anti-alias blur
+renderPixelSharp: true
+
+// Ensure high contrast output
+qrForegroundColor: "#000000"
+qrBackgroundColor: "#FFFFFF"
+
+
+
+// ========================================
+// FAILSAFE
+// ========================================
+
+// If QR fails validation after logo applied:
+if (scanTestFails) {
+  reduce logoContainerSizePercentOfQR by 2%
+  retry render
+}
+
+// ========================================
+// NOTES
+// ========================================
+
+// - Do NOT use colored logo variants
+// - Do NOT exceed 28% container size
+// - Do NOT remove white padding
+// - This configuration is optimized for apparel printing + mobile scanning
