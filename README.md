@@ -344,6 +344,42 @@ Structure: `S` = super-category (1–6), `T` = product type (1–9), `NNN` = ite
 
 Returned by `GET /api/master-catalog`. Categories served: `Tees` (101–199), `Hoodies` (201–299), `Hats` (301–399), `Drinkware` (401–499).
 
+### GRF Graphic Reference Format
+
+Every graphic asset is identified by a GRF code. Parallel to QRG (which identifies products), GRF identifies the visual building blocks those products are assembled from. The two schemas are independent and never mixed.
+
+```
+GRF - [TT] - [K] - [O/L] - [ST] - [NNNNNN]
+       ↑       ↑      ↑       ↑        ↑
+     type    role  hosting subtype  sequence
+```
+
+| Segment | Width | Description |
+|---------|-------|-------------|
+| `GRF` | 3 | Brand prefix |
+| `[TT]` | 2 digits | Type — `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact · `07`=Template |
+| `[K]` | 1 letter | Role — `S`=Source · `D`=Derivative · `R`=Renderable · `F`=Final · `T`=Template |
+| `[O/L]` | 1 letter | Hosting — `O`=Online (hosted URL) · `L`=Local (design-layer construct) |
+| `[ST]` | 1 letter | Subtype — **Online:** `I`=Image · `V`=Video · `D`=Document · `A`=Audio · **Local:** `Z`=Zone · `C`=Canvas · `T`=Text · `G`=Graphic · `X`=Composite |
+| `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded, minted from `grf_counters` Firestore collection |
+
+**Examples:**
+```
+GRF-04-R-O-I-000001   QR Graphic · Renderable · Online Image
+GRF-05-F-L-C-000003   Canvas Design · Final · Local Canvas
+GRF-03-R-O-V-000012   Background · Renderable · Online Video
+```
+
+**Regex:** `^GRF-(01|02|03|04|05|06|07)-[SDRFT]-(O|L)-(I|V|D|A|Z|C|T|G|X)-[0-9]{6}$`
+
+**Authority file:** `shared/graphicCodes.ts` — `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`
+
+**Firestore:** `grf_counters/{typeCode}_{roleCode}` (atomic counter) · `library_assets` (docs with `assetType="graphic"`, `grfId` field)
+
+**API:** `POST /api/admin/graphics/save-grf` — mints a GRF code and writes to `library_assets`. Required body: `typeCode`, `roleCode`, `hostingMode`, `subtype`, `imageUrl`.
+
+**Full spec:** See Section 18 of `METHODOLOGY.md`.
+
 ### Catalog Management System
 
 Everything runs through named catalogs. Admin creates catalogs (curated subsets of blanks), assigns them to 5 sections (Member, Public, External, Marketplace, Platform). Managed from `admin-blanks.tsx`. Data stored in `catalogs`, `systemSettings/catalog-assignments`, `systemSettings/catalog-defaults` Firestore collections.
