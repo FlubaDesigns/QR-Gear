@@ -96,8 +96,13 @@ export const QRG_TOP_LEVEL_CATEGORIES = [
 ] as const;
 
 // ── QRG Blank Category Definitions (4-digit subcategory scheme) ───────────────
+// A category may span multiple ranges (block 0, block 1, …). The allocator
+// tries ranges in rangeStart-ascending order and fills the lowest-numbered
+// block that still has free slots.
 export const QRG_BLANK_CATEGORIES = [
   // ── 1000 Apparel ──────────────────────────────────────────────────────────
+  // T-Shirts block 0 (1001–1099) opened when block 1 (1101–1199) filled up.
+  { name: 'T-Shirts',              parent: 'Apparel',            rangeStart: 1001, rangeEnd: 1099 },
   { name: 'T-Shirts',              parent: 'Apparel',            rangeStart: 1101, rangeEnd: 1199 },
   { name: 'Hoodies & Sweatshirts', parent: 'Apparel',            rangeStart: 1201, rangeEnd: 1299 },
   { name: 'Bottoms & Active',      parent: 'Apparel',            rangeStart: 1301, rangeEnd: 1399 },
@@ -447,16 +452,26 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
   }
 
   // ── Build next available BBB number per category ──────────────────────────────
-  // On first run or clean sweep these start at range start (e.g. 1101, 1201…).
-  // On incremental re-sync they advance past existing assignments.
+  // Keyed by "CategoryName:rangeStart" so categories that span multiple ranges
+  // (e.g. T-Shirts block 0 + block 1) each get their own independent counter.
+  // On first run / clean sweep the counter starts at rangeStart.
+  // On incremental re-sync it advances past existing assignments.
   const nextBBB: Record<string, number> = {};
   for (const cat of QRG_BLANK_CATEGORIES) {
-    nextBBB[cat.name] = cat.rangeStart;
+    nextBBB[`${cat.name}:${cat.rangeStart}`] = cat.rangeStart;
   }
   for (const [, data] of existingMaster.entries()) {
-    if (data.qrgBlankId && data.qrgCategory && nextBBB[data.qrgCategory] !== undefined) {
-      if (Number(data.qrgBlankId) >= nextBBB[data.qrgCategory]) {
-        nextBBB[data.qrgCategory] = Number(data.qrgBlankId) + 1;
+    const blankNum = Number(data.qrgBlankId);
+    if (data.qrgBlankId && data.qrgCategory && !isNaN(blankNum)) {
+      // Find the specific range block this blank belongs to
+      const matchingCat = (QRG_BLANK_CATEGORIES as readonly any[]).find(
+        c => c.name === data.qrgCategory && blankNum >= c.rangeStart && blankNum <= c.rangeEnd
+      );
+      if (matchingCat) {
+        const key = `${matchingCat.name}:${matchingCat.rangeStart}`;
+        if (blankNum >= nextBBB[key]) {
+          nextBBB[key] = blankNum + 1;
+        }
       }
     }
   }
@@ -508,14 +523,22 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
       return { docId: existingDocId, alreadyExists: existingMaster.has(existingDocId) || inProgressDocs.has(existingDocId) };
     }
     if (qrgCategory) {
-      const bbb = nextBBB[qrgCategory];
-      const catDef = QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory);
-      if (catDef && bbb <= catDef.rangeEnd) {
-        nextBBB[qrgCategory] = bbb + 1;
-        return { docId: `qrg_${bbb}`, alreadyExists: false };
+      // Try every range registered for this category, lowest rangeStart first.
+      // This lets a category overflow into additional blocks (e.g. T-Shirts
+      // block 0 at 1001–1099 when block 1 at 1101–1199 is full).
+      const catDefs = (QRG_BLANK_CATEGORIES as readonly any[])
+        .filter(c => c.name === qrgCategory)
+        .sort((a: any, b: any) => a.rangeStart - b.rangeStart);
+      for (const catDef of catDefs) {
+        const key = `${qrgCategory}:${catDef.rangeStart}`;
+        const bbb = nextBBB[key] ?? catDef.rangeStart;
+        if (bbb <= catDef.rangeEnd) {
+          nextBBB[key] = bbb + 1;
+          return { docId: `qrg_${bbb}`, alreadyExists: false };
+        }
       }
     }
-    // No category match or range exhausted → pending doc
+    // No category match or all ranges exhausted → pending doc
     return { docId: `pending_${pendingFallback}`, alreadyExists: existingMaster.has(`pending_${pendingFallback}`) };
   }
 

@@ -245,7 +245,8 @@ QRG - [S] - [BBBB] - [DDD] - [SSSSSS] - [X][CC]
 
 | Range | Category |
 |-------|----------|
-| 1101–1199 | T-Shirts |
+| 1001–1099 | T-Shirts (block 0 — overflow) |
+| 1101–1199 | T-Shirts (block 1 — original, full) |
 | 1201–1299 | Hoodies & Sweatshirts |
 | 1301–1399 | Bottoms & Active |
 | 1401–1499 | Hats & Caps |

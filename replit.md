@@ -143,7 +143,8 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 
   | Code | Top-Level | Sub-Code | Subcategory |
   |------|-----------|----------|-------------|
-  | 1000 | **Apparel** | 1100 | T-Shirts |
+  | 1000 | **Apparel** | 1000 | T-Shirts (block 0 — overflow, 1001–1099) |
+  | | | 1100 | T-Shirts (block 1 — original, 1101–1199, full) |
   | | | 1200 | Hoodies & Sweatshirts |
   | | | 1300 | Bottoms & Active |
   | | | 1400 | Hats & Caps |
