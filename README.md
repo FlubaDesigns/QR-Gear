@@ -356,14 +356,64 @@ GRF - [TT] - [K] - [H] - [ST] - [NNNNNN]
 
 All segments are numeric. No letters.
 
-| Segment | Width | Description |
-|---------|-------|-------------|
-| `GRF` | 3 | Brand prefix |
-| `[TT]` | 2 digits | Type — `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact · `07`=Template |
-| `[K]` | 1 digit | Role — `1`=Source · `2`=Derivative · `3`=Renderable · `4`=Final · `5`=Template |
-| `[H]` | 1 digit | Hosting — `0`=Online (hosted URL) · `1`=Local (design-layer construct) |
-| `[ST]` | 1 digit | Subtype — **Online (H=0):** `1`=Image · `2`=Video · `3`=Document · `4`=Audio · **Local (H=1):** `5`=Zone · `6`=Canvas · `7`=Text · `8`=Graphic · `9`=Composite |
-| `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded, minted from `grf_counters` Firestore collection |
+| Segment | Width | Meaning |
+|---------|-------|---------|
+| `GRF` | 3 chars | Brand prefix — always present |
+| `[TT]` | 2 digits | Asset type — what kind of graphic this is |
+| `[K]` | 1 digit | Role — where this asset sits in the production pipeline |
+| `[H]` | 1 digit | Hosting mode — where the asset lives |
+| `[ST]` | 1 digit | Presentation subtype — branches by hosting mode |
+| `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded, unique per type+role bucket |
+
+**Type codes `[TT]`**
+
+| Code | Name |
+|------|------|
+| `01` | Upload Source |
+| `02` | Cropped Derivative |
+| `03` | Background |
+| `04` | QR Graphic |
+| `05` | Canvas Design |
+| `06` | URL Artifact Image |
+| `07` | Template Graphic |
+
+**Role codes `[K]`**
+
+| Code | Name |
+|------|------|
+| `1` | Source |
+| `2` | Derivative |
+| `3` | Renderable |
+| `4` | Final |
+| `5` | Template |
+
+**Hosting mode `[H]`**
+
+| Code | Name |
+|------|------|
+| `0` | Online (hosted URL) |
+| `1` | Local (design-layer construct) |
+
+**Presentation subtype `[ST]`** — meaning branches by `[H]`
+
+When Online (`H=0`):
+
+| Code | Name |
+|------|------|
+| `1` | Image (PNG, JPG, WebP, SVG) |
+| `2` | Video (MP4, WebM) |
+| `3` | Document (PDF) |
+| `4` | Audio |
+
+When Local (`H=1`):
+
+| Code | Name |
+|------|------|
+| `5` | Zone |
+| `6` | Canvas |
+| `7` | Text |
+| `8` | Graphic |
+| `9` | Composite |
 
 **Examples:**
 ```

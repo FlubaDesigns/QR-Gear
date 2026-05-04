@@ -469,7 +469,7 @@ export default function AdminBlanks() {
 
       const handleSelect = () => {
         if (validSelectedCatalogId) {
-          if (!inTarget) onAddToCatalog(blankKey);
+          if (!inTarget) onAddToCatalog(blankKey, product);
         } else {
           onToggleItem(String(scrollItem.id), product);
         }
@@ -760,16 +760,9 @@ export default function AdminBlanks() {
                   data-testid="select-category-filter"
                 >
                   {categoryNames.map(name => {
-                    const qrgRangeLabel: Record<string, string> = {
-                      'Tees': 'Tees (101–199)',
-                      'Hoodies': 'Hoodies (201–299)',
-                      'Hats': 'Hats (301–399)',
-                      'Drinkware': 'Drinkware (401–499)',
-                      'Unclassified': 'Unclassified',
-                    };
                     const displayName = name === "all"
                       ? `All Categories (${totalProductCount})`
-                      : `${qrgRangeLabel[name] ?? name} (${categoryCounts[name] || 0})`;
+                      : `${name} (${categoryCounts[name] || 0})`;
                     return <option key={name} value={name}>{displayName}</option>;
                   })}
                 </select>

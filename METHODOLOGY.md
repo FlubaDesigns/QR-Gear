@@ -1054,7 +1054,7 @@ GRF-07-5-1-9-000002   Template · Template role · Local · Composite · #2
 
 | Collection | Purpose |
 |------------|---------|
-| `grf_counters` | Atomic sequence counters. Doc ID = `{typeCode}_{roleCode}` (e.g. `04_R`). Field: `count` (integer). |
+| `grf_counters` | Atomic sequence counters. Doc ID = `{typeCode}_{roleCode}` (e.g. `04_3`). Field: `count` (integer). |
 | `library_assets` | Graphic asset records. Field `assetType="graphic"` identifies GRF assets. Field `grfId` holds the full GRF code. |
 
 ### Relationship to QRG

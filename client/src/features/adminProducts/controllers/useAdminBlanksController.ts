@@ -86,6 +86,11 @@ interface AdminCatalog {
   tierConfig?: Record<string, { displayName?: string; description?: string; tagline?: string }>;
   blankDescriptions?: Record<string, string>;
   blankTitles?: Record<string, string>;
+  blankMakers?: Record<string, string>;
+  blankModels?: Record<string, string>;
+  blankProviders?: Record<string, string[]>;
+  blankImages?: Record<string, string[]>;
+  blankPrimaryImages?: Record<string, string>;
   createdAt: string;
   updatedAt?: string;
 }
@@ -113,6 +118,7 @@ export interface NormalizedSourceBlank {
   model: string | null;
   madeInUSA: boolean;
   primaryImageUrl: string | null;
+  images?: string[];
   description: string | null;
   providerDescription: string | null;
   adminCatalogDescription: string | null;
@@ -135,6 +141,12 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
+  // Collect all available provider images into one deduplicated array
+  const allImages = [...new Set([
+    ...(p.printifyImages || []),
+    ...(p.printfulImages || []),
+  ])].filter(Boolean);
+  const images = allImages.length > 0 ? allImages : (imageUrl ? [imageUrl] : []);
   // Prefer canonicalDescription, then description
   const providerDesc = p.canonicalDescription || p.description || null;
   const effectiveDesc = adminCatalogDesc || providerDesc;
@@ -153,6 +165,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     model: p.model || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
+    images,
     description: effectiveDesc,
     providerDescription: providerDesc,
     adminCatalogDescription: adminCatalogDesc || null,
@@ -160,6 +173,22 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || [],
     defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,
+  };
+}
+
+function buildBlankSnapshot(p: CatalogProduct): Record<string, { title: string | null; maker: string | null; model: string | null; providers: string[]; images: string[]; primaryImageUrl: string | null }> {
+  const key = getProductKey(p);
+  const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
+  const allImages = [...new Set([...(p.printifyImages || []), ...(p.printfulImages || [])])].filter(Boolean);
+  return {
+    [key]: {
+      title: p.canonicalTitle || p.title || null,
+      maker: p.brand || p.maker || null,
+      model: p.model || null,
+      providers: p.availableVia || [],
+      images: allImages.length > 0 ? allImages : (imageUrl ? [imageUrl] : []),
+      primaryImageUrl: imageUrl,
+    },
   };
 }
 
@@ -241,6 +270,10 @@ export function useAdminBlanksController() {
   const blankTiers = activeCatalog?.blankTiers || {};
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
   const blankTitles = activeCatalog?.blankTitles || {};
+  const blankMakers = activeCatalog?.blankMakers || {};
+  const blankModels = activeCatalog?.blankModels || {};
+  const blankImages = activeCatalog?.blankImages || {};
+  const blankPrimaryImages = activeCatalog?.blankPrimaryImages || {};
   const hasCatalogSelected = !!validSelectedCatalogId;
 
   const mappedPrintifyIds = useMemo(() => {
@@ -372,8 +405,10 @@ export function useAdminBlanksController() {
   );
 
   const addBlanksMutation = useMutation({
-    mutationFn: async ({ catalogId, blankIds }: { catalogId: string; blankIds: string[] }) => {
-      const res = await apiRequest("POST", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds });
+    mutationFn: async ({ catalogId, blankIds, blankSnapshots }: { catalogId: string; blankIds: string[]; blankSnapshots?: Record<string, any> }) => {
+      const body: any = { blankIds };
+      if (blankSnapshots) body.blankSnapshots = blankSnapshots;
+      const res = await apiRequest("POST", `/api/admin/catalogs/${catalogId}/blanks`, body);
       return res.json();
     },
     onSuccess: (data) => {
@@ -467,19 +502,23 @@ export function useAdminBlanksController() {
         const safe = safeBlankId(id);
         const product = allProductMap.get(safe);
         if (!product) return null;
+        const catalogTitle = blankTitles[safe];
+        const catalogMaker = blankMakers[safe];
+        const catalogModel = blankModels[safe];
+        const catalogImage = blankImages[safe]?.[0] || blankPrimaryImages[safe] || null;
         return {
           id: getProductKey(product),
           catalogKey: safe,
-          title: product.canonicalTitle || product.title,
-          subtitle: [product.brand || product.maker, product.model].filter(Boolean).join(' ') || null,
-          imageUrl: product.imageUrl || product.image_url || product.thumbnailUrl || null,
+          title: catalogTitle || product.canonicalTitle || product.title,
+          subtitle: [catalogMaker || product.brand || product.maker, catalogModel || product.model].filter(Boolean).join(' ') || null,
+          imageUrl: catalogImage || product.imageUrl || product.image_url || product.thumbnailUrl || null,
           tier: (blankTiers[safe] as "good" | "better" | "best") || null,
           isPrintful: isProviderPrintful(safe),
           hasMockupMapping: false,
         };
       })
       .filter(Boolean) as CatalogBlankItem[];
-  }, [catalogBlankSet, allProductMap, blankTiers]);
+  }, [catalogBlankSet, allProductMap, blankTiers, blankTitles, blankMakers, blankModels, blankImages, blankPrimaryImages]);
 
   const sourceItemMap = useMemo(() => {
     const map = new Map<string, NormalizedSourceBlank>();
@@ -516,13 +555,15 @@ export function useAdminBlanksController() {
     [filtered]
   );
 
-  const onAddToCatalog = useCallback((blankKey: string) => {
+  const onAddToCatalog = useCallback((blankKey: string, product?: CatalogProduct) => {
     if (!validSelectedCatalogId) {
       toast({ title: "Select a catalog first", variant: "destructive" });
       return;
     }
-    addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [blankKey] });
-  }, [validSelectedCatalogId, addBlanksMutation, toast]);
+    const resolvedProduct = product || allProductMap.get(blankKey);
+    const blankSnapshots = resolvedProduct ? buildBlankSnapshot(resolvedProduct) : undefined;
+    addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [blankKey], blankSnapshots });
+  }, [validSelectedCatalogId, addBlanksMutation, allProductMap, toast]);
 
   const onRemoveFromCatalog = useCallback((blankKey: string) => {
     if (!validSelectedCatalogId) return;
@@ -538,9 +579,11 @@ export function useAdminBlanksController() {
     if (catalogBlankSet.has(key)) {
       removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
     } else {
-      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
+      const resolvedProduct = product || allProductMap.get(key) || allProductMap.get(id);
+      const blankSnapshots = resolvedProduct ? buildBlankSnapshot(resolvedProduct) : undefined;
+      addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key], blankSnapshots });
     }
-  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, toast, resolveBlankKey]);
+  }, [validSelectedCatalogId, catalogBlankSet, addBlanksMutation, removeBlanksMutation, allProductMap, toast, resolveBlankKey]);
 
   const onSaveDescription = useCallback(async (id: string, description: string, canonicalKey?: string) => {
     if (!validSelectedCatalogId) {
@@ -610,6 +653,10 @@ export function useAdminBlanksController() {
     scrollItems,
     blankTiers,
     blankTitles,
+    blankMakers,
+    blankModels,
+    blankImages,
+    blankPrimaryImages,
 
     onAddToCatalog,
     onRemoveFromCatalog,

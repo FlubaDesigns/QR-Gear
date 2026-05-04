@@ -79,7 +79,7 @@ function register(app) {
     app.post('/admin/catalogs/:catalogId/blanks', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { catalogId } = req.params;
-            const { blankIds } = req.body;
+            const { blankIds, blankSnapshots } = req.body;
             if (!Array.isArray(blankIds)) {
                 res.status(400).json({ error: 'blankIds must be an array' });
                 return;
@@ -90,9 +90,29 @@ function register(app) {
                 res.status(404).json({ error: 'Catalog not found' });
                 return;
             }
-            const existing = (doc.data()?.blankIds || []).map(String);
+            const catalog = doc.data();
+            const existing = (catalog.blankIds || []).map(String);
             const merged = [...new Set([...existing, ...blankIds.map(String)])];
-            await docRef.update({ blankIds: merged, updatedAt: new Date().toISOString() });
+            const updates = { blankIds: merged, updatedAt: new Date().toISOString() };
+            if (blankSnapshots && typeof blankSnapshots === 'object') {
+                const snapshotFieldMap = [
+                    { field: 'blankTitles', key: 'title' },
+                    { field: 'blankMakers', key: 'maker' },
+                    { field: 'blankModels', key: 'model' },
+                    { field: 'blankProviders', key: 'providers' },
+                    { field: 'blankImages', key: 'images' },
+                    { field: 'blankPrimaryImages', key: 'primaryImageUrl' },
+                ];
+                for (const { field, key } of snapshotFieldMap) {
+                    const existingMap = { ...(catalog[field] || {}) };
+                    for (const [blankId, snap] of Object.entries(blankSnapshots)) {
+                        if (!(blankId in existingMap) && snap[key] != null)
+                            existingMap[blankId] = snap[key];
+                    }
+                    updates[field] = existingMap;
+                }
+            }
+            await docRef.update(updates);
             console.log(`[Catalogs] Added ${blankIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
             res.json({ success: true, count: merged.length });
         }
@@ -122,12 +142,22 @@ function register(app) {
             const blankTiers = { ...(catalog.blankTiers || {}) };
             const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
             const blankTitles = { ...(catalog.blankTitles || {}) };
+            const blankMakers = { ...(catalog.blankMakers || {}) };
+            const blankModels = { ...(catalog.blankModels || {}) };
+            const blankProviders = { ...(catalog.blankProviders || {}) };
+            const blankImages = { ...(catalog.blankImages || {}) };
+            const blankPrimaryImages = { ...(catalog.blankPrimaryImages || {}) };
             for (const id of blankIds) {
                 delete blankTiers[String(id)];
                 delete blankDescriptions[String(id)];
                 delete blankTitles[String(id)];
+                delete blankMakers[String(id)];
+                delete blankModels[String(id)];
+                delete blankProviders[String(id)];
+                delete blankImages[String(id)];
+                delete blankPrimaryImages[String(id)];
             }
-            await docRef.update({ blankIds: remaining, blankTiers, blankDescriptions, blankTitles, updatedAt: new Date().toISOString() });
+            await docRef.update({ blankIds: remaining, blankTiers, blankDescriptions, blankTitles, blankMakers, blankModels, blankProviders, blankImages, blankPrimaryImages, updatedAt: new Date().toISOString() });
             if (removedCount === 0) {
                 console.warn(`[Catalogs] WARNING: Delete for [${blankIds.join(', ')}] in catalog ${catalogId} matched nothing. Existing keys: [${existing.slice(0, 20).join(', ')}]`);
             }
@@ -165,6 +195,16 @@ function register(app) {
                 newCatalog.blankDescriptions = src.blankDescriptions;
             if (src.blankTitles)
                 newCatalog.blankTitles = src.blankTitles;
+            if (src.blankMakers)
+                newCatalog.blankMakers = src.blankMakers;
+            if (src.blankModels)
+                newCatalog.blankModels = src.blankModels;
+            if (src.blankProviders)
+                newCatalog.blankProviders = src.blankProviders;
+            if (src.blankImages)
+                newCatalog.blankImages = src.blankImages;
+            if (src.blankPrimaryImages)
+                newCatalog.blankPrimaryImages = src.blankPrimaryImages;
             const doc = await core_1.db.collection('catalogs').add(newCatalog);
             console.log(`[Catalogs] Duplicated catalog "${src.name}" → "${newName}" (${doc.id}), ${(src.blankIds || []).length} blanks`);
             res.json({ id: doc.id, name: newName, description: src.description || '', blankIds: src.blankIds || [], createdAt: new Date().toISOString() });
