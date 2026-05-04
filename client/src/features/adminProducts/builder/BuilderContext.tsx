@@ -513,11 +513,17 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       selectedProduct: { ...product, optionsLoaded: false },
       masterTitle,
       adminCatalogTitle: null,
-      titleSource: 'provider' as TextLayerSource,
+      // PROGRESSIVE TRUTH — titleSource/descriptionSource are packet-layer fields.
+      // Do NOT seed them from 'provider' on select. The packet has no title/description
+      // yet; display fallback resolves via shared/descriptionLayers.ts at render time.
+      titleSource: null,
       masterDescription,
-      productDescription: masterDescription,
+      // PROGRESSIVE TRUTH — productDescription is packet-owned. Seeding it from
+      // masterDescription here is a write violation. Packet description stays null
+      // until the user explicitly edits it or clicks an explicit copy-forward action.
+      productDescription: null,
       adminCatalogDescription: null,
-      descriptionSource: 'provider' as TextLayerSource,
+      descriptionSource: null,
       placementsLoading: true,
       placementsError: null,
     }));
@@ -812,7 +818,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       templateBaseline: baseline,
       templateProductHint: hint,
       selectedProduct: resolvedProduct ? { ...resolvedProduct, optionsLoaded: false } : null,
-      productDescription: packetData.productDescription ?? resolvedProduct?.description ?? null,
+      // PROGRESSIVE TRUTH — hydrate only the packet-owned value. Never fall back to
+      // resolvedProduct?.description (upstream provider text). NULL is correct when the
+      // packet has no explicit description; display resolver handles fallback at render time.
+      productDescription: packetData.productDescription !== undefined ? packetData.productDescription : null,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
     }));

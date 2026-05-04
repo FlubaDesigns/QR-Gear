@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260504-184659-29236';
+const _BUILD_ID = '20260504-190038-12868';
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
