@@ -513,17 +513,18 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       selectedProduct: { ...product, optionsLoaded: false },
       masterTitle,
       adminCatalogTitle: null,
-      // PROGRESSIVE TRUTH — titleSource/descriptionSource are packet-layer fields.
-      // Do NOT seed them from 'provider' on select. The packet has no title/description
-      // yet; display fallback resolves via shared/descriptionLayers.ts at render time.
-      titleSource: null,
+      // Seed titleSource as 'provider' — card selection is the explicit copy-forward
+      // action. If handleCardSelect then applies a catalog override via setProductTitle,
+      // titleSource will be updated to 'catalog'. Either way the packet owns its copy
+      // from this point; changes to upstream after selection do not affect it.
+      titleSource: 'provider' as TextLayerSource,
       masterDescription,
-      // PROGRESSIVE TRUTH — productDescription is packet-owned. Seeding it from
-      // masterDescription here is a write violation. Packet description stays null
-      // until the user explicitly edits it or clicks an explicit copy-forward action.
-      productDescription: null,
+      // Seed productDescription from the provider description — this is the one-time
+      // copy that happens when the admin selects a product. If no catalog override
+      // is applied by handleCardSelect, the packet owns this provider-seeded value.
+      productDescription: masterDescription,
       adminCatalogDescription: null,
-      descriptionSource: null,
+      descriptionSource: 'provider' as TextLayerSource,
       placementsLoading: true,
       placementsError: null,
     }));

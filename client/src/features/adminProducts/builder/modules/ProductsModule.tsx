@@ -653,11 +653,15 @@ export function ProductsModule() {
     } as typeof entry.catalog;
     selectProduct(curatedProduct);
 
-    // PROGRESSIVE TRUTH — catalog title/description are already folded into curatedProduct
-    // (via entry.selectItem.name and entry.selectItem.description) which feeds masterTitle
-    // and masterDescription. The display resolver shows them as fallback.
-    // Do NOT copy catalog text into packet-owned fields (adminCatalogTitle/productDescription)
-    // here — those stay null until the user explicitly types something in the field.
+    // Card selection is the explicit copy-forward action per Progressive Truth.
+    // If the catalog has an override for this blank, upgrade the packet-owned fields
+    // from 'provider' seed (set in selectProduct) to 'catalog' level. Either way the
+    // packet owns its copy from this point — upstream changes after selection do not
+    // affect it unless the admin explicitly edits the field.
+    const adminDesc = activeCatalog?.blankDescriptions?.[entry.blankKey] ?? null;
+    const adminTitle = activeCatalog?.blankTitles?.[entry.blankKey] ?? null;
+    if (adminDesc) setProductDescription(adminDesc, 'catalog');
+    if (adminTitle) setProductTitle(adminTitle, 'catalog');
 
     // Clear any previous session then start/resume a build session for this master product
     setActiveSession(null, null, null);
@@ -700,7 +704,7 @@ export function ProductsModule() {
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setActiveSession, setActivePacketId, loadFromWorkingState, toast]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
