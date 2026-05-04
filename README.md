@@ -227,30 +227,36 @@ Every packet, owner instance, and physical item is identified by a single unifie
 #### Full Schema
 
 ```
-QRG - [S] - [BBB] - [DDD] - [SSSSSS] - [X][CC]
-       ↑      ↑       ↑        ↑           ↑
-     source  blank  build    owner      barcode only
+QRG - [S] - [BBBB] - [DDD] - [SSSSSS] - [X][CC]
+       ↑       ↑       ↑        ↑            ↑
+     source  blank  build    owner       barcode only
 ```
 
 | Segment | Width | Description |
 |---------|-------|-------------|
 | `QRG` | 3 | Brand prefix — always present |
 | Source `[S]` | 1 letter | `I`=Internal (admin), `M`=Member, `E`=External, `D`=Direct buyer |
-| Blank `[BBB]` | 3 digits | Product type — hundreds=category, tens+units=specific blank |
+| Blank `[BBBB]` | 4 digits | Product type — first digit=top category, second digit=subcategory, last two=specific blank |
 | Build `[DDD]` | 3 digits | Sequential build number within source+blank (001, 002, 003…) |
 | Owner `[SSSSSS]` | 6 digits | Zero-padded — assigned at claim time (000001–999999) |
 | Size+Color `[X][CC]` | 3 digits | **Barcode only** — 1-digit size + 2-digit color, never in URL or packet name |
 
-#### Blank Codes (BBB)
+#### Blank Codes (BBBB)
 
 | Range | Category |
 |-------|----------|
-| 101–199 | Tees |
-| 201–299 | Hoodies |
-| 301–399 | Hats |
-| 401–499 | Drinkware |
+| 1101–1199 | T-Shirts |
+| 1201–1299 | Hoodies & Sweatshirts |
+| 1301–1399 | Bottoms & Active |
+| 1401–1499 | Hats & Caps |
+| 1501–1599 | Footwear & Socks |
+| 1601–1699 | Sleepwear & Underwear |
+| 1701–1799 | Baby & Kids |
+| 2101–2199 | Drinkware |
+| 4101–4199 | Bags & Pouches |
+| 6101–6199 | Ornaments & Décor |
 
-Up to 99 blanks per category (x01–x99).
+Up to 99 blanks per subcategory (XX01–XX99).
 
 #### Size Digit (barcode only)
 
