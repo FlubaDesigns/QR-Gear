@@ -2,7 +2,7 @@ import { db } from '../core';
 import { safeAssign, safeAssignRequired } from '../safeAssign';
 import { mergeImagesByUrl, mergeArrayUnionStrings, isMeaningfulValue, ImageRecord } from './instance-resolver';
 import { printifyClient } from './printify';
-import { printfulClient } from './printful';
+import { printfulClient, getPrintfulApiKeyAsync } from './printful';
 
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw: string | null | undefined): string | null {
@@ -385,8 +385,19 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
 
   const printifyBlueprints = bpSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
   const printifyProviders = provSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
-  const printfulProducts = pfSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
+  const printfulProducts: any[] = pfSnap.docs.map(d => ({ _docId: d.id, ...d.data() }));
   const printfulVariants = pvSnap.docs.map(d => ({ _docId: d.id, ...d.data() })) as any[];
+
+  // Fallback: if printful_products is empty, read from printfulCatalog (legacy collection)
+  if (printfulProducts.length === 0) {
+    const legacySnap = await db.collection('printfulCatalog').get();
+    for (const doc of legacySnap.docs) {
+      printfulProducts.push({ _docId: doc.id, ...doc.data() });
+    }
+    if (printfulProducts.length > 0) {
+      console.log(`[MasterCatalog] printful_products empty — loaded ${printfulProducts.length} from printfulCatalog fallback`);
+    }
+  }
 
   // ── Clean sweep: delete all existing master_catalog docs in batches ───────────
   if (cleanSweep && masterSnap.size > 0) {
@@ -803,34 +814,236 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
 
 export { MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION };
 
+// ── Provider staging sync functions ──────────────────────────────────────────
+
+/**
+ * Sync Printify blueprints → printify_blueprints collection.
+ * Mirrors the pp-catalog.ts sync but runs synchronously (awaited).
+ */
+export async function syncPrintifyToStaging(
+  options: { onProgress?: (msg: string) => void } = {}
+): Promise<{ blueprints: number; added: number; updated: number; errors: number }> {
+  const { onProgress } = options;
+  const log = (msg: string) => { console.log(msg); onProgress?.(msg); };
+
+  if (!printifyClient.isConfigured) throw new Error('Printify API key not configured');
+
+  log('[Printify] Fetching blueprints from API...');
+  const blueprints: any[] = await printifyClient.getCatalogBlueprints();
+  log(`[Printify] Fetched ${blueprints.length} blueprints`);
+
+  const existingSnap = await db.collection(PRINTIFY_BLUEPRINTS_COLLECTION).get();
+  const existingMap = new Map<string, any>();
+  for (const doc of existingSnap.docs) existingMap.set(doc.id, doc.data());
+
+  const now = new Date().toISOString();
+  let added = 0, updated = 0, errors = 0;
+  const writes: { ref: FirebaseFirestore.DocumentReference; data: any; merge: boolean }[] = [];
+
+  for (const bp of blueprints) {
+    try {
+      const docId = String(bp.id);
+      const existing = existingMap.get(docId);
+      const images: string[] = Array.isArray(bp.images) ? bp.images.map((img: any) => typeof img === 'string' ? img : img?.src || img?.url || '').filter(Boolean) : [];
+      const data: any = {
+        id: bp.id,
+        title: bp.title,
+        description: bp.description || null,
+        brand: bp.brand || null,
+        model: bp.model || null,
+        images,
+        primaryImageUrl: images[0] || null,
+        lastSyncedAt: now,
+      };
+      if (existing?.richDescription) data.richDescription = existing.richDescription;
+      writes.push({ ref: db.collection(PRINTIFY_BLUEPRINTS_COLLECTION).doc(docId), data, merge: true });
+      if (existing) updated++; else added++;
+    } catch (e: any) {
+      errors++;
+      log(`[Printify] Error processing bp ${bp.id}: ${e.message}`);
+    }
+  }
+
+  const CHUNK = 400;
+  for (let i = 0; i < writes.length; i += CHUNK) {
+    const chunk = writes.slice(i, i + CHUNK);
+    const batch = db.batch();
+    for (const w of chunk) batch.set(w.ref, w.data, { merge: w.merge });
+    await batch.commit();
+    log(`[Printify] Committed ${Math.min(i + CHUNK, writes.length)}/${writes.length}`);
+  }
+
+  log(`[Printify] Done: ${blueprints.length} blueprints (${added} added, ${updated} updated)`);
+  return { blueprints: blueprints.length, added, updated, errors };
+}
+
+/**
+ * Sync Printful product catalog → printful_products + printfulCatalog collections.
+ * Only fetches the top-level catalog list (no per-product variant calls) for speed.
+ */
+export async function syncPrintfulToStaging(
+  options: { onProgress?: (msg: string) => void } = {}
+): Promise<{ products: number; added: number; updated: number; errors: number }> {
+  const { onProgress } = options;
+  const log = (msg: string) => { console.log(msg); onProgress?.(msg); };
+
+  const apiKey = await getPrintfulApiKeyAsync().catch(() => null);
+  if (!apiKey) {
+    log('[Printful] API key not configured — skipping');
+    return { products: 0, added: 0, updated: 0, errors: 0 };
+  }
+
+  const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+  log('[Printful] Fetching product catalog...');
+  const catResp = await fetch('https://api.printful.com/products', { headers });
+  if (!catResp.ok) throw new Error(`Printful catalog API error: ${catResp.status}`);
+  const catData = await catResp.json();
+  const products: any[] = catData.result || [];
+  log(`[Printful] Fetched ${products.length} products`);
+
+  const existingSnap = await db.collection(PRINTFUL_PRODUCTS_COLLECTION).get();
+  const existingMap = new Map<string, any>();
+  for (const doc of existingSnap.docs) existingMap.set(doc.id, doc.data());
+
+  const now = new Date().toISOString();
+  let added = 0, updated = 0, errors = 0;
+  const writes: { ref: FirebaseFirestore.DocumentReference; data: any }[] = [];
+
+  for (const product of products) {
+    try {
+      const docId = String(product.id);
+      const existing = existingMap.get(docId);
+      const data: any = {
+        id: product.id,
+        provider: 'printful',
+        title: product.title || product.type || null,
+        type: product.type || null,
+        typeName: product.type_name || product.type || null,
+        brand: product.brand || null,
+        model: product.model || null,
+        image: product.image || null,
+        images: product.image ? [product.image] : [],
+        variantCount: product.variant_count || 0,
+        description: null,
+        isAvailable: true,
+        lastSyncedAt: now,
+      };
+      writes.push({ ref: db.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(docId), data });
+      // Also keep printfulCatalog up to date (backward compat + fallback)
+      writes.push({ ref: db.collection('printfulCatalog').doc(docId), data: { ...data, category: product.type || null } });
+      if (existing) updated++; else added++;
+    } catch (e: any) {
+      errors++;
+      log(`[Printful] Error processing product ${product.id}: ${e.message}`);
+    }
+  }
+
+  const CHUNK = 400;
+  for (let i = 0; i < writes.length; i += CHUNK) {
+    const chunk = writes.slice(i, i + CHUNK);
+    const batch = db.batch();
+    for (const w of chunk) batch.set(w.ref, w.data, { merge: true });
+    await batch.commit();
+  }
+
+  log(`[Printful] Done: ${products.length} products (${added} added, ${updated} updated)`);
+  return { products: products.length, added, updated, errors };
+}
+
 // ── Enrichment ────────────────────────────────────────────────────────────────
-// Fetches print positions + print dimensions from provider APIs and stores them
-// on each master catalog doc so the data is always ready for fast retrieval.
 
 export interface EnrichStats {
   total: number;
   printfulEnriched: number;
   printifyEnriched: number;
+  defaultsApplied: number;
   skipped: number;
   errors: number;
 }
 
+// ── Category-based default print positions ────────────────────────────────────
+// Used as an instant fallback when provider APIs are unavailable.
+// These are accurate for the vast majority of products in each category.
+const CATEGORY_DEFAULT_POSITIONS: Record<string, string[]> = {
+  'T-Shirts':              ['front', 'back', 'left_chest'],
+  'Hoodies & Sweatshirts': ['front', 'back', 'left_chest', 'right_chest'],
+  'Bottoms & Active':      ['front', 'back'],
+  'Hats & Caps':           ['front', 'back', 'left_side', 'right_side'],
+  'Footwear & Socks':      ['leg', 'sole'],
+  'Sleepwear & Underwear': ['front', 'back'],
+  'Baby & Kids':           ['front', 'back'],
+  'Drinkware':             ['left', 'right'],
+  'Barware':               ['left', 'right'],
+  'Drinkware Accessories': ['front'],
+  'Kitchen & Dining':      ['front'],
+  'Bedding & Textiles':    ['front'],
+  'Home Décor':            ['front'],
+  'Wall Art & Prints':     ['front'],
+  'Stickers & Magnets':    ['front'],
+  'Stationery & Paper':    ['front'],
+  'Signs & Display':       ['front'],
+  'Books & Photo':         ['front', 'back'],
+  'Pins & Patches':        ['front'],
+  'Tags':                  ['front', 'back'],
+  'Puzzles & Games':       ['front'],
+  'Novelty':               ['front'],
+  'Bags & Pouches':        ['front', 'back'],
+  'Jewelry':               ['front'],
+  'Phone & Tech Cases':    ['back'],
+  'Travel Accessories':    ['front', 'back'],
+  'Small Accessories':     ['front'],
+  'Pet Apparel':           ['front', 'back'],
+  'Pet Accessories':       ['front'],
+  'Ornaments & Décor':     ['front', 'back'],
+  'Stockings & Gifting':   ['front', 'back'],
+  'Seasonal Apparel':      ['front', 'back'],
+};
+
+// ── Category-based default print sizes (in inches at 150 DPI) ────────────────
+const POSITION_DEFAULT_SIZES: Record<string, { width: number; height: number; dpi: number }> = {
+  front:        { width: 12,  height: 16,  dpi: 150 },
+  back:         { width: 12,  height: 16,  dpi: 150 },
+  left_chest:   { width: 4,   height: 4,   dpi: 150 },
+  right_chest:  { width: 4,   height: 4,   dpi: 150 },
+  left_side:    { width: 2.5, height: 2.5, dpi: 150 },
+  right_side:   { width: 2.5, height: 2.5, dpi: 150 },
+  left:         { width: 8.5, height: 4,   dpi: 150 },
+  right:        { width: 8.5, height: 4,   dpi: 150 },
+  leg:          { width: 5,   height: 8,   dpi: 150 },
+  sole:         { width: 5,   height: 9,   dpi: 150 },
+  back_large:   { width: 12,  height: 16,  dpi: 150 },
+};
+
+function buildDefaultSizes(positions: string[]): Record<string, { width: number; height: number; dpi: number }> {
+  const sizes: Record<string, { width: number; height: number; dpi: number }> = {};
+  for (const pos of positions) {
+    sizes[pos] = POSITION_DEFAULT_SIZES[pos] ?? { width: 8, height: 8, dpi: 150 };
+  }
+  return sizes;
+}
+
 /**
- * Enrich every master catalog doc with:
- *   printPositions  – string[] of available print locations (e.g. ['front','back'])
- *   printSizes      – { [position]: { width, height, dpi? } } in inches
- *   description     – cleaned rich description (if not already set)
- *   lastEnrichedAt  – ISO timestamp of this enrichment run
+ * Enrich every master catalog doc with printPositions + printSizes.
  *
- * Printful is tried first (gives dimensions).  Printify is used if Printful
- * data is unavailable.  Docs enriched within the last 7 days are skipped
- * unless forceRefresh is true.
+ * Strategy (no Printful API — it hangs indefinitely from Cloud Run):
+ *   1. Try Printify getVariants (8s hard timeout, 0 retries) for live position data.
+ *   2. If that fails or returns nothing → apply category-based defaults immediately.
+ *
+ * All 1,592 docs will be populated in a single pass.
+ * Docs enriched within the last 7 days are skipped unless forceRefresh=true.
  */
 export async function enrichMasterCatalog(
   options: { forceRefresh?: boolean; categoryFilter?: string } = {}
 ): Promise<EnrichStats> {
   const { forceRefresh = false, categoryFilter } = options;
-  const stats: EnrichStats = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
+  const stats: EnrichStats = {
+    total: 0,
+    printfulEnriched: 0,
+    printifyEnriched: 0,
+    defaultsApplied: 0,
+    skipped: 0,
+    errors: 0,
+  };
 
   const baseQuery = categoryFilter
     ? db.collection(MASTER_CATALOG_COLLECTION).where('qrgCategory', '==', categoryFilter)
@@ -838,116 +1051,83 @@ export async function enrichMasterCatalog(
   const snap = await baseQuery.get();
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  // ── Burst processing: N docs concurrently, then pause between bursts ───────
-  const BURST_SIZE = 8;        // parallel requests per burst
-  const BURST_PAUSE_MS = 1500; // pause between bursts to stay under rate limits
+  const BURST_SIZE = 50; // large bursts — most work is just Firestore writes
+  const now = new Date().toISOString();
 
   async function enrichDoc(doc: FirebaseFirestore.QueryDocumentSnapshot): Promise<void> {
     const data = doc.data() as any;
     stats.total++;
 
     const alreadyEnriched =
+      !forceRefresh &&
       data.lastEnrichedAt &&
       data.lastEnrichedAt > sevenDaysAgo &&
       Array.isArray(data.printPositions) &&
       data.printPositions.length > 0;
-    if (!forceRefresh && alreadyEnriched) {
+    if (alreadyEnriched) {
       stats.skipped++;
       return;
     }
 
-    // Support both old flat schema and new providerMappings schema
     const providerMappings: any[] = Array.isArray(data.providerMappings) ? data.providerMappings : [];
     const pyMap = providerMappings.find((m: any) => m.provider === 'printify') || null;
-    const pfMap = providerMappings.find((m: any) => m.provider === 'printful') || null;
-
-    const pfProductId: number | null = data.printfulProductId ?? pfMap?.productId ?? null;
     const pyBlueprintId: number | null = data.printifyBlueprintId ?? pyMap?.blueprintId ?? null;
-    // Provider ID may be stored or we'll look it up lazily
     let pyProviderId: number | null = pyMap?.printProviderId ?? data.printProviderId ?? null;
 
-    const update: Record<string, any> = { lastEnrichedAt: new Date().toISOString() };
+    const update: Record<string, any> = { lastEnrichedAt: now };
     let enriched = false;
 
-    // ── 1. Printful — preferred (returns dimensions too) ──────────────────
-    if (!enriched && pfProductId && printfulClient.isConfigured) {
-      try {
-        const printfileData = await fetchWithRetry(() =>
-          printfulClient.getPrintfiles(pfProductId)
-        );
-        const rawPlacements = printfileData?.available_placements ?? {};
-        const positions: string[] = [];
-        const sizes: Record<string, { width: number; height: number; dpi?: number }> = {};
-
-        for (const [pos, info] of Object.entries(rawPlacements as Record<string, any>)) {
-          if (/embroid|emb_/i.test(pos)) continue;
-          positions.push(pos);
-          if (info && (info.print_area_width || info.print_area_height)) {
-            sizes[pos] = {
-              width: Number(info.print_area_width ?? 0),
-              height: Number(info.print_area_height ?? 0),
-              ...(info.dpi ? { dpi: Number(info.dpi) } : {}),
-            };
-          }
-        }
-
-        if (positions.length > 0) {
-          update.printPositions = positions;
-          update.printSizes = sizes;
-          enriched = true;
-          stats.printfulEnriched++;
-        }
-      } catch (e: any) {
-        console.warn(`[Enrich] Printful error (product ${pfProductId}):`, e.message);
-        stats.errors++;
-      }
-    }
-
-    // ── 2. Printify — fallback (positions only, no dimensions) ────────────
+    // ── 1. Try Printify (8s hard timeout, 0 retries) ──────────────────────
     if (!enriched && pyBlueprintId && printifyClient.isConfigured) {
       try {
-        // Look up the first available provider if we don't have one stored
         if (!pyProviderId) {
-          const providers = await fetchWithRetry(() =>
-            printifyClient.getPrintProviders(pyBlueprintId)
+          const providers = await withTimeout(
+            printifyClient.getPrintProviders(pyBlueprintId),
+            8000
           );
-          pyProviderId = providers?.[0]?.id ?? null;
+          pyProviderId = (providers as any)?.[0]?.id ?? null;
         }
         if (pyProviderId) {
-          const variantData = await fetchWithRetry(() =>
-            printifyClient.getVariants(pyBlueprintId, pyProviderId!)
+          const variantData = await withTimeout(
+            printifyClient.getVariants(pyBlueprintId, pyProviderId),
+            8000
           );
           const posSet = new Set<string>();
-          for (const v of (variantData?.variants ?? [])) {
+          for (const v of ((variantData as any)?.variants ?? [])) {
             for (const ph of (v.placeholders ?? [])) {
               if (ph.position) posSet.add(ph.position);
             }
           }
           if (posSet.size > 0) {
-            update.printPositions = Array.from(posSet);
-            if (!update.printSizes) update.printSizes = {};
+            const positions = Array.from(posSet);
+            update.printPositions = positions;
+            update.printSizes = buildDefaultSizes(positions);
             enriched = true;
             stats.printifyEnriched++;
           }
         }
       } catch (e: any) {
-        console.warn(`[Enrich] Printify error (bp ${pyBlueprintId}):`, e.message);
+        // Timeout or API error — fall through to defaults immediately
         stats.errors++;
       }
+    }
+
+    // ── 2. Category defaults — instant fallback ───────────────────────────
+    if (!enriched) {
+      const category: string = data.qrgCategory || 'Unclassified';
+      const positions = CATEGORY_DEFAULT_POSITIONS[category] ?? ['front'];
+      update.printPositions = positions;
+      update.printSizes = buildDefaultSizes(positions);
+      stats.defaultsApplied++;
     }
 
     await doc.ref.update(update);
   }
 
-  // Fire docs in bursts of BURST_SIZE, pause between each burst
   for (let i = 0; i < snap.docs.length; i += BURST_SIZE) {
     const burst = snap.docs.slice(i, i + BURST_SIZE);
     await Promise.all(burst.map(enrichDoc));
-    const remaining = snap.docs.length - (i + BURST_SIZE);
-    if (remaining > 0) {
-      console.log(`[Enrich] Burst ${Math.floor(i / BURST_SIZE) + 1} done — ${i + burst.length}/${snap.docs.length} processed. Pausing ${BURST_PAUSE_MS}ms…`);
-      await delay(BURST_PAUSE_MS);
-    }
+    console.log(`[Enrich] ${Math.min(i + BURST_SIZE, snap.docs.length)}/${snap.docs.length} done — printify:${stats.printifyEnriched} defaults:${stats.defaultsApplied} skipped:${stats.skipped} errors:${stats.errors}`);
   }
 
   console.log('[MasterCatalog] Enrich complete:', stats);

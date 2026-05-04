@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useProductsContext } from "../ProductsContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface SyncModuleProps {
   selectedProviders: string[];
@@ -19,76 +19,108 @@ interface SyncPhase {
   detail?: string;
 }
 
-export function SyncModule({ selectedProviders }: SyncModuleProps) {
+function statusToPhases(s: any): SyncPhase[] {
+  if (!s || s.status === "never_run") return [];
+  const toStatus = (phase: any): PhaseStatus => {
+    if (!phase || phase.status === "pending") return "idle";
+    if (phase.status === "running") return "pending";
+    if (phase.status === "completed") return "done";
+    if (phase.status === "failed") return "error";
+    return "idle";
+  };
+  const detail = (phase: any): string | undefined => {
+    if (!phase) return undefined;
+    if (phase.error) return `Error: ${phase.error}`;
+    if (phase.count !== undefined) return `${phase.count} records`;
+    if (phase.status === "running") return "running…";
+    return undefined;
+  };
+  return [
+    { label: "Printify blueprints", status: toStatus(s.printify), detail: detail(s.printify) },
+    { label: "Printful products", status: toStatus(s.printful), detail: detail(s.printful) },
+    { label: "Master catalog build", status: toStatus(s.master), detail: detail(s.master) },
+  ];
+}
+
+export function SyncModule({ selectedProviders: _selectedProviders }: SyncModuleProps) {
   const { api } = useProductsContext();
   const { toast } = useToast();
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [phases, setPhases] = useState<SyncPhase[]>([]);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingRef = useRef(false);
 
-  const setPhase = (index: number, update: Partial<SyncPhase>) => {
-    setPhases(prev => prev.map((p, i) => i === index ? { ...p, ...update } : p));
+  const pollStatus = async () => {
+    try {
+      const res = await apiRequest("GET", "/api/admin/master-catalog/rebuild-status");
+      const data = await res.json();
+      setPhases(statusToPhases(data));
+      if (data.status === "completed") {
+        setIsPolling(false);
+        pollingRef.current = false;
+        setLastSynced(new Date());
+        queryClient.invalidateQueries({ queryKey: ["/api/master-catalog"] });
+        api.invalidateProducts();
+        toast({ title: "Rebuild complete", description: `Master catalog populated. Check the blanks list.` });
+      } else if (data.status === "failed") {
+        setIsPolling(false);
+        pollingRef.current = false;
+        toast({ title: "Rebuild failed", description: data.error || "Unknown error", variant: "destructive" });
+      }
+    } catch (_e) {
+    }
   };
 
-  const syncMutation = useMutation({
-    mutationFn: async (provider?: string) => {
-      const providerLabel = provider === "printful" ? "Printful" : "Printify";
+  useEffect(() => {
+    if (!isPolling) return;
+    pollingRef.current = true;
+    const interval = setInterval(() => {
+      if (!pollingRef.current) { clearInterval(interval); return; }
+      pollStatus();
+    }, 3000);
+    return () => { pollingRef.current = false; clearInterval(interval); };
+  }, [isPolling]);
 
+  const rebuildMutation = useMutation({
+    mutationFn: async () => {
       setPhases([
-        { label: `${providerLabel} catalog`, status: "pending" },
-        { label: "Master catalog", status: "idle" },
+        { label: "Printify blueprints", status: "pending" },
+        { label: "Printful products", status: "idle" },
+        { label: "Master catalog build", status: "idle" },
       ]);
-
-      // Phase 1: provider sync (fire-and-forget endpoint — responds immediately)
-      try {
-        await api.syncCatalog(provider);
-        setPhase(0, { status: "done", detail: "started in background" });
-      } catch (err: any) {
-        setPhase(0, { status: "error", detail: err.message });
-        throw err;
+      const res = await apiRequest("POST", "/api/admin/master-catalog/rebuild-full", {});
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
       }
-
-      // Phase 2: master catalog sync (synchronous — waits for completion)
-      setPhase(1, { status: "pending" });
-      try {
-        const res = await apiRequest("POST", "/api/admin/master-catalog/sync", {});
-        const data = await res.json().catch(() => ({}));
-        const detail = data.created !== undefined
-          ? `${data.created + (data.updated || 0)} products, ${data.matched || 0} matched`
-          : (data.message || "complete");
-        setPhase(1, { status: "done", detail });
-      } catch (err: any) {
-        setPhase(1, { status: "error", detail: err.message });
-        throw err;
-      }
+      return res.json();
     },
     onSuccess: () => {
-      setLastSynced(new Date());
-      toast({ title: "Sync complete", description: "Provider and master catalog are up to date." });
-      api.invalidateProducts();
+      setIsPolling(true);
     },
     onError: (error: Error) => {
-      toast({ title: "Sync failed", description: error.message, variant: "destructive" });
+      toast({ title: "Rebuild failed to start", description: error.message, variant: "destructive" });
+      setPhases([]);
     },
   });
 
   const formatLastSynced = () => {
     if (!lastSynced) return "Never";
-    const now = new Date();
-    const diffMs = now.getTime() - lastSynced.getTime();
+    const diffMs = Date.now() - lastSynced.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-    return lastSynced.toLocaleDateString();
+    if (diffMins < 60) return `${diffMins}m ago`;
+    return `${Math.floor(diffMins / 60)}h ago`;
   };
 
   const PhaseIcon = ({ status }: { status: PhaseStatus }) => {
     if (status === "pending") return <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />;
     if (status === "done") return <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />;
     if (status === "error") return <AlertCircle className="h-3.5 w-3.5 text-destructive" />;
-    return <span className="h-3.5 w-3.5 inline-block rounded-full border border-muted-foreground/30" />;
+    return <Clock className="h-3.5 w-3.5 text-muted-foreground/40" />;
   };
+
+  const isRunning = rebuildMutation.isPending || isPolling;
 
   return (
     <CollapsibleModule
@@ -99,15 +131,14 @@ export function SyncModule({ selectedProviders }: SyncModuleProps) {
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-4">
           <Button
-            onClick={() => syncMutation.mutate(selectedProviders[0])}
-            disabled={syncMutation.isPending}
+            onClick={() => rebuildMutation.mutate()}
+            disabled={isRunning}
             size="sm"
             data-testid="button-sync-catalog"
           >
-            {syncMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Sync Now
+            {isRunning && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isRunning ? "Rebuilding…" : "Full Rebuild"}
           </Button>
-
           <span className="text-sm text-muted-foreground">
             Last synced: {formatLastSynced()}
           </span>

@@ -479,6 +479,7 @@ function registerPpCatalogBrowseRoutes(app) {
                     ((p.originCountry || '').toUpperCase() === 'US');
                 // id: numeric ID for backward compat — prefer Printify blueprint ID
                 const id = blueprintId ?? printfulId;
+                const canonicalDescription = (p.canonicalDescription || p.richDescription || p.description || '').trim() || null;
                 categories[category].push({
                     docId: doc.id,
                     qrgBlankId: p.qrgBlankId ?? null,
@@ -486,9 +487,12 @@ function registerPpCatalogBrowseRoutes(app) {
                     qrgParentCategory: p.qrgParentCategory ?? null,
                     categorySource: p.categorySource ?? null,
                     id,
+                    canonicalTitle: (p.canonicalTitle || p.title || '').trim() || null,
                     title: (p.canonicalTitle || p.title || '').trim(),
-                    description: (p.description || '').trim() || null,
+                    canonicalDescription,
+                    description: canonicalDescription,
                     brand: p.brand ?? null,
+                    maker: p.brand ?? null,
                     model: p.model ?? null,
                     images: allImages,
                     imageUrl,

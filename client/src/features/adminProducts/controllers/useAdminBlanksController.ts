@@ -42,9 +42,12 @@ interface CatalogProduct {
   qrgBlankId?: number | null;
   qrgCategory?: string | null;
   categorySource?: string | null;
+  canonicalTitle?: string | null;
   title: string;
+  canonicalDescription?: string | null;
   description?: string;
   brand?: string;
+  maker?: string;
   model?: string;
   imageUrl?: string;
   image_url?: string;
@@ -132,9 +135,11 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
-  const providerDesc = p.description || null;
+  // Prefer canonicalDescription, then description
+  const providerDesc = p.canonicalDescription || p.description || null;
   const effectiveDesc = adminCatalogDesc || providerDesc;
-  const providerTitle = p.title || "";
+  // Prefer canonicalTitle, then title
+  const providerTitle = p.canonicalTitle || p.title || "";
   const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0 ? adminCatalogTitle : null;
   const effectiveTitle = normalizedAdminTitle ?? providerTitle;
   return {
@@ -144,7 +149,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     adminCatalogTitle: normalizedAdminTitle,
     price: retailPrice,
     cost,
-    manufacturer: p.brand || null,
+    manufacturer: p.brand || p.maker || null,
     model: p.model || null,
     madeInUSA: p.madeInUSA ?? false,
     primaryImageUrl: imageUrl,
@@ -441,9 +446,9 @@ export function useAdminBlanksController() {
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(p =>
-        (p.title || "").toLowerCase().includes(q) ||
-        (p.brand || "").toLowerCase().includes(q) ||
-        (p.description || "").toLowerCase().includes(q)
+        (p.canonicalTitle || p.title || "").toLowerCase().includes(q) ||
+        (p.brand || p.maker || "").toLowerCase().includes(q) ||
+        (p.canonicalDescription || p.description || "").toLowerCase().includes(q)
       );
     }
     return items;
@@ -465,8 +470,8 @@ export function useAdminBlanksController() {
         return {
           id: getProductKey(product),
           catalogKey: safe,
-          title: product.title,
-          subtitle: [product.brand, product.model].filter(Boolean).join(' ') || null,
+          title: product.canonicalTitle || product.title,
+          subtitle: [product.brand || product.maker, product.model].filter(Boolean).join(' ') || null,
           imageUrl: product.imageUrl || product.image_url || product.thumbnailUrl || null,
           tier: (blankTiers[safe] as "good" | "better" | "best") || null,
           isPrintful: isProviderPrintful(safe),
@@ -501,8 +506,8 @@ export function useAdminBlanksController() {
     filtered.map(p => ({
       id: getProductKey(p),
       imageUrl: p.imageUrl || p.image_url || p.thumbnailUrl || "",
-      title: p.title || "",
-      subtitle: [p.brand, p.model].filter(Boolean).join(' ') || undefined,
+      title: p.canonicalTitle || p.title || "",
+      subtitle: [p.brand || p.maker, p.model].filter(Boolean).join(' ') || undefined,
       minPrice: p.minPrice,
       maxPrice: p.maxPrice,
       colorCount: p.colorCount,

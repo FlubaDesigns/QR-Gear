@@ -172,5 +172,174 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // POST /admin/master-catalog/rebuild-full
+    // Full sequential pipeline: Printify → Printful → master_catalog.
+    // Responds immediately; tracks progress in sync_status/masterCatalog.
+    app.post('/admin/master-catalog/rebuild-full', middleware_1.requireAdmin, async (req, res) => {
+        const startedAt = new Date().toISOString();
+        const cleanSweep = req.body?.cleanSweep === true;
+        const statusRef = core_1.db.collection('sync_status').doc('masterCatalog');
+        await statusRef.set({
+            status: 'running',
+            startedAt,
+            cleanSweep,
+            printify: { status: 'running', startedAt: new Date().toISOString() },
+            printful: { status: 'pending' },
+            master: { status: 'pending' },
+        });
+        res.json({ success: true, message: 'Full rebuild started. Poll /rebuild-status for progress.', startedAt });
+        (async () => {
+            try {
+                // ── Phase 1: Printify ──────────────────────────────────────────────────
+                let printifyResult = { blueprints: 0, added: 0, updated: 0, errors: 0 };
+                try {
+                    printifyResult = await (0, master_catalog_1.syncPrintifyToStaging)({
+                        onProgress: (msg) => console.log(msg),
+                    });
+                    await statusRef.update({
+                        'printify.status': 'completed',
+                        'printify.count': printifyResult.blueprints,
+                        'printify.added': printifyResult.added,
+                        'printify.finishedAt': new Date().toISOString(),
+                        'printful.status': 'running',
+                        'printful.startedAt': new Date().toISOString(),
+                    });
+                }
+                catch (e) {
+                    console.error('[rebuild-full] Printify sync failed:', e.message);
+                    await statusRef.update({
+                        'printify.status': 'failed',
+                        'printify.error': e.message,
+                        'printify.finishedAt': new Date().toISOString(),
+                        'printful.status': 'running',
+                        'printful.startedAt': new Date().toISOString(),
+                    });
+                }
+                // ── Phase 2: Printful ──────────────────────────────────────────────────
+                let printfulResult = { products: 0, added: 0, updated: 0, errors: 0 };
+                try {
+                    printfulResult = await (0, master_catalog_1.syncPrintfulToStaging)({
+                        onProgress: (msg) => console.log(msg),
+                    });
+                    await statusRef.update({
+                        'printful.status': 'completed',
+                        'printful.count': printfulResult.products,
+                        'printful.added': printfulResult.added,
+                        'printful.finishedAt': new Date().toISOString(),
+                        'master.status': 'running',
+                        'master.startedAt': new Date().toISOString(),
+                    });
+                }
+                catch (e) {
+                    console.warn('[rebuild-full] Printful sync failed (non-fatal):', e.message);
+                    await statusRef.update({
+                        'printful.status': 'failed',
+                        'printful.error': e.message,
+                        'printful.finishedAt': new Date().toISOString(),
+                        'master.status': 'running',
+                        'master.startedAt': new Date().toISOString(),
+                    });
+                }
+                // ── Phase 3: Master catalog sync ────────────────────────────────────────
+                const masterResult = await (0, master_catalog_1.syncMasterCatalog)({ forceRefresh: false, cleanSweep });
+                const completedAt = new Date().toISOString();
+                await statusRef.update({
+                    status: 'completed',
+                    completedAt,
+                    'master.status': 'completed',
+                    'master.count': masterResult.created + masterResult.updated,
+                    'master.created': masterResult.created,
+                    'master.updated': masterResult.updated,
+                    'master.finishedAt': completedAt,
+                    result: {
+                        printify: printifyResult,
+                        printful: printfulResult,
+                        master: masterResult,
+                    },
+                });
+                console.log('[rebuild-full] Complete:', { printify: printifyResult, printful: printfulResult, master: masterResult });
+            }
+            catch (e) {
+                console.error('[rebuild-full] Fatal error:', e.message);
+                await statusRef.update({
+                    status: 'failed',
+                    error: e.message,
+                    completedAt: new Date().toISOString(),
+                }).catch(() => { });
+            }
+        })();
+    });
+    // GET /admin/master-catalog/rebuild-status
+    // Returns the current rebuild job status from sync_status/masterCatalog.
+    app.get('/admin/master-catalog/rebuild-status', middleware_1.requireAdmin, async (_req, res) => {
+        try {
+            const doc = await core_1.db.collection('sync_status').doc('masterCatalog').get();
+            if (!doc.exists) {
+                res.json({ status: 'never_run' });
+                return;
+            }
+            res.json({ id: doc.id, ...doc.data() });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    // GET /admin/master-catalog/diagnostics
+    // Collection counts + samples for each staging + master collection.
+    app.get('/admin/master-catalog/diagnostics', middleware_1.requireAdmin, async (_req, res) => {
+        try {
+            const COLLECTIONS = [
+                'printify_blueprints',
+                'printifyPrintProviders',
+                'printful_products',
+                'printful_variants',
+                'printfulCatalog',
+                'master_catalog',
+                'sync_status',
+            ];
+            const results = {};
+            await Promise.all(COLLECTIONS.map(async (col) => {
+                const [countSnap, sampleSnap] = await Promise.all([
+                    core_1.db.collection(col).count().get(),
+                    core_1.db.collection(col).limit(3).get(),
+                ]);
+                results[col] = {
+                    count: countSnap.data().count,
+                    samples: sampleSnap.docs.map(d => {
+                        const data = d.data();
+                        return {
+                            id: d.id,
+                            title: data.title || data.canonicalTitle || null,
+                            brand: data.brand || null,
+                            model: data.model || null,
+                            status: data.status || null,
+                            availableVia: data.availableVia || null,
+                        };
+                    }),
+                };
+            }));
+            const masterSnap = await core_1.db.collection('master_catalog').get();
+            const masterDocs = masterSnap.docs.map(d => d.data());
+            const unclassified = masterDocs.filter(d => !d.qrgCategory || d.qrgCategory === 'Unclassified').length;
+            const noMappings = masterDocs.filter(d => !Array.isArray(d.providerMappings) || d.providerMappings.length === 0).length;
+            const printifyOnly = masterDocs.filter(d => Array.isArray(d.availableVia) && d.availableVia.includes('printify') && !d.availableVia.includes('printful')).length;
+            const printfulOnly = masterDocs.filter(d => Array.isArray(d.availableVia) && d.availableVia.includes('printful') && !d.availableVia.includes('printify')).length;
+            const bridged = masterDocs.filter(d => Array.isArray(d.availableVia) && d.availableVia.includes('printify') && d.availableVia.includes('printful')).length;
+            res.json({
+                collections: results,
+                masterCatalog: {
+                    total: masterDocs.length,
+                    printifyOnly,
+                    printfulOnly,
+                    bridged,
+                    unclassified,
+                    noProviderMappings: noMappings,
+                },
+            });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
 }
 //# sourceMappingURL=master-catalog.js.map
