@@ -34,66 +34,66 @@ export function QRGearLogo({
         aria-hidden="true"
         style={{ display: "block", flexShrink: 0 }}
       >
-        {/* Q outer angular square */}
+        {/* Q outer angular square — slightly smaller */}
         <rect
-          x="4"
-          y="4"
-          width="68"
-          height="68"
+          x="8"
+          y="8"
+          width="58"
+          height="58"
           rx="5"
           stroke="currentColor"
-          strokeWidth="7"
+          strokeWidth="6.5"
           fill="none"
         />
-        {/* Q tail — angular diagonal, extends beyond the box */}
+        {/* Q tail — angular diagonal */}
         <line
-          x1="55"
-          y1="55"
-          x2="91"
-          y2="91"
+          x1="50"
+          y1="50"
+          x2="87"
+          y2="87"
           stroke="currentColor"
-          strokeWidth="7"
+          strokeWidth="6.5"
           strokeLinecap="square"
         />
 
         {/* Finder square — top left */}
         <rect
-          x="16"
-          y="16"
-          width="17"
-          height="17"
+          x="15"
+          y="15"
+          width="15"
+          height="15"
           rx="1.5"
           stroke="currentColor"
           strokeWidth="2.5"
           fill="none"
         />
-        <rect x="20.5" y="20.5" width="8" height="8" rx="1" fill="currentColor" />
+        <rect x="19" y="19" width="7" height="7" rx="1" fill="currentColor" />
 
         {/* Finder square — top right */}
         <rect
-          x="43"
-          y="16"
-          width="17"
-          height="17"
+          x="44"
+          y="15"
+          width="15"
+          height="15"
           rx="1.5"
           stroke="currentColor"
           strokeWidth="2.5"
           fill="none"
         />
-        <rect x="47.5" y="20.5" width="8" height="8" rx="1" fill="currentColor" />
+        <rect x="48" y="19" width="7" height="7" rx="1" fill="currentColor" />
 
         {/* Finder square — bottom center */}
         <rect
           x="29.5"
-          y="43"
-          width="17"
-          height="17"
+          y="44"
+          width="15"
+          height="15"
           rx="1.5"
           stroke="currentColor"
           strokeWidth="2.5"
           fill="none"
         />
-        <rect x="34" y="47.5" width="8" height="8" rx="1" fill="currentColor" />
+        <rect x="33.5" y="48" width="7" height="7" rx="1" fill="currentColor" />
       </svg>
 
       {showWordmark && (

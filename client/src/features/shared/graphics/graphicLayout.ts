@@ -52,9 +52,8 @@ export const GRAPHIC_LAYOUT_DEFAULTS = {
   qrBgRadiusPct: 0.06,
   qrBgRadiusMin: 12,
 
-  // Logo spec: container = 26% of QR, logo = 70% of container (18.2% of QR)
-  // logoBgScale = 0.26 / 0.182 ≈ 1.43 — single source of truth, imported by all renderers
-  logoSizePct: 0.182,
+  // Logo spec: logo = 14% of QR, container = logo * 1.43 ≈ 20% of QR
+  logoSizePct: 0.14,
   logoBgScale: 1.43,
   logoBgRadiusPct: 0.10,
 
@@ -64,7 +63,7 @@ export const GRAPHIC_LAYOUT_DEFAULTS = {
 
   defaultQrPositionX: 50,
   defaultQrPositionY: 50,
-  defaultQrSizePercent: 75,
+  defaultQrSizePercent: 68,
 } as const;
 
 export function clamp(value: number, min: number, max: number): number {
