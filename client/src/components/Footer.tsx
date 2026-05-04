@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { QrCode, Mail, MapPin, ChevronDown } from "lucide-react";
+import { Mail, MapPin, ChevronDown } from "lucide-react";
+import { QRGearLogo } from "@/components/QRGearLogo";
 import { SiFacebook, SiInstagram, SiX, SiTiktok, SiYoutube } from "react-icons/si";
 
 function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -34,8 +35,7 @@ export default function Footer() {
 
           <div className="footer__col footer__col--brand">
             <div className="footer__brand">
-              <QrCode className="w-6 h-6 text-ice" />
-              <span>QRGear.com</span>
+              <QRGearLogo size={26} />
             </div>
             <p className="footer__tagline">
               Physical gear. Digital world.
