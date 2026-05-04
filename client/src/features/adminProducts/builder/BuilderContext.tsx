@@ -442,9 +442,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   // Shared placement fetch — called by selectProduct, loadFromWorkingState, loadFromPacketData
-  const fetchPlacementsForProduct = useCallback((product: CatalogProduct) => {
-    // 'both' is not a valid API provider — resolve to printify if blueprintId present, else printful
-    const rawProvider = product.fulfillmentProvider || 'printify';
+  // preferredProvider: the builder's active provider selection (e.g. 'printful' or 'printify'),
+  // which takes precedence over the product's own fulfillmentProvider when set.
+  const fetchPlacementsForProduct = useCallback((product: CatalogProduct, preferredProvider?: string | null) => {
+    // Resolve provider: prefer the builder's explicit choice, then the product field,
+    // then default to printify. 'both' is never a valid API value.
+    const rawProvider = preferredProvider || product.fulfillmentProvider || 'printify';
     const provider = (rawProvider === 'both')
       ? (product.blueprintId ? 'printify' : 'printful')
       : rawProvider;
