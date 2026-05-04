@@ -130,7 +130,7 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 - **QRG Identity Schema (FINAL)**: `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]`
   - **Design/build data is NOT part of the QRG ID.** Design lives as a separate Firestore field, linked asset, or QR payload — never embedded in identity.
   - **Blank [STNNN]** (5 digits, **core identity**): S=super-category (1–6), T=product-type (1–9), NNN=item number (101–999, starts at 101). Example: `11101`=first T-Shirt.
-  - **Source [C]** (1 letter): `I`=Internal, `P`=Printify, `F`=Printful, `E`=External.
+  - **Context [C]** (1 letter): `I`=Internal (admin-built), `M`=Member (user-built), `E`=External (API/embedded), `O`=Owner (post-purchase). Providers (Printify/Printful) are fulfillment suppliers only — they NEVER appear in the context letter.
   - **Instance [IIIIII]** (6 digits): unique per produced item, zero-padded (000001–999999). Owner URL = `qrgear.com/QRG-11101-I-000001`.
   - **Variant [SSCC]** (4 digits, **barcode only — never in URL**): SS=2-digit size (01=XXS,02=XS,03=S,04=M,05=L,06=XL,07=2XL,08=3XL,09=4XL,10=5XL), CC=2-digit color (01=Black,02=White,03=Navy,04=Red,05=Royal Blue…). Barcode = `QRG-11101-I-000001-0501`. Full map in `shared/qrgCodes.ts`.
   - **Full example**: `QRG-11101-I-000001-0501` = Apparel/T-Shirt #101, Internal, Instance 1, Size L, Color Black.

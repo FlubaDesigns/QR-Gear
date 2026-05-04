@@ -871,16 +871,18 @@ Structure: `S`=super-category (1–6), `T`=product-type (1–9), `NNN`=item numb
 
 Firestore doc ID: `qrg_STNNN` (e.g. `qrg_11101`). Store-facing label: `QRG-11101`.
 
-#### Layer 2 — Source (`[C]`, 1 letter)
+#### Layer 2 — Context (`[C]`, 1 letter)
 
-Identifies the fulfillment channel that produced this item:
+Identifies who created and owns this instance. This is NOT the fulfillment provider:
 
-| Letter | Source |
-|--------|--------|
-| `I` | Internal — QR Gear admin-built |
-| `P` | Printify |
-| `F` | Printful |
-| `E` | External — partner/embedded store |
+| Letter | Context |
+|--------|---------|
+| `I` | Internal — admin-built (QR Gear direct) |
+| `M` | Member — user-built via member wizard |
+| `E` | External — API / embedded / partner-built |
+| `O` | Owner — post-purchase, buyer's own instance |
+
+**Rule:** Providers (Printify, Printful) are fulfillment suppliers only. They live in `providerMappings` on `master_catalog`. They NEVER appear in the context letter. The context letter never changes after creation.
 
 #### Design Is Not Part of Identity
 
@@ -894,7 +896,7 @@ Zero-padded integer assigned at purchase/claim time, unique per blank+source.
 
 - Range: `000001` – `999999`
 - Minted at claim moment — NOT at build or catalog creation time
-- First owner of T-Shirt #101 via Printify → `QRG-11101-P-000001`
+- First owner of T-Shirt #101 (member-built) → `QRG-11101-M-000001`
 
 **Owner URL:**
 ```

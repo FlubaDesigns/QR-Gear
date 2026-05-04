@@ -236,7 +236,7 @@ QRG - [STNNN] - [C] - [IIIIII] - [SSCC]
 |---------|-------|-------------|
 | `QRG` | 3 | Brand prefix — always present |
 | Blank `[STNNN]` | 5 digits | Product identity — S=super-category (1–6), T=product-type (1–9), NNN=item number (101–999) |
-| Source `[C]` | 1 letter | `I`=Internal, `P`=Printify, `F`=Printful, `E`=External |
+| Context `[C]` | 1 letter | `I`=Internal (admin-built), `M`=Member (user-built), `E`=External (API/embedded), `O`=Owner (post-purchase) |
 | Instance `[IIIIII]` | 6 digits | Unique per produced item — ownership + tracking (000001–999999) |
 | Variant `[SSCC]` | 4 digits | **Barcode only** — SS=2-digit size + CC=2-digit color, never in URL |
 

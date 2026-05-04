@@ -11,6 +11,9 @@
  * Full QRG code format: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
  * Example: QRG-11101-I-000001-0501  (L=05, Black=01)
  *
+ * Context letter [C]: I=Internal, M=Member, E=External, O=Owner
+ * Providers (Printify/Printful) are suppliers only — NEVER in [C].
+ *
  * Rules:
  *   - Codes are GLOBAL and FIXED — never renumber once assigned
  *   - Aliases (e.g. "Gray" / "Grey") share the same code
@@ -183,11 +186,13 @@ export function buildVariantSuffix(size: string | null, color: string | null): s
 // Format: STNNN where S=1-6 (super-category), T=1-9 (type), NNN=001-999 (item)
 // docId format: qrg_STNNN  e.g. qrg_11101
 // Full QRG code: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+// Context [C]: I=Internal (admin), M=Member (user), E=External (API/partner), O=Owner (post-purchase)
+// Providers (Printify/Printful) are suppliers only — never in [C].
 // Design/build data is NOT embedded in the QRG code — stored as a separate field or linked asset.
 
 const QRG_BLANK_ID_RE = /^[1-6][1-9][0-9]{3}$/;
 const QRG_DOC_ID_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
-const QRG_FULL_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([A-Z])-(\d{6})-(\d{4})$/;
+const QRG_FULL_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})-(\d{4})$/;
 
 export const PARENT_CATEGORY_LABELS: Record<string, string> = {
   "1": "Apparel",
@@ -256,7 +261,8 @@ export function normalizeQrgBlankId(value: unknown): string | null {
 
 export interface QrgCodeParts {
   qrgBlankId: string;
-  sourceCode: string;
+  /** Context letter: I=Internal, M=Member, E=External, O=Owner */
+  contextCode: string;
   instanceNumber: string;
   sizeCode: string;
   colorCode: string;
@@ -264,10 +270,11 @@ export interface QrgCodeParts {
 
 /** Build the full QRG-[STNNN]-[C]-[IIIIII]-[SSCC] string */
 export function buildFullQrgCode(parts: QrgCodeParts): string {
-  const { qrgBlankId, sourceCode, instanceNumber, sizeCode, colorCode } = parts;
+  const { qrgBlankId, contextCode, instanceNumber, sizeCode, colorCode } = parts;
   if (!isValidQrgBlankId(qrgBlankId)) throw new Error(`Invalid qrgBlankId: ${qrgBlankId}`);
+  if (!/^[IMEO]$/.test(contextCode)) throw new Error(`Invalid contextCode: ${contextCode}. Must be I, M, E, or O.`);
   const iiiiii = String(instanceNumber).padStart(6, "0");
-  return `QRG-${qrgBlankId}-${sourceCode}-${iiiiii}-${sizeCode}${colorCode}`;
+  return `QRG-${qrgBlankId}-${contextCode}-${iiiiii}-${sizeCode}${colorCode}`;
 }
 
 /** Parse a full QRG code, returns null if format is invalid */
@@ -276,7 +283,7 @@ export function parseFullQrgCode(code: string): QrgCodeParts | null {
   if (!m) return null;
   return {
     qrgBlankId: m[1],
-    sourceCode: m[2],
+    contextCode: m[2],
     instanceNumber: m[3],
     sizeCode: m[4].slice(0, 2),
     colorCode: m[4].slice(2, 4),
