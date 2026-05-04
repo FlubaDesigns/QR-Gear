@@ -653,14 +653,11 @@ export function ProductsModule() {
     } as typeof entry.catalog;
     selectProduct(curatedProduct);
 
-    // Immediately load the catalog's admin overrides into builder state so the
-    // description and title the admin saved always appear — never revert to master
-    const adminDesc = activeCatalog?.blankDescriptions?.[entry.blankKey] ?? null;
-    const adminTitle = activeCatalog?.blankTitles?.[entry.blankKey] ?? null;
-    // Explicitly seed the packet from the catalog layer — source='catalog' so the
-    // working-state snapshot records where the value came from (Progressive Truth).
-    if (adminDesc) setProductDescription(adminDesc, 'catalog');
-    if (adminTitle) setProductTitle(adminTitle, 'catalog');
+    // PROGRESSIVE TRUTH — catalog title/description are already folded into curatedProduct
+    // (via entry.selectItem.name and entry.selectItem.description) which feeds masterTitle
+    // and masterDescription. The display resolver shows them as fallback.
+    // Do NOT copy catalog text into packet-owned fields (adminCatalogTitle/productDescription)
+    // here — those stay null until the user explicitly types something in the field.
 
     // Clear any previous session then start/resume a build session for this master product
     setActiveSession(null, null, null);
@@ -703,7 +700,7 @@ export function ProductsModule() {
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setActiveSession, setActivePacketId, loadFromWorkingState, toast]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
