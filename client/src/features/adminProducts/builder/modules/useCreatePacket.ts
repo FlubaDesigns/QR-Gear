@@ -113,21 +113,16 @@ export function useCreatePacket({
         pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
-        masterTitle: state.masterTitle || null,
-        adminCatalogTitle: state.adminCatalogTitle || null,
-        effectiveTitle: state.selectedProduct?.title || state.masterTitle || product?.name || "Untitled Product",
-        masterDescription: state.masterDescription || null,
-        adminCatalogDescription: state.adminCatalogDescription || null,
-        effectiveDescription:
-          state.productDescription ??
-          state.selectedProduct?.description ??
-          product?.description ??
-          null,
-        productDescription:
-          state.productDescription ??
-          state.selectedProduct?.description ??
-          product?.description ??
-          null,
+        masterTitle: state.masterTitle ?? null,
+        adminCatalogTitle: state.adminCatalogTitle ?? null,
+        // PROGRESSIVE TRUTH — store only the packet-layer value, never a fallback chain.
+        // NULL means "no explicit packet title/description" — display uses descriptionLayers.ts.
+        effectiveTitle: state.adminCatalogTitle !== null && state.adminCatalogTitle !== undefined
+          ? state.adminCatalogTitle : null,
+        masterDescription: state.masterDescription ?? null,
+        adminCatalogDescription: state.adminCatalogDescription ?? null,
+        effectiveDescription: state.productDescription !== undefined ? state.productDescription : null,
+        productDescription: state.productDescription !== undefined ? state.productDescription : null,
         productImageUrl: product?.imageUrl || null,
         blueprintId: product?.blueprintId || null,
         printProviderId: product?.printProviderId || null,

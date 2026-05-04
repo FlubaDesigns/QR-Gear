@@ -166,14 +166,16 @@ function normalizeLandingTextBlocks(blocks: any[]): any[] {
 
 function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
   const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
-  // Save explicitly-set packet values only. masterTitle / masterDescription are
-  // provider truth and must NOT be saved as the packet's own title/description
-  // unless the admin has explicitly set them (tracked by titleSource/descriptionSource).
-  // The display resolver (shared/descriptionLayers.ts) handles fallback for display.
-  const packetTitle = state.adminCatalogTitle ?? state.masterTitle ?? null;
-  const titleSource: TextLayerSource = state.titleSource ?? (state.adminCatalogTitle ? 'packet' : 'provider');
-  const packetDescription = state.productDescription ?? state.masterDescription ?? null;
-  const descriptionSource: TextLayerSource = state.descriptionSource ?? (state.productDescription ? 'packet' : 'provider');
+  // PROGRESSIVE TRUTH — WRITE STRICT PACKET VALUES ONLY.
+  // NULL = "no explicit packet value". Display fallback is handled by
+  // shared/descriptionLayers.ts at render time — NEVER at save time.
+  // Do NOT fall back to masterTitle, masterDescription, or any upstream layer here.
+  const packetTitle = state.adminCatalogTitle !== null && state.adminCatalogTitle !== undefined
+    ? state.adminCatalogTitle : null;
+  const titleSource: TextLayerSource = state.titleSource ?? null;
+  const packetDescription = state.productDescription !== null && state.productDescription !== undefined
+    ? state.productDescription : null;
+  const descriptionSource: TextLayerSource = state.descriptionSource ?? null;
   return {
     title: packetTitle,
     titleSource,
