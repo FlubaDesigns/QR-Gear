@@ -268,6 +268,8 @@ export interface TemplateProductHint {
   fulfillmentProvider: string | null;
 }
 
+export type TextLayerSource = 'provider' | 'catalog' | 'packet' | 'manual' | 'none' | null;
+
 export interface BuilderState {
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
@@ -283,6 +285,10 @@ export interface BuilderState {
   masterDescription: string | null;
   productDescription: string | null;
   adminCatalogDescription: string | null;
+  /** Which layer the current packet title originated from */
+  titleSource: TextLayerSource;
+  /** Which layer the current packet description originated from */
+  descriptionSource: TextLayerSource;
   selectedColor: SelectedColor | null;
   qrProductState: QRProductState;
   content: ContentData;

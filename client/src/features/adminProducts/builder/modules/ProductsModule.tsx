@@ -410,7 +410,8 @@ export function ProductsModule() {
       } as typeof entry.catalog;
       selectProduct(curatedProduct);
     }
-    setProductDescription(description || null);
+    // source='manual' — admin explicitly typed/confirmed this value in the builder
+    setProductDescription(description || null, 'manual');
 
     if (activeCatalog) {
       try {
@@ -438,7 +439,8 @@ export function ProductsModule() {
       } as typeof entry.catalog;
       selectProduct(curatedProduct);
     }
-    setProductTitle(title || null);
+    // source='manual' — admin explicitly typed/confirmed this value in the builder
+    setProductTitle(title || null, 'manual');
 
     if (activeCatalog) {
       try {
@@ -655,8 +657,10 @@ export function ProductsModule() {
     // description and title the admin saved always appear — never revert to master
     const adminDesc = activeCatalog?.blankDescriptions?.[entry.blankKey] ?? null;
     const adminTitle = activeCatalog?.blankTitles?.[entry.blankKey] ?? null;
-    if (adminDesc) setProductDescription(adminDesc);
-    if (adminTitle) setProductTitle(adminTitle);
+    // Explicitly seed the packet from the catalog layer — source='catalog' so the
+    // working-state snapshot records where the value came from (Progressive Truth).
+    if (adminDesc) setProductDescription(adminDesc, 'catalog');
+    if (adminTitle) setProductTitle(adminTitle, 'catalog');
 
     // Clear any previous session then start/resume a build session for this master product
     setActiveSession(null, null, null);

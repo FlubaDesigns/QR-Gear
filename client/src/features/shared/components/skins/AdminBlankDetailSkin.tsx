@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Palette, Ruler, Save, Loader2, X } from "lucide-react";
+import { Package, Palette, Ruler, Save, Loader2, X, ChevronLeft } from "lucide-react";
 export interface AdminBlankDetailItem {
   id: string;
   title: string;
@@ -53,15 +53,25 @@ export function AdminBlankDetailSkin({ item, onSaveDescription, onClose, saving 
         className="relative w-[90vw] max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl animate-in zoom-in-90 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-10 bg-black/50 rounded-full p-1.5"
-          data-testid="button-close-admin-blank-detail"
-        >
-          <X className="w-5 h-5 text-white" />
-        </button>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 text-slate-300 hover:text-white active:text-white transition-colors"
+            data-testid="button-back-admin-blank-detail"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-black/50 rounded-full p-1.5"
+            data-testid="button-close-admin-blank-detail"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
 
-        <div className="bg-white rounded-t-2xl p-4 flex items-center justify-center min-h-[200px]">
+        <div className="bg-white p-4 flex items-center justify-center min-h-[200px]">
           {item.imageUrl ? (
             <img src={item.imageUrl} alt={item.title} className="max-h-[35vh] w-auto object-contain" />
           ) : (

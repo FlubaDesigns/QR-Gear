@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import { useProductsContext } from "../ProductsContext";
 import { adminFetch } from "@/lib/adminFetch";
 import { auth } from "@/lib/firebase";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint, TextLayerSource } from "./types";
 import type { RoleType, Store, Channel, Collection } from "../shared/types";
 import { defaultTextStyle } from "./types";
 
@@ -33,8 +33,8 @@ interface BuilderContextValue {
   setSelectedCatalogId: (id: string) => void;
   setActivePacketId: (id: string | null) => void;
   setActiveSession: (id: string | null, status: 'working' | 'artifact_ready' | 'committed' | null, instanceId: string | null) => void;
-  setProductDescription: (description: string | null) => void;
-  setProductTitle: (title: string | null) => void;
+  setProductDescription: (description: string | null, source?: TextLayerSource) => void;
+  setProductTitle: (title: string | null, source?: TextLayerSource) => void;
   resetBuilder: () => void;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   loadFromWorkingState: (working: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
@@ -99,6 +99,8 @@ const initialState: BuilderState = {
   masterDescription: null,
   productDescription: null,
   adminCatalogDescription: null,
+  titleSource: null,
+  descriptionSource: null,
   selectedColor: { name: "Black", hex: "#000000" },
   qrProductState: "qr_canvas",
   content: {
@@ -164,9 +166,19 @@ function normalizeLandingTextBlocks(blocks: any[]): any[] {
 
 function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
   const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
+  // Save explicitly-set packet values only. masterTitle / masterDescription are
+  // provider truth and must NOT be saved as the packet's own title/description
+  // unless the admin has explicitly set them (tracked by titleSource/descriptionSource).
+  // The display resolver (shared/descriptionLayers.ts) handles fallback for display.
+  const packetTitle = state.adminCatalogTitle ?? state.masterTitle ?? null;
+  const titleSource: TextLayerSource = state.titleSource ?? (state.adminCatalogTitle ? 'packet' : 'provider');
+  const packetDescription = state.productDescription ?? state.masterDescription ?? null;
+  const descriptionSource: TextLayerSource = state.descriptionSource ?? (state.productDescription ? 'packet' : 'provider');
   return {
-    title: state.adminCatalogTitle ?? state.masterTitle ?? state.selectedProduct?.title ?? null,
-    description: state.productDescription ?? state.adminCatalogDescription ?? state.masterDescription ?? null,
+    title: packetTitle,
+    titleSource,
+    description: packetDescription,
+    descriptionSource,
     images: state.selectedProduct?.images ?? [],
     graphics: {
       content: serializableContent,
@@ -410,35 +422,25 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
-  const setProductDescription = useCallback((description: string | null) => {
-    setState(prev => {
-      if (!prev.selectedProduct) {
-        return { ...prev, productDescription: description, adminCatalogDescription: description } as BuilderState;
-      }
-      return {
-        ...prev,
-        productDescription: description,
-        adminCatalogDescription: description,
-        selectedProduct: {
-          ...prev.selectedProduct,
-          description: description ?? prev.selectedProduct.description ?? undefined,
-        },
-      } as BuilderState;
-    });
+  const setProductDescription = useCallback((description: string | null, source: TextLayerSource = 'manual') => {
+    setState(prev => ({
+      ...prev,
+      productDescription: description,
+      adminCatalogDescription: description,
+      descriptionSource: source,
+      // selectedProduct.description is provider truth — never mutate it here.
+      // Use the display resolver in shared/descriptionLayers.ts for fallback display.
+    }));
   }, []);
 
-  const setProductTitle = useCallback((title: string | null) => {
-    setState(prev => {
-      if (!prev.selectedProduct) return prev;
-      return {
-        ...prev,
-        adminCatalogTitle: title,
-        selectedProduct: {
-          ...prev.selectedProduct,
-          title: title ?? prev.selectedProduct.title,
-        },
-      };
-    });
+  const setProductTitle = useCallback((title: string | null, source: TextLayerSource = 'manual') => {
+    setState(prev => ({
+      ...prev,
+      adminCatalogTitle: title,
+      titleSource: source,
+      // selectedProduct.title is provider truth — never mutate it here.
+      // Use the display resolver in shared/descriptionLayers.ts for fallback display.
+    }));
   }, []);
 
   // Fetch QRG-native options for a product — single source of truth for placements,
@@ -502,14 +504,18 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
     // Immediately seat the product with optionsLoaded=false and start loading.
     // fetchOptionsForProduct will merge placements/qrgBlankId/qrgVariants once resolved.
+    // selectedProduct holds provider truth — do NOT mutate its title/description via
+    // setProductTitle/setProductDescription; those are packet-layer writes.
     setState(prev => ({
       ...prev,
       selectedProduct: { ...product, optionsLoaded: false },
       masterTitle,
       adminCatalogTitle: null,
+      titleSource: 'provider' as TextLayerSource,
       masterDescription,
       productDescription: masterDescription,
       adminCatalogDescription: null,
+      descriptionSource: 'provider' as TextLayerSource,
       placementsLoading: true,
       placementsError: null,
     }));
@@ -655,7 +661,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementSizes: (layoutConfig.placementSizes as PlacementSizeConfig) ?? {},
       placementMethods: (layoutConfig.placementMethods as PrintMethodSelection) ?? {},
       adminCatalogTitle: working.title ?? null,
+      titleSource: (working.titleSource as TextLayerSource) ?? null,
       productDescription: working.description ?? null,
+      descriptionSource: (working.descriptionSource as TextLayerSource) ?? null,
       selectedProduct: product ? { ...product, optionsLoaded: false } : prev.selectedProduct,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
