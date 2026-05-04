@@ -138,12 +138,16 @@ export function useCreatePacket({
         defaultColorHex: state.selectedColor?.hex || null,
         defaultPlacement: product?.defaultPlacement || null,
         qrProductState: state.qrProductState,
-        placements: state.selectedPlacements || [],
+        selectedPlacements: state.selectedPlacements || [],
+        placements: product?.printLocations || product?.placements || [],
         placementConfig: state.placementConfig || {},
         placementSizes: state.placementSizes || {},
         availablePlacements,
+        availableSizes,
+        availableColors,
         sizes: availableSizes,
         colors: availableColors,
+        qrgVariants: product?.qrgVariants || {},
         options: [
           ...(availableColors.length > 0 ? [{
             name: 'Color', type: 'color', displayType: 'swatches',

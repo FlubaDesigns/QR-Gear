@@ -483,11 +483,9 @@ function registerAdminBuildSessions(app) {
                 catch (_) { /* fall back to master values */ }
             }
             // Capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes.
-            // Also read qrgId so it can be written into resolved.qrgId on the new instance.
             const packetId = session.generated?.packetId || null;
             let packetEnabledColors = null;
             let packetEnabledSizes = null;
-            let packetQrgId = null;
             if (packetId) {
                 try {
                     const packetDoc = await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
@@ -504,8 +502,6 @@ function registerAdminBuildSessions(app) {
                             packetEnabledColors = normalizedColors;
                         if (normalizedSizes.length > 0)
                             packetEnabledSizes = normalizedSizes;
-                        if (pkt.qrgId)
-                            packetQrgId = pkt.qrgId;
                     }
                 }
                 catch (_) { /* no packet */ }
@@ -545,8 +541,6 @@ function registerAdminBuildSessions(app) {
             if (w.metadata)
                 overrides.metadata = w.metadata;
             const resolved = resolveFields(baseSnapshot, overrides);
-            if (packetQrgId)
-                resolved.qrgId = packetQrgId;
             const newPacketId = session.generated?.packetId || null;
             const meta = w.metadata || {};
             const selectedStore = meta.selectedStore || null;

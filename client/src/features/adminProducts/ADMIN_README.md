@@ -730,7 +730,7 @@ Surfaces can now be auto-populated from a committed catalog instance via the pro
 - Price (MSRP from packet data), available sizes + colors
 - Auto-generated bullet points and tags from product attributes
 - eBay-specific: itemSpecifics (brand, material, color, size), department derivation
-- SKU: `QRG-{MASTER6}-{INST4}` pattern
+- SKU: `QRG-[STNNN]-[C]-[IIIIII]` (e.g. `QRG-11101-I-000001`) — sourced from instance `qrgBaseCode`, never invented
 - Fields requiring external lookup (eBay category ID, shipping/payment/return policy IDs) are left blank for manual entry
 
 | File | Change |
@@ -1414,13 +1414,13 @@ Replaced the static "Scan this / Goes here" section on the store product page wi
 
 ### May 3, 2026 — QRG Model Number on Store Product Page (Item #6)
 
-Surfaces the QRG model number (e.g. `QRG-I-101-001`) directly on the store product page below the product title. The model number was already written to Firestore at commit time — this wires it through the API response and renders it as small mono muted text with a `data-testid="text-model-number"` attribute.
+Surfaces the QRG model number (e.g. `QRG-11101-I-000001`) directly on the store product page below the product title. The model number is written to Firestore at commit time via the shared allocator — this wires it through the API response and renders it as small mono muted text with a `data-testid="text-model-number"` attribute.
 
 #### Files Changed
 | File | Change |
 |------|--------|
-| `functions/src/routes/store-files.ts` | Added `qrgId: resolved.qrgId \|\| null` to catalog-instances product API response |
-| `client/src/pages/shop-product.tsx` | Added `qrgId?` to `StoreProduct` interface; conditional `Model: {qrgId}` render below title |
+| `functions/src/routes/store-files.ts` | Added `qrgBaseCode: resolved.qrgBaseCode \|\| null` to catalog-instances product API response |
+| `client/src/pages/shop-product.tsx` | Added `qrgBaseCode?` to `StoreProduct` interface; conditional `Model: {qrgBaseCode}` render below title |
 
 ---
 
@@ -1677,7 +1677,8 @@ These are two different systems that happen to share the "QRG" prefix:
 | System | Purpose | Example |
 |--------|---------|---------|
 | **4-digit blank ID** (`qrgBlankId`) | Identifies the *type* of printable blank in the master catalog | `1101` = "Bella+Canvas 3001 T-Shirt" |
-| **QRG serial number** (`QRG-I-101-001`) | Identifies a specific *built product* with design + owner | `QRG-I-101-001-000001` = owner's specific shirt |
+| **QRG base code** (`QRG-[STNNN]-[C]-[IIIIII]`) | Identifies a specific *built product* with design + context | `QRG-11101-I-000001` = internal catalog instance |
+| **QRG full code** (`QRG-[STNNN]-[C]-[IIIIII]-[SSCC]`) | Adds size+color variant suffix | `QRG-11101-I-000001-0102` = specific size/color |
 
 The blank ID is the catalog key. The serial number is the product identity key. They are related but distinct.
 
