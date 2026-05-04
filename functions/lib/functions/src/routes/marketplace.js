@@ -556,7 +556,8 @@ function register(app) {
         }
         catch (error) {
             console.error('[SurfaceGenerator] generate-from-instance error:', error.message);
-            res.status(500).json({ error: error.message });
+            const isValidation = /invalid qrg|no product instance|multiple product instance|qrg code does not match|either qrgcode or productinstanceid|either instanceid or qrgcode/i.test(error.message || '');
+            res.status(isValidation ? 400 : 500).json({ error: error.message });
         }
     });
     // --- Push Surface to Amazon ---
