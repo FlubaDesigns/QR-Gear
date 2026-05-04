@@ -443,7 +443,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   // Shared placement fetch — called by selectProduct, loadFromWorkingState, loadFromPacketData
   const fetchPlacementsForProduct = useCallback((product: CatalogProduct) => {
-    const provider = product.fulfillmentProvider || 'printify';
+    // 'both' is not a valid API provider — resolve to printify if blueprintId present, else printful
+    const rawProvider = product.fulfillmentProvider || 'printify';
+    const provider = (rawProvider === 'both')
+      ? (product.blueprintId ? 'printify' : 'printful')
+      : rawProvider;
     const params = new URLSearchParams({ provider });
     if (provider === 'printify') {
       if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
