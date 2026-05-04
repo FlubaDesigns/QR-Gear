@@ -20,6 +20,8 @@ interface GraphicAsset {
   graphicType?: string | null;
   typeCode?: string | null;
   roleCode?: string | null;
+  hostingMode?: 'O' | 'L' | null;
+  subtype?: string | null;
   relatedPacketId?: string | null;
   createdAt?: string | null;
   isActive?: boolean;
@@ -33,6 +35,13 @@ const TYPE_CODE_LABELS: Record<string, string> = {
   '01': 'Source',
   '02': 'Cropped',
   '03': 'Background',
+};
+
+const HOSTING_LABELS: Record<string, string> = { O: 'Online', L: 'Local' };
+
+const SUBTYPE_LABELS: Record<string, string> = {
+  I: 'Image', V: 'Video', D: 'Document', A: 'Audio',
+  Z: 'Zone',  C: 'Canvas', T: 'Text',   G: 'Graphic', X: 'Composite',
 };
 
 function GraphicCard({
@@ -89,7 +98,14 @@ function GraphicCard({
         <p className="text-xs font-medium truncate" title={asset.name} data-testid={`text-graphic-name-${asset.id}`}>
           {asset.name}
         </p>
-        <p className="text-xs text-muted-foreground">{typeLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          {typeLabel}
+          {asset.hostingMode && asset.subtype && (
+            <span className="ml-1 opacity-70">
+              · {HOSTING_LABELS[asset.hostingMode] ?? asset.hostingMode} {SUBTYPE_LABELS[asset.subtype] ?? asset.subtype}
+            </span>
+          )}
+        </p>
       </div>
     </div>
   );
@@ -131,6 +147,16 @@ function GraphicDetailPanel({
           <Badge variant="secondary" className="text-xs">{typeLabel}</Badge>
           {asset.roleCode && (
             <Badge variant="outline" className="text-xs font-mono">{asset.roleCode}</Badge>
+          )}
+          {asset.hostingMode && (
+            <Badge variant="outline" className="text-xs">
+              {HOSTING_LABELS[asset.hostingMode] ?? asset.hostingMode}
+            </Badge>
+          )}
+          {asset.subtype && (
+            <Badge variant="outline" className="text-xs">
+              {SUBTYPE_LABELS[asset.subtype] ?? asset.subtype}
+            </Badge>
           )}
         </div>
       </div>

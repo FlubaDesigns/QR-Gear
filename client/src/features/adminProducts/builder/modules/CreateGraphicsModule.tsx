@@ -119,6 +119,8 @@ export function CreateGraphicsModule() {
         json: {
           typeCode: '04',
           roleCode: 'R',
+          hostingMode: 'O',
+          subtype: 'I',
           imageUrl: packetResult.qrOnlyUrl,
           name: graphicName ? `${graphicName} — QR Graphic` : 'QR Graphic',
           relatedPacketId: packetResult.packetId,
@@ -142,6 +144,8 @@ export function CreateGraphicsModule() {
         json: {
           typeCode: '05',
           roleCode: 'F',
+          hostingMode: 'O',
+          subtype: 'I',
           imageUrl: packetResult.compositeUrl,
           name: graphicName ? `${graphicName} — Canvas Design` : 'Canvas Design',
           relatedPacketId: packetResult.packetId,

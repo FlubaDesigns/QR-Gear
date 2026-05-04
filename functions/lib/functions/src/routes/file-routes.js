@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processQueueInBackground = processQueueInBackground;
 exports.register = register;
@@ -614,9 +647,9 @@ function register(app) {
     // Admin: Mint a GRF code and save a graphic asset to library_assets
     app.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { typeCode, roleCode, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
-            if (!typeCode || !roleCode || !imageUrl) {
-                res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
+            const { typeCode, roleCode, hostingMode, subtype, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
+            if (!typeCode || !roleCode || !hostingMode || !subtype || !imageUrl) {
+                res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, hostingMode, subtype, imageUrl' });
                 return;
             }
             const validTypeCodes = Object.keys(graphicCodes_1.GRF_TYPE_MAP);
@@ -628,6 +661,19 @@ function register(app) {
             if (!entry.validRoles.includes(roleCode)) {
                 res.status(400).json({
                     error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
+                });
+                return;
+            }
+            if (!['O', 'L'].includes(hostingMode)) {
+                res.status(400).json({ error: 'Invalid hostingMode. Must be O (Online) or L (Local).' });
+                return;
+            }
+            const { isValidSubtypeForMode } = await Promise.resolve().then(() => __importStar(require('../../../shared/graphicCodes')));
+            if (!isValidSubtypeForMode(hostingMode, subtype)) {
+                const validOnline = 'I, V, D, A';
+                const validLocal = 'Z, C, T, G, X';
+                res.status(400).json({
+                    error: `Invalid subtype "${subtype}" for hostingMode "${hostingMode}". Online subtypes: ${validOnline}. Local subtypes: ${validLocal}.`,
                 });
                 return;
             }
@@ -645,12 +691,12 @@ function register(app) {
                     updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
                 });
             });
-            const graphicId = (0, graphicCodes_1.buildGraphicId)(typeCode, roleCode, newSeq);
+            const graphicId = (0, graphicCodes_1.buildGraphicId)(typeCode, roleCode, hostingMode, subtype, newSeq);
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
             const assetData = {
                 ownerType: 'admin',
                 assetType: 'graphic',
-                mediaType: 'image',
+                mediaType: hostingMode === 'O' ? subtype : 'local',
                 name: name || `${entry.label} ${graphicId}`,
                 description: description || null,
                 fileName: graphicId,
@@ -664,6 +710,8 @@ function register(app) {
                 graphicType: entry.label,
                 typeCode,
                 roleCode,
+                hostingMode,
+                subtype,
                 tags: tags || null,
                 isActive: true,
                 createdAt: now,

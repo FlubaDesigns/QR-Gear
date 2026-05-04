@@ -673,10 +673,10 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
 // Admin: Mint a GRF code and save a graphic asset to library_assets
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { typeCode, roleCode, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
+    const { typeCode, roleCode, hostingMode, subtype, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
 
-    if (!typeCode || !roleCode || !imageUrl) {
-      res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
+    if (!typeCode || !roleCode || !hostingMode || !subtype || !imageUrl) {
+      res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, hostingMode, subtype, imageUrl' });
       return;
     }
 
@@ -690,6 +690,21 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
     if (!entry.validRoles.includes(roleCode as GrfRoleCode)) {
       res.status(400).json({
         error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
+      });
+      return;
+    }
+
+    if (!['O', 'L'].includes(hostingMode)) {
+      res.status(400).json({ error: 'Invalid hostingMode. Must be O (Online) or L (Local).' });
+      return;
+    }
+
+    const { isValidSubtypeForMode } = await import('../../../shared/graphicCodes');
+    if (!isValidSubtypeForMode(hostingMode as 'O' | 'L', subtype)) {
+      const validOnline = 'I, V, D, A';
+      const validLocal  = 'Z, C, T, G, X';
+      res.status(400).json({
+        error: `Invalid subtype "${subtype}" for hostingMode "${hostingMode}". Online subtypes: ${validOnline}. Local subtypes: ${validLocal}.`,
       });
       return;
     }
@@ -709,13 +724,19 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
       });
     });
 
-    const graphicId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
+    const graphicId = buildGraphicId(
+      typeCode as GrfTypeCode,
+      roleCode as GrfRoleCode,
+      hostingMode as 'O' | 'L',
+      subtype as any,
+      newSeq
+    );
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const assetData: Record<string, any> = {
       ownerType: 'admin',
       assetType: 'graphic',
-      mediaType: 'image',
+      mediaType: hostingMode === 'O' ? subtype : 'local',
       name: name || `${entry.label} ${graphicId}`,
       description: description || null,
       fileName: graphicId,
@@ -729,6 +750,8 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
       graphicType: entry.label,
       typeCode,
       roleCode,
+      hostingMode,
+      subtype,
       tags: tags || null,
       isActive: true,
       createdAt: now,
