@@ -185,3 +185,9 @@ id = "1Ktc2ZaSa2SD3JJTSXdyJ"
 uri = "file://downloads/qrgear_session_may3_2026.zip"
 type = "unspecified"
 title = "QR Gear — May 3 Session Files"
+
+[[outputs]]
+id = "bFJzTaTgjzCit7EEcGSB-"
+uri = "file://downloads/QRG_Identity_Schema_Audit.zip"
+type = "unspecified"
+title = "QRG Identity Schema Audit — All Changed Files + README"
