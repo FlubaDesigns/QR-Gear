@@ -331,7 +331,8 @@ function isBrandModelMatch(
   const bb = normalizeForMatch(brandB);
   const mb = normalizeForMatch(modelB);
   const brandMatch = ba === bb || ba.includes(bb) || bb.includes(ba);
-  const modelMatch = ma === mb || ma.includes(mb) || mb.includes(ma);
+  // Use endsWith (not includes) so "3001" matches "bc3001" but NOT "3001b" (baby variant suffix)
+  const modelMatch = ma === mb || ma.endsWith(mb) || mb.endsWith(ma);
   return brandMatch && modelMatch;
 }
 
