@@ -1684,6 +1684,142 @@ The blank ID is the catalog key. The serial number is the product identity key. 
 
 ---
 
+## QRG Identity Schema — Full Stack Enforcement (May 4, 2026)
+
+### What was enforced and why
+
+The QRG law defines two canonical code formats:
+
+```
+Base:  QRG-[STNNN]-[C]-[IIIIII]
+Full:  QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+```
+
+Allowed contexts: `I` = Internal, `M` = Member, `E` = External, `O` = Owner.
+
+No DDD segments. No buildStr. No provider IDs embedded in the code. No fake or pending codes invented by any layer of the stack.
+
+Every violation below was introduced when an earlier iteration of the builder tried to allocate or display QRG codes client-side, copy stale codes from packet to instance, or invent placeholder codes when no real identity existed. The fixes below remove all of those paths and enforce a single authoritative flow: the shared server-side allocator is the only source of QRG identity.
+
+---
+
+### Completed fixes — backend
+
+#### `functions/src/services/qrg-instance-allocator.ts` (NEW)
+Single shared atomic allocator. Every instance creation path — admin commit, member push, owner registration, external claim — calls this one function. It validates `qrgBlankId`, increments the Firestore counter in a transaction, and returns `{ qrgBlankId, qrgContext, instanceNumber, qrgBaseCode, variantCode, qrgFullCode }`. Nothing else in the stack generates QRG codes.
+
+**Why:** Previously each route had its own inline allocator or counter increment, producing inconsistent field names and stale codes leaking between instances.
+
+#### `functions/src/routes/admin-catalog-instances.ts`
+- Removed local `allocateQrgInstanceNumber` function entirely
+- Both admin instance creation (context `I`) and push-to-member (context `M`) now delegate to the shared allocator
+- Renamed `qrgPacketCode` → `qrgBaseCode` everywhere; added `variantCode` and `qrgFullCode`
+- Fail-loud (HTTP 400) when `qrgBlankId` is missing — no silent skip
+- `backfill-all-images` and `rebuild-images` routes: read `pkt.qrgBaseCode || pkt.qrgPacketCode` (backward compat for existing docs), write `resolved.qrgBaseCode`, return `qrgBaseCode` in response
+
+**Why:** Old code copied `pkt.qrgId` (stale, wrong field name) into `resolved.qrgId` on new instances, letting prior-run packet codes bleed across instance boundaries.
+
+#### `functions/src/routes/admin-build-sessions.ts`
+- Removed the `packetQrgId` read block that read `pkt.qrgId` from the prior packet and stamped it into `resolved.qrgId` on the new instance
+- The commit route already allocates a fresh `qrgBaseCode` via the shared allocator (written at the top level of the Firestore document). The stale copy was overwriting it with the wrong field name.
+- `/admin/qrg/allocate` HTTP endpoint delegates to the shared allocator and returns `qrgBaseCode`
+
+**Why:** Every build session commit was creating a new instance with a correct top-level `qrgBaseCode` but then also writing a stale `resolved.qrgId` from the previous packet, which downstream readers (store API, marketplace push) would find first.
+
+#### `functions/src/services/surface-generator.ts`
+- `deriveSkuFromInstance()` reads `qrgBaseCode` first, then `qrgPacketCode` (backward compat), then reconstructs from `qrgBlankId + qrgContext + instanceNumber` if all three are present
+- Throws loudly with a descriptive error if none of those paths yield a valid code
+- Removed all `QRG-PENDING` / `QRG-UNASSIGNED` fallbacks
+
+**Why:** The old generator silently returned a fake sentinel code (`QRG-UNASSIGNED-*`) rather than failing. This let malformed instances reach the marketplace push layer and produce invalid SKUs.
+
+#### `functions/src/routes/marketplace.ts`
+- Amazon, eBay, and Etsy push endpoints all return HTTP 400 if no valid QRG code or SKU exists
+- No invented codes
+
+**Why:** Old push routes would construct a placeholder SKU from the surfaceId when no real code existed, publishing garbage to live marketplaces.
+
+#### `functions/src/routes/store-files.ts`
+- Product detail API response field renamed: `qrgId` → `qrgBaseCode: resolved.qrgBaseCode || resolved.qrgPacketCode`
+
+**Why:** The storefront was reading `qrgId` which was only written by the old stale-copy path. New instances written by the allocator only have `qrgBaseCode` at the top level.
+
+---
+
+### Completed fixes — client (admin/products builder flow)
+
+#### `client/src/features/adminProducts/builder/BuilderContext.tsx`
+- `fetchOptionsForProduct` calls `GET /api/admin/master-catalog/products/:docId/options`
+- Hydrates `selectedProduct` with `qrgBlankId`, `qrgVariants`, `printLocations`, `placements`, `providerMappings`, `optionsLoaded` from the response
+- No call to `/catalog/placements` anywhere in the builder
+- Race-guarded by `docId` so navigating products quickly never applies stale options
+
+**Why:** An earlier version called the Printify-facing `/catalog/placements` endpoint directly, which returns provider blueprint placements rather than QRG-native print locations. This caused the packet to carry the wrong placement geometry and provider IDs.
+
+#### `client/src/features/adminProducts/builder/modules/useCreatePacket.ts`
+Packet payload now includes:
+
+| Field | Source |
+|-------|--------|
+| `sourceMasterId` | `selectedProduct.docId` |
+| `qrgBlankId` | `selectedProduct.qrgBlankId` |
+| `qrgVariants` | `selectedProduct.qrgVariants` |
+| `placements` | `selectedProduct.printLocations \|\| selectedProduct.placements` |
+| `selectedPlacements` | `state.selectedPlacements` (user's chosen subset) |
+| `availableSizes` | `selectedProduct.availableSizes` |
+| `availableColors` | `selectedProduct.availableColors` |
+
+Packet payload does **not** generate: `qrgBaseCode`, `qrgFullCode`, `instanceNumber`. Those belong exclusively to the server-side allocator.
+
+**Why:** Old code had `placements: state.selectedPlacements` (the user's subset, not the product's capabilities) and was missing `qrgVariants` entirely, so the backend commit route had no variant map to work with.
+
+#### `client/src/features/adminProducts/builder/modules/ProductsModule.tsx`
+- Removed `qrgId={rawProduct.qrgId}` prop pass to `ProductSelectCardSkin`
+
+**Why:** Master catalog products have no QRG instance identity — only committed instances do. The prop was reading a field that doesn't exist on master products and passing it to a skin that didn't render it.
+
+#### `client/src/features/shared/components/skins/ProductSelectCardSkin.tsx`
+- Removed `qrgId?: string` from the props interface and function destructuring
+
+**Why:** The prop was accepted but never rendered. Removing it closes the door on callers passing stale codes that would silently go nowhere.
+
+#### `client/src/pages/shop-product.tsx`
+- `StoreProduct.qrgId` → `StoreProduct.qrgBaseCode`
+- Render: `Model: {product.qrgBaseCode}`
+
+#### `client/src/pages/my-item.tsx`
+- `ClaimedInstance.qrgId` → `ClaimedInstance.qrgBaseCode`
+
+#### `client/src/pages/account.tsx`
+- Renders `instance.qrgBaseCode` with a fallback to `instance.qrgId` for Firestore documents written before the migration
+
+#### `client/src/pages/marketplaces-accounts.tsx`
+- Removed all three `placeholder={\`Auto: QRG-${surfaceId.slice(0, 8)}\`}` patterns across Amazon, eBay, and Etsy push dialogs
+- Replaced with `"Leave blank to auto-assign from surface SKU"`
+
+**Why:** The placeholder was constructing a fake QRG-prefixed string from a Firestore document ID, which has nothing to do with the QRG schema. It would mislead operators into thinking a real code had been assigned.
+
+---
+
+### Acceptance test results (live production — build 20260504-155213-3294)
+
+| Test | Result |
+|------|--------|
+| Context I (Internal) allocation | `QRG-11101-I-000003` ✓ |
+| Context M (Member) allocation | `QRG-11101-M-000001` ✓ |
+| Context O (Owner) allocation | `QRG-11101-O-000001` ✓ |
+| Context E (External) allocation | `QRG-11101-E-000001` ✓ |
+| `/catalog/placements` called from builder | Not called ✓ |
+| `QRG_BLUEPRINT_BLANK_CODES` in useCreatePacket | Absent ✓ |
+| `/qrg/allocate` called from client | Not called ✓ |
+| `qrgBaseCode` in packet payload | Present ✓ |
+| `qrgVariants` in packet payload | Present ✓ |
+| `qrgBaseCode` generated client-side | Never ✓ |
+| `QRG-PENDING` / `QRG-UNASSIGNED` in surface-generator | Absent — throws instead ✓ |
+| Marketplace push invents QRG from surfaceId | Never — HTTP 400 instead ✓ |
+
+---
+
 ## Known Issues & Next Steps
 
 ### Draft Resume: "Product not resolved" on sessions saved before April 19, 2026

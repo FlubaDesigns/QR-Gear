@@ -203,3 +203,9 @@ id = "sUllpTlz5gTaKQOz5IG0s"
 uri = "file://downloads/QRG_Client_Cleanup.zip"
 type = "unspecified"
 title = "QRG Client Cleanup — 8 files"
+
+[[outputs]]
+id = "jmcxD4s25xI8m34nQxJE7"
+uri = "file://downloads/QRG_Schema_Complete.zip"
+type = "unspecified"
+title = "QRG Schema Complete — 15 files (backend + client + README)"
