@@ -36,9 +36,9 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
         return res.status(400).json({ error: "Title and productType are required" });
       }
       
-      // Generate unified SKU: QRG-{type}-{seq}
+      // Generate internal reference SKU for local orchestration records (not QRG identity)
       const seq = Date.now().toString(36).toUpperCase();
-      const sku = `QRG-${productType.toUpperCase().slice(0, 3)}-${seq}`;
+      const sku = `ORK-${productType.toUpperCase().slice(0, 4)}-${seq}`;
       
       const product = await storage.createMasterProduct({
         sku,

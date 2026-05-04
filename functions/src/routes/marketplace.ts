@@ -567,8 +567,8 @@ app.post('/admin/surfaces/:surfaceId/push-to-amazon', requireAdmin, async (req: 
       refreshToken: account.amazonRefreshToken,
     };
 
-    // Derive SKU: prefer explicit override → surface.sku → surface.id slice
-    const sku = skuOverride || surface.sku || `QRG-${surfaceId.slice(0, 8).toUpperCase()}`;
+    // Derive SKU: prefer explicit override → surface.qrgCode → surface.sku
+    const sku = skuOverride || surface.qrgCode || surface.sku || `QRG-UNASSIGNED-${surfaceId.slice(-8).toUpperCase()}`;
 
     // Map surface data to AmazonListingProduct
     const product: AmazonListingProduct = {
@@ -664,8 +664,8 @@ app.post('/admin/surfaces/:surfaceId/push-to-ebay', requireAdmin, async (req: Re
       refreshToken: account.ebayRefreshToken,
     };
 
-    // Derive SKU
-    const sku = skuOverride || surface.sku || `QRG-${surfaceId.slice(0, 8).toUpperCase()}`;
+    // Derive SKU: prefer explicit override → surface.qrgCode → surface.sku
+    const sku = skuOverride || surface.qrgCode || surface.sku || `QRG-UNASSIGNED-${surfaceId.slice(-8).toUpperCase()}`;
 
     // eBay block fields from surface
     const eb = surface.ebay || {};
@@ -809,7 +809,7 @@ app.post('/admin/surfaces/:surfaceId/push-to-etsy', requireAdmin, async (req: Re
       return;
     }
 
-    const sku = skuOverride || surface.sku || `QRG-${surfaceId.slice(0, 8).toUpperCase()}`;
+    const sku = skuOverride || surface.qrgCode || surface.sku || `QRG-UNASSIGNED-${surfaceId.slice(-8).toUpperCase()}`;
 
     const credentials = {
       accessToken: '',  // will be refreshed inside pushListingToEtsy

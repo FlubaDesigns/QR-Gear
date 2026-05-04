@@ -1124,8 +1124,10 @@ export async function enrichMasterCatalog(
     const data = doc.data() as any;
     stats.total++;
 
-    const providerMappings: any[] = Array.isArray(data.providerMappings) ? data.providerMappings : [];
-    const pyMap = providerMappings.find((m: any) => m.provider === 'printify') || null;
+    // providerMappings is an object { printify: {...}, printful: {...} } — never an array
+    const pm = data.providerMappings;
+    const isProviderObj = pm && typeof pm === 'object' && !Array.isArray(pm);
+    const pyMap = isProviderObj ? (pm.printify || null) : null;
     const isPrintifyItem = !!pyMap;
 
     // Skip if fully enriched within the last 7 days
@@ -1169,9 +1171,12 @@ export async function enrichMasterCatalog(
             if (rawCountry && !originCountry) {
               originCountry = rawCountry;
               update.originCountry = originCountry;
-              update['providerMappings'] = providerMappings.map((m: any) =>
-                m.provider === 'printify' ? { ...m, originCountry, printProviderId: pyProviderId } : m
-              );
+              // Update providerMappings.printify sub-object in place
+              const existingPm = isProviderObj ? pm : { printify: null, printful: null };
+              update['providerMappings'] = {
+                ...existingPm,
+                printify: { ...(existingPm.printify || {}), originCountry, printProviderId: pyProviderId },
+              };
               stats.originAdded++;
             }
           }

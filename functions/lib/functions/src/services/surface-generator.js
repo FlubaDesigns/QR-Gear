@@ -86,19 +86,26 @@ function deriveType(category) {
     return null;
 }
 /**
- * Generate a stable SKU from instance + master IDs.
- * Format: QRG-{MASTER6}-{INST4}
+ * Derive the SKU for a normalized product.
+ * Priority:
+ *   1. instance.qrgPacketCode  — full QRG-[STNNN]-[C]-[IIIIII] assigned at creation
+ *   2. instance.qrgBlankId + instance.qrgContext + instance.instanceNumber — build it
+ *   3. Stable fallback: no Firestore IDs baked in, no old formats
  */
-function deriveSkuFromIds(instanceId, sourceMasterId) {
-    const masterPart = (sourceMasterId || instanceId)
-        .slice(0, 6)
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, 'X');
-    const instPart = instanceId
-        .slice(-4)
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, 'X');
-    return `QRG-${masterPart}-${instPart}`;
+function deriveSkuFromInstance(instance, instanceId) {
+    if (instance.qrgPacketCode && /^QRG-[1-6][1-9][0-9]{3}-[IMEO]-\d{6}$/.test(instance.qrgPacketCode)) {
+        return instance.qrgPacketCode;
+    }
+    if (instance.qrgBlankId && instance.qrgContext && instance.instanceNumber) {
+        return `QRG-${instance.qrgBlankId}-${instance.qrgContext}-${String(instance.instanceNumber).padStart(6, '0')}`;
+    }
+    // Fallback: stable prefix derived from master doc ID (qrg_STNNN) if available
+    const masterId = instance.sourceMasterId || null;
+    if (masterId && /^qrg_[1-6][1-9][0-9]{3}$/.test(masterId)) {
+        const blank = masterId.slice(4);
+        return `QRG-${blank}-I-PENDING`;
+    }
+    return `QRG-UNASSIGNED-${instanceId.slice(-8).toUpperCase()}`;
 }
 /**
  * Auto-generate listing bullet points from normalized product attributes.
@@ -248,7 +255,7 @@ async function normalizeProductForPublishing(instanceId, db) {
     const category = resolved.category || packet?.category || null;
     const slug = packet?.landingPageSlug || null;
     const sourceMasterId = instance.sourceMasterId || null;
-    const sku = deriveSkuFromIds(instanceId, sourceMasterId);
+    const sku = deriveSkuFromInstance(instance, instanceId);
     const department = deriveDepartment(category);
     // 11. Auto-generated listing content
     const bulletPoints = generateBullets(colors, sizes, brand);

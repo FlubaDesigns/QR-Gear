@@ -554,11 +554,49 @@ function registerAdminBuildSessions(app) {
             const selectedCollection = meta.selectedCollection || null;
             const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
                 .filter(Boolean).join(' / ') || null;
+            // ── Allocate QRG identity for this new instance ────────────────────────
+            // qrgBlankId comes from the master catalog doc (5-digit STNNN e.g. "11101")
+            // contextCode = 'I' (Internal — admin-created catalog instance)
+            const masterQrgBlankId = master.qrgBlankId || null;
+            let qrgBlankId = masterQrgBlankId && /^[1-6][1-9][0-9]{3}$/.test(masterQrgBlankId) ? masterQrgBlankId : null;
+            let qrgContext = 'I';
+            let qrgInstanceNumber = null;
+            let qrgPacketCode = null;
+            if (qrgBlankId) {
+                try {
+                    const counterRef = core_1.db.collection(QRG_COUNTERS_COLLECTION).doc(`${qrgBlankId}_${qrgContext}`);
+                    let num = 0;
+                    await core_1.db.runTransaction(async (tx) => {
+                        const snap = await tx.get(counterRef);
+                        if (!snap.exists) {
+                            num = 1;
+                            tx.set(counterRef, { lastInstanceNumber: 1, qrgBlankId, contextCode: qrgContext, createdAt: firestore_1.FieldValue.serverTimestamp() });
+                        }
+                        else {
+                            num = (snap.data().lastInstanceNumber || 0) + 1;
+                            tx.update(counterRef, { lastInstanceNumber: num, updatedAt: firestore_1.FieldValue.serverTimestamp() });
+                        }
+                    });
+                    qrgInstanceNumber = String(num).padStart(6, '0');
+                    qrgPacketCode = `QRG-${qrgBlankId}-${qrgContext}-${qrgInstanceNumber}`;
+                }
+                catch (qrgErr) {
+                    console.warn(`[BuildSessions] QRG allocation failed for ${qrgBlankId}: ${qrgErr.message} — instance will be created without QRG identity`);
+                }
+            }
+            else {
+                console.warn(`[BuildSessions] Master ${session.sourceMasterId} has no valid qrgBlankId — instance created without QRG identity`);
+            }
             // ── Always CREATE a new instance — every commit is a new catalog entry ──
             const instanceRef = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION).add({
                 instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
                 catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
                 baseSnapshot, overrides, resolved,
+                // QRG identity fields — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
+                qrgBlankId,
+                qrgContext,
+                instanceNumber: qrgInstanceNumber,
+                qrgPacketCode,
                 // Admin-curated selections from the builder — overrides full provider catalog at storefront
                 enabledColors: packetEnabledColors,
                 enabledSizes: packetEnabledSizes,
@@ -976,30 +1014,40 @@ function registerAdminBuildSessions(app) {
             res.status(500).json({ error: err.message });
         }
     });
-    // ── QRG ID Allocation ─────────────────────────────────────────────────────
+    // ── QRG Instance Number Allocation ────────────────────────────────────────
+    // Allocates the next sequential instanceNumber for a given blank+context pair.
+    // Schema: QRG-[STNNN]-[C]-[IIIIII]
+    //   qrgBlankId  = 5-digit STNNN (e.g. "11101")
+    //   contextCode = I | M | E | O  (Internal / Member / External / Owner)
+    //   instanceNumber returned as 6-digit zero-padded string e.g. "000001"
+    //   packetCode  = QRG-11101-I-000001  (no SSCC — that is barcode-only)
     app.post('/admin/qrg/allocate', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { source, blankCode } = req.body;
-            if (!source || !blankCode) {
-                res.status(400).json({ error: 'source and blankCode are required' });
+            const { qrgBlankId, contextCode } = req.body;
+            if (!qrgBlankId || !/^[1-6][1-9][0-9]{3}$/.test(qrgBlankId)) {
+                res.status(400).json({ error: 'qrgBlankId is required and must be 5-digit STNNN (e.g. "11101")' });
                 return;
             }
-            const counterRef = core_1.db.collection(QRG_COUNTERS_COLLECTION).doc(`${source}-${blankCode}`);
-            let buildNumber = 0;
+            if (!contextCode || !/^[IMEO]$/.test(contextCode)) {
+                res.status(400).json({ error: 'contextCode is required and must be I, M, E, or O' });
+                return;
+            }
+            const counterRef = core_1.db.collection(QRG_COUNTERS_COLLECTION).doc(`${qrgBlankId}_${contextCode}`);
+            let instanceNum = 0;
             await core_1.db.runTransaction(async (tx) => {
                 const snap = await tx.get(counterRef);
                 if (!snap.exists) {
-                    buildNumber = 1;
-                    tx.set(counterRef, { lastBuildNumber: 1, source, blankCode, createdAt: firestore_1.FieldValue.serverTimestamp() });
+                    instanceNum = 1;
+                    tx.set(counterRef, { lastInstanceNumber: 1, qrgBlankId, contextCode, createdAt: firestore_1.FieldValue.serverTimestamp() });
                 }
                 else {
-                    buildNumber = (snap.data().lastBuildNumber || 0) + 1;
-                    tx.update(counterRef, { lastBuildNumber: buildNumber, updatedAt: firestore_1.FieldValue.serverTimestamp() });
+                    instanceNum = (snap.data().lastInstanceNumber || 0) + 1;
+                    tx.update(counterRef, { lastInstanceNumber: instanceNum, updatedAt: firestore_1.FieldValue.serverTimestamp() });
                 }
             });
-            const buildStr = String(buildNumber).padStart(3, '0');
-            const qrgId = `QRG-${blankCode}-${source}-${buildStr}`;
-            res.json({ success: true, qrgId, source, blankCode, buildNumber });
+            const instanceNumber = String(instanceNum).padStart(6, '0');
+            const packetCode = `QRG-${qrgBlankId}-${contextCode}-${instanceNumber}`;
+            res.json({ success: true, packetCode, qrgBlankId, contextCode, instanceNumber });
         }
         catch (err) {
             console.error('[QRG] allocate error:', err.message);
