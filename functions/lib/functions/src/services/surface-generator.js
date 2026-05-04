@@ -88,24 +88,28 @@ function deriveType(category) {
 /**
  * Derive the SKU for a normalized product.
  * Priority:
- *   1. instance.qrgPacketCode  — full QRG-[STNNN]-[C]-[IIIIII] assigned at creation
- *   2. instance.qrgBlankId + instance.qrgContext + instance.instanceNumber — build it
- *   3. Stable fallback: no Firestore IDs baked in, no old formats
+ *   1. instance.qrgBaseCode — canonical QRG-[STNNN]-[C]-[IIIIII] (current schema)
+ *   2. instance.qrgPacketCode — legacy field name (backward compat for existing docs)
+ *   3. Reconstruct from parts if all three fields are present
+ *
+ * Throws loudly if no valid QRG identity exists — never invents a fake code.
  */
 function deriveSkuFromInstance(instance, instanceId) {
-    if (instance.qrgPacketCode && /^QRG-[1-6][1-9][0-9]{3}-[IMEO]-\d{6}$/.test(instance.qrgPacketCode)) {
+    const BASE_RE = /^QRG-[1-6][1-9][0-9]{3}-[IMEO]-\d{6}$/;
+    if (instance.qrgBaseCode && BASE_RE.test(instance.qrgBaseCode)) {
+        return instance.qrgBaseCode;
+    }
+    // Backward compat: old field name used before schema rename
+    if (instance.qrgPacketCode && BASE_RE.test(instance.qrgPacketCode)) {
         return instance.qrgPacketCode;
     }
     if (instance.qrgBlankId && instance.qrgContext && instance.instanceNumber) {
-        return `QRG-${instance.qrgBlankId}-${instance.qrgContext}-${String(instance.instanceNumber).padStart(6, '0')}`;
+        const candidate = `QRG-${instance.qrgBlankId}-${instance.qrgContext}-${String(instance.instanceNumber).padStart(6, '0')}`;
+        if (BASE_RE.test(candidate))
+            return candidate;
     }
-    // Fallback: stable prefix derived from master doc ID (qrg_STNNN) if available
-    const masterId = instance.sourceMasterId || null;
-    if (masterId && /^qrg_[1-6][1-9][0-9]{3}$/.test(masterId)) {
-        const blank = masterId.slice(4);
-        return `QRG-${blank}-I-PENDING`;
-    }
-    return `QRG-UNASSIGNED-${instanceId.slice(-8).toUpperCase()}`;
+    throw new Error(`[SurfaceGenerator] Instance ${instanceId} has no valid QRG identity. ` +
+        `Ensure qrgBaseCode, qrgContext, and instanceNumber are set before generating a surface.`);
 }
 /**
  * Auto-generate listing bullet points from normalized product attributes.

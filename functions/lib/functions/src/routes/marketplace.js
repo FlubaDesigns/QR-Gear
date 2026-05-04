@@ -594,7 +594,11 @@ function register(app) {
                 refreshToken: account.amazonRefreshToken,
             };
             // Derive SKU: prefer explicit override → surface.qrgCode → surface.sku
-            const sku = skuOverride || surface.qrgCode || surface.sku || `QRG-UNASSIGNED-${surfaceId.slice(-8).toUpperCase()}`;
+            const sku = skuOverride || surface.qrgCode || surface.sku;
+            if (!sku) {
+                res.status(400).json({ error: 'Surface has no QRG code or SKU. Ensure the instance has a valid QRG identity (qrgBaseCode) before pushing to Amazon.' });
+                return;
+            }
             // Map surface data to AmazonListingProduct
             const product = {
                 title: surface.title || 'QR Gear Product',
@@ -679,7 +683,11 @@ function register(app) {
                 refreshToken: account.ebayRefreshToken,
             };
             // Derive SKU: prefer explicit override → surface.qrgCode → surface.sku
-            const sku = skuOverride || surface.qrgCode || surface.sku || `QRG-UNASSIGNED-${surfaceId.slice(-8).toUpperCase()}`;
+            const sku = skuOverride || surface.qrgCode || surface.sku;
+            if (!sku) {
+                res.status(400).json({ error: 'Surface has no QRG code or SKU. Ensure the instance has a valid QRG identity (qrgBaseCode) before pushing to eBay.' });
+                return;
+            }
             // eBay block fields from surface
             const eb = surface.ebay || {};
             if (!eb.categoryId) {
@@ -800,7 +808,11 @@ function register(app) {
                 res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to Etsy.' });
                 return;
             }
-            const sku = skuOverride || surface.qrgCode || surface.sku || `QRG-UNASSIGNED-${surfaceId.slice(-8).toUpperCase()}`;
+            const sku = skuOverride || surface.qrgCode || surface.sku;
+            if (!sku) {
+                res.status(400).json({ error: 'Surface has no QRG code or SKU. Ensure the instance has a valid QRG identity (qrgBaseCode) before pushing to Etsy.' });
+                return;
+            }
             const credentials = {
                 accessToken: '', // will be refreshed inside pushListingToEtsy
                 refreshToken: account.etsyRefreshToken,

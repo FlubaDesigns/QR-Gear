@@ -1,0 +1,272 @@
+Claude — QRG schema enforcement is still incomplete.
+
+You fixed part of the schema, but the runtime flow still violates the locked QRG system.
+
+FINAL QRG FORMAT:
+Base:
+QRG-[STNNN]-[C]-[IIIIII]
+
+Full variant/barcode:
+QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+
+Allowed context codes:
+I = Internal
+M = Member
+E = External
+O = Owner
+
+No DDD/build number.
+No provider IDs.
+No fake fallback SKUs.
+
+============================================================
+WHAT IS STILL WRONG
+============================================================
+
+1. admin-build-sessions.ts still generates old QRG codes:
+QRG-${blankCode}-${source}-${buildStr}
+
+That is wrong because:
+- source/context is in wrong conceptual flow
+- buildStr/build number was removed
+- it does not allocate 6-digit instanceNumber
+
+2. admin_catalog_instances does not enforce QRG identity.
+
+When an admin/internal instance is created, it must store:
+
+qrgBlankId
+qrgContext
+instanceNumber
+qrgBaseCode
+variantCode, if selected
+qrgFullCode, if selected
+sourceMasterId
+
+Example:
+qrgBlankId: "11101"
+qrgContext: "I"
+instanceNumber: "000001"
+qrgBaseCode: "QRG-11101-I-000001"
+variantCode: "0501"
+qrgFullCode: "QRG-11101-I-000001-0501"
+
+3. member_library_instances does not enforce QRG identity.
+
+Member instances must use:
+
+qrgContext: "M"
+
+Example:
+QRG-11101-M-000001
+
+4. useCreatePacket.ts still has forbidden client-side QRG allocation:
+
+Remove:
+QRG_BLUEPRINT_BLANK_CODES
+/qrg/allocate
+blueprint-to-QRG mapping
+
+Packet creation must use the selected master product and instance identity. It must not invent QRG IDs.
+
+5. surface-generator.ts still references old:
+QRG-{MASTER6}-{INST4}
+
+Remove it.
+
+Surfaces must use existing instance QRG codes only.
+
+6. marketplace/orchestration still have fake/fallback SKU generation.
+
+Remove fallback patterns like:
+QRG-${surfaceId...}
+QRG-{type}-{seq}
+
+If no valid qrgBaseCode exists, fail instead of inventing one.
+
+============================================================
+REQUIRED FIX
+============================================================
+
+Create one shared server-side allocation helper, for example:
+
+functions/src/services/qrg-instance-allocator.ts
+
+It should export:
+
+allocateQrgInstance({
+  qrgBlankId,
+  context,
+  sizeCode?,
+  colorCode?
+})
+
+Rules:
+- validate qrgBlankId with shared/qrgCodes.ts
+- validate context is I, M, E, or O
+- allocate next 6-digit instanceNumber
+- build qrgBaseCode:
+  QRG-[STNNN]-[C]-[IIIIII]
+- if size/color exists, build:
+  variantCode = SSCC
+  qrgFullCode = QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+
+Return:
+{
+  qrgBlankId,
+  qrgContext,
+  instanceNumber,
+  qrgBaseCode,
+  variantCode,
+  qrgFullCode
+}
+
+============================================================
+PATCH INSTANCE CREATION
+============================================================
+
+Patch:
+
+functions/src/routes/admin-catalog-instances.ts
+
+When creating an internal/admin instance:
+- read source master product
+- get qrgBlankId from master_catalog
+- call allocateQrgInstance({ qrgBlankId, context: "I", sizeCode, colorCode })
+- save returned identity fields on the instance
+
+Patch:
+
+functions/src/routes/member-catalog-instances.ts
+
+When creating a member instance:
+- get qrgBlankId
+- call allocateQrgInstance({ qrgBlankId, context: "M", sizeCode, colorCode })
+- save returned identity fields
+
+Patch any owner flow:
+
+Owner instance must use:
+context: "O"
+
+Patch external/API flow:
+
+External instance must use:
+context: "E"
+
+============================================================
+PATCH BUILD SESSIONS
+============================================================
+
+Patch:
+
+functions/src/routes/admin-build-sessions.ts
+
+Build sessions must not create final QRG identity using buildStr.
+
+If it only creates a draft/session:
+use sessionId or draftId.
+
+If it creates an instance:
+call allocateQrgInstance().
+
+Delete old pattern:
+QRG-${blankCode}-${source}-${buildStr}
+
+============================================================
+PATCH PACKETS
+============================================================
+
+Patch packet creation/update code, especially:
+
+client/src/features/adminProducts/builder/modules/useCreatePacket.ts
+
+Remove:
+QRG_BLUEPRINT_BLANK_CODES
+/qrg/allocate
+blueprint ID → QRG code mapping
+
+Packet must reference existing instance identity:
+
+sourceMasterId
+instanceId
+qrgBlankId
+qrgContext
+instanceNumber
+qrgBaseCode
+variantCode
+qrgFullCode
+
+Packet does not allocate identity.
+
+============================================================
+PATCH SURFACES
+============================================================
+
+Patch:
+
+functions/src/services/surface-generator.ts
+
+Remove:
+QRG-{MASTER6}-{INST4}
+
+Surface generator must read:
+
+instance.qrgBaseCode
+or
+instance.qrgFullCode
+
+Surface does not create QRG identity.
+
+============================================================
+PATCH MARKETPLACE / ORCHESTRATION
+============================================================
+
+Patch:
+functions/src/routes/marketplace.ts
+server/routes/orchestration.routes.ts
+
+Remove fake/fallback QRG generation:
+QRG-${surfaceId...}
+QRG-{type}-{seq}
+
+If no qrgBaseCode/qrgFullCode exists:
+return error.
+
+Do not invent SKUs.
+
+============================================================
+ACCEPTANCE TESTS
+============================================================
+
+1. Creating internal/admin instance from qrg_11101 creates:
+qrgBaseCode = QRG-11101-I-000001
+
+2. Creating member instance creates:
+qrgBaseCode = QRG-11101-M-000001
+
+3. Creating owner instance creates:
+qrgBaseCode = QRG-11101-O-000001
+
+4. Creating external/API instance creates:
+qrgBaseCode = QRG-11101-E-000001
+
+5. Selecting size L / Black creates:
+variantCode = 0501
+qrgFullCode = QRG-11101-I-000001-0501
+
+6. No file generates:
+QRG-${blankCode}-${source}-${buildStr}
+QRG-{MASTER6}-{INST4}
+QRG-{type}-{seq}
+QRG-${surfaceId...}
+
+7. useCreatePacket.ts contains no:
+QRG_BLUEPRINT_BLANK_CODES
+/qrg/allocate
+
+8. Packets reference instance QRG identity; they do not generate identity.
+
+9. Surfaces and marketplace use existing instance codes only.
+
+10. If a publish flow has no valid qrgBaseCode, it fails loudly instead of creating a fake SKU.

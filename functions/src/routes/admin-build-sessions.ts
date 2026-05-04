@@ -18,12 +18,12 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db, storage } from '../core';
 import { requireAdmin } from '../middleware';
 import { cfGeneratePrintifyComposite, cfUploadBufferToStorage } from '../services/composite-image';
+import { allocateQrgInstance } from '../services/qrg-instance-allocator';
 
 const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
 const PRODUCT_PACKETS_COLLECTION = 'productPackets';
-const QRG_COUNTERS_COLLECTION = 'qrg_counters';
 
 const SESSION_EXPIRY_DAYS = 7;
 
@@ -554,46 +554,26 @@ export function registerAdminBuildSessions(app: express.Express): void {
         .filter(Boolean).join(' / ') || null;
 
       // ── Allocate QRG identity for this new instance ────────────────────────
-      // qrgBlankId comes from the master catalog doc (5-digit STNNN e.g. "11101")
-      // contextCode = 'I' (Internal — admin-created catalog instance)
+      // context = 'I' (Internal — admin-created catalog instance)
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
-      let qrgBlankId: string | null = masterQrgBlankId && /^[1-6][1-9][0-9]{3}$/.test(masterQrgBlankId) ? masterQrgBlankId : null;
-      let qrgContext: string = 'I';
-      let qrgInstanceNumber: string | null = null;
-      let qrgPacketCode: string | null = null;
-      if (qrgBlankId) {
-        try {
-          const counterRef = db.collection(QRG_COUNTERS_COLLECTION).doc(`${qrgBlankId}_${qrgContext}`);
-          let num = 0;
-          await db.runTransaction(async (tx) => {
-            const snap = await tx.get(counterRef);
-            if (!snap.exists) {
-              num = 1;
-              tx.set(counterRef, { lastInstanceNumber: 1, qrgBlankId, contextCode: qrgContext, createdAt: FieldValue.serverTimestamp() });
-            } else {
-              num = (snap.data()!.lastInstanceNumber || 0) + 1;
-              tx.update(counterRef, { lastInstanceNumber: num, updatedAt: FieldValue.serverTimestamp() });
-            }
-          });
-          qrgInstanceNumber = String(num).padStart(6, '0');
-          qrgPacketCode = `QRG-${qrgBlankId}-${qrgContext}-${qrgInstanceNumber}`;
-        } catch (qrgErr: any) {
-          console.warn(`[BuildSessions] QRG allocation failed for ${qrgBlankId}: ${qrgErr.message} — instance will be created without QRG identity`);
-        }
-      } else {
-        console.warn(`[BuildSessions] Master ${session.sourceMasterId} has no valid qrgBlankId — instance created without QRG identity`);
+      if (!masterQrgBlankId || !/^[1-6][1-9][0-9]{3}$/.test(masterQrgBlankId)) {
+        res.status(400).json({ error: `Master ${session.sourceMasterId} has no valid qrgBlankId — cannot commit session without QRG identity` });
+        return;
       }
+      const qrgIdentity = await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
 
       // ── Always CREATE a new instance — every commit is a new catalog entry ──
       const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
         instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
         catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
         baseSnapshot, overrides, resolved,
-        // QRG identity fields — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
-        qrgBlankId,
-        qrgContext,
-        instanceNumber: qrgInstanceNumber,
-        qrgPacketCode,
+        // QRG identity — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
+        qrgBlankId:     qrgIdentity.qrgBlankId,
+        qrgContext:     qrgIdentity.qrgContext,
+        instanceNumber: qrgIdentity.instanceNumber,
+        qrgBaseCode:    qrgIdentity.qrgBaseCode,
+        variantCode:    qrgIdentity.variantCode,
+        qrgFullCode:    qrgIdentity.qrgFullCode,
         // Admin-curated selections from the builder — overrides full provider catalog at storefront
         enabledColors: packetEnabledColors,
         enabledSizes: packetEnabledSizes,
@@ -1084,22 +1064,15 @@ export function registerAdminBuildSessions(app: express.Express): void {
         return;
       }
 
-      const counterRef = db.collection(QRG_COUNTERS_COLLECTION).doc(`${qrgBlankId}_${contextCode}`);
-      let instanceNum = 0;
-      await db.runTransaction(async (tx) => {
-        const snap = await tx.get(counterRef);
-        if (!snap.exists) {
-          instanceNum = 1;
-          tx.set(counterRef, { lastInstanceNumber: 1, qrgBlankId, contextCode, createdAt: FieldValue.serverTimestamp() });
-        } else {
-          instanceNum = (snap.data()!.lastInstanceNumber || 0) + 1;
-          tx.update(counterRef, { lastInstanceNumber: instanceNum, updatedAt: FieldValue.serverTimestamp() });
-        }
-      });
+      const qrgIdentityResult = await allocateQrgInstance({ qrgBlankId, context: contextCode as 'I' | 'M' | 'E' | 'O' });
 
-      const instanceNumber = String(instanceNum).padStart(6, '0');
-      const packetCode = `QRG-${qrgBlankId}-${contextCode}-${instanceNumber}`;
-      res.json({ success: true, packetCode, qrgBlankId, contextCode, instanceNumber });
+      res.json({
+        success: true,
+        qrgBaseCode:    qrgIdentityResult.qrgBaseCode,
+        qrgBlankId:     qrgIdentityResult.qrgBlankId,
+        contextCode:    qrgIdentityResult.qrgContext,
+        instanceNumber: qrgIdentityResult.instanceNumber,
+      });
     } catch (err: any) {
       console.error('[QRG] allocate error:', err.message);
       res.status(500).json({ error: err.message });

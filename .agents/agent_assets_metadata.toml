@@ -191,3 +191,9 @@ id = "bFJzTaTgjzCit7EEcGSB-"
 uri = "file://downloads/QRG_Identity_Schema_Audit.zip"
 type = "unspecified"
 title = "QRG Identity Schema Audit — All Changed Files + README"
+
+[[outputs]]
+id = "v56PnK69BYBnO8VFg01y4"
+uri = "file://downloads/QRG_Schema_Full_Implementation.zip"
+type = "unspecified"
+title = "QRG Schema Full Implementation (10 files)"

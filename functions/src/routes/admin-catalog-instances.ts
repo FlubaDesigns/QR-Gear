@@ -18,6 +18,7 @@ import express from 'express';
 import { db, admin, stripUndef } from '../core';
 import { requireAdmin } from '../middleware';
 import { resolveInstance, mergeImagesByUrl } from '../services/instance-resolver';
+import { allocateQrgInstance } from '../services/qrg-instance-allocator';
 
 const ADMIN_INSTANCES  = 'admin_catalog_instances';
 const MASTER_CATALOG   = 'master_catalog';
@@ -25,31 +26,6 @@ const MEMBER_INSTANCES = 'member_library_instances';
 const PACKETS          = 'productPackets';
 
 const PLACEMENT_ORDER = ['front', 'front-center', 'back', 'left_sleeve', 'right_sleeve'];
-const QRG_COUNTERS = 'qrg_counters';
-
-/**
- * Atomically allocate the next instanceNumber for a qrgBlankId+contextCode pair.
- * Counter key: `${qrgBlankId}_${contextCode}`  e.g. "11101_I"
- * Returns 6-digit zero-padded string: "000001"
- */
-async function allocateQrgInstanceNumber(
-  qrgBlankId: string,
-  contextCode: string,
-): Promise<string> {
-  const counterRef = db.collection(QRG_COUNTERS).doc(`${qrgBlankId}_${contextCode}`);
-  let num = 0;
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(counterRef);
-    if (!snap.exists) {
-      num = 1;
-      tx.set(counterRef, { lastInstanceNumber: 1, qrgBlankId, contextCode, createdAt: admin.firestore.FieldValue.serverTimestamp() });
-    } else {
-      num = (snap.data()!.lastInstanceNumber || 0) + 1;
-      tx.update(counterRef, { lastInstanceNumber: num, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-    }
-  });
-  return String(num).padStart(6, '0');
-}
 
 function buildPacketImageOrder(pkt: any): string[] {
   const ordered: string[] = [];
@@ -215,52 +191,46 @@ export function register(app: express.Express): void {
       const overrides = {};
       const resolved  = resolveInstance(baseSnapshot, overrides);
 
-      // ── Allocate QRG identity (contextCode = 'I' for Internal/admin instance) ──
+      // ── Allocate QRG identity (context = 'I' for Internal/admin instance) ──
       const rawBlankId: string | null = master.qrgBlankId || null;
-      const qrgBlankId: string | null = rawBlankId && /^[1-6][1-9][0-9]{3}$/.test(rawBlankId) ? rawBlankId : null;
-      const qrgContext = 'I';
-      let instanceNumber: string | null = null;
-      let qrgPacketCode: string | null = null;
-      if (qrgBlankId) {
-        try {
-          instanceNumber = await allocateQrgInstanceNumber(qrgBlankId, qrgContext);
-          qrgPacketCode = `QRG-${qrgBlankId}-${qrgContext}-${instanceNumber}`;
-        } catch (qrgErr: any) {
-          console.warn(`[AdminInstances] QRG allocation failed for ${qrgBlankId}: ${qrgErr.message}`);
-        }
-      } else {
-        console.warn(`[AdminInstances] Master ${sourceMasterId} has no valid qrgBlankId — instance created without QRG identity`);
+      if (!rawBlankId || !/^[1-6][1-9][0-9]{3}$/.test(rawBlankId)) {
+        res.status(400).json({ error: `Master ${sourceMasterId} has no valid qrgBlankId — cannot create instance without QRG identity` });
+        return;
       }
 
+      const qrgIdentity = await allocateQrgInstance({ qrgBlankId: rawBlankId, context: 'I' });
+
       const instanceData = {
-        instanceType:       'admin' as const,
+        instanceType:        'admin' as const,
         sourceMasterId,
         catalogId,
-        ownerAdminId:       req.user?.uid ?? null,
-        assignedAt:         now,
+        ownerAdminId:        req.user?.uid ?? null,
+        assignedAt:          now,
         baseSnapshot,
         overrides,
         resolved,
-        colorMap:           Object.keys(colorMap).length > 0 ? colorMap : null,
+        colorMap:            Object.keys(colorMap).length > 0 ? colorMap : null,
         // QRG identity — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
-        qrgBlankId,
-        qrgContext,
-        instanceNumber,
-        qrgPacketCode,
-        currentPacketId:    null,
-        currentTemplateId:  null,
+        qrgBlankId:          qrgIdentity.qrgBlankId,
+        qrgContext:          qrgIdentity.qrgContext,
+        instanceNumber:      qrgIdentity.instanceNumber,
+        qrgBaseCode:         qrgIdentity.qrgBaseCode,
+        variantCode:         qrgIdentity.variantCode,
+        qrgFullCode:         qrgIdentity.qrgFullCode,
+        currentPacketId:     null,
+        currentTemplateId:   null,
         currentGraphicSetId: null,
-        status:             'draft' as const,
-        version:            1,
-        createdAt:          now,
-        updatedAt:          now,
-        createdBy:          req.user?.uid ?? 'system',
-        updatedBy:          req.user?.uid ?? 'system',
+        status:              'draft' as const,
+        version:             1,
+        createdAt:           now,
+        updatedAt:           now,
+        createdBy:           req.user?.uid ?? 'system',
+        updatedBy:           req.user?.uid ?? 'system',
       };
 
       const ref = await db.collection(ADMIN_INSTANCES).add(instanceData);
-      console.log(`[AdminInstances] Created ${ref.id} (${qrgPacketCode ?? 'no-QRG'}) from master ${sourceMasterId}`);
-      res.json({ success: true, instanceId: ref.id, sourceMasterId, qrgPacketCode });
+      console.log(`[AdminInstances] Created ${ref.id} (${qrgIdentity.qrgBaseCode}) from master ${sourceMasterId}`);
+      res.json({ success: true, instanceId: ref.id, sourceMasterId, qrgBaseCode: qrgIdentity.qrgBaseCode });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
@@ -558,22 +528,14 @@ export function register(app: express.Express): void {
       const overrides    = {};
       const resolved     = resolveInstance(baseSnapshot, overrides);
 
-      // ── Allocate QRG identity (contextCode = 'M' for Member instance) ─────────
+      // ── Allocate QRG identity (context = 'M' for Member instance) ────────────
       const adminQrgBlankId: string | null = instance.qrgBlankId || null;
-      const memberQrgBlankId: string | null = adminQrgBlankId && /^[1-6][1-9][0-9]{3}$/.test(adminQrgBlankId) ? adminQrgBlankId : null;
-      const memberQrgContext = 'M';
-      let memberInstanceNumber: string | null = null;
-      let memberQrgPacketCode: string | null = null;
-      if (memberQrgBlankId) {
-        try {
-          memberInstanceNumber = await allocateQrgInstanceNumber(memberQrgBlankId, memberQrgContext);
-          memberQrgPacketCode = `QRG-${memberQrgBlankId}-${memberQrgContext}-${memberInstanceNumber}`;
-        } catch (qrgErr: any) {
-          console.warn(`[AdminInstances] QRG allocation failed for member instance (blank=${memberQrgBlankId}): ${qrgErr.message}`);
-        }
-      } else {
-        console.warn(`[AdminInstances] Admin instance ${id} has no valid qrgBlankId — member instance created without QRG identity`);
+      if (!adminQrgBlankId || !/^[1-6][1-9][0-9]{3}$/.test(adminQrgBlankId)) {
+        res.status(400).json({ error: `Admin instance ${id} has no valid qrgBlankId — cannot create member instance without QRG identity` });
+        return;
       }
+
+      const memberQrgIdentity = await allocateQrgInstance({ qrgBlankId: adminQrgBlankId, context: 'M' });
 
       const memberData = {
         instanceType:          'member' as const,
@@ -585,10 +547,12 @@ export function register(app: express.Express): void {
         overrides,
         resolved,
         // QRG identity — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
-        qrgBlankId:            memberQrgBlankId,
-        qrgContext:            memberQrgContext,
-        instanceNumber:        memberInstanceNumber,
-        qrgPacketCode:         memberQrgPacketCode,
+        qrgBlankId:            memberQrgIdentity.qrgBlankId,
+        qrgContext:            memberQrgIdentity.qrgContext,
+        instanceNumber:        memberQrgIdentity.instanceNumber,
+        qrgBaseCode:           memberQrgIdentity.qrgBaseCode,
+        variantCode:           memberQrgIdentity.variantCode,
+        qrgFullCode:           memberQrgIdentity.qrgFullCode,
         currentPacketId:       null,
         currentTemplateId:     null,
         currentGraphicSetId:   null,
@@ -601,13 +565,13 @@ export function register(app: express.Express): void {
       };
 
       const memberRef = await db.collection(MEMBER_INSTANCES).add(memberData);
-      console.log(`[AdminInstances] Pushed ${id} → member instance ${memberRef.id} (${memberQrgPacketCode ?? 'no-QRG'}) for ${memberId}`);
+      console.log(`[AdminInstances] Pushed ${id} → member instance ${memberRef.id} (${memberQrgIdentity.qrgBaseCode}) for ${memberId}`);
       res.json({
         success:          true,
         memberInstanceId: memberRef.id,
         adminInstanceId:  id,
         sourceMasterId:   instance.sourceMasterId,
-        qrgPacketCode:    memberQrgPacketCode,
+        qrgBaseCode:      memberQrgIdentity.qrgBaseCode,
       });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
