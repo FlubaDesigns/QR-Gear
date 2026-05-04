@@ -526,7 +526,18 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     qrgCategory: QRGCategoryName | null,
   ): { docId: string; alreadyExists: boolean } | null {
     if (existingDocId && existingDocId.startsWith('qrg_')) {
-      return { docId: existingDocId, alreadyExists: existingMaster.has(existingDocId) || inProgressDocs.has(existingDocId) };
+      // Enforce range integrity: the existing docId must belong to the correct
+      // category range. If it doesn't (e.g. a bridged doc from the wrong range),
+      // fall through and allocate a fresh correct-range ID — no exceptions.
+      const num = Number(existingDocId.slice(4));
+      const cat = qrgCategory ? QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory) : null;
+      const inCorrectRange = cat
+        ? Math.floor(num / 1000) === Math.floor(cat.rangeStart / 1000)
+        : true; // no category = unclassified, preserve whatever ID we have
+      if (inCorrectRange) {
+        return { docId: existingDocId, alreadyExists: existingMaster.has(existingDocId) || inProgressDocs.has(existingDocId) };
+      }
+      // Range mismatch — fall through to allocate a fresh slot in the correct range
     }
     if (qrgCategory && nextBBB[qrgCategory] !== undefined) {
       const bbb = nextBBB[qrgCategory];
