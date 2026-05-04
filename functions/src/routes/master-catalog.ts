@@ -135,7 +135,7 @@ export function register(app: express.Express): void {
         } else {
           // All-categories mode: process each subcategory sequentially, write progress to Firestore
           const subcategories = QRG_BLANK_CATEGORIES.filter((c: any) => c.parent);
-          const totals = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0 };
+          const totals = { total: 0, printfulEnriched: 0, printifyEnriched: 0, skipped: 0, errors: 0, colorsAdded: 0, sizesAdded: 0, pricesAdded: 0, originAdded: 0 };
           const categoryResults: Record<string, any> = {};
 
           for (let i = 0; i < subcategories.length; i++) {
@@ -150,6 +150,10 @@ export function register(app: express.Express): void {
             totals.printifyEnriched += result.printifyEnriched;
             totals.skipped += result.skipped;
             totals.errors += result.errors;
+            totals.colorsAdded += result.colorsAdded ?? 0;
+            totals.sizesAdded += result.sizesAdded ?? 0;
+            totals.pricesAdded += result.pricesAdded ?? 0;
+            totals.originAdded += result.originAdded ?? 0;
 
             console.log(`[MasterCatalog] Category ${cat.name} done:`, result);
           }

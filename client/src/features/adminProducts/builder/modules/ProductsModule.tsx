@@ -519,6 +519,31 @@ export function ProductsModule() {
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
+  const handleImagesBulkSave = useCallback(async (id: string, images: string[]) => {
+    if (!activeCatalog) return;
+    const entry = selectItemMap.get(id);
+    if (!entry) return;
+    const blankKey = entry.blankKey;
+    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
+      if (!old?.catalogs) return old;
+      return {
+        ...old,
+        catalogs: old.catalogs.map((cat: any) => {
+          if (cat.id !== activeCatalog.id) return cat;
+          return { ...cat, blankImages: { ...(cat.blankImages || {}), [blankKey]: images } };
+        }),
+      };
+    });
+    try {
+      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: `Images updated — ${images.length} forwarded to members` });
+    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+      toast({ title: "Could not save images", description: err?.message || "Unknown error", variant: "destructive" });
+    }
+  }, [activeCatalog, selectItemMap, queryClient, toast]);
+
   const handleTierChange = useCallback(async (id: string, tier: string | null) => {
     if (!activeCatalog) return;
     const entry = selectItemMap.get(id);
@@ -700,6 +725,7 @@ export function ProductsModule() {
           deleting={deletingId === cardId}
           onImageDelete={activeCatalog ? handleImageDelete : undefined}
           onImageRestore={activeCatalog ? handleImageRestore : undefined}
+          onImagesBulkSave={activeCatalog ? handleImagesBulkSave : undefined}
           masterCatalogImages={rawImages}
           fulfillmentProvider={rawProduct.fulfillmentProvider as string | undefined}
           qrgId={rawProduct.qrgId as string | undefined}

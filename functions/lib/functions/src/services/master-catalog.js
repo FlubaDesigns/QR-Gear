@@ -967,14 +967,24 @@ function buildDefaultSizes(positions) {
     return sizes;
 }
 /**
- * Enrich every master catalog doc with printPositions + printSizes.
+ * Enrich every master catalog doc with:
+ *   - printPositions + printSizes (from Printify variant placeholders)
+ *   - colors (name + hex) from Printify variant options
+ *   - sizes (XS, S, M, L …) from Printify variant options
+ *   - minPrice / maxPrice from Printify variant prices
+ *   - originCountry from Printify print-provider location
  *
- * Strategy (no Printful API — it hangs indefinitely from Cloud Run):
- *   1. Try Printify getVariants (8s hard timeout, 0 retries) for live position data.
- *   2. If that fails or returns nothing → apply category-based defaults immediately.
+ * Strategy:
+ *   1. Fetch getPrintProviders → first provider id + origin country.
+ *   2. Fetch getVariants      → positions, colors, sizes, prices.
+ *   3. Fall back to category defaults for positions if API fails.
  *
- * All 1,592 docs will be populated in a single pass.
- * Docs enriched within the last 7 days are skipped unless forceRefresh=true.
+ * Docs are skipped when ALL of the following are already populated
+ * (and lastEnrichedAt is within 7 days) unless forceRefresh=true:
+ *   printPositions, colors (for Printify items), sizes (for Printify items).
+ *
+ * BURST_SIZE is kept small (8) with a short inter-burst delay to stay
+ * well within Printify's rate limit (~2 req/s sustained).
  */
 async function enrichMasterCatalog(options = {}) {
     const { forceRefresh = false, categoryFilter } = options;
@@ -985,41 +995,66 @@ async function enrichMasterCatalog(options = {}) {
         defaultsApplied: 0,
         skipped: 0,
         errors: 0,
+        colorsAdded: 0,
+        sizesAdded: 0,
+        pricesAdded: 0,
+        originAdded: 0,
     };
     const baseQuery = categoryFilter
         ? core_1.db.collection(MASTER_CATALOG_COLLECTION).where('qrgCategory', '==', categoryFilter)
         : core_1.db.collection(MASTER_CATALOG_COLLECTION);
     const snap = await baseQuery.get();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const BURST_SIZE = 50; // large bursts — most work is just Firestore writes
+    // Small concurrent bursts to respect Printify rate limits (~2 req/s)
+    const BURST_SIZE = 6;
+    const INTER_BURST_DELAY_MS = 1500;
     const now = new Date().toISOString();
     async function enrichDoc(doc) {
         const data = doc.data();
         stats.total++;
-        const alreadyEnriched = !forceRefresh &&
+        const providerMappings = Array.isArray(data.providerMappings) ? data.providerMappings : [];
+        const pyMap = providerMappings.find((m) => m.provider === 'printify') || null;
+        const isPrintifyItem = !!pyMap;
+        // Skip if fully enriched within the last 7 days
+        const fullyEnriched = !forceRefresh &&
             data.lastEnrichedAt &&
             data.lastEnrichedAt > sevenDaysAgo &&
-            Array.isArray(data.printPositions) &&
-            data.printPositions.length > 0;
-        if (alreadyEnriched) {
+            Array.isArray(data.printPositions) && data.printPositions.length > 0 &&
+            // Printify items also need colors + sizes to be considered done
+            (!isPrintifyItem || (Array.isArray(data.colors) && data.colors.length > 0 &&
+                Array.isArray(data.sizes) && data.sizes.length > 0));
+        if (fullyEnriched) {
             stats.skipped++;
             return;
         }
-        const providerMappings = Array.isArray(data.providerMappings) ? data.providerMappings : [];
-        const pyMap = providerMappings.find((m) => m.provider === 'printify') || null;
         const pyBlueprintId = data.printifyBlueprintId ?? pyMap?.blueprintId ?? null;
         let pyProviderId = pyMap?.printProviderId ?? data.printProviderId ?? null;
         const update = { lastEnrichedAt: now };
-        let enriched = false;
-        // ── 1. Try Printify (8s hard timeout, 0 retries) ──────────────────────
-        if (!enriched && pyBlueprintId && printify_1.printifyClient.isConfigured) {
+        let positionsSet = false;
+        // ── 1. Printify: providers → origin; variants → positions/colors/sizes/prices
+        if (pyBlueprintId && printify_1.printifyClient.isConfigured) {
             try {
-                if (!pyProviderId) {
-                    const providers = await withTimeout(printify_1.printifyClient.getPrintProviders(pyBlueprintId), 8000);
-                    pyProviderId = providers?.[0]?.id ?? null;
+                // Step A: get print providers → origin country + provider id
+                let originCountry = data.originCountry ?? null;
+                if (!pyProviderId || !originCountry) {
+                    const providers = await withTimeout(printify_1.printifyClient.getPrintProviders(pyBlueprintId), 10000);
+                    const firstProvider = providers?.[0] ?? null;
+                    if (firstProvider) {
+                        pyProviderId = pyProviderId ?? firstProvider.id ?? null;
+                        const loc = firstProvider.location ?? firstProvider;
+                        const rawCountry = loc.country ?? null;
+                        if (rawCountry && !originCountry) {
+                            originCountry = rawCountry;
+                            update.originCountry = originCountry;
+                            update['providerMappings'] = providerMappings.map((m) => m.provider === 'printify' ? { ...m, originCountry, printProviderId: pyProviderId } : m);
+                            stats.originAdded++;
+                        }
+                    }
                 }
+                // Step B: get variants → positions, colors, sizes, prices
                 if (pyProviderId) {
-                    const variantData = await withTimeout(printify_1.printifyClient.getVariants(pyBlueprintId, pyProviderId), 8000);
+                    const variantData = await withTimeout(printify_1.printifyClient.getVariants(pyBlueprintId, pyProviderId), 10000);
+                    // ── Positions (from placeholders on each variant)
                     const posSet = new Set();
                     for (const v of (variantData?.variants ?? [])) {
                         for (const ph of (v.placeholders ?? [])) {
@@ -1031,18 +1066,51 @@ async function enrichMasterCatalog(options = {}) {
                         const positions = Array.from(posSet);
                         update.printPositions = positions;
                         update.printSizes = buildDefaultSizes(positions);
-                        enriched = true;
-                        stats.printifyEnriched++;
+                        positionsSet = true;
                     }
+                    // ── Colors (from top-level options array, type === 'color')
+                    const colorGroup = (variantData?.options ?? []).find((o) => (o.type ?? o.name ?? '').toLowerCase().includes('color'));
+                    if (colorGroup?.values?.length > 0) {
+                        const colors = colorGroup.values.map((v) => ({
+                            name: v.title ?? v.name ?? '',
+                            hex: (v.colors ?? v.hexColors ?? [])[0] ?? null,
+                        })).filter((c) => c.name);
+                        if (colors.length > 0) {
+                            update.colors = colors;
+                            update.colorCount = colors.length;
+                            stats.colorsAdded++;
+                        }
+                    }
+                    // ── Sizes (from top-level options array, type === 'size')
+                    const sizeGroup = (variantData?.options ?? []).find((o) => (o.type ?? o.name ?? '').toLowerCase().includes('size'));
+                    if (sizeGroup?.values?.length > 0) {
+                        const sizes = sizeGroup.values
+                            .map((v) => v.title ?? v.name ?? '')
+                            .filter(Boolean);
+                        if (sizes.length > 0) {
+                            update.sizes = sizes;
+                            stats.sizesAdded++;
+                        }
+                    }
+                    // ── Prices (in cents → dollars; only enabled variants)
+                    const enabledPrices = (variantData?.variants ?? [])
+                        .filter((v) => v.is_enabled !== false && v.price > 0)
+                        .map((v) => v.price / 100);
+                    if (enabledPrices.length > 0) {
+                        update.minPrice = Math.min(...enabledPrices);
+                        update.maxPrice = Math.max(...enabledPrices);
+                        stats.pricesAdded++;
+                    }
+                    stats.printifyEnriched++;
                 }
             }
             catch (e) {
-                // Timeout or API error — fall through to defaults immediately
+                console.warn(`[Enrich] Blueprint ${pyBlueprintId} failed: ${e.message}`);
                 stats.errors++;
             }
         }
-        // ── 2. Category defaults — instant fallback ───────────────────────────
-        if (!enriched) {
+        // ── 2. Category defaults for positions if Printify call failed/skipped ──
+        if (!positionsSet) {
             const category = data.qrgCategory || 'Unclassified';
             const positions = CATEGORY_DEFAULT_POSITIONS[category] ?? ['front'];
             update.printPositions = positions;
@@ -1054,7 +1122,14 @@ async function enrichMasterCatalog(options = {}) {
     for (let i = 0; i < snap.docs.length; i += BURST_SIZE) {
         const burst = snap.docs.slice(i, i + BURST_SIZE);
         await Promise.all(burst.map(enrichDoc));
-        console.log(`[Enrich] ${Math.min(i + BURST_SIZE, snap.docs.length)}/${snap.docs.length} done — printify:${stats.printifyEnriched} defaults:${stats.defaultsApplied} skipped:${stats.skipped} errors:${stats.errors}`);
+        if (i + BURST_SIZE < snap.docs.length)
+            await delay(INTER_BURST_DELAY_MS);
+        if (i % (BURST_SIZE * 10) === 0 || i + BURST_SIZE >= snap.docs.length) {
+            console.log(`[Enrich] ${Math.min(i + BURST_SIZE, snap.docs.length)}/${snap.docs.length} — ` +
+                `printify:${stats.printifyEnriched} colors:${stats.colorsAdded} sizes:${stats.sizesAdded} ` +
+                `prices:${stats.pricesAdded} origin:${stats.originAdded} defaults:${stats.defaultsApplied} ` +
+                `skipped:${stats.skipped} errors:${stats.errors}`);
+        }
     }
     console.log('[MasterCatalog] Enrich complete:', stats);
     return stats;

@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Images,
+  X,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 
 export interface ProductSelectItem {
@@ -68,6 +71,7 @@ export interface ProductSelectCardSkinProps {
   deleting?: boolean;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
+  onImagesBulkSave?: (id: string, images: string[]) => Promise<void>;
   masterCatalogImages?: string[];
   fulfillmentProvider?: string;
   qrgId?: string;
@@ -88,6 +92,7 @@ function PreviewModal({
   editableTitle,
   onImageDelete,
   onImageRestore,
+  onImagesBulkSave,
   masterCatalogImages,
   tier,
   onTierChange,
@@ -108,6 +113,7 @@ function PreviewModal({
   mockupImageUrl?: string | null;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
+  onImagesBulkSave?: (id: string, images: string[]) => Promise<void>;
   masterCatalogImages?: string[];
   tier?: TierValue;
   onTierChange?: (id: string, tier: TierValue) => void;
@@ -197,6 +203,62 @@ function PreviewModal({
       setRestoringImages(false);
     }
   };
+
+  // ── Bulk select mode ──────────────────────────────────────────────────────
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedForDeletion, setSelectedForDeletion] = useState<Set<string>>(new Set());
+  const [bulkSaving, setBulkSaving] = useState(false);
+
+  const enterBulkMode = useCallback(() => {
+    setSelectedForDeletion(new Set());
+    setBulkMode(true);
+  }, []);
+
+  const exitBulkMode = useCallback(() => {
+    setBulkMode(false);
+    setSelectedForDeletion(new Set());
+  }, []);
+
+  const toggleBulkImage = useCallback((url: string) => {
+    setSelectedForDeletion(prev => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url); else next.add(url);
+      return next;
+    });
+  }, []);
+
+  const selectAllForDeletion = useCallback(() => {
+    setSelectedForDeletion(new Set(localImages));
+  }, [localImages]);
+
+  const clearBulkSelection = useCallback(() => {
+    setSelectedForDeletion(new Set());
+  }, []);
+
+  const confirmBulkDelete = useCallback(async () => {
+    if (!onImagesBulkSave || bulkSaving || selectedForDeletion.size === 0) return;
+    const keptImages = localImages.filter(img => !selectedForDeletion.has(img));
+    setBulkSaving(true);
+    try {
+      await onImagesBulkSave(item.id, keptImages);
+      setLocalImages(keptImages);
+      setCurrentIndex(0);
+      exitBulkMode();
+    } finally {
+      setBulkSaving(false);
+    }
+  }, [onImagesBulkSave, bulkSaving, selectedForDeletion, localImages, item.id, exitBulkMode]);
+
+  // Enter = confirm bulk delete, Escape = exit bulk mode
+  useEffect(() => {
+    if (!bulkMode) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && selectedForDeletion.size > 0) confirmBulkDelete();
+      else if (e.key === 'Escape') exitBulkMode();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [bulkMode, selectedForDeletion.size, confirmBulkDelete, exitBulkMode]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -385,16 +447,131 @@ function PreviewModal({
               </div>
             )}
 
-            {/* Image count indicator when admin curation is available */}
+            {/* Image count indicator + bulk select entry point */}
             {onImageDelete && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground border-t">
-                <Images className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>
-                  {localImages.length > 0
-                    ? `${localImages.length} image${localImages.length !== 1 ? "s" : ""} forwarded to members`
-                    : "No images — use Restore all to reset"
-                  }
-                </span>
+              <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-muted/30 text-xs text-muted-foreground border-t">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Images className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="truncate">
+                    {localImages.length > 0
+                      ? `${localImages.length} image${localImages.length !== 1 ? "s" : ""} forwarded to members`
+                      : "No images — use Restore all to reset"
+                    }
+                  </span>
+                </div>
+                {onImagesBulkSave && localImages.length > 1 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs px-2 flex-shrink-0"
+                    onClick={enterBulkMode}
+                    data-testid={`button-bulk-select-${item.id}`}
+                  >
+                    <CheckSquare className="w-3 h-3 mr-1" />
+                    Select
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* ── Bulk select grid ── */}
+            {bulkMode && (
+              <div className="border-t bg-background" data-testid={`bulk-select-panel-${item.id}`}>
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs gap-1"
+                      onClick={selectedForDeletion.size === localImages.length ? clearBulkSelection : selectAllForDeletion}
+                      data-testid={`button-select-all-${item.id}`}
+                    >
+                      {selectedForDeletion.size === localImages.length
+                        ? <><Square className="w-3.5 h-3.5" /> Deselect all</>
+                        : <><CheckSquare className="w-3.5 h-3.5" /> Select all</>
+                      }
+                    </Button>
+                    {selectedForDeletion.size > 0 && (
+                      <span className="text-xs text-destructive font-medium">
+                        {selectedForDeletion.size} will be removed
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={exitBulkMode}
+                    data-testid={`button-bulk-cancel-${item.id}`}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+
+                {/* Image grid */}
+                <div className="grid grid-cols-3 gap-1.5 p-2 max-h-[40vh] overflow-y-auto">
+                  {localImages.map((imgUrl, idx) => {
+                    const marked = selectedForDeletion.has(imgUrl);
+                    return (
+                      <button
+                        key={imgUrl}
+                        type="button"
+                        onClick={() => toggleBulkImage(imgUrl)}
+                        className={`relative aspect-square rounded-md overflow-hidden border-2 transition-colors ${
+                          marked ? "border-destructive" : "border-transparent"
+                        }`}
+                        data-testid={`bulk-img-${item.id}-${idx}`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Image ${idx + 1}`}
+                          className="w-full h-full object-contain bg-muted p-0.5"
+                        />
+                        {/* Overlay for selected (to-be-deleted) images */}
+                        {marked && (
+                          <div className="absolute inset-0 bg-destructive/30 flex items-center justify-center">
+                            <div className="bg-destructive rounded-full p-0.5">
+                              <X className="w-3.5 h-3.5 text-destructive-foreground" />
+                            </div>
+                          </div>
+                        )}
+                        {/* Keep indicator for unselected */}
+                        {!marked && (
+                          <div className="absolute top-1 right-1">
+                            <div className="bg-background/80 rounded-full p-0.5">
+                              <Check className="w-3 h-3 text-green-500" />
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Confirm delete footer */}
+                <div className="flex items-center gap-2 px-3 py-2 border-t bg-muted/20">
+                  <p className="text-xs text-muted-foreground flex-1">
+                    {selectedForDeletion.size === 0
+                      ? "Select images above to remove them"
+                      : `${localImages.length - selectedForDeletion.size} image${localImages.length - selectedForDeletion.size !== 1 ? "s" : ""} will be kept`
+                    }
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-1.5"
+                    onClick={confirmBulkDelete}
+                    disabled={selectedForDeletion.size === 0 || bulkSaving}
+                    data-testid={`button-bulk-confirm-${item.id}`}
+                  >
+                    {bulkSaving
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <Trash2 className="w-3.5 h-3.5" />
+                    }
+                    Delete {selectedForDeletion.size > 0 ? selectedForDeletion.size : ""} selected
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -688,7 +865,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, masterCatalogImages, fulfillmentProvider, qrgId, mockupImageUrl }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, qrgId, mockupImageUrl }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -882,6 +1059,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         editableTitle={editableTitle}
         onImageDelete={onImageDelete}
         onImageRestore={onImageRestore}
+        onImagesBulkSave={onImagesBulkSave}
         masterCatalogImages={masterCatalogImages}
         tier={tier}
         onTierChange={onTierChange}
