@@ -188,13 +188,13 @@ export function register(app: express.Express): void {
 
       for (const doc of snap.docs) {
         const data = doc.data() as any;
-        const providerMappings: any[] = Array.isArray(data.providerMappings) ? data.providerMappings : [];
-        const pyMap = providerMappings.find((m: any) => m.provider === 'printify') || null;
-        const pfMap = providerMappings.find((m: any) => m.provider === 'printful') || null;
+        const pm = data.providerMappings;
+        const pyMap = (pm && !Array.isArray(pm)) ? pm.printify : (Array.isArray(pm) ? pm.find((m: any) => m.provider === 'printify') : null);
+        const pfMap = (pm && !Array.isArray(pm)) ? pm.printful : (Array.isArray(pm) ? pm.find((m: any) => m.provider === 'printful') : null);
 
-        const blueprintId: number | null = data.printifyBlueprintId ?? pyMap?.blueprintId ?? null;
-        const providerId: number | null = data.printifyPrintProviderId ?? pyMap?.printProviderId ?? null;
-        const printfulId: number | null = data.printfulProductId ?? (pfMap ? Number(pfMap.productId) : null) ?? null;
+        const blueprintId: number | null = pyMap?.blueprintId ? Number(pyMap.blueprintId) : null;
+        const providerId: number | null = pyMap?.printProviderId ? Number(pyMap.printProviderId) : null;
+        const printfulId: number | null = pfMap?.productId ? Number(pfMap.productId) : null;
 
         const hasPy = Array.isArray(data.printifyPlacements) && data.printifyPlacements.length > 0;
         const hasPf = Array.isArray(data.printfulPlacements) && data.printfulPlacements.length > 0;
@@ -205,10 +205,6 @@ export function register(app: express.Express): void {
         if (!needsPy && !needsPf) { skipped++; continue; }
 
         const update: Record<string, any> = { lastPlacementSyncAt: new Date().toISOString() };
-        // Also persist top-level IDs so future queries work even on legacy docs
-        if (blueprintId) update.printifyBlueprintId = blueprintId;
-        if (providerId) update.printifyPrintProviderId = providerId;
-        if (printfulId) update.printfulProductId = printfulId;
 
         // ── Printify: extract positions + dimensions from variant placeholders ──
         if (needsPy && printifyClient.isConfigured) {
@@ -446,7 +442,7 @@ export function register(app: express.Express): void {
       const masterSnap = await db.collection('master_catalog').get();
       const masterDocs = masterSnap.docs.map(d => d.data() as any);
       const unclassified = masterDocs.filter(d => !d.qrgCategory || d.qrgCategory === 'Unclassified').length;
-      const noMappings = masterDocs.filter(d => !Array.isArray(d.providerMappings) || d.providerMappings.length === 0).length;
+      const noMappings = masterDocs.filter(d => !d.providerMappings || (!d.providerMappings.printify && !d.providerMappings.printful)).length;
       const printifyOnly = masterDocs.filter(d => Array.isArray(d.availableVia) && d.availableVia.includes('printify') && !d.availableVia.includes('printful')).length;
       const printfulOnly = masterDocs.filter(d => Array.isArray(d.availableVia) && d.availableVia.includes('printful') && !d.availableVia.includes('printify')).length;
       const bridged = masterDocs.filter(d => Array.isArray(d.availableVia) && d.availableVia.includes('printify') && d.availableVia.includes('printful')).length;
@@ -461,6 +457,72 @@ export function register(app: express.Express): void {
           unclassified,
           noProviderMappings: noMappings,
         },
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/admin/master-catalog/repair-provider-qrg-mapping', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { dryRun = true, deleteInvalid = false } = req.body || {};
+      const snap = await db.collection('master_catalog').get();
+
+      const validIds: string[] = [];
+      const invalidIds: string[] = [];
+      const missingVariants: string[] = [];
+      const withUnmapped: string[] = [];
+      const batchWrites: { ref: any; data: any | null }[] = [];
+      let fixed = 0;
+
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        const docId = doc.id;
+
+        if (/^qrg_[1-6][1-9][0-9]{3}$/.test(docId)) {
+          validIds.push(docId);
+        } else {
+          invalidIds.push(docId);
+          if (!dryRun && deleteInvalid) batchWrites.push({ ref: doc.ref, data: null });
+          continue;
+        }
+
+        if (!data.qrgVariants || Object.keys(data.qrgVariants).length === 0) missingVariants.push(docId);
+
+        const unmapped = data.unmappedProviderValues;
+        if ((unmapped?.sizes?.length ?? 0) > 0 || (unmapped?.colors?.length ?? 0) > 0) withUnmapped.push(docId);
+
+        if (!dryRun && Array.isArray(data.providerMappings)) {
+          const pyOld = data.providerMappings.find((m: any) => m.provider === 'printify');
+          const pfOld = data.providerMappings.find((m: any) => m.provider === 'printful');
+          if (pyOld || pfOld) {
+            const newPm: any = {};
+            if (pyOld) newPm.printify = { blueprintId: String(pyOld.blueprintId || ''), printProviderId: String(pyOld.printProviderId || ''), rawTitle: pyOld.rawTitle || null, rawDescription: pyOld.rawDescription || null };
+            if (pfOld) newPm.printful = { productId: String(pfOld.productId || ''), rawTitle: pfOld.rawTitle || null, rawDescription: pfOld.rawDescription || null };
+            batchWrites.push({ ref: doc.ref, data: { providerMappings: newPm, updatedAt: new Date().toISOString() } });
+            fixed++;
+          }
+        }
+      }
+
+      if (!dryRun && batchWrites.length > 0) {
+        const batch = db.batch();
+        for (const w of batchWrites) {
+          if (w.data === null) batch.delete(w.ref);
+          else batch.update(w.ref, w.data);
+        }
+        await batch.commit();
+      }
+
+      res.json({
+        success: true,
+        dryRun,
+        total: snap.docs.length,
+        validIds: validIds.length,
+        invalidIds,
+        missingVariants,
+        withUnmapped,
+        fixed: dryRun ? 0 : fixed,
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

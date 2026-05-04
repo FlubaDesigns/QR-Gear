@@ -8,8 +8,8 @@
  *   CC = 2-digit color code (01=Black, 02=White, 03=Navy, …)
  *
  * These codes are barcode-only — never in URLs or packet names.
- * Full QRG code format: QRG-[STNNN]-[C]-[DDD]-[IIIIII]-[SSCC]
- * Example: QRG-11101-I-001-000001-0501  (L=05, Black=01)
+ * Full QRG code format: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+ * Example: QRG-11101-I-000001-0501  (L=05, Black=01)
  *
  * Rules:
  *   - Codes are GLOBAL and FIXED — never renumber once assigned
@@ -177,4 +177,108 @@ export function buildVariantSuffix(size: string | null, color: string | null): s
   const ss = getSizeCode(size ?? "");
   const cc = getColorCode(color ?? "");
   return `${ss}${cc}`;
+}
+
+// ── QRG Identity Helpers ──────────────────────────────────────────────────────
+// Format: STNNN where S=1-6 (super-category), T=1-9 (type), NNN=001-999 (item)
+// docId format: qrg_STNNN  e.g. qrg_11101
+// Full QRG code: QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+// Design/build data is NOT embedded in the QRG code — stored as a separate field or linked asset.
+
+const QRG_BLANK_ID_RE = /^[1-6][1-9][0-9]{3}$/;
+const QRG_DOC_ID_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
+const QRG_FULL_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([A-Z])-(\d{6})-(\d{4})$/;
+
+export const PARENT_CATEGORY_LABELS: Record<string, string> = {
+  "1": "Apparel",
+  "2": "Houseware",
+  "3": "Print & Display",
+  "4": "Accessories",
+  "5": "Pet Products",
+  "6": "Holiday & Seasonal",
+};
+
+/** Validates STNNN format: S=1-6, T=1-9, NNN=000-999 */
+export function isValidQrgBlankId(value: unknown): boolean {
+  return QRG_BLANK_ID_RE.test(String(value ?? ""));
+}
+
+/** Validates qrg_STNNN format */
+export function isValidMasterCatalogDocId(value: unknown): boolean {
+  return QRG_DOC_ID_RE.test(String(value ?? ""));
+}
+
+/** "11101" → "qrg_11101" */
+export function buildMasterCatalogDocId(qrgBlankId: string): string {
+  if (!isValidQrgBlankId(qrgBlankId)) throw new Error(`Invalid qrgBlankId: ${qrgBlankId}`);
+  return `qrg_${qrgBlankId}`;
+}
+
+/** "qrg_11101" → parsed parts or null */
+export function parseMasterCatalogDocId(docId: string): {
+  qrgBlankId: string;
+  parentCategory: string;
+  parentCategoryLabel: string;
+  productType: string;
+  itemNumber: string;
+} | null {
+  if (!isValidMasterCatalogDocId(docId)) return null;
+  const stnnn = docId.slice(4);
+  return {
+    qrgBlankId: stnnn,
+    parentCategory: stnnn[0],
+    parentCategoryLabel: PARENT_CATEGORY_LABELS[stnnn[0]] ?? "Unknown",
+    productType: stnnn[1],
+    itemNumber: stnnn.slice(2),
+  };
+}
+
+/** Returns S digit (super-category) or null */
+export function getQrgParentCategory(qrgBlankId: string): string | null {
+  return isValidQrgBlankId(qrgBlankId) ? qrgBlankId[0] : null;
+}
+
+/** Returns T digit (product type) or null */
+export function getQrgProductType(qrgBlankId: string): string | null {
+  return isValidQrgBlankId(qrgBlankId) ? qrgBlankId[1] : null;
+}
+
+/** Returns NNN segment (3-digit item number) or null */
+export function getQrgItemNumber(qrgBlankId: string): string | null {
+  return isValidQrgBlankId(qrgBlankId) ? qrgBlankId.slice(2) : null;
+}
+
+/** Normalizes a value to STNNN string, or null if invalid */
+export function normalizeQrgBlankId(value: unknown): string | null {
+  const s = String(value ?? "").trim();
+  return isValidQrgBlankId(s) ? s : null;
+}
+
+export interface QrgCodeParts {
+  qrgBlankId: string;
+  sourceCode: string;
+  instanceNumber: string;
+  sizeCode: string;
+  colorCode: string;
+}
+
+/** Build the full QRG-[STNNN]-[C]-[IIIIII]-[SSCC] string */
+export function buildFullQrgCode(parts: QrgCodeParts): string {
+  const { qrgBlankId, sourceCode, instanceNumber, sizeCode, colorCode } = parts;
+  if (!isValidQrgBlankId(qrgBlankId)) throw new Error(`Invalid qrgBlankId: ${qrgBlankId}`);
+  const iiiiii = String(instanceNumber).padStart(6, "0");
+  return `QRG-${qrgBlankId}-${sourceCode}-${iiiiii}-${sizeCode}${colorCode}`;
+}
+
+/** Parse a full QRG code, returns null if format is invalid */
+export function parseFullQrgCode(code: string): QrgCodeParts | null {
+  const m = QRG_FULL_CODE_RE.exec(code);
+  if (!m) return null;
+  return {
+    qrgBlankId: m[1],
+    sourceCode: m[2],
+    instanceNumber: m[3],
+    sizeCode: m[4].slice(0, 2),
+    colorCode: m[4].slice(2, 4),
+  };
 }

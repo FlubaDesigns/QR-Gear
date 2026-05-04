@@ -227,50 +227,51 @@ Every packet, owner instance, and physical item is identified by a single unifie
 #### Full Schema
 
 ```
-QRG - [STNNN] - [C] - [DDD] - [IIIIII] - [SSCC]
-         ↑       ↑      ↑         ↑          ↑
-       blank   source  build   instance   variant (barcode only)
+QRG - [STNNN] - [C] - [IIIIII] - [SSCC]
+         ↑       ↑        ↑          ↑
+       blank   source  instance   variant (barcode only)
 ```
 
 | Segment | Width | Description |
 |---------|-------|-------------|
 | `QRG` | 3 | Brand prefix — always present |
-| Blank `[STNNN]` | 5 digits | Product identity — S=super-category (1–6), T=product-type (1–9), NNN=item number (001–999) |
+| Blank `[STNNN]` | 5 digits | Product identity — S=super-category (1–6), T=product-type (1–9), NNN=item number (101–999) |
 | Source `[C]` | 1 letter | `I`=Internal, `P`=Printify, `F`=Printful, `E`=External |
-| Build `[DDD]` | 3 digits | Sequential design/build number (001–999) |
 | Instance `[IIIIII]` | 6 digits | Unique per produced item — ownership + tracking (000001–999999) |
-| Variant `[SSCC]` | 4 digits | **Barcode only** — SS=2-digit size + CC=2-digit color, never in URL or packet name |
+| Variant `[SSCC]` | 4 digits | **Barcode only** — SS=2-digit size + CC=2-digit color, never in URL |
 
-**Full example:** `QRG-11101-I-001-000001-0501` = Apparel/T-Shirt #101, Internal, Design 1, Instance 1, Size L (05), Color Black (01)
+> **Design is not part of identity.** Design/build data lives as a separate Firestore field, linked asset, or QR payload — never embedded in the QRG code.
+
+**Full example:** `QRG-11101-I-000001-0501` = Apparel/T-Shirt #101, Internal, Instance 1, Size L (05), Color Black (01)
 
 #### Product Identity (STNNN)
 
-Structure: `S` = super-category (1–6), `T` = product type (1–9), `NNN` = item number (001–999) — up to 999 items per type.
+Structure: `S` = super-category (1–6), `T` = product type (1–9), `NNN` = item number (101–999) — up to 899 items per type. Items 001–100 reserved for admin assignment.
 
 | Range | Category |
 |-------|----------|
-| 11001–11999 | T-Shirts |
-| 12001–12999 | Hoodies & Sweatshirts |
-| 13001–13999 | Hats |
-| 14001–14999 | Tank Tops |
-| 15001–15999 | Long Sleeve |
-| 16001–16999 | Youth/Kids |
-| 17001–17999 | Women's |
-| 18001–18999 | Specialty Apparel |
-| 21001–21999 | Drinkware |
-| 22001–22999 | Barware |
-| 23001–23999 | Drinkware Accessories |
-| 24001–24999 | Kitchen & Dining |
-| 25001–25999 | Bedding & Textiles |
-| 26001–26999 | Home Décor |
-| 31001–31999 | Wall Art & Prints |
-| 32001–32999 | Stickers & Magnets |
-| 41001–41999 | Bags & Pouches |
-| 51001–51999 | Pet Apparel |
-| 52001–52999 | Pet Accessories |
-| 61001–61999 | Ornaments & Décor |
-| 62001–62999 | Stockings & Gifting |
-| 63001–63999 | Seasonal Apparel |
+| 11101–11999 | T-Shirts |
+| 12101–12999 | Hoodies & Sweatshirts |
+| 13101–13999 | Hats |
+| 14101–14999 | Tank Tops |
+| 15101–15999 | Long Sleeve |
+| 16101–16999 | Youth/Kids |
+| 17101–17999 | Women's |
+| 18101–18999 | Specialty Apparel |
+| 21101–21999 | Drinkware |
+| 22101–22999 | Barware |
+| 23101–23999 | Drinkware Accessories |
+| 24101–24999 | Kitchen & Dining |
+| 25101–25999 | Bedding & Textiles |
+| 26101–26999 | Home Décor |
+| 31101–31999 | Wall Art & Prints |
+| 32101–32999 | Stickers & Magnets |
+| 41101–41999 | Bags & Pouches |
+| 51101–51999 | Pet Apparel |
+| 52101–52999 | Pet Accessories |
+| 61101–61999 | Ornaments & Décor |
+| 62101–62999 | Stockings & Gifting |
+| 63101–63999 | Seasonal Apparel |
 
 #### Size Digit (barcode only)
 
@@ -284,24 +285,23 @@ Structure: `S` = super-category (1–6), `T` = product type (1–9), `NNN` = ite
 
 | Thing | Identifier | Example |
 |-------|-----------|---------|
-| **Packet** (admin build) | `QRG-[S]-[BBB]-[DDD]` | `QRG-I-101-001` |
-| **Packet** (member build) | `QRG-M-[BBB]-[DDD]` | `QRG-M-101-001` |
-| **Store model number** | `QRG-[S]-[BBB]` | `QRG-I-101` |
-| **Owner URL** | `qrgear.com/QRG-[S]-[BBB]-[DDD]-[SSSSSS]` | `qrgear.com/QRG-I-101-001-000001` |
-| **Barcode** | `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` | `QRG-I-101-001-000001-402` |
+| **Product/Blank** | `QRG-[STNNN]-[C]` | `QRG-11101-I` |
+| **Owner URL** | `qrgear.com/QRG-[STNNN]-[C]-[IIIIII]` | `qrgear.com/QRG-11101-I-000001` |
+| **Barcode** | `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]` | `QRG-11101-I-000001-0401` |
 
-#### Examples — Army and Navy Tees (current store items)
+> Design/colorway is stored as a linked field or asset — never appended to the QRG code.
 
-- Army green tee packet → `QRG-I-101-001`
-- Navy tee packet → `QRG-I-101-002`
-- First owner of the Army build → `QRG-I-101-001-000001`
-- Their physical medium/black shirt barcode → `QRG-I-101-001-000001-402`
+#### Examples — T-Shirt #101 (first T-Shirt blank)
+
+- Product identifier → `QRG-11101-I`
+- First owner's URL → `qrgear.com/QRG-11101-I-000001`
+- Their physical medium/black shirt barcode → `QRG-11101-I-000001-0401` (M=04, Black=01)
 
 #### Key Properties
 
-- **Packet name = QRG ID** — every packet is automatically named by its QRG identifier at creation
 - **URL IS the key** — the owner URL is the Firestore path and Storage key; no slug lookup table needed
 - **QR code never changes** — owner content updates at the same address; the printed shirt is never broken
+- **Design is data, not identity** — different designs on the same blank share the same STNNN; design lives in a linked field
 - **Barcode-only digits** — size and color (3 digits) appear only on the physical barcode, never in the URL or packet name
 - **Build sequence groups designs** — all builds under `QRG-I-101` are the same blank, different designs; groupable and stitchable
 - **Multi-brand ready** — `QRG/` is the namespace; `KC/`, `USA/` etc. use the same engine

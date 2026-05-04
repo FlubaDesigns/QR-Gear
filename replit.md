@@ -127,15 +127,14 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
 ### First-Scan Activation System (QR Gear Core Flow)
-- **QRG Identity Schema (FINAL)**: `QRG-[STNNN]-[C]-[DDD]-[IIIIII]-[SSCC]`
-  - **Blank [STNNN]** (5 digits, **core identity**): S=super-category (1–6), T=product-type (1–9), NNN=item number (001–999). Example: `11001`=first T-Shirt.
+- **QRG Identity Schema (FINAL)**: `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]`
+  - **Design/build data is NOT part of the QRG ID.** Design lives as a separate Firestore field, linked asset, or QR payload — never embedded in identity.
+  - **Blank [STNNN]** (5 digits, **core identity**): S=super-category (1–6), T=product-type (1–9), NNN=item number (101–999, starts at 101). Example: `11101`=first T-Shirt.
   - **Source [C]** (1 letter): `I`=Internal, `P`=Printify, `F`=Printful, `E`=External.
-  - **Build [DDD]** (3 digits): sequential design/build number (001–999). Packet name = `QRG-11001-I-001`.
-  - **Instance [IIIIII]** (6 digits): unique per produced item, zero-padded (000001–999999). Owner URL = `qrgear.com/QRG-11001-I-001-000001`.
-  - **Variant [SSCC]** (4 digits, **barcode only — never in URL or packet name**): SS=2-digit size (01=XXS,02=XS,03=S,04=M,05=L,06=XL,07=2XL,08=3XL,09=4XL,10=5XL), CC=2-digit color (01=Black,02=White,03=Navy,04=Red,05=Royal Blue…). Barcode = `QRG-11001-I-001-000001-0501`. Full map in `shared/qrgCodes.ts`.
-  - **Full example**: `QRG-11101-I-001-000001-0501` = Apparel/T-Shirt #101, Internal, Design 1, Instance 1, Size L, Color Black.
-  - **Backward compat**: Old 3-digit/4-digit doc IDs remain readable. New products get 5-digit IDs. `resolveQrgCategoryLabel()` maps legacy codes to current labels.
-  - **Firestore fields on `master_catalog`**: Doc ID = `qrg_STNNN`. Key fields: `qrgBlankId` (string, e.g. "11001"), `qrgParentCategory` (S digit string, e.g. "1"), `qrgProductType` (T digit string, e.g. "1"), `qrgItemNumber` (NNN string, e.g. "001"), `qrgCategory` (human label), `categorySource` (manual|mapped|inferred), `availableVia`, `providerMappings`, `canonicalTitle`, `brand`, `model`, `colors`, `sizes`, `minPrice`, `maxPrice`, `lastSyncedAt`. Returned by `GET /api/master-catalog`.
+  - **Instance [IIIIII]** (6 digits): unique per produced item, zero-padded (000001–999999). Owner URL = `qrgear.com/QRG-11101-I-000001`.
+  - **Variant [SSCC]** (4 digits, **barcode only — never in URL**): SS=2-digit size (01=XXS,02=XS,03=S,04=M,05=L,06=XL,07=2XL,08=3XL,09=4XL,10=5XL), CC=2-digit color (01=Black,02=White,03=Navy,04=Red,05=Royal Blue…). Barcode = `QRG-11101-I-000001-0501`. Full map in `shared/qrgCodes.ts`.
+  - **Full example**: `QRG-11101-I-000001-0501` = Apparel/T-Shirt #101, Internal, Instance 1, Size L, Color Black.
+  - **Firestore fields on `master_catalog`**: Doc ID = `qrg_STNNN`. Key fields: `qrgBlankId` (string, e.g. "11101"), `qrgParentCategory` (S digit), `qrgParentCategoryLabel`, `qrgProductType` (T digit), `qrgProductTypeLabel`, `qrgItemNumber` (NNN), `qrgCategory` (human label), `availableVia`, `providerMappings` (object: `{ printify, printful }`), `canonicalTitle`, `brand`, `model`, `availableSizes`, `availableColors`, `qrgVariants` (keyed by SSCC), `unmappedProviderValues`, `minPrice`, `maxPrice`, `lastSyncedAt`. Returned by `GET /api/master-catalog`.
 
   ### QRG 5-Digit Category Taxonomy
   Defined in `functions/src/services/master-catalog.ts` (`QRG_TOP_LEVEL_CATEGORIES`, `QRG_BLANK_CATEGORIES`).

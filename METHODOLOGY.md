@@ -840,90 +840,84 @@ Key rule: the duplicate Firestore collections (`libraryAssets`/`library_assets`,
 | 2026-04-23 | Added Naming Standards reference (Section 17) |
 | 2026-04-23 | Fixed collection name in Section 12: `product_packets` → `productPackets` (grandfathered camelCase) |
 | 2026-05-02 | Added QRG Unified Identity Schema (Section 18) — replaces old QRG-CCC-SSS with three-layer blank code + owner sequence + barcode system |
+| 2026-05-04 | Updated Section 18 — removed DDD (build/design number) from identity format. Design is a separate field/linked asset. New format: `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]`. Layers renumbered: Blank→1, Source→2, Instance→3, Variant→4. |
 
 ---
 
 ### 18. QRG Unified Identity Schema
-**Established: 2026-05-02**
+**Established: 2026-05-02 | Updated: 2026-05-04 — DDD removed**
 
-Every packet, owner instance, and physical garment in QR Gear is identified through one unified schema. Each layer adds digits only when that layer exists. This replaces the earlier `QRG-CCC-SSS` flat format.
+Every owner instance and physical item in QR Gear is identified through one unified schema. Design/build data is explicitly NOT embedded — it lives as a separate Firestore field, linked asset, or QR payload.
 
 #### The Full Schema
 
 ```
-QRG - [S] - [BBB] - [DDD] - [SSSSSS] - [X][CC]
-       ↑      ↑       ↑        ↑            ↑
-     source  blank  build    owner     barcode only
+QRG - [STNNN] - [C] - [IIIIII] - [SSCC]
+         ↑       ↑        ↑          ↑
+       blank   source  instance  barcode only
 ```
 
-#### Layer 1 — Source (`[S]`, 1 letter)
+#### Layer 1 — Blank Identity (`[STNNN]`, 5 digits)
 
-Identifies who created the build:
+Identifies the product blank (the physical garment type). Assigned once by QR Gear, never changes.
+
+Structure: `S`=super-category (1–6), `T`=product-type (1–9), `NNN`=item number (101–999).
+
+| Digit | Meaning |
+|-------|---------|
+| S=1, T=1, NNN=101 | First T-Shirt blank |
+| S=1, T=2, NNN=101 | First Hoodie blank |
+| S=2, T=1, NNN=101 | First Drinkware blank |
+
+Firestore doc ID: `qrg_STNNN` (e.g. `qrg_11101`). Store-facing label: `QRG-11101`.
+
+#### Layer 2 — Source (`[C]`, 1 letter)
+
+Identifies the fulfillment channel that produced this item:
 
 | Letter | Source |
 |--------|--------|
 | `I` | Internal — QR Gear admin-built |
-| `M` | Member — creator/affiliate-built |
+| `P` | Printify |
+| `F` | Printful |
 | `E` | External — partner/embedded store |
-| `D` | Direct buyer — built and purchased on qrgear.com |
 
-#### Layer 2 — Blank Code (`[BBB]`, 3 digits)
+#### Design Is Not Part of Identity
 
-Identifies the product type:
-- **Hundreds digit** = category (1xx=Tees, 2xx=Hoodies, 3xx=Hats, 4xx=Drinkware)
-- **Tens+units** = specific blank within that category (01–99)
+Design/colorway data is stored separately — as a Firestore field on the packet or product document, a linked design asset, or as payload content in the QR code. It is never appended to the QRG code itself.
 
-| Code | Meaning |
-|------|---------|
-| 101 | First Tee blank (e.g. Bella+Canvas 3001) |
-| 102 | Second Tee blank (e.g. Next Level 3600) |
-| 201 | First Hoodie blank |
-| 301 | First Hat blank |
-| 401 | First Drinkware blank |
+Rationale: multiple designs may be applied to the same blank by the same source. Embedding a design number would cause identity to shift every time a new design is created, breaking QR codes, owner URLs, and barcode sequences.
 
-Assigned when a blank type is added to the master catalog. Never changes.
+#### Layer 3 — Owner Sequence (`[IIIIII]`, 6 digits)
 
-**Store-facing model number:** `QRG-I-101` — shown on product listings. Same for all customers viewing that blank type.
+Zero-padded integer assigned at purchase/claim time, unique per blank+source.
 
-#### Layer 3 — Build Number (`[DDD]`, 3 digits)
-
-Sequential number assigned per source+blank combination. Each distinct design or colorway build gets its own number (001, 002, 003…).
-
-- Army green tee (Internal, first build of blank 101) → `QRG-I-101-001`
-- Navy tee (Internal, second build of blank 101) → `QRG-I-101-002`
-- **This is the packet name** — every packet is automatically named by this identifier at creation
-- Build numbers group designs: all `QRG-I-101-*` packets are the same blank, different builds — groupable and stitchable
-
-#### Layer 4 — Owner Sequence (`[SSSSSS]`, 6 digits)
-
-Zero-padded integer assigned at purchase/claim time, unique per source+blank+build.
-
-- Range: `000001` – `999,999`
+- Range: `000001` – `999999`
 - Minted at claim moment — NOT at build or catalog creation time
-- First owner of the Army tee build → `QRG-I-101-001-000001`
+- First owner of T-Shirt #101 via Printify → `QRG-11101-P-000001`
 
 **Owner URL:**
 ```
-qrgear.com/QRG-[S]-[BBB]-[DDD]-[SSSSSS]
+qrgear.com/QRG-[STNNN]-[C]-[IIIIII]
 ```
-Example: `qrgear.com/QRG-I-101-001-000001`
+Example: `qrgear.com/QRG-11101-I-000001`
 
 The URL IS the Firestore document path and Firebase Storage key — no slug lookup table. The QR code on the physical product encodes this URL permanently. Owner content updates at this address; the shirt never needs a new QR code.
 
-#### Layer 5 — Size + Color (`[X][CC]`, 3 digits — BARCODE ONLY)
+#### Layer 4 — Size + Color (`[SSCC]`, 4 digits — BARCODE ONLY)
 
-**Never appears in the URL or packet name.** Barcode-only digits that identify the specific physical unit:
+**Never appears in the URL.** Barcode-only digits that identify the specific physical unit:
 
 | Segment | Width | Values |
 |---------|-------|--------|
-| Size `[X]` | 1 digit | 0=reserved, 1=XXS, 2=XS, 3=S, 4=M, 5=L, 6=XL, 7=XXL, 8=XXXL, 9=reserved |
-| Color `[CC]` | 2 digits | 00–99 (mapped to platform color list) |
+| Size `[SS]` | 2 digits | 01=XXS, 02=XS, 03=S, 04=M, 05=L, 06=XL, 07=2XL, 08=3XL, 09=4XL, 10=5XL, 00=One Size |
+| Color `[CC]` | 2 digits | 01=Black, 02=White, 03=Navy … full map in `shared/qrgCodes.ts` |
 
 **Full barcode:**
 ```
-QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]
+QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
 ```
-Example: `QRG-I-101-001-000001-402` = Internal / Bella+Canvas tee / first build / owner #1 / Medium / Black
+Example: `QRG-11101-I-000001-0401` = T-Shirt #101 / Internal / Owner #1 / Medium / Black
 
 Encoded as **Code 128**. Every garment ever produced has a globally unique barcode.
 
@@ -931,10 +925,9 @@ Encoded as **Code 128**. Every garment ever produced has a globally unique barco
 
 | Thing | Identifier | Example |
 |-------|-----------|---------|
-| Packet | `QRG-[S]-[BBB]-[DDD]` | `QRG-I-101-001` |
-| Store model number | `QRG-[S]-[BBB]` | `QRG-I-101` |
-| Owner URL | `qrgear.com/QRG-[S]-[BBB]-[DDD]-[SSSSSS]` | `qrgear.com/QRG-I-101-001-000001` |
-| Physical barcode | `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` | `QRG-I-101-001-000001-402` |
+| Product/blank | `QRG-[STNNN]-[C]` | `QRG-11101-I` |
+| Owner URL | `qrgear.com/QRG-[STNNN]-[C]-[IIIIII]` | `qrgear.com/QRG-11101-I-000001` |
+| Physical barcode | `QRG-[STNNN]-[C]-[IIIIII]-[SSCC]` | `QRG-11101-I-000001-0401` |
 
 #### Two Scan Experiences Per Product
 

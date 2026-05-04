@@ -1,6 +1,7 @@
 import { ProductsProvider } from "./ProductsContext";
 import { ProductsControlBar } from "./modules/ProductsControlBar";
 import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule";
+import { MasterCatalogDebugModule } from "./modules/MasterCatalogDebugModule";
 import { BuilderHarness } from "./builder/BuilderHarness";
 
 interface ProductsHarnessProps {
@@ -32,6 +33,8 @@ function ProductsHarnessInner({
       )}
 
       <StoreChannelDropdownModule />
+
+      <MasterCatalogDebugModule />
 
       {showBuilder && (
         <div className="glass-card">

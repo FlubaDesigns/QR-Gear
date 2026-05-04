@@ -11,6 +11,7 @@ const safeAssign_1 = require("../safeAssign");
 const instance_resolver_1 = require("./instance-resolver");
 const printify_1 = require("./printify");
 const printful_1 = require("./printful");
+const qrgVariantMappings_1 = require("./qrgVariantMappings");
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw) {
     if (!raw)
@@ -100,44 +101,44 @@ exports.QRG_TOP_LEVEL_CATEGORIES = [
 // allocation simply continues past rangeEnd (no hard stop — "screw it").
 exports.QRG_BLANK_CATEGORIES = [
     // ── 1x000 Apparel ─────────────────────────────────────────────────────────
-    { name: 'T-Shirts', parent: 'Apparel', rangeStart: 11001, rangeEnd: 11999 },
-    { name: 'Hoodies & Sweatshirts', parent: 'Apparel', rangeStart: 12001, rangeEnd: 12999 },
-    { name: 'Hats', parent: 'Apparel', rangeStart: 13001, rangeEnd: 13999 },
-    { name: 'Tank Tops', parent: 'Apparel', rangeStart: 14001, rangeEnd: 14999 },
-    { name: 'Long Sleeve', parent: 'Apparel', rangeStart: 15001, rangeEnd: 15999 },
-    { name: "Youth/Kids", parent: 'Apparel', rangeStart: 16001, rangeEnd: 16999 },
-    { name: "Women's", parent: 'Apparel', rangeStart: 17001, rangeEnd: 17999 },
-    { name: 'Specialty Apparel', parent: 'Apparel', rangeStart: 18001, rangeEnd: 18999 },
+    { name: 'T-Shirts', parent: 'Apparel', rangeStart: 11101, rangeEnd: 11999 },
+    { name: 'Hoodies & Sweatshirts', parent: 'Apparel', rangeStart: 12101, rangeEnd: 12999 },
+    { name: 'Hats', parent: 'Apparel', rangeStart: 13101, rangeEnd: 13999 },
+    { name: 'Tank Tops', parent: 'Apparel', rangeStart: 14101, rangeEnd: 14999 },
+    { name: 'Long Sleeve', parent: 'Apparel', rangeStart: 15101, rangeEnd: 15999 },
+    { name: "Youth/Kids", parent: 'Apparel', rangeStart: 16101, rangeEnd: 16999 },
+    { name: "Women's", parent: 'Apparel', rangeStart: 17101, rangeEnd: 17999 },
+    { name: 'Specialty Apparel', parent: 'Apparel', rangeStart: 18101, rangeEnd: 18999 },
     // ── 2x000 Houseware ───────────────────────────────────────────────────────
-    { name: 'Drinkware', parent: 'Houseware', rangeStart: 21001, rangeEnd: 21999 },
-    { name: 'Barware', parent: 'Houseware', rangeStart: 22001, rangeEnd: 22999 },
-    { name: 'Drinkware Accessories', parent: 'Houseware', rangeStart: 23001, rangeEnd: 23999 },
-    { name: 'Kitchen & Dining', parent: 'Houseware', rangeStart: 24001, rangeEnd: 24999 },
-    { name: 'Bedding & Textiles', parent: 'Houseware', rangeStart: 25001, rangeEnd: 25999 },
-    { name: 'Home Décor', parent: 'Houseware', rangeStart: 26001, rangeEnd: 26999 },
+    { name: 'Drinkware', parent: 'Houseware', rangeStart: 21101, rangeEnd: 21999 },
+    { name: 'Barware', parent: 'Houseware', rangeStart: 22101, rangeEnd: 22999 },
+    { name: 'Drinkware Accessories', parent: 'Houseware', rangeStart: 23101, rangeEnd: 23999 },
+    { name: 'Kitchen & Dining', parent: 'Houseware', rangeStart: 24101, rangeEnd: 24999 },
+    { name: 'Bedding & Textiles', parent: 'Houseware', rangeStart: 25101, rangeEnd: 25999 },
+    { name: 'Home Décor', parent: 'Houseware', rangeStart: 26101, rangeEnd: 26999 },
     // ── 3x000 Print & Display ─────────────────────────────────────────────────
-    { name: 'Wall Art & Prints', parent: 'Print & Display', rangeStart: 31001, rangeEnd: 31999 },
-    { name: 'Stickers & Magnets', parent: 'Print & Display', rangeStart: 32001, rangeEnd: 32999 },
-    { name: 'Stationery & Paper', parent: 'Print & Display', rangeStart: 33001, rangeEnd: 33999 },
-    { name: 'Signs & Display', parent: 'Print & Display', rangeStart: 34001, rangeEnd: 34999 },
-    { name: 'Books & Photo', parent: 'Print & Display', rangeStart: 35001, rangeEnd: 35999 },
-    { name: 'Pins & Patches', parent: 'Print & Display', rangeStart: 36001, rangeEnd: 36999 },
-    { name: 'Tags', parent: 'Print & Display', rangeStart: 37001, rangeEnd: 37999 },
-    { name: 'Puzzles & Games', parent: 'Print & Display', rangeStart: 38001, rangeEnd: 38999 },
-    { name: 'Novelty', parent: 'Print & Display', rangeStart: 39001, rangeEnd: 39999 },
+    { name: 'Wall Art & Prints', parent: 'Print & Display', rangeStart: 31101, rangeEnd: 31999 },
+    { name: 'Stickers & Magnets', parent: 'Print & Display', rangeStart: 32101, rangeEnd: 32999 },
+    { name: 'Stationery & Paper', parent: 'Print & Display', rangeStart: 33101, rangeEnd: 33999 },
+    { name: 'Signs & Display', parent: 'Print & Display', rangeStart: 34101, rangeEnd: 34999 },
+    { name: 'Books & Photo', parent: 'Print & Display', rangeStart: 35101, rangeEnd: 35999 },
+    { name: 'Pins & Patches', parent: 'Print & Display', rangeStart: 36101, rangeEnd: 36999 },
+    { name: 'Tags', parent: 'Print & Display', rangeStart: 37101, rangeEnd: 37999 },
+    { name: 'Puzzles & Games', parent: 'Print & Display', rangeStart: 38101, rangeEnd: 38999 },
+    { name: 'Novelty', parent: 'Print & Display', rangeStart: 39101, rangeEnd: 39999 },
     // ── 4x000 Accessories ─────────────────────────────────────────────────────
-    { name: 'Bags & Pouches', parent: 'Accessories', rangeStart: 41001, rangeEnd: 41999 },
-    { name: 'Jewelry', parent: 'Accessories', rangeStart: 42001, rangeEnd: 42999 },
-    { name: 'Phone & Tech Cases', parent: 'Accessories', rangeStart: 43001, rangeEnd: 43999 },
-    { name: 'Travel Accessories', parent: 'Accessories', rangeStart: 44001, rangeEnd: 44999 },
-    { name: 'Small Accessories', parent: 'Accessories', rangeStart: 45001, rangeEnd: 45999 },
+    { name: 'Bags & Pouches', parent: 'Accessories', rangeStart: 41101, rangeEnd: 41999 },
+    { name: 'Jewelry', parent: 'Accessories', rangeStart: 42101, rangeEnd: 42999 },
+    { name: 'Phone & Tech Cases', parent: 'Accessories', rangeStart: 43101, rangeEnd: 43999 },
+    { name: 'Travel Accessories', parent: 'Accessories', rangeStart: 44101, rangeEnd: 44999 },
+    { name: 'Small Accessories', parent: 'Accessories', rangeStart: 45101, rangeEnd: 45999 },
     // ── 5x000 Pet Products ────────────────────────────────────────────────────
-    { name: 'Pet Apparel', parent: 'Pet Products', rangeStart: 51001, rangeEnd: 51999 },
-    { name: 'Pet Accessories', parent: 'Pet Products', rangeStart: 52001, rangeEnd: 52999 },
+    { name: 'Pet Apparel', parent: 'Pet Products', rangeStart: 51101, rangeEnd: 51999 },
+    { name: 'Pet Accessories', parent: 'Pet Products', rangeStart: 52101, rangeEnd: 52999 },
     // ── 6x000 Holiday & Seasonal ──────────────────────────────────────────────
-    { name: 'Ornaments & Décor', parent: 'Holiday & Seasonal', rangeStart: 61001, rangeEnd: 61999 },
-    { name: 'Stockings & Gifting', parent: 'Holiday & Seasonal', rangeStart: 62001, rangeEnd: 62999 },
-    { name: 'Seasonal Apparel', parent: 'Holiday & Seasonal', rangeStart: 63001, rangeEnd: 63999 },
+    { name: 'Ornaments & Décor', parent: 'Holiday & Seasonal', rangeStart: 61101, rangeEnd: 61999 },
+    { name: 'Stockings & Gifting', parent: 'Holiday & Seasonal', rangeStart: 62101, rangeEnd: 62999 },
+    { name: 'Seasonal Apparel', parent: 'Holiday & Seasonal', rangeStart: 63101, rangeEnd: 63999 },
 ];
 // ── Legacy numeric-code → new subcategory label (for Firestore docs written
 //    before the 4-digit scheme was introduced) ─────────────────────────────
@@ -168,6 +169,14 @@ const QRG_LEGACY_NAME_MAP = {
     'Footwear & Socks': 'Specialty Apparel',
     'Sleepwear & Underwear': 'Specialty Apparel',
     'Drinkware': 'Drinkware',
+};
+const PARENT_CAT_LABELS = {
+    '1': 'Apparel',
+    '2': 'Houseware',
+    '3': 'Print & Display',
+    '4': 'Accessories',
+    '5': 'Pet Products',
+    '6': 'Holiday & Seasonal',
 };
 /**
  * Resolve any qrgCategory value (old numeric, old string, or new string) to
@@ -421,20 +430,13 @@ async function syncMasterCatalog(_options = {}) {
     const blueprintToQrgDoc = new Map();
     const printfulToQrgDoc = new Map();
     for (const [docId, data] of existingMaster.entries()) {
-        if (Array.isArray(data.providerMappings)) {
-            for (const m of data.providerMappings) {
-                if (m.provider === 'printify' && m.blueprintId)
-                    blueprintToQrgDoc.set(Number(m.blueprintId), docId);
-                if (m.provider === 'printful' && m.productId)
-                    printfulToQrgDoc.set(Number(m.productId), docId);
-            }
-        }
-        else {
-            // Support legacy flat-field schema (docs written before providerMappings[] was introduced)
-            if (data.printifyBlueprintId)
-                blueprintToQrgDoc.set(Number(data.printifyBlueprintId), docId);
-            if (data.printfulProductId)
-                printfulToQrgDoc.set(Number(data.printfulProductId), docId);
+        // New schema: providerMappings is an object { printify: {...}, printful: {...} }
+        const pm = data.providerMappings;
+        if (pm && typeof pm === 'object' && !Array.isArray(pm)) {
+            if (pm.printify?.blueprintId)
+                blueprintToQrgDoc.set(Number(pm.printify.blueprintId), docId);
+            if (pm.printful?.productId)
+                printfulToQrgDoc.set(Number(pm.printful.productId), docId);
         }
     }
     // ── Build next available BBB number per category ──────────────────────────────
@@ -491,8 +493,8 @@ async function syncMasterCatalog(_options = {}) {
     // ── In-memory docs being built this sync ─────────────────────────────────────
     // docId → accumulated entry (used for bridging within same sync run)
     const inProgressDocs = new Map();
-    function allocateQRGDocId(existingDocId, qrgCategory, pendingFallback) {
-        if (existingDocId) {
+    function allocateQRGDocId(existingDocId, qrgCategory) {
+        if (existingDocId && existingDocId.startsWith('qrg_')) {
             return { docId: existingDocId, alreadyExists: existingMaster.has(existingDocId) || inProgressDocs.has(existingDocId) };
         }
         if (qrgCategory && nextBBB[qrgCategory] !== undefined) {
@@ -500,7 +502,7 @@ async function syncMasterCatalog(_options = {}) {
             nextBBB[qrgCategory] = bbb + 1;
             return { docId: `qrg_${bbb}`, alreadyExists: false };
         }
-        return { docId: `pending_${pendingFallback}`, alreadyExists: existingMaster.has(`pending_${pendingFallback}`) };
+        return null; // Unclassified — skip this product, no pending_* fallback in greenfield mode
     }
     function bumpCategoryStats(qrgCategory) {
         if (!qrgCategory) {
@@ -559,93 +561,99 @@ async function syncMasterCatalog(_options = {}) {
         const existingViaBlueprint = blueprintToQrgDoc.get(blueprintId);
         const existingViaPrintful = pfId !== null ? printfulToQrgDoc.get(pfId) : undefined;
         const resolvedExistingId = existingViaBlueprint || existingViaPrintful;
-        const { docId, alreadyExists } = allocateQRGDocId(resolvedExistingId, qrgCategory, `py_${blueprintId}`);
+        const allocatedPy = allocateQRGDocId(resolvedExistingId, qrgCategory);
+        if (!allocatedPy) {
+            console.warn(`[MasterCatalog] Skipping unclassified Printify blueprint ${blueprintId}: "${bp.title}"`);
+            stats.unclassified++;
+            continue;
+        }
+        const { docId, alreadyExists } = allocatedPy;
         // Register lookups so Printful processing can find this doc
         blueprintToQrgDoc.set(blueprintId, docId);
         if (pfId !== null)
             printfulToQrgDoc.set(pfId, docId);
         const currentDoc = existingMaster.get(docId) || inProgressDocs.get(docId);
-        // ── Build Printify provider mapping ──────────────────────────────────────
-        const pyMapping = {
-            provider: 'printify',
-            blueprintId,
-            brand: bp.brand || null,
-            model: bp.model || null,
-            printProviderId: provider?.providerId || null,
-            originCountry: provider?.country || null,
-            isUSA: provider?.isUSA || false,
-        };
-        // ── Extract Printify images ───────────────────────────────────────────────
+        // ── Extract images ────────────────────────────────────────────────────────
         const pyImagesRaw = extractImageUrls(bp.images);
-        // ── Build Printful data if matched ────────────────────────────────────────
-        let pfMapping = null;
         let pfImagesRaw = [];
-        let pfColors = [];
-        let pfSizes = [];
         let pfMinPrice = null;
         let pfMaxPrice = null;
         let pfOriginCountry = null;
         if (matchedPrintful && pfId !== null) {
-            const pfVars = variantsByPrintfulId.get(pfId) || [];
-            const colorMap = new Map();
-            const sizeSet = new Set();
-            for (const v of pfVars) {
-                if (v.color && !colorMap.has(v.color))
-                    colorMap.set(v.color, v.colorCode || v.color_code || '#888888');
-                if (v.size)
-                    sizeSet.add(v.size);
-            }
-            pfColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
-            pfSizes = Array.from(sizeSet);
             pfImagesRaw = extractImageUrls(matchedPrintful.images);
             if (pfImagesRaw.length === 0 && matchedPrintful.image)
                 pfImagesRaw = [matchedPrintful.image];
             pfMinPrice = matchedPrintful.minPrice ? parseFloat(String(matchedPrintful.minPrice)) : null;
             pfMaxPrice = matchedPrintful.maxPrice ? parseFloat(String(matchedPrintful.maxPrice)) : null;
             pfOriginCountry = matchedPrintful.originCountry || matchedPrintful.origin_country || null;
-            pfMapping = {
-                provider: 'printful',
-                productId: pfId,
-                brand: matchedPrintful.brand || null,
-                model: matchedPrintful.model || null,
-                originCountry: pfOriginCountry,
-                isUSA: (pfOriginCountry || '').toUpperCase() === 'US' || (pfOriginCountry || '').toUpperCase() === 'USA',
-            };
         }
-        // ── Merge provider mappings ───────────────────────────────────────────────
-        const existingMappings = currentDoc?.providerMappings || [];
-        const newMappings = [...existingMappings];
-        const pyIdx = newMappings.findIndex((m) => m.provider === 'printify' && m.blueprintId === blueprintId);
-        if (pyIdx >= 0)
-            newMappings[pyIdx] = pyMapping;
-        else
-            newMappings.push(pyMapping);
-        if (pfMapping) {
-            const pfIdx = newMappings.findIndex((m) => m.provider === 'printful' && m.productId === pfId);
-            if (pfIdx >= 0)
-                newMappings[pfIdx] = pfMapping;
-            else
-                newMappings.push(pfMapping);
+        const combinedImages = mergeImages([], [...pyImagesRaw, ...pfImagesRaw]);
+        // ── Build qrgVariants map ─────────────────────────────────────────────────
+        const qrgVariants = {};
+        const allSizeCodes = new Set();
+        const allColorCodes = new Set();
+        const unmappedSizes = new Set();
+        const unmappedColors = new Set();
+        // Printful variant records (most precise size+color data)
+        if (matchedPrintful && pfId !== null) {
+            for (const v of (variantsByPrintfulId.get(pfId) || [])) {
+                const sizeCode = (0, qrgVariantMappings_1.getQrgSizeCode)(v.size || '');
+                const colorCode = (0, qrgVariantMappings_1.getQrgColorCode)(v.color || '');
+                if (!sizeCode) {
+                    if (v.size)
+                        unmappedSizes.add(v.size);
+                    continue;
+                }
+                if (!colorCode) {
+                    if (v.color)
+                        unmappedColors.add(v.color);
+                    continue;
+                }
+                const vc = `${sizeCode}${colorCode}`;
+                if (!qrgVariants[vc]) {
+                    qrgVariants[vc] = { sizeCode, colorCode, sizeLabel: qrgVariantMappings_1.SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: (v.color || qrgVariantMappings_1.COLOR_LABELS[colorCode]) ?? colorCode, providerVariants: {}, availableVia: [] };
+                }
+                qrgVariants[vc].providerVariants.printful = { variantId: String(v.id || v.variantId || ''), productId: String(pfId) };
+                if (!qrgVariants[vc].availableVia.includes('printful'))
+                    qrgVariants[vc].availableVia.push('printful');
+                allSizeCodes.add(sizeCode);
+                allColorCodes.add(colorCode);
+            }
         }
-        // availableVia — provider badge: sorted array of providers that carry this blank
-        const availableVia = Array.from(new Set(newMappings.map((m) => m.provider))).sort();
-        // ── Merge images by provider — stored separately AND combined ─────────────
-        const existingPyImages = currentDoc?.printifyImages || [];
-        const existingPfImages = currentDoc?.printfulImages || [];
-        const newPyImages = mergeImages(existingPyImages, pyImagesRaw);
-        const newPfImages = pfImagesRaw.length > 0
-            ? mergeImages(existingPfImages, pfImagesRaw)
-            : existingPfImages;
-        const combinedImages = mergeImages([], [...newPyImages, ...newPfImages]);
-        // ── Colors & sizes: Printful variants win if available, else Printify ─────
-        let incomingColors = pfColors;
-        if (incomingColors.length === 0 && Array.isArray(provider?.availableColors))
-            incomingColors = provider.availableColors;
-        const newColors = (0, instance_resolver_1.isMeaningfulValue)(incomingColors) ? incomingColors : (currentDoc?.colors ?? []);
-        let incomingSizes = pfSizes;
-        if (incomingSizes.length === 0 && Array.isArray(provider?.availableSizes))
-            incomingSizes = provider.availableSizes;
-        const newSizes = (0, instance_resolver_1.mergeArrayUnionStrings)(currentDoc?.sizes ?? [], incomingSizes);
+        // Printify size/color coverage from provider staging
+        for (const sizeStr of (Array.isArray(provider?.availableSizes) ? provider.availableSizes : [])) {
+            const sizeCode = (0, qrgVariantMappings_1.getQrgSizeCode)(sizeStr);
+            if (!sizeCode) {
+                unmappedSizes.add(sizeStr);
+                continue;
+            }
+            allSizeCodes.add(sizeCode);
+            for (const colorObj of (Array.isArray(provider?.availableColors) ? provider.availableColors : [])) {
+                const colorName = typeof colorObj === 'string' ? colorObj : (colorObj?.name || '');
+                if (!colorName)
+                    continue;
+                const colorCode = (0, qrgVariantMappings_1.getQrgColorCode)(colorName);
+                if (!colorCode) {
+                    unmappedColors.add(colorName);
+                    continue;
+                }
+                allColorCodes.add(colorCode);
+                const vc = `${sizeCode}${colorCode}`;
+                if (!qrgVariants[vc]) {
+                    qrgVariants[vc] = { sizeCode, colorCode, sizeLabel: qrgVariantMappings_1.SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: colorName, providerVariants: {}, availableVia: [] };
+                }
+                if (!qrgVariants[vc].providerVariants.printify) {
+                    qrgVariants[vc].providerVariants.printify = { blueprintId: String(blueprintId), printProviderId: String(provider?.providerId ?? '') };
+                }
+                if (!qrgVariants[vc].availableVia.includes('printify'))
+                    qrgVariants[vc].availableVia.push('printify');
+            }
+        }
+        // ── Provider availability ─────────────────────────────────────────────────
+        const availableVia = ['printify'];
+        if (matchedPrintful && pfId !== null)
+            availableVia.push('printful');
+        availableVia.sort();
         // ── Pricing ───────────────────────────────────────────────────────────────
         const pyMinCents = provider?.minCost ?? null;
         const pyMin = pyMinCents !== null ? pyMinCents / 100 : null;
@@ -653,41 +661,49 @@ async function syncMasterCatalog(_options = {}) {
         const pyMax = pyMaxCents !== null ? pyMaxCents / 100 : null;
         const newMinPrice = pyMin !== null && pfMinPrice !== null ? Math.max(pyMin, pfMinPrice) : (pyMin ?? pfMinPrice ?? null);
         const newMaxPrice = pyMax !== null && pfMaxPrice !== null ? Math.max(pyMax, pfMaxPrice) : (pyMax ?? pfMaxPrice ?? null);
-        // ── Canonical fields (safe merge — never overwrite with empty) ────────────
+        // ── Canonical fields ──────────────────────────────────────────────────────
         const providerTitle = matchedPrintful?.title || matchedPrintful?.typeName || bp.title || null;
         const canonicalTitle = (0, safeAssign_1.safeAssignRequired)(currentDoc?.canonicalTitle, providerTitle);
         const canonicalBrand = (0, safeAssign_1.safeAssign)(currentDoc?.brand, matchedPrintful?.brand || bp.brand || null);
-        // ── Determine categorySource ──────────────────────────────────────────────
-        // If existing doc was manually set by admin, respect it. Otherwise derive from classification.
-        const categorySource = currentDoc?.categorySource === 'manual'
-            ? 'manual'
-            : (qrgCategory ? 'mapped' : 'inferred');
-        const _blankStr = docId.startsWith('qrg_') ? docId.slice(4) : null;
+        const _blankStr = docId.slice(4);
+        const _parentCat = _blankStr[0];
         const entry = {
             qrgBlankId: _blankStr,
-            qrgParentCategory: _blankStr ? _blankStr[0] : null,
-            qrgProductType: _blankStr ? _blankStr[1] : null,
-            qrgItemNumber: _blankStr ? _blankStr.slice(2) : null,
-            qrgCategory: qrgCategory || 'Unclassified',
+            qrgParentCategory: _parentCat,
+            qrgParentCategoryLabel: PARENT_CAT_LABELS[_parentCat] ?? null,
+            qrgProductType: _blankStr[1],
+            qrgProductTypeLabel: qrgCategory,
+            qrgItemNumber: _blankStr.slice(2),
+            qrgCategory,
             canonicalTitle,
             brand: canonicalBrand || currentDoc?.brand || null,
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, bp.model || matchedPrintful?.model || null),
             description: (0, safeAssign_1.safeAssign)(currentDoc?.description, stripHtml(bp.richDescription || bp.description || null)),
-            providerMappings: newMappings,
-            availableVia,
-            printifyImages: newPyImages,
-            printfulImages: newPfImages,
             images: combinedImages,
-            colors: newColors,
-            sizes: newSizes,
+            availableSizes: Array.from(allSizeCodes).sort(),
+            availableColors: Array.from(allColorCodes).sort(),
+            qrgVariants,
+            providerMappings: {
+                printify: {
+                    blueprintId: String(blueprintId),
+                    printProviderId: String(provider?.providerId ?? ''),
+                    rawTitle: bp.title || null,
+                    rawDescription: bp.description || null,
+                },
+                printful: (matchedPrintful && pfId !== null) ? {
+                    productId: String(pfId),
+                    rawTitle: matchedPrintful.title || matchedPrintful.typeName || null,
+                    rawDescription: matchedPrintful.description || null,
+                } : null,
+            },
+            availableVia,
+            unmappedProviderValues: {
+                sizes: Array.from(unmappedSizes),
+                colors: Array.from(unmappedColors),
+            },
             originCountry: pfOriginCountry || provider?.country || currentDoc?.originCountry || null,
             minPrice: newMinPrice,
             maxPrice: newMaxPrice,
-            categorySource,
-            // ── Top-level carrier IDs for efficient Firestore querying ──
-            printifyBlueprintId: blueprintId,
-            printifyPrintProviderId: provider?.providerId ?? null,
-            printfulProductId: pfId ?? null,
             lastSyncedAt: now,
             updatedAt: now,
         };
@@ -716,75 +732,82 @@ async function syncMasterCatalog(_options = {}) {
         const now = new Date().toISOString();
         const qrgCategory = classifyToQRGCategory(pf.title, pf.typeName);
         const existingQrgDocId = printfulToQrgDoc.get(pfId);
-        const { docId, alreadyExists } = allocateQRGDocId(existingQrgDocId, qrgCategory, `pf_${pfId}`);
+        const allocatedPf = allocateQRGDocId(existingQrgDocId, qrgCategory);
+        if (!allocatedPf) {
+            console.warn(`[MasterCatalog] Skipping unclassified Printful product ${pfId}: "${pf.title}"`);
+            stats.unclassified++;
+            continue;
+        }
+        const { docId, alreadyExists } = allocatedPf;
         printfulToQrgDoc.set(pfId, docId);
         const currentDoc = existingMaster.get(docId) || inProgressDocs.get(docId);
-        const pfVars = variantsByPrintfulId.get(pfId) || [];
-        const colorMap = new Map();
-        const sizeSet = new Set();
-        for (const v of pfVars) {
-            if (v.color && !colorMap.has(v.color))
-                colorMap.set(v.color, v.colorCode || v.color_code || '#888888');
-            if (v.size)
-                sizeSet.add(v.size);
+        // ── Build qrgVariants from Printful variant records ───────────────────────
+        const qrgVariantsPf = {};
+        const pfAllSizeCodes = new Set();
+        const pfAllColorCodes = new Set();
+        const pfUnmappedSizes = new Set();
+        const pfUnmappedColors = new Set();
+        for (const v of (variantsByPrintfulId.get(pfId) || [])) {
+            const sizeCode = (0, qrgVariantMappings_1.getQrgSizeCode)(v.size || '');
+            const colorCode = (0, qrgVariantMappings_1.getQrgColorCode)(v.color || '');
+            if (!sizeCode) {
+                if (v.size)
+                    pfUnmappedSizes.add(v.size);
+                continue;
+            }
+            if (!colorCode) {
+                if (v.color)
+                    pfUnmappedColors.add(v.color);
+                continue;
+            }
+            const vc = `${sizeCode}${colorCode}`;
+            if (!qrgVariantsPf[vc]) {
+                qrgVariantsPf[vc] = { sizeCode, colorCode, sizeLabel: qrgVariantMappings_1.SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: (v.color || qrgVariantMappings_1.COLOR_LABELS[colorCode]) ?? colorCode, providerVariants: {}, availableVia: ['printful'] };
+            }
+            qrgVariantsPf[vc].providerVariants.printful = { variantId: String(v.id || v.variantId || ''), productId: String(pfId) };
+            pfAllSizeCodes.add(sizeCode);
+            pfAllColorCodes.add(colorCode);
         }
-        const incomingColors = Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
-        const incomingSizes = Array.from(sizeSet);
         let pfImagesRaw = extractImageUrls(pf.images);
         if (pfImagesRaw.length === 0 && pf.image)
             pfImagesRaw = [pf.image];
         const pfOriginCountry = pf.originCountry || pf.origin_country || null;
-        const pfMapping = {
-            provider: 'printful',
-            productId: pfId,
-            brand: pf.brand || null,
-            model: pf.model || null,
-            originCountry: pfOriginCountry,
-            isUSA: (pfOriginCountry || '').toUpperCase() === 'US' || (pfOriginCountry || '').toUpperCase() === 'USA',
-        };
-        const existingMappings = currentDoc?.providerMappings || [];
-        const newMappings = [...existingMappings];
-        const pfIdx = newMappings.findIndex((m) => m.provider === 'printful' && m.productId === pfId);
-        if (pfIdx >= 0)
-            newMappings[pfIdx] = pfMapping;
-        else
-            newMappings.push(pfMapping);
-        const availableVia = Array.from(new Set(newMappings.map((m) => m.provider))).sort();
-        const existingPfImages = currentDoc?.printfulImages || [];
-        const existingPyImages = currentDoc?.printifyImages || [];
-        const newPfImages = mergeImages(existingPfImages, pfImagesRaw);
-        const combinedImages = mergeImages([], [...existingPyImages, ...newPfImages]);
         const pfMin = pf.minPrice ? parseFloat(String(pf.minPrice)) : null;
         const pfMax = pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null;
-        const categorySource = currentDoc?.categorySource === 'manual'
-            ? 'manual'
-            : (qrgCategory ? 'mapped' : 'inferred');
-        const _pfBlankStr = docId.startsWith('qrg_') ? docId.slice(4) : null;
+        const _pfBlankStr = docId.slice(4);
+        const _pfParentCat = _pfBlankStr[0];
         const entry = {
             qrgBlankId: _pfBlankStr,
-            qrgParentCategory: _pfBlankStr ? _pfBlankStr[0] : null,
-            qrgProductType: _pfBlankStr ? _pfBlankStr[1] : null,
-            qrgItemNumber: _pfBlankStr ? _pfBlankStr.slice(2) : null,
-            qrgCategory: qrgCategory || 'Unclassified',
+            qrgParentCategory: _pfParentCat,
+            qrgParentCategoryLabel: PARENT_CAT_LABELS[_pfParentCat] ?? null,
+            qrgProductType: _pfBlankStr[1],
+            qrgProductTypeLabel: qrgCategory,
+            qrgItemNumber: _pfBlankStr.slice(2),
+            qrgCategory,
             canonicalTitle: (0, safeAssign_1.safeAssignRequired)(currentDoc?.canonicalTitle, pf.title || pf.typeName || null),
             brand: (0, safeAssign_1.safeAssign)(currentDoc?.brand, pf.brand || null),
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, pf.model || null),
             description: (0, safeAssign_1.safeAssign)(currentDoc?.description, stripHtml(pf.description || null)),
-            providerMappings: newMappings,
-            availableVia,
-            printifyImages: existingPyImages,
-            printfulImages: newPfImages,
-            images: combinedImages,
-            colors: (0, instance_resolver_1.isMeaningfulValue)(incomingColors) ? incomingColors : (currentDoc?.colors ?? []),
-            sizes: (0, instance_resolver_1.mergeArrayUnionStrings)(currentDoc?.sizes ?? [], incomingSizes),
+            images: mergeImages(currentDoc?.images || [], pfImagesRaw),
+            availableSizes: Array.from(pfAllSizeCodes).sort(),
+            availableColors: Array.from(pfAllColorCodes).sort(),
+            qrgVariants: qrgVariantsPf,
+            providerMappings: {
+                printify: null,
+                printful: {
+                    productId: String(pfId),
+                    rawTitle: pf.title || pf.typeName || null,
+                    rawDescription: pf.description || null,
+                },
+            },
+            availableVia: ['printful'],
+            unmappedProviderValues: {
+                sizes: Array.from(pfUnmappedSizes),
+                colors: Array.from(pfUnmappedColors),
+            },
             originCountry: pfOriginCountry || currentDoc?.originCountry || null,
             minPrice: pfMin ?? currentDoc?.minPrice ?? null,
             maxPrice: pfMax ?? currentDoc?.maxPrice ?? null,
-            categorySource,
-            // ── Top-level carrier IDs for efficient Firestore querying ──
-            printifyBlueprintId: null,
-            printifyPrintProviderId: null,
-            printfulProductId: pfId,
             lastSyncedAt: now,
             updatedAt: now,
         };
