@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
+import { buildGraphicId, grfCounterKey, GRF_TYPE_MAP } from '../../../shared/graphicCodes';
+import type { GrfTypeCode, GrfRoleCode } from '../../../shared/graphicCodes';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
@@ -223,7 +225,7 @@ app.post('/upload', async (req: Request, res: Response): Promise<void> => {
 app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const typeFilter = (req.query.type as string) || 'source';
-    const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
+    const validTypes = ['source', 'cropped', 'background', 'graphic', 'template', 'design'];
     if (!validTypes.includes(typeFilter)) {
       res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
       return;
@@ -664,6 +666,113 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
     });
   } catch (error: any) {
     console.error('[Graphics] Error saving graphics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Mint a GRF code and save a graphic asset to library_assets
+app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { typeCode, roleCode, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
+
+    if (!typeCode || !roleCode || !imageUrl) {
+      res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
+      return;
+    }
+
+    const validTypeCodes = Object.keys(GRF_TYPE_MAP) as GrfTypeCode[];
+    if (!validTypeCodes.includes(typeCode as GrfTypeCode)) {
+      res.status(400).json({ error: `Invalid typeCode. Must be one of: ${validTypeCodes.join(', ')}` });
+      return;
+    }
+
+    const entry = GRF_TYPE_MAP[typeCode as GrfTypeCode];
+    if (!entry.validRoles.includes(roleCode as GrfRoleCode)) {
+      res.status(400).json({
+        error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
+      });
+      return;
+    }
+
+    // Atomically mint the next sequence number for this typeCode+roleCode pair
+    const counterKey = grfCounterKey(typeCode as GrfTypeCode, roleCode as GrfRoleCode);
+    const counterRef = db.collection('grf_counters').doc(counterKey);
+    let newSeq = 0;
+    await db.runTransaction(async (transaction: any) => {
+      const doc = await transaction.get(counterRef);
+      newSeq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
+      transaction.set(counterRef, {
+        count: newSeq,
+        typeCode,
+        roleCode,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    const graphicId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const assetData: Record<string, any> = {
+      ownerType: 'admin',
+      assetType: 'graphic',
+      mediaType: 'image',
+      name: name || `${entry.label} ${graphicId}`,
+      description: description || null,
+      fileName: graphicId,
+      originalName: name || graphicId,
+      mimeType: 'image/png',
+      sizeBytes: 0,
+      storageUrl: imageUrl,
+      publicUrl: imageUrl,
+      thumbnailUrl: imageUrl,
+      graphicId,
+      graphicType: entry.label,
+      typeCode,
+      roleCode,
+      tags: tags || null,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (relatedPacketId) assetData.relatedPacketId = relatedPacketId;
+    if (relatedQrgCode) assetData.relatedQrgCode = relatedQrgCode;
+    if (relatedProductInstanceId) assetData.relatedProductInstanceId = relatedProductInstanceId;
+
+    const docRef = await db.collection('library_assets').add(assetData);
+    const doc = await docRef.get();
+
+    console.log(`[GRF] Minted ${graphicId} → library_assets/${docRef.id}`);
+    res.json({ success: true, id: docRef.id, graphicId, asset: docToObject(doc) });
+  } catch (error: any) {
+    console.error('[GRF] Error saving graphic:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Get graphics from library (assetType=graphic), optionally filtered by typeCode
+app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { typeCode, roleCode } = req.query;
+    let query: any = db.collection('library_assets').where('assetType', '==', 'graphic').where('isActive', '==', true);
+    if (typeCode) query = query.where('typeCode', '==', typeCode);
+    if (roleCode) query = query.where('roleCode', '==', roleCode);
+    const snapshot = await query.get();
+    const assets = snapshot.docs
+      .map((doc: any) => docToObject(doc))
+      .sort((a: any, b: any) => {
+        const getTime = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val === 'string') return new Date(val).getTime() || 0;
+          if (val.toDate) return val.toDate().getTime();
+          if (val._seconds) return val._seconds * 1000;
+          return 0;
+        };
+        return getTime(b.createdAt) - getTime(a.createdAt);
+      });
+    res.json(assets);
+  } catch (error: any) {
+    console.error('[GRF] Error fetching graphics:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -4,6 +4,7 @@ exports.processQueueInBackground = processQueueInBackground;
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
+const graphicCodes_1 = require("../../../shared/graphicCodes");
 const storage_helpers_1 = require("../services/storage-helpers");
 const mockup_generator_1 = require("../services/mockup-generator");
 async function processQueueInBackground() {
@@ -197,7 +198,7 @@ function register(app) {
     app.get('/admin/background-assets', middleware_1.requireAdmin, async (req, res) => {
         try {
             const typeFilter = req.query.type || 'source';
-            const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
+            const validTypes = ['source', 'cropped', 'background', 'graphic', 'template', 'design'];
             if (!validTypes.includes(typeFilter)) {
                 res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
                 return;
@@ -607,6 +608,113 @@ function register(app) {
         }
         catch (error) {
             console.error('[Graphics] Error saving graphics:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // Admin: Mint a GRF code and save a graphic asset to library_assets
+    app.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { typeCode, roleCode, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
+            if (!typeCode || !roleCode || !imageUrl) {
+                res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
+                return;
+            }
+            const validTypeCodes = Object.keys(graphicCodes_1.GRF_TYPE_MAP);
+            if (!validTypeCodes.includes(typeCode)) {
+                res.status(400).json({ error: `Invalid typeCode. Must be one of: ${validTypeCodes.join(', ')}` });
+                return;
+            }
+            const entry = graphicCodes_1.GRF_TYPE_MAP[typeCode];
+            if (!entry.validRoles.includes(roleCode)) {
+                res.status(400).json({
+                    error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
+                });
+                return;
+            }
+            // Atomically mint the next sequence number for this typeCode+roleCode pair
+            const counterKey = (0, graphicCodes_1.grfCounterKey)(typeCode, roleCode);
+            const counterRef = core_1.db.collection('grf_counters').doc(counterKey);
+            let newSeq = 0;
+            await core_1.db.runTransaction(async (transaction) => {
+                const doc = await transaction.get(counterRef);
+                newSeq = (doc.exists ? doc.data().count : 0) + 1;
+                transaction.set(counterRef, {
+                    count: newSeq,
+                    typeCode,
+                    roleCode,
+                    updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                });
+            });
+            const graphicId = (0, graphicCodes_1.buildGraphicId)(typeCode, roleCode, newSeq);
+            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+            const assetData = {
+                ownerType: 'admin',
+                assetType: 'graphic',
+                mediaType: 'image',
+                name: name || `${entry.label} ${graphicId}`,
+                description: description || null,
+                fileName: graphicId,
+                originalName: name || graphicId,
+                mimeType: 'image/png',
+                sizeBytes: 0,
+                storageUrl: imageUrl,
+                publicUrl: imageUrl,
+                thumbnailUrl: imageUrl,
+                graphicId,
+                graphicType: entry.label,
+                typeCode,
+                roleCode,
+                tags: tags || null,
+                isActive: true,
+                createdAt: now,
+                updatedAt: now,
+            };
+            if (relatedPacketId)
+                assetData.relatedPacketId = relatedPacketId;
+            if (relatedQrgCode)
+                assetData.relatedQrgCode = relatedQrgCode;
+            if (relatedProductInstanceId)
+                assetData.relatedProductInstanceId = relatedProductInstanceId;
+            const docRef = await core_1.db.collection('library_assets').add(assetData);
+            const doc = await docRef.get();
+            console.log(`[GRF] Minted ${graphicId} → library_assets/${docRef.id}`);
+            res.json({ success: true, id: docRef.id, graphicId, asset: (0, core_1.docToObject)(doc) });
+        }
+        catch (error) {
+            console.error('[GRF] Error saving graphic:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // Admin: Get graphics from library (assetType=graphic), optionally filtered by typeCode
+    app.get('/admin/graphics', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { typeCode, roleCode } = req.query;
+            let query = core_1.db.collection('library_assets').where('assetType', '==', 'graphic').where('isActive', '==', true);
+            if (typeCode)
+                query = query.where('typeCode', '==', typeCode);
+            if (roleCode)
+                query = query.where('roleCode', '==', roleCode);
+            const snapshot = await query.get();
+            const assets = snapshot.docs
+                .map((doc) => (0, core_1.docToObject)(doc))
+                .sort((a, b) => {
+                const getTime = (val) => {
+                    if (!val)
+                        return 0;
+                    if (typeof val === 'string')
+                        return new Date(val).getTime() || 0;
+                    if (val.toDate)
+                        return val.toDate().getTime();
+                    if (val._seconds)
+                        return val._seconds * 1000;
+                    return 0;
+                };
+                return getTime(b.createdAt) - getTime(a.createdAt);
+            });
+            res.json(assets);
+        }
+        catch (error) {
+            console.error('[GRF] Error fetching graphics:', error);
             res.status(500).json({ error: error.message });
         }
     });

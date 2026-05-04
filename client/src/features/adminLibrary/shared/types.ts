@@ -4,6 +4,7 @@ export type AssetType =
   | "source"
   | "cropped"
   | "background"
+  | "graphic"
   | "template"
   | "design"
   | "unknown";

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, Loader2, Check, BookmarkCheck, CheckCircle2, Copy, Pencil } from "lucide-react";
+import { Package, Loader2, Check, BookmarkCheck, CheckCircle2, Copy, Pencil, QrCode, Layers } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -50,6 +50,10 @@ export function CreateGraphicsModule() {
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
+  const [isSavingQr, setIsSavingQr] = useState(false);
+  const [isSavingCanvas, setIsSavingCanvas] = useState(false);
+  const [qrSaved, setQrSaved] = useState(false);
+  const [canvasSaved, setCanvasSaved] = useState(false);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
@@ -92,12 +96,65 @@ export function CreateGraphicsModule() {
     loadGraphic, resetBuilder, pricingSettings,
   });
 
-  // Sync activePacketId when a new packet is freshly created
+  // Reset save state whenever a new packet is created
   useEffect(() => {
     if (packetResult?.packetId) {
       setActivePacketId(packetResult.packetId);
+      setQrSaved(false);
+      setCanvasSaved(false);
     }
   }, [packetResult?.packetId]);
+
+  const graphicName = (() => {
+    const parts = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean);
+    return parts.length > 0 ? parts.join(' / ') : (state.content?.title || null);
+  })();
+
+  const handleSaveQrGraphic = async () => {
+    if (isSavingQr || !packetResult?.qrOnlyUrl) return;
+    setIsSavingQr(true);
+    try {
+      await adminFetch('/graphics/save-grf', {
+        method: 'POST',
+        json: {
+          typeCode: '04',
+          roleCode: 'R',
+          imageUrl: packetResult.qrOnlyUrl,
+          name: graphicName ? `${graphicName} — QR Graphic` : 'QR Graphic',
+          relatedPacketId: packetResult.packetId,
+        },
+      });
+      setQrSaved(true);
+      toast({ title: 'QR Graphic saved to library' });
+    } catch (err: any) {
+      toast({ title: 'Save failed', description: err.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSavingQr(false);
+    }
+  };
+
+  const handleSaveCanvasDesign = async () => {
+    if (isSavingCanvas || !packetResult?.compositeUrl) return;
+    setIsSavingCanvas(true);
+    try {
+      await adminFetch('/graphics/save-grf', {
+        method: 'POST',
+        json: {
+          typeCode: '05',
+          roleCode: 'F',
+          imageUrl: packetResult.compositeUrl,
+          name: graphicName ? `${graphicName} — Canvas Design` : 'Canvas Design',
+          relatedPacketId: packetResult.packetId,
+        },
+      });
+      setCanvasSaved(true);
+      toast({ title: 'Canvas Design saved to library' });
+    } catch (err: any) {
+      toast({ title: 'Save failed', description: err.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSavingCanvas(false);
+    }
+  };
 
   // When re-selecting a product whose session already has a packet, restore
   // the PacketResultDisplay automatically instead of showing "Create Packet".
@@ -264,6 +321,51 @@ export function CreateGraphicsModule() {
               } : prev);
             }}
           />
+        )}
+
+        {/* Save to Library — shown whenever a packet has saveable graphic URLs */}
+        {packetResult && (packetResult.qrOnlyUrl || packetResult.compositeUrl) && (
+          <div className="pt-2 border-t space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">Save graphics to library</p>
+            <div className="flex flex-wrap gap-2">
+              {packetResult.qrOnlyUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveQrGraphic}
+                  disabled={isSavingQr || qrSaved}
+                  data-testid="button-save-qr-graphic"
+                >
+                  {isSavingQr ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : qrSaved ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                  ) : (
+                    <QrCode className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {qrSaved ? 'QR Saved' : 'Save QR Graphic'}
+                </Button>
+              )}
+              {packetResult.compositeUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveCanvasDesign}
+                  disabled={isSavingCanvas || canvasSaved}
+                  data-testid="button-save-canvas-design"
+                >
+                  {isSavingCanvas ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : canvasSaved ? (
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                  ) : (
+                    <Layers className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {canvasSaved ? 'Canvas Saved' : 'Save Canvas Design'}
+                </Button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Build session commit — only shown when session artifact is ready */}
