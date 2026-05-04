@@ -29,17 +29,29 @@ class PrintifyClient {
         const shopId = getPrintifyShopId();
         return !!key && key.length > 10 && !!shopId;
     }
-    async request(method, endpoint, body) {
+    async request(method, endpoint, body, timeoutMs = 15000) {
         const url = `${PRINTIFY_API_BASE}${endpoint}`;
-        const options = { method, headers: this.headers };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const options = { method, headers: this.headers, signal: controller.signal };
         if (body)
             options.body = JSON.stringify(body);
-        const response = await fetch(url, options);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Printify API error: ${response.status} - ${errorText}`);
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Printify API error: ${response.status} - ${errorText}`);
+            }
+            return response.json();
         }
-        return response.json();
+        catch (e) {
+            if (e.name === 'AbortError')
+                throw new Error(`Printify request timed out after ${timeoutMs}ms: ${endpoint}`);
+            throw e;
+        }
+        finally {
+            clearTimeout(timer);
+        }
     }
     async createOrder(orderRequest) {
         const shopId = getPrintifyShopId();

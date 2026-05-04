@@ -561,7 +561,7 @@ function registerAdminBuildSessions(app) {
                 instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
                 catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
                 baseSnapshot, overrides, resolved,
-                // QRG identity — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
+                // QRG identity — canonical schema: QRG-[STNNN]-[C]-[NNNNNN]
                 qrgBlankId: qrgIdentity.qrgBlankId,
                 qrgContext: qrgIdentity.qrgContext,
                 instanceNumber: qrgIdentity.instanceNumber,
@@ -987,7 +987,7 @@ function registerAdminBuildSessions(app) {
     });
     // ── QRG Instance Number Allocation ────────────────────────────────────────
     // Allocates the next sequential instanceNumber for a given blank+context pair.
-    // Schema: QRG-[STNNN]-[C]-[IIIIII]
+    // Schema: QRG-[STNNN]-[C]-[NNNNNN]
     //   qrgBlankId  = 5-digit STNNN (e.g. "11101")
     //   contextCode = I | M | E | O  (Internal / Member / External / Owner)
     //   instanceNumber returned as 6-digit zero-padded string e.g. "000001"

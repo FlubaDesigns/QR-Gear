@@ -195,7 +195,7 @@ function register(app) {
                 overrides,
                 resolved,
                 colorMap: Object.keys(colorMap).length > 0 ? colorMap : null,
-                // QRG identity — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
+                // QRG identity — canonical schema: QRG-[STNNN]-[C]-[NNNNNN]
                 qrgBlankId: qrgIdentity.qrgBlankId,
                 qrgContext: qrgIdentity.qrgContext,
                 instanceNumber: qrgIdentity.instanceNumber,
@@ -523,7 +523,7 @@ function register(app) {
                 baseSnapshot,
                 overrides,
                 resolved,
-                // QRG identity — canonical schema: QRG-[STNNN]-[C]-[IIIIII]
+                // QRG identity — canonical schema: QRG-[STNNN]-[C]-[NNNNNN]
                 qrgBlankId: memberQrgIdentity.qrgBlankId,
                 qrgContext: memberQrgIdentity.qrgContext,
                 instanceNumber: memberQrgIdentity.instanceNumber,
