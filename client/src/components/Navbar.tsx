@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { signOut } from "@/lib/firebase";
 import type { CartItem } from "@shared/schema";
-import { QRGearLogo } from "@/components/QRGearLogo";
+import logoPng from "@/assets/logo.png";
 
 export default function Navbar() {
   const [location, setLocation] = useLocation();
@@ -86,7 +86,7 @@ export default function Navbar() {
       <header className="site-header">
         <div className="container header__inner">
           <Link href="/" className="brand" data-testid="link-home">
-            <QRGearLogo size={34} />
+            <img src={logoPng} alt="QR Gear" className="brand__logo-svg" />
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
