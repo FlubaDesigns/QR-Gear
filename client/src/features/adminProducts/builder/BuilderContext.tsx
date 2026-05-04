@@ -441,47 +441,52 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     });
   }, []);
 
-  // Shared placement fetch — called by selectProduct, loadFromWorkingState, loadFromPacketData
-  // preferredProvider: the builder's active provider selection (e.g. 'printful' or 'printify'),
-  // which takes precedence over the product's own fulfillmentProvider when set.
-  const fetchPlacementsForProduct = useCallback((product: CatalogProduct, preferredProvider?: string | null) => {
-    // Resolve provider: prefer the builder's explicit choice, then the product field,
-    // then default to printify. 'both' is never a valid API value.
-    const rawProvider = preferredProvider || product.fulfillmentProvider || 'printify';
-    const provider = (rawProvider === 'both')
-      ? (product.blueprintId ? 'printify' : 'printful')
-      : rawProvider;
-    const params = new URLSearchParams({ provider });
-    if (provider === 'printify') {
-      if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
-      if (product.printProviderId) params.set('printProviderId', String(product.printProviderId));
-    } else {
-      params.set('productId', String(product.id));
+  // Fetch QRG-native options for a product — single source of truth for placements,
+  // colors, sizes, and variant mappings. Called by selectProduct, loadFromWorkingState,
+  // and loadFromPacketData. Race-guarded by docId.
+  const fetchOptionsForProduct = useCallback((product: CatalogProduct) => {
+    const docId = product.docId;
+    if (!docId || !/^qrg_/.test(docId)) {
+      console.warn('[BuilderContext] Product missing qrg_ docId, skipping options fetch:', docId);
+      setState(prev => {
+        if (prev.selectedProduct?.docId !== docId) return prev;
+        return { ...prev, placementsLoading: false };
+      });
+      return;
     }
 
-    adminFetch<any>(`/catalog/placements?${params}`)
-      .then(data => {
-        if (data.placements && data.placements.length > 0) {
-          setState(prev => {
-            if (prev.selectedProduct?.id !== product.id) return prev;
-            return {
-              ...prev,
-              selectedProduct: { ...prev.selectedProduct!, placements: data.placements },
-              placementsLoading: false,
-            };
-          });
-        } else {
-          setState(prev => {
-            if (prev.selectedProduct?.id !== product.id) return prev;
-            return { ...prev, placementsLoading: false };
-          });
-        }
+    adminFetch<any>(`/master-catalog/products/${docId}/options`)
+      .then(options => {
+        setState(prev => {
+          if (prev.selectedProduct?.docId !== docId) return prev;
+
+          // Map QRG print locations → builder ProductPlacement shape
+          const printLocations: ProductPlacement[] = (options.printLocations || []).map((pl: any) => ({
+            id: pl.id,
+            type: pl.id,
+            title: pl.label || pl.id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            additionalPrice: 0,
+            methods: [],
+          }));
+
+          const merged: CatalogProduct = {
+            ...prev.selectedProduct!,
+            placements: printLocations.length > 0 ? printLocations : (prev.selectedProduct!.placements || []),
+            printLocations: options.printLocations || [],
+            qrgBlankId: options.qrgBlankId || prev.selectedProduct!.qrgBlankId,
+            qrgVariants: options.qrgVariants || {},
+            providerMappings: options.providerMappings || prev.selectedProduct!.providerMappings,
+            optionsLoaded: true,
+          };
+
+          return { ...prev, selectedProduct: merged, placementsLoading: false, placementsError: null };
+        });
       })
       .catch(err => {
-        console.error('Failed to fetch placements:', err);
+        console.error('[BuilderContext] Failed to fetch product options:', err);
         setState(prev => {
-          if (prev.selectedProduct?.id !== product.id) return prev;
-          return { ...prev, placementsLoading: false, placementsError: err?.message || 'Failed to load placements from printer' };
+          if (prev.selectedProduct?.docId !== docId) return prev;
+          return { ...prev, placementsLoading: false, placementsError: err?.message || 'Failed to load product options' };
         });
       });
   }, []);
@@ -492,62 +497,25 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return;
     }
 
-    // Resolve fields using active carrier first, fall back to the other carrier field-by-field.
-    // This is the single source of truth resolution — active carrier leads on every field.
-    const activeProvider = state.fulfillmentProvider || 'printful';
-    const otherProvider = activeProvider === 'printify' ? 'printful' : 'printify';
-    const activeSub = (product as any)[activeProvider] || {};
-    const otherSub = (product as any)[otherProvider] || {};
+    const masterTitle = product.title || null;
+    const masterDescription = product.description || null;
 
-    const resolveStr = (field: string): string | null => {
-      const v = activeSub[field] ?? otherSub[field] ?? (product as any)[field];
-      return typeof v === 'string' && v.trim() ? v.trim() : null;
-    };
-    const resolveArr = (field: string, legacyField?: string): any[] => {
-      if (Array.isArray(activeSub[field]) && activeSub[field].length > 0) return activeSub[field];
-      if (Array.isArray(otherSub[field]) && otherSub[field].length > 0) return otherSub[field];
-      const legacy = legacyField ? (product as any)[legacyField] : null;
-      return Array.isArray(legacy) && legacy.length > 0 ? legacy : [];
-    };
+    // Immediately seat the product with optionsLoaded=false and start loading.
+    // fetchOptionsForProduct will merge placements/qrgBlankId/qrgVariants once resolved.
+    setState(prev => ({
+      ...prev,
+      selectedProduct: { ...product, optionsLoaded: false },
+      masterTitle,
+      adminCatalogTitle: null,
+      masterDescription,
+      productDescription: masterDescription,
+      adminCatalogDescription: null,
+      placementsLoading: true,
+      placementsError: null,
+    }));
 
-    const masterTitle = resolveStr('title');
-    const masterDescription = resolveStr('description');
-    const resolvedColors = resolveArr('colors', 'availableColors');
-    const resolvedSizes = resolveArr('sizes', 'availableSizes');
-
-    // Normalize stored carrier placements to the builder's ProductPlacement format
-    const rawPlacements = resolveArr('placements');
-    const seen = new Set<string>();
-    const resolvedPlacements = rawPlacements
-      .map((p: any) => {
-        const id = p.id ?? p.position ?? p.type ?? '';
-        return {
-          id,
-          type: id,
-          title: p.title ?? p.label ?? id.replace(/_/g, ' '),
-          additionalPrice: p.additionalPrice ?? 0,
-          methods: p.methods ?? [],
-          widthPx: p.printArea?.width ?? p.widthPx ?? null,
-          heightPx: p.printArea?.height ?? p.heightPx ?? null,
-        };
-      })
-      .filter((p: any) => p.id && !seen.has(p.id) && seen.add(p.id));
-
-    const resolvedProduct: CatalogProduct = {
-      ...product,
-      availableColors: resolvedColors.length > 0 ? resolvedColors : product.availableColors,
-      availableSizes: resolvedSizes.length > 0 ? resolvedSizes : product.availableSizes,
-      placements: resolvedPlacements.length > 0 ? resolvedPlacements : (product.placements || []),
-    };
-
-    if (resolvedProduct.placements && resolvedProduct.placements.length > 0) {
-      setState(prev => ({ ...prev, selectedProduct: resolvedProduct, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
-      return;
-    }
-
-    setState(prev => ({ ...prev, selectedProduct: resolvedProduct, masterTitle, adminCatalogTitle: null, masterDescription, productDescription: masterDescription, adminCatalogDescription: null, placementsLoading: true, placementsError: null }));
-    fetchPlacementsForProduct(resolvedProduct, activeProvider);
-  }, [fetchPlacementsForProduct, state.fulfillmentProvider]);
+    fetchOptionsForProduct(product);
+  }, [fetchOptionsForProduct]);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {
     setState(prev => ({
@@ -670,9 +638,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     if (metadata.selectedChannel) setSelectedChannel(metadata.selectedChannel as Channel);
     if (metadata.selectedCollection) setSelectedCollection(metadata.selectedCollection as Collection);
 
-    // Catalog products never carry placements — we need to re-fetch from the API
     const product = resolvedProduct ?? null;
-    const needsPlacementFetch = !!(product && (!product.placements || product.placements.length === 0));
+    const needsOptionsFetch = !!(product && !product.optionsLoaded);
 
     setState(prev => ({
       ...prev,
@@ -689,12 +656,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementMethods: (layoutConfig.placementMethods as PrintMethodSelection) ?? {},
       adminCatalogTitle: working.title ?? null,
       productDescription: working.description ?? null,
-      selectedProduct: product ?? prev.selectedProduct,
-      placementsLoading: needsPlacementFetch,
+      selectedProduct: product ? { ...product, optionsLoaded: false } : prev.selectedProduct,
+      placementsLoading: needsOptionsFetch,
       placementsError: null,
       activePacketId: null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
-      // Restore filter/provider state directly (bypassing setters that have destructive side effects)
       fulfillmentProvider: (metadata.fulfillmentProvider as string) ?? prev.fulfillmentProvider,
       category: (metadata.category as string) ?? null,
       originFilter: (metadata.originFilter as OriginFilter) ?? prev.originFilter,
@@ -702,10 +668,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       sourceType: (metadata.sourceType as SourceType) ?? prev.sourceType,
     }));
 
-    if (needsPlacementFetch && product) {
-      fetchPlacementsForProduct(product);
+    if (needsOptionsFetch && product) {
+      fetchOptionsForProduct(product);
     }
-  }, [setSelectedStore, setSelectedChannel, setSelectedCollection, fetchPlacementsForProduct]);
+  }, [setSelectedStore, setSelectedChannel, setSelectedCollection, fetchOptionsForProduct]);
 
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
@@ -819,8 +785,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       blueprintId,
     );
 
-    // Catalog products never carry placements — we need to re-fetch from the API
-    const needsPlacementFetch = !!(resolvedProduct && (!resolvedProduct.placements || resolvedProduct.placements.length === 0));
+    const needsOptionsFetch = !!(resolvedProduct && !resolvedProduct.optionsLoaded);
 
     setState(prev => ({
       ...prev,
@@ -836,16 +801,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       activePacketId: null,
       templateBaseline: baseline,
       templateProductHint: hint,
-      selectedProduct: resolvedProduct ?? null,
+      selectedProduct: resolvedProduct ? { ...resolvedProduct, optionsLoaded: false } : null,
       productDescription: packetData.productDescription ?? resolvedProduct?.description ?? null,
-      placementsLoading: needsPlacementFetch,
+      placementsLoading: needsOptionsFetch,
       placementsError: null,
     }));
 
-    if (needsPlacementFetch && resolvedProduct) {
-      fetchPlacementsForProduct(resolvedProduct);
+    if (needsOptionsFetch && resolvedProduct) {
+      fetchOptionsForProduct(resolvedProduct);
     }
-  }, [fetchPlacementsForProduct]);
+  }, [fetchOptionsForProduct]);
 
   const hasChangesFromBaseline = useCallback((): boolean => {
     if (!state.templateBaseline) return true;

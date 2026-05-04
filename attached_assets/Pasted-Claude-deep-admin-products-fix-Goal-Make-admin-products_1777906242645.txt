@@ -1,0 +1,265 @@
+Claude — deep admin/products fix.
+
+Goal:
+Make admin/products build flow use the QRG-native master product options endpoint as the single source for colors, sizes, print locations, variants, and provider mappings.
+
+Current broken flow:
+1. ProductsModule loads products from /api/master-catalog.
+2. BuilderContext.selectProduct() checks product.placements.
+3. If placements are missing, it manually calls:
+   GET /catalog/placements?provider=printify&blueprintId=...&printProviderId=...
+4. useCreatePacket.ts pulls availableSizes/availableColors directly from selectedProduct.
+5. useCreatePacket.ts still hardcodes:
+   QRG_BLUEPRINT_BLANK_CODES = { 12: '101' }
+
+This is wrong. It bypasses the QRG schema.
+
+============================================================
+CORRECT FLOW
+============================================================
+
+When a product is selected in admin/products:
+
+1. Resolve canonical docId:
+   selectedProduct.docId
+
+Example:
+qrg_11111
+
+2. Call:
+
+GET /api/admin/master-catalog/products/qrg_11111/options
+
+3. Store returned data on selectedProduct / builder state.
+
+4. UI uses only that hydrated selected product for:
+   - sizes
+   - colors
+   - placements / print locations
+   - qrgVariants
+   - provider mappings
+
+5. Packet creation uses:
+   - product.qrgBlankId
+   - product.docId
+   - selected size/color codes
+   - selected placement IDs
+
+No blueprint-to-QRG mapping in client. Ever.
+
+============================================================
+FILES TO FIX
+============================================================
+
+1. client/src/features/adminProducts/builder/BuilderContext.tsx
+
+Replace selectProduct() placement logic.
+
+Current bad behavior:
+- Builds URLSearchParams with provider, blueprintId, printProviderId
+- Calls /catalog/placements directly
+
+New behavior:
+- If product is null, clear selected product.
+- If product.docId is missing or not qrg_*, set error.
+- Set selectedProduct immediately with placementsLoading true.
+- Fetch:
+  `${api.baseUrl}/master-catalog/products/${product.docId}/options`
+- Merge response into selectedProduct.
+
+Expected merged product shape:
+
+selectedProduct = {
+  ...product,
+  docId,
+  qrgBlankId,
+  availableSizes,
+  availableColors,
+  placements: options.printLocations || options.placements || [],
+  printLocations: options.printLocations || [],
+  qrgVariants,
+  providerMappings,
+  provider: options.provider,
+  optionsLoaded: true
+}
+
+Do NOT call:
+GET /catalog/placements
+from BuilderContext anymore.
+
+Important:
+Race guard should compare docId, not product.id.
+
+Bad:
+prev.selectedProduct?.id !== product.id
+
+Good:
+prev.selectedProduct?.docId !== product.docId
+
+2. client/src/features/adminProducts/builder/types.ts
+
+Update CatalogProduct interface to include:
+
+qrgBlankId?: string;
+qrgVariants?: Record<string, any>;
+providerMappings?: Record<string, any>;
+printLocations?: ProductPlacement[];
+optionsLoaded?: boolean;
+
+availableSizes should support QRG option objects or normalized labels.
+availableColors should support QRG option objects with:
+code
+label
+hex
+providerValues
+
+3. client/src/features/adminProducts/builder/modules/PlacementModule.tsx
+
+Use:
+
+state.selectedProduct.printLocations
+or
+state.selectedProduct.placements
+
+Do not care about provider IDs.
+
+PlacementModule should display:
+- colors from selectedProduct.availableColors
+- placements from selectedProduct.printLocations/placements
+- loading state from BuilderContext
+
+4. client/src/features/adminProducts/builder/modules/useCreatePacket.ts
+
+Remove completely:
+
+QRG_BLUEPRINT_BLANK_CODES
+/qrg/allocate
+qrgBlankCode based on blueprintId
+
+Packet creation must not allocate QRG identity from blueprintId.
+
+Use selected product data:
+
+sourceMasterId = product.docId
+qrgBlankId = product.qrgBlankId
+qrgVariants = product.qrgVariants
+availableSizes = product.availableSizes
+availableColors = product.availableColors
+availablePlacements = product.printLocations || product.placements || []
+
+Do not generate qrgId here.
+
+If instance/session code is needed, it must come from the build session / instance layer, not from packet creation.
+
+5. client/src/features/adminProducts/builder/modules/ProductsModule.tsx
+
+Stop using provider/numeric fallback as the primary catalog key.
+
+Current code still builds py_/pf_/numeric fallback sets.
+
+Since we are greenfield, catalog blankIds should be canonical:
+qrg_11111
+
+Use:
+const blankKey = p.docId
+
+For catalog overrides:
+blankTitles[p.docId]
+blankDescriptions[p.docId]
+blankImages[p.docId]
+blankTiers[p.docId]
+
+If p.docId is missing, do not guess provider ID. Show error / skip.
+
+6. Backend endpoint required:
+
+GET /admin/master-catalog/products/:docId/options
+
+Must return:
+{
+  docId,
+  qrgBlankId,
+  title,
+  description,
+  brand,
+  model,
+  availableSizes,
+  availableColors,
+  printLocations,
+  qrgVariants,
+  providerMappings,
+  provider
+}
+
+If this endpoint does not exist yet, create it in:
+functions/src/routes/master-catalog.ts
+
+It should load master_catalog/:docId and return stored options.
+If printLocations are missing but provider mapping exists, it may fall back server-side to existing placement helper.
+The frontend must never call provider placements directly.
+
+============================================================
+BEST IMPLEMENTATION ORDER
+============================================================
+
+Step 1:
+Add/verify backend endpoint:
+GET /admin/master-catalog/products/:docId/options
+
+Step 2:
+Patch BuilderContext.selectProduct() to call the options endpoint.
+
+Step 3:
+Patch useCreatePacket.ts to remove QRG_BLUEPRINT_BLANK_CODES and /qrg/allocate.
+
+Step 4:
+Patch ProductsModule catalog keys to use docId only.
+
+Step 5:
+Patch PlacementModule only if needed after selectedProduct is hydrated.
+
+============================================================
+ACCEPTANCE TESTS
+============================================================
+
+1. Selecting qrg_11111 in admin/products makes exactly one options call:
+GET /api/admin/master-catalog/products/qrg_11111/options
+
+2. Selecting qrg_11111 does NOT call:
+GET /api/admin/catalog/placements
+GET /api/catalog/placements
+GET /api/public/catalog/placements
+
+3. Builder placement UI shows print locations from the options response.
+
+4. Builder color UI shows colors from the options response.
+
+5. Builder size data comes from qrgVariants / availableSizes from the options response.
+
+6. useCreatePacket.ts has no:
+QRG_BLUEPRINT_BLANK_CODES
+/qrg/allocate
+blueprint-to-QRG mapping
+
+7. Packet payload includes:
+sourceMasterId: qrg_11111
+qrgBlankId: 11111
+
+8. Packet payload does not invent QRG identity.
+
+9. Catalog overrides use qrg_11111 as the key.
+
+10. No client code needs blueprintId or printProviderId to build the product UI.
+
+============================================================
+BLUNT SUMMARY
+============================================================
+
+The best fix is not to sprinkle another fetch into the page.
+
+The best fix is:
+selectProduct(product)
+→ hydrate product from QRG options endpoint
+→ everything downstream uses hydrated selectedProduct.
+
+That makes admin/products QRG-native and stops the provider leakage.

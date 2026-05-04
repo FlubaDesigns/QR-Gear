@@ -65,10 +65,32 @@ export interface CarrierSubData {
   productId?: number;
 }
 
+export interface QrgColorOption {
+  code: string;
+  label: string;
+  hex?: string;
+  providerValues?: string[];
+}
+
+export interface QrgSizeOption {
+  code: string;
+  label: string;
+  providerValues?: string[];
+}
+
+export interface QrgPrintLocation {
+  id: string;
+  label: string;
+  provider: string;
+  providerPlacement: string;
+}
+
 export interface CatalogProduct {
   id: number;
   /** Firestore document ID — always send this as sourceMasterId to build-session endpoints */
   docId?: string;
+  /** QRG blank identifier — 5-digit STNNN, e.g. "11101" */
+  qrgBlankId?: string;
   title: string;
   description?: string;
   brand: string;
@@ -86,10 +108,18 @@ export interface CatalogProduct {
   hasMockupMapping?: boolean;
   // Dynamic placements from print provider API
   placements?: ProductPlacement[];
+  /** QRG-native print locations from the /options endpoint */
+  printLocations?: QrgPrintLocation[];
   fulfillmentProvider?: 'printful' | 'printify';
   // Per-carrier sub-objects — single source of truth
   printify?: CarrierSubData;
   printful?: CarrierSubData;
+  /** QRG variant map keyed by SSCC (sizeCode+colorCode) */
+  qrgVariants?: Record<string, any>;
+  /** Provider mapping object { printify: {...}, printful: {...} } */
+  providerMappings?: Record<string, any>;
+  /** True once the /options endpoint has been called and merged */
+  optionsLoaded?: boolean;
 }
 
 export interface OriginFilter {

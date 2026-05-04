@@ -179,7 +179,7 @@ export function PlacementModule() {
         {isLoading && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span>Loading placements from {state.selectedProduct.fulfillmentProvider || 'provider'}...</span>
+            <span>Loading print locations from QRG catalog...</span>
           </div>
         )}
 
