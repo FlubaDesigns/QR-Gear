@@ -127,34 +127,33 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
 ### First-Scan Activation System (QR Gear Core Flow)
-- **QRG Numbering Schema**: `QRG-[S]-[BBB]-[DDD]-[SSSSSS]-[X][CC]` — each layer adds digits only when that layer exists.
-  - **Source [S]** (1 letter): `I`=Internal/admin, `M`=Member, `E`=External, `D`=Direct buyer
-  - **Blank [BBB]** (4 digits — upgraded from 3): X000=top-level category, X100–X900=subcategory, X101–X199=specific blanks (99 slots per subcategory). Example: `1101`=first T-Shirt blank.
-  - **Build [DDD]** (3 digits): sequential build number per source+blank (001,002,003…). Each distinct design/colorway build gets its own number. Packet name = `QRG-I-1101-001`.
-  - **Owner [SSSSSS]** (6 digits): zero-padded, assigned at claim time, unique per blank (000001–999999). Owner URL = `qrgear.com/QRG-I-1101-001-000001`.
-  - **Size+Color [X][CC]** (3 digits, **barcode only — never in URL or packet name**): X=1-digit size (0=reserved,1=XXS,2=XS,3=S,4=M,5=L,6=XL,7=XXL,8=XXXL,9=reserved), CC=2-digit color (00–99). Barcode = `QRG-I-1101-001-000001-402`. Encoded as Code 128.
-  - **Packet name = QRG ID**: every packet is automatically named by its QRG identifier at creation.
-  - **Two scan experiences**: QR code → `qrgear.com/QRG-I-1101-001-000001` (customer landing page). Barcode → full item verification/admin lookup.
-  - **Backward compat**: Old 3-digit doc IDs (`qrg_101`, `qrg_201`, etc.) remain in Firestore for existing products. New products get 4-digit IDs (`qrg_1101`, etc.). The `resolveQrgCategoryLabel()` function in `master-catalog.ts` maps both old numeric codes and old string names to new labels automatically.
-  - **Firestore fields on `master_catalog`**: Doc ID = `qrg_NNNN` (classified, new) or `qrg_NNN` (classified, legacy) or `pending_py_*`/`pending_pf_*` (unclassified). Key fields: `qrgBlankId`, `qrgCategory` (subcategory label, see taxonomy below), `categorySource` (manual|mapped|inferred), `availableVia` (string[] of providers), `providerMappings`, `canonicalTitle`, `brand`, `model`, `originCountry`, `printifyImages[]`, `printfulImages[]`, `images[]` (combined), `colors`, `sizes`, `minPrice`, `maxPrice`, `lastSyncedAt`. Returned by `GET /api/master-catalog`.
+- **QRG Identity Schema (FINAL)**: `QRG-[STNNN]-[C]-[DDD]-[IIIIII]-[SSCC]`
+  - **Blank [STNNN]** (5 digits, **core identity**): S=super-category (1–6), T=product-type (1–9), NNN=item number (001–999). Example: `11001`=first T-Shirt.
+  - **Source [C]** (1 letter): `I`=Internal, `P`=Printify, `F`=Printful, `E`=External.
+  - **Build [DDD]** (3 digits): sequential design/build number (001–999). Packet name = `QRG-11001-I-001`.
+  - **Instance [IIIIII]** (6 digits): unique per produced item, zero-padded (000001–999999). Owner URL = `qrgear.com/QRG-11001-I-001-000001`.
+  - **Variant [SSCC]** (4 digits, **barcode only — never in URL or packet name**): SS=2-digit size (01=XXS,02=XS,03=S,04=M,05=L,06=XL,07=2XL,08=3XL,09=4XL,10=5XL), CC=2-digit color (01=Black,02=White,03=Navy,04=Red,05=Royal Blue…). Barcode = `QRG-11001-I-001-000001-0501`. Full map in `shared/qrgCodes.ts`.
+  - **Full example**: `QRG-11101-I-001-000001-0501` = Apparel/T-Shirt #101, Internal, Design 1, Instance 1, Size L, Color Black.
+  - **Backward compat**: Old 3-digit/4-digit doc IDs remain readable. New products get 5-digit IDs. `resolveQrgCategoryLabel()` maps legacy codes to current labels.
+  - **Firestore fields on `master_catalog`**: Doc ID = `qrg_STNNN`. Key fields: `qrgBlankId` (string, e.g. "11001"), `qrgParentCategory` (S digit string, e.g. "1"), `qrgProductType` (T digit string, e.g. "1"), `qrgItemNumber` (NNN string, e.g. "001"), `qrgCategory` (human label), `categorySource` (manual|mapped|inferred), `availableVia`, `providerMappings`, `canonicalTitle`, `brand`, `model`, `colors`, `sizes`, `minPrice`, `maxPrice`, `lastSyncedAt`. Returned by `GET /api/master-catalog`.
 
-  ### QRG 4-Digit Category Taxonomy
+  ### QRG 5-Digit Category Taxonomy
   Defined in `functions/src/services/master-catalog.ts` (`QRG_TOP_LEVEL_CATEGORIES`, `QRG_BLANK_CATEGORIES`).
+  Structure: `[category 1–6][subcategory 1–9][slot 001–999]` — 999 blanks per subcategory.
 
   | Code | Top-Level | Sub-Code | Subcategory |
   |------|-----------|----------|-------------|
-  | 1000 | **Apparel** | 1000 | T-Shirts (block 0 — overflow, 1001–1099) |
-  | | | 1100 | T-Shirts (block 1 — original, 1101–1199, full) |
-  | | | 1200 | Hoodies & Sweatshirts |
-  | | | 1300 | Bottoms & Active |
-  | | | 1400 | Hats & Caps |
-  | | | 1500 | Footwear & Socks |
-  | | | 1600 | Sleepwear & Underwear |
-  | | | 1700 | Baby & Kids |
-  | 2000 | **Houseware** | 2100 | Drinkware |
-  | | | 2200 | Barware |
-  | | | 2300 | Drinkware Accessories |
-  | | | 2400 | Kitchen & Dining |
+  | 1x000 | **Apparel** | 11000 | T-Shirts (11001–11999) |
+  | | | 12000 | Hoodies & Sweatshirts |
+  | | | 13000 | Bottoms & Active |
+  | | | 14000 | Hats & Caps |
+  | | | 15000 | Footwear & Socks |
+  | | | 16000 | Sleepwear & Underwear |
+  | | | 17000 | Baby & Kids |
+  | 2x000 | **Houseware** | 21000 | Drinkware |
+  | | | 22000 | Barware |
+  | | | 23000 | Drinkware Accessories |
+  | | | 24000 | Kitchen & Dining |
   | | | 2500 | Bedding & Textiles |
   | | | 2600 | Home Décor |
   | 3000 | **Print & Display** | 3100 | Wall Art & Prints |

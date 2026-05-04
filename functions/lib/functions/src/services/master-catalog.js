@@ -94,58 +94,57 @@ exports.QRG_TOP_LEVEL_CATEGORIES = [
     { name: 'Pet Products', code: 5000 },
     { name: 'Holiday & Seasonal', code: 6000 },
 ];
-// ── QRG Blank Category Definitions (4-digit subcategory scheme) ───────────────
-// A category may span multiple ranges (block 0, block 1, …). The allocator
-// tries ranges in rangeStart-ascending order and fills the lowest-numbered
-// block that still has free slots.
+// ── QRG Blank Category Definitions (5-digit BBBBB scheme) ────────────────────
+// Structure: [category 1-6][subcategory 1-9][slot 001-999]
+// Each subcategory holds up to 999 blanks. If a subcategory ever exceeds 999,
+// allocation simply continues past rangeEnd (no hard stop — "screw it").
 exports.QRG_BLANK_CATEGORIES = [
-    // ── 1000 Apparel ──────────────────────────────────────────────────────────
-    // T-Shirts block 0 (1001–1099) opened when block 1 (1101–1199) filled up.
-    { name: 'T-Shirts', parent: 'Apparel', rangeStart: 1001, rangeEnd: 1099 },
-    { name: 'T-Shirts', parent: 'Apparel', rangeStart: 1101, rangeEnd: 1199 },
-    { name: 'Hoodies & Sweatshirts', parent: 'Apparel', rangeStart: 1201, rangeEnd: 1299 },
-    { name: 'Bottoms & Active', parent: 'Apparel', rangeStart: 1301, rangeEnd: 1399 },
-    { name: 'Hats & Caps', parent: 'Apparel', rangeStart: 1401, rangeEnd: 1499 },
-    { name: 'Footwear & Socks', parent: 'Apparel', rangeStart: 1501, rangeEnd: 1599 },
-    { name: 'Sleepwear & Underwear', parent: 'Apparel', rangeStart: 1601, rangeEnd: 1699 },
-    { name: 'Baby & Kids', parent: 'Apparel', rangeStart: 1701, rangeEnd: 1799 },
-    // ── 2000 Houseware ────────────────────────────────────────────────────────
-    { name: 'Drinkware', parent: 'Houseware', rangeStart: 2101, rangeEnd: 2199 },
-    { name: 'Barware', parent: 'Houseware', rangeStart: 2201, rangeEnd: 2299 },
-    { name: 'Drinkware Accessories', parent: 'Houseware', rangeStart: 2301, rangeEnd: 2399 },
-    { name: 'Kitchen & Dining', parent: 'Houseware', rangeStart: 2401, rangeEnd: 2499 },
-    { name: 'Bedding & Textiles', parent: 'Houseware', rangeStart: 2501, rangeEnd: 2599 },
-    { name: 'Home Décor', parent: 'Houseware', rangeStart: 2601, rangeEnd: 2699 },
-    // ── 3000 Print & Display ──────────────────────────────────────────────────
-    { name: 'Wall Art & Prints', parent: 'Print & Display', rangeStart: 3101, rangeEnd: 3199 },
-    { name: 'Stickers & Magnets', parent: 'Print & Display', rangeStart: 3201, rangeEnd: 3299 },
-    { name: 'Stationery & Paper', parent: 'Print & Display', rangeStart: 3301, rangeEnd: 3399 },
-    { name: 'Signs & Display', parent: 'Print & Display', rangeStart: 3401, rangeEnd: 3499 },
-    { name: 'Books & Photo', parent: 'Print & Display', rangeStart: 3501, rangeEnd: 3599 },
-    { name: 'Pins & Patches', parent: 'Print & Display', rangeStart: 3601, rangeEnd: 3699 },
-    { name: 'Tags', parent: 'Print & Display', rangeStart: 3701, rangeEnd: 3799 },
-    { name: 'Puzzles & Games', parent: 'Print & Display', rangeStart: 3801, rangeEnd: 3899 },
-    { name: 'Novelty', parent: 'Print & Display', rangeStart: 3901, rangeEnd: 3999 },
-    // ── 4000 Accessories ──────────────────────────────────────────────────────
-    { name: 'Bags & Pouches', parent: 'Accessories', rangeStart: 4101, rangeEnd: 4199 },
-    { name: 'Jewelry', parent: 'Accessories', rangeStart: 4201, rangeEnd: 4299 },
-    { name: 'Phone & Tech Cases', parent: 'Accessories', rangeStart: 4301, rangeEnd: 4399 },
-    { name: 'Travel Accessories', parent: 'Accessories', rangeStart: 4401, rangeEnd: 4499 },
-    { name: 'Small Accessories', parent: 'Accessories', rangeStart: 4501, rangeEnd: 4599 },
-    // ── 5000 Pet Products ─────────────────────────────────────────────────────
-    { name: 'Pet Apparel', parent: 'Pet Products', rangeStart: 5101, rangeEnd: 5199 },
-    { name: 'Pet Accessories', parent: 'Pet Products', rangeStart: 5201, rangeEnd: 5299 },
-    // ── 6000 Holiday & Seasonal ───────────────────────────────────────────────
-    { name: 'Ornaments & Décor', parent: 'Holiday & Seasonal', rangeStart: 6101, rangeEnd: 6199 },
-    { name: 'Stockings & Gifting', parent: 'Holiday & Seasonal', rangeStart: 6201, rangeEnd: 6299 },
-    { name: 'Seasonal Apparel', parent: 'Holiday & Seasonal', rangeStart: 6301, rangeEnd: 6399 },
+    // ── 1x000 Apparel ─────────────────────────────────────────────────────────
+    { name: 'T-Shirts', parent: 'Apparel', rangeStart: 11001, rangeEnd: 11999 },
+    { name: 'Hoodies & Sweatshirts', parent: 'Apparel', rangeStart: 12001, rangeEnd: 12999 },
+    { name: 'Hats', parent: 'Apparel', rangeStart: 13001, rangeEnd: 13999 },
+    { name: 'Tank Tops', parent: 'Apparel', rangeStart: 14001, rangeEnd: 14999 },
+    { name: 'Long Sleeve', parent: 'Apparel', rangeStart: 15001, rangeEnd: 15999 },
+    { name: "Youth/Kids", parent: 'Apparel', rangeStart: 16001, rangeEnd: 16999 },
+    { name: "Women's", parent: 'Apparel', rangeStart: 17001, rangeEnd: 17999 },
+    { name: 'Specialty Apparel', parent: 'Apparel', rangeStart: 18001, rangeEnd: 18999 },
+    // ── 2x000 Houseware ───────────────────────────────────────────────────────
+    { name: 'Drinkware', parent: 'Houseware', rangeStart: 21001, rangeEnd: 21999 },
+    { name: 'Barware', parent: 'Houseware', rangeStart: 22001, rangeEnd: 22999 },
+    { name: 'Drinkware Accessories', parent: 'Houseware', rangeStart: 23001, rangeEnd: 23999 },
+    { name: 'Kitchen & Dining', parent: 'Houseware', rangeStart: 24001, rangeEnd: 24999 },
+    { name: 'Bedding & Textiles', parent: 'Houseware', rangeStart: 25001, rangeEnd: 25999 },
+    { name: 'Home Décor', parent: 'Houseware', rangeStart: 26001, rangeEnd: 26999 },
+    // ── 3x000 Print & Display ─────────────────────────────────────────────────
+    { name: 'Wall Art & Prints', parent: 'Print & Display', rangeStart: 31001, rangeEnd: 31999 },
+    { name: 'Stickers & Magnets', parent: 'Print & Display', rangeStart: 32001, rangeEnd: 32999 },
+    { name: 'Stationery & Paper', parent: 'Print & Display', rangeStart: 33001, rangeEnd: 33999 },
+    { name: 'Signs & Display', parent: 'Print & Display', rangeStart: 34001, rangeEnd: 34999 },
+    { name: 'Books & Photo', parent: 'Print & Display', rangeStart: 35001, rangeEnd: 35999 },
+    { name: 'Pins & Patches', parent: 'Print & Display', rangeStart: 36001, rangeEnd: 36999 },
+    { name: 'Tags', parent: 'Print & Display', rangeStart: 37001, rangeEnd: 37999 },
+    { name: 'Puzzles & Games', parent: 'Print & Display', rangeStart: 38001, rangeEnd: 38999 },
+    { name: 'Novelty', parent: 'Print & Display', rangeStart: 39001, rangeEnd: 39999 },
+    // ── 4x000 Accessories ─────────────────────────────────────────────────────
+    { name: 'Bags & Pouches', parent: 'Accessories', rangeStart: 41001, rangeEnd: 41999 },
+    { name: 'Jewelry', parent: 'Accessories', rangeStart: 42001, rangeEnd: 42999 },
+    { name: 'Phone & Tech Cases', parent: 'Accessories', rangeStart: 43001, rangeEnd: 43999 },
+    { name: 'Travel Accessories', parent: 'Accessories', rangeStart: 44001, rangeEnd: 44999 },
+    { name: 'Small Accessories', parent: 'Accessories', rangeStart: 45001, rangeEnd: 45999 },
+    // ── 5x000 Pet Products ────────────────────────────────────────────────────
+    { name: 'Pet Apparel', parent: 'Pet Products', rangeStart: 51001, rangeEnd: 51999 },
+    { name: 'Pet Accessories', parent: 'Pet Products', rangeStart: 52001, rangeEnd: 52999 },
+    // ── 6x000 Holiday & Seasonal ──────────────────────────────────────────────
+    { name: 'Ornaments & Décor', parent: 'Holiday & Seasonal', rangeStart: 61001, rangeEnd: 61999 },
+    { name: 'Stockings & Gifting', parent: 'Holiday & Seasonal', rangeStart: 62001, rangeEnd: 62999 },
+    { name: 'Seasonal Apparel', parent: 'Holiday & Seasonal', rangeStart: 63001, rangeEnd: 63999 },
 ];
 // ── Legacy numeric-code → new subcategory label (for Firestore docs written
 //    before the 4-digit scheme was introduced) ─────────────────────────────
 exports.QRG_LEGACY_CODE_MAP = {
     100: 'T-Shirts',
     200: 'Hoodies & Sweatshirts',
-    300: 'Hats & Caps',
+    300: 'Hats',
     400: 'Drinkware',
     500: 'Bags & Pouches',
     510: 'Jewelry',
@@ -154,7 +153,7 @@ exports.QRG_LEGACY_CODE_MAP = {
     710: 'Wall Art & Prints',
     720: 'Stationery & Paper',
     800: 'Home Décor',
-    810: 'Bottoms & Active',
+    810: 'Specialty Apparel',
     900: 'Pet Accessories',
     910: 'Ornaments & Décor',
 };
@@ -162,7 +161,12 @@ exports.QRG_LEGACY_CODE_MAP = {
 const QRG_LEGACY_NAME_MAP = {
     'Tees': 'T-Shirts',
     'Hoodies': 'Hoodies & Sweatshirts',
-    'Hats': 'Hats & Caps',
+    'Hats & Caps': 'Hats',
+    'Hats': 'Hats',
+    'Baby & Kids': 'Youth/Kids',
+    'Bottoms & Active': 'Specialty Apparel',
+    'Footwear & Socks': 'Specialty Apparel',
+    'Sleepwear & Underwear': 'Specialty Apparel',
     'Drinkware': 'Drinkware',
 };
 /**
@@ -203,36 +207,43 @@ function classifyToQRGCategory(title, typeName) {
             return 'Stockings & Gifting';
         return 'Ornaments & Décor';
     }
-    // ── Baby & Kids (check before general apparel) ──────────────────────────────
+    // ── Youth/Kids (check before general apparel) ───────────────────────────────
     if (/\bbaby\b|onesie|bodysuit|\binfant\b|toddler|\byouth\b|kids?\b|children/.test(t)) {
         if (/sneaker|sandal|slipper|\bslide\b|\bboot\b|\bshoe\b|clog/.test(t))
-            return 'Footwear & Socks';
+            return 'Specialty Apparel';
         if (/lounge.?pant|jogger|\bshort\b|legging/.test(t))
-            return 'Bottoms & Active';
+            return 'Specialty Apparel';
         if (/\bhat\b|\bcap\b|\bbeanie\b/.test(t))
-            return 'Hats & Caps';
+            return 'Hats';
         if (/puzzle|coloring/.test(t))
             return 'Puzzles & Games';
-        return 'Baby & Kids';
+        return 'Youth/Kids';
     }
-    // ── Hats & Caps ─────────────────────────────────────────────────────────────
+    // ── Women's ──────────────────────────────────────────────────────────────────
+    if (/\bwomens?\b|\bwomen'?s\b|\bladies\b|\bfeminine\b|\bcurvy\b/.test(t))
+        return "Women's";
+    // ── Hats ─────────────────────────────────────────────────────────────────────
     if (/snapback|trucker.?hat|dad.?hat|baseball.?cap|bucket.?hat|\bbeanie\b|\bvisor\b|\bcap\b|\bhat\b/.test(t))
-        return 'Hats & Caps';
+        return 'Hats';
+    // ── Long Sleeve (check before T-Shirts) ──────────────────────────────────────
+    if (/long.?sleeve/.test(t))
+        return 'Long Sleeve';
+    // ── Tank Tops (check before T-Shirts) ────────────────────────────────────────
+    if (/tank.?top|crop.?top|camisole|\bpolo\b|v-?neck|\bhenley\b|raglan/.test(t))
+        return 'Tank Tops';
     // ── T-Shirts ─────────────────────────────────────────────────────────────────
-    if (/t-?shirt|tshirt|\btee\b|tank.?top|\bpolo\b|v-?neck|\bhenley\b|long.?sleeve|\bjersey\b|raglan|crop.?top|camisole|\bblouse\b/.test(t))
+    if (/t-?shirt|tshirt|\btee\b|\bjersey\b|\bblouse\b/.test(t))
         return 'T-Shirts';
-    // ── Hoodies & Sweatshirts ───────────────────────────────────────────────────
+    // ── Hoodies & Sweatshirts ────────────────────────────────────────────────────
     if (/hoodie|hoody|sweatshirt|pullover|\bfleece\b|zip.?up|crewneck|crew.?neck|\bsweater\b/.test(t))
         return 'Hoodies & Sweatshirts';
-    // ── Sleepwear & Underwear ───────────────────────────────────────────────────
+    // ── Specialty Apparel (bottoms, footwear, sleepwear, active — catch-all) ─────
     if (/pajama|pyjama|\bboxer\b|\bbrief\b|\bthong\b|\bunderwear\b|loungewear|nightwear/.test(t))
-        return 'Sleepwear & Underwear';
-    // ── Bottoms & Active (incl outerwear, dresses, skirts, swimwear) ────────────
+        return 'Specialty Apparel';
     if (/swimsuit|bikini|rash.?guard|windbreaker|biker.?short|bodycon|legging|yoga|jogger|sweatpant|sport.?bra|compression|activewear|athletic.?short|bomber|puffer.?jacket|denim.?jacket|work.?jacket|soft.?shell|varsity.?jacket|letterman|anorak|\bdress\b|\bskirt\b|dolman|swim.?trunk|\bshort\b/.test(t))
-        return 'Bottoms & Active';
-    // ── Footwear & Socks ─────────────────────────────────────────────────────────
+        return 'Specialty Apparel';
     if (/sneaker|sandal|slipper|flip.?flop|\bslide\b|\bboot\b|clog|\bsock\b/.test(t))
-        return 'Footwear & Socks';
+        return 'Specialty Apparel';
     // ── Barware (check before Drinkware to catch glass-word overlap) ────────────
     if (/rocks.?glass|whiskey.?glass|champagne.?glass|sipper.?glass|mixing.?glass|can.?glass|can.?shaped.?glass|stubby.?cooler|highball/.test(t))
         return 'Barware';
@@ -427,24 +438,17 @@ async function syncMasterCatalog(_options = {}) {
         }
     }
     // ── Build next available BBB number per category ──────────────────────────────
-    // Keyed by "CategoryName:rangeStart" so categories that span multiple ranges
-    // (e.g. T-Shirts block 0 + block 1) each get their own independent counter.
-    // On first run / clean sweep the counter starts at rangeStart.
-    // On incremental re-sync it advances past existing assignments.
+    // Keyed by category name. Counter starts at rangeStart and advances past any
+    // existing assignments found in Firestore (incremental re-sync safe).
     const nextBBB = {};
     for (const cat of exports.QRG_BLANK_CATEGORIES) {
-        nextBBB[`${cat.name}:${cat.rangeStart}`] = cat.rangeStart;
+        nextBBB[cat.name] = cat.rangeStart;
     }
     for (const [, data] of existingMaster.entries()) {
         const blankNum = Number(data.qrgBlankId);
         if (data.qrgBlankId && data.qrgCategory && !isNaN(blankNum)) {
-            // Find the specific range block this blank belongs to
-            const matchingCat = exports.QRG_BLANK_CATEGORIES.find(c => c.name === data.qrgCategory && blankNum >= c.rangeStart && blankNum <= c.rangeEnd);
-            if (matchingCat) {
-                const key = `${matchingCat.name}:${matchingCat.rangeStart}`;
-                if (blankNum >= nextBBB[key]) {
-                    nextBBB[key] = blankNum + 1;
-                }
+            if (nextBBB[data.qrgCategory] !== undefined && blankNum >= nextBBB[data.qrgCategory]) {
+                nextBBB[data.qrgCategory] = blankNum + 1;
             }
         }
     }
@@ -491,23 +495,11 @@ async function syncMasterCatalog(_options = {}) {
         if (existingDocId) {
             return { docId: existingDocId, alreadyExists: existingMaster.has(existingDocId) || inProgressDocs.has(existingDocId) };
         }
-        if (qrgCategory) {
-            // Try every range registered for this category, lowest rangeStart first.
-            // This lets a category overflow into additional blocks (e.g. T-Shirts
-            // block 0 at 1001–1099 when block 1 at 1101–1199 is full).
-            const catDefs = exports.QRG_BLANK_CATEGORIES
-                .filter(c => c.name === qrgCategory)
-                .sort((a, b) => a.rangeStart - b.rangeStart);
-            for (const catDef of catDefs) {
-                const key = `${qrgCategory}:${catDef.rangeStart}`;
-                const bbb = nextBBB[key] ?? catDef.rangeStart;
-                if (bbb <= catDef.rangeEnd) {
-                    nextBBB[key] = bbb + 1;
-                    return { docId: `qrg_${bbb}`, alreadyExists: false };
-                }
-            }
+        if (qrgCategory && nextBBB[qrgCategory] !== undefined) {
+            const bbb = nextBBB[qrgCategory];
+            nextBBB[qrgCategory] = bbb + 1;
+            return { docId: `qrg_${bbb}`, alreadyExists: false };
         }
-        // No category match or all ranges exhausted → pending doc
         return { docId: `pending_${pendingFallback}`, alreadyExists: existingMaster.has(`pending_${pendingFallback}`) };
     }
     function bumpCategoryStats(qrgCategory) {
@@ -670,10 +662,13 @@ async function syncMasterCatalog(_options = {}) {
         const categorySource = currentDoc?.categorySource === 'manual'
             ? 'manual'
             : (qrgCategory ? 'mapped' : 'inferred');
+        const _blankStr = docId.startsWith('qrg_') ? docId.slice(4) : null;
         const entry = {
-            qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
+            qrgBlankId: _blankStr,
+            qrgParentCategory: _blankStr ? _blankStr[0] : null,
+            qrgProductType: _blankStr ? _blankStr[1] : null,
+            qrgItemNumber: _blankStr ? _blankStr.slice(2) : null,
             qrgCategory: qrgCategory || 'Unclassified',
-            qrgParentCategory: exports.QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory)?.parent ?? 'Unclassified',
             canonicalTitle,
             brand: canonicalBrand || currentDoc?.brand || null,
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, bp.model || matchedPrintful?.model || null),
@@ -764,10 +759,13 @@ async function syncMasterCatalog(_options = {}) {
         const categorySource = currentDoc?.categorySource === 'manual'
             ? 'manual'
             : (qrgCategory ? 'mapped' : 'inferred');
+        const _pfBlankStr = docId.startsWith('qrg_') ? docId.slice(4) : null;
         const entry = {
-            qrgBlankId: docId.startsWith('qrg_') ? parseInt(docId.slice(4)) : null,
+            qrgBlankId: _pfBlankStr,
+            qrgParentCategory: _pfBlankStr ? _pfBlankStr[0] : null,
+            qrgProductType: _pfBlankStr ? _pfBlankStr[1] : null,
+            qrgItemNumber: _pfBlankStr ? _pfBlankStr.slice(2) : null,
             qrgCategory: qrgCategory || 'Unclassified',
-            qrgParentCategory: exports.QRG_BLANK_CATEGORIES.find(c => c.name === qrgCategory)?.parent ?? 'Unclassified',
             canonicalTitle: (0, safeAssign_1.safeAssignRequired)(currentDoc?.canonicalTitle, pf.title || pf.typeName || null),
             brand: (0, safeAssign_1.safeAssign)(currentDoc?.brand, pf.brand || null),
             model: (0, safeAssign_1.safeAssign)(currentDoc?.model, pf.model || null),

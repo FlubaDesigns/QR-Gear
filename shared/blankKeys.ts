@@ -36,20 +36,21 @@ export function getRawIdFromKey(blankKey: string): string {
 // ── QRG Blank ID helpers ──────────────────────────────────────────────────────
 
 /**
- * Validates a 4-digit QRG blank number (BBBB segment).
- * Valid range: 1000–6999 (first digit 1–6, three more digits).
- * Regex: ^[1-6][0-9]{3}$
- * Examples: 1101, 1201, 2101, 4101, 6101
- * Legacy 3-digit codes (101, 201, etc.) are NOT valid under current law.
+ * Validates a 5-digit QRG blank number (STNNN segment).
+ * Structure: S=super-category (1–6), T=product-type (1–9), NNN=item (001–999).
+ * Valid range: 11001–69999.
+ * Regex: ^[1-6][1-9][0-9]{3}$
+ * Examples: 11001, 12001, 21001, 41001, 61001
+ * Legacy 4-digit codes (1101, 1201, etc.) are NOT valid under current law.
  */
 export function isValidQRGBlankNumber(num: number | string): boolean {
-  return /^[1-6][0-9]{3}$/.test(String(num));
+  return /^[1-6][1-9][0-9]{3}$/.test(String(num));
 }
 
 /**
- * Returns true for doc IDs in the current QRG BBBB numbering format:
- * "qrg_1101", "qrg_1201", "qrg_2101", etc.
- * Legacy 3-digit IDs like "qrg_101" return false.
+ * Returns true for doc IDs in the current QRG STNNN numbering format:
+ * "qrg_11001", "qrg_12001", "qrg_21001", etc.
+ * Legacy 4-digit IDs like "qrg_1101" return false.
  */
 export function isQRGBlankId(id: string): boolean {
   const safe = safeBlankId(id);
@@ -66,8 +67,8 @@ export function isPendingBlankId(id: string): boolean {
 }
 
 /**
- * Extracts the numeric BBBB portion from a QRG blank ID.
- * Returns null for non-QRG IDs or legacy 3-digit IDs.
+ * Extracts the numeric BBBBB portion from a QRG blank ID.
+ * Returns null for non-QRG IDs or legacy 4-digit IDs.
  */
 export function getQRGBlankNumber(id: string): number | null {
   if (!isQRGBlankId(id)) return null;

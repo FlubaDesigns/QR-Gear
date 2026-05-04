@@ -227,45 +227,58 @@ Every packet, owner instance, and physical item is identified by a single unifie
 #### Full Schema
 
 ```
-QRG - [S] - [BBBB] - [DDD] - [SSSSSS] - [X][CC]
-       ↑       ↑       ↑        ↑            ↑
-     source  blank  build    owner       barcode only
+QRG - [STNNN] - [C] - [DDD] - [IIIIII] - [SSCC]
+         ↑       ↑      ↑         ↑          ↑
+       blank   source  build   instance   variant (barcode only)
 ```
 
 | Segment | Width | Description |
 |---------|-------|-------------|
 | `QRG` | 3 | Brand prefix — always present |
-| Source `[S]` | 1 letter | `I`=Internal (admin), `M`=Member, `E`=External, `D`=Direct buyer |
-| Blank `[BBBB]` | 4 digits | Product type — first digit=top category, second digit=subcategory, last two=specific blank |
-| Build `[DDD]` | 3 digits | Sequential build number within source+blank (001, 002, 003…) |
-| Owner `[SSSSSS]` | 6 digits | Zero-padded — assigned at claim time (000001–999999) |
-| Size+Color `[X][CC]` | 3 digits | **Barcode only** — 1-digit size + 2-digit color, never in URL or packet name |
+| Blank `[STNNN]` | 5 digits | Product identity — S=super-category (1–6), T=product-type (1–9), NNN=item number (001–999) |
+| Source `[C]` | 1 letter | `I`=Internal, `P`=Printify, `F`=Printful, `E`=External |
+| Build `[DDD]` | 3 digits | Sequential design/build number (001–999) |
+| Instance `[IIIIII]` | 6 digits | Unique per produced item — ownership + tracking (000001–999999) |
+| Variant `[SSCC]` | 4 digits | **Barcode only** — SS=2-digit size + CC=2-digit color, never in URL or packet name |
 
-#### Blank Codes (BBBB)
+**Full example:** `QRG-11101-I-001-000001-0501` = Apparel/T-Shirt #101, Internal, Design 1, Instance 1, Size L (05), Color Black (01)
+
+#### Product Identity (STNNN)
+
+Structure: `S` = super-category (1–6), `T` = product type (1–9), `NNN` = item number (001–999) — up to 999 items per type.
 
 | Range | Category |
 |-------|----------|
-| 1001–1099 | T-Shirts (block 0 — overflow) |
-| 1101–1199 | T-Shirts (block 1 — original, full) |
-| 1201–1299 | Hoodies & Sweatshirts |
-| 1301–1399 | Bottoms & Active |
-| 1401–1499 | Hats & Caps |
-| 1501–1599 | Footwear & Socks |
-| 1601–1699 | Sleepwear & Underwear |
-| 1701–1799 | Baby & Kids |
-| 2101–2199 | Drinkware |
-| 4101–4199 | Bags & Pouches |
-| 6101–6199 | Ornaments & Décor |
-
-Up to 99 blanks per subcategory (XX01–XX99).
+| 11001–11999 | T-Shirts |
+| 12001–12999 | Hoodies & Sweatshirts |
+| 13001–13999 | Hats |
+| 14001–14999 | Tank Tops |
+| 15001–15999 | Long Sleeve |
+| 16001–16999 | Youth/Kids |
+| 17001–17999 | Women's |
+| 18001–18999 | Specialty Apparel |
+| 21001–21999 | Drinkware |
+| 22001–22999 | Barware |
+| 23001–23999 | Drinkware Accessories |
+| 24001–24999 | Kitchen & Dining |
+| 25001–25999 | Bedding & Textiles |
+| 26001–26999 | Home Décor |
+| 31001–31999 | Wall Art & Prints |
+| 32001–32999 | Stickers & Magnets |
+| 41001–41999 | Bags & Pouches |
+| 51001–51999 | Pet Apparel |
+| 52001–52999 | Pet Accessories |
+| 61001–61999 | Ornaments & Décor |
+| 62001–62999 | Stockings & Gifting |
+| 63001–63999 | Seasonal Apparel |
 
 #### Size Digit (barcode only)
 
-`0`=reserved, `1`=XXS, `2`=XS, `3`=S, `4`=M, `5`=L, `6`=XL, `7`=XXL, `8`=XXXL, `9`=reserved
+`01`=XXS, `02`=XS, `03`=S, `04`=M, `05`=L, `06`=XL, `07`=2XL, `08`=3XL, `09`=4XL, `10`=5XL, `00`=One Size
 
 #### Color Code (barcode only)
 
-2-digit code `00`–`99` mapped to the platform color list.
+`01`=Black, `02`=White, `03`=Navy, `04`=Red, `05`=Royal Blue — full map in `shared/qrgCodes.ts`.
 
 #### What Gets What
 
@@ -301,7 +314,7 @@ Up to 99 blanks per subcategory (XX01–XX99).
 
 | Field | Type | Description |
 |---|---|---|
-| `qrgBlankId` | number | QRG blank number — e.g. `1101` |
+| `qrgBlankId` | number | QRG blank number — e.g. `11001` |
 | `qrgCategory` | string | `T-Shirts` \| `Hoodies & Sweatshirts` \| `Hats & Caps` \| etc. |
 | `qrgParentCategory` | string | Top-level: `Apparel` \| `Houseware` \| `Accessories` \| etc. |
 | `categorySource` | string | `mapped` (classified) \| `inferred` \| `manual` (admin override) |

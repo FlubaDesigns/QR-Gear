@@ -99,7 +99,7 @@ export function useCreatePacket({
       };
 
       const QRG_BLUEPRINT_BLANK_CODES: Record<number, string> = {
-        12: '1137',
+        12: '11037',
       };
 
       let qrgId: string | null = null;

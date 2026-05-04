@@ -1049,7 +1049,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         }
       });
       const buildStr = String(buildNumber).padStart(3, '0');
-      const qrgId = `QRG-${source}-${blankCode}-${buildStr}`;
+      const qrgId = `QRG-${blankCode}-${source}-${buildStr}`;
       res.json({ success: true, qrgId, source, blankCode, buildNumber });
     } catch (err: any) {
       console.error('[QRG] allocate error:', err.message);

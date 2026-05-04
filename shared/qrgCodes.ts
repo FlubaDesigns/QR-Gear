@@ -1,152 +1,180 @@
 /**
  * shared/qrgCodes.ts
  *
- * QRG barcode suffix tables for physical item identification.
+ * QRG variant suffix tables — physical item identification.
  *
- * Full barcode format:  QRG-I-{storeId}-{productId}-{instanceSeq}-{X}{CC}
- *   {X}  = 1-digit size code  (3=S, 4=M, 5=L, 6=XL, 7=2XL, ...)
- *   {CC} = 2-digit color code (01=White, 14=Black, 31=Navy, ...)
+ * Variant suffix format: [SS][CC]  (4 digits, barcode/tracking only)
+ *   SS = 2-digit size code  (01=XXS … 10=5XL)
+ *   CC = 2-digit color code (01=Black, 02=White, 03=Navy, …)
  *
  * These codes are barcode-only — never in URLs or packet names.
- * They exist so fulfillment staff can scan an item and look it up by
- * the exact size+color variant that was ordered.
+ * Full QRG code format: QRG-[STNNN]-[C]-[DDD]-[IIIIII]-[SSCC]
+ * Example: QRG-11101-I-001-000001-0501  (L=05, Black=01)
  *
  * Rules:
- *   - Codes must be STABLE — never renumber once assigned
+ *   - Codes are GLOBAL and FIXED — never renumber once assigned
  *   - Aliases (e.g. "Gray" / "Grey") share the same code
- *   - Unknown colors → "00", unknown sizes → "0"
+ *   - Unknown sizes → "00", unknown colors → "00"
+ *   - Not all products support all sizes/colors
+ *   - Do not use letters (S, M, L, XL) in IDs — always numeric
  */
 
-// ── Size codes (1 digit) ─────────────────────────────────────────────────────
+// ── Size codes (2 digits, 01–10) ─────────────────────────────────────────────
+// GLOBAL FIXED — never change these assignments.
 
-export const SIZE_DIGIT_MAP: Record<string, string> = {
-  "One Size": "0", "OSFA": "0", "OS": "0",
-  "XS": "2",
-  "S":  "3",
-  "M":  "4",
-  "L":  "5",
-  "XL": "6",
-  "2XL": "7", "XXL": "7",
-  "3XL": "8", "XXXL": "8",
-  "4XL": "9", "XXXXL": "9",
-  // Numeric sizes (apparel / accessories)
-  "4":   "1", "6":   "1", "8":   "2",
-  "10":  "3", "12":  "4", "14":  "5", "16":  "6",
+export const SIZE_CODE_MAP: Record<string, string> = {
+  "XXS": "01", "Extra Extra Small": "01",
+  "XS":  "02", "Extra Small": "02",
+  "S":   "03", "Small": "03",
+  "M":   "04", "Medium": "04",
+  "L":   "05", "Large": "05",
+  "XL":  "06", "Extra Large": "06", "Extra-Large": "06",
+  "2XL": "07", "XXL": "07", "2X": "07",
+  "3XL": "08", "XXXL": "08", "3X": "08",
+  "4XL": "09", "XXXXL": "09", "4X": "09",
+  "5XL": "10", "XXXXXL": "10", "5X": "10",
+  // One Size
+  "One Size": "00", "OSFA": "00", "OS": "00",
+  // Numeric youth/apparel sizes mapped to nearest standard
+  "4": "01", "6": "01",
+  "8": "02",
+  "10": "03", "12": "04", "14": "05", "16": "06",
 };
 
-// ── Color codes (2 digits, 01–99) ────────────────────────────────────────────
+// ── Color codes (2 digits, 01–99) ─────────────────────────────────────────────
+// GLOBAL FIXED — never change these assignments.
+// Canonical anchors: Black=01, White=02, Navy=03, Red=04, Royal Blue=05
 
 export const COLOR_CODE_MAP: Record<string, string> = {
-  // Whites / Creams / Naturals (01–13)
-  "White": "01", "Solid White Blend": "02", "Vintage White": "03",
-  "Soft Cream": "04", "Cream": "05", "Natural": "06",
-  "Heather Natural": "07", "Sand": "08", "Heather Sand Dune": "09",
-  "Pebble": "10", "Heather Dust": "11", "Tan": "12", "Toast": "13",
+  // ── Blacks (01) ───────────────────────────────────────────────────────────
+  "Black": "01", "Black Heather": "01", "Vintage Black": "01", "Oxblood Black": "01",
 
-  // Blacks / Very Dark (14–20)
-  "Black": "14", "Vintage Black": "15", "Oxblood Black": "16",
-  "Black Heather": "17", "Dark Heather": "18", "Charcoal": "19", "Asphalt": "20",
+  // ── Whites (02) ───────────────────────────────────────────────────────────
+  "White": "02", "Solid White Blend": "02", "Vintage White": "02",
 
-  // Greys (21–30)
-  "Ash": "21", "Silver": "22",
-  "Gray": "23", "Grey": "23",
-  "Heather Gray": "24", "Heather Grey": "24",
-  "Athletic Heather": "25",
-  "Sport Gray": "26", "Sport Grey": "26",
-  "Heather Cool Grey": "27",
-  "Dark Grey": "28", "Dark Grey Heather": "29", "Heather Slate": "30",
+  // ── Navy (03) ─────────────────────────────────────────────────────────────
+  "Navy": "03", "Navy Blue": "03",
 
-  // Navy / Dark Blues (31–33)
-  "Navy": "31", "Navy Blue": "31",
-  "Heather Navy": "32", "Heather Midnight Navy": "33",
+  // ── Red (04) ──────────────────────────────────────────────────────────────
+  "Red": "04",
 
-  // Blues (34–47)
-  "Blue": "34", "Royal Blue": "35",
-  "True Royal": "36", "Heather True Royal": "37",
-  "Sapphire": "38", "Ocean Blue": "39", "Steel Blue": "40",
-  "Heather Columbia Blue": "41", "Heather Carolina Blue": "42",
-  "Light Blue": "43", "Baby Blue": "44",
-  "Heather Ice Blue": "45",
-  "Heather Prism Ice Blue": "46", "Heather Prism Dusty Blue": "47",
+  // ── Royal Blue (05) ───────────────────────────────────────────────────────
+  "Royal Blue": "05", "True Royal": "05",
 
-  // Teals / Aquas (48–52)
-  "Teal": "48", "Heather Deep Teal": "49",
-  "Aqua": "50", "Heather Aqua": "51", "Turquoise": "52",
+  // ── Gray / Grey family (06–12) ────────────────────────────────────────────
+  "Gray": "06", "Grey": "06",
+  "Heather Gray": "07", "Heather Grey": "07", "Athletic Heather": "07",
+  "Sport Gray": "07", "Sport Grey": "07",
+  "Charcoal": "08",
+  "Dark Heather": "09", "Asphalt": "09",
+  "Dark Grey": "10", "Dark Grey Heather": "10", "Heather Slate": "10",
+  "Heather Cool Grey": "11",
+  "Ash": "12", "Silver": "12",
 
-  // Greens / Mints (53–70)
-  "Green": "53", "Mint": "54",
-  "Heather Mint": "55", "Heather Prism Mint": "56",
-  "Sage": "57", "Leaf": "58",
-  "Heather Grass Green": "59", "Heather Emerald": "60",
-  "Kelly": "61", "Kelly Green": "61",
-  "Irish Green": "62", "Heather Kelly": "63",
-  "Olive": "64", "Heather Olive": "65",
-  "Military Green": "66", "Army": "67",
-  "Forest": "68", "Forest Green": "68",
-  "Heather Forest": "69", "Safety Green": "70",
+  // ── Creams / Naturals (13–15) ─────────────────────────────────────────────
+  "Cream": "13", "Soft Cream": "13", "Natural": "13", "Heather Natural": "13",
+  "Sand": "14", "Heather Sand Dune": "14", "Pebble": "14", "Heather Dust": "14",
+  "Tan": "15", "Toast": "15",
 
-  // Yellows / Golds / Oranges (71–82)
-  "Yellow": "71", "Daisy": "72", "Gold": "73", "Mustard": "74",
-  "Heather Yellow Gold": "75",
-  "Autumn": "76", "Heather Autumn": "77",
-  "Orange": "78", "Burnt Orange": "79",
-  "Tennessee Orange": "80", "Heather Orange": "81", "Safety Orange": "82",
+  // ── Navy variants (16) ────────────────────────────────────────────────────
+  "Heather Navy": "16", "Heather Midnight Navy": "16",
 
-  // Reds (83–89)
-  "Red": "83", "Heather Red": "84", "Cardinal": "85",
-  "Maroon": "86", "Burgundy": "87", "Berry": "88", "Heather Raspberry": "89",
+  // ── Blues (17–23) ─────────────────────────────────────────────────────────
+  "Heather True Royal": "17",
+  "Sapphire": "18",
+  "Steel Blue": "19", "Ocean Blue": "19",
+  "Heather Columbia Blue": "20", "Heather Carolina Blue": "20",
+  "Light Blue": "21", "Baby Blue": "21",
+  "Heather Ice Blue": "22", "Heather Prism Ice Blue": "22", "Heather Prism Dusty Blue": "22",
+  "Blue": "23",
 
-  // Pinks (90–96)
-  "Pink": "90", "Soft Pink": "91", "Charity Pink": "92",
-  "Heather Clay": "93", "Heather Prism Peach": "94",
-  "Heather Mauve": "95", "Mauve": "96",
+  // ── Teals / Aquas (24–27) ─────────────────────────────────────────────────
+  "Teal": "24",
+  "Heather Deep Teal": "25",
+  "Aqua": "26", "Heather Aqua": "26",
+  "Turquoise": "27",
 
-  // Purples / Lavenders (97–99)
-  "Purple": "97", "Team Purple": "97",
-  "Heather Team Purple": "97", "Heather Orchid": "97",
-  "Lilac": "98", "Heather Prism Lilac": "98",
-  "Heather Prism Dusty Lavender": "99",
+  // ── Greens (28–37) ────────────────────────────────────────────────────────
+  "Green": "28",
+  "Mint": "29", "Heather Mint": "29", "Heather Prism Mint": "29",
+  "Sage": "30", "Leaf": "30",
+  "Heather Grass Green": "31",
+  "Heather Emerald": "32",
+  "Kelly": "33", "Kelly Green": "33", "Irish Green": "33", "Heather Kelly": "33",
+  "Olive": "34", "Heather Olive": "34",
+  "Military Green": "35", "Army": "35",
+  "Forest": "36", "Forest Green": "36", "Heather Forest": "36",
+  "Safety Green": "37",
 
-  // Browns (99)
-  "Brown": "99", "Heather Brown": "99",
+  // ── Yellows / Golds / Oranges (38–41) ────────────────────────────────────
+  "Yellow": "38", "Daisy": "38",
+  "Gold": "39", "Mustard": "39", "Heather Yellow Gold": "39",
+  "Autumn": "40", "Heather Autumn": "40",
+  "Orange": "41", "Burnt Orange": "41", "Tennessee Orange": "41",
+  "Heather Orange": "41", "Safety Orange": "41",
+
+  // ── Reds / Maroons (42–46) ────────────────────────────────────────────────
+  "Cardinal": "42",
+  "Maroon": "43",
+  "Burgundy": "44", "Berry": "44",
+  "Heather Red": "45",
+  "Heather Raspberry": "46",
+
+  // ── Pinks (47–49) ─────────────────────────────────────────────────────────
+  "Pink": "47", "Soft Pink": "47", "Charity Pink": "47",
+  "Heather Clay": "48", "Heather Prism Peach": "48",
+  "Heather Mauve": "49", "Mauve": "49",
+
+  // ── Purples / Lavenders (50–52) ───────────────────────────────────────────
+  "Purple": "50", "Team Purple": "50", "Heather Team Purple": "50", "Heather Orchid": "50",
+  "Lilac": "51", "Heather Prism Lilac": "51",
+  "Heather Prism Dusty Lavender": "52",
+
+  // ── Browns (53) ───────────────────────────────────────────────────────────
+  "Brown": "53", "Heather Brown": "53",
+
+  // ── 54–98 reserved for future colors ─────────────────────────────────────
+  // 99 = Reserved
 };
 
-// ── Lookup helpers ───────────────────────────────────────────────────────────
+// ── Lookup helpers ─────────────────────────────────────────────────────────────
 
-/** Returns the 1-digit size code, or "0" for unknown sizes. */
-export function getSizeDigit(size: string): string {
-  if (!size) return "0";
+/** Returns the 2-digit size code (01–10), or "00" for unknown/one-size. */
+export function getSizeCode(size: string): string {
+  if (!size) return "00";
   const trimmed = size.trim();
-  const direct = SIZE_DIGIT_MAP[trimmed];
+  const direct = SIZE_CODE_MAP[trimmed];
   if (direct !== undefined) return direct;
-  const lower = trimmed.toUpperCase();
-  for (const [key, val] of Object.entries(SIZE_DIGIT_MAP)) {
-    if (key.toUpperCase() === lower) return val;
+  for (const [key, val] of Object.entries(SIZE_CODE_MAP)) {
+    if (key.toUpperCase() === trimmed.toUpperCase()) return val;
   }
-  return "0";
+  return "00";
 }
 
-/** Returns the 2-digit color code, or "00" for unknown colors. */
+/** @deprecated Use getSizeCode — now returns 2-digit string */
+export const getSizeDigit = getSizeCode;
+
+/** Returns the 2-digit color code (01–99), or "00" for unknown colors. */
 export function getColorCode(color: string): string {
   if (!color) return "00";
   const trimmed = color.trim();
   const direct = COLOR_CODE_MAP[trimmed];
   if (direct !== undefined) return direct;
-  const lower = trimmed.toLowerCase();
   for (const [key, val] of Object.entries(COLOR_CODE_MAP)) {
-    if (key.toLowerCase() === lower) return val;
+    if (key.toLowerCase() === trimmed.toLowerCase()) return val;
   }
   return "00";
 }
 
 /**
- * Build the 3-character barcode suffix for a size+color combination.
- * Format: {X}{CC}  e.g. "401" for M+Black, "531" for L+Navy
- * Returns null only if both inputs are empty.
+ * Build the 4-character variant suffix [SS][CC].
+ * Returns null only if both inputs are empty/null.
+ * Example: buildVariantSuffix("L", "Black") → "0501"
+ *          buildVariantSuffix("M", "Navy")  → "0403"
  */
 export function buildVariantSuffix(size: string | null, color: string | null): string | null {
   if (!size && !color) return null;
-  const x  = getSizeDigit(size ?? "");
+  const ss = getSizeCode(size ?? "");
   const cc = getColorCode(color ?? "");
-  return `${x}${cc}`;
+  return `${ss}${cc}`;
 }
