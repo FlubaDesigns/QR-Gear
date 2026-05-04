@@ -604,12 +604,12 @@ export function register(app: express.Express): void {
           const images = buildPacketImageOrder(pkt);
           if (images.length === 0) { skipped++; continue; }
 
-          const qrgId: string | null = pkt.qrgId || null;
+          const qrgBaseCode: string | null = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
           const update: Record<string, any> = {
             'resolved.images': images,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
-          if (qrgId) update['resolved.qrgId'] = qrgId;
+          if (qrgBaseCode) update['resolved.qrgBaseCode'] = qrgBaseCode;
 
           await doc.ref.update(update);
           updated++;
@@ -649,18 +649,18 @@ export function register(app: express.Express): void {
 
       const pkt = packetDoc.data() as any;
       const images = buildPacketImageOrder(pkt);
-      const qrgId: string | null = pkt.qrgId || null;
+      const qrgBaseCode: string | null = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
 
       const update: Record<string, any> = {
         'resolved.images': images,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
-      if (qrgId) update['resolved.qrgId'] = qrgId;
+      if (qrgBaseCode) update['resolved.qrgBaseCode'] = qrgBaseCode;
 
       await db.collection(ADMIN_INSTANCES).doc(id).update(update);
 
       console.log(`[AdminInstances] rebuild-images: instance=${id} imageCount=${images.length}`);
-      res.json({ success: true, instanceId: id, imageCount: images.length, qrgId });
+      res.json({ success: true, instanceId: id, imageCount: images.length, qrgBaseCode });
     } catch (e: any) {
       console.error('[AdminInstances] rebuild-images error:', e.message);
       res.status(500).json({ error: e.message });

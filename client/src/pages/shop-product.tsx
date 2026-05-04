@@ -87,8 +87,8 @@ interface StoreProduct {
   channel: string | null;
   collection: string | null;
   packetId: string | null;
-  /** QRG model number — everything up to the build segment, e.g. "QRG-I-101-001" */
-  qrgId?: string | null;
+  /** QRG base code — canonical QRG-[STNNN]-[C]-[IIIIII] e.g. "QRG-11101-I-000001" */
+  qrgBaseCode?: string | null;
   /** Structured display-intent options from builder layer */
   options?: ProductOption[] | null;
   /** Card display mode */
@@ -420,9 +420,9 @@ export default function ShopProductPage() {
               <h1 className="text-2xl md:text-3xl font-bold" data-testid="text-product-name">
                 {product.name}
               </h1>
-              {product.qrgId && (
+              {product.qrgBaseCode && (
                 <p className="text-xs text-muted-foreground mt-1 font-mono tracking-wide" data-testid="text-model-number">
-                  Model: {product.qrgId}
+                  Model: {product.qrgBaseCode}
                 </p>
               )}
               <p className="text-base font-semibold text-foreground mt-2">

@@ -939,7 +939,7 @@ function PushToAmazonDialog({
                 <Input
                   value={skuOverride}
                   onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder={`Auto: QRG-${surfaceId.slice(0, 8).toUpperCase()}`}
+                  placeholder="Leave blank to auto-assign from surface SKU"
                   data-testid="input-push-sku"
                 />
                 <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
@@ -1092,7 +1092,7 @@ function PushToEbayDialog({
                 <Input
                   value={skuOverride}
                   onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder={`Auto: QRG-${surfaceId.slice(0, 8).toUpperCase()}`}
+                  placeholder="Leave blank to auto-assign from surface SKU"
                   data-testid="input-ebay-push-sku"
                 />
                 <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
@@ -1324,7 +1324,7 @@ function PushToEtsyDialog({
                 <Input
                   value={skuOverride}
                   onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder={`Auto: QRG-${surfaceId.slice(0, 8).toUpperCase()}`}
+                  placeholder="Leave blank to auto-assign from surface SKU"
                   data-testid="input-etsy-push-sku"
                 />
                 <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>

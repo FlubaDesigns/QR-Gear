@@ -811,8 +811,8 @@ export default function Account() {
                         )}
                         <div>
                           <p className="font-semibold text-foreground truncate">{instance.productName}</p>
-                          {instance.qrgId && (
-                            <p className="text-xs text-muted-foreground font-mono">{instance.qrgId}</p>
+                          {(instance.qrgBaseCode || instance.qrgId) && (
+                            <p className="text-xs text-muted-foreground font-mono">{instance.qrgBaseCode || instance.qrgId}</p>
                           )}
                         </div>
                         <div className="flex items-center justify-between">

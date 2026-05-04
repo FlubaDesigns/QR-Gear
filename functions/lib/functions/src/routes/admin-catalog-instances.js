@@ -586,13 +586,13 @@ function register(app) {
                         skipped++;
                         continue;
                     }
-                    const qrgId = pkt.qrgId || null;
+                    const qrgBaseCode = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
                     const update = {
                         'resolved.images': images,
                         updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
                     };
-                    if (qrgId)
-                        update['resolved.qrgId'] = qrgId;
+                    if (qrgBaseCode)
+                        update['resolved.qrgBaseCode'] = qrgBaseCode;
                     await doc.ref.update(update);
                     updated++;
                 }
@@ -633,16 +633,16 @@ function register(app) {
             }
             const pkt = packetDoc.data();
             const images = buildPacketImageOrder(pkt);
-            const qrgId = pkt.qrgId || null;
+            const qrgBaseCode = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
             const update = {
                 'resolved.images': images,
                 updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
             };
-            if (qrgId)
-                update['resolved.qrgId'] = qrgId;
+            if (qrgBaseCode)
+                update['resolved.qrgBaseCode'] = qrgBaseCode;
             await core_1.db.collection(ADMIN_INSTANCES).doc(id).update(update);
             console.log(`[AdminInstances] rebuild-images: instance=${id} imageCount=${images.length}`);
-            res.json({ success: true, instanceId: id, imageCount: images.length, qrgId });
+            res.json({ success: true, instanceId: id, imageCount: images.length, qrgBaseCode });
         }
         catch (e) {
             console.error('[AdminInstances] rebuild-images error:', e.message);

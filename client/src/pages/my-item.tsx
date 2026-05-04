@@ -18,7 +18,7 @@ interface ClaimedInstance {
   status: string;
   claimedAt: string;
   instanceUrl?: string;
-  qrgId?: string;
+  qrgBaseCode?: string;
 }
 
 export default function MyItemPage() {
@@ -97,8 +97,8 @@ export default function MyItemPage() {
             </Button>
             <div>
               <h1 className="text-xl font-bold text-foreground">{instance.productName}</h1>
-              {instance.qrgId && (
-                <p className="text-xs text-muted-foreground font-mono">{instance.qrgId}</p>
+              {instance.qrgBaseCode && (
+                <p className="text-xs text-muted-foreground font-mono">{instance.qrgBaseCode}</p>
               )}
             </div>
           </div>

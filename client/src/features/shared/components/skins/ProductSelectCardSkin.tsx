@@ -74,7 +74,6 @@ export interface ProductSelectCardSkinProps {
   onImagesBulkSave?: (id: string, images: string[]) => Promise<void>;
   masterCatalogImages?: string[];
   fulfillmentProvider?: string;
-  qrgId?: string;
   mockupImageUrl?: string | null;
 }
 
@@ -865,7 +864,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, qrgId, mockupImageUrl }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 

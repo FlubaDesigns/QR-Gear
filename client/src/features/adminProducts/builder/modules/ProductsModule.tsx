@@ -728,7 +728,6 @@ export function ProductsModule() {
           onImagesBulkSave={activeCatalog ? handleImagesBulkSave : undefined}
           masterCatalogImages={rawImages}
           fulfillmentProvider={rawProduct.fulfillmentProvider as string | undefined}
-          qrgId={rawProduct.qrgId as string | undefined}
           tier={itemTier}
           onTierChange={activeCatalog ? handleTierChange : undefined}
           showTierControls={!!activeCatalog}
