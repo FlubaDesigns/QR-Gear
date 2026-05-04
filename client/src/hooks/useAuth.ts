@@ -10,6 +10,15 @@ type UserWithAdmin = User & { isAdmin?: boolean };
 const ADMIN_UIDS = ["xHUmudG0t5OkCQhqyhB4nXhCUfs1"];
 
 export function useAuth() {
+  if (import.meta.env.VITE_ADMIN_BYPASS === "true") {
+    return {
+      isLoading: false,
+      isAuthenticated: true,
+      isAdmin: true,
+      user: null,
+      firebaseUser: null,
+    };
+  }
   const queryClient = useQueryClient();
   // Start as undefined to distinguish "not yet checked" from "checked and no user"
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null | undefined>(undefined);

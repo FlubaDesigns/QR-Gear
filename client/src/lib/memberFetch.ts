@@ -14,6 +14,10 @@ import { onAuthStateChanged } from "firebase/auth";
 const MEMBER_BASE = "/api/members";
 
 async function getMemberToken(): Promise<string | null> {
+  if (import.meta.env.VITE_ADMIN_BYPASS === "true") {
+    return null;
+  }
+
   let user = auth.currentUser;
 
   if (!user) {

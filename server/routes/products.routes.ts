@@ -2,6 +2,159 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "../lib/qr-generator";
 import { printify, getUSAPrintProviders } from "../lib/printify";
+import { isAdmin } from "../firebaseAuth";
+
+// ── In-memory rebuild state (persists across requests within one process) ────
+interface RebuildPhaseState {
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  count?: number;
+  error?: string;
+}
+interface RebuildState {
+  status: 'never_run' | 'running' | 'completed' | 'failed';
+  startedAt?: string;
+  completedAt?: string;
+  error?: string;
+  printify?: RebuildPhaseState;
+  printful?: RebuildPhaseState;
+  master?: RebuildPhaseState;
+}
+let rebuildState: RebuildState = { status: 'never_run' };
+
+// ── Shared master-catalog build logic ───────────────────────────────────────
+async function buildMasterCatalog(fsDb: FirebaseFirestore.Firestore): Promise<number> {
+  const USA_BRANDS = ['american apparel','royal apparel','bayside','los angeles apparel','bella+canvas','bella canvas','lane seven','cotton heritage','shaka wear','backpacks usa','american giant','next level'];
+  const categorizeMC = (title: string) => {
+    const t = title.toLowerCase();
+    if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie') || t.includes('baby tee')) return "T-Shirts & Tops";
+    if (t.includes('hoodie') || t.includes('sweatshirt') || t.includes('crew neck') || t.includes('pullover') || t.includes('crewneck')) return "Sweatshirts & Hoodies";
+    if (t.includes('hat') || t.includes('cap') || t.includes('beanie') || t.includes('visor') || t.includes('bucket')) return "Hats & Caps";
+    if (t.includes('mug') || t.includes('tumbler') || t.includes('bottle') || t.includes('cup') || t.includes('glass') || t.includes('can cooler')) return "Drinkware";
+    if (t.includes('bag') || t.includes('tote') || t.includes('backpack') || t.includes('pouch') || t.includes('clutch') || t.includes('duffel') || t.includes('weekender') || t.includes('fanny') || t.includes('cosmetic')) return "Bags & Accessories";
+    if (t.includes('phone') || t.includes('case') || t.includes('airpod') || t.includes('laptop sleeve')) return "Phone Cases & Tech";
+    if (t.includes('sticker') || t.includes('magnet') || t.includes('pin button') || t.includes('bumper') || t.includes('decal')) return "Stickers & Magnets";
+    if (t.includes('poster') || t.includes('canvas') || t.includes('art print') || t.includes('framed') || t.includes('wall') || t.includes('tapestry')) return "Wall Art & Posters";
+    if (t.includes('pillow') || t.includes('blanket') || t.includes('comforter') || t.includes('shower') || t.includes('bath') || t.includes('rug') || t.includes('coaster') || t.includes('placemat') || t.includes('towel')) return "Home & Living";
+    if (t.includes('journal') || t.includes('notebook') || t.includes('card') || t.includes('postcard') || t.includes('calendar') || t.includes('puzzle')) return "Stationery & Paper";
+    if (t.includes('legging') || t.includes('jogger') || t.includes('shorts') || t.includes('skirt') || t.includes('dress') || t.includes('swimsuit') || t.includes('bikini') || t.includes('swim trunk') || t.includes('boxer') || t.includes('bra') || t.includes('jacket') || t.includes('windbreaker') || t.includes('pants') || t.includes('pajama') || t.includes('sneaker') || t.includes('shoe')) return "Activewear & Specialty";
+    if (t.includes('pet') || t.includes('dog')) return "Pet Products";
+    if (t.includes('ornament') || t.includes('stocking') || t.includes('tree skirt')) return "Holiday & Seasonal";
+    if (t.includes('sock') || t.includes('scarf') || t.includes('apron') || t.includes('bandana') || t.includes('headband') || t.includes('gaiter') || t.includes('mask') || t.includes('necktie')) return "Accessories";
+    return "Other";
+  };
+
+  const [bpSnap, provSnap, pfProductsSnap, pfVariantsSnap, existingSnap] = await Promise.all([
+    fsDb.collection('printify_blueprints').get(),
+    fsDb.collection('printifyPrintProviders').get(),
+    fsDb.collection('printful_products').get(),
+    fsDb.collection('printful_variants').get(),
+    fsDb.collection('master_catalog').get(),
+  ]);
+
+  const existingDocs = new Map<string, any>();
+  for (const doc of existingSnap.docs) existingDocs.set(doc.id, doc.data());
+
+  const providersByBlueprint = new Map<number, any>();
+  for (const prov of provSnap.docs.map((d: any) => d.data())) {
+    const existing = providersByBlueprint.get(prov.blueprintId);
+    const colors = Array.isArray(prov.availableColors) ? prov.availableColors : [];
+    if (!existing || colors.length > (existing.colors?.length || 0)) {
+      providersByBlueprint.set(prov.blueprintId, { colors, sizes: Array.isArray(prov.availableSizes) ? prov.availableSizes : [], minCost: prov.minCost || 0, maxCost: prov.maxCost || 0, providerId: prov.providerId });
+    }
+  }
+
+  const variantLookup = new Map<number, { colors: Array<{name: string; hex: string}>; sizes: string[] }>();
+  for (const v of pfVariantsSnap.docs.map((d: any) => d.data())) {
+    const pid = v.productId; if (!pid) continue;
+    if (!variantLookup.has(pid)) variantLookup.set(pid, { colors: [], sizes: [] });
+    const entry = variantLookup.get(pid)!;
+    if (v.color && !entry.colors.find((c: any) => c.name === v.color)) entry.colors.push({ name: v.color, hex: v.colorCode || '#888' });
+    if (v.size && !entry.sizes.includes(v.size)) entry.sizes.push(v.size);
+  }
+
+  const printfulByModel = new Map<string, any>();
+  for (const doc of pfProductsSnap.docs) {
+    const p = { id: parseInt((doc as any).id) || (doc.data() as any).id, ...doc.data() } as any;
+    const model = ((p.model || '') as string).toLowerCase().trim();
+    if (!model || printfulByModel.has(model)) continue;
+    const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
+    printfulByModel.set(model, { pfId: p.id, title: p.title || '', brand: p.brand || '', imageUrl: p.image || null, madeInUSA: ((p.originCountry || '') as string).toUpperCase() === 'US', minPrice: p.minPrice || null, maxPrice: p.maxPrice || null, colors: vData.colors, sizes: vData.sizes });
+  }
+
+  const records: Array<{ docId: string; data: any }> = [];
+  const usedPrintfulModels = new Set<string>();
+  const now = new Date().toISOString();
+
+  for (const doc of bpSnap.docs) {
+    const d = doc.data() as any;
+    const rawDesc = d.richDescription || d.description || '';
+    const description = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || null;
+    const id = parseInt(doc.id) || d.id;
+    const modelKey = ((d.model || '') as string).toLowerCase().trim();
+    const pfMatch = modelKey ? printfulByModel.get(modelKey) : null;
+    if (pfMatch) usedPrintfulModels.add(modelKey);
+    const provData = providersByBlueprint.get(id);
+    const colors = provData?.colors?.length ? provData.colors : (pfMatch?.colors || []);
+    const sizes = provData?.sizes?.length ? provData.sizes : (pfMatch?.sizes || []);
+    const brandLower = (d.brand || '').toLowerCase();
+    const madeInUSA = USA_BRANDS.some(b => brandLower.includes(b)) || (pfMatch?.madeInUSA || false);
+    const docId = String(id);
+    const existing = existingDocs.get(docId);
+    const masterTitle = existing?.title || d.title || '';
+    const masterDescription = existing?.description !== undefined ? existing.description : description;
+    const pyMinPrice = provData?.minCost ? parseFloat((provData.minCost / 100).toFixed(2)) : null;
+    const pyMaxPrice = provData?.maxCost ? parseFloat((provData.maxCost / 100).toFixed(2)) : null;
+    const pfMinPrice = pfMatch?.minPrice ? parseFloat(pfMatch.minPrice) : null;
+    const pfMaxPrice = pfMatch?.maxPrice ? parseFloat(pfMatch.maxPrice) : null;
+    const finalMinPrice = pyMinPrice !== null && pfMinPrice !== null ? Math.max(pyMinPrice, pfMinPrice) : (pyMinPrice ?? pfMinPrice);
+    const finalMaxPrice = pyMaxPrice !== null && pfMaxPrice !== null ? Math.max(pyMaxPrice, pfMaxPrice) : (pyMaxPrice ?? pfMaxPrice);
+    records.push({
+      docId,
+      data: {
+        id: docId, providers: pfMatch ? ['printify', 'printful'] : ['printify'], fulfillmentProvider: 'printify',
+        printifyId: id, printfulId: pfMatch?.pfId || null, title: masterTitle, description: masterDescription,
+        brand: d.brand || null, model: d.model || null, imageUrl: (d.images || [])[0] || pfMatch?.imageUrl || null,
+        madeInUSA, minPrice: finalMinPrice !== null ? String(finalMinPrice) : null, maxPrice: finalMaxPrice !== null ? String(finalMaxPrice) : null,
+        availableColors: colors, availableSizes: sizes, colorCount: colors.length, category: categorizeMC(d.title || ''),
+        blueprintId: id, printProviderId: provData?.providerId || null,
+        availableVia: pfMatch ? ['printify', 'printful'] : ['printify'], lastSyncedAt: now,
+        printify: { blueprintId: id, printProviderId: provData?.providerId || null, title: d.title || '', description, colors: provData?.colors || [], sizes: provData?.sizes || [], minPrice: pyMinPrice, maxPrice: pyMaxPrice, images: d.images || [], placements: existing?.printify?.placements || [] },
+        printful: pfMatch ? { productId: pfMatch.pfId, title: pfMatch.title, description: null, colors: pfMatch.colors || [], sizes: pfMatch.sizes || [], minPrice: pfMinPrice, maxPrice: pfMaxPrice, images: pfMatch.imageUrl ? [pfMatch.imageUrl] : [], placements: existing?.printful?.placements || [] } : null,
+      },
+    });
+  }
+
+  for (const [model, pf] of Array.from(printfulByModel.entries())) {
+    if (usedPrintfulModels.has(model)) continue;
+    const pfDocId = `pf:${pf.pfId}`;
+    const pfExisting = existingDocs.get(pfDocId);
+    records.push({
+      docId: pfDocId,
+      data: {
+        id: pfDocId, providers: ['printful'], fulfillmentProvider: 'printful',
+        printifyId: null, printfulId: pf.pfId, title: pfExisting?.title || pf.title,
+        description: pfExisting?.description !== undefined ? pfExisting.description : null,
+        brand: pf.brand || null, model: pf.model || model, imageUrl: pf.imageUrl, madeInUSA: pf.madeInUSA,
+        minPrice: pf.minPrice, maxPrice: pf.maxPrice, availableColors: pf.colors, availableSizes: pf.sizes,
+        colorCount: pf.colors.length, category: categorizeMC(pf.title), blueprintId: null, printProviderId: null,
+        availableVia: ['printful'], lastSyncedAt: now, printify: null,
+        printful: { productId: pf.pfId, title: pf.title, description: null, colors: pf.colors || [], sizes: pf.sizes || [], minPrice: pf.minPrice ? parseFloat(String(pf.minPrice)) : null, maxPrice: pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null, images: pf.imageUrl ? [pf.imageUrl] : [], placements: pfExisting?.printful?.placements || [] },
+      },
+    });
+  }
+
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = fsDb.batch();
+    for (const { docId, data } of records.slice(i, i + BATCH_SIZE)) {
+      batch.set(fsDb.collection('master_catalog').doc(docId), data);
+    }
+    await batch.commit();
+  }
+
+  console.log(`[buildMasterCatalog] Wrote ${records.length} records to master_catalog`);
+  return records.length;
+}
 
 export function registerProductRoutes(app: Express): void {
   app.post("/api/qr/generate", async (req, res) => {
@@ -368,224 +521,63 @@ export function registerProductRoutes(app: Express): void {
   });
 
   // ── Master catalog sync ──────────────────────────────────────────────────
-  app.post("/api/admin/sync-master-products", async (req, res) => {
+  app.get("/api/admin/master-catalog/rebuild-status", isAdmin, async (_req, res) => {
+    res.json(rebuildState);
+  });
+
+  app.post("/api/admin/master-catalog/rebuild-full", isAdmin, async (_req, res) => {
+    if (rebuildState.status === 'running') {
+      return res.status(409).json({ error: 'Rebuild already in progress' });
+    }
+    const { getFirestoreDb } = await import("../lib/firebase-admin");
+    const fsDb = getFirestoreDb();
+    if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
+
+    rebuildState = {
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      printify: { status: 'running' },
+      printful: { status: 'pending' },
+      master: { status: 'pending' },
+    };
+    res.json({ status: 'started' });
+
+    (async () => {
+      try {
+        const bpSnap = await fsDb.collection('printify_blueprints').get();
+        rebuildState.printify = { status: 'completed', count: bpSnap.size };
+        rebuildState.printful = { status: 'running' };
+
+        const pfSnap = await fsDb.collection('printful_products').get();
+        rebuildState.printful = { status: 'completed', count: pfSnap.size };
+        rebuildState.master = { status: 'running' };
+
+        const total = await buildMasterCatalog(fsDb);
+        rebuildState.master = { status: 'completed', count: total };
+        rebuildState.status = 'completed';
+        rebuildState.completedAt = new Date().toISOString();
+      } catch (e: any) {
+        console.error('[rebuild-full] Error:', e.message);
+        if (rebuildState.master?.status === 'running') {
+          rebuildState.master = { status: 'failed', error: e.message };
+        } else if (rebuildState.printful?.status === 'running') {
+          rebuildState.printful = { status: 'failed', error: e.message };
+        } else {
+          rebuildState.printify = { status: 'failed', error: e.message };
+        }
+        rebuildState.status = 'failed';
+        rebuildState.error = e.message;
+      }
+    })();
+  });
+
+  app.post("/api/admin/sync-master-products", isAdmin, async (req, res) => {
     try {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
       if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
-
-      const USA_BRANDS_SYNC = ['american apparel','royal apparel','bayside','los angeles apparel','bella+canvas','bella canvas','lane seven','cotton heritage','shaka wear','backpacks usa','american giant','next level'];
-      const categorizeMC = (title: string) => {
-        const t = title.toLowerCase();
-        if (t.includes('t-shirt') || t.includes('tee') || t.includes('tank') || t.includes('jersey') || t.includes('bodysuit') || t.includes('onesie') || t.includes('baby tee')) return "T-Shirts & Tops";
-        if (t.includes('hoodie') || t.includes('sweatshirt') || t.includes('crew neck') || t.includes('pullover') || t.includes('crewneck')) return "Sweatshirts & Hoodies";
-        if (t.includes('hat') || t.includes('cap') || t.includes('beanie') || t.includes('visor') || t.includes('bucket')) return "Hats & Caps";
-        if (t.includes('mug') || t.includes('tumbler') || t.includes('bottle') || t.includes('cup') || t.includes('glass') || t.includes('can cooler')) return "Drinkware";
-        if (t.includes('bag') || t.includes('tote') || t.includes('backpack') || t.includes('pouch') || t.includes('clutch') || t.includes('duffel') || t.includes('weekender') || t.includes('fanny') || t.includes('cosmetic')) return "Bags & Accessories";
-        if (t.includes('phone') || t.includes('case') || t.includes('airpod') || t.includes('laptop sleeve')) return "Phone Cases & Tech";
-        if (t.includes('sticker') || t.includes('magnet') || t.includes('pin button') || t.includes('bumper') || t.includes('decal')) return "Stickers & Magnets";
-        if (t.includes('poster') || t.includes('canvas') || t.includes('art print') || t.includes('framed') || t.includes('wall') || t.includes('tapestry')) return "Wall Art & Posters";
-        if (t.includes('pillow') || t.includes('blanket') || t.includes('comforter') || t.includes('shower') || t.includes('bath') || t.includes('rug') || t.includes('coaster') || t.includes('placemat') || t.includes('towel')) return "Home & Living";
-        if (t.includes('journal') || t.includes('notebook') || t.includes('card') || t.includes('postcard') || t.includes('calendar') || t.includes('puzzle')) return "Stationery & Paper";
-        if (t.includes('legging') || t.includes('jogger') || t.includes('shorts') || t.includes('skirt') || t.includes('dress') || t.includes('swimsuit') || t.includes('bikini') || t.includes('swim trunk') || t.includes('boxer') || t.includes('bra') || t.includes('jacket') || t.includes('windbreaker') || t.includes('pants') || t.includes('pajama') || t.includes('sneaker') || t.includes('shoe')) return "Activewear & Specialty";
-        if (t.includes('pet') || t.includes('dog')) return "Pet Products";
-        if (t.includes('ornament') || t.includes('stocking') || t.includes('tree skirt')) return "Holiday & Seasonal";
-        if (t.includes('sock') || t.includes('scarf') || t.includes('apron') || t.includes('bandana') || t.includes('headband') || t.includes('gaiter') || t.includes('mask') || t.includes('necktie')) return "Accessories";
-        return "Other";
-      };
-
-      const [bpSnap, provSnap, pfProductsSnap, pfVariantsSnap, existingSnap] = await Promise.all([
-        fsDb.collection('printify_blueprints').get(),
-        fsDb.collection('printifyPrintProviders').get(),
-        fsDb.collection('printful_products').get(),
-        fsDb.collection('printful_variants').get(),
-        fsDb.collection('master_catalog').get(),
-      ]);
-
-      // Build map of existing master_catalog so we can preserve title/description on re-sync
-      const existingDocs = new Map<string, any>();
-      for (const doc of existingSnap.docs) {
-        existingDocs.set(doc.id, doc.data());
-      }
-
-      // Build Printify provider lookup (colors/sizes/pricing)
-      const providersByBlueprint = new Map<number, any>();
-      for (const prov of provSnap.docs.map((d: any) => d.data())) {
-        const existing = providersByBlueprint.get(prov.blueprintId);
-        const colors = Array.isArray(prov.availableColors) ? prov.availableColors : [];
-        if (!existing || colors.length > (existing.colors?.length || 0)) {
-          providersByBlueprint.set(prov.blueprintId, { colors, sizes: Array.isArray(prov.availableSizes) ? prov.availableSizes : [], minCost: prov.minCost || 0, maxCost: prov.maxCost || 0, providerId: prov.providerId });
-        }
-      }
-
-      // Build Printful variant lookup (colors/sizes)
-      const variantLookup = new Map<number, { colors: Array<{name: string; hex: string}>; sizes: string[] }>();
-      for (const v of pfVariantsSnap.docs.map((d: any) => d.data())) {
-        const pid = v.productId; if (!pid) continue;
-        if (!variantLookup.has(pid)) variantLookup.set(pid, { colors: [], sizes: [] });
-        const entry = variantLookup.get(pid)!;
-        if (v.color && !entry.colors.find((c: any) => c.name === v.color)) entry.colors.push({ name: v.color, hex: v.colorCode || '#888' });
-        if (v.size && !entry.sizes.includes(v.size)) entry.sizes.push(v.size);
-      }
-
-      // Build Printful by-model lookup
-      const printfulByModel = new Map<string, any>();
-      for (const doc of pfProductsSnap.docs) {
-        const p = { id: parseInt((doc as any).id) || (doc.data() as any).id, ...doc.data() } as any;
-        const model = ((p.model || '') as string).toLowerCase().trim();
-        if (!model || printfulByModel.has(model)) continue;
-        const vData = variantLookup.get(p.id) || { colors: [], sizes: [] };
-        printfulByModel.set(model, { pfId: p.id, title: p.title || '', brand: p.brand || '', imageUrl: p.image || null, madeInUSA: ((p.originCountry || '') as string).toUpperCase() === 'US', minPrice: p.minPrice || null, maxPrice: p.maxPrice || null, colors: vData.colors, sizes: vData.sizes });
-      }
-
-      const records: Array<{ docId: string; data: any }> = [];
-      const usedPrintfulModels = new Set<string>();
-      const now = new Date().toISOString();
-
-      // Printify blueprints → master records (with optional Printful match)
-      for (const doc of bpSnap.docs) {
-        const d = doc.data() as any;
-        const rawDesc = d.richDescription || d.description || '';
-        const description = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || null;
-        const id = parseInt(doc.id) || d.id;
-        const modelKey = ((d.model || '') as string).toLowerCase().trim();
-        const pfMatch = modelKey ? printfulByModel.get(modelKey) : null;
-        if (pfMatch) usedPrintfulModels.add(modelKey);
-        const provData = providersByBlueprint.get(id);
-        const colors = provData?.colors?.length ? provData.colors : (pfMatch?.colors || []);
-        const sizes = provData?.sizes?.length ? provData.sizes : (pfMatch?.sizes || []);
-        const brandLower = (d.brand || '').toLowerCase();
-        const madeInUSA = USA_BRANDS_SYNC.some(b => brandLower.includes(b)) || (pfMatch?.madeInUSA || false);
-        const docId = String(id);
-        const existing = existingDocs.get(docId);
-
-        // Printify wins for title/description. Preserve if already set in master (write-once).
-        const masterTitle = existing?.title || d.title || '';
-        const masterDescription = existing?.description !== undefined ? existing.description : description;
-
-        // Price: use highest across providers so we never under-charge
-        const pyMinPrice = provData?.minCost ? parseFloat((provData.minCost / 100).toFixed(2)) : null;
-        const pyMaxPrice = provData?.maxCost ? parseFloat((provData.maxCost / 100).toFixed(2)) : null;
-        const pfMinPrice = pfMatch?.minPrice ? parseFloat(pfMatch.minPrice) : null;
-        const pfMaxPrice = pfMatch?.maxPrice ? parseFloat(pfMatch.maxPrice) : null;
-        const finalMinPrice = pyMinPrice !== null && pfMinPrice !== null ? Math.max(pyMinPrice, pfMinPrice) : (pyMinPrice ?? pfMinPrice);
-        const finalMaxPrice = pyMaxPrice !== null && pfMaxPrice !== null ? Math.max(pyMaxPrice, pfMaxPrice) : (pyMaxPrice ?? pfMaxPrice);
-
-        records.push({
-          docId,
-          data: {
-            id: docId,
-            providers: pfMatch ? ['printify', 'printful'] : ['printify'],
-            fulfillmentProvider: 'printify',
-            printifyId: id,
-            printfulId: pfMatch?.pfId || null,
-            title: masterTitle,
-            description: masterDescription,
-            brand: d.brand || null,
-            model: d.model || null,
-            imageUrl: (d.images || [])[0] || pfMatch?.imageUrl || null,
-            madeInUSA,
-            minPrice: finalMinPrice !== null ? String(finalMinPrice) : null,
-            maxPrice: finalMaxPrice !== null ? String(finalMaxPrice) : null,
-            availableColors: colors,
-            availableSizes: sizes,
-            colorCount: colors.length,
-            category: categorizeMC(d.title || ''),
-            blueprintId: id,
-            printProviderId: provData?.providerId || null,
-            availableVia: pfMatch ? ['printify', 'printful'] : ['printify'],
-            lastSyncedAt: now,
-            // ── Per-carrier sub-objects (single source of truth) ──
-            printify: {
-              blueprintId: id,
-              printProviderId: provData?.providerId || null,
-              title: d.title || '',
-              description,
-              colors: provData?.colors || [],
-              sizes: provData?.sizes || [],
-              minPrice: pyMinPrice,
-              maxPrice: pyMaxPrice,
-              images: d.images || [],
-              placements: existing?.printify?.placements || [],
-            },
-            printful: pfMatch ? {
-              productId: pfMatch.pfId,
-              title: pfMatch.title,
-              description: null,
-              colors: pfMatch.colors || [],
-              sizes: pfMatch.sizes || [],
-              minPrice: pfMinPrice,
-              maxPrice: pfMaxPrice,
-              images: pfMatch.imageUrl ? [pfMatch.imageUrl] : [],
-              placements: existing?.printful?.placements || [],
-            } : null,
-          },
-        });
-      }
-
-      // Printful-only products (no Printify match)
-      for (const [model, pf] of Array.from(printfulByModel.entries())) {
-        if (usedPrintfulModels.has(model)) continue;
-        const pfDocId = `pf:${pf.pfId}`;
-        const pfExisting = existingDocs.get(pfDocId);
-
-        // Preserve title if already set; never write description for Printful-only (no source for it)
-        const pfMasterTitle = pfExisting?.title || pf.title;
-        const pfMasterDescription = pfExisting?.description !== undefined ? pfExisting.description : null;
-
-        records.push({
-          docId: pfDocId,
-          data: {
-            id: pfDocId,
-            providers: ['printful'],
-            fulfillmentProvider: 'printful',
-            printifyId: null,
-            printfulId: pf.pfId,
-            title: pfMasterTitle,
-            description: pfMasterDescription,
-            brand: pf.brand || null,
-            model: pf.model || model,
-            imageUrl: pf.imageUrl,
-            madeInUSA: pf.madeInUSA,
-            minPrice: pf.minPrice,
-            maxPrice: pf.maxPrice,
-            availableColors: pf.colors,
-            availableSizes: pf.sizes,
-            colorCount: pf.colors.length,
-            category: categorizeMC(pf.title),
-            blueprintId: null,
-            printProviderId: null,
-            availableVia: ['printful'],
-            lastSyncedAt: now,
-            // ── Per-carrier sub-objects (single source of truth) ──
-            printify: null,
-            printful: {
-              productId: pf.pfId,
-              title: pf.title,
-              description: null,
-              colors: pf.colors || [],
-              sizes: pf.sizes || [],
-              minPrice: pf.minPrice ? parseFloat(String(pf.minPrice)) : null,
-              maxPrice: pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null,
-              images: pf.imageUrl ? [pf.imageUrl] : [],
-              placements: pfExisting?.printful?.placements || [],
-            },
-          },
-        });
-      }
-
-      // Batch write to master_catalog (500 per batch limit)
-      const BATCH_SIZE = 400;
-      for (let i = 0; i < records.length; i += BATCH_SIZE) {
-        const batch = fsDb.batch();
-        for (const { docId, data } of records.slice(i, i + BATCH_SIZE)) {
-          batch.set(fsDb.collection('master_catalog').doc(docId), data);
-        }
-        await batch.commit();
-      }
-
-      console.log(`[SyncMasterProducts] Wrote ${records.length} records to master_catalog`);
-      res.json({ success: true, total: records.length, printify: bpSnap.size, printfulOnly: records.filter(r => r.data.fulfillmentProvider === 'printful').length });
+      const total = await buildMasterCatalog(fsDb);
+      res.json({ success: true, total });
     } catch (error: any) {
       console.error("[SyncMasterProducts] Error:", error);
       res.status(500).json({ error: error.message });

@@ -25,6 +25,10 @@ import { onAuthStateChanged } from "firebase/auth";
 const ADMIN_BASE = "/api/admin";
 
 async function getAdminToken(): Promise<string | null> {
+  if (import.meta.env.VITE_ADMIN_BYPASS === "true") {
+    return null;
+  }
+
   let user = auth.currentUser;
 
   if (!user) {
