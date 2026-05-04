@@ -18,6 +18,8 @@
 
 import type { firestore } from 'firebase-admin';
 import { PRODUCT_PACKETS_COLLECTION } from '../constants';
+import { isValidQrgBase, isValidQrgCode } from '../../../shared/qrgCodes';
+import { resolveQrgToProductInstance } from './qrg-resolver';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Collection names (local — admin_catalog_instances not yet in constants)
@@ -141,18 +143,16 @@ function deriveType(category: string | null | undefined): string | null {
  * Throws loudly if no valid QRG identity exists — never invents a fake code.
  */
 function deriveSkuFromInstance(instance: any, instanceId: string): string {
-  const BASE_RE = /^QRG-[1-6][1-9][0-9]{3}-[IMEO]-\d{6}$/;
-
-  if (instance.qrgBaseCode && BASE_RE.test(instance.qrgBaseCode)) {
+  if (instance.qrgBaseCode && isValidQrgCode(instance.qrgBaseCode)) {
     return instance.qrgBaseCode;
   }
   // Backward compat: old field name used before schema rename
-  if (instance.qrgPacketCode && BASE_RE.test(instance.qrgPacketCode)) {
+  if (instance.qrgPacketCode && isValidQrgCode(instance.qrgPacketCode)) {
     return instance.qrgPacketCode;
   }
   if (instance.qrgBlankId && instance.qrgContext && instance.instanceNumber) {
     const candidate = `QRG-${instance.qrgBlankId}-${instance.qrgContext}-${String(instance.instanceNumber).padStart(6, '0')}`;
-    if (BASE_RE.test(candidate)) return candidate;
+    if (isValidQrgBase(candidate)) return candidate;
   }
   throw new Error(
     `[SurfaceGenerator] Instance ${instanceId} has no valid QRG identity. ` +
@@ -222,6 +222,64 @@ function generateKeywords(
   if (type) kws.push(`custom ${type.toLowerCase()}`);
   if (brand) kws.push(`${brand.toLowerCase()} ${(type || 'product').toLowerCase()}`);
   return kws;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unified resolution entry point
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PublishingInput {
+  /** Firestore document ID of the admin_catalog_instance */
+  productInstanceId?: string;
+  /** Valid base or full QRG code — used to resolve productInstanceId when provided */
+  qrgCode?: string;
+}
+
+/**
+ * Resolves either a qrgCode or productInstanceId to a NormalizedProduct.
+ *
+ * Resolution order:
+ *   1. qrgCode → resolve instance → normalize
+ *   2. productInstanceId → normalize directly
+ *
+ * Cross-validation: if both are supplied, the resolved instance must match.
+ *
+ * Throws loudly if:
+ *   - Neither is provided
+ *   - QRG is invalid or resolves to no/multiple instances
+ *   - productInstanceId does not match the QRG-resolved instance
+ *   - The loaded instance has no valid QRG identity (no fake code generated)
+ */
+export async function resolveAndNormalizeForPublishing(
+  input: PublishingInput,
+  db: firestore.Firestore,
+): Promise<NormalizedProduct> {
+  const { qrgCode, productInstanceId } = input;
+
+  if (!qrgCode && !productInstanceId) {
+    throw new Error(
+      '[SurfaceGenerator] Either qrgCode or productInstanceId is required.',
+    );
+  }
+
+  if (qrgCode) {
+    const resolved = await resolveQrgToProductInstance(qrgCode);
+
+    if (
+      productInstanceId &&
+      productInstanceId.trim() !== resolved.productInstanceId
+    ) {
+      throw new Error(
+        `[SurfaceGenerator] QRG code does not match product instance. ` +
+        `QRG resolves to "${resolved.productInstanceId}", got "${productInstanceId}".`,
+      );
+    }
+
+    return normalizeProductForPublishing(resolved.productInstanceId, db);
+  }
+
+  // productInstanceId-only path — normalizeProductForPublishing already validates QRG
+  return normalizeProductForPublishing(productInstanceId!.trim(), db);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -13,8 +13,9 @@ import { printfulClient } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 import { executeSyncJob, retryFailedJob, processRetryQueue, startRetrySweep } from '../services/marketplace-sync';
-import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct } from '../services/surface-generator';
+import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct, resolveAndNormalizeForPublishing } from '../services/surface-generator';
 import type { SupportedMarketplace, GenerateDefaults } from '../services/surface-generator';
+import { resolveQrgToProductInstance } from '../services/qrg-resolver';
 import { pushListingToAmazon } from '../services/amazon-sp-api';
 import type { AmazonListingProduct } from '../services/amazon-sp-api';
 import { pushListingToEbay } from '../services/ebay-api';
@@ -30,6 +31,7 @@ import {
   MARKETPLACE_SYNC_LOGS_COLLECTION,
   MARKETPLACE_PLATFORMS,
 } from '../constants';
+import { isValidQrgCode } from '../../../shared/qrgCodes';
 
 const VALID_PLATFORMS = new Set<string>(MARKETPLACE_PLATFORMS);
 const VALID_SURFACE_STATUSES = new Set<string>(['draft', 'ready', 'published', 'archived']);
@@ -429,7 +431,11 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     if (!surface.description || surface.description.trim().length === 0) errors.push('Description is required');
     if (!surface.images || surface.images.length === 0) errors.push('At least one image is required');
     if (surface.retailPrice == null || surface.retailPrice <= 0) errors.push('Retail price must be greater than zero');
-    if (!surface.sku || surface.sku.trim().length === 0) errors.push('SKU is required');
+    if (!surface.sku || surface.sku.trim().length === 0) {
+      errors.push('Missing valid QRG code');
+    } else if (!isValidQrgCode(surface.sku.trim())) {
+      errors.push(`Invalid QRG code format: "${surface.sku}" — must match QRG-[STNNN]-[C]-[NNNNNN] or QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`);
+    }
     const enabledVariants = variants.filter((v: any) => v.enabled);
     if (enabledVariants.length === 0) errors.push('At least one enabled variant is required');
     const variantSkus: string[] = [];
@@ -485,10 +491,10 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
 
 app.post('/admin/surfaces/generate-from-instance', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { instanceId, marketplace = 'ebay', defaults = {} } = req.body;
+    const { instanceId, qrgCode, marketplace = 'ebay', defaults = {} } = req.body;
 
-    if (!instanceId || typeof instanceId !== 'string' || !instanceId.trim()) {
-      res.status(400).json({ error: 'instanceId is required' });
+    if (!instanceId && !qrgCode) {
+      res.status(400).json({ error: 'Either instanceId or qrgCode is required' });
       return;
     }
 
@@ -498,9 +504,15 @@ app.post('/admin/surfaces/generate-from-instance', requireAdmin, async (req: Req
       return;
     }
 
-    console.log(`[SurfaceGenerator] Normalizing instance ${instanceId} for ${marketplace}`);
+    // resolveAndNormalizeForPublishing handles both paths:
+    // qrgCode → resolve instance → normalize
+    // instanceId-only → normalize directly
+    // Both → resolve qrgCode, cross-validate instanceId must match
+    const normalized = await resolveAndNormalizeForPublishing(
+      { qrgCode: qrgCode?.trim(), productInstanceId: instanceId?.trim() },
+      db,
+    );
 
-    const normalized = await normalizeProductForPublishing(instanceId.trim(), db);
     const surfacePayload = createSurfaceDraftFromNormalizedProduct(
       normalized,
       marketplace as SupportedMarketplace,
@@ -509,8 +521,9 @@ app.post('/admin/surfaces/generate-from-instance', requireAdmin, async (req: Req
 
     const docRef = await db.collection(SURFACES_COLLECTION).add(surfacePayload);
 
-    console.log(`[SurfaceGenerator] Created surface ${docRef.id} from instance ${instanceId}`);
-    res.json({ success: true, surfaceId: docRef.id, instanceId, marketplace });
+    const resolvedInstanceId = normalized.instanceId;
+    console.log(`[SurfaceGenerator] Created surface ${docRef.id} from instance ${resolvedInstanceId} (sku: ${normalized.sku})`);
+    res.json({ success: true, surfaceId: docRef.id, instanceId: resolvedInstanceId, qrgCode: normalized.sku, marketplace });
   } catch (error: any) {
     console.error('[SurfaceGenerator] generate-from-instance error:', error.message);
     res.status(500).json({ error: error.message });
@@ -567,10 +580,10 @@ app.post('/admin/surfaces/:surfaceId/push-to-amazon', requireAdmin, async (req: 
       refreshToken: account.amazonRefreshToken,
     };
 
-    // Derive SKU: prefer explicit override → surface.qrgCode → surface.sku
-    const sku = skuOverride || surface.qrgCode || surface.sku;
-    if (!sku) {
-      res.status(400).json({ error: 'Surface has no QRG code or SKU. Ensure the instance has a valid QRG identity (qrgBaseCode) before pushing to Amazon.' });
+    // SKU must be the stored QRG identity — no client overrides accepted
+    const sku = surface.sku;
+    if (!sku || !isValidQrgCode(sku)) {
+      res.status(400).json({ error: 'Marketplace action blocked: valid QRG identity required. Ensure the instance has a valid qrgBaseCode before pushing to Amazon.' });
       return;
     }
 
@@ -668,10 +681,10 @@ app.post('/admin/surfaces/:surfaceId/push-to-ebay', requireAdmin, async (req: Re
       refreshToken: account.ebayRefreshToken,
     };
 
-    // Derive SKU: prefer explicit override → surface.qrgCode → surface.sku
-    const sku = skuOverride || surface.qrgCode || surface.sku;
-    if (!sku) {
-      res.status(400).json({ error: 'Surface has no QRG code or SKU. Ensure the instance has a valid QRG identity (qrgBaseCode) before pushing to eBay.' });
+    // SKU must be the stored QRG identity — no client overrides accepted
+    const sku = surface.sku;
+    if (!sku || !isValidQrgCode(sku)) {
+      res.status(400).json({ error: 'Marketplace action blocked: valid QRG identity required. Ensure the instance has a valid qrgBaseCode before pushing to eBay.' });
       return;
     }
 
@@ -817,9 +830,10 @@ app.post('/admin/surfaces/:surfaceId/push-to-etsy', requireAdmin, async (req: Re
       return;
     }
 
-    const sku = skuOverride || surface.qrgCode || surface.sku;
-    if (!sku) {
-      res.status(400).json({ error: 'Surface has no QRG code or SKU. Ensure the instance has a valid QRG identity (qrgBaseCode) before pushing to Etsy.' });
+    // SKU must be the stored QRG identity — no client overrides accepted
+    const sku = surface.sku;
+    if (!sku || !isValidQrgCode(sku)) {
+      res.status(400).json({ error: 'Marketplace action blocked: valid QRG identity required. Ensure the instance has a valid qrgBaseCode before pushing to Etsy.' });
       return;
     }
 
@@ -991,6 +1005,16 @@ app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Res
     if (!accountDoc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
     const surface = surfaceDoc.data() as any;
     const account = accountDoc.data() as any;
+    // Validate QRG identity before creating listing
+    const qrgCode = surface.sku;
+    if (!qrgCode || !isValidQrgCode(qrgCode)) {
+      res.status(400).json({
+        ok: false,
+        errors: ['Missing valid QRG code'],
+        error: 'Marketplace action blocked: surface has no valid QRG code. Generate the surface from a committed product instance first.',
+      });
+      return;
+    }
     const existingSnap = await db.collection(MARKETPLACE_LISTINGS_COLLECTION)
       .where('surfaceId', '==', surfaceId)
       .where('accountId', '==', accountId)
@@ -1003,6 +1027,9 @@ app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Res
       surfaceId,
       accountId,
       platform: account.platform,
+      qrgCode,
+      marketplaceSku: qrgCode,
+      productInstanceId: surface.masterProductId || '',
       status: 'pending',
       title: surface.title || '',
       price: surface.retailPrice || 0,
@@ -1056,12 +1083,30 @@ app.post('/admin/surfaces/jobs', requireAdmin, async (req: Request, res: Respons
     const listingDoc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
     if (!listingDoc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
     const listing = listingDoc.data() as any;
+
+    // Load surface to validate and carry QRG identity into the job
+    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(listing.surfaceId).get();
+    if (!surfaceDoc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const surface = surfaceDoc.data() as any;
+    const qrgCode = surface.sku;
+    if (!qrgCode || !isValidQrgCode(qrgCode)) {
+      res.status(400).json({
+        ok: false,
+        errors: ['Missing valid QRG code'],
+        error: 'Marketplace action blocked: surface has no valid QRG code. Cannot enqueue sync job.',
+      });
+      return;
+    }
+
     const now = new Date().toISOString();
     const data = {
       listingId,
       surfaceId: listing.surfaceId,
       accountId: listing.accountId,
       platform: listing.platform,
+      qrgCode,
+      marketplaceSku: qrgCode,
+      productInstanceId: surface.masterProductId || listing.productInstanceId || '',
       action,
       status: 'queued',
       attempts: 0,

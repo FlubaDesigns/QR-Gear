@@ -37,6 +37,11 @@ exports.getQrgItemNumber = getQrgItemNumber;
 exports.normalizeQrgBlankId = normalizeQrgBlankId;
 exports.buildFullQrgCode = buildFullQrgCode;
 exports.parseFullQrgCode = parseFullQrgCode;
+exports.isValidQrgBase = isValidQrgBase;
+exports.isValidQrgFull = isValidQrgFull;
+exports.isValidQrgCode = isValidQrgCode;
+exports.assertValidQrgCode = assertValidQrgCode;
+exports.getQrgContext = getQrgContext;
 // ── Size codes (2 digits, 01–10) ─────────────────────────────────────────────
 // GLOBAL FIXED — never change these assignments.
 exports.SIZE_CODE_MAP = {
@@ -263,5 +268,41 @@ function parseFullQrgCode(code) {
         sizeCode: m[4].slice(0, 2),
         colorCode: m[4].slice(2, 4),
     };
+}
+// ── QRG Code Validation Helpers ───────────────────────────────────────────────
+// Use these everywhere — do not hand-roll QRG regexes outside this file.
+const QRG_BASE_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})$/;
+/** Validates the base QRG format: QRG-[STNNN]-[C]-[NNNNNN] */
+function isValidQrgBase(code) {
+    return QRG_BASE_CODE_RE.test(String(code ?? ''));
+}
+/** Validates the full QRG format: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC] */
+function isValidQrgFull(code) {
+    return QRG_FULL_CODE_RE.test(String(code ?? ''));
+}
+/** Validates either base or full QRG format */
+function isValidQrgCode(code) {
+    return isValidQrgBase(code) || isValidQrgFull(code);
+}
+/**
+ * Throws if code is not a valid QRG base or full code.
+ * Use before any marketplace action that requires a real QRG identity.
+ */
+function assertValidQrgCode(code, context) {
+    if (!isValidQrgCode(code)) {
+        const prefix = context ? `[${context}] ` : '';
+        throw new Error(`${prefix}Marketplace action blocked: valid QRG identity required. Got: ${String(code ?? 'undefined')}`);
+    }
+}
+/** Returns the context letter (I/M/E/O) from a base or full QRG code, or null if invalid */
+function getQrgContext(code) {
+    const s = String(code ?? '');
+    const baseMatch = QRG_BASE_CODE_RE.exec(s);
+    if (baseMatch)
+        return baseMatch[2];
+    const fullMatch = QRG_FULL_CODE_RE.exec(s);
+    if (fullMatch)
+        return fullMatch[2];
+    return null;
 }
 //# sourceMappingURL=qrgCodes.js.map

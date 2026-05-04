@@ -1,4 +1,5 @@
 import type { MarketplaceResult, SurfaceInput, AccountInput } from './etsy';
+import { assertValidQrgCode } from '../../../shared/qrgCodes';
 
 async function getAccessToken(): Promise<{ token: string } | { error: string }> {
   const clientId = process.env.AMAZON_SP_CLIENT_ID;
@@ -46,7 +47,8 @@ export async function createListing(surface: SurfaceInput, _account: AccountInpu
   const tokenResult = await getAccessToken();
   if ('error' in tokenResult) return { success: false, error: tokenResult.error };
 
-  const sku = `QG-${(surface.sku || surface.masterProductId).substring(0, 12)}`.toUpperCase();
+  assertValidQrgCode(surface.sku, 'AmazonAdapter');
+  const sku = surface.sku;
   const marketplaceId = getMarketplaceId();
 
   const listingData = {

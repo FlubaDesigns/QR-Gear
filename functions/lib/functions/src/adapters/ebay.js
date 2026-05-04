@@ -4,6 +4,7 @@ exports.buildEbayPayload = buildEbayPayload;
 exports.createListing = createListing;
 exports.updateListing = updateListing;
 exports.deleteListing = deleteListing;
+const qrgCodes_1 = require("../../../shared/qrgCodes");
 const INVENTORY_API = 'https://api.ebay.com/sell/inventory/v1';
 function getHeaders() {
     const accessToken = process.env.EBAY_ACCESS_TOKEN;
@@ -43,7 +44,8 @@ function buildEbayPayload(surface) {
                 aspects[k] = [v.trim()];
         }
     }
-    const sku = `QRGEAR-${(surface.sku || surface.masterProductId).substring(0, 8)}`.toUpperCase();
+    (0, qrgCodes_1.assertValidQrgCode)(surface.sku, 'EbayAdapter');
+    const sku = surface.sku;
     // Product identifiers
     const identifiers = [];
     if (eb.upc)

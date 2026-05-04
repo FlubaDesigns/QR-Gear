@@ -40,6 +40,7 @@ exports.processRetryQueue = processRetryQueue;
 exports.retryFailedJob = retryFailedJob;
 const core_1 = require("../core");
 const constants_1 = require("../constants");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
 const etsyAdapter = __importStar(require("../adapters/etsy"));
 const ebayAdapter = __importStar(require("../adapters/ebay"));
 const amazonAdapter = __importStar(require("../adapters/amazon"));
@@ -207,6 +208,30 @@ async function executeSyncJob(jobId) {
     catch (txErr) {
         console.error(`[MarketplaceSync] Transaction failed for job ${jobId}:`, txErr);
         return;
+    }
+    // Validate QRG identity stored on the job before executing
+    if (job.qrgCode !== undefined) {
+        if (!(0, qrgCodes_1.isValidQrgCode)(job.qrgCode)) {
+            await updateJobStatus(jobId, 'failed', {
+                errorMessage: 'Marketplace blocked: invalid QRG code on sync job.',
+            });
+            await updateListingStatus(job.listingId, {
+                status: 'error',
+                errorMessage: 'Invalid QRG code on sync job',
+            });
+            await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', 'Marketplace blocked: invalid QRG code on sync job', { qrgCode: job.qrgCode });
+            return;
+        }
+        if (job.marketplaceSku !== undefined && job.marketplaceSku !== job.qrgCode) {
+            const msg = `Marketplace blocked: qrgCode / marketplaceSku mismatch on sync job.`;
+            await updateJobStatus(jobId, 'failed', { errorMessage: msg });
+            await updateListingStatus(job.listingId, { status: 'error', errorMessage: msg });
+            await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', msg, {
+                qrgCode: job.qrgCode,
+                marketplaceSku: job.marketplaceSku,
+            });
+            return;
+        }
     }
     await updateListingStatus(job.listingId, { status: 'syncing' });
     await writeLog(jobId, job.listingId, job.accountId, job.platform, 'info', `Starting ${job.action} (attempt ${job.attempts + 1}/${job.maxAttempts})`);

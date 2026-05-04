@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createListing = createListing;
 exports.updateListing = updateListing;
 exports.deleteListing = deleteListing;
+const qrgCodes_1 = require("../../../shared/qrgCodes");
 async function getAccessToken() {
     const clientId = process.env.AMAZON_SP_CLIENT_ID;
     const clientSecret = process.env.AMAZON_SP_CLIENT_SECRET;
@@ -41,7 +42,8 @@ async function createListing(surface, _account) {
     const tokenResult = await getAccessToken();
     if ('error' in tokenResult)
         return { success: false, error: tokenResult.error };
-    const sku = `QG-${(surface.sku || surface.masterProductId).substring(0, 12)}`.toUpperCase();
+    (0, qrgCodes_1.assertValidQrgCode)(surface.sku, 'AmazonAdapter');
+    const sku = surface.sku;
     const marketplaceId = getMarketplaceId();
     const listingData = {
         productType: 'SHIRT',

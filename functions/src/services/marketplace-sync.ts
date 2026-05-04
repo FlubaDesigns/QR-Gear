@@ -10,6 +10,7 @@ import {
   type SyncJobStatus,
   type SyncLogLevel,
 } from '../constants';
+import { isValidQrgCode } from '../../../shared/qrgCodes';
 import * as etsyAdapter from '../adapters/etsy';
 import * as ebayAdapter from '../adapters/ebay';
 import * as amazonAdapter from '../adapters/amazon';
@@ -24,6 +25,12 @@ interface SyncJobDoc {
   status: SyncJobStatus;
   attempts: number;
   maxAttempts: number;
+  /** Validated QRG code — must equal marketplaceSku */
+  qrgCode?: string;
+  /** The SKU sent to the marketplace adapter — must equal qrgCode */
+  marketplaceSku?: string;
+  /** The admin_catalog_instance ID this job originates from */
+  productInstanceId?: string;
   lastAttemptAt?: string;
   nextRetryAt?: string;
   completedAt?: string;
@@ -278,6 +285,34 @@ export async function executeSyncJob(jobId: string): Promise<void> {
   } catch (txErr) {
     console.error(`[MarketplaceSync] Transaction failed for job ${jobId}:`, txErr);
     return;
+  }
+
+  // Validate QRG identity stored on the job before executing
+  if (job.qrgCode !== undefined) {
+    if (!isValidQrgCode(job.qrgCode)) {
+      await updateJobStatus(jobId, 'failed', {
+        errorMessage: 'Marketplace blocked: invalid QRG code on sync job.',
+      });
+      await updateListingStatus(job.listingId, {
+        status: 'error',
+        errorMessage: 'Invalid QRG code on sync job',
+      });
+      await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error',
+        'Marketplace blocked: invalid QRG code on sync job',
+        { qrgCode: job.qrgCode },
+      );
+      return;
+    }
+    if (job.marketplaceSku !== undefined && job.marketplaceSku !== job.qrgCode) {
+      const msg = `Marketplace blocked: qrgCode / marketplaceSku mismatch on sync job.`;
+      await updateJobStatus(jobId, 'failed', { errorMessage: msg });
+      await updateListingStatus(job.listingId, { status: 'error', errorMessage: msg });
+      await writeLog(jobId, job.listingId, job.accountId, job.platform, 'error', msg, {
+        qrgCode: job.qrgCode,
+        marketplaceSku: job.marketplaceSku,
+      });
+      return;
+    }
   }
 
   await updateListingStatus(job.listingId, { status: 'syncing' });

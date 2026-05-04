@@ -17,9 +17,12 @@
  *   4. packet.options                         — structured option groups for variants
  */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.resolveAndNormalizeForPublishing = resolveAndNormalizeForPublishing;
 exports.normalizeProductForPublishing = normalizeProductForPublishing;
 exports.createSurfaceDraftFromNormalizedProduct = createSurfaceDraftFromNormalizedProduct;
 const constants_1 = require("../constants");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
+const qrg_resolver_1 = require("./qrg-resolver");
 // ─────────────────────────────────────────────────────────────────────────────
 // Collection names (local — admin_catalog_instances not yet in constants)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,17 +98,16 @@ function deriveType(category) {
  * Throws loudly if no valid QRG identity exists — never invents a fake code.
  */
 function deriveSkuFromInstance(instance, instanceId) {
-    const BASE_RE = /^QRG-[1-6][1-9][0-9]{3}-[IMEO]-\d{6}$/;
-    if (instance.qrgBaseCode && BASE_RE.test(instance.qrgBaseCode)) {
+    if (instance.qrgBaseCode && (0, qrgCodes_1.isValidQrgCode)(instance.qrgBaseCode)) {
         return instance.qrgBaseCode;
     }
     // Backward compat: old field name used before schema rename
-    if (instance.qrgPacketCode && BASE_RE.test(instance.qrgPacketCode)) {
+    if (instance.qrgPacketCode && (0, qrgCodes_1.isValidQrgCode)(instance.qrgPacketCode)) {
         return instance.qrgPacketCode;
     }
     if (instance.qrgBlankId && instance.qrgContext && instance.instanceNumber) {
         const candidate = `QRG-${instance.qrgBlankId}-${instance.qrgContext}-${String(instance.instanceNumber).padStart(6, '0')}`;
-        if (BASE_RE.test(candidate))
+        if ((0, qrgCodes_1.isValidQrgBase)(candidate))
             return candidate;
     }
     throw new Error(`[SurfaceGenerator] Instance ${instanceId} has no valid QRG identity. ` +
@@ -164,6 +166,38 @@ function generateKeywords(category, brand) {
     if (brand)
         kws.push(`${brand.toLowerCase()} ${(type || 'product').toLowerCase()}`);
     return kws;
+}
+/**
+ * Resolves either a qrgCode or productInstanceId to a NormalizedProduct.
+ *
+ * Resolution order:
+ *   1. qrgCode → resolve instance → normalize
+ *   2. productInstanceId → normalize directly
+ *
+ * Cross-validation: if both are supplied, the resolved instance must match.
+ *
+ * Throws loudly if:
+ *   - Neither is provided
+ *   - QRG is invalid or resolves to no/multiple instances
+ *   - productInstanceId does not match the QRG-resolved instance
+ *   - The loaded instance has no valid QRG identity (no fake code generated)
+ */
+async function resolveAndNormalizeForPublishing(input, db) {
+    const { qrgCode, productInstanceId } = input;
+    if (!qrgCode && !productInstanceId) {
+        throw new Error('[SurfaceGenerator] Either qrgCode or productInstanceId is required.');
+    }
+    if (qrgCode) {
+        const resolved = await (0, qrg_resolver_1.resolveQrgToProductInstance)(qrgCode);
+        if (productInstanceId &&
+            productInstanceId.trim() !== resolved.productInstanceId) {
+            throw new Error(`[SurfaceGenerator] QRG code does not match product instance. ` +
+                `QRG resolves to "${resolved.productInstanceId}", got "${productInstanceId}".`);
+        }
+        return normalizeProductForPublishing(resolved.productInstanceId, db);
+    }
+    // productInstanceId-only path — normalizeProductForPublishing already validates QRG
+    return normalizeProductForPublishing(productInstanceId.trim(), db);
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // Stage A — normalizeProductForPublishing

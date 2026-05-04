@@ -289,3 +289,46 @@ export function parseFullQrgCode(code: string): QrgCodeParts | null {
     colorCode: m[4].slice(2, 4),
   };
 }
+
+// ── QRG Code Validation Helpers ───────────────────────────────────────────────
+// Use these everywhere — do not hand-roll QRG regexes outside this file.
+
+const QRG_BASE_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})$/;
+
+/** Validates the base QRG format: QRG-[STNNN]-[C]-[NNNNNN] */
+export function isValidQrgBase(code: unknown): boolean {
+  return QRG_BASE_CODE_RE.test(String(code ?? ''));
+}
+
+/** Validates the full QRG format: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC] */
+export function isValidQrgFull(code: unknown): boolean {
+  return QRG_FULL_CODE_RE.test(String(code ?? ''));
+}
+
+/** Validates either base or full QRG format */
+export function isValidQrgCode(code: unknown): boolean {
+  return isValidQrgBase(code) || isValidQrgFull(code);
+}
+
+/**
+ * Throws if code is not a valid QRG base or full code.
+ * Use before any marketplace action that requires a real QRG identity.
+ */
+export function assertValidQrgCode(code: unknown, context?: string): asserts code is string {
+  if (!isValidQrgCode(code)) {
+    const prefix = context ? `[${context}] ` : '';
+    throw new Error(
+      `${prefix}Marketplace action blocked: valid QRG identity required. Got: ${String(code ?? 'undefined')}`,
+    );
+  }
+}
+
+/** Returns the context letter (I/M/E/O) from a base or full QRG code, or null if invalid */
+export function getQrgContext(code: unknown): 'I' | 'M' | 'E' | 'O' | null {
+  const s = String(code ?? '');
+  const baseMatch = QRG_BASE_CODE_RE.exec(s);
+  if (baseMatch) return baseMatch[2] as 'I' | 'M' | 'E' | 'O';
+  const fullMatch = QRG_FULL_CODE_RE.exec(s);
+  if (fullMatch) return fullMatch[2] as 'I' | 'M' | 'E' | 'O';
+  return null;
+}

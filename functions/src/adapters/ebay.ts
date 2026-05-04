@@ -1,4 +1,5 @@
 import type { MarketplaceResult, SurfaceInputFull, AccountInput, EbayBlock } from './etsy';
+import { assertValidQrgCode } from '../../../shared/qrgCodes';
 
 const INVENTORY_API = 'https://api.ebay.com/sell/inventory/v1';
 
@@ -44,7 +45,8 @@ export function buildEbayPayload(surface: SurfaceInputFull): {
     }
   }
 
-  const sku = `QRGEAR-${(surface.sku || surface.masterProductId).substring(0, 8)}`.toUpperCase();
+  assertValidQrgCode(surface.sku, 'EbayAdapter');
+  const sku = surface.sku;
 
   // Product identifiers
   const identifiers: Record<string, unknown>[] = [];
