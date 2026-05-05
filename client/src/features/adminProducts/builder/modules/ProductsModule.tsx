@@ -28,7 +28,7 @@ import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
-import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
+import { getLookupBlankKey, safeBlankId } from "@shared/blankKeys";
 import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
@@ -202,7 +202,7 @@ export function ProductsModule() {
       const seen = new Set<string>();
       for (const cat of data) {
         for (const item of (cat.items || [])) {
-          const key = (item as any).docId || getCanonicalBlankKey(item);
+          const key = getLookupBlankKey(item);
           if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }
@@ -265,7 +265,7 @@ export function ProductsModule() {
       const seen = new Set<string>();
       for (const cat of data) {
         for (const item of (cat.items || [])) {
-          const key = getCanonicalBlankKey(item);
+          const key = getLookupBlankKey(item);
           if (!seen.has(key)) { seen.add(key); items.push(item); }
         }
       }

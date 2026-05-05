@@ -650,17 +650,17 @@ export function registerProductRoutes(app: Express): void {
         const allImages: string[] = p.images ?? [...printifyImages, ...printfulImages];
         const imageUrl = (allImages.length > 0 ? allImages[0] : null) ?? p.imageUrl ?? null;
         const madeInUSA = p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US');
-        const availableVia: string[] = p.availableVia ?? (
-          printfulId != null && blueprintId != null ? ['Printify', 'Printful'] :
-          blueprintId != null ? ['Printify'] : ['Printful']
-        );
+        const availableVia: string[] = (p.availableVia ?? (
+          printfulId != null && blueprintId != null ? ['printify', 'printful'] :
+          blueprintId != null ? ['printify'] : ['printful']
+        )).map((v: string) => v.toLowerCase());
         const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
-        const providers = p.providers ?? availableVia.map((v: string) => v.toLowerCase());
+        const providers = p.providers ?? availableVia;
 
         categories[category].push({
           docId: doc.id,
           // QRG identity fields
-          qrgBlankId: p.qrgBlankId ?? doc.id,
+          qrgBlankId: p.qrgBlankId ?? null,
           qrgCategory: p.qrgCategory ?? null,
           categorySource: p.categorySource ?? null,
           providerMappings: p.providerMappings ?? [],

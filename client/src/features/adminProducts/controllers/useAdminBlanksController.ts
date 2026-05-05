@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
+import { getLookupBlankKey, safeBlankId } from "@shared/blankKeys";
 import type { CatalogBlankItem } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
 
 interface CatalogProduct {
@@ -169,7 +169,7 @@ function buildBlankSnapshot(p: CatalogProduct): Record<string, { title: string |
 function isAvailableVia(p: CatalogProduct, provider: ProviderFilter): boolean {
   // New: check availableVia array (QRG format)
   if (Array.isArray(p.availableVia) && p.availableVia.length > 0) {
-    return p.availableVia.includes(provider);
+    return p.availableVia.map((v: string) => v.toLowerCase()).includes(provider);
   }
   // Legacy: check fulfillmentProvider field
   if (p.fulfillmentProvider === 'both') return true;
@@ -429,7 +429,7 @@ export function useAdminBlanksController() {
     let items = allProducts;
     // Narrow to source catalog items when source is selected
     if (sourceCatalogId && sourceBlankSet.size > 0) {
-      items = items.filter(p => sourceBlankSet.has(getCanonicalBlankKey(p)));
+      items = items.filter(p => sourceBlankSet.has(getLookupBlankKey(p)));
     }
     if (categoryFilter !== "all") {
       const cat = activeCategories.find(c => c.name === categoryFilter);
@@ -452,9 +452,9 @@ export function useAdminBlanksController() {
   }, [allProducts, sourceCatalogId, sourceBlankSet, activeCategories, categoryFilter, locationFilter, search]);
 
   const resolveBlankKey = useCallback((id: string, product?: CatalogProduct) => {
-    if (product) return getCanonicalBlankKey(product);
+    if (product) return getLookupBlankKey(product);
     const found = allProductMap.get(id);
-    if (found) return getCanonicalBlankKey(found);
+    if (found) return getLookupBlankKey(found);
     return id;
   }, [allProductMap]);
 
@@ -488,14 +488,14 @@ export function useAdminBlanksController() {
     const catalogProducts = catalogItems.map(c => allProductMap.get(c.catalogKey)).filter(Boolean) as CatalogProduct[];
     filtered.forEach(p => {
       const key = getProductKey(p);
-      const blankKey = getCanonicalBlankKey(p);
+      const blankKey = getLookupBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
       const customTitle = blankTitles[blankKey];
       map.set(key, normalizeSourceBlank(p, pricing, customDesc, customTitle));
     });
     catalogProducts.forEach(p => {
       const key = getProductKey(p);
-      const blankKey = getCanonicalBlankKey(p);
+      const blankKey = getLookupBlankKey(p);
       const customDesc = blankDescriptions[blankKey];
       const customTitle = blankTitles[blankKey];
       map.set(key, normalizeSourceBlank(p, pricing, customDesc, customTitle));

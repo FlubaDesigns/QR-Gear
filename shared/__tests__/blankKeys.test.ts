@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  getCanonicalBlankKey,
+  getLookupBlankKey,
   getProductSnapshotKey,
   safeBlankId,
   isProviderPrintful,
@@ -12,48 +12,55 @@ import {
 } from '../blankKeys';
 
 describe('blankKeys', () => {
-  describe('getCanonicalBlankKey', () => {
+  describe('getLookupBlankKey', () => {
     // QRG doc ID takes highest priority — this is the catalog identity law.
     // Note: buildBlankSnapshot() in useAdminBlanksController.ts uses the same
     // priority via getProductKey(p) = p.docId || String(p.id). This means
     // snapshot map keys ARE qrg_STNNN whenever the product has a docId — no
     // special handling needed; the contract flows from the same docId priority.
     it('returns docId directly when product has a qrg_STNNN docId', () => {
-      expect(getCanonicalBlankKey({ id: 71, docId: 'qrg_11001' })).toBe('qrg_11001');
+      expect(getLookupBlankKey({ id: 71, docId: 'qrg_11001' })).toBe('qrg_11001');
     });
 
     it('returns docId for product with both id and docId', () => {
-      expect(getCanonicalBlankKey({ id: 999, docId: 'qrg_11001' })).toBe('qrg_11001');
+      expect(getLookupBlankKey({ id: 999, docId: 'qrg_11001' })).toBe('qrg_11001');
     });
 
     it('returns docId for Printful product with qrg_STNNN docId', () => {
-      expect(getCanonicalBlankKey({ id: 42, fulfillmentProvider: 'printful', docId: 'qrg_21003' })).toBe('qrg_21003');
+      expect(getLookupBlankKey({ id: 42, fulfillmentProvider: 'printful', docId: 'qrg_21003' })).toBe('qrg_21003');
     });
 
     it('returns docId even when only docId is meaningful', () => {
-      expect(getCanonicalBlankKey({ id: 0, docId: 'qrg_61999' })).toBe('qrg_61999');
+      expect(getLookupBlankKey({ id: 0, docId: 'qrg_61999' })).toBe('qrg_61999');
     });
 
     // Without docId, falls back to provider key logic (display/lookup reference only,
     // NOT intended for catalog identity persistence — send to server for resolution).
     it('returns plain id for Printify products (no docId)', () => {
-      expect(getCanonicalBlankKey({ id: 71 })).toBe('71');
+      expect(getLookupBlankKey({ id: 71 })).toBe('71');
     });
 
     it('returns plain id for Printify with explicit provider (no docId)', () => {
-      expect(getCanonicalBlankKey({ id: 71, fulfillmentProvider: 'printify' })).toBe('71');
+      expect(getLookupBlankKey({ id: 71, fulfillmentProvider: 'printify' })).toBe('71');
     });
 
     it('prefixes pf: for Printful products (no docId)', () => {
-      expect(getCanonicalBlankKey({ id: 42, fulfillmentProvider: 'printful' })).toBe('pf:42');
+      expect(getLookupBlankKey({ id: 42, fulfillmentProvider: 'printful' })).toBe('pf:42');
     });
 
     it('does not double-prefix Printful IDs', () => {
-      expect(getCanonicalBlankKey({ id: 'pf:42', fulfillmentProvider: 'printful' })).toBe('pf:42');
+      expect(getLookupBlankKey({ id: 'pf:42', fulfillmentProvider: 'printful' })).toBe('pf:42');
     });
 
     it('handles string IDs', () => {
-      expect(getCanonicalBlankKey({ id: '99' })).toBe('99');
+      expect(getLookupBlankKey({ id: '99' })).toBe('99');
+    });
+
+    // Provider keys returned on fallback are reference/lookup only.
+    // Never persist pf:NN or plain "NN" in catalog.blankIds — server must resolve to qrg_STNNN.
+    it('fallback result is NOT a valid QRG blank ID', () => {
+      expect(isQRGBlankId(getLookupBlankKey({ id: 71 }))).toBe(false);
+      expect(isQRGBlankId(getLookupBlankKey({ id: 42, fulfillmentProvider: 'printful' }))).toBe(false);
     });
   });
 

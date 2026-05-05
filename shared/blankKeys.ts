@@ -1,4 +1,13 @@
-export function getCanonicalBlankKey(product: { id: number | string; fulfillmentProvider?: string; docId?: string }): string {
+/**
+ * Returns the best available lookup/reference key for a product.
+ * Priority: canonical qrg_STNNN docId > provider-prefixed form > raw numeric id.
+ *
+ * IMPORTANT: This is a LOOKUP key, not a catalog-identity save key.
+ * When docId is present the result IS canonical (qrg_STNNN).
+ * When docId is absent the fallback (pf:NN / "NN") is a reference key only —
+ * never persist it in catalog.blankIds; let the server resolve it to qrg_STNNN.
+ */
+export function getLookupBlankKey(product: { id: number | string; fulfillmentProvider?: string; docId?: string }): string {
   if ((product as any).docId) return (product as any).docId;
   const id = String(product.id);
   if (product.fulfillmentProvider === 'printful') {
