@@ -53,6 +53,7 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const composite_image_1 = require("../services/composite-image");
 const qrg_instance_allocator_1 = require("../services/qrg-instance-allocator");
+const bld_builder_1 = require("../services/bld-builder");
 const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
@@ -592,9 +593,32 @@ function registerAdminBuildSessions(app) {
                     updatedAt: now,
                 });
             }
+            // ── Write BLD definition (fire-and-forget, never blocks commit) ────────
+            // The working state holds the full builder snapshot.
+            // We write BLD after the QRG instance exists so we can link both IDs.
+            let bldId = null;
+            try {
+                const bldResult = await (0, bld_builder_1.writeBldDefinition)({
+                    working: session.working || {},
+                    sourceSessionId: id,
+                    sourceInstanceId: instanceId,
+                    qrgBlankId: qrgIdentity.qrgBlankId,
+                    qrgBaseCode: qrgIdentity.qrgBaseCode,
+                    packetId: newPacketId,
+                });
+                bldId = bldResult.bldId;
+                console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
+                // Back-fill bldId onto the admin_catalog_instance for traceability
+                await instanceRef.update({ bldId, updatedAt: now });
+            }
+            catch (bldErr) {
+                // BLD write failure must never block the commit response
+                console.error(`[BuildSessions] BLD write failed (non-fatal):`, bldErr.message);
+            }
             await ref.update({
                 status: 'committed',
                 committedInstanceId: instanceId,
+                bldId: bldId || null,
                 updatedAt: now,
             });
             res.json({
@@ -603,6 +627,7 @@ function registerAdminBuildSessions(app) {
                 instanceId,
                 sourceMasterId: session.sourceMasterId,
                 packetId: newPacketId,
+                bldId: bldId || null,
             });
         }
         catch (err) {

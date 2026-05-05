@@ -530,7 +530,7 @@ export default function AdminBlanks() {
       actions={
         <Button
           variant="outline"
-          onClick={() => setShowCreate(true)}
+          onClick={() => { setActiveTab("catalogs"); setShowCreate(true); }}
           disabled={showCreate}
           data-testid="button-new-catalog-header"
           className="qr-touch-48"

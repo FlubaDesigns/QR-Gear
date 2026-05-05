@@ -19,6 +19,7 @@ import { db, storage } from '../core';
 import { requireAdmin } from '../middleware';
 import { cfGeneratePrintifyComposite, cfUploadBufferToStorage } from '../services/composite-image';
 import { allocateQrgInstance } from '../services/qrg-instance-allocator';
+import { writeBldDefinition } from '../services/bld-builder';
 
 const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
@@ -596,9 +597,33 @@ export function registerAdminBuildSessions(app: express.Express): void {
         });
       }
 
+      // ── Write BLD definition (fire-and-forget, never blocks commit) ────────
+      // The working state holds the full builder snapshot.
+      // We write BLD after the QRG instance exists so we can link both IDs.
+      let bldId: string | null = null;
+      try {
+        const bldResult = await writeBldDefinition({
+          working:          session.working || {},
+          sourceSessionId:  id,
+          sourceInstanceId: instanceId,
+          qrgBlankId:       qrgIdentity.qrgBlankId,
+          qrgBaseCode:      qrgIdentity.qrgBaseCode,
+          packetId:         newPacketId,
+        });
+        bldId = bldResult.bldId;
+        console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
+
+        // Back-fill bldId onto the admin_catalog_instance for traceability
+        await instanceRef.update({ bldId, updatedAt: now });
+      } catch (bldErr: any) {
+        // BLD write failure must never block the commit response
+        console.error(`[BuildSessions] BLD write failed (non-fatal):`, bldErr.message);
+      }
+
       await ref.update({
         status: 'committed',
         committedInstanceId: instanceId,
+        bldId: bldId || null,
         updatedAt: now,
       });
 
@@ -608,6 +633,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         instanceId,
         sourceMasterId: session.sourceMasterId,
         packetId: newPacketId,
+        bldId: bldId || null,
       });
     } catch (err: any) {
       console.error('[BuildSessions] commit error:', err.message);
