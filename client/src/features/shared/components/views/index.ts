@@ -21,6 +21,7 @@ export interface ScrollViewItem {
   memberPacketDescription?: string | null;
   effectiveDescription?: string | null;
   hasMockupMapping?: boolean;
+  qrgBlankId?: number | null;
   metadata?: Record<string, any>;
 }
 

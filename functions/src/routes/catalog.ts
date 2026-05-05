@@ -14,6 +14,39 @@ import { printfulClient } from '../services/printful';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 
   export function register(app: express.Express): void {
+
+  // ── Helper: seed blanks + metadata into the "Primary" catalog ────────────
+  async function seedIntoPrimary(
+    excludeCatalogId: string,
+    blankIds: string[],
+    metaMaps: Record<string, Record<string, any>>
+  ): Promise<void> {
+    try {
+      const snap = await db.collection('catalogs').where('name', '==', 'Primary').limit(1).get();
+      if (snap.empty) return;
+      const primaryRef = snap.docs[0].ref;
+      const primaryId = snap.docs[0].id;
+      if (primaryId === excludeCatalogId) return;
+      const primaryData = snap.docs[0].data();
+      const existing = (primaryData.blankIds || []).map(String);
+      const merged = [...new Set([...existing, ...blankIds.map(String)])];
+      const updates: any = { blankIds: merged, updatedAt: new Date().toISOString() };
+      const metaFields = ['blankTiers', 'blankDescriptions', 'blankTitles', 'blankMakers', 'blankModels', 'blankProviders', 'blankImages', 'blankPrimaryImages'];
+      for (const field of metaFields) {
+        const srcMap: Record<string, any> = metaMaps[field] || {};
+        const targetMap: Record<string, any> = { ...(primaryData[field] || {}) };
+        for (const blankId of blankIds.map(String)) {
+          if (!(blankId in targetMap) && blankId in srcMap) targetMap[blankId] = srcMap[blankId];
+        }
+        updates[field] = targetMap;
+      }
+      await primaryRef.update(updates);
+      console.log(`[Catalogs] Seeded ${blankIds.length} blanks into Primary catalog (${primaryId})`);
+    } catch (err: any) {
+      console.warn(`[Catalogs] seedIntoPrimary failed (non-fatal): ${err.message}`);
+    }
+  }
+
   // ============ CATALOG MANAGEMENT SYSTEM ============
 
 app.get('/admin/catalogs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -103,6 +136,7 @@ app.post('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Request,
       }
     }
     await docRef.update(updates);
+    seedIntoPrimary(catalogId, blankIds.map(String), updates);
     console.log(`[Catalogs] Added ${blankIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
     res.json({ success: true, count: merged.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -189,9 +223,24 @@ app.post('/admin/catalogs/:catalogId/bulk-copy', requireAdmin, async (req: Reque
     const targetRef = db.collection('catalogs').doc(targetCatalogId);
     const targetDoc = await targetRef.get();
     if (!targetDoc.exists) { res.status(404).json({ error: 'Target catalog not found' }); return; }
-    const existing = (targetDoc.data()?.blankIds || []).map(String);
+    const src = srcDoc.data()!;
+    const target = targetDoc.data()!;
+    const existing = (target.blankIds || []).map(String);
     const merged = [...new Set([...existing, ...blankIds.map(String)])];
-    await targetRef.update({ blankIds: merged, updatedAt: new Date().toISOString() });
+    const updates: any = { blankIds: merged, updatedAt: new Date().toISOString() };
+    const metaFields = ['blankTiers', 'blankDescriptions', 'blankTitles', 'blankMakers', 'blankModels', 'blankProviders', 'blankImages', 'blankPrimaryImages'];
+    for (const field of metaFields) {
+      const srcMap: Record<string, any> = src[field] || {};
+      const targetMap: Record<string, any> = { ...(target[field] || {}) };
+      for (const blankId of blankIds.map(String)) {
+        if (!(blankId in targetMap) && blankId in srcMap) {
+          targetMap[blankId] = srcMap[blankId];
+        }
+      }
+      updates[field] = targetMap;
+    }
+    await targetRef.update(updates);
+    seedIntoPrimary(targetCatalogId, blankIds.map(String), updates);
     const added = merged.length - existing.length;
     console.log(`[Catalogs] Bulk copied ${blankIds.length} blanks from ${catalogId} to ${targetCatalogId}. ${added} new, ${merged.length} total`);
     res.json({ success: true, added, total: merged.length });

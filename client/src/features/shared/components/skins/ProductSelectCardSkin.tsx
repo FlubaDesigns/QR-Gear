@@ -47,6 +47,7 @@ export interface ProductSelectItem {
   colorsAvailable: Array<{ name: string; hex?: string }>;
   sizesAvailable: string[];
   defaultColor: string | null;
+  qrgBlankId?: number | null;
 }
 
 export type TierValue = "good" | "better" | "best" | null;
@@ -966,6 +967,12 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
           {(item.manufacturer || item.model) && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-make-model-${item.id}`}>
               {[item.manufacturer, item.model].filter(Boolean).join(' ')}
+            </p>
+          )}
+
+          {item.qrgBlankId != null && (
+            <p className="text-[10px] text-muted-foreground/60 font-mono" data-testid={`text-qrg-${item.id}`}>
+              QRG-{item.qrgBlankId}
             </p>
           )}
 

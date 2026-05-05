@@ -126,6 +126,7 @@ export interface NormalizedSourceBlank {
   colorsAvailable: Array<{ name: string; hex?: string }>;
   sizesAvailable: string[];
   defaultColor: string | null;
+  qrgBlankId?: number | null;
 }
 
 export type ProviderFilter = "printify" | "printful";
@@ -173,6 +174,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
     sizesAvailable: p.availableSizes || [],
     defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,
+    qrgBlankId: p.qrgBlankId ?? null,
   };
 }
 
@@ -515,6 +517,7 @@ export function useAdminBlanksController() {
           tier: (blankTiers[safe] as "good" | "better" | "best") || null,
           isPrintful: isProviderPrintful(safe),
           hasMockupMapping: false,
+          qrgBlankId: product.qrgBlankId ?? null,
         };
       })
       .filter(Boolean) as CatalogBlankItem[];
@@ -551,6 +554,7 @@ export function useAdminBlanksController() {
       maxPrice: p.maxPrice,
       colorCount: p.colorCount,
       madeInUSA: p.madeInUSA,
+      qrgBlankId: p.qrgBlankId ?? null,
     })),
     [filtered]
   );

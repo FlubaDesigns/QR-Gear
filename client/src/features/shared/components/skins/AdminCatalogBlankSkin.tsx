@@ -10,6 +10,7 @@ export interface CatalogBlankItem {
   tier?: "good" | "better" | "best" | null;
   isPrintful?: boolean;
   hasMockupMapping?: boolean;
+  qrgBlankId?: number | null;
 }
 
 export interface AdminCatalogBlankSkinProps {
@@ -47,6 +48,9 @@ export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalog
         <p className="text-[10px] text-foreground truncate leading-tight">{item.title}</p>
         {item.subtitle && (
           <p className="text-[9px] text-muted-foreground truncate leading-tight">{item.subtitle}</p>
+        )}
+        {item.qrgBlankId != null && (
+          <p className="text-[8px] text-muted-foreground/60 font-mono truncate leading-tight">QRG-{item.qrgBlankId}</p>
         )}
       </div>
 

@@ -4,6 +4,37 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 function register(app) {
+    // ── Helper: seed blanks + metadata into the "Primary" catalog ────────────
+    async function seedIntoPrimary(excludeCatalogId, blankIds, metaMaps) {
+        try {
+            const snap = await core_1.db.collection('catalogs').where('name', '==', 'Primary').limit(1).get();
+            if (snap.empty)
+                return;
+            const primaryRef = snap.docs[0].ref;
+            const primaryId = snap.docs[0].id;
+            if (primaryId === excludeCatalogId)
+                return;
+            const primaryData = snap.docs[0].data();
+            const existing = (primaryData.blankIds || []).map(String);
+            const merged = [...new Set([...existing, ...blankIds.map(String)])];
+            const updates = { blankIds: merged, updatedAt: new Date().toISOString() };
+            const metaFields = ['blankTiers', 'blankDescriptions', 'blankTitles', 'blankMakers', 'blankModels', 'blankProviders', 'blankImages', 'blankPrimaryImages'];
+            for (const field of metaFields) {
+                const srcMap = metaMaps[field] || {};
+                const targetMap = { ...(primaryData[field] || {}) };
+                for (const blankId of blankIds.map(String)) {
+                    if (!(blankId in targetMap) && blankId in srcMap)
+                        targetMap[blankId] = srcMap[blankId];
+                }
+                updates[field] = targetMap;
+            }
+            await primaryRef.update(updates);
+            console.log(`[Catalogs] Seeded ${blankIds.length} blanks into Primary catalog (${primaryId})`);
+        }
+        catch (err) {
+            console.warn(`[Catalogs] seedIntoPrimary failed (non-fatal): ${err.message}`);
+        }
+    }
     // ============ CATALOG MANAGEMENT SYSTEM ============
     app.get('/admin/catalogs', middleware_1.requireAdmin, async (req, res) => {
         try {
@@ -113,6 +144,7 @@ function register(app) {
                 }
             }
             await docRef.update(updates);
+            seedIntoPrimary(catalogId, blankIds.map(String), updates);
             console.log(`[Catalogs] Added ${blankIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
             res.json({ success: true, count: merged.length });
         }
@@ -236,9 +268,24 @@ function register(app) {
                 res.status(404).json({ error: 'Target catalog not found' });
                 return;
             }
-            const existing = (targetDoc.data()?.blankIds || []).map(String);
+            const src = srcDoc.data();
+            const target = targetDoc.data();
+            const existing = (target.blankIds || []).map(String);
             const merged = [...new Set([...existing, ...blankIds.map(String)])];
-            await targetRef.update({ blankIds: merged, updatedAt: new Date().toISOString() });
+            const updates = { blankIds: merged, updatedAt: new Date().toISOString() };
+            const metaFields = ['blankTiers', 'blankDescriptions', 'blankTitles', 'blankMakers', 'blankModels', 'blankProviders', 'blankImages', 'blankPrimaryImages'];
+            for (const field of metaFields) {
+                const srcMap = src[field] || {};
+                const targetMap = { ...(target[field] || {}) };
+                for (const blankId of blankIds.map(String)) {
+                    if (!(blankId in targetMap) && blankId in srcMap) {
+                        targetMap[blankId] = srcMap[blankId];
+                    }
+                }
+                updates[field] = targetMap;
+            }
+            await targetRef.update(updates);
+            seedIntoPrimary(targetCatalogId, blankIds.map(String), updates);
             const added = merged.length - existing.length;
             console.log(`[Catalogs] Bulk copied ${blankIds.length} blanks from ${catalogId} to ${targetCatalogId}. ${added} new, ${merged.length} total`);
             res.json({ success: true, added, total: merged.length });
