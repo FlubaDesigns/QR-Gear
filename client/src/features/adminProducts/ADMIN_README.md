@@ -492,6 +492,33 @@ rm /tmp/firebase-sa.json
 
 ## Recent Changes Log
 
+### May 5, 2026 — QRG Identity Enforcement on Catalog Writes (rev 35)
+
+Enforced `qrg_STNNN` as the sole canonical key for all catalog blank identity. Provider IDs (`py_`, `pf_`, `pf:`, plain numeric) are now accepted as input but resolved to canonical keys before any Firestore write. The "QRG Blank ID System" section updated to reflect STNNN format.
+
+**Backend (`server/routes/admin-catalogs-shelf.routes.ts`):**
+- Added `resolveCatalogBlankId()` — single resolution path accepting any provider key, returning canonical `qrg_STNNN` or null (pending), throwing on unresolvable IDs
+- `POST /catalogs/:id/blanks` — resolves each input blankId before persisting; pending IDs skipped (not stored)
+- `DELETE /catalogs/:id/blanks` — cleans all nine overlay maps (`blankIds`, `blankTiers`, `blankDescriptions`, `blankTitles`, `blankMakers`, `blankModels`, `blankProviders`, `blankImages`, `blankPrimaryImages`); removes both raw and resolved keys for backward compat with legacy stored IDs
+- `POST /catalogs/:id/bulk-copy` — resolves each blankId before persisting
+- `PUT /catalogs/:id/blank-tier`, `blank-description`, `blank-title`, `blank-images` — all resolve blankId to canonical key before writing overlay maps
+- `POST /catalogs/:id/duplicate` — copies all nine overlay maps (was: only five)
+- `POST /catalogs` (create) — initializes all nine overlay maps to `{}` (was: only five)
+
+**Frontend (`useAdminBlanksController.ts`):**
+- `onAddToCatalog` — sends `product.docId` (qrg_STNNN) when available, instead of falling through to `resolveBlankKey` which could return a provider key
+- `addBlanksMutation.onSuccess` toast — fixed `data.count` → `data.total` (field that actually exists on the response)
+
+**Tests (`shared/__tests__/blankKeys.test.ts`):**
+- Added `getCanonicalBlankKey` cases proving `docId=qrg_STNNN` takes priority over provider key fallback
+- Added `isQRGBlankId` suite: valid STNNN cases return true; legacy 4-digit (`qrg_1101`), 3-digit (`qrg_101`), provider keys, and empty string all return false
+- Added `isValidQRGBlankNumber` and `isPendingBlankId` suites
+
+**Documentation:**
+- `ADMIN_README.md` "QRG Blank ID System" section rewritten: current `qrg_STNNN` format documented, stale 4-digit and 3-digit references removed, provider IDs described as lookup/reference only
+
+---
+
 ### May 5, 2026 — Three-Schema Integrity Audit + Control System Audit (rev 34)
 
 Full end-to-end audit of the QRG → BLD → GRF → Assembly → Packet chain, followed by a full audit of the control system documents (REPLIT.md, README.md, SKILLS.md, NAMING_STANDARDS.md, BLD.md, GRF.md, ASSEMBLY.md, QRG.md). 18 code findings fixed and 6 documentation findings corrected.
@@ -1627,107 +1654,110 @@ When a customer picks a color from the store product page dropdown, the gallery 
 
 ---
 
-## QRG Blank ID System (4-Digit Catalog Numbering)
+## QRG Blank ID System (STNNN Catalog Identity)
 
-Every blank product in the `master_catalog` Firestore collection is assigned a unique 4-digit numeric ID called `qrgBlankId`. This is separate from the QRG product serial number system (which tracks customer-owned items). The 4-digit blank ID is used purely to classify and identify the *type* of printable blank — the physical product before any design is applied.
+Every blank product in the `master_catalog` Firestore collection is identified by a canonical **Firestore doc ID** in the format `qrg_STNNN` (e.g. `qrg_11001`). This is the permanent, provider-agnostic identity for a blank type — the physical product before any design is applied. It is separate from the QRG product serial number system (which tracks customer-owned items).
 
-### Why It Was Built
-
-Before this system, blanks in Firestore were identified only by provider-specific IDs (e.g. Printify blueprint ID 12, Printful product ID 71). There was no stable, provider-agnostic way to refer to "a Bella+Canvas 3001 T-Shirt" as a single concept. If the provider changed their ID, or if the same blank was available on both Printify and Printful, there was no unified key. The 4-digit system is that unified key.
-
-### How the Numbers Work
+### Current Format: qrg_STNNN
 
 ```
-X  X  0  0
-│  │
-│  └── Subcategory within parent (1–9, then x01–x99 for individual blanks)
-└───── Top-level parent category (1–6)
+qrg_ S  T  N  N  N
+     │  │  └──┴──┴── Item number within type (001–999)
+     │  └──────────── Product type within super-category (1–9)
+     └─────────────── Super-category (1–6)
 ```
 
-**Top-level categories (first digit):**
+**Example:** `qrg_11001` = super-category 1 (Apparel), type 1 (T-Shirts), item 001
 
-| Code | Parent Category |
-|------|----------------|
-| 1xxx | Apparel |
-| 2xxx | Houseware |
-| 3xxx | Print & Display |
-| 4xxx | Accessories |
-| 5xxx | Pet Products |
-| 6xxx | Holiday & Seasonal |
+**Valid range:** `qrg_11001` – `qrg_69999`
 
-**Subcategory ranges (first two digits):**
+**Validation:** `isValidMasterCatalogDocId()` in `shared/qrgCodes.ts` and `isQRGBlankId()` in `shared/blankKeys.ts`
 
-| Range | Subcategory |
-|-------|-------------|
-| 1101–1199 | T-Shirts |
-| 1201–1299 | Hoodies & Sweatshirts |
-| 1301–1399 | Bottoms & Active |
-| 1401–1499 | Hats & Caps |
-| 1501–1599 | Footwear & Socks |
-| 1601–1699 | Sleepwear & Underwear |
-| 1701–1799 | Baby & Kids |
-| 2101–2199 | Drinkware |
-| 2201–2299 | Barware |
-| 2301–2399 | Drinkware Accessories |
-| 2401–2499 | Kitchen & Dining |
-| 2501–2599 | Bedding & Textiles |
-| 2601–2699 | Home Décor |
-| 3101–3199 | Wall Art & Prints |
-| 3201–3299 | Stickers & Magnets |
-| 3301–3399 | Stationery & Paper |
-| 3401–3499 | Signs & Display |
-| 3501–3599 | Books & Photo |
-| 3601–3699 | Pins & Patches |
-| 3701–3799 | Tags |
-| 3801–3899 | Puzzles & Games |
-| 3901–3999 | Novelty |
-| 4101–4199 | Bags & Pouches |
-| 4201–4299 | Jewelry |
-| 4301–4399 | Phone & Tech Cases |
-| 4401–4499 | Travel Accessories |
-| 4501–4599 | Small Accessories |
-| 5101–5199 | Pet Apparel |
-| 5201–5299 | Pet Accessories |
-| 6101–6199 | Holiday Apparel |
-| 6201–6299 | Holiday Décor |
-| 6301–6399 | Seasonal Items |
+**Top-level super-categories (S digit):**
 
-### Individual Blank IDs
+| S | Super-Category |
+|---|----------------|
+| 1 | Apparel |
+| 2 | Houseware |
+| 3 | Print & Display |
+| 4 | Accessories |
+| 5 | Pet Products |
+| 6 | Holiday & Seasonal |
 
-Within each subcategory range, each specific blank gets a sequential number in the last two digits. For example:
-- `1101` = first T-Shirt in the catalog (e.g. Bella+Canvas 3001)
-- `1102` = second T-Shirt (e.g. Gildan 5000)
-- `1103` = third T-Shirt
-- …up to `1199` = 99th T-Shirt
+**Product type ranges (ST prefix — first two digits of STNNN):**
+
+| ST | Subcategory |
+|----|-------------|
+| 11 | T-Shirts |
+| 12 | Hoodies & Sweatshirts |
+| 13 | Bottoms & Active |
+| 14 | Hats & Caps |
+| 15 | Footwear & Socks |
+| 16 | Sleepwear & Underwear |
+| 17 | Baby & Kids |
+| 21 | Drinkware |
+| 22 | Barware |
+| 23 | Drinkware Accessories |
+| 24 | Kitchen & Dining |
+| 25 | Bedding & Textiles |
+| 26 | Home Décor |
+| 31 | Wall Art & Prints |
+| 32 | Stickers & Magnets |
+| 33 | Stationery & Paper |
+| 34 | Signs & Display |
+| 35 | Books & Photo |
+| 36 | Pins & Patches |
+| 37 | Tags |
+| 38 | Puzzles & Games |
+| 39 | Novelty |
+| 41 | Bags & Pouches |
+| 42 | Jewelry |
+| 43 | Phone & Tech Cases |
+| 44 | Travel Accessories |
+| 45 | Small Accessories |
+| 51 | Pet Apparel |
+| 52 | Pet Accessories |
+| 61 | Holiday Apparel |
+| 62 | Holiday Décor |
+| 63 | Seasonal Items |
 
 ### Firestore Fields
 
 Each `master_catalog` document stores:
-- `qrgBlankId` — the 4-digit numeric ID (integer), e.g. `1101`
-- `qrgCategory` — the human-readable subcategory name, e.g. `"T-Shirts"`
-- `qrgParentCategory` — the parent name, e.g. `"Apparel"`
+- Doc ID — `qrg_STNNN` string (e.g. `qrg_11001`) — this IS the blank identity
+- `qrgBlankId` — the STNNN number as a string (e.g. `"11001"`) for field queries
+- `qrgCategory` — human-readable subcategory name, e.g. `"T-Shirts"`
+- `qrgParentCategory` — parent name, e.g. `"Apparel"`
 
-These are set during the master catalog sync that assigns IDs sequentially as blanks are classified.
+### Provider IDs: Lookup/Reference Only
 
-### What Changed
+Provider IDs (`py_NNN`, `pf_NNN`, `pf:NNN`, plain numeric) identify blanks within Printify or Printful's systems. They are **lookup/reference metadata only** and must never be stored as catalog identity:
 
-The 4-digit system replaced an earlier scheme where blanks used `qrg_NNN` 3-digit string doc IDs (e.g. `qrg_101`, `qrg_201`). The new system:
-- Uses a true 4-digit integer (`qrgBlankId`) instead of a prefixed string
-- Has room for 6 top-level categories × up to 9 subcategories each × 99 blanks per subcategory = up to 5,346 classified blanks
-- Separates the "parent" and "subcategory" concepts cleanly into the first and second digit groups
-- Is defined in `functions/src/services/master-catalog.ts` as `QRG_TOP_LEVEL_CATEGORIES` and `QRG_BLANK_CATEGORIES`
+- `catalog.blankIds` must contain only `qrg_STNNN` doc IDs
+- All overlay submaps (`blankTiers`, `blankDescriptions`, `blankTitles`, `blankMakers`, `blankModels`, `blankProviders`, `blankImages`, `blankPrimaryImages`) must use the same `qrg_STNNN` keys as `blankIds`
+- The `resolveCatalogBlankId()` helper in `server/routes/admin-catalogs-shelf.routes.ts` accepts any provider key as input and returns the canonical `qrg_STNNN` before any write
+
+Provider IDs may still be used in the frontend product map for display lookups and to index into `allProductMap` for rendering — they just cannot be persisted as catalog identity.
+
+### Legacy Formats (Invalid)
+
+The following formats are **not valid** under the current STNNN law:
+- `qrg_NNN` (3-digit, e.g. `qrg_101`) — earliest scheme, predates categories
+- `qrg_STNN` (4-digit, e.g. `qrg_1101`) — intermediate scheme, only 99 items per type
+
+Both return `false` from `isQRGBlankId()`. Existing Firestore catalog documents containing these legacy keys require a separate migration (not auto-migrated).
 
 ### How It Relates to the QRG Serial Number System
 
-These are two different systems that happen to share the "QRG" prefix:
+These are two different systems that share the "QRG" prefix:
 
 | System | Purpose | Example |
 |--------|---------|---------|
-| **4-digit blank ID** (`qrgBlankId`) | Identifies the *type* of printable blank in the master catalog | `1101` = "Bella+Canvas 3001 T-Shirt" |
-| **QRG base code** (`QRG-[STNNN]-[C]-[NNNNNN]`) | Identifies a specific *built product* with design + context | `QRG-11101-I-000001` = internal catalog instance |
-| **QRG full code** (`QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`) | Adds size+color variant suffix | `QRG-11101-I-000001-0102` = specific size/color |
+| **Blank doc ID** (`qrg_STNNN`) | Identifies the *type* of printable blank in master_catalog | `qrg_11001` = "Bella+Canvas 3001 T-Shirt" |
+| **QRG base code** (`QRG-[STNNN]-[C]-[NNNNNN]`) | Identifies a specific *built product* with design + context | `QRG-11001-I-000001` = internal catalog instance |
+| **QRG full code** (`QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`) | Adds size+color variant suffix | `QRG-11001-I-000001-0502` = Large/White |
 
-The blank ID is the catalog key. The serial number is the product identity key. They are related but distinct.
+The blank doc ID is the catalog key. The serial number is the product identity key. They are related but distinct.
 
 ---
 

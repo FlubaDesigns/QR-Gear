@@ -4,6 +4,106 @@ import { isAdmin } from "../firebaseAuth";
 import { z } from "zod";
 import { fsGetAll, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/firestore-crud";
 
+const QRG_DOC_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
+
+/**
+ * Resolves any blank ID input to its canonical master_catalog doc ID (qrg_STNNN).
+ *
+ * Accepted input forms:
+ *   qrg_STNNN   — canonical QRG doc ID (verified against master_catalog)
+ *   pending_*   — migration pending; returns null (caller decides whether to allow)
+ *   py_NNN      — Printify blueprint ID prefix
+ *   pf_NNN      — Printful product ID prefix (underscore form)
+ *   pf:NNN      — Printful product ID prefix (colon form)
+ *   NNN         — plain numeric (tried as Printify blueprint ID first)
+ *
+ * Returns:
+ *   string  — canonical qrg_STNNN doc ID
+ *   null    — intentional pending/migration ID (soft allow)
+ *
+ * Throws:
+ *   Error   — input cannot be resolved to any master_catalog record, or is structurally invalid
+ *
+ * Never invents a QRG ID. Only returns what exists in Firestore.
+ */
+async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
+  const id = String(inputId ?? '').trim();
+  if (!id) throw new Error('blankId must be a non-empty string');
+
+  // Fast path: already a valid QRG doc ID
+  if (QRG_DOC_RE.test(id)) {
+    const { getFirestoreDb } = await import('../lib/firebase-admin');
+    const fsDb = getFirestoreDb();
+    const doc = await fsDb.collection('master_catalog').doc(id).get();
+    if (doc.exists) return id;
+    throw new Error(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
+  }
+
+  // Pending migration IDs — soft allow, caller decides
+  if (id.startsWith('pending_')) return null;
+
+  const { getFirestoreDb } = await import('../lib/firebase-admin');
+  const fsDb = getFirestoreDb();
+
+  // Extract numeric provider ID from prefixed or plain form
+  let numericId: number | null = null;
+  const candidates: string[] = [id];
+
+  if (id.startsWith('py_')) {
+    const n = parseInt(id.slice(3), 10);
+    if (!isNaN(n)) { numericId = n; candidates.push(String(n)); }
+  } else if (id.startsWith('pf_')) {
+    const n = parseInt(id.slice(3), 10);
+    if (!isNaN(n)) { numericId = n; candidates.push(`pf:${n}`, String(n)); }
+  } else if (id.startsWith('pf:')) {
+    const n = parseInt(id.slice(3), 10);
+    if (!isNaN(n)) { numericId = n; candidates.push(`pf_${n}`, String(n)); }
+  } else {
+    // Plain numeric — could be Printify blueprint or Printful product ID
+    const n = parseInt(id, 10);
+    if (!isNaN(n) && String(n) === id) {
+      numericId = n;
+      candidates.push(`py_${n}`, `pf_${n}`, `pf:${n}`);
+    }
+  }
+
+  // Try direct doc lookups for all candidate key forms
+  for (const candidate of candidates) {
+    const doc = await fsDb.collection('master_catalog').doc(candidate).get();
+    if (doc.exists) {
+      const docId = doc.id;
+      if (QRG_DOC_RE.test(docId)) return docId;
+      if (docId.startsWith('pending_')) return null;
+      // Non-QRG, non-pending doc found — unresolvable
+      break;
+    }
+  }
+
+  // Field queries: match printifyBlueprintId or printfulProductId
+  if (numericId !== null) {
+    const pyQ = await fsDb.collection('master_catalog')
+      .where('printifyBlueprintId', '==', numericId).limit(1).get();
+    if (!pyQ.empty) {
+      const docId = pyQ.docs[0].id;
+      if (QRG_DOC_RE.test(docId)) return docId;
+      if (docId.startsWith('pending_')) return null;
+    }
+
+    const pfQ = await fsDb.collection('master_catalog')
+      .where('printfulProductId', '==', numericId).limit(1).get();
+    if (!pfQ.empty) {
+      const docId = pfQ.docs[0].id;
+      if (QRG_DOC_RE.test(docId)) return docId;
+      if (docId.startsWith('pending_')) return null;
+    }
+  }
+
+  throw new Error(
+    `Cannot resolve "${id}" to a QRG master_catalog record. ` +
+    `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`
+  );
+}
+
 export function registerAdminCatalogsShelfRoutes(app: Express): void {
   app.get("/api/admin/nexusmail/status", isAdmin, async (req: any, res) => {
     try {
@@ -360,6 +460,11 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
         tierConfig: {},
         blankDescriptions: {},
         blankTitles: {},
+        blankMakers: {},
+        blankModels: {},
+        blankProviders: {},
+        blankImages: {},
+        blankPrimaryImages: {},
       });
       res.json(catalog);
     } catch (error: any) {
@@ -404,6 +509,11 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
         tierConfig: source.tierConfig || {},
         blankDescriptions: source.blankDescriptions || {},
         blankTitles: source.blankTitles || {},
+        blankMakers: source.blankMakers || {},
+        blankModels: source.blankModels || {},
+        blankProviders: source.blankProviders || {},
+        blankImages: source.blankImages || {},
+        blankPrimaryImages: source.blankPrimaryImages || {},
       });
       res.json(duplicate);
     } catch (error: any) {
@@ -418,8 +528,17 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!Array.isArray(blankIds)) return res.status(400).json({ error: "blankIds must be an array" });
       const catalog = await fsGet("catalogs", req.params.id);
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+
+      // Resolve all inputs to canonical qrg_STNNN identities before persisting
+      const resolvedIds: string[] = [];
+      for (const rawId of blankIds) {
+        const canonical = await resolveCatalogBlankId(String(rawId));
+        if (canonical !== null) resolvedIds.push(canonical);
+        // null = pending migration ID → silently skip (not persisted)
+      }
+
       const existing = new Set(catalog.blankIds || []);
-      const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
+      const newIds = resolvedIds.filter((id) => !existing.has(id));
       const merged = [...(catalog.blankIds || []), ...newIds];
       await fsUpdate("catalogs", req.params.id, { blankIds: merged });
       res.json({ success: true, added: newIds.length, total: merged.length });
@@ -435,14 +554,56 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!Array.isArray(blankIds)) return res.status(400).json({ error: "blankIds must be an array" });
       const catalog = await fsGet("catalogs", req.params.id);
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
-      const removeSet = new Set(blankIds.map(String));
+
+      // Build the set of keys to remove: always include the raw input key (handles
+      // legacy stored IDs), plus the resolved canonical key when resolvable.
+      const removeSet = new Set<string>();
+      for (const rawId of blankIds) {
+        const raw = String(rawId);
+        removeSet.add(raw);
+        try {
+          const canonical = await resolveCatalogBlankId(raw);
+          if (canonical) removeSet.add(canonical);
+        } catch (_) {
+          // Unresolvable — still remove whatever key the caller sent
+        }
+      }
+
       const remaining = (catalog.blankIds || []).filter((id: string) => !removeSet.has(id));
+
+      // Clean all nine overlay maps
       const blankTiers = { ...(catalog.blankTiers || {}) };
       const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
       const blankTitles = { ...(catalog.blankTitles || {}) };
-      blankIds.forEach((id: string) => { delete blankTiers[String(id)]; delete blankDescriptions[String(id)]; delete blankTitles[String(id)]; });
-      await fsUpdate("catalogs", req.params.id, { blankIds: remaining, blankTiers, blankDescriptions, blankTitles });
-      res.json({ success: true, removed: blankIds.length, total: remaining.length });
+      const blankMakers = { ...(catalog.blankMakers || {}) };
+      const blankModels = { ...(catalog.blankModels || {}) };
+      const blankProviders = { ...(catalog.blankProviders || {}) };
+      const blankImages = { ...(catalog.blankImages || {}) };
+      const blankPrimaryImages = { ...(catalog.blankPrimaryImages || {}) };
+
+      removeSet.forEach((key) => {
+        delete blankTiers[key];
+        delete blankDescriptions[key];
+        delete blankTitles[key];
+        delete blankMakers[key];
+        delete blankModels[key];
+        delete blankProviders[key];
+        delete blankImages[key];
+        delete blankPrimaryImages[key];
+      });
+
+      await fsUpdate("catalogs", req.params.id, {
+        blankIds: remaining,
+        blankTiers,
+        blankDescriptions,
+        blankTitles,
+        blankMakers,
+        blankModels,
+        blankProviders,
+        blankImages,
+        blankPrimaryImages,
+      });
+      res.json({ success: true, removed: removeSet.size, total: remaining.length });
     } catch (error: any) {
       console.error("[Catalogs] Remove blanks error:", error);
       res.status(500).json({ error: error.message });
@@ -455,8 +616,16 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!targetCatalogId || !Array.isArray(blankIds)) return res.status(400).json({ error: "targetCatalogId and blankIds required" });
       const target = await fsGet("catalogs", targetCatalogId);
       if (!target) return res.status(404).json({ error: "Target catalog not found" });
+
+      // Resolve all inputs to canonical qrg_STNNN identities before persisting
+      const resolvedIds: string[] = [];
+      for (const rawId of blankIds) {
+        const canonical = await resolveCatalogBlankId(String(rawId));
+        if (canonical !== null) resolvedIds.push(canonical);
+      }
+
       const existing = new Set(target.blankIds || []);
-      const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
+      const newIds = resolvedIds.filter((id) => !existing.has(id));
       const merged = [...(target.blankIds || []), ...newIds];
       await fsUpdate("catalogs", targetCatalogId, { blankIds: merged });
       res.json({ success: true, added: newIds.length, total: merged.length });
@@ -472,11 +641,13 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!blankId) return res.status(400).json({ error: "blankId is required" });
       const catalog = await fsGet("catalogs", req.params.id);
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const canonicalId = await resolveCatalogBlankId(String(blankId));
+      if (canonicalId === null) return res.status(400).json({ error: `Blank "${blankId}" is pending classification and cannot be tier-assigned yet` });
       const blankTiers = { ...(catalog.blankTiers || {}) };
       if (tier) {
-        blankTiers[String(blankId)] = tier;
+        blankTiers[canonicalId] = tier;
       } else {
-        delete blankTiers[String(blankId)];
+        delete blankTiers[canonicalId];
       }
       await fsUpdate("catalogs", req.params.id, { blankTiers });
       res.json({ success: true, blankTiers });
@@ -492,11 +663,13 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!blankId) return res.status(400).json({ error: "blankId is required" });
       const catalog = await fsGet("catalogs", req.params.id);
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const canonicalId = await resolveCatalogBlankId(String(blankId));
+      if (canonicalId === null) return res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
       const blankDescriptions = { ...(catalog.blankDescriptions || {}) };
       if (description) {
-        blankDescriptions[String(blankId)] = description;
+        blankDescriptions[canonicalId] = description;
       } else {
-        delete blankDescriptions[String(blankId)];
+        delete blankDescriptions[canonicalId];
       }
       await fsUpdate("catalogs", req.params.id, { blankDescriptions });
       res.json({ success: true, blankDescriptions });
@@ -512,11 +685,13 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!blankId) return res.status(400).json({ error: "blankId is required" });
       const catalog = await fsGet("catalogs", req.params.id);
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const canonicalId = await resolveCatalogBlankId(String(blankId));
+      if (canonicalId === null) return res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
       const blankTitles = { ...(catalog.blankTitles || {}) };
       if (title) {
-        blankTitles[String(blankId)] = title;
+        blankTitles[canonicalId] = title;
       } else {
-        delete blankTitles[String(blankId)];
+        delete blankTitles[canonicalId];
       }
       await fsUpdate("catalogs", req.params.id, { blankTitles });
       res.json({ success: true, blankTitles });
@@ -536,16 +711,18 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       }
       const catalog = await fsGet("catalogs", req.params.id);
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const canonicalId = await resolveCatalogBlankId(String(blankId));
+      if (canonicalId === null) return res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
       const blankImages = { ...(catalog.blankImages || {}) };
       if (images.length > 0) {
-        blankImages[String(blankId)] = images.map(String);
+        blankImages[canonicalId] = images.map(String);
       } else {
         // Empty array = restore master — remove override entry
-        delete blankImages[String(blankId)];
+        delete blankImages[canonicalId];
       }
       await fsUpdate("catalogs", req.params.id, { blankImages });
-      console.log(`[Catalogs] Updated images for blank ${blankId} in catalog ${req.params.id}: ${images.length} images`);
-      res.json({ success: true, blankId, imageCount: images.length });
+      console.log(`[Catalogs] Updated images for blank ${canonicalId} in catalog ${req.params.id}: ${images.length} images`);
+      res.json({ success: true, blankId: canonicalId, imageCount: images.length });
     } catch (error: any) {
       console.error("[Catalogs] Set blank images error:", error);
       res.status(500).json({ error: error.message });

@@ -414,7 +414,7 @@ export function useAdminBlanksController() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: "Added to catalog", description: `${data.count} total blanks` });
+      toast({ title: "Added to catalog", description: `${data.total} total blanks` });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -566,7 +566,11 @@ export function useAdminBlanksController() {
     }
     const resolvedProduct = product || allProductMap.get(blankKey);
     const blankSnapshots = resolvedProduct ? buildBlankSnapshot(resolvedProduct) : undefined;
-    addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [blankKey], blankSnapshots });
+    // Always prefer the canonical qrg_STNNN docId when the product has one.
+    // Falling through to blankKey risks sending a provider key that the server
+    // would need to resolve; sending docId directly is the fastest path.
+    const idToSend = resolvedProduct?.docId ?? blankKey;
+    addBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [idToSend], blankSnapshots });
   }, [validSelectedCatalogId, addBlanksMutation, allProductMap, toast]);
 
   const onRemoveFromCatalog = useCallback((blankKey: string) => {
