@@ -10,10 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
-import { isValidGraphicId } from "@shared/graphicCodes";
+import { isValidGraphicId, GRF_TYPE_MAP, GRF_ROLE_LABELS } from "@shared/graphicCodes";
+import type { GrfTypeCode, GrfRoleCode } from "@shared/graphicCodes";
 import type { GrfAsset } from "../shared/types";
-
-// GRF_ID_REGEX removed — isValidGraphicId from shared/graphicCodes enforces TT/K pairing
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
@@ -55,39 +54,17 @@ class GraphicsBoundary extends Component<
   }
 }
 
-const TYPE_CODE_LABELS: Record<string, string> = {
-  '01': 'Source',
-  '02': 'Cropped',
-  '03': 'Background',
-  '04': 'QR Graphic',
-  '05': 'Canvas Design',
-  '06': 'URL Artifact',
-  '07': 'Template',
-};
-
-const ROLE_CODE_LABELS: Record<string, string> = {
-  '1': 'Source',
-  '2': 'Derivative',
-  '3': 'Renderable',
-  '4': 'Final',
-  '5': 'Template',
-};
-
-function isValidGrfId(grfId: string): boolean {
-  return isValidGraphicId(grfId);
-}
-
 function isValidMime(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
 function resolveTypeLabel(typeCode: string): { label: string; valid: boolean } {
-  const label = TYPE_CODE_LABELS[typeCode];
-  return label ? { label, valid: true } : { label: typeCode || "—", valid: false };
+  const entry = GRF_TYPE_MAP[typeCode as GrfTypeCode];
+  return entry ? { label: entry.label, valid: true } : { label: typeCode || "—", valid: false };
 }
 
 function resolveRoleLabel(roleCode: string): { label: string; valid: boolean } {
-  const label = ROLE_CODE_LABELS[roleCode];
+  const label = GRF_ROLE_LABELS[roleCode as GrfRoleCode];
   return label ? { label, valid: true } : { label: roleCode || "—", valid: false };
 }
 
@@ -111,7 +88,7 @@ function GraphicCard({
 }) {
   const typeResult = resolveTypeLabel(asset.typeCode);
   const roleResult = resolveRoleLabel(asset.roleCode);
-  const idValid    = isValidGrfId(asset.grfId);
+  const idValid    = isValidGraphicId(asset.grfId);
   const mimeValid  = isValidMime(asset.mimeType);
   const hasWarning = !typeResult.valid || !roleResult.valid || !idValid || !mimeValid;
 
@@ -194,7 +171,7 @@ function GraphicDetailPanel({
 }) {
   const typeResult = resolveTypeLabel(asset.typeCode);
   const roleResult = resolveRoleLabel(asset.roleCode);
-  const idValid    = isValidGrfId(asset.grfId);
+  const idValid    = isValidGraphicId(asset.grfId);
   const mimeValid  = isValidMime(asset.mimeType);
 
   return (
@@ -356,9 +333,9 @@ function GraphicsTabInner() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="text-xs">All types</SelectItem>
-            {Object.entries(TYPE_CODE_LABELS).map(([code, label]) => (
+            {(Object.entries(GRF_TYPE_MAP) as Array<[GrfTypeCode, typeof GRF_TYPE_MAP[GrfTypeCode]]>).map(([code, entry]) => (
               <SelectItem key={code} value={code} className="text-xs font-mono">
-                {code} — {label}
+                {code} — {entry.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -370,7 +347,7 @@ function GraphicsTabInner() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="text-xs">All roles</SelectItem>
-            {Object.entries(ROLE_CODE_LABELS).map(([code, label]) => (
+            {(Object.entries(GRF_ROLE_LABELS) as Array<[GrfRoleCode, string]>).map(([code, label]) => (
               <SelectItem key={code} value={code} className="text-xs font-mono">
                 {code} — {label}
               </SelectItem>
