@@ -1,6 +1,6 @@
 # QR Gear — Admin Section Guide
 
-Last updated: May 4, 2026 (rev 33)
+Last updated: May 5, 2026 (rev 34)
 
 ---
 
@@ -491,6 +491,53 @@ rm /tmp/firebase-sa.json
 ---
 
 ## Recent Changes Log
+
+### May 5, 2026 — Three-Schema Integrity Audit + Control System Audit (rev 34)
+
+Full end-to-end audit of the QRG → BLD → GRF → Assembly → Packet chain, followed by a full audit of the control system documents (replit.md, README.md, skills.md, NAMING_STANDARDS.md, BLD.md, GRF.md, ASSEMBLY.md, QRG.md). 18 code findings fixed and 6 documentation findings corrected.
+
+**Code fixes (functions/src/):**
+- QRG blank ID validation consolidated into shared `isValidQrgBlankId()` utility across all entry points
+- Legacy `qrgPacketCode` fallback now logs a `[LEGACY_FIELD]` warning instead of silently resolving
+- Assembly POST validates `qrgId` format before writing
+- BLD create blocks U-context + Z/P layout cross-contamination
+- BLD POST enforces required `qrgBlankId`
+- BLD DELETE cascades to sub-collection instances and blocks deletion if any Assembly references the BLD
+- GRF existence + active status validated against `grf_assets` before Assembly writes
+- GRF type/slot compatibility enforced (qrc → type 04, img → type 02/03/05)
+- BLD slot cross-validation added to Assembly POST
+- Auto-created Assembly mappings carry `grfIdPending: true` flag; validator allows pending slots
+- Assembly DELETE cleans `assemblyId` from all linked Packet documents
+- Assembly PATCH blocks `qrgId`/`bldId` changes when live Packets are linked (returns 409)
+- Packet `assemblyId` sync made atomic via Firestore transaction (was two sequential writes)
+- Packet PATCH blocks publish (`status: published`) when `assemblyId` is missing
+- GRF save-grf route checks for pre-existing document before writing (counter integrity guard)
+- `functions/src/services/qrgVariantMappings.ts` deleted — server-side duplicate of `shared/qrgVariantMappings.ts`. Both importers redirected to the shared canonical version.
+
+**Documentation fixes:**
+- QRG.md: restored correct `shared/` paths for `providerQrgMapper.ts` and `qrgVariantMappings.ts`; added drift-risk warning on the (now-deleted) server-side duplicate
+- BLD.md: fixed malformed example ID `BLD-SZ8002` → `BLD-SZ8-002`
+- ASSEMBLY.md: added PATCH and DELETE to the API section with immutability and cleanup rules
+- skills.md: added GRF.md, ASSEMBLY.md, QRG.md, NAMING_STANDARDS.md to the Skill 7 zip export include list
+
+#### Files Changed
+
+| File | Change |
+|------|--------|
+| `functions/src/routes/admin-build-sessions.ts` | Shared QRG validation utility wired |
+| `functions/src/services/qrg-resolver.ts` | Legacy field warning log added |
+| `functions/src/routes/assemblies.ts` | Fixes 3, 8, 9, 10, 11, 12, 14 |
+| `functions/src/routes/bld.ts` | Fixes 4, 5, 6, 7 |
+| `functions/src/services/bld-builder.ts` | grfIdPending flag on auto-created mappings |
+| `functions/src/routes/pp-pricing-packets.ts` | Atomic packetIds sync + publish guard |
+| `functions/src/routes/file-routes.ts` | GRF counter integrity existence check |
+| `functions/src/services/master-catalog.ts` | Import redirected to shared/qrgVariantMappings |
+| `functions/src/routes/master-catalog.ts` | Import redirected to shared/qrgVariantMappings |
+| `functions/src/services/qrgVariantMappings.ts` | **Deleted** — consolidated into shared/ |
+| `QRG.md` | Source file table corrected + drift warning |
+| `BLD.md` | Example ID typo fixed |
+| `ASSEMBLY.md` | PATCH + DELETE API entries added |
+| `skills.md` | Authority files added to zip export list |
 
 ### May 4, 2026 — master_catalog as Single Source of Truth for Print Placements (rev 33)
 
