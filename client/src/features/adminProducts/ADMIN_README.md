@@ -1899,6 +1899,10 @@ Packet payload does **not** generate: `qrgBaseCode`, `qrgFullCode`, `instanceNum
 
 ## Known Issues & Next Steps
 
+### Legacy Blank ID Migration — resolved (May 2026)
+
+Catalog documents written before Task #25's enforcement of `qrg_STNNN` identity may still contain provider-style blank IDs (`py_NNN`, `pf_NNN`, plain numerics) in `blankIds` and the eight overlay maps. A one-click migration tool is now available at **System → Settings → Catalog ID Migration**. Running it once will resolve and re-key all documents. IDs that cannot be resolved to a `master_catalog` entry are flagged in the report for manual review and are never silently dropped.
+
 ### Draft Resume: "Product not resolved" on sessions saved before April 19, 2026
 
 Sessions created before the double-`/admin/` URL fix (April 19, 2026) never successfully autosaved their working state to Firestore — those PATCH calls were 404ing. When those sessions are resumed, the product resolution now works correctly (the catalog URL and ID-matching bugs are fixed), but if a session's `working` snapshot is empty and the packet data is also absent, the builder has nothing to restore and may still show the warning toast.

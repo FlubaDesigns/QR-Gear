@@ -803,6 +803,234 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
     }
   });
 
+  // ── Migrate legacy blank IDs in all catalog documents ───────────────────────
+  // Scans every `catalogs` doc and resolves any non-canonical blankId to its
+  // qrg_STNNN form, re-keying all eight blank-keyed overlay maps in the same pass.
+  // (tierConfig is excluded — it is not keyed by blankId.)
+  // IDs that cannot be resolved are flagged and left untouched (never dropped).
+  app.post("/api/admin/catalogs/migrate-legacy-ids", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const fsDb = getFirestoreDb();
+      if (!fsDb) return res.status(503).json({ error: "Firestore not available" });
+
+      const OVERLAY_MAPS = [
+        "blankTiers",
+        "blankDescriptions",
+        "blankTitles",
+        "blankMakers",
+        "blankModels",
+        "blankProviders",
+        "blankImages",
+        "blankPrimaryImages",
+      ] as const;
+
+      const catalogsSnap = await fsDb.collection("catalogs").get();
+
+      const report: {
+        catalogId: string;
+        catalogName: string;
+        migrated: { from: string; to: string }[];
+        unresolvable: string[];
+        conflicts: { map: string; canonicalId: string; keptKey: string; droppedLegacyKeys: string[] }[];
+        skipped: number;
+        changed: boolean;
+      }[] = [];
+
+      const CHUNK = 400;
+      const writes: Array<{ ref: FirebaseFirestore.DocumentReference; data: any }> = [];
+
+      for (const catalogDoc of catalogsSnap.docs) {
+        const data = catalogDoc.data() as any;
+        const catalogName: string = data.name || catalogDoc.id;
+
+        const originalBlankIds: string[] = Array.isArray(data.blankIds) ? data.blankIds : [];
+
+        // Collect the FULL set of IDs to resolve: blankIds union all overlay map keys.
+        // This ensures overlay entries that drifted out of sync with blankIds are also migrated.
+        const allRawIds = new Set<string>(originalBlankIds);
+        for (const mapKey of OVERLAY_MAPS) {
+          const originalMap: Record<string, any> = data[mapKey] || {};
+          for (const key of Object.keys(originalMap)) allRawIds.add(key);
+        }
+
+        // Build a remapping table: raw key → canonical key (or null = unresolvable/pending)
+        const remapTable = new Map<string, string | null>();
+        for (const rawId of allRawIds) {
+          if (QRG_DOC_RE.test(rawId)) {
+            // Already canonical — verify it exists; mark null only if missing (don't remap)
+            const doc = await fsDb.collection("master_catalog").doc(rawId).get();
+            remapTable.set(rawId, doc.exists ? rawId : null);
+          } else {
+            try {
+              const canonical = await resolveCatalogBlankId(rawId);
+              remapTable.set(rawId, canonical); // null = pending; non-null = resolved
+            } catch {
+              remapTable.set(rawId, null); // unresolvable
+            }
+          }
+        }
+
+        // ── Rebuild blankIds ───────────────────────────────────────────────
+        const newBlankIds: string[] = [];
+        const migrated: { from: string; to: string }[] = [];
+        const unresolvableSet = new Set<string>();
+        let skipped = 0;
+        const seenCanonical = new Set<string>();
+
+        for (const rawId of originalBlankIds) {
+          const canonical = remapTable.get(rawId);
+          if (canonical === null || canonical === undefined) {
+            // Unresolvable or pending: keep raw ID so nothing is lost
+            if (!seenCanonical.has(rawId)) {
+              newBlankIds.push(rawId);
+              seenCanonical.add(rawId);
+              unresolvableSet.add(rawId);
+            }
+          } else if (canonical === rawId) {
+            // Already canonical
+            if (!seenCanonical.has(canonical)) {
+              newBlankIds.push(canonical);
+              seenCanonical.add(canonical);
+              skipped++;
+            }
+          } else {
+            // Needs migration
+            if (!seenCanonical.has(canonical)) {
+              newBlankIds.push(canonical);
+              seenCanonical.add(canonical);
+              migrated.push({ from: rawId, to: canonical });
+            }
+          }
+        }
+
+        // ── Re-key all overlay maps (two-pass: canonical entries win) ─────
+        // When key drift means both a legacy key and the canonical key exist
+        // in the same map, the canonical entry must take priority.
+        // Pass 1 inserts all already-canonical entries; Pass 2 inserts legacy
+        // entries only if the canonical slot was not already filled.
+        const updatedOverlays: any = {};
+        let overlayChanged = false;
+        const catalogConflicts: {
+          map: string;
+          canonicalId: string;
+          keptKey: string;
+          droppedLegacyKeys: string[];
+        }[] = [];
+
+        for (const mapKey of OVERLAY_MAPS) {
+          const originalMap: Record<string, any> = data[mapKey] || {};
+          const newMap: Record<string, any> = {};
+
+          // Pass 1: insert entries whose key is already canonical (key === canonical).
+          for (const [key, value] of Object.entries(originalMap)) {
+            const canonical = remapTable.get(key);
+            if (canonical !== null && canonical !== undefined && canonical === key) {
+              newMap[canonical] = value;
+            }
+          }
+
+          // Pass 2: insert unresolvable entries (keep as-is) and legacy-key entries
+          // (only if canonical slot not already filled by Pass 1).
+          // Track conflicts where canonical slot was already filled.
+          const legacyDropped = new Map<string, string[]>(); // canonicalId → legacy keys dropped
+          for (const [key, value] of Object.entries(originalMap)) {
+            const canonical = remapTable.get(key);
+            if (canonical === null || canonical === undefined) {
+              // Unresolvable: keep under original key, flag for review
+              newMap[key] = value;
+              unresolvableSet.add(key);
+            } else if (canonical !== key) {
+              // Legacy key → canonical key remapping
+              overlayChanged = true;
+              if (canonical in newMap) {
+                // Canonical slot already filled (by Pass 1 or an earlier legacy entry that
+                // got promoted) — drop this legacy value, record the collision
+                const dropped = legacyDropped.get(canonical) || [];
+                dropped.push(key);
+                legacyDropped.set(canonical, dropped);
+              } else {
+                newMap[canonical] = value;
+              }
+            }
+            // key === canonical case handled in Pass 1 — skip here
+          }
+
+          // Record conflicts for this map
+          for (const [canonicalId, droppedLegacyKeys] of legacyDropped.entries()) {
+            catalogConflicts.push({
+              map: mapKey,
+              canonicalId,
+              keptKey: canonicalId,
+              droppedLegacyKeys,
+            });
+          }
+
+          updatedOverlays[mapKey] = newMap;
+        }
+
+        // ── Determine whether the document actually changed ────────────────
+        const blankIdsChanged = migrated.length > 0;
+        const changed = blankIdsChanged || overlayChanged;
+
+        report.push({
+          catalogId: catalogDoc.id,
+          catalogName,
+          migrated,
+          unresolvable: Array.from(unresolvableSet),
+          conflicts: catalogConflicts,
+          skipped,
+          changed,
+        });
+
+        if (changed) {
+          writes.push({
+            ref: catalogDoc.ref,
+            data: {
+              blankIds: newBlankIds,
+              ...updatedOverlays,
+              updatedAt: new Date().toISOString(),
+            },
+          });
+        }
+      }
+
+      // Write in batches of 400
+      for (let i = 0; i < writes.length; i += CHUNK) {
+        const chunk = writes.slice(i, i + CHUNK);
+        const batch = fsDb.batch();
+        for (const w of chunk) {
+          batch.update(w.ref, w.data);
+        }
+        await batch.commit();
+      }
+
+      const totalMigrated = report.reduce((sum, r) => sum + r.migrated.length, 0);
+      const totalUnresolvable = report.reduce((sum, r) => sum + r.unresolvable.length, 0);
+      const totalConflicts = report.reduce((sum, r) => sum + r.conflicts.length, 0);
+      const catalogsChanged = report.filter((r) => r.changed).length;
+
+      console.log(
+        `[MigrateLegacyIds] Scanned ${catalogsSnap.size} catalogs. ` +
+        `${catalogsChanged} updated, ${totalMigrated} IDs migrated, ` +
+        `${totalUnresolvable} unresolvable, ${totalConflicts} conflicts resolved (canonical kept).`
+      );
+
+      res.json({
+        success: true,
+        catalogsScanned: catalogsSnap.size,
+        catalogsChanged,
+        totalMigrated,
+        totalUnresolvable,
+        totalConflicts,
+        report,
+      });
+    } catch (error: any) {
+      console.error("[MigrateLegacyIds] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ── Backfill category field on all master_catalog docs ──────────────────────
   app.post("/api/admin/master-catalog/backfill-categories", isAdmin, async (req: any, res) => {
     try {
