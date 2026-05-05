@@ -121,6 +121,7 @@ export function CreateGraphicsModule() {
           roleCode: '3',
           imageUrl: packetResult.qrOnlyUrl,
           name: graphicName ? `${graphicName} — QR Graphic` : 'QR Graphic',
+          relatedPacketId: packetResult.packetId || null,
         },
       });
       setQrSaved(true);
@@ -143,6 +144,7 @@ export function CreateGraphicsModule() {
           roleCode: '4',
           imageUrl: packetResult.compositeUrl,
           name: graphicName ? `${graphicName} — Canvas Design` : 'Canvas Design',
+          relatedPacketId: packetResult.packetId || null,
         },
       });
       setCanvasSaved(true);

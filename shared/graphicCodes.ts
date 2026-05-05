@@ -33,7 +33,7 @@ export const GRF_TYPE_MAP: Record<GrfTypeCode, GrfTypeEntry> = {
   '03': { label: 'background',         description: 'Background image asset',           validRoles: ['3'] },
   '04': { label: 'qr_graphic',         description: 'QR code graphic (QR-only image)',  validRoles: ['3'] },
   '05': { label: 'canvas_design',      description: 'Full canvas composite design',     validRoles: ['4', '3'] },
-  '06': { label: 'url_artifact_image', description: 'URL/landing page artifact image',  validRoles: ['3'] },
+  '06': { label: 'url_artifact_asset',  description: 'URL/landing page artifact image',  validRoles: ['3'] },
   '07': { label: 'template_graphic',   description: 'Reusable template graphic',        validRoles: ['5'] },
 };
 

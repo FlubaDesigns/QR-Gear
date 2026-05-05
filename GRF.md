@@ -118,19 +118,22 @@ All additional data about an asset is stored in Firestore, not in the ID.
 
 ```
 {
-  grfId:       "GRF-04-3-000001",
-  typeCode:    "04",
-  roleCode:    "3",
-  fileName:    "qr-graphic-abc123.png",
-  mimeType:    "image/png",
-  storagePath: "graphics/qr/qr-graphic-abc123.png",
-  publicUrl:   "https://...",
-  width:       1200,
-  height:      1200,
-  hash:        "sha256:...",
-  sourceGrfId: null,
-  createdAt:   timestamp,
-  createdBy:   "admin"
+  grfId:            "GRF-04-3-000001",   // document ID = grfId
+  typeCode:         "04",
+  roleCode:         "3",
+  typeName:         "qr_graphic",        // GRF_TYPE_MAP[typeCode].label
+  name:             "Navy QR Graphic",
+  description:      null,                // optional
+  mimeType:         "image/png",
+  storagePath:      "graphics/qr/...",  // GCS path, null if URL-only
+  publicUrl:        "https://...",
+  sourceGrfId:      null,               // GRF ID of the source asset, if derived
+  relatedPacketId:  "abc123",           // optional cross-reference — never drive logic from this
+  tags:             null,               // optional string[]
+  isActive:         true,               // false = archived
+  archivedAt:       null,               // set on PATCH /archive
+  createdAt:        timestamp,
+  createdBy:        "admin"
 }
 ```
 
@@ -140,6 +143,7 @@ All additional data about an asset is stored in Firestore, not in the ID.
 - Content type (image/video/document)
 - Placement or sequence
 - BLD or Assembly references (those link from Assembly → GRF, not the reverse)
+- `relatedPacketId` is a weak cross-reference only — it is never used to drive logic
 
 ---
 
@@ -196,9 +200,25 @@ Response:
 ```
 {
   success: true,
-  grfId: "GRF-04-3-000042"
+  grfId:  "GRF-04-3-000042",
+  asset:  { ...full grf_assets record }
 }
 ```
+
+**Get GRF assets:**
+```
+GET /api/admin/graphics?typeCode=04&roleCode=3
+```
+- `typeCode` and `roleCode` are optional filters
+- Filtering is done in memory after a single `WHERE isActive = true` Firestore query (no composite index required)
+- Returns assets sorted by `createdAt` descending
+
+**Archive a GRF asset:**
+```
+PATCH /api/admin/graphics/:grfId/archive
+```
+- Sets `isActive = false` and `archivedAt = now`
+- Asset record is preserved; only hidden from queries
 
 ---
 

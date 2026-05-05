@@ -225,7 +225,7 @@ app.post('/upload', async (req: Request, res: Response): Promise<void> => {
 app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const typeFilter = (req.query.type as string) || 'source';
-    const validTypes = ['source', 'cropped', 'background', 'graphic', 'template', 'design'];
+    const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
     if (!validTypes.includes(typeFilter)) {
       res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
       return;
@@ -561,7 +561,7 @@ app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Respons
 // Admin: Mint a GRF code and save a graphic asset to grf_assets
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, tags } = req.body;
+    const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags } = req.body;
 
     if (!typeCode || !roleCode || !imageUrl) {
       res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
@@ -611,6 +611,7 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
       storagePath: storagePath || null,
       publicUrl: imageUrl,
       sourceGrfId: sourceGrfId || null,
+      relatedPacketId: relatedPacketId || null,
       tags: tags || null,
       createdAt: now,
       createdBy: 'admin',
@@ -629,26 +630,23 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
   }
 });
 
-// Admin: Get GRF assets, optionally filtered by typeCode and/or roleCode
+// Admin: Get GRF assets, optionally filtered by typeCode and/or roleCode.
+// typeCode/roleCode are filtered in memory to avoid requiring composite Firestore indexes.
 app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { typeCode, roleCode } = req.query;
-    let query: any = db.collection('grf_assets').where('isActive', '==', true);
-    if (typeCode) query = query.where('typeCode', '==', typeCode);
-    if (roleCode) query = query.where('roleCode', '==', roleCode);
-    const snapshot = await query.get();
+    const snapshot = await db.collection('grf_assets').where('isActive', '==', true).get();
+    const getTime = (val: any): number => {
+      if (!val) return 0;
+      if (typeof val === 'string') return new Date(val).getTime() || 0;
+      if (val.toDate) return val.toDate().getTime();
+      if (val._seconds) return val._seconds * 1000;
+      return 0;
+    };
     const assets = snapshot.docs
       .map((doc: any) => docToObject(doc))
-      .sort((a: any, b: any) => {
-        const getTime = (val: any): number => {
-          if (!val) return 0;
-          if (typeof val === 'string') return new Date(val).getTime() || 0;
-          if (val.toDate) return val.toDate().getTime();
-          if (val._seconds) return val._seconds * 1000;
-          return 0;
-        };
-        return getTime(b.createdAt) - getTime(a.createdAt);
-      });
+      .filter((a: any) => (!typeCode || a.typeCode === typeCode) && (!roleCode || a.roleCode === roleCode))
+      .sort((a: any, b: any) => getTime(b.createdAt) - getTime(a.createdAt));
     res.json(assets);
   } catch (error: any) {
     console.error('[GRF] Error fetching graphics:', error);
