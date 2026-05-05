@@ -1,0 +1,682 @@
+
+
+
+
+Admin Blanks Conformity Report
+Executive summary
+Based on the ZIP contents alone, admin/blanks is conceptually aligned with the intended role of a blank curation and lookup/fill layer, but it does not fully conform to the QRG schema at the persistence boundary.
+
+The most important conclusion is this:
+
+Read-time lookup/fill is fairly strong; write-time canonical enforcement is weak.
+
+That distinction matters because the QRG authority in the ZIP is explicit: the canonical master blank identity is a Firestore document ID in the form qrg_STNNN, and provider IDs are supplier metadata only, not identity. QRG.md says this directly, including the exact doc-ID regex ^qrg_[1-6][1-9][0-9]{3}$, and states that provider IDs “NEVER replace QRG.” (QRG.md:92-100, QRG.md:200-218) Shared code outside admin/blanks reinforces the same rule: isValidMasterCatalogDocId() only accepts qrg_STNNN, and providerQrgMapper.ts says provider IDs are “supplier metadata only.” (shared/qrgCodes.ts:193-219, shared/providerQrgMapper.ts:6-10)
+
+What admin/blanks does well is use master_catalog as the source list and maintain a compatibility layer that can resolve older/provider-shaped keys back to a product. What it does not do is guarantee that all saved catalog references and per-blank override keys are normalized to qrg_STNNN before persistence. The main save routes simply accept raw strings and write them directly into catalog.blankIds or override maps without a server-side canonicalization helper. (server/routes/admin-catalogs-shelf.routes.ts:415-547)
+
+So the overall verdict is:
+
+Conforms in spirit to the intended lookup/fill pattern.
+Does not fully conform to the QRG schema on save.
+Does not guarantee that catalog.blankIds are qrg_STNNN.
+Needs server-side canonicalization and some client-side cleanup to make the schema boundary real.
+Scope and schema baseline
+This report is based only on direct inspection of the provided ZIP contents. The files explicitly inspected for this report were:
+
+QRG.md
+server/routes/admin-catalogs-shelf.routes.ts
+client/src/features/adminProducts/controllers/useAdminBlanksController.ts
+client/src/pages/admin-blanks.tsx
+shared/blankKeys.ts
+shared/__tests__/blankKeys.test.ts
+client/src/features/adminProducts/ADMIN_README.md
+Because admin/blanks depends on master_catalog, I also inspected the route implementations that feed /api/master-catalog:
+
+server/routes/products.routes.ts
+functions/src/routes/pp-catalog-browse.ts
+The schema baseline is not ambiguous in this ZIP. QRG.md is present, and it defines:
+
+blank IDs as STNNN
+Firestore master blank doc IDs as qrg_STNNN
+providers as secondary/internal only
+provider keys as lookup/reference, not identity (QRG.md:59-100, QRG.md:200-218)
+That means any behavior that lets provider keys become saved blank identity is, strictly speaking, non-conforming.
+
+Overall assessment
+Admin/blanks is built around the correct conceptual model more often than not:
+
+It fetches blanks from /api/master-catalog as the single source of product options. (useAdminBlanksController.ts:230-239)
+It builds flat lookup maps that can resolve docId, raw numeric IDs, py_*, pf_*, and pf:* forms back to a product. (useAdminBlanksController.ts:356-387)
+It tries to resolve a selected product to a preferred blank key before save. (useAdminBlanksController.ts:494-499, useAdminBlanksController.ts:562-590)
+The UI treats provider badges and provider filtering as overlay metadata derived from the master blank rather than as the blank’s identity. (admin-blanks.tsx:461-468, admin-blanks.tsx:497-509)
+That is the right direction for a lookup/fill system.
+
+But the code stops one layer too early. The decisive persistence layer is server/routes/admin-catalogs-shelf.routes.ts, and that layer does not enforce the QRG rule. For add, bulk-copy, and all per-blank override routes, it takes whatever blankId was sent and saves it as-is. (server/routes/admin-catalogs-shelf.routes.ts:415-547)
+
+This means the system currently behaves like this:
+
+If the client sends a real qrg_STNNN doc ID, the catalog will be clean.
+If the client sends a lookup/reference key, the catalog can still become dirty.
+If the catalog already contains legacy/provider IDs, admin/blanks can usually still read and display them because of the lookup/fill logic, but the stored data remains non-canonical.
+That is why the right summary is not “broken” and not “fully conforming.” It is:
+
+Admin/blanks is a good compatibility layer, but not yet a strict QRG identity boundary.
+
+File-by-file findings
+master_catalog usage
+Purpose
+
+Within admin/blanks, master_catalog is the product source. The controller fetches /api/master-catalog and /api/master-catalog/taxonomy, then derives provider-filtered views, source-catalog filtering, and card rendering from that data. (useAdminBlanksController.ts:220-239, useAdminBlanksController.ts:299-355)
+
+What aligns with the schema
+
+The good news is that admin/blanks is clearly trying to work off a provider-agnostic master record:
+
+docId is treated as the preferred key. (useAdminBlanksController.ts:135-137)
+The controller comments explicitly call master_catalog the “single source of truth.” (useAdminBlanksController.ts:230-231)
+The flat allProductMap is built with the master docId first and then provider/legacy keys as additional lookup aliases. (useAdminBlanksController.ts:356-387)
+That is the correct lookup/fill pattern: canonical master identity first, lookup aliases second.
+
+What violates or destabilizes the schema
+
+The problem is that the ZIP contains two /master-catalog implementations with different contracts.
+
+In functions/src/routes/pp-catalog-browse.ts, the route emits lowercase availableVia values such as ['printify'], ['printful'], or both. It also sets fulfillmentProvider consistently from those values. (functions/src/routes/pp-catalog-browse.ts:462-468, functions/src/routes/pp-catalog-browse.ts:512-516)
+
+In server/routes/products.routes.ts, the fallback route can emit capitalized availableVia values such as ['Printify'] and ['Printful'], while separately building lowercase providers. (server/routes/products.routes.ts:653-659, server/routes/products.routes.ts:689-691)
+
+That mismatch matters because the controller assumes lowercase when filtering:
+
+ts
+Copy
+if (Array.isArray(p.availableVia) && p.availableVia.length > 0) {
+  return p.availableVia.includes(provider);
+}
+(useAdminBlanksController.ts:199-202)
+
+So if availableVia arrives capitalized from the server route, provider filtering becomes brittle or incorrect. The page badge logic has the same assumption and can mislabel a capitalized Printful value as Printify. (admin-blanks.tsx:461-468; compare server/routes/products.routes.ts:653-656 with functions/src/routes/pp-catalog-browse.ts:462-466)
+
+There is another contract drift around qrgBlankId:
+
+the functions route returns qrgBlankId: p.qrgBlankId ?? null (functions/src/routes/pp-catalog-browse.ts:485-488)
+the server route returns qrgBlankId: p.qrgBlankId ?? doc.id (server/routes/products.routes.ts:660-665)
+That means one code path may surface an STNNN-like field while another may surface a whole doc ID such as qrg_11101. The admin/blanks controller types qrgBlankId as number | null, which does not match either cleanly. (useAdminBlanksController.ts:39-45, useAdminBlanksController.ts:129-130)
+
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+No. master_catalog helps the UI identify the right record, but there is no hard guarantee from the master_catalog API alone. The guarantee would have to be enforced in the save routes, and it currently is not.
+
+Where provider IDs are stored
+
+Provider IDs are correctly present in the master record layer:
+
+printifyBlueprintId
+printfulProductId
+blueprintId
+printfulId
+availableVia
+providerMappings
+See the route outputs in server/routes/products.routes.ts:643-691 and functions/src/routes/pp-catalog-browse.ts:454-516.
+
+Missing enforcement
+
+The master-catalog boundary needs a normalized transport contract for admin/blanks:
+
+docId should be the canonical qrg_STNNN key for classified blanks
+qrgBlankId should be a 5-digit STNNN string, not a doc ID
+availableVia should be lowercased consistently
+providerMappings shape should be consistent, or the controller and new resolver helper must normalize both forms
+server/routes/admin-catalogs-shelf.routes.ts
+Purpose
+
+This is the actual persistence boundary for catalogs and blank membership. It creates catalogs, duplicates them, adds blanks, removes blanks, bulk-copies blanks, and saves per-blank overrides like tier, title, description, and images. (server/routes/admin-catalogs-shelf.routes.ts:341-547)
+
+What aligns with the schema
+
+There is one encouraging pattern inside the file: the build-shelf route already tries to resolve a provider-side input to a master catalog doc ID before persisting shelfKey. (server/routes/admin-catalogs-shelf.routes.ts:224-275) In other words, the file already contains the idea of “persist the master record key, not the provider input.”
+
+That is the right instinct.
+
+What violates the schema
+
+The catalog routes themselves do not apply that instinct.
+
+The add route is the clearest example:
+
+ts
+Copy
+const { blankIds } = req.body;
+...
+const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
+const merged = [...(catalog.blankIds || []), ...newIds];
+await fsUpdate("catalogs", req.params.id, { blankIds: merged });
+(server/routes/admin-catalogs-shelf.routes.ts:415-425)
+
+There is no call to a resolver, no validation against QRG.md, and no check that the stored IDs match ^qrg_[1-6][1-9][0-9]{3}$.
+
+The bulk-copy route repeats the same mistake:
+
+ts
+Copy
+const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
+const merged = [...(target.blankIds || []), ...newIds];
+await fsUpdate("catalogs", targetCatalogId, { blankIds: merged });
+(server/routes/admin-catalogs-shelf.routes.ts:452-462)
+
+The override routes are also raw-keyed. For example, title and description save whatever blankId they receive:
+
+tier: server/routes/admin-catalogs-shelf.routes.ts:469-482
+description: server/routes/admin-catalogs-shelf.routes.ts:489-502
+title: server/routes/admin-catalogs-shelf.routes.ts:509-522
+images: server/routes/admin-catalogs-shelf.routes.ts:531-548
+Those routes do not:
+
+canonicalize blankId
+verify that blankId belongs to catalog.blankIds
+reject provider IDs
+reject pending/noncanonical IDs
+That means override maps can become keyed with a provider ID even while catalog.blankIds uses a QRG key, or vice versa. Once that happens, the frontend can silently fail to find the override because it reads by a different key shape.
+
+The file also ignores the blankSnapshots payload the client sends on add. The add route only reads blankIds; it does not persist title/maker/model/provider/image snapshots at all. (useAdminBlanksController.ts:409-414 versus server/routes/admin-catalogs-shelf.routes.ts:415-425)
+
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+No. Not even close. This file is the main reason the answer to the overall question is “not fully conforming.”
+
+Where provider IDs are stored
+
+In the ideal design, provider IDs would stay in master_catalog. In the current design, this file allows provider IDs to leak into:
+
+catalog.blankIds
+catalog.blankTiers
+catalog.blankDescriptions
+catalog.blankTitles
+catalog.blankImages
+because all of those routes accept raw blankId strings. (server/routes/admin-catalogs-shelf.routes.ts:415-547)
+
+Missing enforcement
+
+This file is missing the most important helper in the whole system:
+
+ts
+Copy
+async function resolveCatalogBlankId(
+  fsDb: FirebaseFirestore.Firestore,
+  inputId: string,
+  opts?: { allowPending?: boolean }
+): Promise<string>
+It should resolve provider/reference inputs to a canonical qrg_STNNN master doc ID and reject anything that cannot be resolved to that format.
+
+There are also data-model gaps:
+
+catalog creation initializes only blankIds, blankTiers, tierConfig, blankDescriptions, and blankTitles. It does not initialize blankMakers, blankModels, blankProviders, blankImages, or blankPrimaryImages, even though the controller expects some of those fields. (server/routes/admin-catalogs-shelf.routes.ts:351-363; useAdminBlanksController.ts:88-93, 271-278)
+catalog duplication copies only the same narrow subset. (server/routes/admin-catalogs-shelf.routes.ts:395-408)
+blank deletion cleans only blankTiers, blankDescriptions, and blankTitles, leaving blankImages, blankPrimaryImages, and the missing snapshot maps orphaned if they exist. (server/routes/admin-catalogs-shelf.routes.ts:432-445)
+client/src/features/adminProducts/controllers/useAdminBlanksController.ts
+Purpose
+
+This is the operational brain of admin/blanks. It fetches master blanks, builds lookup maps, filters by provider/category/location/search, tracks active catalog membership, and wires mutations for add/remove/title/description/tier save. (useAdminBlanksController.ts:209-692)
+
+What aligns with the schema
+
+This file contains most of the code that makes the intended lookup/fill pattern work:
+
+It fetches master_catalog as the single source of truth. (useAdminBlanksController.ts:230-239)
+It indexes products by canonical docId first, then by legacy/provider aliases. (useAdminBlanksController.ts:356-387)
+It resolves blank keys through product lookup rather than assuming raw IDs are canonical. (useAdminBlanksController.ts:494-499)
+It overlays catalog-level title/description/image metadata onto master blanks for display. (useAdminBlanksController.ts:501-544)
+This is a real compatibility layer, not random ad hoc key handling.
+
+What violates the schema
+
+The file’s main problem is that it still blurs the line between identity and lookup key.
+
+At the top, the comment describes qrg_101 and pending_py_123 as “QRG format” that is “passed through as-is.” (useAdminBlanksController.ts:8-12) Under the current QRG.md, that is stale. qrg_101 is not canonical, and pending_* is not canonical identity.
+
+The expandBlankIdSet() helper is useful for compatibility, but the controller uses it too broadly. It does not just use the expanded set for membership tests; it also uses it to render catalog items:
+
+expansion helper: useAdminBlanksController.ts:13-37
+active catalog set: useAdminBlanksController.ts:271
+rendered items from that set: useAdminBlanksController.ts:501-524
+That causes a concrete bug for legacy catalogs. For example:
+
+pf_42 expands to pf_42, pf:42, and 42
+42 expands to 42, py_42, pf_42, and pf:42
+So a legacy stored ID can become multiple rendered entries, even though it should only be a single blank. The expanded set should be used for lookup, not for enumerating the catalog.
+
+The save path is also not strict enough:
+
+resolveBlankKey() falls back to returning the raw input if it cannot find a product. (useAdminBlanksController.ts:494-499)
+onAddToCatalog() forwards the provided blankKey to the server without forcing it through a QRG-only save helper. (useAdminBlanksController.ts:562-570)
+onToggleItem() does the same. (useAdminBlanksController.ts:577-590)
+title and description saves depend on the same resolveBlankKey() logic. (useAdminBlanksController.ts:592-608)
+tier save accepts any blankId passed to it. (useAdminBlanksController.ts:610-613)
+There is also dead or drifting behavior:
+
+buildBlankSnapshot() keys snapshots by getProductKey(p), not by a strict QRG-only save key. (useAdminBlanksController.ts:181-195)
+addBlanksMutation sends blankSnapshots, but the server route ignores them. (useAdminBlanksController.ts:409-414; server/routes/admin-catalogs-shelf.routes.ts:415-425)
+the success toasts read data.count, but the server returns added/total or removed/total. (useAdminBlanksController.ts:416-429; server/routes/admin-catalogs-shelf.routes.ts:425, 445)
+the controller supports reading blankImages, but it has no mutation for saving image overrides in admin/blanks; only title, description, and tier are wired here. (useAdminBlanksController.ts:435-466, 592-613)
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+Only partially, and only on the happiest path. If a product object with a canonical docId is present, the client usually sends something sensible. But the controller does not guarantee that outcome, and the server does not enforce it.
+
+Where provider IDs are stored
+
+This controller stores provider IDs and aliases in memory for lookup:
+
+expandBlankIdSet()
+allProductMap
+resolveBlankKey()
+It also includes provider information inside outgoing blankSnapshots.providers, although those snapshots are not currently persisted. (useAdminBlanksController.ts:181-195, 409-414)
+
+Missing enforcement
+
+This file needs two distinct concepts, not one overloaded “canonical” concept:
+
+a lookup-compatible key helper
+a catalog-save identity helper that returns only qrg_STNNN
+It also needs to stop using expanded compatibility sets for render enumeration.
+
+client/src/pages/admin-blanks.tsx
+Purpose
+
+This is the UI shell for admin/blanks: provider filter, source catalog selector, target catalog selector, catalog strip, blank cards, catalog CRUD tab, and bulk-copy operations. (admin-blanks.tsx:428-823)
+
+What aligns with the schema
+
+The page generally defers identity resolution to the controller. When rendering a source blank card, it computes a blankKey through the controller’s resolveBlankKey() and then uses that key for add/title/description/tier callbacks. (admin-blanks.tsx:451-496)
+
+This is good design. The page itself is mostly a transport layer for the controller’s decisions.
+
+What violates the schema or weakens UX
+
+The biggest issue here is that the page transports whatever the controller gives it and sometimes transports raw stored values unchanged.
+
+Bulk-copy is the prime example:
+
+ts
+Copy
+const source = catalogs.find(c => c.id === sourceId);
+const blankIds = source?.blankIds || [];
+const res = await apiRequest("POST", `/api/admin/catalogs/${sourceId}/bulk-copy`, {
+  targetCatalogId: targetId,
+  blankIds
+});
+(admin-blanks.tsx:150-156)
+
+So if a source catalog contains provider IDs or historical formats, this page will re-spread them to another catalog, and the server will accept them raw. (server/routes/admin-catalogs-shelf.routes.ts:452-462)
+
+The page also inherits the controller’s expanded-set rendering issue through catalogItems. The clear-all action removes catalogItems.map(i => i.catalogKey). (admin-blanks.tsx:672-679) If catalogItems contains duplicate compatibility aliases from a legacy stored ID, the payload becomes noisy and confusing. Single-item remove can also misfire if the user removes a derived alias rather than the actual stored raw key.
+
+There is also a provider badge brittleness issue. The page assumes lowercase provider strings:
+
+ts
+Copy
+const providerBadgeText =
+  availableVia.length > 1 ? 'Both' :
+  availableVia[0] === 'printful' ? 'Printful' : 'Printify';
+(admin-blanks.tsx:461-468)
+
+That assumption matches the functions route but not the server route fallback, which can emit capitalized values. (functions/src/routes/pp-catalog-browse.ts:462-466; server/routes/products.routes.ts:653-656) So the badge logic is only conditionally correct.
+
+On the UX side, two smaller issues stand out:
+
+If no target catalog is selected, tapping a blank card just produces a toast via onToggleItem() rather than guiding the admin toward select/create behavior. (admin-blanks.tsx:470-476; useAdminBlanksController.ts:577-590)
+The page exposes title, description, and tier editing on the source cards, but not image override editing even though the server route exists and the controller reads blankImages. (admin-blanks.tsx:480-496; server/routes/admin-catalogs-shelf.routes.ts:531-548)
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+No. The page helps the common path, but it does not independently guarantee anything. Bulk-copy especially preserves whatever is already stored.
+
+Where provider IDs are stored
+
+The page itself does not persist provider IDs directly. It passes around blankKey, availableVia, and source catalog blankIds.
+
+Missing enforcement
+
+The page should call a stricter controller helper for save-time identity, and bulk-copy should either call a canonicalizing server route or send only canonical blank IDs.
+
+shared/blankKeys.ts
+Purpose
+
+This file provides shared helpers for blank-key handling. (shared/blankKeys.ts:1-77)
+
+What aligns with the schema
+
+The bottom half of the file aligns with the current QRG law:
+
+isValidQRGBlankNumber() enforces a 5-digit STNNN pattern. (shared/blankKeys.ts:38-48)
+isQRGBlankId() enforces qrg_STNNN. (shared/blankKeys.ts:50-59)
+isPendingBlankId() makes pending status explicit rather than implicit. (shared/blankKeys.ts:61-67)
+Those helpers are directionally correct.
+
+What violates or muddies the schema
+
+The top half of the file is lookup-oriented, but its naming makes it easy to misuse:
+
+ts
+Copy
+export function getCanonicalBlankKey(product: ...) {
+  if ((product as any).docId) return (product as any).docId;
+  const id = String(product.id);
+  if (product.fulfillmentProvider === 'printful') {
+    return id.startsWith('pf:') ? id : `pf:${id}`;
+  }
+  return id;
+}
+(shared/blankKeys.ts:1-8)
+
+Under the strict QRG interpretation, pf:42 is not a canonical blank identity. It is a lookup/reference form. So the function name getCanonicalBlankKey() is misleading. The helper is really returning a best available lookup key, not a guaranteed QRG canonical identity.
+
+getMasterDocKey() is similarly mixed:
+
+it returns docId if present
+otherwise it manufactures pf_* or py_* shapes (shared/blankKeys.ts:10-17)
+That is useful for compatibility, but not for authoritative identity.
+
+There are also format assumptions that do not match the broader compatibility code:
+
+isProviderPrintful() only recognizes pf: and ignores pf_. (shared/blankKeys.ts:23-25)
+getProviderFromKey() classifies every non-pf: key as printify, which is wrong for qrg_* and pending_*. (shared/blankKeys.ts:27-29)
+getRawIdFromKey() strips only pf: and not pf_. (shared/blankKeys.ts:31-34)
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+No. In fact, if this file is used incautiously, its “canonical” helper actively encourages non-QRG save keys on fallback paths.
+
+Where provider IDs are stored
+
+This file defines and manipulates provider lookup forms directly:
+
+py_*
+pf_*
+pf:*
+Missing enforcement
+
+The codebase needs a hard split:
+
+getLookupBlankKey() or getPreferredLookupKey()
+getCanonicalCatalogBlankId() returning only qrg_STNNN | null
+As written, the naming invites accidental schema drift.
+
+shared/__tests__/blankKeys.test.ts
+Purpose
+
+This test file is supposed to lock in blank-key behavior. (shared/__tests__/blankKeys.test.ts:1-80)
+
+What aligns with the current system
+
+It does cover legacy compat behavior for raw IDs and pf: prefixes.
+
+What violates the schema
+
+The tests are stale relative to the stated QRG authority.
+
+They assert the following as correct:
+
+Printify canonical key is plain "71" (shared/__tests__/blankKeys.test.ts:12-18)
+Printful canonical key is "pf:42" (shared/__tests__/blankKeys.test.ts:20-26)
+Those expectations are not compatible with the statement that canonical master blank identity is qrg_STNNN.
+
+The tests also do not cover the helpers that actually represent the current law:
+
+isQRGBlankId()
+isPendingBlankId()
+getQRGBlankNumber()
+Even though those helpers exist in shared/blankKeys.ts. (shared/blankKeys.ts:50-77)
+
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+No. These tests do the opposite: they normalize the wrong mental model and would likely block a stricter refactor unless updated first.
+
+Where provider IDs are stored
+
+In expected values and assumptions.
+
+Missing enforcement
+
+The tests need to move from “provider/raw key behavior” to “QRG identity plus provider lookup alias” behavior.
+
+client/src/features/adminProducts/ADMIN_README.md
+Purpose
+
+This file is the developer/operator guide to the admin section and related architecture. (client/src/features/adminProducts/ADMIN_README.md:1-25)
+
+What aligns with the schema
+
+It contains a later section describing full QRG identity enforcement and explicitly says provider IDs should not be embedded in QRG codes. (client/src/features/adminProducts/ADMIN_README.md:1734-1788)
+
+What violates the schema
+
+It is internally contradictory.
+
+Several sections are clearly stale and conflict with QRG.md:
+
+the “QRG BBB Master Blank Catalog Architecture” section still documents qrg_NNN, not qrg_STNNN, and describes pending fallback IDs as part of the master blank architecture. (client/src/features/adminProducts/ADMIN_README.md:981-1019)
+the “QRG Blank ID System” section explicitly describes a 4-digit blank numbering system and says that it replaced an earlier qrg_NNN scheme. (client/src/features/adminProducts/ADMIN_README.md:1630-1730)
+That is incompatible with the QRG authority in the same ZIP, which defines STNNN and qrg_STNNN. (QRG.md:59-100)
+
+The README is especially dangerous because it still sounds confident and current. It was even stamped “Last updated: May 5, 2026.” (client/src/features/adminProducts/ADMIN_README.md:1-4)
+
+Are catalog.blankIds guaranteed to be qrg_STNNN on save?
+
+No. The README presently pushes a mixed mental model rather than a single source of truth.
+
+Where provider IDs are stored
+
+The README documents provider bridges, providerMappings, and older pending/provider-based paths. (client/src/features/adminProducts/ADMIN_README.md:987-1009)
+
+Missing enforcement
+
+The README needs a cleanup pass so developers are not re-introducing stale assumptions into live code.
+
+Workflow comparison
+Workflow	Current behavior in ZIP	Desired behavior under QRG schema
+Add to catalog	The UI usually resolves a product to docId if present, but the server route saves raw blankIds without canonicalization. blankSnapshots are sent but ignored. (useAdminBlanksController.ts:494-499, 562-570, 409-414; server/routes/admin-catalogs-shelf.routes.ts:415-425)	Accept provider/raw/pending inputs only as lookup references; resolve server-side to one canonical qrg_STNNN; reject if no canonical QRG doc exists; optionally map snapshots to that same canonical key.
+Save title / description / tier	The page passes a resolved key, but the server blindly writes whatever blankId was sent. No membership or format validation. (admin-blanks.tsx:480-496; useAdminBlanksController.ts:592-613; server/routes/admin-catalogs-shelf.routes.ts:469-522)	Normalize blankId server-side to canonical qrg_STNNN, verify it exists in catalog.blankIds, and store the override under exactly that key.
+Save images	A server route exists, and the controller reads blankImages, but admin/blanks does not expose an image-save mutation in these files. (server/routes/admin-catalogs-shelf.routes.ts:531-548; useAdminBlanksController.ts:271-278, 501-524)	Either expose image editing in admin/blanks and store under canonical qrg_STNNN, or clearly document that image overrides live elsewhere and remove dead expectations from this controller.
+Delete blank / clear all	Removal compares incoming raw IDs directly to stored raw IDs. Cleanup only covers tier/description/title maps. Legacy alias expansion can create duplicate render rows. (server/routes/admin-catalogs-shelf.routes.ts:432-445; useAdminBlanksController.ts:13-37, 271, 501-524; admin-blanks.tsx:672-679)	Resolve incoming ID to canonical qrg_STNNN, remove that one stored entry, and clean every override/snapshot map keyed by the same canonical ID. Use raw catalog.blankIds for rendering, expanded sets only for membership lookup.
+Duplicate / bulk copy	Duplicate copies only a subset of maps. Bulk copy copies only raw blankIds, so dirty IDs can spread. (server/routes/admin-catalogs-shelf.routes.ts:395-408, 452-462; admin-blanks.tsx:150-156)	Duplicate should clone all per-blank maps keyed by canonical IDs. Bulk copy should canonicalize into qrg_STNNN before merge and should intentionally decide whether overrides copy or not.
+Tests	Tests still encode provider/raw keys as the “canonical” result and do not test current QRG doc-ID validators. (shared/__tests__/blankKeys.test.ts:10-80)	Tests should prove that QRG IDs are canonical identity and provider IDs are lookup/reference aliases only.
+
+The core add-to-catalog pipeline that the code needs is this:
+
+no
+
+yes
+
+Admin selects blank
+
+Client sends best available reference
+
+POST /api/admin/catalogs/:id/blanks
+
+resolveCatalogBlankId on server
+
+Resolved docId matches qrg_STNNN?
+
+Reject save with clear error
+
+Store qrg_STNNN in catalog.blankIds
+
+Store title/description/images/tier under same qrg_STNNN key
+
+Use provider IDs only in master_catalog lookup fields
+
+
+
+Show code
+Concrete code changes
+Server changes
+The most important fix belongs in server/routes/admin-catalogs-shelf.routes.ts, near the top of the file, ideally next to the existing build-shelf resolution logic because that file already contains a weaker form of the right idea. (server/routes/admin-catalogs-shelf.routes.ts:224-248)
+
+A practical signature would be:
+
+ts
+Copy
+import { isValidMasterCatalogDocId } from "../../shared/qrgCodes";
+
+type ResolvedCatalogBlank = {
+  docId: string;      // qrg_STNNN only
+  qrgBlankId: string; // STNNN
+  master: any;
+};
+
+async function resolveCatalogBlankId(
+  fsDb: FirebaseFirestore.Firestore,
+  inputId: string,
+  opts: { allowPending?: boolean } = {}
+): Promise<ResolvedCatalogBlank> {
+  // normalize string
+  // if input is qrg_STNNN, fetch directly and validate
+  // else resolve by printifyBlueprintId / printfulProductId / providerMappings
+  // support both providerMappings object and array shapes
+  // return canonical qrg_STNNN docId only
+  // reject pending/noncanonical docs unless allowPending is explicitly true
+}
+The resolution order should be:
+
+direct canonical doc ID if already qrg_STNNN
+direct master doc fetch if input happens to match a raw doc ID
+lookup by printifyBlueprintId
+lookup by printfulProductId
+normalized provider forms py_*, pf_*, pf:*, and raw numeric IDs
+fallback support for both provider-mapping shapes present in the ZIP:
+object form: providerMappings.printify, providerMappings.printful (functions/src/services/master-catalog.ts:462-467, 1127-1179)
+array form: [{ provider, blueprintId/productId, ...}] (functions/src/routes/pp-catalog-browse.ts:454-460)
+The key change in the add route is conceptually small:
+
+diff
+Copy
+- const newIds = blankIds.map(String).filter((id: string) => !existing.has(id));
++ const resolvedIds = [
++   ...new Set(await Promise.all(blankIds.map((id: string) =>
++     resolveCatalogBlankId(fsDb, String(id)).then(r => r.docId)
++   )))
++ ];
++ const newIds = resolvedIds.filter((id: string) => !existing.has(id));
+The same canonicalization should be applied to:
+
+POST /api/admin/catalogs/:id/blanks
+DELETE /api/admin/catalogs/:id/blanks
+POST /api/admin/catalogs/:id/bulk-copy
+PUT /api/admin/catalogs/:id/blank-tier
+PUT /api/admin/catalogs/:id/blank-description
+PUT /api/admin/catalogs/:id/blank-title
+PUT /api/admin/catalogs/:id/blank-images
+The override routes also need membership enforcement. They should not accept an arbitrary key that is not already present in catalog.blankIds after normalization.
+
+A good pattern is:
+
+ts
+Copy
+const resolved = await resolveCatalogBlankId(fsDb, blankId);
+if (!(catalog.blankIds || []).includes(resolved.docId)) {
+  return res.status(400).json({ error: "Blank is not in this catalog" });
+}
+The route file also needs data-shape cleanup:
+
+initialize blankImages, blankPrimaryImages, blankMakers, blankModels, and blankProviders in catalog creation if those maps are part of the intended model
+duplicate those maps in duplication
+delete those maps’ entries when a blank is removed
+If the intent is to preserve snapshots from the add flow, then the add route should also consume blankSnapshots. If that is not desired, remove blankSnapshots from the client payload and the interface so the code stops pretending they are persisted.
+
+Frontend changes
+The controller needs a strict separation between lookup and identity.
+
+The first concrete fix is to split the expanded compatibility set from the raw catalog ID list:
+
+diff
+Copy
+- const catalogBlankSet = useMemo(() => expandBlankIdSet(activeCatalog?.blankIds || []), [activeCatalog]);
++ const catalogBlankIds = activeCatalog?.blankIds || [];
++ const catalogBlankLookup = useMemo(() => expandBlankIdSet(catalogBlankIds), [catalogBlankIds]);
+Then use:
+
+catalogBlankLookup for membership checks like isItemInCatalog
+catalogBlankIds for rendering catalogItems, clear-all payloads, and user-facing counts
+That one change prevents legacy IDs from exploding into duplicate displayed blanks.
+
+The second fix is to stop using getCanonicalBlankKey() as a save-time authority. The code needs something more like:
+
+ts
+Copy
+import { isQRGBlankId } from "@shared/blankKeys";
+
+function getCatalogSaveKey(product?: CatalogProduct, fallback?: string): string | null {
+  const docId = product?.docId ? String(product.docId) : "";
+  if (isQRGBlankId(docId)) return docId;
+  return fallback ?? null; // for lookup only; server must canonicalize or reject
+}
+Then onAddToCatalog, onSaveTitle, onSaveDescription, and onTierChange should prefer that function.
+
+The third fix is to make provider handling case-stable. In both the controller and page:
+
+diff
+Copy
+- return p.availableVia.includes(provider);
++ const via = (p.availableVia || []).map(v => String(v).toLowerCase());
++ return via.includes(provider);
+and similarly for badge rendering.
+
+The fourth fix is UX and consistency:
+
+diff
+Copy
+- toast({ title: "Added to catalog", description: `${data.count} total blanks` });
++ toast({ title: "Added to catalog", description: `${data.total} total blanks` });
+
+- toast({ title: "Removed from catalog", description: `${data.count} remaining` });
++ toast({ title: "Removed from catalog", description: `${data.total} remaining` });
+Finally, if admin/blanks is meant to support image overrides in this screen, the controller needs a saveImagesMutation and the page needs controls for it. If image editing is intentionally out of scope for admin/blanks, that should be made explicit and the dead expectations around blankImages snapshots should be reduced.
+
+UX and ease-of-use issues
+Several usability issues fall out of the schema drift:
+
+Wrong counts in toasts because the controller reads data.count even though the server returns total. (useAdminBlanksController.ts:416-429; server/routes/admin-catalogs-shelf.routes.ts:425, 445)
+Potential duplicate blank cards for legacy keys because compatibility expansion is used for rendering instead of lookup only. (useAdminBlanksController.ts:13-37, 271, 501-524)
+Provider badges and provider filters are brittle because route implementations disagree on availableVia casing. (server/routes/products.routes.ts:653-659; functions/src/routes/pp-catalog-browse.ts:462-468; useAdminBlanksController.ts:199-206; admin-blanks.tsx:461-468)
+Image overrides are half-supported: read path exists, save path in admin/blanks does not. (useAdminBlanksController.ts:271-278, 501-524; server/routes/admin-catalogs-shelf.routes.ts:531-548)
+No strong remediation path when no target catalog is selected: card clicks just toast rather than nudging the admin into select/create flow. (admin-blanks.tsx:470-476; useAdminBlanksController.ts:577-590)
+Acceptance tests and priorities
+Suggested acceptance tests
+These should be short, deterministic, and focused on identity enforcement.
+
+Create a master blank with canonical docId = qrg_11101, plus provider references like printifyBlueprintId = 12 and printfulProductId = 71. Add it from admin/blanks. Verify catalog.blankIds contains only qrg_11101.
+Call the same add route with 12, py_12, 71, pf_71, and pf:71. Verify each request resolves to the same single stored qrg_11101.
+Attempt to save a blank whose master record is pending_* or otherwise noncanonical. Verify the route rejects it unless an explicit migration flag is enabled.
+Save title, description, tier, and images using a lookup key such as pf:71. Verify the stored override key is qrg_11101, not the lookup form.
+Remove a blank using a lookup key such as py_12. Verify the canonical qrg_11101 entry is removed and all per-blank maps are cleaned for that same key.
+Duplicate a catalog containing title/description/tier/image overrides. Verify the duplicate contains all override maps, not just a subset.
+Bulk-copy from a source catalog that contains a legacy/provider key. Verify the target stores only canonical qrg_STNNN.
+Seed a catalog with a stored legacy key like pf_71. Verify the admin-blanks catalog strip renders a single blank card, not multiple alias duplicates.
+Run updated blankKeys tests proving:
+isQRGBlankId("qrg_11101") === true
+isQRGBlankId("qrg_101") === false
+provider keys are accepted as lookup inputs, not canonical outputs
+Prioritized action list
+High priority
+
+Add resolveCatalogBlankId() to server/routes/admin-catalogs-shelf.routes.ts
+Canonicalize all catalog writes and per-blank override writes to qrg_STNNN
+Split raw stored catalog IDs from expanded lookup sets in the controller
+Update tests so they stop treating provider keys as canonical identity
+Medium priority
+
+Normalize master_catalog API contract for availableVia, qrgBlankId, and providerMappings
+Either implement or remove blankSnapshots persistence
+Expand duplicate/delete routes to cover all per-blank metadata maps
+Rename or replace getCanonicalBlankKey() so the helper name matches reality
+Low priority
+
+Clean up ADMIN_README.md so it no longer documents qrg_NNN, 4-digit blank IDs, or pending IDs as current architecture
+Improve no-target-selected UX in admin/blanks
+Add image-edit support to admin/blanks, or explicitly scope it elsewhere
+Fix toast copy and count displays
+Final assessment
+From the ZIP alone, admin/blanks does not yet fully conform to the QRG schema if the rule is that canonical blank identity must be qrg_STNNN and provider IDs are allowed only as lookup/reference.
+
+The best way to state it precisely is:
+
+admin/blanks already behaves like a sophisticated lookup/fill layer, but it has not yet been turned into a strict canonicalization boundary.
+
+That means the architecture is close, the intent is visible in the code, and the fixes are concrete. But until the server routes normalize every incoming blank reference to qrg_STNNN before saving, the system remains only partially conforming.
