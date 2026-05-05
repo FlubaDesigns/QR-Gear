@@ -7,6 +7,18 @@ import { fsGetAll, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/f
 const QRG_DOC_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
 
 /**
+ * Thrown by resolveCatalogBlankId when an input ID cannot be resolved to a
+ * master_catalog qrg_STNNN record. Callers should surface this as HTTP 400.
+ */
+class CatalogBlankResolverError extends Error {
+  readonly statusCode = 400;
+  constructor(message: string) {
+    super(message);
+    this.name = 'CatalogBlankResolverError';
+  }
+}
+
+/**
  * Resolves any blank ID input to its canonical master_catalog doc ID (qrg_STNNN).
  *
  * Accepted input forms:
@@ -21,14 +33,14 @@ const QRG_DOC_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
  *   string  — canonical qrg_STNNN doc ID
  *   null    — intentional pending/migration ID (soft allow)
  *
- * Throws:
- *   Error   — input cannot be resolved to any master_catalog record, or is structurally invalid
+ * Throws CatalogBlankResolverError (HTTP 400):
+ *   — input cannot be resolved to any master_catalog record, or is structurally invalid
  *
  * Never invents a QRG ID. Only returns what exists in Firestore.
  */
 async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
   const id = String(inputId ?? '').trim();
-  if (!id) throw new Error('blankId must be a non-empty string');
+  if (!id) throw new CatalogBlankResolverError('blankId must be a non-empty string');
 
   // Fast path: already a valid QRG doc ID
   if (QRG_DOC_RE.test(id)) {
@@ -36,7 +48,7 @@ async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
     const fsDb = getFirestoreDb();
     const doc = await fsDb.collection('master_catalog').doc(id).get();
     if (doc.exists) return id;
-    throw new Error(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
+    throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
   }
 
   // Pending migration IDs — soft allow, caller decides
@@ -98,7 +110,7 @@ async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
     }
   }
 
-  throw new Error(
+  throw new CatalogBlankResolverError(
     `Cannot resolve "${id}" to a QRG master_catalog record. ` +
     `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`
   );
@@ -544,6 +556,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {
       console.error("[Catalogs] Add blanks error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });
@@ -557,16 +570,15 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
 
       // Build the set of keys to remove: always include the raw input key (handles
       // legacy stored IDs), plus the resolved canonical key when resolvable.
+      // Unresolvable IDs (not found in master_catalog) return 400 — callers must
+      // send IDs that exist or can be resolved. Provider keys (py_/pf_) are resolved
+      // so both the raw and canonical key are removed from all overlay maps.
       const removeSet = new Set<string>();
       for (const rawId of blankIds) {
         const raw = String(rawId);
         removeSet.add(raw);
-        try {
-          const canonical = await resolveCatalogBlankId(raw);
-          if (canonical) removeSet.add(canonical);
-        } catch (_) {
-          // Unresolvable — still remove whatever key the caller sent
-        }
+        const canonical = await resolveCatalogBlankId(raw); // throws CatalogBlankResolverError → 400
+        if (canonical) removeSet.add(canonical);
       }
 
       const remaining = (catalog.blankIds || []).filter((id: string) => !removeSet.has(id));
@@ -606,6 +618,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, removed: removeSet.size, total: remaining.length });
     } catch (error: any) {
       console.error("[Catalogs] Remove blanks error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });
@@ -631,6 +644,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {
       console.error("[Catalogs] Bulk copy error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });
@@ -653,6 +667,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, blankTiers });
     } catch (error: any) {
       console.error("[Catalogs] Set blank tier error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });
@@ -675,6 +690,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, blankDescriptions });
     } catch (error: any) {
       console.error("[Catalogs] Set blank description error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });
@@ -697,6 +713,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, blankTitles });
     } catch (error: any) {
       console.error("[Catalogs] Set blank title error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });
@@ -725,6 +742,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, blankId: canonicalId, imageCount: images.length });
     } catch (error: any) {
       console.error("[Catalogs] Set blank images error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
       res.status(500).json({ error: error.message });
     }
   });

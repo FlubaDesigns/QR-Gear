@@ -13,8 +13,20 @@ import {
 describe('blankKeys', () => {
   describe('getCanonicalBlankKey', () => {
     // QRG doc ID takes highest priority — this is the catalog identity law.
+    // Note: buildBlankSnapshot() in useAdminBlanksController.ts uses the same
+    // priority via getProductKey(p) = p.docId || String(p.id). This means
+    // snapshot map keys ARE qrg_STNNN whenever the product has a docId — no
+    // special handling needed; the contract flows from the same docId priority.
     it('returns docId directly when product has a qrg_STNNN docId', () => {
       expect(getCanonicalBlankKey({ id: 71, docId: 'qrg_11001' })).toBe('qrg_11001');
+    });
+
+    it('snapshot key contract: docId takes priority over numeric id', () => {
+      // getProductKey(p) = p.docId || String(p.id) — used as buildBlankSnapshot key
+      // When docId is present, the snapshot map key is the qrg_STNNN doc ID.
+      expect(getCanonicalBlankKey({ id: 999, docId: 'qrg_11001' })).toBe('qrg_11001');
+      // When docId is absent, falls back to provider key (lookup reference only)
+      expect(getCanonicalBlankKey({ id: 999 })).toBe('999');
     });
 
     it('returns docId for Printful product with qrg_STNNN docId', () => {
