@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, LayoutTemplate, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,46 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+class BldBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[BldDefinitionsTab] CRASH:", error.message, error.stack);
+    console.error("[BldDefinitionsTab] Component stack:", info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-destructive/10 border border-destructive rounded-lg">
+          <h3 className="font-bold text-lg mb-2">BLD Definitions Error</h3>
+          <p className="text-sm mb-2">{this.state.error?.message}</p>
+          <pre className="text-xs overflow-auto max-h-40 bg-black/20 p-2 rounded">
+            {this.state.error?.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded"
+            data-testid="button-retry-bld"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const MAX_INSTANCES = 9;
 
@@ -431,14 +472,14 @@ function DefinitionCard({
   );
 }
 
-export default function BldDefinitionsTab() {
+function BldDefinitionsTabInner() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useQuery<{ definitions: BldDefinition[]; count: number }>({
+  const { data, isLoading, isError, error } = useQuery<{ definitions: BldDefinition[]; count: number }>({
     queryKey: ["/api/admin/bld"],
     queryFn: () => adminFetch("/bld"),
   });
@@ -493,9 +534,10 @@ export default function BldDefinitionsTab() {
       )}
 
       {isError && (
-        <p className="text-sm text-red-600 dark:text-red-400 py-4 text-center" data-testid="error-bld">
-          Failed to load BLD definitions.
-        </p>
+        <div className="rounded-md border border-destructive bg-destructive/10 px-4 py-3" data-testid="error-bld">
+          <p className="text-sm font-semibold text-destructive">Failed to load BLD definitions</p>
+          <p className="text-xs text-destructive/80 mt-0.5">{(error as Error)?.message ?? "Unknown error"}</p>
+        </div>
       )}
 
       {!isLoading && !isError && definitions.length === 0 && (
@@ -539,5 +581,13 @@ export default function BldDefinitionsTab() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function BldDefinitionsTab() {
+  return (
+    <BldBoundary>
+      <BldDefinitionsTabInner />
+    </BldBoundary>
   );
 }

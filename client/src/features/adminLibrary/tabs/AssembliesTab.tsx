@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, Link2, X, Unlink, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
+import { isValidGraphicId } from "@shared/graphicCodes";
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+class AssembliesBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[AssembliesTab] CRASH:", error.message, error.stack);
+    console.error("[AssembliesTab] Component stack:", info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-destructive/10 border border-destructive rounded-lg">
+          <h3 className="font-bold text-lg mb-2">Assemblies Error</h3>
+          <p className="text-sm mb-2">{this.state.error?.message}</p>
+          <pre className="text-xs overflow-auto max-h-40 bg-black/20 p-2 rounded">
+            {this.state.error?.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded"
+            data-testid="button-retry-assemblies"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ── Regex constants (from canonical schemas) ─────────────────────────────────
 
@@ -18,7 +60,7 @@ const ASM_ID_REGEX      = /^ASM-\d{6}$/;
 
 function isValidQrgId(id: string): boolean  { return QRG_BLANK_REGEX.test(id); }
 function isValidBldId(id: string): boolean  { return BLD_ID_REGEX.test(id); }
-function isValidGrfId(id: string): boolean  { return GRF_ID_REGEX.test(id); }
+function isValidGrfId(id: string): boolean  { return isValidGraphicId(id); }
 function isValidAsmId(id: string): boolean  { return ASM_ID_REGEX.test(id); }
 
 // Asset slots that require a grfId (not a text value)
@@ -641,7 +683,7 @@ function AssemblyCard({
 
 // ── Main tab ──────────────────────────────────────────────────────────────────
 
-export default function AssembliesTab() {
+function AssembliesTabInner() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -655,7 +697,7 @@ export default function AssembliesTab() {
   if (filterBld.trim()) queryParams.set("bldId", filterBld.trim());
   const qs = queryParams.toString();
 
-  const { data, isLoading, isError, refetch } = useQuery<{ assemblies: Assembly[]; count: number }>({
+  const { data, isLoading, isError, error, refetch } = useQuery<{ assemblies: Assembly[]; count: number }>({
     queryKey: ["/api/admin/assemblies", qs],
     queryFn: () => adminFetch(`/assemblies${qs ? `?${qs}` : ""}`),
   });
@@ -732,9 +774,10 @@ export default function AssembliesTab() {
       )}
 
       {isError && (
-        <p className="text-sm text-red-600 dark:text-red-400 py-4 text-center" data-testid="error-assemblies">
-          Failed to load assemblies.
-        </p>
+        <div className="rounded-md border border-destructive bg-destructive/10 px-4 py-3" data-testid="error-assemblies">
+          <p className="text-sm font-semibold text-destructive">Failed to load assemblies</p>
+          <p className="text-xs text-destructive/80 mt-0.5">{(error as Error)?.message ?? "Unknown error"}</p>
+        </div>
       )}
 
       {!isLoading && !isError && assemblies.length === 0 && (
@@ -787,5 +830,13 @@ export default function AssembliesTab() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function AssembliesTab() {
+  return (
+    <AssembliesBoundary>
+      <AssembliesTabInner />
+    </AssembliesBoundary>
   );
 }

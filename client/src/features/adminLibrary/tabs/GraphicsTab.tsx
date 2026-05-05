@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Layers, ImageIcon, X, ChevronLeft, ChevronRight, Tag, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,50 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
+import { isValidGraphicId } from "@shared/graphicCodes";
 import type { GrfAsset } from "../shared/types";
 
-const GRF_ID_REGEX = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
+// GRF_ID_REGEX removed — isValidGraphicId from shared/graphicCodes enforces TT/K pairing
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+class GraphicsBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[GraphicsTab] CRASH:", error.message, error.stack);
+    console.error("[GraphicsTab] Component stack:", info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-destructive/10 border border-destructive rounded-lg">
+          <h3 className="font-bold text-lg mb-2">Graphics Error</h3>
+          <p className="text-sm mb-2">{this.state.error?.message}</p>
+          <pre className="text-xs overflow-auto max-h-40 bg-black/20 p-2 rounded">
+            {this.state.error?.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded"
+            data-testid="button-retry-graphics"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const TYPE_CODE_LABELS: Record<string, string> = {
   '01': 'Source',
@@ -32,7 +74,7 @@ const ROLE_CODE_LABELS: Record<string, string> = {
 };
 
 function isValidGrfId(grfId: string): boolean {
-  return GRF_ID_REGEX.test(grfId);
+  return isValidGraphicId(grfId);
 }
 
 function isValidMime(mimeType: string): boolean {
@@ -228,7 +270,7 @@ function GraphicDetailPanel({
   );
 }
 
-export default function GraphicsTab() {
+function GraphicsTabInner() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -237,7 +279,7 @@ export default function GraphicsTab() {
   const [filterTT, setFilterTT]           = useState<string>("all");
   const [filterK, setFilterK]             = useState<string>("all");
 
-  const { data: assets = [], isLoading } = useQuery<GrfAsset[]>({
+  const { data: assets = [], isLoading, isError, error } = useQuery<GrfAsset[]>({
     queryKey: ["library", "/api/admin", "assets", "grf"],
     queryFn: () => adminFetch<GrfAsset[]>("/graphics"),
   });
@@ -278,6 +320,15 @@ export default function GraphicsTab() {
     return (
       <div className="flex items-center justify-center py-12" data-testid="loader-graphics">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-md border border-destructive bg-destructive/10 px-4 py-3" data-testid="error-graphics">
+        <p className="text-sm font-semibold text-destructive">Failed to load graphics</p>
+        <p className="text-xs text-destructive/80 mt-0.5">{(error as Error)?.message ?? "Unknown error"}</p>
       </div>
     );
   }
@@ -434,5 +485,13 @@ export default function GraphicsTab() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export default function GraphicsTab() {
+  return (
+    <GraphicsBoundary>
+      <GraphicsTabInner />
+    </GraphicsBoundary>
   );
 }
