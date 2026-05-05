@@ -1,14 +1,58 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
-import { FolderPlus, Upload, Trash2, FolderOpen, ArrowLeft, Loader2 } from "lucide-react";
+import { FolderPlus, Upload, Trash2, FolderOpen, ArrowLeft, Loader2, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+// Fix 1: error boundary so crashes are recoverable
+class ImagesBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[ImagesTab] CRASH:", error.message, error.stack);
+    console.error("[ImagesTab] Component stack:", info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-destructive/10 border border-destructive rounded-lg">
+          <h3 className="font-bold text-lg mb-2">Images Error</h3>
+          <p className="text-sm mb-2">{this.state.error?.message}</p>
+          <pre className="text-xs overflow-auto max-h-40 bg-black/20 p-2 rounded">
+            {this.state.error?.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded"
+            data-testid="button-retry-images"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AdminImage {
   id: string;
@@ -24,32 +68,38 @@ interface AdminImage {
 
 function imageToGridItem(img: AdminImage): GridViewItem {
   return {
-    id: img.id,
-    name: img.name,
-    imageUrl: img.proxyUrl || img.publicUrl,
+    id:       img.id,
+    name:     img.name,
+    imageUrl: img.proxyUrl || img.publicUrl || "",
   };
 }
 
-export default function ImagesTab() {
+// ── Inner tab ─────────────────────────────────────────────────────────────────
+
+function ImagesTabInner() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<GridViewItem | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen,    setModalOpen]    = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  // Fix 2a: destructure error from foldersQuery
   const foldersQuery = useQuery<string[]>({
     queryKey: ["admin-images", "folders"],
-    queryFn: () => adminFetch<string[]>("/images/folders"),
+    queryFn:  () => adminFetch<string[]>("/images/folders"),
   });
 
+  // Fix 2b: destructure error from imagesQuery
   const imagesQuery = useQuery<AdminImage[]>({
     queryKey: ["admin-images", "list", activeFolder || "all"],
-    queryFn: () => adminFetch<AdminImage[]>(activeFolder ? `/images?folder=${encodeURIComponent(activeFolder)}` : "/images"),
+    queryFn:  () => adminFetch<AdminImage[]>(
+      activeFolder ? `/images?folder=${encodeURIComponent(activeFolder)}` : "/images"
+    ),
   });
 
   const deleteMutation = useMutation({
@@ -61,10 +111,12 @@ export default function ImagesTab() {
       setSelectedItem(null);
     },
     onError: (err: Error) => {
+      console.error("[ImagesTab] Delete error:", err);
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
     },
   });
 
+  // Fix 3: send multipart/form-data — backend requires it; JSON was rejected with 400
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
@@ -72,25 +124,21 @@ export default function ImagesTab() {
 
     try {
       for (const file of Array.from(files)) {
-        const reader = new FileReader();
-        const base64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result.split(",")[1]);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        const formData = new FormData();
+        formData.append("file", file, file.name);
+        formData.append("name", file.name);
+        formData.append("folder", activeFolder || "general");
 
-        await adminFetch("/images", {
-          method: "POST",
-          json: { name: file.name, imageData: base64, mimeType: file.type, folder: activeFolder || "general" },
-        });
+        // Pass body (FormData) directly — no `json` key so adminFetch does not
+        // set Content-Type, letting the browser supply the multipart boundary.
+        await adminFetch("/images", { method: "POST", body: formData });
       }
       toast({ title: `Uploaded ${files.length} image${files.length > 1 ? "s" : ""}` });
       queryClient.invalidateQueries({ queryKey: ["admin-images"] });
-    } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("[ImagesTab] Upload error:", error.message);
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -107,14 +155,15 @@ export default function ImagesTab() {
       setNewFolderOpen(false);
       setNewFolderName("");
       toast({ title: `Folder "${name}" created` });
-    } catch (e: any) {
-      console.error("Create folder failed:", e);
-      toast({ title: "Failed to create folder", description: e.message || "Network error", variant: "destructive" });
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error("[ImagesTab] Create folder error:", err.message);
+      toast({ title: "Failed to create folder", description: err.message || "Network error", variant: "destructive" });
     }
   }, [newFolderName, toast, queryClient]);
 
-  const images = imagesQuery.data || [];
-  const folders = foldersQuery.data || [];
+  const images    = imagesQuery.data  || [];
+  const folders   = foldersQuery.data || [];
   const gridItems = useMemo(() => images.map(imageToGridItem), [images]);
 
   const handleSelect = (item: GridViewItem) => {
@@ -124,6 +173,17 @@ export default function ImagesTab() {
 
   return (
     <div>
+      {/* Fix 5: GRF context note */}
+      <div
+        className="flex items-start gap-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 mb-4"
+        data-testid="info-grf-images"
+      >
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+        <p className="text-xs text-blue-800 dark:text-blue-300">
+          General admin image library for UI assets (logos, headers, etc.). Not part of the GRF pipeline — use Source Images for product graphics.
+        </p>
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"
@@ -167,6 +227,22 @@ export default function ImagesTab() {
         </Button>
       </div>
 
+      {/* Fix 2a: folders query error */}
+      {foldersQuery.error && (
+        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-folders">
+          <p className="text-sm font-medium">Failed to load folders</p>
+          <p className="text-xs text-muted-foreground">{(foldersQuery.error as Error).message}</p>
+        </div>
+      )}
+
+      {/* Fix 2b: images query error */}
+      {imagesQuery.error && (
+        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-images">
+          <p className="text-sm font-medium">Failed to load images</p>
+          <p className="text-xs text-muted-foreground">{(imagesQuery.error as Error).message}</p>
+        </div>
+      )}
+
       {!activeFolder && (
         <>
           <h3 className="text-base font-semibold mb-3">
@@ -206,10 +282,20 @@ export default function ImagesTab() {
             onClick={() => handleSelect(item)}
             data-testid={`card-image-${item.id}`}
           >
-            <img src={item.imageUrl} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
-            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate">
-              {item.name}
-            </div>
+            {/* Fix 4: broken image placeholder */}
+            {item.imageUrl ? (
+              <>
+                <img src={item.imageUrl} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate">
+                  {item.name}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center bg-muted aspect-square gap-1" data-testid={`placeholder-no-url-${item.id}`}>
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-xs text-destructive font-mono">No URL</span>
+              </div>
+            )}
           </div>
         )}
         isLoading={imagesQuery.isLoading}
@@ -221,8 +307,8 @@ export default function ImagesTab() {
 
       <ItemModalView
         item={selectedItem ? {
-          id: selectedItem.id,
-          name: selectedItem.name,
+          id:       selectedItem.id,
+          name:     selectedItem.name,
           imageUrl: selectedItem.imageUrl,
         } : null}
         open={modalOpen}
@@ -265,5 +351,15 @@ export default function ImagesTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+export default function ImagesTab() {
+  return (
+    <ImagesBoundary>
+      <ImagesTabInner />
+    </ImagesBoundary>
   );
 }
