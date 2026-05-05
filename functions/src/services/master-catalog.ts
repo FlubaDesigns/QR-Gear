@@ -3,7 +3,7 @@ import { safeAssign, safeAssignRequired } from '../safeAssign';
 import { mergeImagesByUrl, ImageRecord } from './instance-resolver';
 import { printifyClient } from './printify';
 import { printfulClient, getPrintfulApiKeyAsync } from './printful';
-import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../../shared/qrgVariantMappings';
+import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
 
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw: string | null | undefined): string | null {

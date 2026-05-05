@@ -5,7 +5,7 @@ import { requireAdmin } from '../middleware';
 import { syncMasterCatalog, enrichMasterCatalog, syncPrintifyToStaging, syncPrintfulToStaging, QRG_BLANK_CATEGORIES, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
 import { printifyClient } from '../services/printify';
 import { printfulClient } from '../services/printful';
-import { SIZE_LABELS, COLOR_LABELS } from '../../shared/qrgVariantMappings';
+import { SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
 
 export function register(app: express.Express): void {
 

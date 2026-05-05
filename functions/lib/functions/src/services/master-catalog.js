@@ -11,7 +11,7 @@ const safeAssign_1 = require("../safeAssign");
 const instance_resolver_1 = require("./instance-resolver");
 const printify_1 = require("./printify");
 const printful_1 = require("./printful");
-const qrgVariantMappings_1 = require("../../shared/qrgVariantMappings");
+const qrgVariantMappings_1 = require("../../../shared/qrgVariantMappings");
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw) {
     if (!raw)
