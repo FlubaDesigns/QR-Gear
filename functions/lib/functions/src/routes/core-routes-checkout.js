@@ -310,27 +310,6 @@ function registerCoreCheckoutRoutes(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // PUBLIC test endpoint - no auth
-    app.get('/test-images', async (_req, res) => {
-        try {
-            const snapshot = await core_1.db.collection('library_assets').where('isActive', '==', true).limit(20).get();
-            const assets = snapshot.docs.map(doc => {
-                const data = doc.data();
-                const storageUrl = data.storageUrl || '';
-                const filename = storageUrl.split('/').pop() || '';
-                return {
-                    id: doc.id,
-                    name: data.name,
-                    storageUrl,
-                    publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
-                };
-            });
-            res.json(assets);
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
     // PUBLIC test endpoint - real product config data (no auth)
     // PUBLIC test endpoint - update product options (no auth)
     // PUBLIC test endpoint - sync product from Printify (no auth - simplified)

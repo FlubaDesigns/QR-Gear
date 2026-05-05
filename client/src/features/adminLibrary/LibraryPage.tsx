@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
-import { QrCode, Layers, Image, Crop, FolderOpen, ImageIcon } from "lucide-react";
+import { QrCode, Layers, Image, Crop, FolderOpen, ImageIcon, LayoutTemplate } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
 import { LibraryProvider } from "./LibraryContext";
@@ -11,8 +11,9 @@ import SourceImagesTab from "./tabs/SourceImagesTab";
 import CroppedImagesTab from "./tabs/CroppedImagesTab";
 import BackgroundsTab from "./tabs/BackgroundsTab";
 import ImagesTab from "./tabs/ImagesTab";
+import BldDefinitionsTab from "./tabs/BldDefinitionsTab";
 
-type TabType = "graphics" | "templates" | "backgrounds" | "source" | "cropped" | "images";
+type TabType = "graphics" | "templates" | "backgrounds" | "source" | "cropped" | "images" | "bld";
 
 const TABS = [
   { id: "graphics" as const, label: "Graphics", icon: QrCode },
@@ -21,6 +22,7 @@ const TABS = [
   { id: "backgrounds" as const, label: "Backgrounds", icon: Image },
   { id: "cropped" as const, label: "Cropped", icon: Crop },
   { id: "source" as const, label: "Source", icon: FolderOpen },
+  { id: "bld" as const, label: "BLD Defs", icon: LayoutTemplate },
 ];
 
 export default function LibraryPage() {
@@ -74,6 +76,7 @@ export default function LibraryPage() {
             {tab === "backgrounds" && <BackgroundsTab />}
             {tab === "source" && <SourceImagesTab />}
             {tab === "cropped" && <CroppedImagesTab />}
+            {tab === "bld" && <BldDefinitionsTab />}
           </div>
         </div>
       </div>

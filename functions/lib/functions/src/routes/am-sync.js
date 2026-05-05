@@ -10,43 +10,6 @@ const printful_2 = require("../services/printful");
 const composite_image_1 = require("../services/composite-image");
 function register(app) {
     // ============ BATCH: MISC ADMIN ROUTES ============
-    app.get('/admin/background-assets', middleware_1.requireAdmin, async (_req, res) => {
-        try {
-            const snapshot = await core_1.db.collection('background_assets').orderBy('createdAt', 'desc').get();
-            const assets = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-            res.json({ assets });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.post('/admin/background-assets', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const docRef = await core_1.db.collection('background_assets').add({ ...req.body, createdAt: new Date().toISOString() });
-            res.json({ id: docRef.id, success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.put('/admin/background-assets/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            await core_1.db.collection('background_assets').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.delete('/admin/background-assets/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            await core_1.db.collection('background_assets').doc(req.params.id).delete();
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
     app.get('/admin/graphic-sets', middleware_1.requireAdmin, async (_req, res) => {
         try {
             const snapshot = await core_1.db.collection('graphic_sets').orderBy('createdAt', 'desc').get();
@@ -421,43 +384,6 @@ function register(app) {
             res.setHeader('Cache-Control', 'public, max-age=86400');
             const stream = file.createReadStream();
             stream.pipe(res);
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.get('/admin/library', middleware_1.requireAdmin, async (_req, res) => {
-        try {
-            const snapshot = await core_1.db.collection('library').orderBy('createdAt', 'desc').get();
-            const items = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-            res.json({ items });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.post('/admin/library', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const docRef = await core_1.db.collection('library').add({ ...req.body, createdAt: new Date().toISOString() });
-            res.json({ id: docRef.id, success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.put('/admin/library/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            await core_1.db.collection('library').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.delete('/admin/library/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            await core_1.db.collection('library').doc(req.params.id).delete();
-            res.json({ success: true });
         }
         catch (error) {
             res.status(500).json({ error: error.message });
