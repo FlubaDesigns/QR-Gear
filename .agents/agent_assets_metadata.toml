@@ -215,3 +215,9 @@ id = "ACBGC2G0fMbRGqcPzpHJT"
 uri = "file://downloads/qrgear-source.zip"
 type = "unspecified"
 title = "QR Gear — Full Source + Skills (4.6MB)"
+
+[[outputs]]
+id = "4rFKloZB2okOcPjFy4e1w"
+uri = "file://QRG.md"
+type = "text"
+title = "QRG Number System — Full Schema Reference"
