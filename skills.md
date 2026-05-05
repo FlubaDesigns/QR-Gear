@@ -1,11 +1,228 @@
-# QR Gear — Agent Skills Reference
+# QR Gear — Agent Skills Execution System (ENFORCED)
 
-All operating rules and protocols built for this project. These govern how the AI agent
-should behave when working on this codebase.
+This is NOT a reference document.
+This is a **mandatory execution system with proof-based enforcement**.
+
+If any required block is missing → TASK IS NOT COMPLETE.
 
 ---
 
-## Skill 1 — Always Deploy to Firebase Production
+## Skill 0 — Read All Skills (Mandatory Gatekeeper)
+
+**Skill file:** `.agents/skills/read-all-skills/SKILL.md`
+
+This is the first skill. Its job is to prevent work from starting until the entire QR Gear execution system has been loaded.
+
+### Absolute Start Rule
+
+Before doing ANY task, you MUST:
+
+- Read this skill
+- Read all required skills
+- Read README.md
+- Follow the README REQUIRED FLOW
+
+You are NOT allowed to answer requests, suggest code, write code, modify files, run commands, deploy, or rename anything until README.md authorizes execution.
+
+### Mandatory Skill Load Order
+
+1. `.agents/skills/read-all-skills/SKILL.md`
+2. `.agents/skills/read-code-first/SKILL.md`
+3. `.agents/skills/ask-before-starting/SKILL.md`
+4. `.agents/skills/always-deploy/SKILL.md`
+5. `.agents/skills/fail-loudly/SKILL.md`
+6. `.agents/skills/update-readmes/SKILL.md`
+7. `.agents/skills/present-changed-files/SKILL.md`
+
+### Required Confirmation
+
+CONFIRMED:
+- Skills loaded
+- README.md read in full
+- replit.md read in full
+- Authority files read in full
+- NAMING_STANDARDS.md read in full
+- Affected code traced before changes
+
+### Restart Enforcement
+
+If README.md has not been read → respond exactly:
+
+RESTART REQUIRED: README flow not completed.
+
+If confirmation is missing → respond exactly:
+
+RESTART REQUIRED: Confirmation missing.
+
+---
+
+## Skill 1 — Execution Protocol (READ FIRST — ALWAYS)
+
+Every task MUST follow this exact flow:
+
+**PHASE 1 → PHASE 2 → (PHASE 4 if triggered) → PHASE 5 → PHASE 3**
+
+No skipping. No reordering. No guessing. No silent completion.
+
+---
+
+### PHASE 1 — PRE-OPERATION (MANDATORY UNDERSTANDING)
+
+#### STEP 1 — REQUIRED FILE READ (NO EXCEPTIONS)
+
+Agent MUST read FIRST:
+
+- `README.md` (root)
+- `replit.md`
+
+Then read:
+
+- Relevant feature README(s)
+- Actual source files involved
+
+Do NOT ask questions before reading.
+
+#### STEP 2 — REQUIRED PRE-OP PROOF BLOCK
+
+Agent MUST output BEFORE coding:
+
+```
+PRE-OP PROOF:
+
+TARGET FILES:
+- [exact paths]
+
+FILES READ:
+- README.md
+- replit.md
+- [other files]
+
+CHANGE PLAN:
+- [exact change]
+
+DO NOT TOUCH:
+- [explicit boundaries]
+
+REASON:
+- [why this is correct]
+
+DEPLOYMENT IMPACT:
+- Frontend / Backend / Both / Docs Only
+```
+
+If missing → STOP.
+
+#### STEP 3 — QUESTION RULE
+
+Max 3 questions ONLY if:
+
+- Requirement missing
+- Target unclear
+- Risk of wrong system
+
+Otherwise proceed.
+
+#### FAILURE CONDITIONS (PHASE 1)
+
+- Skipped reading required files
+- Missing Pre-Op block
+- Guessing
+- Unnecessary questions
+
+→ STOP
+
+---
+
+### PHASE 2 — CONTROLLED EXECUTION
+
+Execute ONLY the Pre-Op plan.
+
+#### Rules
+
+- No silent fallbacks
+- No fake data
+- No placeholder logic
+- No refactors unless required
+- No unrelated changes
+
+#### NO-DRIFT LOCK
+
+If not directly tied to task → FORBIDDEN
+
+If other issues found:
+- Log them
+- Do NOT fix them
+
+#### FAILURE CONDITIONS (PHASE 2)
+
+- Scope drift
+- Hidden logic
+- Broken behavior
+
+→ STOP
+
+---
+
+### PHASE 4 — BACKEND FINALIZATION (CONDITIONAL)
+
+**TRIGGER:** ANY change in `functions/src/`
+
+#### Required Backend Proof Block
+
+```
+BACKEND PROOF:
+
+MODIFIED FILES:
+- [list]
+
+PREVIOUS BUILD_ID:
+- [value]
+
+NEW BUILD_ID:
+- [value]
+
+BUILD_ID CHANGED:
+- YES / NO
+```
+
+If NO → STOP
+
+#### Backend Validation
+
+- No silent failures
+- Proper HTTP status codes
+- No fake fallbacks
+- No `return []`
+- Clear logging prefixes
+- Production code is in `functions/src/`
+- No reliance on `server/` for production
+
+---
+
+### PHASE 5 — POST-DEPLOY VERIFICATION
+
+After deployment completes:
+
+- Confirm live URL responds: https://qrgear-c1ffd.web.app
+- Confirm the changed route or UI behaves as expected
+- If verification fails → report loudly, do not claim completion
+
+---
+
+### PHASE 3 — TASK COMPLETION
+
+Task is only complete when:
+
+- All phases executed
+- Proof blocks present
+- Deploy verified
+- Changed files added to zip
+- READMEs updated if structural change
+- User notified with summary
+
+---
+
+## Skill 2 — Always Deploy to Firebase Production
 
 **Rule:** Deploy to Firebase production after every code change. Never consider a task
 done until it is live at https://qrgear-c1ffd.web.app.
@@ -71,7 +288,7 @@ If only `client/` files changed (no `functions/src/` edits):
 
 ---
 
-## Skill 2 — Ask Before Starting
+## Skill 3 — Ask Before Starting
 
 **Rule:** Before writing a single line of code or making any change, ask the user
 clarifying questions. This applies to every task, no matter how small.
@@ -122,7 +339,7 @@ position, or something else? And where in the builder do you see it?"
 
 ---
 
-## Skill 3 — Fail Loudly
+## Skill 4 — Fail Loudly
 
 **Rule:** When something fails to load, fetch, or initialize, always surface the error
 explicitly. Never let failures happen silently.
@@ -189,7 +406,7 @@ console.error("[Catalog API] Failed to read printify_blueprints:", e.message);
 
 ---
 
-## Skill 4 — Present Changed Files After Every Task
+## Skill 5 — Present Changed Files After Every Task
 
 **Rule:** After completing any fix, update, or build task, add only the files that were
 created or modified into `downloads/QR_Gear_Full_Website.zip`.
@@ -215,7 +432,7 @@ cd /home/runner/workspace && zip -u downloads/QR_Gear_Full_Website.zip \
 
 ---
 
-## Skill 5 — Update READMEs After Every Change
+## Skill 6 — Update READMEs After Every Change
 
 **Rule:** After completing any feature, fix, or structural change, update both README
 files before closing out the task.
@@ -253,7 +470,7 @@ cd /home/runner/workspace && zip -u downloads/QR_Gear_Full_Website.zip \
 
 ---
 
-## Skill 6 — Zip Export Rules
+## Skill 7 — Zip Export Rules
 
 **Rule:** Use explicit includes when building the full website zip — do NOT use
 `zip -r . --exclude ...` as it sweeps temp files that slip past patterns.
@@ -276,6 +493,7 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   replit.md \
   skills.md \
   README.md \
+  NAMING_STANDARDS.md \
   ADMIN_MANUAL.md \
   METHODOLOGY.md \
   PRODUCTION_INVENTORY.md \
