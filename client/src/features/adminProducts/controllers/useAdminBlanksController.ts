@@ -2,39 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { getCanonicalBlankKey, safeBlankId, isProviderPrintful } from "@shared/blankKeys";
+import { getCanonicalBlankKey, safeBlankId } from "@shared/blankKeys";
 import type { CatalogBlankItem } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
-
-/**
- * Build a Set that recognises ALL possible blankId formats for the same product.
- * QRG format (qrg_101, pending_py_123) is passed through as-is.
- * Legacy formats (py_123, pf_123, pf:123, plain numeric) are expanded for backward compat.
- */
-function expandBlankIdSet(ids: string[]): Set<string> {
-  const set = new Set<string>();
-  for (const raw of ids) {
-    const id = safeBlankId(raw);
-    set.add(id);
-    // QRG and pending IDs are the new canonical format — no expansion needed
-    if (id.startsWith('qrg_') || id.startsWith('pending_')) {
-      continue;
-    }
-    if (id.startsWith('py_')) {
-      set.add(id.slice(3));                   // py_123 → 123
-    } else if (id.startsWith('pf_')) {
-      set.add(`pf:${id.slice(3)}`);           // pf_123 → pf:123
-      set.add(id.slice(3));                   // pf_123 → 123
-    } else if (id.startsWith('pf:')) {
-      set.add(`pf_${id.slice(3)}`);           // pf:123 → pf_123
-    } else {
-      // Plain numeric — add all prefixed variants for backward compat
-      set.add(`py_${id}`);
-      set.add(`pf_${id}`);
-      set.add(`pf:${id}`);
-    }
-  }
-  return set;
-}
 
 interface CatalogProduct {
   id: number;
@@ -145,10 +114,10 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
   // Collect all available provider images into one deduplicated array
-  const allImages = [...new Set([
+  const allImages = Array.from(new Set([
     ...(p.printifyImages || []),
     ...(p.printfulImages || []),
-  ])].filter(Boolean);
+  ])).filter(Boolean);
   const images = allImages.length > 0 ? allImages : (imageUrl ? [imageUrl] : []);
   // Prefer canonicalDescription, then description
   const providerDesc = p.canonicalDescription || p.description || null;
@@ -183,7 +152,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
 function buildBlankSnapshot(p: CatalogProduct): Record<string, { title: string | null; maker: string | null; model: string | null; providers: string[]; images: string[]; primaryImageUrl: string | null }> {
   const key = getProductKey(p);
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
-  const allImages = [...new Set([...(p.printifyImages || []), ...(p.printfulImages || [])])].filter(Boolean);
+  const allImages = Array.from(new Set([...(p.printifyImages || []), ...(p.printfulImages || [])])).filter(Boolean);
   return {
     [key]: {
       title: p.canonicalTitle || p.title || null,
@@ -270,7 +239,7 @@ export function useAdminBlanksController() {
   const catalogs = catalogsData?.catalogs || [];
   const activeCatalog = selectedCatalogId ? catalogs.find(c => c.id === selectedCatalogId) : null;
   const validSelectedCatalogId = activeCatalog ? selectedCatalogId : null;
-  const catalogBlankSet = useMemo(() => expandBlankIdSet(activeCatalog?.blankIds || []), [activeCatalog]);
+  const catalogBlankSet = useMemo(() => new Set<string>(activeCatalog?.blankIds || []), [activeCatalog]);
   const blankTiers = activeCatalog?.blankTiers || {};
   const blankDescriptions = activeCatalog?.blankDescriptions || {};
   const blankTitles = activeCatalog?.blankTitles || {};
@@ -371,19 +340,8 @@ export function useAdminBlanksController() {
         seen.add(docId);
       }
 
-      // Numeric id (blueprint ID for Printify, product ID for Printful-only)
+      // Numeric id index (provider reference; lookup only, never catalog identity)
       if (numId && !map.has(numId)) map.set(numId, p);
-
-      // Legacy keys for backward compat with catalog blankIds stored in old formats
-      if (p.blueprintId) {
-        map.set(String(p.blueprintId), p);
-        map.set(`py_${p.blueprintId}`, p);
-      }
-      if (p.printfulId) {
-        map.set(`pf:${p.printfulId}`, p);
-        map.set(`pf_${p.printfulId}`, p);
-        map.set(String(p.printfulId), p);
-      }
     }
     return map;
   }, [printifyProducts, printfulProducts]);
@@ -404,7 +362,7 @@ export function useAdminBlanksController() {
   // Source catalog derivations
   const sourceCatalog = sourceCatalogId ? catalogs.find(c => c.id === sourceCatalogId) ?? null : null;
   const sourceBlankSet = useMemo(
-    () => expandBlankIdSet(sourceCatalog?.blankIds || []),
+    () => new Set<string>(sourceCatalog?.blankIds || []),
     [sourceCatalog]
   );
 
@@ -428,7 +386,7 @@ export function useAdminBlanksController() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast({ title: "Removed from catalog", description: `${data.count} remaining` });
+      toast({ title: "Removed from catalog", description: `${data.total} remaining` });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
     },
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -495,7 +453,7 @@ export function useAdminBlanksController() {
 
   const resolveBlankKey = useCallback((id: string, product?: CatalogProduct) => {
     if (product) return getCanonicalBlankKey(product);
-    const found = allProductMap.get(id) || allProductMap.get(`pf:${id}`);
+    const found = allProductMap.get(id);
     if (found) return getCanonicalBlankKey(found);
     return id;
   }, [allProductMap]);
@@ -517,7 +475,7 @@ export function useAdminBlanksController() {
           subtitle: [catalogMaker || product.brand || product.maker, catalogModel || product.model].filter(Boolean).join(' ') || null,
           imageUrl: catalogImage || product.imageUrl || product.image_url || product.thumbnailUrl || null,
           tier: (blankTiers[safe] as "good" | "better" | "best") || null,
-          isPrintful: isProviderPrintful(safe),
+          isPrintful: isAvailableVia(product, 'printful'),
           hasMockupMapping: false,
           qrgBlankId: product.qrgBlankId ?? null,
         };
@@ -623,10 +581,14 @@ export function useAdminBlanksController() {
   }, [resolveBlankKey, catalogBlankSet]);
 
   const getItemMappingBadge = useCallback((id: string) => {
-    const numId = Number(id);
+    // id may be a qrg_STNNN string — look up the product to get its provider-specific numeric ID
+    const product = allProductMap.get(id);
+    const numId = product
+      ? (providerFilter === "printify" ? (product.blueprintId ?? product.id) : (product.printfulId ?? product.id))
+      : Number(id);
     if (providerFilter === "printify") return mappedPrintifyIds.has(numId);
     return mappedPrintfulIds.has(numId);
-  }, [providerFilter, mappedPrintifyIds, mappedPrintfulIds]);
+  }, [providerFilter, mappedPrintifyIds, mappedPrintfulIds, allProductMap]);
 
   const totalProductCount = allProducts.length;
   const filteredCount = filtered.length;
