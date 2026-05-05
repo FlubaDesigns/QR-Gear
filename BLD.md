@@ -26,63 +26,38 @@
 ## ID Structure
 
 ```
-BLD - [1] [2] [3] [4] [5–6] ... [001–999]
+BLD-[context][layoutMode][instanceCount]-[buildSeq]
 ```
 
-Each position narrows the tree one level. The ID is the address.
-The vehicle record is the payload. Two clean, separate concerns.
+The ID is the address. The vehicle records (instances) are the payload.
+Three payload characters, one separator, three sequence digits.
 
 ---
 
 ## Position Key
 
 ```
-[1]  CONTEXT
-       S = Shirt graphic    (what is on the physical product)
-       U = URL              (what the QR delivers when scanned)
+[1]     CONTEXT
+           S = Shirt graphic    (what is on the physical product)
+           U = URL              (what the QR delivers when scanned)
 
-─────────────────────────────────────────────────────────────
+[2]     LAYOUT MODE (if S) / CONTENT TYPE (if U)
+           S context:  Z = Zone      (structured top / middle / bottom regions)
+                       P = Palette   (full canvas image with QR superimposed)
+           U context:  I = Image
+                       V = Video
+                       D = Document
 
-If S:
+[3]     INSTANCE COUNT
+           Total ordered layers in this build (integer 0–9+)
+           Instance type and render order live in the instance records,
+           not in the ID.
 
-[2]  LAYOUT MODE
-       Z = Zone             (structured regions — top, middle, bottom)
-       P = Palette          (full canvas image with QR superimposed)
-
-[3]  ENGINE TYPE
-       T = Text instance
-       I = Image instance
-       Q = QR instance
-       A = Action (CTA)     — optional, pick it in or leave it out
-
-[4]  INSTANCE COUNT         (if T)
-       1–9
-
-[5–6] INSTANCE SEQUENCE     (if T, two digits per instance)
-       01 → 09
-
-─────────────────────────────────────────────────────────────
-
-If U:
-
-[2]  CONTENT TYPE
-       I = Image
-       V = Video
-       D = Document
-
-[3]  ENGINE TYPE
-       T = Text overlay instances (optional)
-
-[4]  INSTANCE COUNT         (if T)
-       1–9
-
-[5–6] INSTANCE SEQUENCE     (if T, two digits per instance)
-       01 → 09
-
-─────────────────────────────────────────────────────────────
+-       SEPARATOR (literal hyphen)
 
 [last 3]  BUILD SEQUENCE
-       001 → 999
+           001–999, atomically allocated per context+layoutMode branch.
+           Shared counter between builder-generated and admin-created BLDs.
 ```
 
 ---
@@ -226,14 +201,14 @@ sequence      — two digits (01–09)
 ## Decoded Examples
 
 ```
-BLD-SZ9001    Shirt · Zone · 9 instances · build #001
-BLD-SZI001    Shirt · Zone · Image (zone-contained) · build #001
-BLD-SPI001    Shirt · Palette · Image (full canvas) · build #001
-BLD-SZQ001    Shirt · Zone · QR (centered, locked) · build #001
-BLD-SPQ001    Shirt · Palette · QR (floating, position required) · build #001
-BLD-UI301-001  URL · Image · 3 text overlays · build #001
-BLD-UV201-001  URL · Video · 2 instances · build #001
-BLD-UD001     URL · Document · build #001
+BLD-SZ9-001    Shirt · Zone · 9 instances · build #001
+BLD-SZ3-001    Shirt · Zone · 3 instances · build #001
+BLD-SZ2-001    Shirt · Zone · 2 instances (e.g. qrc + one txt) · build #001
+BLD-SP4-001    Shirt · Palette · 4 instances · build #001
+BLD-SP1-001    Shirt · Palette · 1 instance · build #001
+BLD-UI3-001    URL · Image · 3 instances · build #001
+BLD-UV2-001    URL · Video · 2 instances · build #001
+BLD-UD1-001    URL · Document · 1 instance · build #001
 ```
 
 ---
@@ -242,12 +217,12 @@ BLD-UD001     URL · Document · build #001
 
 **Product:** QRG-11111 — Apparel / T-Shirt #111
 **Theme:** United States Armed Forces
-**Build:** BLD-SZ9001 — Shirt · Zone · 9 instances · build #001
+**Build:** BLD-SZ9-001 — Shirt · Zone · 9 instances · build #001
 
 > Note: This shows the BLD structure only. Actual text content and GRF asset IDs are defined in the Assembly that links this BLD to the product.
 
 ```
-BLD-SZ9001
+BLD-SZ9-001
 ─────────────────────────────────────────────────────────────
 01  txt   role:          header
           fontFamily:    Oswald
@@ -354,11 +329,18 @@ BLD defines the shape. Assembly fills it with actual assets.
 
 | Collection | Purpose |
 |------------|---------|
-| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9001`). Holds header fields: context, layoutMode, engineType, instanceCount, buildSequence, createdAt. |
-| `bld_definitions/{bldId}/instances` | **Sub-collection.** One document per ordered layer instance. Doc ID = two-digit sequence (`01`, `02` … `09`). Holds the full vehicle payload for that layer. |
-| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Guarantees unique build sequence numbers per branch. |
+| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9-001`). Core fields: bldId, context, layoutMode, instanceCount, buildSequence, createdAt. Builder-generated docs also carry: sourceSessionId, sourceInstanceId, qrgBlankId, qrgBaseCode, packetId, graphicLayoutMode, qrProductState, qrSizePercent, qrPositionX, qrPositionY. Admin-created docs also carry: layout, name, instances (array), source="admin". |
+| `bld_definitions/{bldId}/instances` | **Sub-collection — builder-generated BLDs only.** One document per ordered layer instance. Doc ID = two-digit sequence (`01`, `02` … `09`). Holds the full vehicle payload for that layer. |
+| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Shared between builder-generated and admin-created BLDs. Guarantees unique build sequence numbers per branch. |
 
-**Sub-collection document structure (`instances/{seq}`):**
+**Two storage strategies — both coexist in `bld_definitions`:**
+
+| Strategy | Created by | Instance storage |
+|----------|-----------|-----------------|
+| Builder-generated | Builder commit flow (`POST /admin/bld`) | Sub-collection `instances/{seq}` — full vehicle payload per doc |
+| Admin-created | Admin direct-create (`POST /admin/bld/create`) | Flat `instances` array embedded in the root doc — structural skeleton: `{ seq, type, role, required }` |
+
+**Sub-collection instance structure (builder-generated):**
 
 ```
 {
@@ -371,7 +353,18 @@ BLD defines the shape. Assembly fills it with actual assets.
 }
 ```
 
-Render order is declared by sequence number. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
+**Flat array instance structure (admin-created):**
+
+```
+{
+  seq:      "01",    // two-digit render order
+  type:     "txt",   // txt | img | qrc | act | vid | doc
+  role:     "header",
+  required: true
+}
+```
+
+Render order is declared by sequence number in both strategies. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
 
 ---
 
@@ -387,5 +380,5 @@ Render order is declared by sequence number. `01` paints first (bottom of stack)
 - **QR in Zone = centered + locked** — positionLR/UD not required
 - **QR in Palette = floating** — positionLR/UD always required
 - **Design is not product identity** — BLD records are reusable
-  across any QRG product; the same BLD-SZ9001 can be applied to
+  across any QRG product; the same BLD-SZ9-001 can be applied to
   QRG-11111 or QRG-12101 without modification

@@ -58,7 +58,7 @@ An Assembly is created when a build session resolves into a committed set of ass
 {
   assemblyId:  "ASM-000001",
   qrgId:       "11101",               // QRG blank number — master_catalog doc key
-  bldId:       "BLD-SZ9001",          // BLD definition — bld_definitions doc key
+  bldId:       "BLD-SZ9-001",          // BLD definition — bld_definitions doc key
   name:        "Armed Forces Tee — Zone Build",   // optional, human label
   mappings: [
     {
@@ -196,7 +196,7 @@ A Packet always references a specific Assembly by `assemblyId`. The Assembly is 
 ```
 assemblyId: "ASM-000001"
 qrgId:      "11101"           → QRG blank: Apparel / T-Shirt #101
-bldId:      "BLD-SZ9001"      → Structure: Zone, 9 slots
+bldId:      "BLD-SZ9-001"     → Structure: Zone, 9 slots
 mappings:
   01 · img   · GRF-03-3-000007   (background: flag image)
   02 · txt   · "UNITED STATES ARMED FORCES"   color: #FFFFFF
@@ -240,7 +240,7 @@ status: "published"
 POST /api/admin/assemblies
 {
   qrgId:    "11101",
-  bldId:    "BLD-SZ9001",
+  bldId:    "BLD-SZ9-001",
   name:     "Armed Forces Tee — Zone Build",
   mappings: [...]
 }

@@ -6,18 +6,20 @@
  * and Firestore write helpers.
  *
  * BLD ID format:
- *   BLD - [1:context] [2:layoutMode/contentType] [3:engineType] [4:instanceCount] [5-6:seq…] - [001-999:buildSeq]
+ *   BLD-[context][layoutMode][instanceCount]-[buildSeq:001-999]
  *
- * Context S  (Shirt graphic — what is on the physical product)
- *   Layout modes:  Z = Zone, P = Palette (freeform)
- *   Engines:       T = Text, I = Image, Q = QR, A = Action
+ *   [context]       S = Shirt graphic  |  U = URL destination
+ *   [layoutMode]    S: Z = Zone, P = Palette  |  U: I = Image, V = Video, D = Document
+ *   [instanceCount] Total ordered layers in this build (integer, 0+)
+ *   [buildSeq]      001–999, atomically allocated per context+layoutMode branch
  *
- * Context U  (URL — what the QR delivers when scanned)
- *   Content types: I = Image, V = Video, D = Document
- *   Engine:        T = Text overlays (optional)
+ *   Examples:
+ *     BLD-SZ9-001   Shirt · Zone · 9 instances · build #001
+ *     BLD-SP3-001   Shirt · Palette · 3 instances · build #001
  *
- * bld_counters key is the two-char prefix (e.g. "SZ", "SP", "UI").
- * Counters are incremented atomically via Firestore transaction.
+ * bld_counters key is the two-char prefix (e.g. "SZ", "SP").
+ * Counters are shared between builder-generated and admin-created BLDs.
+ * Incremented atomically via Firestore transaction.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deriveBldCounterKey = deriveBldCounterKey;
@@ -140,7 +142,7 @@ function extractBldInstances(working) {
     const header = content.headerStyle || {};
     if (header.enabled && header.text) {
         instances.push({
-            seq: pad(seq++),
+            seq: pad(seq),
             type: 'txt',
             role: 'header',
             text: header.text || '',

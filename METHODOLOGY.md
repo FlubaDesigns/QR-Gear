@@ -1040,45 +1040,31 @@ A BLD record captures a reusable product build configuration — layer layouts, 
 ### ID Structure
 
 ```
-BLD - [1] [2] [3] [4] [5–6] ... [001–999]
+BLD-[context][layoutMode][instanceCount]-[buildSeq]
 ```
 
-Each position narrows the decision tree one level. The ID is the address. The vehicle record is the payload.
+The ID is the address. Instance type and render order live in the instance records, not in the ID.
 
 ### Position Key
 
 ```
-[1]  CONTEXT
-       S = Shirt graphic    (what is on the physical product)
-       U = URL              (what the QR delivers when scanned)
+[1]     CONTEXT
+           S = Shirt graphic    (what is on the physical product)
+           U = URL              (what the QR delivers when scanned)
 
-If S:
-  [2]  LAYOUT MODE
-         Z = Zone           (structured top/middle/bottom regions)
-         P = Palette        (full canvas image with QR superimposed)
+[2]     LAYOUT MODE (if S) / CONTENT TYPE (if U)
+           S context:  Z = Zone     (structured top/middle/bottom regions)
+                       P = Palette  (full canvas image with QR superimposed)
+           U context:  I = Image  |  V = Video  |  D = Document
 
-  [3]  ENGINE TYPE
-         T = Text instance
-         I = Image instance
-         Q = QR instance
-         A = Action (CTA)   — optional in every build
+[3]     INSTANCE COUNT
+           Total ordered layers in this build (integer 0–9+)
 
-  [4]  INSTANCE COUNT       (if T) 1–9
-  [5–6] INSTANCE SEQUENCE   (if T) 01–09 per instance
-
-If U:
-  [2]  CONTENT TYPE
-         I = Image
-         V = Video
-         D = Document
-
-  [3]  ENGINE TYPE
-         T = Text overlay instances (optional)
-
-  [4]  INSTANCE COUNT       (if T) 1–9
-  [5–6] INSTANCE SEQUENCE   (if T) 01–09 per instance
+-       SEPARATOR (literal hyphen)
 
 [last 3]  BUILD SEQUENCE    001–999
+           Atomically allocated per context+layoutMode branch.
+           Shared between builder-generated and admin-created BLDs.
 ```
 
 ### Zone Mode — Three Engines
@@ -1144,11 +1130,18 @@ pages, layout (portrait | landscape), fontSize, sequence
 
 | Collection | Purpose |
 |------------|---------|
-| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9001`). Holds header fields: context, layoutMode, engineType, instanceCount, buildSequence, createdAt. |
-| `bld_definitions/{bldId}/instances` | **Sub-collection.** One document per ordered layer instance. Doc ID = two-digit sequence (e.g. `01`, `02`). Holds the full vehicle payload for that layer (type + all properties). |
-| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Guarantees unique build sequence numbers per branch. |
+| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9-001`). Core fields: bldId, context, layoutMode, instanceCount, buildSequence, createdAt. Builder-generated docs also carry: sourceSessionId, sourceInstanceId, qrgBlankId, qrgBaseCode, packetId, graphicLayoutMode, qrProductState, qrSizePercent, qrPositionX, qrPositionY. Admin-created docs also carry: layout, name, instances (array), source="admin". |
+| `bld_definitions/{bldId}/instances` | **Sub-collection — builder-generated BLDs only.** One document per ordered layer instance. Doc ID = two-digit sequence (e.g. `01`, `02`). Holds the full vehicle payload for that layer (type + all vehicle properties). |
+| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Shared between builder-generated and admin-created BLDs within the same context+layout branch. |
 
-**Sub-collection document structure (`instances/{seq}`):**
+**Two storage strategies — both coexist in `bld_definitions`:**
+
+| Strategy | Created by | Instance storage |
+|----------|-----------|-----------------|
+| Builder-generated | Builder commit flow (`POST /admin/bld`) | Sub-collection `instances/{seq}` — full vehicle payload per doc |
+| Admin-created | Admin direct-create (`POST /admin/bld/create`) | Flat `instances` array embedded in the root doc — structural skeleton only: `{ seq, type, role, required }` |
+
+**Sub-collection instance structure (builder-generated):**
 
 ```
 {
@@ -1161,7 +1154,18 @@ pages, layout (portrait | landscape), fontSize, sequence
 }
 ```
 
-Render order is declared by sequence number. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
+**Flat array instance structure (admin-created):**
+
+```
+{
+  seq:      "01",    // two-digit render order
+  type:     "txt",   // txt | img | qrc | act | vid | doc
+  role:     "header",
+  required: true
+}
+```
+
+Render order is declared by sequence number in both strategies. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
 
 ### Relationship to QRG and GRF
 
@@ -1169,17 +1173,17 @@ Render order is declared by sequence number. `01` paints first (bottom of stack)
 |--------|-----------|---------|
 | QRG | Products and instances | `QRG-11111-I-000001` |
 | GRF | Graphic assets | `GRF-05-4-000003` |
-| BLD | Build configurations | `BLD-SZ9001` |
+| BLD | Build configurations | `BLD-SZ9-001` |
 
 The three schemas are independent and never mixed. QRG, BLD, and GRF are only linked together through Assembly. None of these identifiers are embedded in each other.
 
 ### Full Example — QRG-11111 (T-Shirt #111)
 
-**BLD-SZ9001** — Shirt · Zone · 9 instances · build #001
+**BLD-SZ9-001** — Shirt · Zone · 9 instances · build #001
 **Theme:** United States Armed Forces
 
 ```
-bld_definitions/BLD-SZ9001
+bld_definitions/BLD-SZ9-001
   context:       S
   layoutMode:    Z
   instanceCount: 9
@@ -1234,7 +1238,7 @@ QR Gear product builds are defined by four schemas that each answer a single que
 | Schema | Answers | Example ID |
 |--------|---------|-----------|
 | **QRG** | What product blank is this? | `11101` (T-Shirt #101) |
-| **BLD** | How is this composition structured? | `BLD-SZ9001` |
+| **BLD** | How is this composition structured? | `BLD-SZ9-001` |
 | **GRF** | What file is this asset? | `GRF-04-3-000001` |
 | **Assembly** | What assets fill which slots, for which blank? | `ASM-000001` |
 

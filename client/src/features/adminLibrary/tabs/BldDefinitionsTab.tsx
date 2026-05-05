@@ -65,7 +65,7 @@ interface FormInstance {
 
 const DEFAULT_FORM_INSTANCE: FormInstance = { type: "txt", role: "", required: true };
 
-function seq(i: number): string {
+function formatSeq(i: number): string {
   return String(i + 1).padStart(2, "0");
 }
 
@@ -82,7 +82,7 @@ function InstanceRow({
 }) {
   return (
     <div className="grid grid-cols-[2rem_1fr_1fr_auto_auto] gap-2 items-center" data-testid={`row-instance-${index}`}>
-      <span className="text-xs font-mono text-muted-foreground text-center">{seq(index)}</span>
+      <span className="text-xs font-mono text-muted-foreground text-center">{formatSeq(index)}</span>
 
       <Select value={inst.type} onValueChange={(v) => onChange(index, "type", v)}>
         <SelectTrigger className="h-8 text-xs" data-testid={`select-type-${index}`}>
@@ -169,7 +169,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
 
   function handleSubmit() {
     const instances = formInstances.map((inst, i) => ({
-      seq: seq(i),
+      seq: formatSeq(i),
       type: inst.type,
       ...(inst.role ? { role: inst.role } : {}),
       required: inst.required,

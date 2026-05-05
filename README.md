@@ -409,7 +409,7 @@ All QR Gear product builds follow a four-schema chain. Each schema answers exact
 | Schema | Answers | ID Example |
 |--------|---------|-----------|
 | **QRG** | What product blank is this? | `11101` |
-| **BLD** | How is this composition structured? | `BLD-SZ9001` |
+| **BLD** | How is this composition structured? | `BLD-SZ9-001` |
 | **GRF** | What file is this asset? | `GRF-04-3-000001` |
 | **Assembly** | What assets fill which slots, for which blank? | `ASM-000001` |
 
@@ -438,21 +438,19 @@ Packet  (top-level published offer)
 Every reusable product build configuration is identified by a BLD code. Parallel to QRG (products) and GRF (graphic assets), BLD captures layer layouts, text styling, and graphic positioning independent of any specific product or packet.
 
 ```
-BLD - [1] [2] [3] [4] [5–6] ... [001–999]
+BLD-[context][layoutMode][instanceCount]-[buildSeq]
 ```
 
-| Position | Meaning |
-|----------|---------|
+| Segment | Meaning |
+|---------|---------|
 | `[1]` | Context — `S`=Shirt graphic, `U`=URL |
 | `[2]` | Layout mode (if S): `Z`=Zone, `P`=Palette — or Content type (if U): `I`=Image, `V`=Video, `D`=Document |
-| `[3]` | Engine type: `T`=Text, `I`=Image, `Q`=QR, `A`=Action/CTA |
-| `[4]` | Instance count (if T): 1–9 |
-| `[5–6]` | Two-digit sequence per instance: 01–09 |
-| `[last 3]` | Build sequence: 001–999 |
+| `[3]` | Instance count — total ordered layers in this build (integer 0–9+) |
+| `[last 3]` | Build sequence: 001–999, atomically allocated per context+layoutMode branch |
 
 **Instance vehicles:** `txt` (role/font/size/weight/spacing/stroke/position) · `img` (role/size/position) · `qrc` (size/position — center locked in Zone, required in Palette) · `act` (font/stroke/url/position — always optional) · `vid` (playback/source/type/ratio/size/length) · `doc` (playback/source/format/pages/layout/fontSize)
 
-**Example:** `BLD-SZ9001` = Shirt · Zone · 9 ordered layer instances · build #001
+**Example:** `BLD-SZ9-001` = Shirt · Zone · 9 ordered layer instances · build #001
 
 **Full spec:** See [`BLD.md`](./BLD.md).
 
