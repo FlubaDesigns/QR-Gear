@@ -432,6 +432,29 @@ GRF-03-3-0-2-000012   Background · Renderable · Online · Video
 
 **Full spec:** See Section 18 of `METHODOLOGY.md`.
 
+### BLD Build Definition Schema
+
+Every reusable product build configuration is identified by a BLD code. Parallel to QRG (products) and GRF (graphic assets), BLD captures layer layouts, text styling, and graphic positioning independent of any specific product or packet.
+
+```
+BLD - [1] [2] [3] [4] [5–6] ... [001–999]
+```
+
+| Position | Meaning |
+|----------|---------|
+| `[1]` | Context — `S`=Shirt graphic, `U`=URL |
+| `[2]` | Layout mode (if S): `Z`=Zone, `P`=Palette — or Content type (if U): `I`=Image, `V`=Video, `D`=Document |
+| `[3]` | Engine type: `T`=Text, `I`=Image, `Q`=QR, `A`=Action/CTA |
+| `[4]` | Instance count (if T): 1–9 |
+| `[5–6]` | Two-digit sequence per instance: 01–09 |
+| `[last 3]` | Build sequence: 001–999 |
+
+**Instance vehicles:** `txt` (role/font/size/weight/spacing/stroke/position) · `img` (role/size/position) · `qrc` (size/position — center locked in Zone, required in Palette) · `act` (font/stroke/url/position — always optional) · `vid` (playback/source/type/ratio/size/length) · `doc` (playback/source/format/pages/layout/fontSize)
+
+**Example:** `BLD-SZ9001` = Shirt · Zone · 9 ordered layer instances · build #001
+
+**Full spec:** See [`BLD.md`](./BLD.md).
+
 ### Catalog Management System
 
 Everything runs through named catalogs. Admin creates catalogs (curated subsets of blanks), assigns them to 5 sections (Member, Public, External, Marketplace, Platform). Managed from `admin-blanks.tsx`. Data stored in `catalogs`, `systemSettings/catalog-assignments`, `systemSettings/catalog-defaults` Firestore collections.
