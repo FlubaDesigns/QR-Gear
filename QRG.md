@@ -1,21 +1,76 @@
-# QRG Number System — Full Schema Reference
-
-> **Iron Rule:** Printify and Printful are suppliers only — their IDs never appear in a QRG code. QR Gear assigns all QRG numbers independently. Codes are GLOBAL and FIXED — never renumber once assigned.
+# QRG.md — QR Gear Identity System (AUTHORITY)
 
 ---
 
-## 1. The Blank ID — `STNNN` (5 digits)
+## TABLE OF CONTENTS
 
-This is the **master catalog number** assigned by QR Gear to every blank product. It is the permanent, provider-independent identity for a physical blank.
+1. Purpose
+2. Absolute Rules
+3. Blank ID System (STNNN)
+4. Full QRG Code Structure
+5. Context Codes
+6. Size Codes
+7. Color Codes
+8. Variant Suffix (SSCC)
+9. Provider Separation (CRITICAL)
+10. Validation Rules
+11. Usage Rules
+12. Forbidden Patterns
+13. Source of Truth
+14. Maintenance Rule
 
-```
-S  T  N  N  N
-│  │  └──────── 3-digit item number (001–999)
-│  └─────────── Product type within category (1–9)
-└────────────── Super-category (1–6)
-```
+---
 
-### Super-categories (S)
+## 1. PURPOSE
+
+This file defines the QRG Identity System.
+
+QRG is the single source of truth for identity across:
+
+- products
+- blanks
+- variants
+- orders
+- tracking
+- system linking
+
+QRG is NOT optional.  
+QRG is NOT flexible.  
+QRG is NOT inferred.
+
+QRG is assigned, structured, and enforced.
+
+---
+
+## 2. ABSOLUTE RULES
+
+- QRG codes are globally unique
+- QRG codes are never renumbered
+- QRG codes are never guessed
+- QRG codes are never client-generated
+- QRG codes are always server-generated
+- QRG codes must map to a real instance
+- QRG codes must follow exact format
+
+Violation of any rule = system failure
+
+---
+
+## 3. BLANK ID SYSTEM (STNNN)
+
+The Blank ID defines the physical product identity independent of any provider.
+
+Format:
+
+S T N N N
+
+| Segment | Meaning |
+|--------|--------|
+| S | Super-category (1–6) |
+| T | Product type within category (1–9) |
+| NNN | Item number (001–999) |
+
+### Super-Categories (S)
 
 | Code | Category |
 |------|----------|
@@ -26,245 +81,218 @@ S  T  N  N  N
 | 5 | Pet Products |
 | 6 | Holiday & Seasonal |
 
-**Example:** `11001` = Apparel (1), Type 1, Item 001
+### Example
 
-| Representation | Value |
-|----------------|-------|
-| Firestore doc ID | `qrg_11001` |
-| Admin display label | `QRG-11001` |
-| Regex | `^[1-6][1-9][0-9]{3}$` |
-| Doc ID regex | `^qrg_[1-6][1-9][0-9]{3}$` |
+11001
+
+- 1 = Apparel  
+- 1 = Type  
+- 001 = Item  
+
+### Storage Representation
+
+| Use Case | Value |
+|---------|------|
+| Firestore ID | qrg_11001 |
+| Display | QRG-11001 |
+| Regex | ^[1-6][1-9][0-9]{3}$ |
+| Doc ID Regex | ^qrg_[1-6][1-9][0-9]{3}$ |
 
 ---
 
-## 2. The Full QRG Code — Physical Item / Order Identity
+## 4. FULL QRG CODE STRUCTURE
 
-Applied to barcodes and order tracking. Never embedded in URLs or packet names.
+Used for orders, barcodes, and tracking only.
 
-```
+NOT used in:
+- URLs
+- packet IDs
+- internal naming
+
+### Format
+
 QRG - STNNN - C - NNNNNN - SSCC
-      │       │   │         │└── Color code (2 digits, 01–99)
-      │       │   │         └─── Size code  (2 digits, 01–10)
-      │       │   └──────────── Instance / order number (6 digits, zero-padded)
-      │       └──────────────── Context letter (I / M / E / O)
-      └──────────────────────── Blank ID — STNNN (5 digits)
-```
 
-**Full regex:** `^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})-(\d{4})$`
-**Base regex (no variant suffix):** `^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})$`
+| Segment | Meaning |
+|--------|--------|
+| STNNN | Blank ID |
+| C | Context |
+| NNNNNN | Instance number (000001–999999) |
+| SS | Size code |
+| CC | Color code |
 
-**Example:** `QRG-11101-M-000042-0501`
-= Apparel blank 11101 · Member context · order #42 · Size L (05) · Black (01)
+### Example
 
-### Context letter (C) — who holds this item
+QRG-11101-M-000042-0501
 
-| Letter | Meaning |
-|--------|---------|
-| I | Internal — admin / platform use |
-| M | Member — registered user account |
-| E | External — API / partner integration |
-| O | Owner — post-purchase, end customer |
+### Regex
 
-Providers (Printify / Printful) are **never** a context letter — they are suppliers only.
+Full:
+^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})-(\d{4})$
+
+Base (no variant):
+^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})$
 
 ---
 
-## 3. Size Codes (`SS`) — 2 digits
+## 5. CONTEXT CODES (C)
 
-| Code | Size | Aliases |
-|------|------|---------|
-| 00 | One Size | OSFA, OS |
-| 01 | XXS | Extra Extra Small, youth 4, 6 |
-| 02 | XS | Extra Small, youth 8 |
-| 03 | S | Small, youth 10 |
-| 04 | M | Medium, youth 12 |
-| 05 | L | Large, youth 14 |
-| 06 | XL | Extra Large, Extra-Large, youth 16 |
-| 07 | 2XL | XXL, 2X |
-| 08 | 3XL | XXXL, 3X |
-| 09 | 4XL | XXXXL, 4X |
-| 10 | 5XL | XXXXXL, 5X |
-
-Unknown sizes resolve to `00`.
+| Code | Meaning |
+|------|--------|
+| I | Internal |
+| M | Member |
+| E | External |
+| O | Owner |
 
 ---
 
-## 4. Color Codes (`CC`) — 2 digits (01–99, global fixed)
+## 6. SIZE CODES (SS)
 
-| Code(s) | Color family | Key aliases |
-|---------|-------------|-------------|
-| 01 | Black | Black Heather, Vintage Black, Oxblood Black |
-| 02 | White | Solid White Blend, Vintage White |
-| 03 | Navy | Navy Blue |
-| 04 | Red | |
-| 05 | Royal Blue | True Royal |
-| 06 | Gray / Grey | |
-| 07 | Heather Gray | Athletic Heather, Sport Gray, Sport Grey |
-| 08 | Charcoal | |
-| 09 | Dark Heather | Asphalt |
-| 10 | Dark Grey | Dark Grey Heather, Heather Slate |
-| 11 | Heather Cool Grey | |
-| 12 | Ash / Silver | |
-| 13 | Cream / Natural | Soft Cream, Heather Natural |
-| 14 | Sand | Heather Sand Dune, Pebble, Heather Dust |
-| 15 | Tan / Toast | |
-| 16 | Heather Navy | Heather Midnight Navy |
-| 17 | Heather True Royal | |
-| 18 | Sapphire | |
-| 19 | Steel Blue | Ocean Blue |
-| 20 | Heather Columbia Blue | Heather Carolina Blue |
-| 21 | Light Blue | Baby Blue |
-| 22 | Heather Ice Blue | Heather Prism Ice Blue, Heather Prism Dusty Blue |
-| 23 | Blue | |
-| 24 | Teal | |
-| 25 | Heather Deep Teal | |
-| 26 | Aqua | Heather Aqua |
-| 27 | Turquoise | |
-| 28 | Green | |
-| 29 | Mint | Heather Mint, Heather Prism Mint |
-| 30 | Sage | Leaf |
-| 31 | Heather Grass Green | |
-| 32 | Heather Emerald | |
-| 33 | Kelly Green | Irish Green, Heather Kelly |
-| 34 | Olive | Heather Olive |
-| 35 | Military Green | Army |
-| 36 | Forest Green | Heather Forest |
-| 37 | Safety Green | |
-| 38 | Yellow | Daisy |
-| 39 | Gold | Mustard, Heather Yellow Gold |
-| 40 | Autumn | Heather Autumn |
-| 41 | Orange | Burnt Orange, Tennessee Orange, Safety Orange |
-| 42 | Cardinal | |
-| 43 | Maroon | |
-| 44 | Burgundy | Berry |
-| 45 | Heather Red | |
-| 46 | Heather Raspberry | |
-| 47 | Pink | Soft Pink, Charity Pink |
-| 48 | Heather Clay | Heather Prism Peach |
-| 49 | Heather Mauve | Mauve |
-| 50 | Purple | Team Purple, Heather Team Purple, Heather Orchid |
-| 51 | Lilac | Heather Prism Lilac |
-| 52 | Heather Prism Dusty Lavender | |
-| 53 | Brown | Heather Brown |
-| 54–98 | Reserved for future colors | |
-| 00 | Unknown | fallback for unmapped colors |
-
-Aliases (e.g. "Gray" / "Grey") share the same code. Unknown colors resolve to `00`.
+| Code | Size |
+|------|------|
+| 00 | One Size |
+| 01 | XXS |
+| 02 | XS |
+| 03 | S |
+| 04 | M |
+| 05 | L |
+| 06 | XL |
+| 07 | 2XL |
+| 08 | 3XL |
+| 09 | 4XL |
+| 10 | 5XL |
 
 ---
 
-## 5. Variant Suffix (`SSCC`) — combined
+## 7. COLOR CODES (CC)
 
-The 4-character variant suffix is `SS` + `CC` concatenated.
+Global fixed color system (01–99)
 
-```
-buildVariantSuffix("L", "Black") → "0501"
-buildVariantSuffix("M", "Navy")  → "0403"
-```
+| Code | Color |
+|------|------|
+| 01 | Black |
+| 02 | White |
+| 03 | Navy |
+| 04 | Red |
+| 05 | Royal Blue |
+| 06 | Gray |
+| 07 | Heather Gray |
 
-Used in the full QRG code as the trailing segment. Barcode / tracking only — never in URLs.
+Rules:
+
+- Codes are global
+- Codes are never reassigned
+- Codes must be consistent across system
 
 ---
 
-## 6. Provider Blank Keys — Internal Routing Only
+## 8. VARIANT SUFFIX (SSCC)
 
-These IDs are used internally to route to the correct supplier. They are **never** part of a QRG code.
+SSCC = Size + Color
+
+Examples:
+
+L + Black → 0501  
+M + Navy → 0403  
+
+---
+
+## 9. PROVIDER SEPARATION (CRITICAL)
+
+Providers are NOT identity. They are suppliers only.
+
+### Provider Keys (Internal Only)
 
 | Format | Meaning |
-|--------|---------|
-| `py_123` | Printify blueprint ID (Firestore master doc key) |
-| `pf_456` | Printful product ID (Firestore master doc key) |
-| `pf:456` | Printful catalog key (frontend / client-side) |
-| `pending_py_123` | Unclassified Printify blank — awaiting QRG assignment |
-| `pending_pf_456` | Unclassified Printful blank — awaiting QRG assignment |
-| `qrg_11001` | Classified blank — canonical Firestore doc ID |
+|--------|--------|
+| py_123 | Printify blueprint |
+| pf_456 | Printful product |
+| qrg_11001 | Canonical blank |
+
+### RULES
+
+- Provider IDs NEVER appear in QRG
+- Provider IDs NEVER replace QRG
+- QRG is ALWAYS primary identity
+- Provider mapping is secondary
 
 ---
 
-## 7. Graphic Reference Format (GRF) — Design Asset Identity
+## 10. VALIDATION RULES
 
-Separate system for all graphic and design assets. Not part of the product blank identity. GRF is a pure asset identity — it identifies files only. Layout, context, and usage are defined in BLD and linked in Assembly.
+A valid QRG must:
 
-```
-GRF - TT - K - NNNNNN
-      │    │   └── Sequence number (6 digits, zero-padded, 000001–999999)
-      │    └─────── Role code (1–5)
-      └──────────── Type code (01–07)
-```
+- match regex
+- use valid STNNN
+- use valid context
+- use valid instance number
+- use valid SSCC (if present)
+- exist in system records
 
-**Regex:** `^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$`
-**Counter storage:** Firestore `grf_counters/{typeCode}_{roleCode}` (atomic increment)
-**Asset records:** Firestore `grf_assets/{grfId}` (file metadata — url, dimensions, mime type, storage path)
-
-### Type codes (TT)
-
-| Code | Label | Description | Valid Roles |
-|------|-------|-------------|-------------|
-| 01 | upload_source | Raw uploaded source image | 1 |
-| 02 | cropped_derivative | Cropped / derived from source | 2 |
-| 03 | background | Background image asset | 3 |
-| 04 | qr_graphic | QR code graphic (QR-only image) | 3 |
-| 05 | canvas_design | Full canvas composite design | 3, 4 |
-| 06 | url_artifact_image | URL / landing page artifact image | 3 |
-| 07 | template_graphic | Reusable template graphic | 5 |
-
-### Role codes (K)
-
-| Code | Label |
-|------|-------|
-| 1 | Source |
-| 2 | Derivative |
-| 3 | Renderable |
-| 4 | Final |
-| 5 | Template |
-
-**Examples:**
-```
-GRF-04-3-000001  →  QR Graphic · Renderable · sequence 1
-GRF-05-4-000003  →  Canvas Design · Final · sequence 3
-GRF-03-3-000007  →  Background · Renderable · sequence 7
-```
-
-**Full spec:** See [`GRF.md`](./GRF.md)
+Invalid QRG = reject immediately
 
 ---
 
-## 8. Assembly — The Three-Schema Glue Layer
+## 11. USAGE RULES
 
-Assembly is the internal record that links a QRG blank to a BLD structure and maps each BLD slot to an actual GRF asset. It is the only place where QRG, BLD, and GRF are connected.
+QRG is used for:
 
-```
-Assembly
-  ├── qrgId    → QRG  (which product blank)
-  ├── bldId    → BLD  (which layout/structure)
-  └── mappings[]
-        ├── { seq, type, grfId }   — asset slot
-        └── { seq, type, value }   — text slot
-```
+- order tracking
+- barcode generation
+- physical labeling
+- inventory tracking
+- system linking
 
-**ID format:** `ASM-NNNNNN` (6-digit zero-padded sequence)
-**Firestore:** `assemblies/{assemblyId}`
-**Full spec:** See [`ASSEMBLY.md`](./ASSEMBLY.md)
+QRG is NOT used for:
 
-### Full chain
-
-```
-Packet  (top-level published offer — pricing, QR content, checkout, product metadata)
-  └── assemblyId ──→ Assembly
-                        ├── qrgId ──→ QRG  (blank identity)
-                        ├── bldId ──→ BLD  (structure + layout + styling schema)
-                        └── mappings[]
-                              └── grfId ──→ GRF  (asset file identity)
-```
+- URLs
+- packet IDs
+- graphics naming
+- internal UI labels beyond display
 
 ---
 
-## Source Files
+## 12. FORBIDDEN PATTERNS
 
-| File | Responsibility |
-|------|---------------|
-| `shared/qrgCodes.ts` | Size/color code maps, full QRG code builder/parser, blank ID validators |
-| `shared/blankKeys.ts` | Provider key helpers, QRG blank number validators |
-| `shared/qrgVariantMappings.ts` | Provider → QRG size/color mapping, label maps. **Drift risk:** `functions/src/services/qrgVariantMappings.ts` is a diverged server-side copy with its own hardcoded maps (does not import from `qrgCodes.ts`). The two files must be consolidated — server-side copy should be deleted and `functions/` code should import from `shared/`. |
-| `shared/providerQrgMapper.ts` | Normalizes Printify/Printful data into QRG master blank shape |
-| `shared/graphicCodes.ts` | GRF identity system — types, roles, hosting, builder/parser |
+Strictly forbidden:
+
+- QRG-PENDING
+- QRG-UNASSIGNED
+- QRG-TEMP
+- QRG-TEST
+- fake QRG values
+- guessed QRG values
+- client-generated QRG
+- marketplace SKU used as QRG
+
+Violation = system integrity failure
+
+---
+
+## 13. SOURCE OF TRUTH
+
+QRG logic must be implemented in:
+
+- server-side code
+- shared utilities
+- centralized generation logic
+
+Never scattered across:
+
+- frontend components
+- random utilities
+- inline functions
+
+---
+
+## 14. MAINTENANCE RULE
+
+Whenever this file is updated:
+
+- Update Table of Contents
+- Preserve format rules
+- Preserve separation from GRF, BLD, ASSEMBLY
+- Do NOT add unrelated systems
+- Keep QRG as identity-only layer
+
+If QRG.md becomes mixed with other systems, it is considered broken.
