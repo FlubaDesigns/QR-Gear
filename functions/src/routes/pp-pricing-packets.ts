@@ -337,39 +337,45 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     if (cleanUpdates.headerStyle) cleanUpdates.headerStyle = sanitizeStyleForFirestore(cleanUpdates.headerStyle);
     if (cleanUpdates.footerStyle) cleanUpdates.footerStyle = sanitizeStyleForFirestore(cleanUpdates.footerStyle);
 
-    // ── assemblyId bi-directional sync ────────────────────────────────────
-    // When assemblyId is being set or changed, keep assemblies.packetIds in sync.
+    // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
+    if (cleanUpdates.status === 'published') {
+      const existingAssemblyId = (doc.data() as any)?.assemblyId || null;
+      const incomingAssemblyId = cleanUpdates.assemblyId || null;
+      if (!existingAssemblyId && !incomingAssemblyId) {
+        res.status(400).json({
+          error: 'Cannot publish packet — assemblyId is missing. The three-schema chain (QRG → BLD → GRF) must be complete before a packet can be published.',
+        });
+        return;
+      }
+    }
+    // ── end publish guard ──────────────────────────────────────────────────
+
+    // ── Fix 13: assemblyId bi-directional sync (atomic transaction) ───────
+    // When assemblyId is being set or changed, keep assemblies.packetIds in sync
+    // inside a single Firestore transaction so both writes succeed or both fail.
     if ('assemblyId' in cleanUpdates) {
       const existingAssemblyId: string | null = (doc.data() as any)?.assemblyId || null;
       const newAssemblyId: string | null = cleanUpdates.assemblyId || null;
 
       if (newAssemblyId !== existingAssemblyId) {
-        const now = admin.firestore.FieldValue.serverTimestamp();
+        const oldRef = existingAssemblyId ? db.collection('assemblies').doc(existingAssemblyId) : null;
+        const newRef = newAssemblyId     ? db.collection('assemblies').doc(newAssemblyId)      : null;
 
-        // Remove packetId from old assembly's packetIds
-        if (existingAssemblyId) {
-          try {
-            const oldRef = db.collection('assemblies').doc(existingAssemblyId);
-            const oldDoc = await oldRef.get();
-            if (oldDoc.exists) {
-              const filtered = ((oldDoc.data() as any).packetIds || []).filter((p: string) => p !== packetId);
-              await oldRef.update({ packetIds: filtered, updatedAt: now });
-            }
-          } catch (_) { /* non-fatal */ }
-        }
+        await db.runTransaction(async (txn) => {
+          const oldDoc = oldRef ? await txn.get(oldRef) : null;
+          const newDoc = newRef ? await txn.get(newRef) : null;
+          const now    = admin.firestore.FieldValue.serverTimestamp();
 
-        // Add packetId to new assembly's packetIds
-        if (newAssemblyId) {
-          try {
-            const newRef = db.collection('assemblies').doc(newAssemblyId);
-            const newDoc = await newRef.get();
-            if (newDoc.exists) {
-              const existing = (newDoc.data() as any).packetIds || [];
-              const merged = [...new Set([...existing, packetId])];
-              await newRef.update({ packetIds: merged, updatedAt: now });
-            }
-          } catch (_) { /* non-fatal */ }
-        }
+          if (oldDoc?.exists && oldRef) {
+            const filtered = ((oldDoc.data() as any).packetIds || []).filter((p: string) => p !== packetId);
+            txn.update(oldRef, { packetIds: filtered, updatedAt: now });
+          }
+          if (newDoc?.exists && newRef) {
+            const existing = (newDoc.data() as any).packetIds || [];
+            const merged   = [...new Set([...existing, packetId])];
+            txn.update(newRef, { packetIds: merged, updatedAt: now });
+          }
+        });
       }
     }
     // ── end assemblyId sync ────────────────────────────────────────────────

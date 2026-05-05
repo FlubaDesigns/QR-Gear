@@ -402,12 +402,13 @@ const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASSEMBLIES_COLLECTION   = 'assemblies';
 
 export interface AutoAssemblyMapping {
-  seq:       string;
-  type:      string;
-  value?:    string;    // txt / act → text content
-  color?:    string;    // txt / act → color override
-  imageUrl?: string;    // img → raw URL (pending formal GRF registration)
-  grfId?:    string;    // img / qrc → set later when GRF asset is registered
+  seq:            string;
+  type:           string;
+  value?:         string;    // txt / act → text content
+  color?:         string;    // txt / act → color override
+  imageUrl?:      string;    // img → raw URL (pending formal GRF registration)
+  grfId?:         string;    // img / qrc → set later when GRF asset is registered
+  grfIdPending?:  boolean;   // Fix 11: true when slot exists but GRF has not yet been registered
 }
 
 export interface WriteAutoAssemblyOptions {
@@ -442,15 +443,17 @@ export function extractAssemblyMappings(working: Record<string, any>): AutoAssem
   const pad = (n: number) => String(n).padStart(2, '0');
 
   // ── 01 img — background image ─────────────────────────────────────────────
+  // grfIdPending: true signals that this slot exists but the GRF asset has not
+  // yet been registered. A grfId must be back-filled before the mapping is complete.
   const bgUrl      = graphics.loadedBackground?.url || null;
   const areaImgUrl = content.areaImageUrl || null;
   const imageUrl   = bgUrl || areaImgUrl || null;
   if (imageUrl) {
-    mappings.push({ seq: pad(seq++), type: 'img', imageUrl });
+    mappings.push({ seq: pad(seq++), type: 'img', imageUrl, grfIdPending: true });
   }
 
   // ── 02 qrc — QR code slot (always present, grfId pending) ─────────────────
-  mappings.push({ seq: pad(seq++), type: 'qrc' });
+  mappings.push({ seq: pad(seq++), type: 'qrc', grfIdPending: true });
 
   // ── 03 txt — header ───────────────────────────────────────────────────────
   const header = content.headerStyle || {};

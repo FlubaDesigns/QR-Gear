@@ -560,6 +560,16 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
 
     const grfId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
 
+    // Fix 16: Guard against silent overwrite if counter is ever corrupted.
+    // The counter is atomic so this should never fire in normal operation —
+    // but if it does, we surface the error explicitly instead of silently overwriting.
+    const existingAsset = await db.collection('grf_assets').doc(grfId).get();
+    if (existingAsset.exists) {
+      console.error(`[GRF] Counter integrity violation — ${grfId} already exists in grf_assets. Counter key: ${counterKey}`);
+      res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${counterKey}.` });
+      return;
+    }
+
     const now = admin.firestore.FieldValue.serverTimestamp();
     const assetData: Record<string, any> = {
       grfId,

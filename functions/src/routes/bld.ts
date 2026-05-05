@@ -32,6 +32,7 @@ import express, { Request, Response } from 'express';
 import { db, admin } from '../core';
 import { requireAdmin } from '../middleware';
 import { writeBldDefinition, WriteBldResult } from '../services/bld-builder';
+import { isValidQrgBlankId } from '../../../shared/qrgCodes';
 
 const BLD_DEFINITIONS_COLLECTION = 'bld_definitions';
 const BLD_COUNTERS_COLLECTION     = 'bld_counters';
@@ -129,6 +130,12 @@ export function registerBld(app: express.Express): void {
         res.status(400).json({ error: `Invalid layout. Must be one of: ${VALID_LAYOUTS.join(', ')}` });
         return;
       }
+      // U-context uses layout modes I/V/D (reserved, not yet implemented).
+      // Z and P are S-context only. Reject the cross-contamination.
+      if (context === 'U' && (layout === 'Z' || layout === 'P')) {
+        res.status(400).json({ error: `Layout "${layout}" is only valid for S-context BLDs. U-context layout modes (I, V, D) are reserved.` });
+        return;
+      }
       if (!Array.isArray(instances)) {
         res.status(400).json({ error: 'instances must be an array' });
         return;
@@ -192,6 +199,14 @@ export function registerBld(app: express.Express): void {
 
       if (!working || typeof working !== 'object') {
         res.status(400).json({ error: 'working (builder snapshot) is required' });
+        return;
+      }
+      if (!qrgBlankId) {
+        res.status(400).json({ error: 'qrgBlankId is required — a BLD must be linked to a valid QRG blank at creation time' });
+        return;
+      }
+      if (!isValidQrgBlankId(String(qrgBlankId))) {
+        res.status(400).json({ error: `qrgBlankId "${qrgBlankId}" is not a valid STNNN blank ID (S=1-6, T=1-9, NNN=000-999)` });
         return;
       }
 
@@ -313,6 +328,8 @@ export function registerBld(app: express.Express): void {
 
   // ── DELETE /admin/bld/:bldId ──────────────────────────────────────────────
   // Permanently delete a BLD definition document.
+  // Blocks if any Assembly references this bldId (Fix 7).
+  // Cascades to sub-collection instances before deleting header (Fix 6).
   app.delete('/admin/bld/:bldId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { bldId } = req.params;
@@ -322,9 +339,31 @@ export function registerBld(app: express.Express): void {
         res.status(404).json({ error: `BLD definition not found: ${bldId}` });
         return;
       }
+
+      // Fix 7: Block delete if any Assembly references this bldId
+      const asmSnap = await db.collection('assemblies').where('bldId', '==', bldId).limit(10).get();
+      if (!asmSnap.empty) {
+        const referencingIds = asmSnap.docs.map(d => d.id);
+        res.status(409).json({
+          error: `Cannot delete BLD "${bldId}" — it is referenced by ${asmSnap.size} Assembly record(s). Unlink or delete those assemblies first.`,
+          referencingAssemblyIds: referencingIds,
+        });
+        return;
+      }
+
+      // Fix 6: Delete sub-collection instances before deleting the header doc.
+      // Firestore does not auto-delete sub-collections.
+      const instancesSnap = await docRef.collection('instances').get();
+      if (!instancesSnap.empty) {
+        const batch = db.batch();
+        instancesSnap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        console.log(`[BLD] Deleted ${instancesSnap.size} sub-collection instances for ${bldId}`);
+      }
+
       await docRef.delete();
       console.log(`[BLD] Deleted ${bldId}`);
-      res.json({ success: true, bldId });
+      res.json({ success: true, bldId, instancesDeleted: instancesSnap.size });
     } catch (err: any) {
       console.error('[BLD] DELETE /admin/bld/:bldId error:', err.message);
       res.status(500).json({ error: err.message });

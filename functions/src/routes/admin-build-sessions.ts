@@ -20,6 +20,7 @@ import { requireAdmin } from '../middleware';
 import { cfGeneratePrintifyComposite, cfUploadBufferToStorage } from '../services/composite-image';
 import { allocateQrgInstance } from '../services/qrg-instance-allocator';
 import { writeBldDefinition, writeAutoAssembly } from '../services/bld-builder';
+import { isValidQrgBlankId } from '../../../shared/qrgCodes';
 
 const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
@@ -553,7 +554,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // ── Allocate QRG identity for this new instance ────────────────────────
       // context = 'I' (Internal — admin-created catalog instance)
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
-      if (!masterQrgBlankId || !/^[1-6][1-9][0-9]{3}$/.test(masterQrgBlankId)) {
+      if (!masterQrgBlankId || !isValidQrgBlankId(masterQrgBlankId)) {
         res.status(400).json({ error: `Master ${session.sourceMasterId} has no valid qrgBlankId — cannot commit session without QRG identity` });
         return;
       }

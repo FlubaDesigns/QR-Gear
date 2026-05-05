@@ -57,6 +57,12 @@ export async function resolveQrgToProductInstance(
       .collection(ADMIN_INSTANCES_COLLECTION)
       .where('qrgPacketCode', '==', qrgCode)
       .get();
+    if (!snap.empty) {
+      console.warn(
+        `[QRGResolver] [LEGACY_FIELD] Resolved "${qrgCode}" via deprecated qrgPacketCode field ` +
+        `on instance ${snap.docs[0].id}. Document should be migrated to use qrgBaseCode.`,
+      );
+    }
   }
 
   if (snap.empty) {
