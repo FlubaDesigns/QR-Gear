@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { buildGraphicId, grfCounterKey, GRF_TYPE_MAP } from '../../../shared/graphicCodes';
+import { buildGraphicId, grfCounterKey, GRF_TYPE_MAP, GRF_TYPE_ALLOWED_MIMES } from '../../../shared/graphicCodes';
 import type { GrfTypeCode, GrfRoleCode } from '../../../shared/graphicCodes';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -547,6 +547,16 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
         error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
       });
       return;
+    }
+
+    if (mimeType) {
+      const allowedMimes = GRF_TYPE_ALLOWED_MIMES[typeCode as GrfTypeCode] as string[];
+      if (!allowedMimes.includes(mimeType)) {
+        res.status(400).json({
+          error: `MIME type "${mimeType}" is not valid for GRF typeCode "${typeCode}" (${entry.label}). Allowed: ${allowedMimes.join(', ')}`,
+        });
+        return;
+      }
     }
 
     // Atomically mint the next sequence number for this typeCode+roleCode pair

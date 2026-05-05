@@ -504,6 +504,15 @@ function register(app) {
                 });
                 return;
             }
+            if (mimeType) {
+                const allowedMimes = graphicCodes_1.GRF_TYPE_ALLOWED_MIMES[typeCode];
+                if (!allowedMimes.includes(mimeType)) {
+                    res.status(400).json({
+                        error: `MIME type "${mimeType}" is not valid for GRF typeCode "${typeCode}" (${entry.label}). Allowed: ${allowedMimes.join(', ')}`,
+                    });
+                    return;
+                }
+            }
             // Atomically mint the next sequence number for this typeCode+roleCode pair
             const counterKey = (0, graphicCodes_1.grfCounterKey)(typeCode, roleCode);
             const counterRef = core_1.db.collection('grf_counters').doc(counterKey);

@@ -56,7 +56,7 @@ class AssembliesBoundary extends Component<
 // ── Regex constants (from canonical schemas) ─────────────────────────────────
 
 const QRG_BLANK_REGEX = /^[1-6][1-9][0-9]{3}$/;
-const BLD_ID_REGEX    = /^BLD-[SU][A-Z]\d-\d{3}$/;
+const BLD_ID_REGEX    = /^BLD-(S[ZP]|U[IVD])\d+-\d{3}$/;
 
 function isValidQrgId(id: string): boolean { return QRG_BLANK_REGEX.test(id); }
 function isValidBldId(id: string): boolean { return BLD_ID_REGEX.test(id); }

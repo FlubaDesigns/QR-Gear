@@ -19,12 +19,13 @@
  * Codes are GLOBAL and FIXED — never renumber once assigned.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GRF_VALID_PAIRINGS = exports.GRF_ROLE_LABELS = exports.GRF_TYPE_MAP = void 0;
+exports.GRF_TYPE_ALLOWED_MIMES = exports.GRF_VALID_PAIRINGS = exports.GRF_ROLE_LABELS = exports.GRF_TYPE_MAP = void 0;
 exports.isValidGraphicId = isValidGraphicId;
 exports.assertValidGraphicId = assertValidGraphicId;
 exports.parseGraphicId = parseGraphicId;
 exports.buildGraphicId = buildGraphicId;
 exports.grfCounterKey = grfCounterKey;
+exports.isValidGrfMime = isValidGrfMime;
 exports.GRF_TYPE_MAP = {
     '01': { label: 'upload_source', description: 'Raw uploaded source image', validRoles: ['1'] },
     '02': { label: 'cropped_derivative', description: 'Cropped/derived from source', validRoles: ['2'] },
@@ -98,4 +99,23 @@ function grfCounterKey(typeCode, roleCode) {
 // ── Pairings ───────────────────────────────────────────────────────────────
 /** All valid (typeCode, roleCode) pairings as a flat list. */
 exports.GRF_VALID_PAIRINGS = Object.entries(exports.GRF_TYPE_MAP).flatMap(([tc, entry]) => entry.validRoles.map((rc) => ({ typeCode: tc, roleCode: rc })));
+// ── MIME validation ────────────────────────────────────────────────────────
+/**
+ * Allowed MIME types for each GRF typeCode.
+ * Types 01–05 and 07 are always image assets.
+ * Type 06 (url_artifact_asset) also permits video and document MIMEs.
+ */
+exports.GRF_TYPE_ALLOWED_MIMES = {
+    '01': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/gif'],
+    '02': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+    '03': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+    '04': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+    '05': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+    '06': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'video/mp4', 'video/webm', 'application/pdf'],
+    '07': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+};
+/** Returns true when mimeType is permitted for the given GRF typeCode. */
+function isValidGrfMime(typeCode, mimeType) {
+    return exports.GRF_TYPE_ALLOWED_MIMES[typeCode].includes(mimeType);
+}
 //# sourceMappingURL=graphicCodes.js.map

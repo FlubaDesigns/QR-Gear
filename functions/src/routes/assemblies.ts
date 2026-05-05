@@ -73,14 +73,13 @@ function validateMappings(mappings: any[]): string | null {
     if ((m.type === 'txt' || m.type === 'act') && !m.value) {
       return `mapping seq ${m.seq} type "${m.type}" requires a non-empty value`;
     }
-    if ((m.type === 'img' || m.type === 'qrc') && !m.grfId && !m.grfIdPending) {
-      return `mapping seq ${m.seq} type "${m.type}" requires a grfId`;
+    if ((m.type === 'img' || m.type === 'qrc') && !m.grfId) {
+      return `mapping seq ${m.seq} type "${m.type}" requires a valid grfId — pending or placeholder values are not allowed`;
     }
     if ((m.type === 'vid' || m.type === 'doc') && !m.grfId && !m.value) {
       return `mapping seq ${m.seq} type "${m.type}" requires either grfId or value (URL)`;
     }
 
-    // Fix 9: GRF format and slot-type compatibility check
     if (m.grfId) {
       if (!isValidGraphicId(String(m.grfId))) {
         return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-TT-K-NNNNNN)`;
@@ -110,15 +109,14 @@ function validateMappings(mappings: any[]): string | null {
 }
 
 /**
- * Fix 8: Async validator — verifies every grfId in mappings exists in grf_assets and is active.
+ * Async validator — verifies every grfId in mappings exists in grf_assets and is active.
  * Returns a human-readable error string, or null if all grfIds are valid.
- * Auto-skips slots with grfIdPending: true (auto-committed assemblies).
  */
 async function validateGrfIdsExist(mappings: any[]): Promise<string | null> {
   const grfIdsToCheck = [
     ...new Set(
       mappings
-        .filter((m: any) => m.grfId && !m.grfIdPending)
+        .filter((m: any) => m.grfId)
         .map((m: any) => String(m.grfId)),
     ),
   ];

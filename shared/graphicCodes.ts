@@ -130,3 +130,25 @@ export const GRF_VALID_PAIRINGS: Array<{ typeCode: GrfTypeCode; roleCode: GrfRol
   (Object.entries(GRF_TYPE_MAP) as Array<[GrfTypeCode, GrfTypeEntry]>).flatMap(
     ([tc, entry]) => entry.validRoles.map((rc) => ({ typeCode: tc, roleCode: rc }))
   );
+
+// ── MIME validation ────────────────────────────────────────────────────────
+
+/**
+ * Allowed MIME types for each GRF typeCode.
+ * Types 01–05 and 07 are always image assets.
+ * Type 06 (url_artifact_asset) also permits video and document MIMEs.
+ */
+export const GRF_TYPE_ALLOWED_MIMES: Record<GrfTypeCode, readonly string[]> = {
+  '01': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/gif'],
+  '02': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+  '03': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+  '04': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+  '05': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+  '06': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'video/mp4', 'video/webm', 'application/pdf'],
+  '07': ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'],
+};
+
+/** Returns true when mimeType is permitted for the given GRF typeCode. */
+export function isValidGrfMime(typeCode: GrfTypeCode, mimeType: string): boolean {
+  return (GRF_TYPE_ALLOWED_MIMES[typeCode] as string[]).includes(mimeType);
+}
