@@ -4,6 +4,14 @@
 
 ---
 
+## Changelog
+
+| Date | Update |
+|------|--------|
+| 2026-05-05 | Hardening pass — Fix 2: hard failure enforcement (stop/throw on invalid ID, TT, K, or pairing); Fix 3: MIME type validation rule per TT; Fix 6: TT/K pair enforcement explicit (no dynamic/inferred pairings); Fix 7: GRF Responsibility Boundary section added |
+
+---
+
 ## Overview
 
 GRF is the identity system for all graphic and design asset files in the QR Gear platform. It is completely separate from QRG (product identity), BLD (build structure), and Assembly (the glue layer). Every image, QR graphic, canvas composite, background, and template file gets a GRF ID at the moment it is saved to the library.
@@ -51,8 +59,10 @@ Two digits. Defines what kind of asset file this is.
 | 07 | template_graphic | Reusable template file | 5 |
 
 **Rules:**
-- Each type has a fixed set of valid roles — invalid combinations throw an error
 - Types 01–07 are globally fixed and cannot be reassigned
+- Only predefined TT/K combinations are valid — see pairing table below
+- Any undefined TT/K pairing must throw a hard error and reject creation
+- No dynamic pairings, no inferred pairings, no exceptions
 
 ---
 
@@ -79,6 +89,26 @@ Single digit. Defines the production lifecycle stage of the asset.
 | 05 | 3, 4 | Canvas composite (working or approved) |
 | 06 | 3 | Landing page snapshot |
 | 07 | 5 | Reusable design template |
+
+---
+
+## Validation and Failure Rule
+
+If a GRF ID or save operation fails any of the following checks:
+
+- ID does not match regex `^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$`
+- TT is not a defined type code (01–07)
+- K is not a defined role code (1–5)
+- TT/K pairing is not in the valid pairings table
+
+Then:
+
+- STOP OPERATION
+- THROW HARD ERROR
+- DO NOT SAVE
+- DO NOT CONTINUE
+
+No fallbacks. No auto-correction. No silent failures.
 
 ---
 
@@ -144,6 +174,42 @@ All additional data about an asset is stored in Firestore, not in the ID.
 - Placement or sequence
 - BLD or Assembly references (those link from Assembly → GRF, not the reverse)
 - `relatedPacketId` is a weak cross-reference only — it is never used to drive logic
+
+---
+
+## MIME Type Validation Rule
+
+`mimeType` must be compatible with the asset's `typeCode` (TT).
+
+| TT | Valid mimeType prefix |
+|----|----------------------|
+| 01 | `image/*` |
+| 02 | `image/*` |
+| 03 | `image/*` |
+| 04 | `image/*` |
+| 05 | `image/*` |
+| 06 | `image/*` |
+| 07 | `image/*` |
+
+If `mimeType` is incompatible with `typeCode`:
+- THROW ERROR
+- REJECT SAVE
+
+No silent acceptance of mismatched types.
+
+---
+
+## GRF Responsibility Boundary
+
+GRF defines FILE IDENTITY ONLY.
+
+GRF must NOT contain:
+- Layout data — that is BLD responsibility
+- Content structure — that is BLD responsibility
+- Mapping logic — that is Assembly responsibility
+- Identity linkage — that is QRG responsibility
+
+Any attempt to extend GRF beyond file identity is INVALID and must be rejected.
 
 ---
 
