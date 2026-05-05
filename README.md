@@ -14,6 +14,7 @@
 8. Code-Tracing Requirement
 9. Final Rule
 10. README Maintenance Rule
+11. Canonical Core Directive
 
 ---
 
@@ -216,8 +217,8 @@ System truth lives in these files:
 - `replit.md` — execution control, deploy rules, response contract
 - `QRG.md` — QR identity law and QRG format
 - `BLD.md` — build logic and build schema
-- `GRF.md` — graphics/rendering rules
-- `ASSEMBLY.md` — final packet/product composition rules
+- `GRF.md` — graphic file identity (what file is this asset)
+- `ASSEMBLY.md` — mapping layer (which assets fill which BLD slots under which QRG)
 - `NAMING_STANDARDS.md` — naming, file, ID, and schema consistency rules
 
 Rules:
@@ -280,3 +281,36 @@ Whenever this README is modified:
 - preserve restart enforcement
 
 If the Table of Contents is outdated, the task is incomplete.
+
+---
+
+## 11. CANONICAL CORE DIRECTIVE
+
+The following files ARE the system:
+
+- `BLD.md` — Build Structure
+- `GRF.md` — File Identity
+- `QRG.md` — Instance Identity
+- `ASSEMBLY.md` — Mapping Layer
+
+These four documents form the COMPLETE and ONLY definition of system behavior.
+
+Rules:
+
+1. No other file may redefine their logic, summarize their rules in a way that changes meaning, introduce alternative structures, or extend their responsibilities.
+
+2. All other documents are supporting, descriptive, and non-authoritative.
+
+3. If any conflict exists:
+   → BLD / GRF / QRG / ASSEMBLY win
+   → All other sources are invalid
+
+4. These files must be read directly — never rely on secondary descriptions.
+
+5. Agents must not infer behavior outside these files, fill gaps with assumptions, or create fallback interpretations.
+
+If an agent attempts to use a non-canonical definition, deviate from these files, or introduce alternate logic:
+
+→ STOP
+→ FLAG VIOLATION
+→ RETURN TO CANONICAL CORE

@@ -65,6 +65,7 @@ RESTART REQUIRED: Refresh step skipped.
 14. Final Response Contract
 15. Failure Rules
 16. TOC Maintenance Rule
+17. Canonical Core Directive
 
 ⚠️ RULE:
 - This Table of Contents MUST be updated whenever sections are added, removed, or renamed.
@@ -284,29 +285,13 @@ No code read = no authorization.
 
 ## 10. QRG LAW
 
-Format:
+All QRG identity rules are defined in:
 
-QRG-[STNNN]-[C]-[IIIIII]-[SSCC]
+- `QRG.md`
 
-Allowed contexts:
-- I = Internal
-- M = Member
-- E = External
-- O = Owner
+Read QRG.md directly. Do NOT rely on secondary descriptions.
 
-FORBIDDEN:
-
-- fake QRG codes
-- PENDING
-- UNASSIGNED
-- fallback marketplace IDs as QRG
-
-REQUIRED:
-
-- server-generated
-- tied to real instance
-
-QRG.md overrides this section if more specific.
+QRG.md is authoritative. This section is a pointer only.
 
 ---
 
@@ -420,3 +405,36 @@ Whenever this file changes:
 - Maintain authority references  
 
 If TOC is outdated → task incomplete.
+
+---
+
+## 17. CANONICAL CORE DIRECTIVE
+
+The following files ARE the system:
+
+- `BLD.md` — Build Structure
+- `GRF.md` — File Identity
+- `QRG.md` — Instance Identity
+- `ASSEMBLY.md` — Mapping Layer
+
+These four documents form the COMPLETE and ONLY definition of system behavior.
+
+Rules:
+
+1. No other file may redefine their logic, summarize their rules in a way that changes meaning, introduce alternative structures, or extend their responsibilities.
+
+2. All other documents are supporting, descriptive, and non-authoritative.
+
+3. If any conflict exists:
+   → BLD / GRF / QRG / ASSEMBLY win
+   → All other sources are invalid
+
+4. These files must be read directly — never rely on secondary descriptions.
+
+5. Agents must not infer behavior outside these files, fill gaps with assumptions, or create fallback interpretations.
+
+If an agent attempts to use a non-canonical definition, deviate from these files, or introduce alternate logic:
+
+→ STOP
+→ FLAG VIOLATION
+→ RETURN TO CANONICAL CORE
