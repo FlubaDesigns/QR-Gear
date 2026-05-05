@@ -1,6 +1,6 @@
 # QR Gear — Agent Skills Reference
 
-Four user-defined skills govern every task in this project. They are mandatory, not optional. A condensed version of these rules also lives in `replit.md` under "Standing Rules — Mandatory Skills" so they are always in context.
+Four user-defined skills govern every task in this project. They are mandatory, not optional. A condensed version of these rules also lives in `REPLIT.md` under "Standing Rules — Mandatory Skills" so they are always in context.
 
 ---
 

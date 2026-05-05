@@ -39,7 +39,7 @@ You are NOT allowed to answer requests, suggest code, write code, modify files, 
 CONFIRMED:
 - Skills loaded
 - README.md read in full
-- replit.md read in full
+- REPLIT.md read in full
 - Authority files read in full
 - NAMING_STANDARDS.md read in full
 - Affected code traced before changes
@@ -73,7 +73,7 @@ No skipping. No reordering. No guessing. No silent completion.
 Agent MUST read FIRST:
 
 - `README.md` (root)
-- `replit.md`
+- `REPLIT.md`
 
 Then read:
 
@@ -94,7 +94,7 @@ TARGET FILES:
 
 FILES READ:
 - README.md
-- replit.md
+- REPLIT.md
 - [other files]
 
 CHANGE PLAN:
@@ -490,8 +490,8 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   shared \
   migrations \
   .agents \
-  replit.md \
-  skills.md \
+  REPLIT.md \
+  SKILLS.md \
   README.md \
   NAMING_STANDARDS.md \
   ADMIN_MANUAL.md \

@@ -20,7 +20,7 @@ async function calculateAuthoritativePrice(customization: CustomizationPricing):
     }
     const product = productDoc.data()!;
     
-    // Per replit.md: "Prices are set by the admin and stored in products.customer_price. 
+    // Per REPLIT.md: "Prices are set by the admin and stored in products.customer_price. 
     // This value is the single source of truth for retail pricing and is never recalculated from base costs."
     const customerPrice = parseFloat(product.customerPrice || product.customer_price || '0');
     if (customerPrice > 0) {

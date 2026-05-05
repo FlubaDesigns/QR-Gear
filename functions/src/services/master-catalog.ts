@@ -84,7 +84,7 @@ const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 
 // ── QRG Top-Level Category Definitions ───────────────────────────────────────
-// Source of truth: replit.md — QRG Numbering System section
+// Source of truth: REPLIT.md — QRG Numbering System section
 // Each top-level gets a X000 code. Subcategories get X100–X900.
 // Each subcategory holds up to 99 products (X101–X199, etc.).
 export const QRG_TOP_LEVEL_CATEGORIES = [

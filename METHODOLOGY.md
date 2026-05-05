@@ -1,6 +1,6 @@
 # QR Gear Methodology
 
-> **Agent reference:** The canonical system reference for this project is [`replit.md`](./replit.md). It contains the full architecture, API routes, deploy commands, standing rules, naming standards, and session rules. Always read it first.
+> **Agent reference:** The canonical system reference for this project is [`REPLIT.md`](./REPLIT.md). It contains the full architecture, API routes, deploy commands, standing rules, naming standards, and session rules. Always read it first.
 
 This document captures the core design principles and architectural decisions for QR Gear. Updates are dated to track evolution.
 
@@ -184,7 +184,7 @@ Each member has isolated storage in Firebase:
 Members should see their drafts (status: 'draft') on their main dashboard, not hidden in the wizard. Click to resume where they left off.
 
 ### Buyer Customizer (Future)
-A completely separate buyer-first experience. Uses different language: "Customize" not "Build", "Preview" not "Publish". See replit.md for full spec.
+A completely separate buyer-first experience. Uses different language: "Customize" not "Build", "Preview" not "Publish". See REPLIT.md for full spec.
 
 ### 8. Five-Layer Distribution Architecture
 **Established: 2026-02-07**
@@ -830,7 +830,7 @@ The `COLOR_HEX_MAP` (100+ entries) lives in both backend (`store-files.ts`) and 
 ### 17. Naming Standards
 **Established: 2026-04-23**
 
-All naming conventions for files, folders, Firestore collections, fields, CSS classes, route paths, and TypeScript constructs are canonically defined in **`replit.md` → "Naming Standards — Project Law"**.
+All naming conventions for files, folders, Firestore collections, fields, CSS classes, route paths, and TypeScript constructs are canonically defined in **`REPLIT.md` → "Naming Standards — Project Law"**.
 
 Key rule: the duplicate Firestore collections (`libraryAssets`/`library_assets`, `printfulProducts`/`printful_products`) were caused by skipping a naming check before creating new collections. All new collections use `snake_case`. Existing camelCase collections are grandfathered — do not rename them without explicit approval.
 

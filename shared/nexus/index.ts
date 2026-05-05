@@ -12,7 +12,7 @@
  * - SolutionRecipe: Compositions of modules that solve problems
  * - ModuleGraph: Library of learned solutions
  * 
- * See replit.md "NEXUS VISION" section for full architecture.
+ * See REPLIT.md "NEXUS VISION" section for full architecture.
  */
 
 // SHELVED - Uncomment to re-enable

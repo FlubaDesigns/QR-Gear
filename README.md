@@ -69,7 +69,7 @@ Read all required skills:
 
 Read in full:
 
-- `replit.md`
+- `REPLIT.md`
 
 Follow all execution rules inside it.
 
@@ -140,7 +140,7 @@ Before proceeding with implementation, you MUST output exactly:
 CONFIRMED:
 - Skills loaded
 - README.md read in full
-- replit.md read in full
+- REPLIT.md read in full
 - Authority files read in full
 - NAMING_STANDARDS.md read in full
 - Affected code traced before changes
@@ -214,7 +214,7 @@ It does not contain all system logic.
 
 System truth lives in these files:
 
-- `replit.md` — execution control, deploy rules, response contract
+- `REPLIT.md` — execution control, deploy rules, response contract
 - `QRG.md` — QR identity law and QRG format
 - `BLD.md` — build logic and build schema
 - `GRF.md` — graphic file identity (what file is this asset)

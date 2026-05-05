@@ -372,7 +372,7 @@ Whenever this file changes:
 
 - update the Table of Contents
 - keep naming rules centralized here
-- remove duplicated naming rules from README.md and replit.md
+- remove duplicated naming rules from README.md and REPLIT.md
 - preserve the no-rename rule
 - preserve code-tracing requirements
 

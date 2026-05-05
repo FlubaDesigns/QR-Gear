@@ -494,7 +494,7 @@ rm /tmp/firebase-sa.json
 
 ### May 5, 2026 — Three-Schema Integrity Audit + Control System Audit (rev 34)
 
-Full end-to-end audit of the QRG → BLD → GRF → Assembly → Packet chain, followed by a full audit of the control system documents (replit.md, README.md, skills.md, NAMING_STANDARDS.md, BLD.md, GRF.md, ASSEMBLY.md, QRG.md). 18 code findings fixed and 6 documentation findings corrected.
+Full end-to-end audit of the QRG → BLD → GRF → Assembly → Packet chain, followed by a full audit of the control system documents (REPLIT.md, README.md, SKILLS.md, NAMING_STANDARDS.md, BLD.md, GRF.md, ASSEMBLY.md, QRG.md). 18 code findings fixed and 6 documentation findings corrected.
 
 **Code fixes (functions/src/):**
 - QRG blank ID validation consolidated into shared `isValidQrgBlankId()` utility across all entry points
@@ -518,7 +518,7 @@ Full end-to-end audit of the QRG → BLD → GRF → Assembly → Packet chain, 
 - QRG.md: restored correct `shared/` paths for `providerQrgMapper.ts` and `qrgVariantMappings.ts`; added drift-risk warning on the (now-deleted) server-side duplicate
 - BLD.md: fixed malformed example ID `BLD-SZ8002` → `BLD-SZ8-002`
 - ASSEMBLY.md: added PATCH and DELETE to the API section with immutability and cleanup rules
-- skills.md: added GRF.md, ASSEMBLY.md, QRG.md, NAMING_STANDARDS.md to the Skill 7 zip export include list
+- SKILLS.md: added GRF.md, ASSEMBLY.md, QRG.md, NAMING_STANDARDS.md to the Skill 7 zip export include list
 
 #### Files Changed
 
@@ -537,7 +537,7 @@ Full end-to-end audit of the QRG → BLD → GRF → Assembly → Packet chain, 
 | `QRG.md` | Source file table corrected + drift warning |
 | `BLD.md` | Example ID typo fixed |
 | `ASSEMBLY.md` | PATCH + DELETE API entries added |
-| `skills.md` | Authority files added to zip export list |
+| `SKILLS.md` | Authority files added to zip export list |
 
 ### May 4, 2026 — master_catalog as Single Source of Truth for Print Placements (rev 33)
 
@@ -1456,7 +1456,7 @@ Replaced the static "Scan this / Goes here" section on the store product page wi
 | `deploy/3-hosting.sh` | New script — deploys Firebase Hosting only (60s timeout budget) |
 | `.agents/skills/always-deploy/SKILL.md` | Updated to three-step methodology with deploy scripts |
 | `.agents/skills/ask-before-starting/SKILL.md` | Removed broken combined deploy command, referenced always-deploy skill |
-| `replit.md` | Added READ SKILLS FIRST banner at top, updated deploy instructions throughout |
+| `REPLIT.md` | Added READ SKILLS FIRST banner at top, updated deploy instructions throughout |
 | `README.md` | Updated Firebase Deployment section to three-step scripts |
 
 ### May 3, 2026 — QRG Model Number on Store Product Page (Item #6)

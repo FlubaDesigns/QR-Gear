@@ -30,7 +30,7 @@ You MUST internally verify:
 
 If you are not certain you are aligned with this file:
 
-- Re-read replit.md
+- Re-read REPLIT.md
 - Re-read relevant authority files
 - THEN proceed
 
@@ -151,7 +151,7 @@ Before ANY implementation, output EXACTLY:
 CONFIRMED:
 - Skills loaded
 - README.md read in full
-- replit.md read in full
+- REPLIT.md read in full
 - Authority files read in full
 - NAMING_STANDARDS.md read in full
 - Affected code traced before changes
@@ -201,7 +201,7 @@ If ANY uncertainty exists:
 
 You MUST:
 
-1. Re-read replit.md  
+1. Re-read REPLIT.md  
 2. Re-read relevant authority file(s)  
 3. THEN proceed  
 
