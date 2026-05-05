@@ -290,7 +290,7 @@ BLD-SZ9-001
 Layer 09 paints last (top of stack).
 
 **Instance 05 (act)** is optional — this build includes it.
-A leaner build of the same product without CTA would be BLD-SZ8002.
+A leaner build of the same product without CTA would be BLD-SZ8-002.
 
 ---
 

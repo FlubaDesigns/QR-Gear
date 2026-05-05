@@ -501,6 +501,10 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   ARCHITECTURE_VIEWER.md \
   ASSET_LIBRARY_SPEC.md \
   BLD.md \
+  GRF.md \
+  ASSEMBLY.md \
+  QRG.md \
+  NAMING_STANDARDS.md \
   tailwind.config.ts \
   tsconfig.json \
   vite.config.ts \

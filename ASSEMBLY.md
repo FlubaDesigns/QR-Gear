@@ -258,6 +258,24 @@ GET /api/admin/assemblies/:assemblyId
 GET /api/admin/assemblies?qrgId=11101
 ```
 
+**Update an Assembly (name and/or mappings):**
+```
+PATCH /api/admin/assemblies/:assemblyId
+{
+  name:     "Updated label",   ← optional
+  mappings: [...]              ← optional — replaces full mappings array
+}
+```
+- `qrgId` and `bldId` are **immutable** once the Assembly has linked Packets (`packetIds` non-empty). Attempting to change them returns `409`.
+- To change structure, create a new Assembly and update the Packet to point to it.
+
+**Delete an Assembly:**
+```
+DELETE /api/admin/assemblies/:assemblyId
+```
+- Returns `409` if the Assembly has any linked Packets (`packetIds` non-empty). Unlink all Packets first.
+- On success, clears `assemblyId` from all linked Packet documents atomically before deleting the Assembly record.
+
 ---
 
 ## Source File

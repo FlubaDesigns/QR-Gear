@@ -265,6 +265,6 @@ Packet  (top-level published offer — pricing, QR content, checkout, product me
 |------|---------------|
 | `shared/qrgCodes.ts` | Size/color code maps, full QRG code builder/parser, blank ID validators |
 | `shared/blankKeys.ts` | Provider key helpers, QRG blank number validators |
-| `functions/src/services/qrgVariantMappings.ts` | Provider → QRG size/color mapping, label maps (server-side only — not in shared/) |
-| *(missing)* `shared/providerQrgMapper.ts` | Normalizes Printify/Printful data into QRG master blank shape — **file does not yet exist**. Logic currently lives server-side. Must be created in shared/ before frontend can access provider normalization. |
+| `shared/qrgVariantMappings.ts` | Provider → QRG size/color mapping, label maps. **Drift risk:** `functions/src/services/qrgVariantMappings.ts` is a diverged server-side copy with its own hardcoded maps (does not import from `qrgCodes.ts`). The two files must be consolidated — server-side copy should be deleted and `functions/` code should import from `shared/`. |
+| `shared/providerQrgMapper.ts` | Normalizes Printify/Printful data into QRG master blank shape |
 | `shared/graphicCodes.ts` | GRF identity system — types, roles, hosting, builder/parser |
