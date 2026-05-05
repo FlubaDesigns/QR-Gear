@@ -489,7 +489,6 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const effectiveCatalogId = catalogId || session.catalogId || null;
 
       // ── Resolve curated title, description, and image list from catalog overrides ──
-      // Priority: catalog blankTitles/blankDescriptions/blankImages > master catalog
       let curatedTitle: string = master.title || "";
       let curatedDescription: string | null = master.description || null;
       let curatedImages: string[] = master.images || [];
@@ -501,8 +500,6 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
             const blankTitles = catData.blankTitles || {};
             const blankDescriptions = catData.blankDescriptions || {};
             const blankImages = catData.blankImages || {};
-            // blankKey is the correct lookup key (e.g. "pf:71" or "36").
-            // sourceMasterId is the Firestore doc ID — wrong key for blankImages.
             const lookupKey = session.blankKey || session.sourceMasterId;
             if (blankTitles[lookupKey]) curatedTitle = blankTitles[lookupKey];
             if (blankDescriptions[lookupKey]) curatedDescription = blankDescriptions[lookupKey];
@@ -512,19 +509,18 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         } catch (_) { /* fall back to master values */ }
       }
 
-      // ── Fetch packet for admin-curated enabledColors/enabledSizes ──
-      // Also read qrgId so it can be written into resolved.qrgId on the new instance.
+      // ── Fetch packet data for colors/sizes and GRF registration ──────────────
       const packetId = session.generated?.packetId || null;
       let packetEnabledColors: string[] | null = null;
       let packetEnabledSizes: string[] | null = null;
-      let packetQrgId: string | null = null;
+      let packetData: Record<string, any> | null = null;
       if (packetId) {
         try {
           const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
           if (packetDoc.exists) {
-            const pkt = packetDoc.data() as any;
-            const rawColors = pkt.colors || pkt.enabledColors || [];
-            const rawSizes = pkt.sizes || pkt.enabledSizes || [];
+            packetData = packetDoc.data() as Record<string, any>;
+            const rawColors = packetData.colors || packetData.enabledColors || [];
+            const rawSizes  = packetData.sizes  || packetData.enabledSizes  || [];
             const normalizedColors = rawColors
               .map((c: any) => (typeof c === "string" ? c : c?.name || c?.label || null))
               .filter(Boolean) as string[];
@@ -532,26 +528,15 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
               .filter((s: any) => typeof s === "string" && s.length > 0) as string[];
             if (normalizedColors.length > 0) packetEnabledColors = normalizedColors;
             if (normalizedSizes.length > 0) packetEnabledSizes = normalizedSizes;
-            if (pkt.qrgId) packetQrgId = pkt.qrgId;
           }
         } catch (_) { /* no packet */ }
       }
-      // resolved.images starts from admin-curated catalog images.
-      // Placement mockup images are written afterward by the client calling /rebuild-images.
-      const finalImages = curatedImages;
-      // ────────────────────────────────────────────────────────────────────────────
 
       const baseSnapshot = {
-        title: curatedTitle,
-        description: curatedDescription,
-        images: finalImages,
-        brand: master.brand || null,
-        colors: master.colors || [],
-        sizes: master.sizes || [],
-        category: master.category || null,
-        originCountry: master.originCountry || null,
-        minPrice: master.minPrice || null,
-        maxPrice: master.maxPrice || null,
+        title: curatedTitle, description: curatedDescription, images: curatedImages,
+        brand: master.brand || null, colors: master.colors || [], sizes: master.sizes || [],
+        category: master.category || null, originCountry: master.originCountry || null,
+        minPrice: master.minPrice || null, maxPrice: master.maxPrice || null,
         printifyBlueprintId: master.printifyBlueprintId || null,
         printfulProductId: master.printfulProductId || null,
       };
@@ -560,15 +545,12 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const w = session.working || {};
       if (w.title && w.title !== master.title) overrides.title = w.title;
       if (w.description && w.description !== master.description) overrides.description = w.description;
-      // When a catalog is active, curatedImages is the authority — do NOT stomp with working.images
       if (!effectiveCatalogId && w.images?.length) overrides.images = w.images;
       const effectivePricing = bodyPricing || w.pricing || null;
       if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;
 
       const resolved = resolveFields(baseSnapshot, overrides);
-      if (packetQrgId) (resolved as any).qrgId = packetQrgId;
-
       const meta = w.metadata || {};
       const selectedStore = meta.selectedStore || null;
       const selectedChannel = meta.selectedChannel || null;
@@ -576,38 +558,123 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(" / ") || null;
 
+      // ── Gate 1: Validate QRG blank identity ─────────────────────────────────
+      const masterQrgBlankId: string | null = master.qrgBlankId || null;
+      if (!masterQrgBlankId || !/^[1-6][1-9]\d{3}$/.test(masterQrgBlankId)) {
+        return res.status(400).json({
+          error: `Master ${session.sourceMasterId} has no valid qrgBlankId — cannot commit without QRG identity. ` +
+                 `Set a valid STNNN blank ID (e.g. qrg_11001) on the master catalog entry.`,
+        });
+      }
+
+      const { allocateQrgInstanceDev, registerPacketGrfsDev, writeBldDev, writeAssemblyDev } =
+        await import("../lib/schema-commit");
+
+      // ── Gate 2: Allocate QRG instance ────────────────────────────────────────
+      const qrgIdentity = await allocateQrgInstanceDev(masterQrgBlankId, 'I');
+      const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
+      console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
+
+      // ── Gate 3: Register GRF assets from packet (BLOCKING) ───────────────────
+      let grfIds = { backgroundGrfId: null as string|null, qrGrfId: null as string|null,
+                     compositeGrfId: null as string|null, landingSnapshotGrfId: null as string|null };
+      if (packetId && packetData) {
+        try {
+          grfIds = await registerPacketGrfsDev(packetData, id, packetId);
+          console.log(`[BuildSessions] GRF registered: bg=${grfIds.backgroundGrfId} qr=${grfIds.qrGrfId} comp=${grfIds.compositeGrfId}`);
+          await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
+            backgroundGrfId: grfIds.backgroundGrfId || null,
+            qrGrfId:         grfIds.qrGrfId         || null,
+            compositeGrfId:  grfIds.compositeGrfId  || null,
+            landingSnapshotGrfId: grfIds.landingSnapshotGrfId || null,
+            qrgBaseCode: qrgIdentity.qrgBaseCode,
+            qrgScanUrl,
+            updatedAt: now,
+          });
+        } catch (grfErr: any) {
+          console.error("[BuildSessions] GRF registration FAILED (blocking):", grfErr.message);
+          return res.status(500).json({
+            error: `Schema commit failed at GRF asset registration: ${grfErr.message}`,
+          });
+        }
+      }
+
+      // ── Gate 4: Write BLD definition (BLOCKING) ──────────────────────────────
+      let bldId: string | null = null;
+      try {
+        const bldResult = await writeBldDev({
+          working: session.working || {},
+          sourceSessionId: id, sourceInstanceId: null,
+          qrgBlankId: qrgIdentity.qrgBlankId, qrgBaseCode: qrgIdentity.qrgBaseCode,
+          packetId,
+        });
+        bldId = bldResult.bldId;
+        console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
+      } catch (bldErr: any) {
+        console.error("[BuildSessions] BLD write FAILED (blocking):", bldErr.message);
+        return res.status(500).json({ error: `Schema commit failed at BLD write: ${bldErr.message}` });
+      }
+
+      // ── Gate 5: Write Assembly with real GRF IDs (BLOCKING) ──────────────────
+      let assemblyId: string | null = null;
+      try {
+        const asmResult = await writeAssemblyDev({
+          working: session.working || {},
+          qrgId: qrgIdentity.qrgBlankId,
+          bldId: bldId!,
+          sourceSessionId: id,
+          packetId,
+          grfIds,
+        });
+        assemblyId = asmResult.assemblyId;
+        console.log(`[BuildSessions] Assembly written: ${assemblyId} (${asmResult.mappingCount} mappings)`);
+      } catch (asmErr: any) {
+        console.error("[BuildSessions] Assembly write FAILED (blocking):", asmErr.message);
+        return res.status(500).json({ error: `Schema commit failed at Assembly write: ${asmErr.message}` });
+      }
+
+      // ── Gate 6: Create admin_catalog_instance (all schema records exist) ─────
       const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
         instanceType: "admin",
         sourceMasterId: session.sourceMasterId,
         sourceSessionId: id,
         catalogId: effectiveCatalogId,
         ownerAdminId: session.ownerAdminId,
-        baseSnapshot,
-        overrides,
-        resolved,
+        baseSnapshot, overrides, resolved,
+        // QRG identity — canonical schema: QRG-[STNNN]-[C]-[NNNNNN]
+        qrgBlankId:     qrgIdentity.qrgBlankId,
+        qrgContext:     qrgIdentity.qrgContext,
+        instanceNumber: qrgIdentity.instanceNumber,
+        qrgBaseCode:    qrgIdentity.qrgBaseCode,
+        qrgScanUrl,
+        // Schema chain IDs — all present before instance creation
+        bldId,
+        assemblyId,
+        backgroundGrfId:      grfIds.backgroundGrfId      || null,
+        qrGrfId:              grfIds.qrGrfId              || null,
+        compositeGrfId:       grfIds.compositeGrfId       || null,
+        landingSnapshotGrfId: grfIds.landingSnapshotGrfId || null,
         enabledColors: packetEnabledColors,
         enabledSizes: packetEnabledSizes,
         currentPacketId: packetId,
         currentTemplateId: session.generated?.templateId || null,
         currentGraphicSetId: session.generated?.graphicSetId || null,
-        storeId: selectedStore?.id || null,
-        storeName: selectedStore?.name || null,
-        channelId: selectedChannel?.id || null,
-        channelName: selectedChannel?.name || null,
-        collectionId: selectedCollection?.id || null,
-        collectionName: selectedCollection?.name || null,
+        storeId: selectedStore?.id || null, storeName: selectedStore?.name || null,
+        channelId: selectedChannel?.id || null, channelName: selectedChannel?.name || null,
+        collectionId: selectedCollection?.id || null, collectionName: selectedCollection?.name || null,
         folderPath,
-        status: "draft",
-        createdAt: now,
-        updatedAt: now,
+        status: "draft", createdAt: now, updatedAt: now,
       });
       const instanceId = instanceRef.id;
 
+      // ── Back-fill instance ownership + schema chain onto packet ──────────────
       if (packetId) {
         await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
           ownerType: "admin",
           ownerInstanceId: instanceId,
           sourceAdminInstanceId: instanceId,
+          bldId,
+          assemblyId,
           updatedAt: now,
         });
       }
@@ -615,16 +682,21 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       await ref.update({
         status: "committed",
         committedInstanceId: instanceId,
+        bldId,
+        assemblyId,
         updatedAt: now,
       });
 
-      console.log(`[BuildSessions] Committed session ${id} → admin instance ${instanceId} (master: ${session.sourceMasterId})`);
+      console.log(`[BuildSessions] Committed session ${id} → instance ${instanceId} (QRG=${qrgIdentity.qrgBaseCode} BLD=${bldId} ASM=${assemblyId})`);
       res.json({
         success: true,
         sessionId: id,
         instanceId,
         sourceMasterId: session.sourceMasterId,
         packetId,
+        bldId,
+        assemblyId,
+        qrgBaseCode: qrgIdentity.qrgBaseCode,
       });
     } catch (err: any) {
       console.error("[BuildSessions] commit error:", err.message);

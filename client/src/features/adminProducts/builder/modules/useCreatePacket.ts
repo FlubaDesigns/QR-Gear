@@ -80,6 +80,17 @@ export function useCreatePacket({
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
 
+    // ── Gate: QRG blank identity must exist before any schema write ────────
+    const product = state.selectedProduct as any;
+    const qrgBlankId: string | null = product?.qrgBlankId || null;
+    if (!qrgBlankId || !/^[1-6][1-9]\d{3}$/.test(qrgBlankId)) {
+      setError(
+        `Cannot save: this product has no valid QRG blank identity (qrgBlankId). ` +
+        `Select a product from the master catalog that has a valid STNNN blank ID (e.g. qrg_11001).`,
+      );
+      return;
+    }
+
     setIsCreating(true);
     setError(null);
     setArtifactError(null);
@@ -88,8 +99,6 @@ export function useCreatePacket({
     try {
       const pricing = calculatePricing();
       if (!pricing) throw new Error("Could not calculate pricing");
-
-      const product = state.selectedProduct as any;
       const availableColors = product?.availableColors || [];
       const availableSizes = product?.availableSizes || [];
       const availablePlacements = product?.availablePlacements || [];
@@ -371,54 +380,9 @@ export function useCreatePacket({
         ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
         : [{ name: state.selectedColor?.name || 'Black', hex: state.selectedColor?.hex || '#000000' }];
 
-      const templateData = await adminFetch<any>("/templates/full-save", {
-        method: "POST",
-        json: {
-          name: state.content?.title || `Template - ${new Date().toLocaleDateString()}`,
-          description: state.content?.description || "",
-          category: state.qrProductState || "General",
-          productId: state.selectedProduct?.id || null,
-          blueprintId: product?.blueprintId || 0,
-          printProviderId: product?.printProviderId || null,
-          fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-          colors: productColors,
-          placements: state.selectedPlacements || ["front"],
-          placementMethods: state.placementMethods || {},
-          qrSizes: ["small", "medium", "large"],
-          artworkUrl: productGraphicUrl, artworkVariant: "black",
-          thumbnailUrl: productGraphicUrl || "",
-          qrContent: finalQrContent, pricing, packetId,
-          productName: state.selectedProduct?.title || product?.name || null,
-          headerText: state.content?.headerStyle?.enabled ? (state.content.headerStyle.text || null) : null,
-          footerText: state.content?.footerStyle?.enabled ? (state.content.footerStyle.text || null) : null,
-          headerStyle: state.content?.headerStyle?.enabled ? state.content.headerStyle : null,
-          footerStyle: state.content?.footerStyle?.enabled ? state.content.footerStyle : null,
-          subBottomEnabled: state.content?.subBottomStyle?.enabled || false,
-          subBottomText: state.content?.subBottomStyle?.text || '',
-          subBottomFontFamily: state.content?.subBottomStyle?.fontFamily || 'Arial',
-          subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
-          subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
-          subBottomColor: state.content?.subBottomStyle?.color || '#666666',
-          backgroundUrl: state.loadedBackground?.url || null,
-          qrProductState: state.qrProductState || 'qr_canvas',
-          areaImageUrl: state.content?.areaImageUrl || null,
-          areaImageMode: state.content?.areaImageMode || 'behind-qr',
-          areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
-          areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
-          areaImageScale: state.content?.areaImageScale ?? 100,
-          graphicLayoutMode: state.content?.graphicLayoutMode || 'zone',
-          qrSizePercent: state.content?.qrSizePercent ?? 75,
-          qrPositionX: state.content?.qrPositionX ?? 50,
-          qrPositionY: state.content?.qrPositionY ?? 50,
-        },
-      }).catch(() => ({}));
-
-      console.log(`[CreatePacket] Template saved, mockup jobs queued: ${templateData?.jobsQueued || 0}`);
-
-      adminFetch("/queue/process", {
-        method: "POST",
-        json: { limit: 3 },
-      }).catch(() => {});
+      // Template auto-save is intentionally removed from the commit flow.
+      // Templates are a separate concern and must not be part of schema-chain commits.
+      // Call /templates/full-save independently if template persistence is needed.
 
       // Legacy storeProductLinks creation removed — admin_catalog_instances
       // (created by the build session commit below) is now the sole source of truth.

@@ -402,13 +402,12 @@ const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASSEMBLIES_COLLECTION   = 'assemblies';
 
 export interface AutoAssemblyMapping {
-  seq:            string;
-  type:           string;
-  value?:         string;    // txt / act → text content
-  color?:         string;    // txt / act → color override
-  imageUrl?:      string;    // img → raw URL (pending formal GRF registration)
-  grfId?:         string;    // img / qrc → set later when GRF asset is registered
-  grfIdPending?:  boolean;   // Fix 11: true when slot exists but GRF has not yet been registered
+  seq:       string;
+  type:      string;
+  value?:    string;    // txt / act → text content
+  color?:    string;    // txt / act → color override
+  imageUrl?: string;    // img → original URL (preserved for reference)
+  grfId?:    string;    // img / qrc → canonical GRF ID (must be real, never pending)
 }
 
 export interface WriteAutoAssemblyOptions {
@@ -417,6 +416,13 @@ export interface WriteAutoAssemblyOptions {
   bldId:            string;           // e.g. "BLD-SZ9-001"
   sourceSessionId:  string | null;
   packetId:         string | null;
+  /** Real GRF IDs for asset slots — must be registered before calling this */
+  grfIds?: {
+    backgroundGrfId?:      string | null;
+    qrGrfId?:              string | null;
+    compositeGrfId?:       string | null;
+    landingSnapshotGrfId?: string | null;
+  };
 }
 
 export interface WriteAutoAssemblyResult {
@@ -430,11 +436,16 @@ export interface WriteAutoAssemblyResult {
  * Mirrors extractBldInstances in sequence order but captures content values
  * (text strings, image URLs) rather than styling metadata.
  *
- * Asset slots (img, qrc) are recorded without grfId at auto-create time.
- * grfId can be back-filled later via PATCH /admin/assemblies/:assemblyId
- * when the corresponding GRF asset is formally registered.
+ * Asset slots (img, qrc) require real GRF IDs — pass them via grfIds.
+ * Throws if an asset slot is present but no GRF ID is provided.
  */
-export function extractAssemblyMappings(working: Record<string, any>): AutoAssemblyMapping[] {
+export function extractAssemblyMappings(
+  working: Record<string, any>,
+  grfIds?: {
+    backgroundGrfId?: string | null;
+    qrGrfId?:         string | null;
+  },
+): AutoAssemblyMapping[] {
   const graphics = (working.graphics || {}) as Record<string, any>;
   const content  = (graphics.content  || {}) as Record<string, any>;
 
@@ -443,17 +454,31 @@ export function extractAssemblyMappings(working: Record<string, any>): AutoAssem
   const pad = (n: number) => String(n).padStart(2, '0');
 
   // ── 01 img — background image ─────────────────────────────────────────────
-  // grfIdPending: true signals that this slot exists but the GRF asset has not
-  // yet been registered. A grfId must be back-filled before the mapping is complete.
   const bgUrl      = graphics.loadedBackground?.url || null;
   const areaImgUrl = content.areaImageUrl || null;
   const imageUrl   = bgUrl || areaImgUrl || null;
   if (imageUrl) {
-    mappings.push({ seq: pad(seq++), type: 'img', imageUrl, grfIdPending: true });
+    const grfId = grfIds?.backgroundGrfId || null;
+    if (!grfId) {
+      throw new Error(
+        `[Assembly] Background image slot has no registered GRF ID. ` +
+        `Register the asset via registerGrfAsset() before writing Assembly.`,
+      );
+    }
+    mappings.push({ seq: pad(seq++), type: 'img', grfId, imageUrl });
   }
 
-  // ── 02 qrc — QR code slot (always present, grfId pending) ─────────────────
-  mappings.push({ seq: pad(seq++), type: 'qrc', grfIdPending: true });
+  // ── 02 qrc — QR code slot (always present — requires registered GRF asset) ─
+  {
+    const grfId = grfIds?.qrGrfId || null;
+    if (!grfId) {
+      throw new Error(
+        `[Assembly] QR code slot has no registered GRF ID. ` +
+        `Register the QR image via registerGrfAsset() before writing Assembly.`,
+      );
+    }
+    mappings.push({ seq: pad(seq++), type: 'qrc', grfId });
+  }
 
   // ── 03 txt — header ───────────────────────────────────────────────────────
   const header = content.headerStyle || {};
@@ -495,12 +520,13 @@ export function extractAssemblyMappings(working: Record<string, any>): AutoAssem
 /**
  * Mint an ASM ID atomically and write an Assembly document to Firestore.
  * Called automatically at build-session commit (after writeBldDefinition).
- * Never throws — callers should wrap in try/catch and treat as non-fatal.
+ * @throws if any asset slot (img, qrc) is missing a registered GRF ID.
+ * Callers must register all GRF assets via registerGrfAsset() first.
  */
 export async function writeAutoAssembly(opts: WriteAutoAssemblyOptions): Promise<WriteAutoAssemblyResult> {
-  const { working, qrgId, bldId, sourceSessionId, packetId } = opts;
+  const { working, qrgId, bldId, sourceSessionId, packetId, grfIds } = opts;
 
-  const mappings = extractAssemblyMappings(working);
+  const mappings = extractAssemblyMappings(working, grfIds);
 
   // Atomically mint the next ASM sequence number
   const counterRef = db.collection(ASM_COUNTERS_COLLECTION).doc('global');

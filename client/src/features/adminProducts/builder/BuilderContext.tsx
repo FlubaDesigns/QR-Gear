@@ -164,6 +164,45 @@ function normalizeLandingTextBlocks(blocks: any[]): any[] {
   }));
 }
 
+/**
+ * Compute a client-side BLD draft summary from the current builder state.
+ * Mirrors the server-side extractBldInstances logic (bld-builder.ts) but
+ * produces a lightweight preview — no IDs, no Firestore writes.
+ * Used in autosave so the server can validate the draft shape without a commit.
+ */
+function buildBldDraft(state: BuilderState): Record<string, any> {
+  const content = state.content || {};
+  const layers: Array<{ seq: string; type: string; role?: string; text?: string }> = [];
+  let seq = 1;
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  const bgUrl    = state.loadedBackground?.url || null;
+  const areaUrl  = content.areaImageUrl || null;
+  if (bgUrl || areaUrl) {
+    layers.push({ seq: pad(seq++), type: 'img', role: bgUrl ? 'background' : 'area_image' });
+  }
+  layers.push({ seq: pad(seq++), type: 'qrc' });
+
+  if (content.headerStyle?.enabled && content.headerStyle?.text)
+    layers.push({ seq: pad(seq++), type: 'txt', role: 'header', text: content.headerStyle.text });
+  if (content.footerStyle?.enabled && content.footerStyle?.text)
+    layers.push({ seq: pad(seq++), type: 'txt', role: 'footer', text: content.footerStyle.text });
+  if (content.subBottomStyle?.enabled && content.subBottomStyle?.text)
+    layers.push({ seq: pad(seq++), type: 'txt', role: 'sub_bottom', text: content.subBottomStyle.text });
+  for (const block of (Array.isArray(content.landingTextBlocks) ? content.landingTextBlocks : [])) {
+    const b = block as any;
+    if (b.enabled && b.text)
+      layers.push({ seq: pad(seq++), type: 'txt', role: b.role || 'landing_text', text: b.text });
+  }
+
+  return {
+    qrgBlankId:    (state.selectedProduct as any)?.qrgBlankId ?? null,
+    layoutMode:    content.graphicLayoutMode || 'zone',
+    instanceCount: layers.length,
+    layers,
+  };
+}
+
 function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
   const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
   // PROGRESSIVE TRUTH — WRITE STRICT PACKET VALUES ONLY.
@@ -213,6 +252,8 @@ function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext):
       selectedChannel: ctx.selectedChannel ?? null,
       selectedCollection: ctx.selectedCollection ?? null,
     },
+    // BLD draft — mirrors server-side extractBldInstances for session-level visibility
+    bldDraft: buildBldDraft(state),
   };
 }
 

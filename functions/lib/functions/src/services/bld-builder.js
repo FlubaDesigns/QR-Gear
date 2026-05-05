@@ -301,27 +301,36 @@ const ASSEMBLIES_COLLECTION = 'assemblies';
  * Mirrors extractBldInstances in sequence order but captures content values
  * (text strings, image URLs) rather than styling metadata.
  *
- * Asset slots (img, qrc) are recorded without grfId at auto-create time.
- * grfId can be back-filled later via PATCH /admin/assemblies/:assemblyId
- * when the corresponding GRF asset is formally registered.
+ * Asset slots (img, qrc) require real GRF IDs — pass them via grfIds.
+ * Throws if an asset slot is present but no GRF ID is provided.
  */
-function extractAssemblyMappings(working) {
+function extractAssemblyMappings(working, grfIds) {
     const graphics = (working.graphics || {});
     const content = (graphics.content || {});
     const mappings = [];
     let seq = 1;
     const pad = (n) => String(n).padStart(2, '0');
     // ── 01 img — background image ─────────────────────────────────────────────
-    // grfIdPending: true signals that this slot exists but the GRF asset has not
-    // yet been registered. A grfId must be back-filled before the mapping is complete.
     const bgUrl = graphics.loadedBackground?.url || null;
     const areaImgUrl = content.areaImageUrl || null;
     const imageUrl = bgUrl || areaImgUrl || null;
     if (imageUrl) {
-        mappings.push({ seq: pad(seq++), type: 'img', imageUrl, grfIdPending: true });
+        const grfId = grfIds?.backgroundGrfId || null;
+        if (!grfId) {
+            throw new Error(`[Assembly] Background image slot has no registered GRF ID. ` +
+                `Register the asset via registerGrfAsset() before writing Assembly.`);
+        }
+        mappings.push({ seq: pad(seq++), type: 'img', grfId, imageUrl });
     }
-    // ── 02 qrc — QR code slot (always present, grfId pending) ─────────────────
-    mappings.push({ seq: pad(seq++), type: 'qrc', grfIdPending: true });
+    // ── 02 qrc — QR code slot (always present — requires registered GRF asset) ─
+    {
+        const grfId = grfIds?.qrGrfId || null;
+        if (!grfId) {
+            throw new Error(`[Assembly] QR code slot has no registered GRF ID. ` +
+                `Register the QR image via registerGrfAsset() before writing Assembly.`);
+        }
+        mappings.push({ seq: pad(seq++), type: 'qrc', grfId });
+    }
     // ── 03 txt — header ───────────────────────────────────────────────────────
     const header = content.headerStyle || {};
     if (header.enabled && header.text) {
@@ -362,11 +371,12 @@ function extractAssemblyMappings(working) {
 /**
  * Mint an ASM ID atomically and write an Assembly document to Firestore.
  * Called automatically at build-session commit (after writeBldDefinition).
- * Never throws — callers should wrap in try/catch and treat as non-fatal.
+ * @throws if any asset slot (img, qrc) is missing a registered GRF ID.
+ * Callers must register all GRF assets via registerGrfAsset() first.
  */
 async function writeAutoAssembly(opts) {
-    const { working, qrgId, bldId, sourceSessionId, packetId } = opts;
-    const mappings = extractAssemblyMappings(working);
+    const { working, qrgId, bldId, sourceSessionId, packetId, grfIds } = opts;
+    const mappings = extractAssemblyMappings(working, grfIds);
     // Atomically mint the next ASM sequence number
     const counterRef = core_1.db.collection(ASM_COUNTERS_COLLECTION).doc('global');
     const sequence = await core_1.db.runTransaction(async (txn) => {

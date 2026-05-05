@@ -551,16 +551,96 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(' / ') || null;
 
-      // ── Allocate QRG identity for this new instance ────────────────────────
-      // context = 'I' (Internal — admin-created catalog instance)
+      // ── Gate 1: Validate QRG blank identity ────────────────────────────────
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
       if (!masterQrgBlankId || !isValidQrgBlankId(masterQrgBlankId)) {
-        res.status(400).json({ error: `Master ${session.sourceMasterId} has no valid qrgBlankId — cannot commit session without QRG identity` });
+        res.status(400).json({
+          error: `Master ${session.sourceMasterId} has no valid qrgBlankId — cannot commit without QRG identity. ` +
+                 `Set a valid STNNN blank ID (e.g. qrg_11001) on the master catalog entry.`,
+        });
         return;
       }
-      const qrgIdentity = await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
 
-      // ── Always CREATE a new instance — every commit is a new catalog entry ──
+      // ── Gate 2: Allocate QRG instance (atomically minted — never hand-coded) ──
+      const qrgIdentity = await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
+      const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
+      console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
+
+      // ── Gate 3: Register GRF assets from packet (BLOCKING — Assembly requires real IDs) ──
+      let grfIds: { backgroundGrfId: string | null; qrGrfId: string | null; compositeGrfId: string | null; landingSnapshotGrfId: string | null } = {
+        backgroundGrfId: null, qrGrfId: null, compositeGrfId: null, landingSnapshotGrfId: null,
+      };
+      if (newPacketId) {
+        try {
+          const packetSnap = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).get();
+          if (packetSnap.exists) {
+            const { registerPacketGrfAssets } = await import('../services/grf-registrar');
+            grfIds = await registerPacketGrfAssets(packetSnap.data() as Record<string, any>, id, newPacketId);
+            console.log(`[BuildSessions] GRF assets registered: bg=${grfIds.backgroundGrfId} qr=${grfIds.qrGrfId} comp=${grfIds.compositeGrfId}`);
+            // Back-fill GRF IDs onto packet for schema traceability
+            await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
+              backgroundGrfId:      grfIds.backgroundGrfId      || null,
+              qrGrfId:              grfIds.qrGrfId              || null,
+              compositeGrfId:       grfIds.compositeGrfId       || null,
+              landingSnapshotGrfId: grfIds.landingSnapshotGrfId || null,
+              qrgBaseCode:          qrgIdentity.qrgBaseCode,
+              qrgScanUrl,
+              updatedAt: now,
+            });
+          }
+        } catch (grfErr: any) {
+          console.error(`[BuildSessions] GRF registration FAILED (blocking):`, grfErr.message);
+          res.status(500).json({
+            error: `Schema commit failed at GRF asset registration: ${grfErr.message}. ` +
+                   `Cannot write Assembly without registered GRF IDs.`,
+          });
+          return;
+        }
+      }
+
+      // ── Gate 4: Write BLD definition (BLOCKING — commit fails if BLD write fails) ──
+      let bldId: string | null = null;
+      try {
+        const bldResult = await writeBldDefinition({
+          working:          session.working || {},
+          sourceSessionId:  id,
+          sourceInstanceId: null,  // back-filled onto instance after creation
+          qrgBlankId:       qrgIdentity.qrgBlankId,
+          qrgBaseCode:      qrgIdentity.qrgBaseCode,
+          packetId:         newPacketId,
+        });
+        bldId = bldResult.bldId;
+        console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
+      } catch (bldErr: any) {
+        console.error(`[BuildSessions] BLD write FAILED (blocking):`, bldErr.message);
+        res.status(500).json({
+          error: `Schema commit failed at BLD write: ${bldErr.message}`,
+        });
+        return;
+      }
+
+      // ── Gate 5: Write Assembly with real GRF IDs (BLOCKING) ─────────────────
+      let assemblyId: string | null = null;
+      try {
+        const asmResult = await writeAutoAssembly({
+          working:         session.working || {},
+          qrgId:           qrgIdentity.qrgBlankId,
+          bldId:           bldId!,
+          sourceSessionId: id,
+          packetId:        newPacketId,
+          grfIds,
+        });
+        assemblyId = asmResult.assemblyId;
+        console.log(`[BuildSessions] Assembly written: ${assemblyId} (${asmResult.mappingCount} mappings)`);
+      } catch (asmErr: any) {
+        console.error(`[BuildSessions] Assembly write FAILED (blocking):`, asmErr.message);
+        res.status(500).json({
+          error: `Schema commit failed at Assembly write: ${asmErr.message}`,
+        });
+        return;
+      }
+
+      // ── Gate 6: Create admin_catalog_instance (all schema records exist) ────
       const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
         instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
         catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
@@ -570,94 +650,47 @@ export function registerAdminBuildSessions(app: express.Express): void {
         qrgContext:     qrgIdentity.qrgContext,
         instanceNumber: qrgIdentity.instanceNumber,
         qrgBaseCode:    qrgIdentity.qrgBaseCode,
+        qrgScanUrl,
         variantCode:    qrgIdentity.variantCode,
         qrgFullCode:    qrgIdentity.qrgFullCode,
-        // Admin-curated selections from the builder — overrides full provider catalog at storefront
+        // Schema chain IDs — all must be present before instance creation
+        bldId,
+        assemblyId,
+        backgroundGrfId:      grfIds.backgroundGrfId      || null,
+        qrGrfId:              grfIds.qrGrfId              || null,
+        compositeGrfId:       grfIds.compositeGrfId       || null,
+        landingSnapshotGrfId: grfIds.landingSnapshotGrfId || null,
+        // Admin-curated selections from the builder
         enabledColors: packetEnabledColors,
         enabledSizes: packetEnabledSizes,
         currentPacketId: newPacketId, currentTemplateId: session.generated?.templateId || null,
         currentGraphicSetId: session.generated?.graphicSetId || null,
-        storeId: selectedStore?.id || null,
-        storeName: selectedStore?.name || null,
-        channelId: selectedChannel?.id || null,
-        channelName: selectedChannel?.name || null,
-        collectionId: selectedCollection?.id || null,
-        collectionName: selectedCollection?.name || null,
+        storeId: selectedStore?.id || null, storeName: selectedStore?.name || null,
+        channelId: selectedChannel?.id || null, channelName: selectedChannel?.name || null,
+        collectionId: selectedCollection?.id || null, collectionName: selectedCollection?.name || null,
         folderPath,
         status: 'draft', createdAt: now, updatedAt: now,
       });
       const instanceId = instanceRef.id;
-      console.log(`[BuildSessions] Created new instance ${instanceId} from session ${id}`);
+      console.log(`[BuildSessions] Created instance ${instanceId} (QRG=${qrgIdentity.qrgBaseCode} BLD=${bldId} ASM=${assemblyId})`);
 
+      // ── Back-fill instance ownership + schema chain onto packet ─────────────
       if (newPacketId) {
         await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
-          ownerType: 'admin',
-          ownerInstanceId: instanceId,
+          ownerType:            'admin',
+          ownerInstanceId:      instanceId,
           sourceAdminInstanceId: instanceId,
+          bldId,
+          assemblyId,
           updatedAt: now,
         });
       }
 
-      // ── Write BLD definition (fire-and-forget, never blocks commit) ────────
-      // The working state holds the full builder snapshot.
-      // We write BLD after the QRG instance exists so we can link both IDs.
-      let bldId: string | null = null;
-      try {
-        const bldResult = await writeBldDefinition({
-          working:          session.working || {},
-          sourceSessionId:  id,
-          sourceInstanceId: instanceId,
-          qrgBlankId:       qrgIdentity.qrgBlankId,
-          qrgBaseCode:      qrgIdentity.qrgBaseCode,
-          packetId:         newPacketId,
-        });
-        bldId = bldResult.bldId;
-        console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
-
-        // Back-fill bldId onto the admin_catalog_instance for traceability
-        await instanceRef.update({ bldId, updatedAt: now });
-      } catch (bldErr: any) {
-        // BLD write failure must never block the commit response
-        console.error(`[BuildSessions] BLD write failed (non-fatal):`, bldErr.message);
-      }
-
-      // ── Write Assembly definition (fire-and-forget, after BLD) ────────────
-      // Assembly is the glue record linking QRG + BLD + content mappings.
-      // Only created when BLD succeeded (so we have a valid bldId to link).
-      let assemblyId: string | null = null;
-      if (bldId) {
-        try {
-          const asmResult = await writeAutoAssembly({
-            working:         session.working || {},
-            qrgId:           qrgIdentity.qrgBlankId,
-            bldId,
-            sourceSessionId: id,
-            packetId:        newPacketId,
-          });
-          assemblyId = asmResult.assemblyId;
-          console.log(`[BuildSessions] Assembly written: ${assemblyId} (${asmResult.mappingCount} mappings)`);
-
-          // Back-fill assemblyId onto the packet so the four-schema chain is complete
-          if (newPacketId) {
-            await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
-              assemblyId,
-              updatedAt: now,
-            });
-          }
-
-          // Back-fill assemblyId onto the admin_catalog_instance for traceability
-          await instanceRef.update({ assemblyId, updatedAt: now });
-        } catch (asmErr: any) {
-          // Assembly write failure must never block the commit response
-          console.error(`[BuildSessions] Assembly write failed (non-fatal):`, asmErr.message);
-        }
-      }
-
       await ref.update({
-        status: 'committed',
+        status:             'committed',
         committedInstanceId: instanceId,
-        bldId:       bldId       || null,
-        assemblyId:  assemblyId  || null,
+        bldId,
+        assemblyId,
         updatedAt: now,
       });
 
@@ -666,9 +699,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
         sessionId: id,
         instanceId,
         sourceMasterId: session.sourceMasterId,
-        packetId:    newPacketId,
-        bldId:       bldId      || null,
-        assemblyId:  assemblyId || null,
+        packetId:   newPacketId,
+        bldId,
+        assemblyId,
+        qrgBaseCode: qrgIdentity.qrgBaseCode,
       });
     } catch (err: any) {
       console.error('[BuildSessions] commit error:', err.message);
