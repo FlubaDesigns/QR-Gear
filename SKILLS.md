@@ -21,8 +21,11 @@ Before doing ANY task, you MUST:
 - Read all required skills
 - Read README.md
 - Follow the README REQUIRED FLOW
+- Verify MANIFEST.json by running: `node scripts/verify-manifest.js`
 
 You are NOT allowed to answer requests, suggest code, write code, modify files, run commands, deploy, or rename anything until README.md authorizes execution.
+
+MANIFEST is not optional. If manifest verification fails → STOP. Report the exact failure. Do not assume server files, ZIP files, or local files are current unless manifest passes.
 
 ### Mandatory Skill Load Order
 
@@ -43,6 +46,7 @@ CONFIRMED:
 - Authority files read in full
 - NAMING_STANDARDS.md read in full
 - Affected code traced before changes
+- MANIFEST.json verified (node scripts/verify-manifest.js passed)
 
 ### Restart Enforcement
 
@@ -490,21 +494,26 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   shared \
   migrations \
   .agents \
+  scripts/generate-manifest.js \
+  scripts/verify-manifest.js \
+  MANIFEST.json \
   REPLIT.md \
   SKILLS.md \
   README.md \
   NAMING_STANDARDS.md \
+  SYSTEM_KEYS.md \
   ADMIN_MANUAL.md \
   METHODOLOGY.md \
   PRODUCTION_INVENTORY.md \
   ARCHITECTURE_IDENTITY.md \
   ARCHITECTURE_VIEWER.md \
   ASSET_LIBRARY_SPEC.md \
+  FIREBASE_SCHEMA.md \
+  design_guidelines.md \
   BLD.md \
   GRF.md \
   ASSEMBLY.md \
   QRG.md \
-  NAMING_STANDARDS.md \
   tailwind.config.ts \
   tsconfig.json \
   vite.config.ts \

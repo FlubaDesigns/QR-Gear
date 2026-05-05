@@ -80,6 +80,39 @@ ALL other ".md" files
 
 ---
 
+🔐 ZIP / MANIFEST INTEGRITY CHECK (MANDATORY)
+
+Before any agent proceeds:
+
+1. Confirm MANIFEST.json exists at project root
+2. Run manifest verification:
+
+   node scripts/verify-manifest.js
+
+   or:
+
+   npm run manifest:verify
+
+3. Confirm all Canonical Core files are present and hash-valid
+
+If verification fails:
+
+→ STOP
+→ REPORT EXACT FAILURE
+→ DO NOT BUILD
+→ DO NOT DEPLOY
+→ DO NOT MODIFY unrelated files
+
+MANIFEST must be regenerated LAST after any intentional file change:
+
+   npm run manifest:generate
+
+Regenerate ONLY after confirming the change was intentional.
+If any tracked file changes after MANIFEST.json is generated, verification will fail.
+This is correct behavior — it means something changed unexpectedly.
+
+---
+
 🧪 FILE PRESENCE CHECK (MANDATORY)
 
 Before proceeding, the agent MUST confirm the existence of:
