@@ -18,34 +18,6 @@ import { printfulClient, updatePrintfulKeyCache } from '../services/printful';
   export function register(app: express.Express): void {
 // ============ BATCH: MISC ADMIN ROUTES ============
 
-app.get('/admin/background-assets', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('background_assets').orderBy('createdAt', 'desc').get();
-    const assets = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ assets });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('background_assets').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.put('/admin/background-assets/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('background_assets').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.delete('/admin/background-assets/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('background_assets').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
 app.get('/admin/graphic-sets', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -373,34 +345,6 @@ app.get('/library-files/member/:userId/:mediaType/:filename', async (req: Reques
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/admin/library', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('library').orderBy('createdAt', 'desc').get();
-    const items = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ items });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/admin/library', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('library').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.put('/admin/library/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('library').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('library').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
 app.post('/admin/upload', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {

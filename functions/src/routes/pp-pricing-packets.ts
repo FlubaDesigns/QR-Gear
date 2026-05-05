@@ -352,16 +352,14 @@ app.delete('/admin/packets/:packetId', requireAdmin, async (req: Request, res: R
     const docRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-    const cascadeResults = { graphics: 0, templates: 0, storeProductLinks: 0 };
-    const graphicsSnap = await db.collection("productGraphics").where("packetId", "==", packetId).get();
-    for (const graphicDoc of graphicsSnap.docs) { await graphicDoc.ref.delete(); cascadeResults.graphics++; }
+    const cascadeResults = { templates: 0, storeProductLinks: 0 };
     const templatesSnap = await db.collection("productTemplates").where("packetId", "==", packetId).get();
     for (const templateDoc of templatesSnap.docs) { await templateDoc.ref.delete(); cascadeResults.templates++; }
     const linksSnap = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("packetId", "==", packetId).get();
     for (const linkDoc of linksSnap.docs) { await linkDoc.ref.delete(); cascadeResults.storeProductLinks++; }
     await docRef.delete();
     console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);
-    res.json({ success: true, packetId, cascade: cascadeResults, message: "Packet and related data deleted" });
+    res.json({ success: true, packetId, cascade: { graphics: 0, ...cascadeResults }, message: "Packet and related data deleted" });
   } catch (error: any) {
     console.error("[Packets DELETE] Error:", error);
     res.status(500).json({ error: error.message });

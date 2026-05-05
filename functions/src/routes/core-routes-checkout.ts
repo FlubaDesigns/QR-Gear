@@ -344,26 +344,6 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
   }
 });
 
-// PUBLIC test endpoint - no auth
-app.get('/test-images', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('library_assets').where('isActive', '==', true).limit(20).get();
-    const assets = snapshot.docs.map(doc => {
-      const data = doc.data();
-      const storageUrl = data.storageUrl || '';
-      const filename = storageUrl.split('/').pop() || '';
-      return {
-        id: doc.id,
-        name: data.name,
-        storageUrl,
-        publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
-      };
-    });
-    res.json(assets);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // PUBLIC test endpoint - real product config data (no auth)
 

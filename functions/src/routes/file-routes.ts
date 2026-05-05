@@ -454,29 +454,6 @@ app.post('/admin/background-assets/sync', requireAdmin, async (req: Request, res
 
 // ============ ADMIN LIBRARY ENDPOINTS ============
 
-// Admin: Get all library assets with optional filters
-app.get('/admin/library', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { ownerType, assetType, mediaType, category, season, event } = req.query;
-    let query: FirebaseFirestore.Query = db.collection('library_assets');
-    
-    if (ownerType) query = query.where('ownerType', '==', ownerType);
-    if (assetType) query = query.where('assetType', '==', assetType);
-    if (mediaType) query = query.where('mediaType', '==', mediaType);
-    if (category) query = query.where('category', '==', category);
-    if (season) query = query.where('season', '==', season);
-    if (event) query = query.where('event', '==', event);
-    
-    const snapshot = await query.get();
-    const assets = docsToArray(snapshot);
-    const assetsWithSignedUrls = await addSignedUrlsToAssets(assets);
-    res.json(assetsWithSignedUrls);
-  } catch (error: any) {
-    console.error('[Library] Error fetching assets:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Admin: Get admin-owned library assets
 app.get('/admin/library/admin', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -509,23 +486,6 @@ app.get('/admin/library/templates', requireAdmin, async (req: Request, res: Resp
     res.json(templates);
   } catch (error: any) {
     console.error('[Library] Error fetching templates:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Admin: Create library asset
-app.post('/admin/library', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const assetData = {
-      ...req.body,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    const docRef = await db.collection('library_assets').add(assetData);
-    const doc = await docRef.get();
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    console.error('[Library] Error creating asset:', error);
     res.status(500).json({ error: error.message });
   }
 });

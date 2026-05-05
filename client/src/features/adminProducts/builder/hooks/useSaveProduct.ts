@@ -65,7 +65,6 @@ export function useSaveProduct() {
   const queryClient = useQueryClient();
 
   const invalidateLibrary = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/admin/library-assets"] });
     queryClient.invalidateQueries({ queryKey: ["/api/admin/templates"] });
   };
 
