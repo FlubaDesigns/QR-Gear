@@ -6,6 +6,14 @@
 
 ---
 
+## Changelog
+
+| Date | Update |
+|------|--------|
+| 2026-05-05 | Hardening pass — Mapping Enforcement Rules section added: slot count (required only), 1:1 assignment (required only), vehicle type matching, slot order, complete required mapping (required only, optional slots exempt), no fallback/auto-generation, no conditional logic, QRG anchor requirement; Pre-Build Validation Phase checklist (7 checks); Assembly Responsibility Boundary section added |
+
+---
+
 ## Overview
 
 Assembly is the internal binding record that links a product blank (QRG) to a build structure (BLD) and maps each build slot to an actual graphic asset (GRF). It is the glue. Nothing more.
@@ -145,6 +153,108 @@ If a BLD defines a slot as optional (e.g. `act` / CTA), the mapping entry may be
 
 ---
 
+## Mapping Enforcement Rules
+
+### Slot Count (Fix 1)
+
+Assembly mapping count must equal the count of **required** BLD slots.
+
+- Fewer required slot mappings than BLD defines → INVALID
+- More mappings than BLD slots → INVALID
+- Optional slots (e.g. `act`) may be omitted — their absence is not an error
+
+Mismatch on required slots:
+- STOP BUILD
+- THROW ERROR
+
+### 1:1 Slot Assignment (Fix 2)
+
+Each **required** BLD slot index must resolve to exactly one Assembly mapping.
+
+- No missing required slots
+- No duplicate assignments for the same slot
+- No multi-mapping per slot
+- Optional slots may be absent — this is not a violation
+
+Violation:
+- THROW ERROR
+- REJECT ASSEMBLY
+
+### Vehicle Type Matching (Fix 3)
+
+Each Assembly slot must match the vehicle type defined for that slot in BLD.
+
+If BLD slot defines `img` → Assembly must supply a GRF asset with a compatible typeCode.
+If BLD slot defines `qrc` → Assembly must supply a GRF asset with typeCode `04`.
+If BLD slot defines `txt` or `act` → Assembly must supply a `value` string, not a GRF ID.
+
+Mismatch:
+- THROW ERROR
+- REJECT BUILD
+
+### Slot Order (Fix 4)
+
+Assembly mappings are order-dependent.
+
+- Slot sequence must match BLD slot sequence exactly
+- Reordering is not allowed
+- Slot index is authoritative — sequence numbers are not suggestions
+
+Any deviation:
+- THROW ERROR
+
+### Complete Required Mapping (Fix 5)
+
+An Assembly is invalid if any **required** slot is unassigned.
+
+Not allowed in required slots:
+- null values
+- placeholder GRF IDs
+- temporary assets
+- fallback content
+
+Optional slots may be legitimately absent. Required slots may not.
+
+Missing required slot:
+- STOP BUILD
+- THROW ERROR
+
+### No Fallback / No Auto-Generation (Fix 6)
+
+Assembly does not support:
+- fallback assets
+- auto-generated content
+- default substitutions
+
+All mappings must be explicit and valid. If data is missing:
+- FAIL
+- DO NOT RECOVER
+
+### No Conditional Logic (Fix 7)
+
+Assembly contains no conditional logic.
+
+Forbidden:
+- if/else behavior
+- device-based decisions
+- dynamic substitutions
+- runtime transformations
+
+Assembly is static mapping only.
+
+### QRG Anchor Requirement (Fix 8)
+
+Every Assembly must be anchored to exactly one valid QRG identity.
+
+- No Assembly without a valid `qrgId`
+- One Assembly → one QRG
+- `qrgId` must resolve to a real, active record in `master_catalog`
+
+Invalid or missing QRG:
+- REJECT ASSEMBLY
+
+---
+
 ## Assembly ID Format
 
 ```
@@ -232,6 +342,43 @@ store: "partner-store-01"
 channel: "veterans"
 status: "published"
 ```
+
+---
+
+## Pre-Build Validation Phase (Fix 9)
+
+Before any build execution, all of the following must pass:
+
+1. BLD exists and is valid
+2. Assembly slot count matches required BLD slot count
+3. All required slots are assigned
+4. All GRF references resolve to valid, active `grf_assets` records
+5. All vehicle types match BLD slot expectations
+6. Slot order matches BLD sequence exactly
+7. QRG identity is valid and resolves to an active `master_catalog` record
+
+If any check fails:
+- STOP
+- THROW ERROR
+- DO NOT BUILD
+
+---
+
+## Assembly Responsibility Boundary (Fix 10)
+
+Assembly maps slots to assets. Nothing more.
+
+Assembly must NOT:
+- Define layout — that is BLD responsibility
+- Define file identity — that is GRF responsibility
+- Define product or blank identity — that is QRG responsibility
+- Define rendering behavior
+- Contain conditional logic
+- Contain pricing, product options, or checkout data — those are Packet responsibility
+
+Assembly ONLY maps BLD slots → GRF assets under a QRG identity.
+
+Any attempt to extend Assembly beyond mapping is invalid.
 
 ---
 
