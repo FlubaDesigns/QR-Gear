@@ -11,37 +11,38 @@ import { adminFetch } from "@/lib/adminFetch";
 
 interface GraphicAsset {
   id: string;
+  grfId: string;
   name: string;
   description?: string | null;
   publicUrl: string;
-  thumbnailUrl?: string | null;
-  storageUrl?: string;
-  graphicId?: string | null;
-  graphicType?: string | null;
+  mimeType?: string | null;
+  storagePath?: string | null;
   typeCode?: string | null;
+  typeName?: string | null;
   roleCode?: string | null;
-  hostingMode?: 'O' | 'L' | null;
-  subtype?: string | null;
-  relatedPacketId?: string | null;
+  sourceGrfId?: string | null;
+  tags?: string[] | null;
   createdAt?: string | null;
+  createdBy?: string | null;
   isActive?: boolean;
 }
 
 const TYPE_CODE_LABELS: Record<string, string> = {
+  '01': 'Source',
+  '02': 'Cropped',
+  '03': 'Background',
   '04': 'QR Graphic',
   '05': 'Canvas Design',
   '06': 'URL Artifact',
   '07': 'Template',
-  '01': 'Source',
-  '02': 'Cropped',
-  '03': 'Background',
 };
 
-const HOSTING_LABELS: Record<string, string> = { '0': 'Online', '1': 'Local' };
-
-const SUBTYPE_LABELS: Record<string, string> = {
-  '1': 'Image', '2': 'Video', '3': 'Document', '4': 'Audio',
-  '5': 'Zone',  '6': 'Canvas', '7': 'Text',   '8': 'Graphic', '9': 'Composite',
+const ROLE_CODE_LABELS: Record<string, string> = {
+  '1': 'Source',
+  '2': 'Derivative',
+  '3': 'Renderable',
+  '4': 'Final',
+  '5': 'Template',
 };
 
 function GraphicCard({
@@ -53,8 +54,9 @@ function GraphicCard({
   onClick: () => void;
   onArchive: (id: string) => void;
 }) {
-  const imageUrl = asset.thumbnailUrl || asset.publicUrl;
-  const typeLabel = asset.typeCode ? (TYPE_CODE_LABELS[asset.typeCode] ?? asset.graphicType ?? 'Graphic') : (asset.graphicType ?? 'Graphic');
+  const typeLabel = asset.typeCode
+    ? (TYPE_CODE_LABELS[asset.typeCode] ?? asset.typeName ?? 'Graphic')
+    : (asset.typeName ?? 'Graphic');
 
   return (
     <div
@@ -63,9 +65,9 @@ function GraphicCard({
       data-testid={`card-graphic-${asset.id}`}
     >
       <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-        {imageUrl ? (
+        {asset.publicUrl ? (
           <img
-            src={imageUrl}
+            src={asset.publicUrl}
             alt={asset.name}
             className="w-full h-full object-contain"
             loading="lazy"
@@ -75,10 +77,10 @@ function GraphicCard({
         )}
       </div>
 
-      {asset.graphicId && (
+      {asset.grfId && (
         <div className="absolute top-1.5 left-1.5">
           <Badge className="text-xs font-mono px-1.5 py-0.5 bg-background/90 text-foreground border">
-            {asset.graphicId}
+            {asset.grfId}
           </Badge>
         </div>
       )}
@@ -100,9 +102,9 @@ function GraphicCard({
         </p>
         <p className="text-xs text-muted-foreground">
           {typeLabel}
-          {asset.hostingMode && asset.subtype && (
+          {asset.roleCode && (
             <span className="ml-1 opacity-70">
-              · {HOSTING_LABELS[asset.hostingMode] ?? asset.hostingMode} {SUBTYPE_LABELS[asset.subtype] ?? asset.subtype}
+              · {ROLE_CODE_LABELS[asset.roleCode] ?? asset.roleCode}
             </span>
           )}
         </p>
@@ -131,8 +133,8 @@ function GraphicDetailPanel({
   hasNext: boolean;
 }) {
   const typeLabel = asset.typeCode
-    ? (TYPE_CODE_LABELS[asset.typeCode] ?? asset.graphicType ?? 'Graphic')
-    : (asset.graphicType ?? 'Graphic');
+    ? (TYPE_CODE_LABELS[asset.typeCode] ?? asset.typeName ?? 'Graphic')
+    : (asset.typeName ?? 'Graphic');
 
   return (
     <div className="p-4 space-y-3">
@@ -146,25 +148,17 @@ function GraphicDetailPanel({
         <div className="flex items-center gap-1.5 flex-wrap">
           <Badge variant="secondary" className="text-xs">{typeLabel}</Badge>
           {asset.roleCode && (
-            <Badge variant="outline" className="text-xs font-mono">{asset.roleCode}</Badge>
-          )}
-          {asset.hostingMode && (
             <Badge variant="outline" className="text-xs">
-              {HOSTING_LABELS[asset.hostingMode] ?? asset.hostingMode}
-            </Badge>
-          )}
-          {asset.subtype && (
-            <Badge variant="outline" className="text-xs">
-              {SUBTYPE_LABELS[asset.subtype] ?? asset.subtype}
+              {ROLE_CODE_LABELS[asset.roleCode] ?? asset.roleCode}
             </Badge>
           )}
         </div>
       </div>
 
-      {asset.graphicId && (
+      {asset.grfId && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Tag className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="font-mono select-all" data-testid="text-detail-graphic-id">{asset.graphicId}</span>
+          <span className="font-mono select-all" data-testid="text-detail-graphic-id">{asset.grfId}</span>
         </div>
       )}
 
@@ -217,15 +211,15 @@ export default function GraphicsTab() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const { data: assets = [], isLoading } = useQuery<GraphicAsset[]>({
-    queryKey: ["library", "/api/admin", "assets", "graphic"],
-    queryFn: () => adminFetch<GraphicAsset[]>("/background-assets?type=graphic"),
+    queryKey: ["library", "/api/admin", "assets", "grf"],
+    queryFn: () => adminFetch<GraphicAsset[]>("/graphics"),
   });
 
   const archiveMutation = useMutation({
-    mutationFn: (id: string) =>
-      adminFetch(`/background-assets/${id}`, { method: "DELETE" }),
+    mutationFn: (grfId: string) =>
+      adminFetch(`/graphics/${grfId}/archive`, { method: "PATCH" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["library", "/api/admin", "assets", "graphic"] });
+      queryClient.invalidateQueries({ queryKey: ["library", "/api/admin", "assets", "grf"] });
       setSelectedIndex(null);
       toast({ title: "Archived", description: "Graphic removed from library" });
     },
@@ -307,7 +301,7 @@ export default function GraphicsTab() {
           <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center overflow-hidden">
             {selectedAsset?.publicUrl ? (
               <img
-                src={selectedAsset.thumbnailUrl || selectedAsset.publicUrl}
+                src={selectedAsset.publicUrl}
                 alt={selectedAsset.name}
                 className="max-w-full max-h-full object-contain"
                 data-testid="img-gallery-preview"

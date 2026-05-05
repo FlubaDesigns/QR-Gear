@@ -597,78 +597,6 @@ app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Respons
 
 // PUBLIC TEST: Delete a store product link - NO AUTH REQUIRED
 
-// Admin: Save graphics (QR-only and/or composite) to library
-app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { name, description, category, qrOnlyUrl, compositeUrl, storeId, channelId } = req.body;
-
-    // URLs are generated after packet creation, so no validation here
-
-    const now = admin.firestore.FieldValue.serverTimestamp();
-    let qrAssetId: string | null = null;
-    let compositeAssetId: string | null = null;
-
-    // Create QR-only asset if URL provided
-    if (qrOnlyUrl) {
-      const qrMetadata: Record<string, any> = { isQrOnly: true };
-      if (storeId) qrMetadata.storeId = storeId;
-      if (channelId) qrMetadata.channelId = channelId;
-      
-      const qrAssetData = {
-        name: `${name || 'Untitled'} - QR Only`,
-        assetType: 'graphic',
-        mediaType: 'image',
-        ownerType: 'admin',
-        publicUrl: qrOnlyUrl,
-        storageUrl: qrOnlyUrl,
-        thumbnailUrl: qrOnlyUrl,
-        category: category || 'qr-graphics',
-        isActive: true,
-        metadata: qrMetadata,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const qrDocRef = await db.collection('library_assets').add(qrAssetData);
-      qrAssetId = qrDocRef.id;
-    }
-
-    // Create composite asset if URL provided
-    if (compositeUrl) {
-      const compositeMetadata: Record<string, any> = { isComposite: true };
-      if (storeId) compositeMetadata.storeId = storeId;
-      if (channelId) compositeMetadata.channelId = channelId;
-      
-      const compositeAssetData = {
-        name: `${name || 'Untitled'} - Composite`,
-        assetType: 'graphic',
-        mediaType: 'image',
-        ownerType: 'admin',
-        publicUrl: compositeUrl,
-        storageUrl: compositeUrl,
-        thumbnailUrl: compositeUrl,
-        category: category || 'composite-graphics',
-        isActive: true,
-        metadata: compositeMetadata,
-        createdAt: now,
-        updatedAt: now,
-      };
-      const compositeDocRef = await db.collection('library_assets').add(compositeAssetData);
-      compositeAssetId = compositeDocRef.id;
-    }
-
-    console.log(`[Graphics] Saved graphics: QR=${qrAssetId}, Composite=${compositeAssetId}`);
-
-    res.json({
-      success: true,
-      qrAssetId,
-      compositeAssetId,
-      message: `Graphics saved to library${qrAssetId ? ' - QR saved' : ''}${compositeAssetId ? ' - Composite saved' : ''}`,
-    });
-  } catch (error: any) {
-    console.error('[Graphics] Error saving graphics:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Admin: Mint a GRF code and save a graphic asset to grf_assets
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -764,6 +692,25 @@ app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Pr
     res.json(assets);
   } catch (error: any) {
     console.error('[GRF] Error fetching graphics:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: Archive (soft-delete) a GRF asset
+app.patch('/admin/graphics/:grfId/archive', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { grfId } = req.params;
+    const docRef = db.collection('grf_assets').doc(grfId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      res.status(404).json({ error: `GRF asset not found: ${grfId}` });
+      return;
+    }
+    await docRef.update({ isActive: false, archivedAt: admin.firestore.FieldValue.serverTimestamp() });
+    console.log(`[GRF] Archived ${grfId}`);
+    res.json({ success: true, grfId });
+  } catch (error: any) {
+    console.error('[GRF] Error archiving graphic:', error);
     res.status(500).json({ error: error.message });
   }
 });

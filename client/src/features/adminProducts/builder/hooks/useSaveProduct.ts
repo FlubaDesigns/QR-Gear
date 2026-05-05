@@ -59,8 +59,6 @@ interface SaveResult {
   templateId?: string;
   productId?: string;
   jobsQueued?: number;
-  qrAssetId?: string;
-  compositeAssetId?: string;
 }
 
 export function useSaveProduct() {
@@ -73,7 +71,7 @@ export function useSaveProduct() {
 
   const saveToStoreMutation = useMutation({
     mutationFn: async ({ store, channel, builderState }: SaveToStoreParams): Promise<SaveResult> => {
-      const { selectedProduct, qrProductState, content } = builderState;
+      const { selectedProduct } = builderState;
       
       if (!selectedProduct?.id) {
         throw new Error("No product selected");
@@ -168,51 +166,6 @@ export function useSaveProduct() {
     },
   });
 
-  const saveGraphics = async (builderState: BuilderState): Promise<SaveResult> => {
-    const { content, qrProductState, artworkUrl, qrOnlyUrl: qrOnlyUrlFromState } = builderState;
-    
-    const qrOnlyUrl = qrOnlyUrlFromState || "";
-    const compositeUrl = artworkUrl || "";
-
-    const graphicsPricing = (builderState as any).pricing;
-    const gfxTitleText = content.titleStyle?.text || content.title || "";
-    const gfxDescText = content.descriptionStyle?.text || content.description || "";
-    const graphicsData = {
-      name: gfxTitleText || `Graphic - ${new Date().toLocaleDateString()}`,
-      description: gfxDescText,
-      category: qrProductState?.line || "General",
-      qrOnlyUrl: qrOnlyUrl,
-      compositeUrl: compositeUrl,
-      qrContent: content.url || "",
-      pricing: graphicsPricing || null,
-    };
-
-    const response = await apiRequest("POST", "/api/admin/graphics/save", graphicsData);
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(result.error || "Failed to save graphics");
-    }
-    
-    invalidateLibrary();
-    
-    return {
-      success: true,
-      message: "Graphics saved to library",
-      qrAssetId: result.qrAssetId || result.qrAsset?.id,
-      compositeAssetId: result.compositeAssetId || result.compositeAsset?.id,
-    };
-  };
-
-  const saveGraphicsMutation = useMutation({
-    mutationFn: async (builderState: BuilderState): Promise<SaveResult> => {
-      return saveGraphics(builderState);
-    },
-    onSuccess: () => {
-      invalidateLibrary();
-    },
-  });
-
   const saveAllMutation = useMutation({
     mutationFn: async ({ store, channel, builderState }: SaveToStoreParams): Promise<SaveResult[]> => {
       const results: SaveResult[] = [];
@@ -222,13 +175,6 @@ export function useSaveProduct() {
         results.push(templateResult);
       } catch (e: any) {
         results.push({ success: false, message: `Template failed: ${e.message}` });
-      }
-
-      try {
-        const graphicsResult = await saveGraphics(builderState);
-        results.push(graphicsResult);
-      } catch (e: any) {
-        results.push({ success: false, message: `Graphics failed: ${e.message}` });
       }
 
       try {
@@ -250,10 +196,8 @@ export function useSaveProduct() {
   return {
     saveToStore: saveToStoreMutation,
     saveAsTemplate: saveAsTemplateMutation,
-    saveGraphics: saveGraphicsMutation,
     saveAll: saveAllMutation,
     saveAsTemplateWithOptions: saveAsTemplate,
-    saveGraphicsWithOptions: saveGraphics,
-    isSaving: saveToStoreMutation.isPending || saveAsTemplateMutation.isPending || saveGraphicsMutation.isPending || saveAllMutation.isPending,
+    isSaving: saveToStoreMutation.isPending || saveAsTemplateMutation.isPending || saveAllMutation.isPending,
   };
 }

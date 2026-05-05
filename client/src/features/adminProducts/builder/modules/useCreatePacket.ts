@@ -366,16 +366,6 @@ export function useCreatePacket({
         },
       });
 
-      await adminFetch("/graphics/save", {
-        method: "POST",
-        json: {
-          name: state.content?.title || `Graphic - ${new Date().toLocaleDateString()}`,
-          description: state.content?.description || "",
-          category: state.qrProductState || "General",
-          qrOnlyUrl: qrUrl, compositeUrl: productGraphicUrl,
-          qrContent: finalQrContent, pricing, packetId,
-        },
-      }).catch(() => {});
 
       const productColors = availableColors.length > 0
         ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
