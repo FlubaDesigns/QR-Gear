@@ -956,113 +956,75 @@ Encoded as **Code 128**. Every garment ever produced has a globally unique barco
 
 ## Section 18 — GRF Graphic Reference Format
 
-Every graphic asset in the platform is identified by a single unified GRF code. The schema describes what the asset is, its role in the pipeline, where it lives, and how it presents — in one readable string.
+Every graphic asset in the platform is identified by a single unified GRF code. GRF answers one question only: **what file is this?** Layout, context, placement, and usage live in BLD and Assembly — never in GRF.
 
-### Full Schema
+**Full spec:** See [`GRF.md`](./GRF.md).
+
+### ID Format
 
 ```
-GRF - [TT] - [K] - [H] - [ST] - [NNNNNN]
-       ↑       ↑     ↑      ↑       ↑
-     type    role  host  subtype sequence
+GRF - [TT] - [K] - [NNNNNN]
+       ↑       ↑       ↑
+     type    role   sequence
 ```
-
-All segments are numeric. No letters.
 
 | Segment | Width | Description |
 |---------|-------|-------------|
 | `GRF` | 3 | Brand prefix — always present |
-| `[TT]` | 2 digits | Asset type code — what kind of graphic this is |
-| `[K]` | 1 digit | Role code — where this asset sits in the production pipeline |
-| `[H]` | 1 digit | Hosting mode — `0`=Online (hosted URL) · `1`=Local (design-layer construct) |
-| `[ST]` | 1 digit | Presentation subtype — branches by hosting mode (see below) |
-| `[NNNNNN]` | 6 digits | Atomic sequence number, zero-padded (000001–999999) |
+| `[TT]` | 2 digits | Asset type code |
+| `[K]` | 1 digit | Role code — production lifecycle stage |
+| `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded (000001–999999) |
 
 ### Type Codes `[TT]`
 
-| Code | Name | Description |
+| Code | Name | Valid Roles |
 |------|------|-------------|
-| `01` | Upload Source | Raw uploaded file — original, untouched |
-| `02` | Cropped Derivative | Cropped or resized version of an upload |
-| `03` | Background | Background image asset |
-| `04` | QR Graphic | Graphic built around or containing a QR code |
-| `05` | Canvas Design | Full canvas composition |
-| `06` | URL Artifact Image | Image captured from or linked to a URL artifact |
-| `07` | Template Graphic | Reusable graphic template |
+| `01` | upload_source | 1 |
+| `02` | cropped_derivative | 2 |
+| `03` | background | 3 |
+| `04` | qr_graphic | 3 |
+| `05` | canvas_design | 3, 4 |
+| `06` | url_artifact_asset | 3 |
+| `07` | template_graphic | 5 |
 
 ### Role Codes `[K]`
 
-| Code | Name | Description |
-|------|------|-------------|
-| `1` | Source | Original input — not yet processed |
-| `2` | Derivative | Derived from a source (crop, resize, transform) |
-| `3` | Renderable | Ready to be rendered into a product or surface |
-| `4` | Final | Finished, approved, committed output |
-| `5` | Template | Reusable master — spawns derivatives |
-
-### Hosting Mode `[H]`
-
-| Code | Name | Description |
-|------|------|-------------|
-| `0` | Online | Asset exists as a hosted URL — live and addressable |
-| `1` | Local | Design-layer construct — not yet or never published to a URL |
-
-### Presentation Subtype `[ST]`
-
-Subtype meaning branches depending on the hosting mode.
-
-**When Online (`H=0`):**
-
-| Code | Name | Description |
-|------|------|-------------|
-| `1` | Image | PNG, JPG, WebP, SVG — static image file |
-| `2` | Video | MP4, WebM — video asset |
-| `3` | Document | PDF or document format |
-| `4` | Audio | Audio file |
-
-**When Local (`H=1`):**
-
-| Code | Name | Description |
-|------|------|-------------|
-| `5` | Zone | A defined spatial region on a canvas or product surface |
-| `6` | Canvas | A full canvas design — may contain multiple layers |
-| `7` | Text | Text-only layer or text-based graphic |
-| `8` | Graphic | Standalone graphic element |
-| `9` | Composite | Multiple elements combined into one construct |
-
-### Sequence Number `[NNNNNN]`
-
-Six-digit zero-padded integer. Minted atomically from the `grf_counters` Firestore collection, keyed by `{typeCode}_{roleCode}` (e.g. `04_3`). Same atomic counter pattern as `qrg_counters`. Guarantees uniqueness within each type+role bucket.
-
-### Examples
-
-```
-GRF-04-3-0-1-000001   QR Graphic · Renderable · Online · Image · #1
-GRF-05-4-1-6-000003   Canvas Design · Final · Local · Canvas · #3
-GRF-03-3-0-2-000012   Background · Renderable · Online · Video · #12
-GRF-01-1-1-8-000007   Upload Source · Source · Local · Graphic · #7
-GRF-07-5-1-9-000002   Template · Template role · Local · Composite · #2
-```
+| Code | Name |
+|------|------|
+| `1` | Source |
+| `2` | Derivative |
+| `3` | Renderable |
+| `4` | Final |
+| `5` | Template |
 
 ### Regex
 
 ```
-^GRF-(01|02|03|04|05|06|07)-[12345]-[01]-[123456789]-[0-9]{6}$
+^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$
+```
+
+### Examples
+
+```
+GRF-04-3-000001   QR Graphic · Renderable · #1
+GRF-05-4-000003   Canvas Design · Final · #3
+GRF-03-3-000007   Background · Renderable · #7
 ```
 
 ### Authority File
 
-`shared/graphicCodes.ts` — canonical implementation: `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`, `GRF_TYPE_MAP`, `grfCounterKey()`.
+`shared/graphicCodes.ts` — canonical implementation: `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`, `assertValidGraphicId()`, `GRF_TYPE_MAP`, `GRF_VALID_PAIRINGS`, `grfCounterKey()`.
 
 ### Firestore
 
 | Collection | Purpose |
 |------------|---------|
 | `grf_counters` | Atomic sequence counters. Doc ID = `{typeCode}_{roleCode}` (e.g. `04_3`). Field: `count` (integer). |
-| `library_assets` | Graphic asset records. Field `assetType="graphic"` identifies GRF assets. Field `grfId` holds the full GRF code. |
+| `grf_assets` | GRF asset records. Doc ID = grfId. Fields: grfId, typeCode, roleCode, typeName, name, description, mimeType, storagePath, publicUrl, sourceGrfId, relatedPacketId, tags, isActive, archivedAt, createdAt, createdBy. |
 
 ### Relationship to QRG
 
-The QRG schema (`QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`) identifies **products and instances**. The GRF schema identifies **graphic assets** — the visual building blocks that products are assembled from. A QRG instance may reference one or many GRF assets, but the two schemas are independent and never mixed.
+The QRG schema identifies **products and instances**. GRF identifies **graphic asset files** — the visual building blocks. A QRG instance may reference GRF assets via Assembly mappings, but the two schemas are independent and never mixed.
 
 ---
 

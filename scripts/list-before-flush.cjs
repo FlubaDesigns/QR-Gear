@@ -42,7 +42,7 @@ async function main() {
     console.log(`\n  TOTAL: ${sessions.size} session(s)`);
   }
 
-  // ── 3. library_assets / productGraphics ───────────────────────────────────
+  // ── 3. library_assets (backgrounds, sources, templates) ──────────────────
   console.log('\n══════════════════════════════════════════');
   console.log('  FIRESTORE: library_assets');
   console.log('══════════════════════════════════════════');
@@ -52,12 +52,27 @@ async function main() {
   } else {
     assets.docs.forEach(doc => {
       const d = doc.data();
-      console.log(`  [${doc.id}] grfId=${d.grfId ?? '—'} type=${d.assetType ?? '—'} name=${d.name ?? '—'}`);
+      console.log(`  [${doc.id}] assetType=${d.assetType ?? '—'} name=${d.name ?? '—'}`);
     });
     console.log(`\n  TOTAL: ${assets.size} asset(s)`);
   }
 
-  // ── 4. Firebase Storage top-level folders ────────────────────────────────
+  // ── 4. grf_assets (GRF identity system) ──────────────────────────────────
+  console.log('\n══════════════════════════════════════════');
+  console.log('  FIRESTORE: grf_assets');
+  console.log('══════════════════════════════════════════');
+  const grfAssets = await db.collection('grf_assets').get();
+  if (grfAssets.empty) {
+    console.log('  (empty)');
+  } else {
+    grfAssets.docs.forEach(doc => {
+      const d = doc.data();
+      console.log(`  [${doc.id}] typeCode=${d.typeCode ?? '—'} roleCode=${d.roleCode ?? '—'} name=${d.name ?? '—'} isActive=${d.isActive ?? '—'}`);
+    });
+    console.log(`\n  TOTAL: ${grfAssets.size} asset(s)`);
+  }
+
+  // ── 5. Firebase Storage top-level folders ────────────────────────────────
   console.log('\n══════════════════════════════════════════');
   console.log('  STORAGE: top-level folder listing');
   console.log('══════════════════════════════════════════');

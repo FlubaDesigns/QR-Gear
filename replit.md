@@ -128,13 +128,12 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 
 ### GRF Graphic Reference Format
 - **GRF Identity Schema (FINAL)**: `GRF-[TT]-[K]-[NNNNNN]` — all segments numeric, no letters. Authority file: `shared/graphicCodes.ts`.
-  - **Type `[TT]`** (2 digits): `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact Image · `07`=Template Graphic
+  - **Type `[TT]`** (2 digits): `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact Asset · `07`=Template Graphic
   - **Role `[K]`** (1 digit): `1`=Source · `2`=Derivative · `3`=Renderable · `4`=Final · `5`=Template
   - **Sequence `[NNNNNN]`** (6 digits): zero-padded, minted atomically from `grf_counters/{typeCode}_{roleCode}` in Firestore
-  - **Hosting mode and content subtype** are stored as fields in `grf_assets/{grfId}` — NOT in the ID
   - **Full example**: `GRF-04-3-000001` = QR Graphic, Renderable, #1
   - **Regex**: `^GRF-(01|02|03|04|05|06|07)-[12345]-[0-9]{6}$`
-  - **Firestore**: `grf_counters` (atomic counters, doc ID = `{typeCode}_{roleCode}`) · `grf_assets` (file metadata per asset: url, dimensions, mime type, storage path)
+  - **Firestore**: `grf_counters` (atomic counters, doc ID = `{typeCode}_{roleCode}`) · `grf_assets/{grfId}` (fields: grfId, typeCode, roleCode, typeName, name, description, mimeType, storagePath, publicUrl, sourceGrfId, relatedPacketId, tags, isActive, createdAt, createdBy)
   - **API**: `POST /admin/graphics/save-grf` — required body: `typeCode`, `roleCode`, `imageUrl`
   - **Relationship to QRG/BLD**: GRF identifies asset files only. Layout and context live in BLD. Asset-to-slot binding lives in Assembly. GRF is always the leaf node.
   - **Full spec**: GRF.md · METHODOLOGY.md Section 18

@@ -519,45 +519,6 @@ app.delete('/admin/library/:id', requireAdmin, async (req: Request, res: Respons
   }
 });
 
-// PUBLIC TEST: Save graphics (QR-only and/or composite) to library - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get all templates - NO AUTH REQUIRED
-
-// PUBLIC TEST: Create template linked to packet - NO AUTH REQUIRED
-
-// PUBLIC TEST: Full template save with batch mockup generation - NO AUTH REQUIRED
-
-// PUBLIC TEST: Create product packet (master record) - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get all product packets - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get product packet by ID - NO AUTH REQUIRED
-
-// PUBLIC TEST: Update packet with final URLs - NO AUTH REQUIRED
-
-// PUBLIC TEST: Delete packet - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get landing page by slug - NO AUTH REQUIRED
-
-// PUBLIC TEST: Delete template - NO AUTH REQUIRED
-
-// PUBLIC TEST: Upload content (composite or media) to Firebase Storage - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get mockups for a template - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get mockup queue status - NO AUTH REQUIRED
-
-// PUBLIC TEST: Process pending mockup jobs - NO AUTH REQUIRED
-
-// PUBLIC TEST: Get all store-product links (for debugging) - NO AUTH REQUIRED
-
-// PUBLIC TEST: Create store-product link (package linking) - NO AUTH REQUIRED
-
-// PUBLIC TEST: Update a store product link - NO AUTH REQUIRED
-
-// PUBLIC TEST: Delete a store product link - NO AUTH REQUIRED
-
-
 // Admin: Mint a GRF code and save a graphic asset to grf_assets
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {

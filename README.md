@@ -363,8 +363,6 @@ All segments are numeric. No letters.
 | `[K]` | 1 digit | Role — where this asset sits in the production pipeline |
 | `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded, unique per type+role bucket |
 
-Hosting mode and content subtype are stored as fields in `grf_assets/{grfId}` — not in the ID.
-
 **Type codes `[TT]`**
 
 | Code | Name |
@@ -398,7 +396,7 @@ GRF-03-3-000007   Background · Renderable · sequence 7
 
 **Authority file:** `shared/graphicCodes.ts` — `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`
 
-**Firestore:** `grf_counters/{typeCode}_{roleCode}` (atomic counter) · `grf_assets/{grfId}` (file metadata: url, dimensions, mime type, storage path)
+**Firestore:** `grf_counters/{typeCode}_{roleCode}` (atomic counter) · `grf_assets/{grfId}` (fields: grfId, typeCode, roleCode, typeName, name, publicUrl, mimeType, storagePath, sourceGrfId, relatedPacketId, tags, isActive, createdAt)
 
 **API:** `POST /api/admin/graphics/save-grf` — mints a GRF code and writes to `grf_assets`. Required body: `typeCode`, `roleCode`, `imageUrl`.
 
