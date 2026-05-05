@@ -69,6 +69,7 @@ TIER 2 — CONTROL LAYER
 - README.md
 - REPLIT.md
 - SKILLS.md
+- NAMING_STANDARDS.md
 - METHODOLOGY.md
 
 TIER 3+ — NON-CANONICAL
@@ -89,6 +90,7 @@ Before proceeding, the agent MUST confirm the existence of:
 - ASSEMBLY.md
 - REPLIT.md
 - SKILLS.md
+- NAMING_STANDARDS.md
 
 If ANY file is missing:
 
@@ -105,10 +107,60 @@ Agents MUST read in this order:
 1. README.md (this file)
 2. SKILLS.md
 3. REPLIT.md
-4. BLD.md
-5. GRF.md
-6. QRG.md
-7. ASSEMBLY.md
+4. NAMING_STANDARDS.md
+5. BLD.md
+6. GRF.md
+7. QRG.md
+8. ASSEMBLY.md
+
+---
+
+✅ REQUIRED CONFIRMATION (MANDATORY OUTPUT)
+
+Before ANY implementation, agents MUST output EXACTLY:
+
+CONFIRMED:
+- README.md read in full
+- SKILLS.md read in full
+- REPLIT.md read in full
+- NAMING_STANDARDS.md read in full
+- BLD.md read in full
+- GRF.md read in full
+- QRG.md read in full
+- ASSEMBLY.md read in full
+- Affected code traced before changes
+
+If this confirmation cannot be truthfully produced:
+
+→ STOP
+→ DO NOT PROCEED
+→ DO NOT WRITE CODE
+→ DO NOT RUN COMMANDS
+
+If confirmation is absent from the response:
+
+→ RESTART REQUIRED: Confirmation missing.
+
+---
+
+🔍 CODE-TRACING REQUIREMENT
+
+Reading documentation is NOT enough.
+
+Before changing ANY file, agents MUST trace:
+
+- Where the data starts
+- How the data transforms
+- Where the data is saved
+- Where the data is loaded
+- Where the data is rendered
+- What naming is used throughout
+- What other files depend on it
+
+If code has not been traced:
+
+→ IMPLEMENTATION IS NOT AUTHORIZED
+→ DO NOT MODIFY FILES
 
 ---
 
