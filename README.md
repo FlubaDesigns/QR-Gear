@@ -1,316 +1,168 @@
-# QR Gear System – ENTRY POINT CONTROL ROUTER
+# QR GEAR SYSTEM — ROOT README (ENFORCED)
+
+========================================
+SYSTEM ENTRY POINT — MANDATORY READ
+
+This document controls ALL agent behavior at startup.
+
+This is NOT a general README.
+This is an execution router and enforcement layer.
+
+Agents MUST follow this sequence exactly.
 
 ---
 
-## TABLE OF CONTENTS
-
-1. Execution Gate
-2. Required Flow
-3. Required Confirmation
-4. Enforcement Rule
-5. System Identity
-6. System Structure
-7. Authority Map
-8. Code-Tracing Requirement
-9. Final Rule
-10. README Maintenance Rule
-11. Canonical Core Directive
-
----
-
-## 1. EXECUTION GATE
-
-STOP.
-
-This README is the required entry point for the QR Gear project.
-
-You are NOT allowed to:
-
-- write code
-- suggest code
-- modify files
-- run commands
-- deploy
-- answer implementation questions
-- rename files, classes, IDs, collections, fields, routes, or components
-
-UNTIL the REQUIRED FLOW below is completed.
-
-Failure to complete the REQUIRED FLOW makes the response invalid.
-
----
-
-## 2. REQUIRED FLOW
-
-You MUST complete ALL steps in this exact order.
-
-No skipping.  
-No summarizing instead of reading.  
-No assuming prior knowledge.  
-No relying on memory.
-
----
-
-### STEP 1 — LOAD ALL SKILLS
-
-Read all required skills:
-
-- `.agents/skills/read-all-skills/SKILL.md`
-- `.agents/skills/read-code-first/SKILL.md`
-- `.agents/skills/ask-before-starting/SKILL.md`
-- `.agents/skills/always-deploy/SKILL.md`
-- `.agents/skills/fail-loudly/SKILL.md`
-- `.agents/skills/update-readmes/SKILL.md`
-- `.agents/skills/present-changed-files/SKILL.md`
-
----
-
-### STEP 2 — LOAD CONTROL FILE
-
-Read in full:
-
-- `REPLIT.md`
-
-Follow all execution rules inside it.
-
----
-
-### STEP 3 — LOAD AUTHORITY FILES
-
-Read in full:
-
-- `QRG.md`
-- `BLD.md`
-- `GRF.md`
-- `ASSEMBLY.md`
-
-These are authority files.
-
-They define system behavior and MUST NOT be overridden by guesses, assumptions, convenience, or newly invented patterns.
-
----
-
-### STEP 4 — LOAD NAMING STANDARDS
-
-Read in full:
-
-- `NAMING_STANDARDS.md`
-
-Naming rules are mandatory.
-
-You are NOT allowed to invent or rename:
-
-- file names
-- class names
-- component names
-- IDs
-- Firestore collections
-- Firestore fields
-- route names
-- API names
-- packet names
-- graphics layer names
-- QRG structures
-
-You must match the existing codebase.
-
----
-
-### STEP 5 — TRACE CODE BEFORE ACTION
-
-Before any implementation work, you MUST:
-
-- identify affected files
-- read the relevant code
-- trace the full data flow
-- confirm existing naming patterns
-- identify exact change points
-- check whether authority files already define the answer
-
-No guessing.  
-No assumptions.  
-No invented structures.
-
----
-
-## 3. REQUIRED CONFIRMATION
-
-Before proceeding with implementation, you MUST output exactly:
-
-CONFIRMED:
-- Skills loaded
-- README.md read in full
-- REPLIT.md read in full
-- Authority files read in full
-- NAMING_STANDARDS.md read in full
-- Affected code traced before changes
-
-If this confirmation is missing, the task is not authorized.
-
----
-
-## 4. ENFORCEMENT RULE
-
-If the REQUIRED CONFIRMATION is not present:
-
-- STOP
-- DO NOT continue
-- DO NOT answer the implementation request
-- DO NOT write code
-- DO NOT run commands
-
-You MUST respond exactly:
-
-RESTART REQUIRED: Confirmation missing.
-
-No exceptions.
-
----
-
-## 5. SYSTEM IDENTITY
-
-QR Gear is not just a store.
-
-QR Gear is a system built around this loop:
-
-PRODUCT → QR CODE → EXPERIENCE → SHARE → NEW USER → REPEAT
-
-Every change must support this loop.
-
-If a change does not support this loop, it must be questioned before implementation.
-
----
-
-## 6. SYSTEM STRUCTURE
-
-High-level structure:
-
-- Frontend: React / Vite
-- Backend: Firebase Cloud Functions
-- Database: Firestore
-- Hosting: Firebase Hosting
-- Integrations:
-  - Printify
-  - Printful
-  - marketplace systems
-  - QR/digital experience systems
-
-Backend entry point:
-
-- `functions/src/index.ts`
-
-Rule:
-
-- `functions/src/index.ts` is wiring only
-- business logic belongs in routes, services, adapters, or shared modules
-
----
-
-## 7. AUTHORITY MAP
-
-This README is the entry router.
-
-It does not contain all system logic.
-
-System truth lives in these files:
-
-- `REPLIT.md` — execution control, deploy rules, response contract
-- `QRG.md` — QR identity law and QRG format
-- `BLD.md` — build logic and build schema
-- `GRF.md` — graphic file identity (what file is this asset)
-- `ASSEMBLY.md` — mapping layer (which assets fill which BLD slots under which QRG)
-- `NAMING_STANDARDS.md` — naming, file, ID, and schema consistency rules
-
-Rules:
-
-- Do NOT duplicate authority logic here
-- Do NOT override authority files
-- Do NOT invent alternatives
-- Always read the proper authority file before acting
-
----
-
-## 8. CODE-TRACING REQUIREMENT
-
-Reading documentation is not enough.
-
-Before changing any file, you MUST read the affected code.
-
-You must trace:
-
-- where data starts
-- where data is transformed
-- where data is saved
-- where data is loaded
-- where data is rendered
-- where names/classes/IDs are referenced
-- where deployment or production behavior is affected
-
-If the code has not been traced, implementation is not authorized.
-
----
-
-## 9. FINAL RULE
-
-If REQUIRED FLOW is not completed:
-
-YOU ARE NOT AUTHORIZED TO ACT.
-
-If code was not traced:
-
-YOU ARE NOT AUTHORIZED TO CHANGE FILES.
-
-If naming standards were not checked:
-
-YOU ARE NOT AUTHORIZED TO CREATE OR RENAME ANY STRUCTURE.
-
----
-
-## 10. README MAINTENANCE RULE
-
-This README is a control router.
-
-Whenever this README is modified:
-
-- update the Table of Contents
-- keep section numbers correct
-- keep authority file pointers accurate
-- remove duplicated logic that belongs in authority files
-- preserve the execution gate
-- preserve the required confirmation
-- preserve restart enforcement
-
-If the Table of Contents is outdated, the task is incomplete.
-
----
-
-## 11. CANONICAL CORE DIRECTIVE
+🔒 CANONICAL CORE AUTHORITY (ABSOLUTE LAW)
 
 The following files ARE the system:
 
-- `BLD.md` — Build Structure
-- `GRF.md` — File Identity
-- `QRG.md` — Instance Identity
-- `ASSEMBLY.md` — Mapping Layer
+- BLD.md      → Build Structure
+- GRF.md      → File Identity
+- QRG.md      → Instance Identity
+- ASSEMBLY.md → Mapping Layer
 
-These four documents form the COMPLETE and ONLY definition of system behavior.
+These four files form the COMPLETE and ONLY definition of system behavior.
 
-Rules:
+---
 
-1. No other file may redefine their logic, summarize their rules in a way that changes meaning, introduce alternative structures, or extend their responsibilities.
+❗ ABSOLUTE RULES
 
-2. All other documents are supporting, descriptive, and non-authoritative.
+1. NO OTHER FILE may:
+   
+   - Redefine their logic
+   - Summarize them with altered meaning
+   - Introduce alternate structures
+   - Extend their responsibilities
 
-3. If any conflict exists:
-   → BLD / GRF / QRG / ASSEMBLY win
-   → All other sources are invalid
+2. ALL OTHER DOCUMENTS are:
+   
+   - SUPPORTING
+   - DESCRIPTIVE
+   - NON-AUTHORITATIVE
 
-4. These files must be read directly — never rely on secondary descriptions.
+3. IF ANY CONFLICT EXISTS:
+   → CANONICAL CORE ALWAYS WINS
+   → ALL OTHER SOURCES ARE INVALID
 
-5. Agents must not infer behavior outside these files, fill gaps with assumptions, or create fallback interpretations.
+4. THESE FILES MUST BE READ DIRECTLY
+   → NEVER rely on summaries
 
-If an agent attempts to use a non-canonical definition, deviate from these files, or introduce alternate logic:
+5. AGENTS MUST NOT:
+   
+   - Infer missing behavior
+   - Create fallback logic
+   - "Fill in gaps"
+
+---
+
+📊 AUTHORITY TIERS
+
+TIER 1 — CANONICAL CORE (LAW)
+
+- BLD.md
+- GRF.md
+- QRG.md
+- ASSEMBLY.md
+
+TIER 2 — CONTROL LAYER
+
+- README.md
+- REPLIT.md
+- SKILLS.md
+- METHODOLOGY.md
+
+TIER 3+ — NON-CANONICAL
+
+ALL other ".md" files
+→ informational ONLY
+→ never authoritative
+
+---
+
+🧪 FILE PRESENCE CHECK (MANDATORY)
+
+Before proceeding, the agent MUST confirm the existence of:
+
+- BLD.md
+- GRF.md
+- QRG.md
+- ASSEMBLY.md
+- REPLIT.md
+- SKILLS.md
+
+If ANY file is missing:
 
 → STOP
-→ FLAG VIOLATION
-→ RETURN TO CANONICAL CORE
+→ REPORT MISSING FILE
+→ DO NOT CONTINUE
+
+---
+
+🔁 REQUIRED READ SEQUENCE (NO SKIPPING)
+
+Agents MUST read in this order:
+
+1. README.md (this file)
+2. SKILLS.md
+3. REPLIT.md
+4. BLD.md
+5. GRF.md
+6. QRG.md
+7. ASSEMBLY.md
+
+---
+
+🔄 CONTINUOUS REVALIDATION RULE
+
+This is NOT a one-time read.
+
+At EVERY major step, agents MUST:
+
+- Re-check Canonical Core rules
+- Validate current work against BLD / GRF / QRG / ASSEMBLY
+- Reject any drift or assumption
+
+---
+
+🚫 PROHIBITED BEHAVIOR
+
+Agents MUST NOT:
+
+- Invent system behavior
+- Use docs/* as source of truth
+- Introduce fallback values
+- Create temporary IDs (QRG, GRF, etc.)
+- Skip validation steps
+- Modify canonical definitions
+
+---
+
+✅ VALIDATION GATE (BEFORE ANY BUILD)
+
+Before executing ANY system action:
+
+Agent MUST confirm:
+
+1. Canonical Core has been read
+2. No conflicting definitions are in use
+3. All required files are present
+4. Work aligns strictly with BLD / GRF / QRG / ASSEMBLY
+
+If ANY check fails:
+
+→ STOP
+→ DO NOT PROCEED
+
+---
+
+🧠 SYSTEM INTENT
+
+There is ONE system.
+There is ONE definition.
+There is NO interpretation layer.
+
+The Canonical Core is the ONLY truth.
+
+---
+
+🔚 END OF README — EXECUTION BEGINS
