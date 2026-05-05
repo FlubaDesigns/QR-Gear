@@ -1,5 +1,7 @@
 # ASSEMBLY — The Three-Schema Glue Layer
 
+> **Status: IMPLEMENTED** — `assemblies` collection, CRUD routes (`functions/src/routes/assemblies.ts`), admin UI tab (`AssembliesTab.tsx`), and shared utilities (`shared/assemblyCodes.ts`) are all live.
+
 > **Iron Rule:** Assembly is the ONLY place where QRG, BLD, and GRF are linked together. No other layer may cross-reference these three schemas simultaneously. Assembly has no pricing, no checkout, no product metadata — those live in Packet.
 
 ---

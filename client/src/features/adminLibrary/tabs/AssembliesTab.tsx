@@ -1,0 +1,540 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, Link2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { adminFetch } from "@/lib/adminFetch";
+
+// ── Type labels / colours — mirrors BldDefinitionsTab for visual consistency ──
+
+const TYPE_LABELS: Record<string, string> = {
+  txt: "txt — Text",
+  img: "img — Image",
+  qrc: "qrc — QR Code",
+  act: "act — Action / CTA",
+  vid: "vid — Video",
+  doc: "doc — Document",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  txt: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  img: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  qrc: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+  act: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
+  vid: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300",
+  doc: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+};
+
+// Whether a type requires a value (text) vs grfId (asset)
+function isTextType(type: string) { return type === "txt" || type === "act"; }
+function isGrfOnlyType(type: string) { return type === "img" || type === "qrc"; }
+
+// ── Interfaces ────────────────────────────────────────────────────────────────
+
+interface AssemblyMapping {
+  seq:    string;
+  type:   string;
+  grfId?: string;
+  value?: string;
+  color?: string;
+}
+
+interface Assembly {
+  id:           string;
+  assemblyId:   string;
+  sequence:     number;
+  qrgId:        string;
+  bldId:        string;
+  name?:        string;
+  mappings:     AssemblyMapping[];
+  packetIds?:   string[];
+  createdAt?:   string;
+  createdBy?:   string;
+}
+
+interface FormMapping {
+  type:   string;
+  grfId:  string;
+  value:  string;
+  color:  string;
+}
+
+const DEFAULT_MAPPING: FormMapping = { type: "txt", grfId: "", value: "", color: "" };
+
+function padSeq(i: number): string {
+  return String(i + 1).padStart(2, "0");
+}
+
+// ── Mapping row inside the create form ───────────────────────────────────────
+
+function MappingFormRow({
+  mapping,
+  index,
+  onChange,
+  onRemove,
+}: {
+  mapping: FormMapping;
+  index:   number;
+  onChange: (i: number, field: keyof FormMapping, v: string) => void;
+  onRemove: (i: number) => void;
+}) {
+  const seq = padSeq(index);
+  const needsValue  = isTextType(mapping.type);
+  const needsGrf    = isGrfOnlyType(mapping.type);
+  const eitherOrGrf = mapping.type === "vid" || mapping.type === "doc";
+
+  return (
+    <div className="rounded-md border bg-muted/30 p-2 space-y-2" data-testid={`row-mapping-${index}`}>
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{seq}</span>
+        <Select value={mapping.type} onValueChange={(v) => onChange(index, "type", v)}>
+          <SelectTrigger className="h-7 text-xs flex-1" data-testid={`select-mapping-type-${index}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(TYPE_LABELS).map(([v, label]) => (
+              <SelectItem key={v} value={v} className="text-xs">{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+          data-testid={`button-remove-mapping-${index}`}
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {(needsValue || eitherOrGrf) && (
+        <Input
+          value={mapping.value}
+          onChange={(e) => onChange(index, "value", e.target.value)}
+          placeholder={needsValue ? "Text value (e.g. UNITED STATES NAVY)" : "External URL (vid/doc)"}
+          className="h-7 text-xs"
+          data-testid={`input-mapping-value-${index}`}
+        />
+      )}
+
+      {(needsGrf || eitherOrGrf) && (
+        <Input
+          value={mapping.grfId}
+          onChange={(e) => onChange(index, "grfId", e.target.value)}
+          placeholder="GRF ID (e.g. GRF-03-3-000007)"
+          className="h-7 text-xs font-mono"
+          data-testid={`input-mapping-grfid-${index}`}
+        />
+      )}
+
+      {(needsValue || eitherOrGrf) && (
+        <Input
+          value={mapping.color}
+          onChange={(e) => onChange(index, "color", e.target.value)}
+          placeholder="Color override (optional, e.g. #FFFFFF)"
+          className="h-7 text-xs font-mono"
+          data-testid={`input-mapping-color-${index}`}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Create form ───────────────────────────────────────────────────────────────
+
+function CreateForm({ onSuccess }: { onSuccess: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [qrgId,    setQrgId]    = useState("");
+  const [bldId,    setBldId]    = useState("");
+  const [name,     setName]     = useState("");
+  const [mappings, setMappings] = useState<FormMapping[]>([
+    { type: "img",  grfId: "", value: "", color: "" },
+    { type: "txt",  grfId: "", value: "", color: "" },
+    { type: "qrc",  grfId: "", value: "", color: "" },
+  ]);
+
+  const mutation = useMutation({
+    mutationFn: (payload: object) =>
+      adminFetch("/assemblies", { method: "POST", json: payload }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assemblies"] });
+      toast({ title: "Assembly created", description: data?.assemblyId });
+      onSuccess();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to create assembly", description: err.message, variant: "destructive" });
+    },
+  });
+
+  function handleMappingChange(i: number, field: keyof FormMapping, v: string) {
+    setMappings(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: v } : m));
+  }
+
+  function handleAddMapping() {
+    setMappings(prev => [...prev, { ...DEFAULT_MAPPING }]);
+  }
+
+  function handleRemoveMapping(i: number) {
+    setMappings(prev => prev.filter((_, idx) => idx !== i));
+  }
+
+  function handleSubmit() {
+    if (!qrgId.trim()) {
+      toast({ title: "qrgId is required", variant: "destructive" });
+      return;
+    }
+    if (!bldId.trim()) {
+      toast({ title: "bldId is required", variant: "destructive" });
+      return;
+    }
+
+    const built = mappings.map((m, i) => {
+      const entry: Record<string, string> = { seq: padSeq(i), type: m.type };
+      if (m.grfId.trim()) entry.grfId = m.grfId.trim();
+      if (m.value.trim()) entry.value = m.value.trim();
+      if (m.color.trim()) entry.color = m.color.trim();
+      return entry;
+    });
+
+    mutation.mutate({
+      qrgId:    qrgId.trim(),
+      bldId:    bldId.trim(),
+      name:     name.trim() || undefined,
+      mappings: built,
+    });
+  }
+
+  return (
+    <div className="space-y-4" data-testid="form-create-assembly">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">QRG ID</label>
+          <Input
+            value={qrgId}
+            onChange={(e) => setQrgId(e.target.value)}
+            placeholder="e.g. 11101"
+            className="font-mono"
+            data-testid="input-asm-qrgid"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">BLD ID</label>
+          <Input
+            value={bldId}
+            onChange={(e) => setBldId(e.target.value)}
+            placeholder="e.g. BLD-SZ9-001"
+            className="font-mono"
+            data-testid="input-asm-bldid"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name (optional)</label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Armed Forces Tee — Zone Build"
+          data-testid="input-asm-name"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Mappings ({mappings.length})
+          </label>
+          <Button size="sm" variant="outline" onClick={handleAddMapping} data-testid="button-add-mapping">
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add slot
+          </Button>
+        </div>
+
+        {mappings.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2 text-center">No mappings — add at least one slot.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {mappings.map((m, i) => (
+              <MappingFormRow
+                key={i}
+                mapping={m}
+                index={i}
+                onChange={handleMappingChange}
+                onRemove={handleRemoveMapping}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Button
+        onClick={handleSubmit}
+        disabled={mutation.isPending || mappings.length === 0}
+        className="w-full"
+        data-testid="button-submit-assembly"
+      >
+        {mutation.isPending ? (
+          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</>
+        ) : (
+          "Create Assembly"
+        )}
+      </Button>
+    </div>
+  );
+}
+
+// ── Assembly card ─────────────────────────────────────────────────────────────
+
+function AssemblyCard({
+  asm,
+  onDelete,
+}: {
+  asm:      Assembly;
+  onDelete: (assemblyId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const mappings = asm.mappings ?? [];
+
+  return (
+    <div className="rounded-md border bg-card" data-testid={`card-asm-${asm.id}`}>
+      <div
+        className="flex items-start justify-between gap-3 p-3 cursor-pointer"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-mono font-semibold text-foreground" data-testid={`text-asm-id-${asm.id}`}>
+              {asm.assemblyId}
+            </span>
+            <Badge variant="outline" className="text-xs font-mono">{asm.qrgId}</Badge>
+            <Badge variant="outline" className="text-xs font-mono">{asm.bldId}</Badge>
+          </div>
+
+          {asm.name && (
+            <p className="text-xs text-muted-foreground truncate" data-testid={`text-asm-name-${asm.id}`}>
+              {asm.name}
+            </p>
+          )}
+
+          <p className="text-xs text-muted-foreground">
+            {mappings.length} mapping{mappings.length !== 1 ? "s" : ""}
+            {asm.packetIds && asm.packetIds.length > 0 && (
+              <span className="ml-2">· {asm.packetIds.length} packet{asm.packetIds.length !== 1 ? "s" : ""}</span>
+            )}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            onClick={(e) => { e.stopPropagation(); onDelete(asm.assemblyId); }}
+            data-testid={`button-delete-asm-${asm.id}`}
+            title="Delete assembly"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          {expanded
+            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          }
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t px-3 py-2 space-y-1.5">
+          {mappings.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No mappings recorded.</p>
+          ) : (
+            mappings.map((m) => (
+              <div
+                key={m.seq}
+                className="flex items-start gap-2 text-xs"
+                data-testid={`row-asm-mapping-${asm.id}-${m.seq}`}
+              >
+                <span className="font-mono text-muted-foreground w-5 shrink-0 pt-0.5">{m.seq}</span>
+                <span className={`font-mono px-1.5 py-0.5 rounded shrink-0 ${TYPE_COLORS[m.type] ?? ""}`}>
+                  {m.type}
+                </span>
+                <div className="min-w-0 flex-1">
+                  {m.grfId && (
+                    <span className="font-mono text-foreground truncate block">{m.grfId}</span>
+                  )}
+                  {m.value && (
+                    <span className="text-foreground break-words block">{m.value}</span>
+                  )}
+                </div>
+                {m.color && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div
+                      className="h-3 w-3 rounded-sm border border-border"
+                      style={{ backgroundColor: m.color }}
+                    />
+                    <span className="font-mono text-muted-foreground text-xs">{m.color}</span>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main tab ──────────────────────────────────────────────────────────────────
+
+export default function AssembliesTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [showCreate,    setShowCreate]    = useState(false);
+  const [deleteTarget,  setDeleteTarget]  = useState<string | null>(null);
+  const [filterQrg,     setFilterQrg]     = useState("");
+  const [filterBld,     setFilterBld]     = useState("");
+
+  // Build query key including filters so each combination caches independently
+  const queryParams = new URLSearchParams();
+  if (filterQrg.trim()) queryParams.set("qrgId", filterQrg.trim());
+  if (filterBld.trim()) queryParams.set("bldId", filterBld.trim());
+  const qs = queryParams.toString();
+
+  const { data, isLoading, isError } = useQuery<{ assemblies: Assembly[]; count: number }>({
+    queryKey: ["/api/admin/assemblies", qs],
+    queryFn: () => adminFetch(`/assemblies${qs ? `?${qs}` : ""}`),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (assemblyId: string) =>
+      adminFetch(`/assemblies/${assemblyId}`, { method: "DELETE" }),
+    onSuccess: (_data, assemblyId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/assemblies"] });
+      toast({ title: "Deleted", description: assemblyId });
+      setDeleteTarget(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+      setDeleteTarget(null);
+    },
+  });
+
+  const assemblies = data?.assemblies ?? [];
+
+  return (
+    <div className="space-y-4" data-testid="tab-assemblies">
+
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Assemblies</span>
+          {!isLoading && (
+            <Badge variant="secondary" className="text-xs">{assemblies.length}</Badge>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant={showCreate ? "secondary" : "default"}
+          onClick={() => setShowCreate(v => !v)}
+          data-testid="button-toggle-create-asm"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          {showCreate ? "Cancel" : "New Assembly"}
+        </Button>
+      </div>
+
+      {/* Create form */}
+      {showCreate && (
+        <div className="rounded-md border bg-muted/30 p-4">
+          <h3 className="text-sm font-medium mb-3">Create Assembly</h3>
+          <CreateForm onSuccess={() => setShowCreate(false)} />
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          value={filterQrg}
+          onChange={(e) => setFilterQrg(e.target.value)}
+          placeholder="Filter by QRG ID"
+          className="h-8 text-xs font-mono"
+          data-testid="input-filter-qrgid"
+        />
+        <Input
+          value={filterBld}
+          onChange={(e) => setFilterBld(e.target.value)}
+          placeholder="Filter by BLD ID"
+          className="h-8 text-xs font-mono"
+          data-testid="input-filter-bldid"
+        />
+      </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-10" data-testid="loading-assemblies">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error */}
+      {isError && (
+        <p className="text-sm text-red-600 dark:text-red-400 py-4 text-center" data-testid="error-assemblies">
+          Failed to load assemblies.
+        </p>
+      )}
+
+      {/* Empty */}
+      {!isLoading && !isError && assemblies.length === 0 && (
+        <p className="text-sm text-muted-foreground py-6 text-center" data-testid="empty-assemblies">
+          {filterQrg || filterBld
+            ? "No assemblies match this filter."
+            : "No assemblies yet. Create one above."}
+        </p>
+      )}
+
+      {/* List */}
+      {!isLoading && assemblies.length > 0 && (
+        <div className="space-y-2">
+          {assemblies.map((asm) => (
+            <AssemblyCard
+              key={asm.id}
+              asm={asm}
+              onDelete={(asmId) => setDeleteTarget(asmId)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assembly</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently delete{" "}
+              <span className="font-mono font-semibold">{deleteTarget}</span>?
+              Any packets referencing this assembly will lose their link. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-asm">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete-asm"
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

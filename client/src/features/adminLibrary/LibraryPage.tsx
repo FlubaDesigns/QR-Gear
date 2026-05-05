@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
-import { QrCode, Layers, Image, Crop, FolderOpen, ImageIcon, LayoutTemplate } from "lucide-react";
+import { QrCode, Layers, Image, Crop, FolderOpen, ImageIcon, LayoutTemplate, Link2 } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
 import { LibraryProvider } from "./LibraryContext";
@@ -12,8 +12,9 @@ import CroppedImagesTab from "./tabs/CroppedImagesTab";
 import BackgroundsTab from "./tabs/BackgroundsTab";
 import ImagesTab from "./tabs/ImagesTab";
 import BldDefinitionsTab from "./tabs/BldDefinitionsTab";
+import AssembliesTab from "./tabs/AssembliesTab";
 
-type TabType = "graphics" | "templates" | "backgrounds" | "source" | "cropped" | "images" | "bld";
+type TabType = "graphics" | "templates" | "backgrounds" | "source" | "cropped" | "images" | "bld" | "asm";
 
 const TABS = [
   { id: "graphics" as const, label: "Graphics", icon: QrCode },
@@ -23,6 +24,7 @@ const TABS = [
   { id: "cropped" as const, label: "Cropped", icon: Crop },
   { id: "source" as const, label: "Source", icon: FolderOpen },
   { id: "bld" as const, label: "BLD Defs", icon: LayoutTemplate },
+  { id: "asm" as const, label: "Assemblies", icon: Link2 },
 ];
 
 export default function LibraryPage() {
@@ -77,6 +79,7 @@ export default function LibraryPage() {
             {tab === "source" && <SourceImagesTab />}
             {tab === "cropped" && <CroppedImagesTab />}
             {tab === "bld" && <BldDefinitionsTab />}
+            {tab === "asm" && <AssembliesTab />}
           </div>
         </div>
       </div>

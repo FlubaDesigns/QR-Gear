@@ -141,7 +141,11 @@ The storefront features lifestyle mockups and displays admin-configured retail p
 ### Packet / Assembly Architecture
 - **Four-schema chain**: `QRG → Assembly → BLD + GRF`. Packet is the top-level wrapper.
 - **Packet** (`productPackets` collection): The full published offer. Holds pricing, QR destination URL, product options (color/size/placements), landing page, store/channel/collection assignment, mockup URLs, hosting term, status, and `assemblyId`.
-- **Assembly** (`assemblies` collection): The internal glue record — links QRG + BLD + GRF. Fields: `qrgId`, `bldId`, `mappings[]`. No pricing. No product metadata. No customer-facing data.
+- **Assembly** (`assemblies` collection): **IMPLEMENTED.** The internal glue record — links QRG + BLD + GRF. Fields: `qrgId`, `bldId`, `mappings[]`. No pricing. No product metadata. No customer-facing data.
+  - **Routes**: `functions/src/routes/assemblies.ts` — `POST /admin/assemblies`, `GET /admin/assemblies` (?qrgId= ?bldId=), `GET /admin/assemblies/:assemblyId`, `PATCH /admin/assemblies/:assemblyId`, `DELETE /admin/assemblies/:assemblyId`
+  - **ID format**: `ASM-NNNNNN` (6-digit zero-padded), atomically minted from `asm_counters/global { count: N }`
+  - **Admin UI**: Library → Assemblies tab (`AssembliesTab.tsx`) — create, list (with QRG/BLD filter), expand mappings, delete
+  - **Shared utilities**: `shared/assemblyCodes.ts` — `isValidAssemblyId`, `parseAssemblyId`, `validateAssemblyMappings`, `ASM_COUNTER_KEY`, `ASM_ID_REGEX`
   - `mappings[]` — ordered list of `{ seq, type, grfId }` (asset slots) or `{ seq, type, value, color }` (text slots)
   - Assembly ID format: `ASM-NNNNNN` (6-digit zero-padded, atomically minted from `asm_counters/global`)
 - **BLD** (`bld_definitions` collection): Structure and styling schema only. No asset IDs. No text content.
