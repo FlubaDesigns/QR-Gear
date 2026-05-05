@@ -670,13 +670,13 @@ app.post('/admin/graphics/save', requireAdmin, async (req: Request, res: Respons
   }
 });
 
-// Admin: Mint a GRF code and save a graphic asset to library_assets
+// Admin: Mint a GRF code and save a graphic asset to grf_assets
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { typeCode, roleCode, hostingMode, subtype, imageUrl, name, description, relatedPacketId, relatedQrgCode, relatedProductInstanceId, tags } = req.body;
+    const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, tags } = req.body;
 
-    if (!typeCode || !roleCode || !hostingMode || !subtype || !imageUrl) {
-      res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, hostingMode, subtype, imageUrl' });
+    if (!typeCode || !roleCode || !imageUrl) {
+      res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
       return;
     }
 
@@ -690,21 +690,6 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
     if (!entry.validRoles.includes(roleCode as GrfRoleCode)) {
       res.status(400).json({
         error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
-      });
-      return;
-    }
-
-    if (!['0', '1'].includes(hostingMode)) {
-      res.status(400).json({ error: 'Invalid hostingMode. Must be 0 (Online) or 1 (Local).' });
-      return;
-    }
-
-    const { isValidSubtypeForMode } = await import('../../../shared/graphicCodes');
-    if (!isValidSubtypeForMode(hostingMode as '0' | '1', subtype)) {
-      const validOnline = '1=Image, 2=Video, 3=Document, 4=Audio';
-      const validLocal  = '5=Zone, 6=Canvas, 7=Text, 8=Graphic, 9=Composite';
-      res.status(400).json({
-        error: `Invalid subtype "${subtype}" for hostingMode "${hostingMode}". Online subtypes: ${validOnline}. Local subtypes: ${validLocal}.`,
       });
       return;
     }
@@ -724,60 +709,43 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
       });
     });
 
-    const graphicId = buildGraphicId(
-      typeCode as GrfTypeCode,
-      roleCode as GrfRoleCode,
-      hostingMode as '0' | '1',
-      subtype as any,
-      newSeq
-    );
+    const grfId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const assetData: Record<string, any> = {
-      ownerType: 'admin',
-      assetType: 'graphic',
-      mediaType: hostingMode === 'O' ? subtype : 'local',
-      name: name || `${entry.label} ${graphicId}`,
-      description: description || null,
-      fileName: graphicId,
-      originalName: name || graphicId,
-      mimeType: 'image/png',
-      sizeBytes: 0,
-      storageUrl: imageUrl,
-      publicUrl: imageUrl,
-      thumbnailUrl: imageUrl,
-      graphicId,
-      graphicType: entry.label,
+      grfId,
       typeCode,
       roleCode,
-      hostingMode,
-      subtype,
+      typeName: entry.label,
+      name: name || `${entry.label} ${grfId}`,
+      description: description || null,
+      mimeType: mimeType || 'image/png',
+      storagePath: storagePath || null,
+      publicUrl: imageUrl,
+      sourceGrfId: sourceGrfId || null,
       tags: tags || null,
-      isActive: true,
       createdAt: now,
-      updatedAt: now,
+      createdBy: 'admin',
+      isActive: true,
     };
 
-    if (relatedPacketId) assetData.relatedPacketId = relatedPacketId;
-    if (relatedQrgCode) assetData.relatedQrgCode = relatedQrgCode;
-    if (relatedProductInstanceId) assetData.relatedProductInstanceId = relatedProductInstanceId;
+    // Document ID = grfId (stable, human-readable key)
+    await db.collection('grf_assets').doc(grfId).set(assetData);
+    const doc = await db.collection('grf_assets').doc(grfId).get();
 
-    const docRef = await db.collection('library_assets').add(assetData);
-    const doc = await docRef.get();
-
-    console.log(`[GRF] Minted ${graphicId} → library_assets/${docRef.id}`);
-    res.json({ success: true, id: docRef.id, graphicId, asset: docToObject(doc) });
+    console.log(`[GRF] Minted ${grfId} → grf_assets/${grfId}`);
+    res.json({ success: true, grfId, asset: docToObject(doc) });
   } catch (error: any) {
     console.error('[GRF] Error saving graphic:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Admin: Get graphics from library (assetType=graphic), optionally filtered by typeCode
+// Admin: Get GRF assets, optionally filtered by typeCode and/or roleCode
 app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { typeCode, roleCode } = req.query;
-    let query: any = db.collection('library_assets').where('assetType', '==', 'graphic').where('isActive', '==', true);
+    let query: any = db.collection('grf_assets').where('isActive', '==', true);
     if (typeCode) query = query.where('typeCode', '==', typeCode);
     if (roleCode) query = query.where('roleCode', '==', roleCode);
     const snapshot = await query.get();

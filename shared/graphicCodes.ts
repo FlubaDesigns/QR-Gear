@@ -11,14 +11,11 @@
  * Example: GRF-04-3-000001  (QR Graphic, Renderable, sequence 1)
  * Example: GRF-05-4-000003  (Canvas Design, Final, sequence 3)
  *
- * Hosting mode (H) and subtype (ST) have been moved to the
- * Firestore document at grf_assets/{grfId} as stored fields.
+ * Hosting mode (H) and subtype (ST) are stored as fields on the
+ * Firestore document at grf_assets/{grfId} — not in the ID.
  *
  * Counter storage: Firestore grf_counters/{typeCode}_{roleCode}  (atomic)
  * Codes are GLOBAL and FIXED — never renumber once assigned.
- *
- * LEGACY FORMAT (read-only, never emit):
- *   GRF-[TT]-[K]-[H]-[ST]-[NNNNNN]  — parsed for backward compat only.
  */
 
 export type GrfTypeCode = '01' | '02' | '03' | '04' | '05' | '06' | '07';
@@ -50,29 +47,12 @@ export const GRF_ROLE_LABELS: Record<GrfRoleCode, string> = {
 
 // ── Regex ──────────────────────────────────────────────────────────────────
 
-/** Current 3-segment format: GRF-TT-K-NNNNNN */
 const GRF_REGEX = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
-
-/** Legacy 5-segment format: GRF-TT-K-H-ST-NNNNNN (read-only) */
-const GRF_LEGACY_REGEX = /^GRF-(01|02|03|04|05|06|07)-([12345])-([01])-([123456789])-(\d{6})$/;
 
 // ── Validation ─────────────────────────────────────────────────────────────
 
 export function isValidGraphicId(id: string): boolean {
   const m = GRF_REGEX.exec(id);
-  if (!m) return false;
-  const typeCode = m[1] as GrfTypeCode;
-  const roleCode = m[2] as GrfRoleCode;
-  return GRF_TYPE_MAP[typeCode]?.validRoles.includes(roleCode) ?? false;
-}
-
-/** Returns true for both current and legacy GRF IDs. */
-export function isRecognizedGraphicId(id: string): boolean {
-  return isValidGraphicId(id) || isLegacyGraphicId(id);
-}
-
-export function isLegacyGraphicId(id: string): boolean {
-  const m = GRF_LEGACY_REGEX.exec(id);
   if (!m) return false;
   const typeCode = m[1] as GrfTypeCode;
   const roleCode = m[2] as GrfRoleCode;
@@ -94,51 +74,25 @@ export interface ParsedGraphicId {
   typeName:        string;
   typeDescription: string;
   roleLabel:       string;
-  /** True when parsed from the old 5-segment legacy format. */
-  isLegacy:        boolean;
 }
 
 export function parseGraphicId(id: string): ParsedGraphicId {
-  // Try current format first
   const m = GRF_REGEX.exec(id);
-  if (m) {
-    const typeCode = m[1] as GrfTypeCode;
-    const roleCode = m[2] as GrfRoleCode;
-    const entry    = GRF_TYPE_MAP[typeCode];
-    if (!entry.validRoles.includes(roleCode)) {
-      throw new Error(`Invalid GRF graphic ID: "${id}"`);
-    }
-    return {
-      typeCode,
-      roleCode,
-      sequence:        m[3],
-      typeName:        entry.label,
-      typeDescription: entry.description,
-      roleLabel:       GRF_ROLE_LABELS[roleCode],
-      isLegacy:        false,
-    };
+  if (!m) throw new Error(`Invalid GRF graphic ID: "${id}"`);
+  const typeCode = m[1] as GrfTypeCode;
+  const roleCode = m[2] as GrfRoleCode;
+  const entry    = GRF_TYPE_MAP[typeCode];
+  if (!entry.validRoles.includes(roleCode)) {
+    throw new Error(`Invalid GRF graphic ID: "${id}"`);
   }
-
-  // Fall back to legacy format (read-only — still parses without throwing)
-  const ml = GRF_LEGACY_REGEX.exec(id);
-  if (ml) {
-    const typeCode = ml[1] as GrfTypeCode;
-    const roleCode = ml[2] as GrfRoleCode;
-    const entry    = GRF_TYPE_MAP[typeCode];
-    if (entry?.validRoles.includes(roleCode)) {
-      return {
-        typeCode,
-        roleCode,
-        sequence:        ml[5],
-        typeName:        entry.label,
-        typeDescription: entry.description,
-        roleLabel:       GRF_ROLE_LABELS[roleCode],
-        isLegacy:        true,
-      };
-    }
-  }
-
-  throw new Error(`Invalid GRF graphic ID: "${id}"`);
+  return {
+    typeCode,
+    roleCode,
+    sequence:        m[3],
+    typeName:        entry.label,
+    typeDescription: entry.description,
+    roleLabel:       GRF_ROLE_LABELS[roleCode],
+  };
 }
 
 // ── Builder ────────────────────────────────────────────────────────────────
@@ -164,7 +118,7 @@ export function buildGraphicId(
 
 // ── Counter key ────────────────────────────────────────────────────────────
 
-/** Firestore document key for the grf_counters collection (unchanged). */
+/** Firestore document key for the grf_counters collection. */
 export function grfCounterKey(typeCode: GrfTypeCode, roleCode: GrfRoleCode): string {
   return `${typeCode}_${roleCode}`;
 }
