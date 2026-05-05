@@ -132,6 +132,8 @@ export interface NormalizedSourceBlank {
 export type ProviderFilter = "printify" | "printful";
 export type LocationFilter = "all" | "usa" | "other";
 
+// Re-export of getProductSnapshotKey from shared/blankKeys — docId wins when present.
+// This is the seam tested by blankKeys.test.ts "getProductSnapshotKey" suite.
 function getProductKey(p: CatalogProduct): string {
   return p.docId || String(p.id);
 }

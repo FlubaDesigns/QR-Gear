@@ -75,3 +75,15 @@ export function getQRGBlankNumber(id: string): number | null {
   const num = parseInt(safeBlankId(id).slice(4), 10);
   return isNaN(num) ? null : num;
 }
+
+/**
+ * Returns the key used when building a blank snapshot map for catalog writes.
+ * Mirrors getProductKey() in useAdminBlanksController and is used as the key
+ * in buildBlankSnapshot() output: p.docId takes priority when present (canonical
+ * qrg_STNNN identity), falling back to String(p.id) for legacy/unclassified blanks.
+ *
+ * This is the exported seam for testing the buildBlankSnapshot key contract.
+ */
+export function getProductSnapshotKey(p: { id: number | string; docId?: string | null }): string {
+  return p.docId || String(p.id);
+}

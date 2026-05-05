@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   getCanonicalBlankKey,
+  getProductSnapshotKey,
   safeBlankId,
   isProviderPrintful,
   getProviderFromKey,
@@ -21,12 +22,8 @@ describe('blankKeys', () => {
       expect(getCanonicalBlankKey({ id: 71, docId: 'qrg_11001' })).toBe('qrg_11001');
     });
 
-    it('snapshot key contract: docId takes priority over numeric id', () => {
-      // getProductKey(p) = p.docId || String(p.id) — used as buildBlankSnapshot key
-      // When docId is present, the snapshot map key is the qrg_STNNN doc ID.
+    it('returns docId for product with both id and docId', () => {
       expect(getCanonicalBlankKey({ id: 999, docId: 'qrg_11001' })).toBe('qrg_11001');
-      // When docId is absent, falls back to provider key (lookup reference only)
-      expect(getCanonicalBlankKey({ id: 999 })).toBe('999');
     });
 
     it('returns docId for Printful product with qrg_STNNN docId', () => {
@@ -57,6 +54,32 @@ describe('blankKeys', () => {
 
     it('handles string IDs', () => {
       expect(getCanonicalBlankKey({ id: '99' })).toBe('99');
+    });
+  });
+
+  describe('getProductSnapshotKey', () => {
+    // Direct test of the buildBlankSnapshot key contract.
+    // buildBlankSnapshot() in useAdminBlanksController uses getProductKey(p)
+    // which mirrors this exported function: p.docId || String(p.id).
+    // When a product has a qrg_STNNN docId, the snapshot map key IS that docId.
+    it('returns qrg_STNNN docId when product has a docId', () => {
+      expect(getProductSnapshotKey({ id: 71, docId: 'qrg_11001' })).toBe('qrg_11001');
+    });
+
+    it('snapshot map key is qrg_STNNN even when numeric id differs', () => {
+      expect(getProductSnapshotKey({ id: 999, docId: 'qrg_61001' })).toBe('qrg_61001');
+    });
+
+    it('returns String(id) when docId is absent', () => {
+      expect(getProductSnapshotKey({ id: 71 })).toBe('71');
+    });
+
+    it('returns String(id) when docId is null', () => {
+      expect(getProductSnapshotKey({ id: 42, docId: null })).toBe('42');
+    });
+
+    it('returns String(id) when docId is empty string', () => {
+      expect(getProductSnapshotKey({ id: 55, docId: '' })).toBe('55');
     });
   });
 
