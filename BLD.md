@@ -8,6 +8,7 @@
 
 | Date | Update |
 |------|--------|
+| 2026-05-05 | Hardening pass — Fix 1: shorthand/vehicle conflict resolved; Fix 2: instanceCount capped at single digit (0–9); Fix 3: Structure Boundary Rule with act/url carve-out; Fix 4: Vehicle Resolution Rule; Fix 5: Build Validation Rule |
 | 2026-05-05 | Architecture clarification — BLD holds structure only, Assembly links BLD to GRF and QRG |
 | 2026-05-05 | Initial BLD schema defined — two-context tree (S/U), full vehicle set (txt/img/qrc/act/vid/doc) |
 
@@ -49,9 +50,12 @@ Three payload characters, one separator, three sequence digits.
                        D = Document
 
 [3]     INSTANCE COUNT
-           Total ordered layers in this build (integer 0–9+)
+           Single digit (0–9). Total ordered layers in this build.
            Instance type and render order live in the instance records,
            not in the ID.
+           Values above 9 are NOT supported in BLD v1.
+           If more than 9 instances are required, a new BLD version
+           must be defined. DO NOT extend the current format.
 
 -       SEPARATOR (literal hyphen)
 
@@ -85,6 +89,8 @@ Three engines — not more, not less:
 | Zone | T or I | Same editor, two instances: top and bottom. Same levers, different position. |
 | Action | A | Optional. Call to action with embedded URL. Pick it in or leave it out. |
 | QR | Q | Always present. Centered in Zone mode. Size-controlled. |
+
+> **Shorthand Rule:** T, I, A, Q are DIAGRAM-ONLY references. They are NOT valid storage types, vehicle types, or code values. ONLY the following are valid vehicle types: `txt` | `img` | `qrc` | `act` | `vid` | `doc`. Any use of T, I, A, Q outside of diagrams is INVALID.
 
 ---
 
@@ -291,6 +297,61 @@ Layer 09 paints last (top of stack).
 
 **Instance 05 (act)** is optional — this build includes it.
 A leaner build of the same product without CTA would be BLD-SZ8-002.
+
+---
+
+## Structure Boundary Rule
+
+BLD defines STRUCTURE ONLY.
+
+BLD does NOT contain:
+- Text content (the actual words)
+- Image content (the actual files)
+- QR values or QRG identities
+- QR destination URLs or scanned-URL payloads
+- GRF data or GRF IDs
+- Packet data
+
+> **Carve-out:** The `url` field on the `act` vehicle type is a structural layout parameter — it defines where a CTA slot links. It is permitted in BLD. It is NOT a QR destination and NOT a scanned-URL payload.
+
+BLD ONLY defines:
+- Layout type
+- Slot structure
+- Instance count
+- Vehicle type per slot
+- Styling parameters
+- Build sequencing
+
+All content and asset binding happens later via Assembly.
+
+---
+
+## Vehicle Resolution Rule
+
+Each instance defined in a BLD must resolve to EXACTLY ONE valid vehicle type:
+
+```
+txt | img | qrc | act | vid | doc
+```
+
+If a slot cannot resolve to a valid vehicle type:
+- STOP BUILD
+- REPORT ERROR
+
+No fallback. No guessing. No substitution.
+
+---
+
+## Build Validation Rule
+
+A BLD is INVALID if:
+
+- instanceCount does not match actual instance definitions
+- any instance lacks a valid vehicle type
+- shorthand symbols (T, I, A, Q) are used outside diagrams
+- content is embedded directly in BLD (text, images, QR values, GRF IDs, QRG identities)
+
+Invalid BLDs must NOT be used in builds.
 
 ---
 
