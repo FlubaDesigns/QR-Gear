@@ -10,6 +10,7 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-05-05 | Added BLD Build Definition Schema (Section 19) — third identity namespace, two-context tree (S/U), six vehicle types, Firestore sub-collections |
 | 2026-05-04 | Added GRF Graphic Reference Format identity system (Section 18) — all segments numeric, no letters |
 | 2026-04-23 | Added Builder→Storefront 5-Block Display Contract (Section 16) and Naming Standards reference (Section 17) |
 | 2026-04-09 | Added Collections sub-level within channels (Section 14) and Packet Auto-Save / Builder State Persistence (Section 15) |
@@ -1060,6 +1061,201 @@ GRF-07-5-1-9-000002   Template · Template role · Local · Composite · #2
 ### Relationship to QRG
 
 The QRG schema (`QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`) identifies **products and instances**. The GRF schema identifies **graphic assets** — the visual building blocks that products are assembled from. A QRG instance may reference one or many GRF assets, but the two schemas are independent and never mixed.
+
+---
+
+## Section 19 — BLD Build Definition Schema
+**Established: 2026-05-05**
+
+A BLD record captures a reusable product build configuration — layer layouts, text styling, graphic positioning — independent of any specific product, packet, or GRF asset. It is the third identity namespace alongside QRG (product/instance) and GRF (graphic asset).
+
+**Full spec:** See [`BLD.md`](./BLD.md).
+
+---
+
+### ID Structure
+
+```
+BLD - [1] [2] [3] [4] [5–6] ... [001–999]
+```
+
+Each position narrows the decision tree one level. The ID is the address. The vehicle record is the payload.
+
+### Position Key
+
+```
+[1]  CONTEXT
+       S = Shirt graphic    (what is on the physical product)
+       U = URL              (what the QR delivers when scanned)
+
+If S:
+  [2]  LAYOUT MODE
+         Z = Zone           (structured top/middle/bottom regions)
+         P = Palette        (full canvas image with QR superimposed)
+
+  [3]  ENGINE TYPE
+         T = Text instance
+         I = Image instance
+         Q = QR instance
+         A = Action (CTA)   — optional in every build
+
+  [4]  INSTANCE COUNT       (if T) 1–9
+  [5–6] INSTANCE SEQUENCE   (if T) 01–09 per instance
+
+If U:
+  [2]  CONTENT TYPE
+         I = Image
+         V = Video
+         D = Document
+
+  [3]  ENGINE TYPE
+         T = Text overlay instances (optional)
+
+  [4]  INSTANCE COUNT       (if T) 1–9
+  [5–6] INSTANCE SEQUENCE   (if T) 01–09 per instance
+
+[last 3]  BUILD SEQUENCE    001–999
+```
+
+### Zone Mode — Three Engines
+
+```
+┌─────────────────┐
+│   TOP ZONE      │  → txt | img
+├─────────────────┤
+│   MIDDLE ZONE   │  → qrc (centered, size-controlled)
+├─────────────────┤
+│  SUB-BOTTOM     │  → txt
+├─────────────────┤
+│   BOTTOM ZONE   │  → txt | img
+└─────────────────┘
+```
+
+Top and bottom are the same engine — same editor, same levers, two instances. Action (A) is optional. QR is always present.
+
+### Palette Mode
+
+Full shirt canvas image with QR superimposed at a preset small (always-readable) size. Image is dominant. QR is a guest floating over it. positionLR/UD are required on the QR in Palette mode; implicit center in Zone mode.
+
+### Instance Vehicles
+
+**txt**
+```
+role, fontFamily, fontSize, fontWeight, letterSpacing,
+strokeWidth, strokeColor, positionLR, positionUD
+```
+
+**img**
+```
+role, size, positionLR, positionUD
+  S+Z+I → zone-contained (top or bottom)
+  S+P+I → full canvas background (size implicit 100%)
+```
+
+**qrc**
+```
+S+Z+Q → size only (positionLR/UD locked to center)
+S+P+Q → size + positionLR + positionUD (all required)
+```
+
+**act** (Action / CTA — always optional)
+```
+fontFamily, fontSize, fontWeight, letterSpacing,
+strokeWidth, strokeColor, url, positionLR, positionUD
+```
+
+**vid** (URL Video)
+```
+playback (file | external), source, type (clip | loop | stream),
+ratio (16:9 | 9:16 | 1:1 | 4:3), size, length (seconds), sequence
+```
+
+**doc** (URL Document)
+```
+playback (file | external), source, format (pdf | docx | pptx),
+pages, layout (portrait | landscape), fontSize, sequence
+```
+
+### Firestore Collections and Sub-Collections
+
+| Collection | Purpose |
+|------------|---------|
+| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9001`). Holds header fields: context, layoutMode, engineType, instanceCount, buildSequence, createdAt. |
+| `bld_definitions/{bldId}/instances` | **Sub-collection.** One document per ordered layer instance. Doc ID = two-digit sequence (e.g. `01`, `02`). Holds the full vehicle payload for that layer (type + all properties). |
+| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Guarantees unique build sequence numbers per branch. |
+
+**Sub-collection document structure (`instances/{seq}`):**
+
+```
+{
+  seq:       "01",             // two-digit render order
+  type:      "txt",            // txt | img | qrc | act | vid | doc
+  role:      "header",         // vehicle-specific fields follow...
+  fontFamily: "Oswald",
+  fontSize:   28,
+  ...
+}
+```
+
+Render order is declared by sequence number. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
+
+### Relationship to QRG and GRF
+
+| Schema | Identifies | Example |
+|--------|-----------|---------|
+| QRG | Products and instances | `QRG-11111-I-000001` |
+| GRF | Graphic assets | `GRF-05-4-1-6-000003` |
+| BLD | Build configurations | `BLD-SZ9001` |
+
+The three schemas are independent and never mixed. A QRG instance may reference a BLD for its build definition and one or many GRF codes for its graphic assets — but none of these identifiers are embedded in each other.
+
+### Full Example — QRG-11111 (T-Shirt #111)
+
+**BLD-SZ9001** — Shirt · Zone · 9 instances · build #001
+**Theme:** United States Armed Forces
+
+```
+bld_definitions/BLD-SZ9001
+  context:       S
+  layoutMode:    Z
+  instanceCount: 9
+  buildSequence: 001
+
+  instances/01   type: txt   role: header
+                 fontFamily: Oswald  fontSize: 28
+                 text: "UNITED STATES ARMED FORCES"
+
+  instances/02   type: img   role: top_graphic
+                 size: 25%   positionLR: 30%   positionUD: 100%
+
+  instances/03   type: qrc
+                 size: 35%   positionLR: center   positionUD: center
+
+  instances/04   type: txt   role: bottom
+                 fontSize: 20   fontWeight: 800   letterSpacing: 4
+                 positionLR: 50%   positionUD: 10%
+
+  instances/05   type: act
+                 fontFamily: Oswald   fontSize: 29   fontWeight: 800
+                 letterSpacing: 4   strokeWidth: 0   strokeColor: #FFFFFF
+                 url: [destination]
+
+  instances/06   type: txt   role: est
+                 fontFamily: Oswald   fontSize: 24   fontWeight: 600
+                 strokeWidth: 4   positionLR: 5%   positionUD: 90%
+
+  instances/07   type: txt   role: motto
+                 fontFamily: Oswald   fontSize: 30   fontWeight: 700
+                 strokeWidth: 4   positionLR: 5%   positionUD: 50%
+
+  instances/08   type: txt   role: meaning
+                 fontFamily: Oswald   fontSize: 19   fontWeight: 500
+                 letterSpacing: 4   positionLR: 5%   positionUD: 32%
+
+  instances/09   type: txt   role: role
+                 fontFamily: Oswald   fontSize: 18   fontWeight: 700
+                 strokeWidth: 4   positionLR: 5%   positionUD: 55%
+```
 
 ---
 

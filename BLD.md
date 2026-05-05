@@ -304,6 +304,31 @@ A leaner build of the same product without CTA would be BLD-SZ8002.
 
 ---
 
+## Firestore Collections and Sub-Collections
+
+| Collection | Purpose |
+|------------|---------|
+| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9001`). Holds header fields: context, layoutMode, engineType, instanceCount, buildSequence, createdAt. |
+| `bld_definitions/{bldId}/instances` | **Sub-collection.** One document per ordered layer instance. Doc ID = two-digit sequence (`01`, `02` … `09`). Holds the full vehicle payload for that layer. |
+| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Guarantees unique build sequence numbers per branch. |
+
+**Sub-collection document structure (`instances/{seq}`):**
+
+```
+{
+  seq:          "01",       // two-digit render order — 01 paints first
+  type:         "txt",      // txt | img | qrc | act | vid | doc
+  role:         "header",   // vehicle-specific fields follow...
+  fontFamily:   "Oswald",
+  fontSize:     28,
+  ...
+}
+```
+
+Render order is declared by sequence number. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
+
+---
+
 ## Key Properties
 
 - **ID is the address** — the path through the decision tree tells
