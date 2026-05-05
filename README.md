@@ -346,12 +346,12 @@ Returned by `GET /api/master-catalog`. Categories served: `Tees` (101–199), `H
 
 ### GRF Graphic Reference Format
 
-Every graphic asset is identified by a GRF code. Parallel to QRG (which identifies products), GRF identifies the visual building blocks those products are assembled from. The two schemas are independent and never mixed.
+Every graphic asset is identified by a GRF code. GRF is a pure asset identity system — it identifies files only. Layout, context, and usage are defined in BLD and linked in Assembly.
 
 ```
-GRF - [TT] - [K] - [H] - [ST] - [NNNNNN]
-       ↑       ↑     ↑      ↑       ↑
-     type    role  host  subtype sequence
+GRF - [TT] - [K] - [NNNNNN]
+       ↑       ↑       ↑
+     type    role   sequence
 ```
 
 All segments are numeric. No letters.
@@ -361,9 +361,9 @@ All segments are numeric. No letters.
 | `GRF` | 3 chars | Brand prefix — always present |
 | `[TT]` | 2 digits | Asset type — what kind of graphic this is |
 | `[K]` | 1 digit | Role — where this asset sits in the production pipeline |
-| `[H]` | 1 digit | Hosting mode — where the asset lives |
-| `[ST]` | 1 digit | Presentation subtype — branches by hosting mode |
 | `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded, unique per type+role bucket |
+
+Hosting mode and content subtype are stored as fields in `grf_assets/{grfId}` — not in the ID.
 
 **Type codes `[TT]`**
 
@@ -387,50 +387,53 @@ All segments are numeric. No letters.
 | `4` | Final |
 | `5` | Template |
 
-**Hosting mode `[H]`**
-
-| Code | Name |
-|------|------|
-| `0` | Online (hosted URL) |
-| `1` | Local (design-layer construct) |
-
-**Presentation subtype `[ST]`** — meaning branches by `[H]`
-
-When Online (`H=0`):
-
-| Code | Name |
-|------|------|
-| `1` | Image (PNG, JPG, WebP, SVG) |
-| `2` | Video (MP4, WebM) |
-| `3` | Document (PDF) |
-| `4` | Audio |
-
-When Local (`H=1`):
-
-| Code | Name |
-|------|------|
-| `5` | Zone |
-| `6` | Canvas |
-| `7` | Text |
-| `8` | Graphic |
-| `9` | Composite |
-
 **Examples:**
 ```
-GRF-04-3-0-1-000001   QR Graphic · Renderable · Online · Image
-GRF-05-4-1-6-000003   Canvas Design · Final · Local · Canvas
-GRF-03-3-0-2-000012   Background · Renderable · Online · Video
+GRF-04-3-000001   QR Graphic · Renderable · sequence 1
+GRF-05-4-000003   Canvas Design · Final · sequence 3
+GRF-03-3-000007   Background · Renderable · sequence 7
 ```
 
-**Regex:** `^GRF-(01|02|03|04|05|06|07)-[12345]-[01]-[123456789]-[0-9]{6}$`
+**Regex:** `^GRF-(01|02|03|04|05|06|07)-[12345]-[0-9]{6}$`
 
 **Authority file:** `shared/graphicCodes.ts` — `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`
 
-**Firestore:** `grf_counters/{typeCode}_{roleCode}` (atomic counter) · `library_assets` (docs with `assetType="graphic"`, `grfId` field)
+**Firestore:** `grf_counters/{typeCode}_{roleCode}` (atomic counter) · `grf_assets/{grfId}` (file metadata: url, dimensions, mime type, storage path)
 
-**API:** `POST /api/admin/graphics/save-grf` — mints a GRF code and writes to `library_assets`. Required body: `typeCode`, `roleCode`, `hostingMode`, `subtype`, `imageUrl`.
+**API:** `POST /api/admin/graphics/save-grf` — mints a GRF code and writes to `grf_assets`. Required body: `typeCode`, `roleCode`, `imageUrl`.
 
-**Full spec:** See Section 18 of `METHODOLOGY.md`.
+**Full spec:** See [`GRF.md`](./GRF.md) and Section 18 of `METHODOLOGY.md`.
+
+### Packet / Assembly Architecture
+
+All QR Gear product builds follow a four-schema chain. Each schema answers exactly one question.
+
+| Schema | Answers | ID Example |
+|--------|---------|-----------|
+| **QRG** | What product blank is this? | `11101` |
+| **BLD** | How is this composition structured? | `BLD-SZ9001` |
+| **GRF** | What file is this asset? | `GRF-04-3-000001` |
+| **Assembly** | What assets fill which slots, for which blank? | `ASM-000001` |
+
+**Packet** is the top-level wrapper — it owns everything and holds an `assemblyId` reference.
+
+```
+Packet  (top-level published offer)
+  ├── pricing, customerPrice, baseCost, markup
+  ├── productId, color, sizes, placements
+  ├── qrDestinationUrl
+  ├── landingPage, storeId, channelId
+  ├── mockupUrls, hostingTerm, status
+  └── assemblyId ──→ Assembly
+                        ├── qrgId ──→ QRG  (product blank)
+                        ├── bldId ──→ BLD  (layout + structure)
+                        └── mappings[]
+                              └── grfId ──→ GRF  (asset file)
+```
+
+**Firestore collections:** `productPackets` (Packets) · `assemblies` (Assembly records)
+
+**Full specs:** [`QRG.md`](./QRG.md) · [`GRF.md`](./GRF.md) · [`BLD.md`](./BLD.md) · [`ASSEMBLY.md`](./ASSEMBLY.md) · METHODOLOGY.md Section 20
 
 ### BLD Build Definition Schema
 

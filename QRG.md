@@ -183,19 +183,18 @@ These IDs are used internally to route to the correct supplier. They are **never
 
 ## 7. Graphic Reference Format (GRF) — Design Asset Identity
 
-Separate system for all graphic and design assets. Not part of the product blank identity.
+Separate system for all graphic and design assets. Not part of the product blank identity. GRF is a pure asset identity — it identifies files only. Layout, context, and usage are defined in BLD and linked in Assembly.
 
 ```
-GRF - TT - K - H - ST - NNNNNN
-      │    │   │   │    └── Sequence number (6 digits, zero-padded, 000001–999999)
-      │    │   │   └─────── Presentation subtype (1–9)
-      │    │   └─────────── Hosting mode (0 = Online | 1 = Local)
-      │    └─────────────── Role code (1–5)
-      └──────────────────── Type code (01–07)
+GRF - TT - K - NNNNNN
+      │    │   └── Sequence number (6 digits, zero-padded, 000001–999999)
+      │    └─────── Role code (1–5)
+      └──────────── Type code (01–07)
 ```
 
-**Regex:** `^GRF-(01|02|03|04|05|06|07)-([12345])-([01])-([123456789])-(\d{6})$`
+**Regex:** `^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$`
 **Counter storage:** Firestore `grf_counters/{typeCode}_{roleCode}` (atomic increment)
+**Asset records:** Firestore `grf_assets/{grfId}` (file metadata — url, dimensions, mime type, storage path)
 
 ### Type codes (TT)
 
@@ -219,31 +218,43 @@ GRF - TT - K - H - ST - NNNNNN
 | 4 | Final |
 | 5 | Template |
 
-### Hosting mode (H)
-
-| Code | Meaning |
-|------|---------|
-| 0 | Online |
-| 1 | Local |
-
-### Presentation subtype (ST)
-
-| Code | Online (H=0) | Local (H=1) |
-|------|-------------|------------|
-| 1 | Image | — |
-| 2 | Video | — |
-| 3 | Document | — |
-| 4 | Audio | — |
-| 5 | — | Zone |
-| 6 | — | Canvas |
-| 7 | — | Text |
-| 8 | — | Graphic |
-| 9 | — | Composite |
-
 **Examples:**
 ```
-GRF-04-3-0-1-000001  →  QR Graphic · Renderable · Online · Image · sequence 1
-GRF-05-4-1-6-000003  →  Canvas Design · Final · Local · Canvas · sequence 3
+GRF-04-3-000001  →  QR Graphic · Renderable · sequence 1
+GRF-05-4-000003  →  Canvas Design · Final · sequence 3
+GRF-03-3-000007  →  Background · Renderable · sequence 7
+```
+
+**Full spec:** See [`GRF.md`](./GRF.md)
+
+---
+
+## 8. Assembly — The Three-Schema Glue Layer
+
+Assembly is the internal record that links a QRG blank to a BLD structure and maps each BLD slot to an actual GRF asset. It is the only place where QRG, BLD, and GRF are connected.
+
+```
+Assembly
+  ├── qrgId    → QRG  (which product blank)
+  ├── bldId    → BLD  (which layout/structure)
+  └── mappings[]
+        ├── { seq, type, grfId }   — asset slot
+        └── { seq, type, value }   — text slot
+```
+
+**ID format:** `ASM-NNNNNN` (6-digit zero-padded sequence)
+**Firestore:** `assemblies/{assemblyId}`
+**Full spec:** See [`ASSEMBLY.md`](./ASSEMBLY.md)
+
+### Full chain
+
+```
+Packet  (top-level published offer — pricing, QR content, checkout, product metadata)
+  └── assemblyId ──→ Assembly
+                        ├── qrgId ──→ QRG  (blank identity)
+                        ├── bldId ──→ BLD  (structure + layout + styling schema)
+                        └── mappings[]
+                              └── grfId ──→ GRF  (asset file identity)
 ```
 
 ---

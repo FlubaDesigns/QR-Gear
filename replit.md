@@ -127,18 +127,27 @@ The storefront features lifestyle mockups and displays admin-configured retail p
   - All admin feature files use `adminFetch`. All member feature files use `memberFetch`. Exception: endpoints at `/api/member/` (singular, e.g. packets) keep using `getAuthHeaders()` directly since they are on a different route prefix.
 
 ### GRF Graphic Reference Format
-- **GRF Identity Schema (FINAL)**: `GRF-[TT]-[K]-[H]-[ST]-[NNNNNN]` — all segments numeric, no letters. Authority file: `shared/graphicCodes.ts`.
+- **GRF Identity Schema (FINAL)**: `GRF-[TT]-[K]-[NNNNNN]` — all segments numeric, no letters. Authority file: `shared/graphicCodes.ts`.
   - **Type `[TT]`** (2 digits): `01`=Upload Source · `02`=Cropped Derivative · `03`=Background · `04`=QR Graphic · `05`=Canvas Design · `06`=URL Artifact Image · `07`=Template Graphic
   - **Role `[K]`** (1 digit): `1`=Source · `2`=Derivative · `3`=Renderable · `4`=Final · `5`=Template
-  - **Hosting `[H]`** (1 digit): `0`=Online (hosted URL) · `1`=Local (design-layer construct)
-  - **Subtype `[ST]`** (1 digit, branches by H): Online→ `1`=Image · `2`=Video · `3`=Document · `4`=Audio · Local→ `5`=Zone · `6`=Canvas · `7`=Text · `8`=Graphic · `9`=Composite
   - **Sequence `[NNNNNN]`** (6 digits): zero-padded, minted atomically from `grf_counters/{typeCode}_{roleCode}` in Firestore
-  - **Full example**: `GRF-04-3-0-1-000001` = QR Graphic, Renderable, Online, Image, #1
-  - **Regex**: `^GRF-(01|02|03|04|05|06|07)-[12345]-[01]-[123456789]-[0-9]{6}$`
-  - **Firestore**: `grf_counters` (atomic counters, doc ID = `{typeCode}_{roleCode}`) · `library_assets` (assetType=`graphic`, field `grfId`)
-  - **API**: `POST /admin/graphics/save-grf` — required body: `typeCode`, `roleCode`, `hostingMode`, `subtype`, `imageUrl`
-  - **Relationship to QRG**: QRG identifies products and instances. GRF identifies graphic assets — the visual building blocks products are assembled from. Independent schemas, never mixed. GRF-04 (QR Graphic) points to GRF-06 (URL Artifact Image) — the QR code is the key, the URL artifact is the door it opens.
-  - **Full spec**: METHODOLOGY.md Section 18
+  - **Hosting mode and content subtype** are stored as fields in `grf_assets/{grfId}` — NOT in the ID
+  - **Full example**: `GRF-04-3-000001` = QR Graphic, Renderable, #1
+  - **Regex**: `^GRF-(01|02|03|04|05|06|07)-[12345]-[0-9]{6}$`
+  - **Firestore**: `grf_counters` (atomic counters, doc ID = `{typeCode}_{roleCode}`) · `grf_assets` (file metadata per asset: url, dimensions, mime type, storage path)
+  - **API**: `POST /admin/graphics/save-grf` — required body: `typeCode`, `roleCode`, `imageUrl`
+  - **Relationship to QRG/BLD**: GRF identifies asset files only. Layout and context live in BLD. Asset-to-slot binding lives in Assembly. GRF is always the leaf node.
+  - **Full spec**: GRF.md · METHODOLOGY.md Section 18
+
+### Packet / Assembly Architecture
+- **Four-schema chain**: `QRG → Assembly → BLD + GRF`. Packet is the top-level wrapper.
+- **Packet** (`productPackets` collection): The full published offer. Holds pricing, QR destination URL, product options (color/size/placements), landing page, store/channel/collection assignment, mockup URLs, hosting term, status, and `assemblyId`.
+- **Assembly** (`assemblies` collection): The internal glue record — links QRG + BLD + GRF. Fields: `qrgId`, `bldId`, `mappings[]`. No pricing. No product metadata. No customer-facing data.
+  - `mappings[]` — ordered list of `{ seq, type, grfId }` (asset slots) or `{ seq, type, value, color }` (text slots)
+  - Assembly ID format: `ASM-NNNNNN` (6-digit zero-padded, atomically minted from `asm_counters/global`)
+- **BLD** (`bld_definitions` collection): Structure and styling schema only. No asset IDs. No text content.
+- **GRF** (`grf_assets` collection): Asset file identity only. No layout, no context, no usage.
+- **Full specs**: `QRG.md` · `GRF.md` · `BLD.md` · `ASSEMBLY.md` · METHODOLOGY.md Section 20
 
 ### First-Scan Activation System (QR Gear Core Flow)
 - **QRG Identity Schema (FINAL)**: `QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`

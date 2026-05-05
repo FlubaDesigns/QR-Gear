@@ -10,6 +10,8 @@ This document captures the core design principles and architectural decisions fo
 
 | Date | Update |
 |------|--------|
+| 2026-05-05 | Added Packet/Assembly Architecture (Section 20) — Packet is top-level published offer, Assembly is the QRG+BLD+GRF glue layer |
+| 2026-05-05 | Simplified GRF schema (Section 18) — removed H (hosting) and ST (subtype) from ID; those attributes moved to grf_assets Firestore doc |
 | 2026-05-05 | Added BLD Build Definition Schema (Section 19) — third identity namespace, two-context tree (S/U), six vehicle types, Firestore sub-collections |
 | 2026-05-04 | Added GRF Graphic Reference Format identity system (Section 18) — all segments numeric, no letters |
 | 2026-04-23 | Added Builder→Storefront 5-Block Display Contract (Section 16) and Naming Standards reference (Section 17) |
@@ -1204,10 +1206,10 @@ Render order is declared by sequence number. `01` paints first (bottom of stack)
 | Schema | Identifies | Example |
 |--------|-----------|---------|
 | QRG | Products and instances | `QRG-11111-I-000001` |
-| GRF | Graphic assets | `GRF-05-4-1-6-000003` |
+| GRF | Graphic assets | `GRF-05-4-000003` |
 | BLD | Build configurations | `BLD-SZ9001` |
 
-The three schemas are independent and never mixed. A QRG instance may reference a BLD for its build definition and one or many GRF codes for its graphic assets — but none of these identifiers are embedded in each other.
+The three schemas are independent and never mixed. QRG, BLD, and GRF are only linked together through Assembly. None of these identifiers are embedded in each other.
 
 ### Full Example — QRG-11111 (T-Shirt #111)
 
@@ -1223,7 +1225,6 @@ bld_definitions/BLD-SZ9001
 
   instances/01   type: txt   role: header
                  fontFamily: Oswald  fontSize: 28
-                 text: "UNITED STATES ARMED FORCES"
 
   instances/02   type: img   role: top_graphic
                  size: 25%   positionLR: 30%   positionUD: 100%
@@ -1256,6 +1257,93 @@ bld_definitions/BLD-SZ9001
                  fontFamily: Oswald   fontSize: 18   fontWeight: 700
                  strokeWidth: 4   positionLR: 5%   positionUD: 55%
 ```
+
+> Text content (actual words) and GRF asset IDs are NOT stored here. They are stored in the Assembly that links this BLD to the product. BLD holds structure and styling defaults only.
+
+---
+
+## Section 20 — Packet / Assembly Architecture
+**Established: 2026-05-05**
+
+### The Four-Schema Chain
+
+QR Gear product builds are defined by four schemas that each answer a single question:
+
+| Schema | Answers | Example ID |
+|--------|---------|-----------|
+| **QRG** | What product blank is this? | `11101` (T-Shirt #101) |
+| **BLD** | How is this composition structured? | `BLD-SZ9001` |
+| **GRF** | What file is this asset? | `GRF-04-3-000001` |
+| **Assembly** | What assets fill which slots, for which blank? | `ASM-000001` |
+
+The Packet wraps everything:
+
+| Layer | Answers | Contains |
+|-------|---------|---------|
+| **Packet** | What is being sold? | Pricing, QR URL, product options, checkout, landing page, store assignment, mockup URLs, hosting term — plus `assemblyId` |
+| **Assembly** | What was built? | `qrgId`, `bldId`, `mappings[]` — nothing else |
+
+### Full Chain
+
+```
+Packet  (top-level published offer)
+  ├── pricing, customerPrice, baseCost, markup
+  ├── productId, productName, color, sizes, placements
+  ├── qrDestinationUrl
+  ├── landingPage (title, description, background)
+  ├── storeId, channelId, collectionId
+  ├── mockupUrls, placementMockupUrls
+  ├── hostingTerm, hostingExpiresAt
+  ├── status (building | draft | saved | published)
+  └── assemblyId ──→ Assembly
+                        ├── qrgId ──→ QRG  (master_catalog blank)
+                        ├── bldId ──→ BLD  (bld_definitions layout)
+                        └── mappings[]
+                              ├── { seq: "01", type: "img", grfId: "GRF-03-3-000007" }
+                              ├── { seq: "02", type: "txt", value: "ARMED FORCES", color: "#FFF" }
+                              ├── { seq: "03", type: "qrc", grfId: "GRF-04-3-000001" }
+                              └── ...
+                                      └── GRF  (grf_assets file metadata)
+```
+
+### Separation of Concerns
+
+| Concept | Layer | Rationale |
+|---------|-------|-----------|
+| What file is this image? | GRF | Pure asset identity — independent of context |
+| How is the product laid out? | BLD | Reusable structure — independent of assets |
+| Which assets fill which slots? | Assembly | The glue — only place all three schemas meet |
+| What is being sold and for how much? | Packet | The offer — all customer-facing data |
+| What physical product is the blank? | QRG | Product catalog identity — provider-agnostic |
+
+### Why Assembly Exists
+
+Without Assembly, a Packet would need to embed QRG, BLD, and GRF references directly. That creates coupling: changing a GRF asset means updating every Packet that uses it. Assembly breaks that coupling.
+
+- The same Assembly can be referenced by multiple Packets (e.g. different price tiers, different stores)
+- The same BLD can appear in multiple Assemblies (same structure, different assets)
+- The same GRF asset can appear in multiple Assembly mappings (same file, different products)
+- A Packet always references exactly one Assembly
+
+### Firestore Collections
+
+| Collection | Purpose |
+|------------|---------|
+| `productPackets` | Packets — all published and draft product offers |
+| `assemblies` | Assembly records — QRG + BLD + GRF linkage |
+| `bld_definitions` | BLD structure definitions |
+| `bld_definitions/{id}/instances` | Per-slot vehicle records |
+| `grf_assets` | GRF file metadata |
+| `grf_counters` | Atomic GRF sequence counters |
+| `bld_counters` | Atomic BLD sequence counters |
+| `asm_counters` | Atomic Assembly sequence counters |
+| `master_catalog` | QRG blank records (`qrg_{STNNN}`) |
+
+**Full specs:**
+- [`QRG.md`](./QRG.md) — QRG number system
+- [`GRF.md`](./GRF.md) — GRF graphic reference format
+- [`BLD.md`](./BLD.md) — BLD build definition schema
+- [`ASSEMBLY.md`](./ASSEMBLY.md) — Assembly glue layer
 
 ---
 
