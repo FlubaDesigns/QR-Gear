@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
+import JSZip from "jszip";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { AlertTriangle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLibraryContext } from "../LibraryContext";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
@@ -11,6 +13,8 @@ import type { GridViewItem } from "@/features/shared/components/views/index";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
 import type { LibraryAssetWithProxy } from "../shared/types";
 import { getImageUrl } from "../shared/imageUtils";
+
+// ── Error boundary ────────────────────────────────────────────────────────────
 
 class SourceImagesBoundary extends Component<
   { children: ReactNode },
@@ -50,9 +54,11 @@ class SourceImagesBoundary extends Component<
   }
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Fix 6: no try/catch — let ErrorBoundary surface any real mapping error
 function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
   const url = getImageUrl(asset);
-  console.log("[SourceImages] assetToGridItem:", asset.id, asset.name, "url:", url);
   return {
     id: asset.id,
     name: asset.name,
@@ -61,39 +67,34 @@ function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
   };
 }
 
+// Derive MIME type from file extension
+function extToMime(ext: string): string {
+  switch (ext.toLowerCase()) {
+    case "png":  return "image/png";
+    case "webp": return "image/webp";
+    case "gif":  return "image/gif";
+    default:     return "image/jpeg";
+  }
+}
+
+// ── Inner tab ─────────────────────────────────────────────────────────────────
+
 function SourceImagesTabInner() {
   const { api } = useLibraryContext();
   const { toast } = useToast();
-  
-  const [selectedItem, setSelectedItem] = useState<GridViewItem | null>(null);
-  const [singleViewOpen, setSingleViewOpen] = useState(false);
-  const [cropDialogOpen, setCropDialogOpen] = useState(false);
-  const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
+
+  const [selectedItem,    setSelectedItem]    = useState<GridViewItem | null>(null);
+  const [singleViewOpen,  setSingleViewOpen]  = useState(false);
+  const [cropDialogOpen,  setCropDialogOpen]  = useState(false);
+  const [assetToCrop,     setAssetToCrop]     = useState<CropAsset | null>(null);
 
   const { data: assets = [], isLoading, error: queryError } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("source"),
-    queryFn: async () => {
-      console.log("[SourceImages] Fetching source assets...");
-      try {
-        const result = await api.fetchAssets("source");
-        console.log("[SourceImages] Fetched", result.length, "assets");
-        return result;
-      } catch (err) {
-        console.error("[SourceImages] Fetch error:", err);
-        throw err;
-      }
-    },
+    queryFn: () => api.fetchAssets("source"),
   });
 
-  if (queryError) {
-    console.error("[SourceImages] Query error state:", queryError);
-  }
-
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => {
-      console.log("[SourceImages] Deleting asset:", id);
-      return api.deleteAsset(id);
-    },
+    mutationFn: (id: string) => api.deleteAsset(id),
     onSuccess: () => {
       toast({ title: "Image deleted" });
       api.invalidateAssets("source");
@@ -106,32 +107,21 @@ function SourceImagesTabInner() {
     },
   });
 
-  const gridItems = useMemo(() => {
-    console.log("[SourceImages] Building grid items from", assets.length, "assets");
-    try {
-      return assets.map(assetToGridItem);
-    } catch (err) {
-      console.error("[SourceImages] Error building grid items:", err);
-      return [];
-    }
-  }, [assets]);
+  // Fix 6: no try/catch — ErrorBoundary handles real errors
+  const gridItems = useMemo(() => assets.map(assetToGridItem), [assets]);
 
   const handleSelect = (item: GridViewItem) => {
-    console.log("[SourceImages] Selected:", item.id, item.name);
     setSelectedItem(item);
     setSingleViewOpen(true);
   };
 
   const handleCrop = (id: string) => {
-    console.log("[SourceImages] Opening crop for:", id);
     const asset = assets.find(a => a.id === id);
     if (asset) {
-      const url = getImageUrl(asset);
-      console.log("[SourceImages] Crop asset URL:", url);
       setAssetToCrop({
         id: asset.id,
         name: asset.name,
-        imageUrl: url,
+        imageUrl: getImageUrl(asset),
       });
       setSingleViewOpen(false);
       setCropDialogOpen(true);
@@ -145,18 +135,16 @@ function SourceImagesTabInner() {
       console.error("[SourceImages] handleCropComplete called but no assetToCrop");
       return;
     }
-    const sourceAsset = assetToCrop;
-    const sourceId = sourceAsset.id;
+    const sourceAsset  = assetToCrop;
+    const sourceId     = sourceAsset.id;
     const originalAsset = assets.find(a => a.id === sourceId);
-    console.log("[SourceImages] Crop complete for:", sourceAsset.name, "dataUrl length:", croppedDataUrl.length);
     setCropDialogOpen(false);
     setAssetToCrop(null);
 
+    // Auto-download the original before it moves to background
     if (originalAsset) {
       try {
-        const originalUrl = getImageUrl(originalAsset);
-        console.log("[SourceImages] Downloading original before removal:", originalUrl);
-        const blobUrl = await api.fetchImageBlob(originalUrl);
+        const blobUrl = await api.fetchImageBlob(getImageUrl(originalAsset));
         const a = document.createElement("a");
         a.href = blobUrl;
         const ext = originalAsset.mimeType?.includes("png") ? ".png" : ".jpg";
@@ -165,28 +153,29 @@ function SourceImagesTabInner() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(blobUrl);
-        console.log("[SourceImages] Original downloaded:", a.download);
       } catch (dlErr) {
         console.error("[SourceImages] Failed to download original:", dlErr);
-        toast({ title: "Could not download original", description: "Crop will still be saved", variant: "destructive" });
+        toast({
+          title: "Could not download original",
+          description: "Crop will still be saved",
+          variant: "destructive",
+        });
       }
     }
 
-    const imageData = croppedDataUrl.includes(',')
-      ? croppedDataUrl.split(',')[1]
+    const imageData = croppedDataUrl.includes(",")
+      ? croppedDataUrl.split(",")[1]
       : croppedDataUrl;
 
-    console.log("[SourceImages] Uploading cropped image, base64 length:", imageData.length);
-    toast({ title: "Saving cropped image..." });
+    toast({ title: "Saving cropped image…" });
     try {
       await api.uploadAsset({
-        name: `cropped_${sourceAsset.name}`,
-        assetType: "cropped",
+        name:          `cropped_${sourceAsset.name}`,
+        assetType:     "cropped",
         imageData,
-        mimeType: "image/jpeg",
+        mimeType:      "image/jpeg",
         sourceAssetId: sourceId,
       });
-      console.log("[SourceImages] Cropped image saved, server moves source to background automatically");
       toast({ title: "Cropped image saved" });
       api.invalidateAssets("source");
       api.invalidateAssets("cropped");
@@ -202,48 +191,81 @@ function SourceImagesTabInner() {
     deleteMutation.mutate(id);
   };
 
+  // Fix 4: no debug console.log
   const handleUploadSingle = async (params: { name: string; imageData: string; mimeType: string }) => {
-    console.log("[SourceImages] Uploading single:", params.name, "mimeType:", params.mimeType, "data length:", params.imageData.length);
-    try {
-      await api.uploadAsset({
-        name: params.name,
-        assetType: "source",
-        imageData: params.imageData,
-        mimeType: params.mimeType,
-      });
-      console.log("[SourceImages] Upload success:", params.name);
-      api.invalidateAssets("source");
-    } catch (err) {
-      console.error("[SourceImages] Upload error:", err);
-      throw err;
-    }
+    await api.uploadAsset({
+      name:      params.name,
+      assetType: "source",
+      imageData: params.imageData,
+      mimeType:  params.mimeType,
+    });
+    api.invalidateAssets("source");
   };
 
-  const handleUploadZip = async (params: { name: string; imageData: string; mimeType: string }) => {
-    console.log("[SourceImages] Uploading ZIP:", params.name, "data length:", params.imageData.length);
+  // Fix 1: Client-side ZIP extraction using JSZip — never send raw ZIP to backend
+  const handleUploadZip = async (params: { name: string; imageData: string; mimeType: string }): Promise<{ extractedCount: number }> => {
+    let zip: JSZip;
     try {
-      const result = await api.uploadZip({
-        name: params.name,
-        assetType: "source",
-        imageData: params.imageData,
-        mimeType: params.mimeType,
-      });
-      console.log("[SourceImages] ZIP upload success, extracted:", result.extractedCount);
-      api.invalidateAssets("source");
-      return result;
+      // Decode base64 → Uint8Array → JSZip
+      const binary    = atob(params.imageData);
+      const bytes     = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      zip = await new JSZip().loadAsync(bytes);
     } catch (err) {
-      console.error("[SourceImages] ZIP upload error:", err);
-      throw err;
+      console.error("[SourceImages] ZIP parse error:", err);
+      throw new Error("Could not parse ZIP file — it may be corrupt or password-protected.");
     }
+
+    const IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+
+    // Collect valid image entries (skip directories, skip __MACOSX junk)
+    const imageEntries: Array<{ filename: string; file: JSZip.JSZipObject }> = [];
+    zip.forEach((relativePath, file) => {
+      if (file.dir) return;
+      if (relativePath.startsWith("__MACOSX")) return;
+      const ext = relativePath.split(".").pop()?.toLowerCase() ?? "";
+      if (IMAGE_EXTS.has(ext)) imageEntries.push({ filename: relativePath, file });
+    });
+
+    if (imageEntries.length === 0) {
+      throw new Error("No image files found in ZIP. Supported: JPG, PNG, WebP, GIF.");
+    }
+
+    let successCount = 0;
+    for (const { filename, file } of imageEntries) {
+      const ext      = filename.split(".").pop()?.toLowerCase() ?? "jpg";
+      const mimeType = extToMime(ext);
+      const baseName = filename.split("/").pop()?.replace(/\.[^/.]+$/, "") || filename;
+      try {
+        const base64 = await file.async("base64");
+        await handleUploadSingle({ name: baseName, imageData: base64, mimeType });
+        successCount++;
+      } catch (err) {
+        console.error("[SourceImages] Failed to upload extracted image:", filename, err);
+      }
+    }
+
+    return { extractedCount: successCount };
   };
 
   return (
     <>
+      {/* Fix 7: GRF staging note */}
+      <div
+        className="flex items-start gap-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 mb-4"
+        data-testid="info-grf-staging"
+      >
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+        <p className="text-xs text-blue-800 dark:text-blue-300">
+          Staged source uploads — no GRF ID assigned yet. After cropping, images move to Backgrounds. Mint GRF IDs from the Graphics tab.
+        </p>
+      </div>
+
       <ImageUploader
         onUploadSingle={handleUploadSingle}
         onUploadZip={handleUploadZip}
         title="Upload Source Images"
-        description="ZIP files are extracted server-side. Original ZIP saved to archive."
+        description="ZIP files are extracted in the browser — each image is uploaded individually."
       />
 
       <div className="flex items-center justify-between mb-4">
@@ -251,7 +273,7 @@ function SourceImagesTabInner() {
       </div>
 
       {queryError && (
-        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4">
+        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-source-images">
           <p className="text-sm font-medium">Failed to load images</p>
           <p className="text-xs text-muted-foreground">{(queryError as Error).message}</p>
         </div>
@@ -265,7 +287,15 @@ function SourceImagesTabInner() {
             onClick={() => handleSelect(item)}
             data-testid={`card-grid-item-${item.id}`}
           >
-            <img src={item.imageUrl} alt="" className="w-full h-auto" />
+            {/* Fix 5: broken image placeholder */}
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt="" className="w-full h-auto" />
+            ) : (
+              <div className="flex flex-col items-center justify-center bg-muted h-32 gap-1" data-testid={`placeholder-no-url-${item.id}`}>
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-xs text-destructive font-mono">No URL</span>
+              </div>
+            )}
           </div>
         )}
         isLoading={isLoading}
@@ -277,16 +307,16 @@ function SourceImagesTabInner() {
 
       <ItemModalView
         item={selectedItem ? {
-          id: selectedItem.id,
-          name: selectedItem.name,
-          imageUrl: selectedItem.imageUrl,
+          id:         selectedItem.id,
+          name:       selectedItem.name,
+          imageUrl:   selectedItem.imageUrl,
           dimensions: selectedItem.dimensions,
         } : null}
         open={singleViewOpen}
         onOpenChange={setSingleViewOpen}
       >
         <CropDeleteSkin
-          itemId={selectedItem?.id || ''}
+          itemId={selectedItem?.id || ""}
           onCrop={handleCrop}
           onDelete={handleDelete}
           onClose={() => setSingleViewOpen(false)}
@@ -310,6 +340,8 @@ function SourceImagesTabInner() {
     </>
   );
 }
+
+// ── Export ────────────────────────────────────────────────────────────────────
 
 export default function SourceImagesTab() {
   return (

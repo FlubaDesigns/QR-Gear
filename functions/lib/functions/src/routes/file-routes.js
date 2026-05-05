@@ -258,6 +258,11 @@ function register(app) {
                 res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
                 return;
             }
+            // Fix 2: Reject non-image MIME types — ZIP, PDF, video, etc. must never reach storage as "images"
+            if (!mimeType || !mimeType.startsWith('image/')) {
+                res.status(400).json({ error: `Invalid mimeType "${mimeType}". Only image/* types are accepted for source and cropped uploads. Extract ZIP files client-side before uploading.` });
+                return;
+            }
             // Upload to Firebase Storage with organized paths
             // library/backgrounds/raw/ for individual uploads
             // library/backgrounds/raw/zip/ for ZIP uploads
