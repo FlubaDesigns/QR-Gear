@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, Link2, X, Unlink } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, Link2, X, Unlink, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,23 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
 
-// ── Type colours — mirror BldDefinitionsTab ───────────────────────────────────
+// ── Regex constants (from canonical schemas) ─────────────────────────────────
+
+const QRG_BLANK_REGEX   = /^[1-6][1-9][0-9]{3}$/;
+const BLD_ID_REGEX      = /^BLD-[SU][A-Z]\d-\d{3}$/;
+const GRF_ID_REGEX      = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
+const ASM_ID_REGEX      = /^ASM-\d{6}$/;
+
+function isValidQrgId(id: string): boolean  { return QRG_BLANK_REGEX.test(id); }
+function isValidBldId(id: string): boolean  { return BLD_ID_REGEX.test(id); }
+function isValidGrfId(id: string): boolean  { return GRF_ID_REGEX.test(id); }
+function isValidAsmId(id: string): boolean  { return ASM_ID_REGEX.test(id); }
+
+// Asset slots that require a grfId (not a text value)
+function isAssetSlot(type: string): boolean { return type === "img" || type === "qrc"; }
+function isTextSlot(type: string): boolean  { return type === "txt" || type === "act"; }
+
+// ── Type colours ─────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   txt: "txt — Text",
@@ -29,8 +45,25 @@ const TYPE_COLORS: Record<string, string> = {
   doc: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
 };
 
-function isTextType(type: string) { return type === "txt" || type === "act"; }
-function isGrfOnlyType(type: string) { return type === "img" || type === "qrc"; }
+// ── Shared ⚠ badge ───────────────────────────────────────────────────────────
+
+function MissingBadge({ text }: { text: string }) {
+  return (
+    <Badge variant="destructive" className="text-xs gap-1 font-mono">
+      <AlertTriangle className="h-3 w-3" />
+      {text}
+    </Badge>
+  );
+}
+
+function FieldError({ text }: { text: string }) {
+  return (
+    <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 mt-0.5">
+      <AlertTriangle className="h-3 w-3 shrink-0" />
+      {text}
+    </p>
+  );
+}
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -40,7 +73,6 @@ interface AssemblyMapping {
   grfId?:   string;
   value?:   string;
   color?:   string;
-  imageUrl?: string;
 }
 
 interface Assembly {
@@ -70,7 +102,7 @@ function padSeq(i: number): string {
   return String(i + 1).padStart(2, "0");
 }
 
-// ── Mapping row inside the create form ───────────────────────────────────────
+// ── Mapping form row ──────────────────────────────────────────────────────────
 
 function MappingFormRow({
   mapping,
@@ -83,9 +115,12 @@ function MappingFormRow({
   onChange: (i: number, field: keyof FormMapping, v: string) => void;
   onRemove: (i: number) => void;
 }) {
-  const needsValue  = isTextType(mapping.type);
-  const needsGrf    = isGrfOnlyType(mapping.type);
-  const eitherOrGrf = mapping.type === "vid" || mapping.type === "doc";
+  const needsValue    = isTextSlot(mapping.type);
+  const needsGrf      = isAssetSlot(mapping.type);
+  const eitherOrGrf   = mapping.type === "vid" || mapping.type === "doc";
+
+  const grfFilled     = mapping.grfId.trim().length > 0;
+  const grfInvalid    = grfFilled && !isValidGrfId(mapping.grfId.trim());
 
   return (
     <div className="rounded-md border bg-muted/30 p-2 space-y-2" data-testid={`row-mapping-${index}`}>
@@ -122,13 +157,18 @@ function MappingFormRow({
       )}
 
       {(needsGrf || eitherOrGrf) && (
-        <Input
-          value={mapping.grfId}
-          onChange={(e) => onChange(index, "grfId", e.target.value)}
-          placeholder="GRF ID (e.g. GRF-03-3-000007)"
-          className="h-7 text-xs font-mono"
-          data-testid={`input-mapping-grfid-${index}`}
-        />
+        <div>
+          <Input
+            value={mapping.grfId}
+            onChange={(e) => onChange(index, "grfId", e.target.value)}
+            placeholder="GRF ID (e.g. GRF-03-3-000007)"
+            className={`h-7 text-xs font-mono ${grfInvalid ? "border-red-500 dark:border-red-600" : ""}`}
+            data-testid={`input-mapping-grfid-${index}`}
+          />
+          {grfInvalid && (
+            <FieldError text="Invalid GRF ID — must match GRF-TT-K-NNNNNN (e.g. GRF-03-3-000007)" />
+          )}
+        </div>
       )}
 
       {(needsValue || eitherOrGrf) && (
@@ -159,6 +199,18 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
     { type: "qrc", grfId: "", value: "", color: "" },
   ]);
 
+  // Inline validation states
+  const qrgFilled    = qrgId.trim().length > 0;
+  const qrgInvalid   = qrgFilled && !isValidQrgId(qrgId.trim());
+
+  const bldFilled    = bldId.trim().length > 0;
+  const bldInvalid   = bldFilled && !isValidBldId(bldId.trim());
+
+  const anyGrfInvalid = mappings.some((m) => {
+    const filled = m.grfId.trim().length > 0;
+    return filled && !isValidGrfId(m.grfId.trim());
+  });
+
   const mutation = useMutation({
     mutationFn: (payload: object) =>
       adminFetch("/assemblies", { method: "POST", json: payload }),
@@ -177,8 +229,31 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   function handleSubmit() {
-    if (!qrgId.trim()) { toast({ title: "qrgId is required", variant: "destructive" }); return; }
-    if (!bldId.trim()) { toast({ title: "bldId is required", variant: "destructive" }); return; }
+    // Fix 10 — format guards before any mutation
+    if (!qrgId.trim()) {
+      toast({ title: "QRG ID is required", variant: "destructive" });
+      return;
+    }
+    if (!isValidQrgId(qrgId.trim())) {
+      toast({ title: "Invalid QRG ID", description: "Must match format: [1-6][1-9][0-9]{3} (e.g. 11101)", variant: "destructive" });
+      return;
+    }
+    if (!bldId.trim()) {
+      toast({ title: "BLD ID is required", variant: "destructive" });
+      return;
+    }
+    if (!isValidBldId(bldId.trim())) {
+      toast({ title: "Invalid BLD ID", description: "Must match format: BLD-[SU][A-Z][0-9]-[0-9]{3} (e.g. BLD-SZ9-001)", variant: "destructive" });
+      return;
+    }
+    if (anyGrfInvalid) {
+      toast({ title: "Invalid GRF ID in mappings", description: "Fix all GRF ID errors before submitting.", variant: "destructive" });
+      return;
+    }
+    if (mappings.length === 0) {
+      toast({ title: "No mappings", description: "Add at least one mapping slot.", variant: "destructive" });
+      return;
+    }
 
     const built = mappings.map((m, i) => {
       const entry: Record<string, string> = { seq: padSeq(i), type: m.type };
@@ -188,55 +263,110 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
       return entry;
     });
 
-    mutation.mutate({ qrgId: qrgId.trim(), bldId: bldId.trim(), name: name.trim() || undefined, mappings: built });
+    mutation.mutate({
+      qrgId:    qrgId.trim(),
+      bldId:    bldId.trim(),
+      name:     name.trim() || undefined,
+      mappings: built,
+    });
   }
+
+  const submitBlocked = mutation.isPending || mappings.length === 0 || qrgInvalid || bldInvalid || anyGrfInvalid;
 
   return (
     <div className="space-y-4" data-testid="form-create-assembly">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">QRG ID</label>
-          <Input value={qrgId} onChange={(e) => setQrgId(e.target.value)} placeholder="e.g. 11101" className="font-mono" data-testid="input-asm-qrgid" />
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">QRG Blank ID</label>
+          <Input
+            value={qrgId}
+            onChange={(e) => setQrgId(e.target.value)}
+            placeholder="e.g. 11101"
+            className={`font-mono ${qrgInvalid ? "border-red-500 dark:border-red-600" : ""}`}
+            data-testid="input-asm-qrgid"
+          />
+          {qrgInvalid && (
+            <FieldError text="Invalid — must match [1-6][1-9][0-9]{3} (e.g. 11101)" />
+          )}
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">BLD ID</label>
-          <Input value={bldId} onChange={(e) => setBldId(e.target.value)} placeholder="e.g. BLD-SZ9-001" className="font-mono" data-testid="input-asm-bldid" />
+          <Input
+            value={bldId}
+            onChange={(e) => setBldId(e.target.value)}
+            placeholder="e.g. BLD-SZ9-001"
+            className={`font-mono ${bldInvalid ? "border-red-500 dark:border-red-600" : ""}`}
+            data-testid="input-asm-bldid"
+          />
+          {bldInvalid && (
+            <FieldError text="Invalid — must match BLD-[SU][A-Z][0-9]-[0-9]{3} (e.g. BLD-SZ9-001)" />
+          )}
         </div>
       </div>
+
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name (optional)</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Armed Forces Tee — Zone Build" data-testid="input-asm-name" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Armed Forces Tee — Zone Build"
+          data-testid="input-asm-name"
+        />
       </div>
+
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mappings ({mappings.length})</label>
-          <Button size="sm" variant="outline" onClick={() => setMappings(p => [...p, { ...DEFAULT_MAPPING }])} data-testid="button-add-mapping">
-            <Plus className="h-3.5 w-3.5 mr-1" />Add slot
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Mappings ({mappings.length})
+          </label>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setMappings(p => [...p, { ...DEFAULT_MAPPING }])}
+            data-testid="button-add-mapping"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add slot
           </Button>
         </div>
-        {mappings.length === 0
-          ? <p className="text-xs text-muted-foreground py-2 text-center">No mappings — add at least one slot.</p>
-          : <div className="space-y-1.5">{mappings.map((m, i) => (
-              <MappingFormRow key={i} mapping={m} index={i} onChange={handleMappingChange} onRemove={(idx) => setMappings(p => p.filter((_, j) => j !== idx))} />
-            ))}</div>
-        }
+
+        {mappings.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2 text-center">
+            No mappings — add at least one slot.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            {mappings.map((m, i) => (
+              <MappingFormRow
+                key={i}
+                mapping={m}
+                index={i}
+                onChange={handleMappingChange}
+                onRemove={(idx) => setMappings(p => p.filter((_, j) => j !== idx))}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      <Button onClick={handleSubmit} disabled={mutation.isPending || mappings.length === 0} className="w-full" data-testid="button-submit-assembly">
-        {mutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</> : "Create Assembly"}
+
+      <Button
+        onClick={handleSubmit}
+        disabled={submitBlocked}
+        className="w-full"
+        data-testid="button-submit-assembly"
+      >
+        {mutation.isPending
+          ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</>
+          : "Create Assembly"
+        }
       </Button>
     </div>
   );
 }
 
-// ── Linked packets panel inside the card ─────────────────────────────────────
+// ── Linked packets panel ──────────────────────────────────────────────────────
 
-function LinkedPackets({
-  asm,
-  onReload,
-}: {
-  asm:      Assembly;
-  onReload: () => void;
-}) {
+function LinkedPackets({ asm, onReload }: { asm: Assembly; onReload: () => void }) {
   const { toast } = useToast();
   const [linkInput, setLinkInput] = useState("");
   const [linking,   setLinking]   = useState(false);
@@ -320,7 +450,10 @@ function LinkedPackets({
           disabled={linking || !linkInput.trim()}
           data-testid={`button-link-packet-${asm.id}`}
         >
-          {linking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+          {linking
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <Link2 className="h-3.5 w-3.5" />
+          }
         </Button>
       </div>
     </div>
@@ -340,8 +473,16 @@ function AssemblyCard({
 }) {
   const [expanded,        setExpanded]        = useState(false);
   const [showPacketPanel, setShowPacketPanel] = useState(false);
+
   const mappings  = asm.mappings  ?? [];
   const packetIds = asm.packetIds ?? [];
+
+  // Fix 4 — ASM ID format check
+  const asmIdValid = isValidAsmId(asm.assemblyId);
+  // Fix 5 — QRG ID format check
+  const qrgIdValid = isValidQrgId(asm.qrgId);
+  // Fix 6 — BLD ID format check
+  const bldIdValid = isValidBldId(asm.bldId);
 
   return (
     <div className="rounded-md border bg-card" data-testid={`card-asm-${asm.id}`}>
@@ -352,20 +493,35 @@ function AssemblyCard({
       >
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-mono font-semibold text-foreground" data-testid={`text-asm-id-${asm.id}`}>
+            <span
+              className={`text-xs font-mono font-semibold ${asmIdValid ? "text-foreground" : "text-destructive"}`}
+              data-testid={`text-asm-id-${asm.id}`}
+            >
               {asm.assemblyId}
             </span>
-            <Badge variant="outline" className="text-xs font-mono">{asm.qrgId}</Badge>
-            <Badge variant="outline" className="text-xs font-mono">{asm.bldId}</Badge>
+            {!asmIdValid && <MissingBadge text="INVALID ID" />}
+
+            {qrgIdValid
+              ? <Badge variant="outline" className="text-xs font-mono">{asm.qrgId}</Badge>
+              : <MissingBadge text={`INVALID QRG: ${asm.qrgId}`} />
+            }
+
+            {bldIdValid
+              ? <Badge variant="outline" className="text-xs font-mono">{asm.bldId}</Badge>
+              : <MissingBadge text={`INVALID BLD: ${asm.bldId}`} />
+            }
+
             {asm.source === "auto_commit" && (
               <Badge variant="secondary" className="text-xs">auto</Badge>
             )}
           </div>
+
           {asm.name && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-asm-name-${asm.id}`}>
               {asm.name}
             </p>
           )}
+
           <p className="text-xs text-muted-foreground">
             {mappings.length} mapping{mappings.length !== 1 ? "s" : ""}
             {packetIds.length > 0 && (
@@ -410,34 +566,64 @@ function AssemblyCard({
             <p className="text-xs text-muted-foreground">No mappings recorded.</p>
           ) : (
             <div className="space-y-1.5">
-              {mappings.map((m) => (
-                <div
-                  key={m.seq}
-                  className="flex items-start gap-2 text-xs"
-                  data-testid={`row-asm-mapping-${asm.id}-${m.seq}`}
-                >
-                  <span className="font-mono text-muted-foreground w-5 shrink-0 pt-0.5">{m.seq}</span>
-                  <span className={`font-mono px-1.5 py-0.5 rounded shrink-0 ${TYPE_COLORS[m.type] ?? ""}`}>
-                    {m.type}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {m.grfId && <span className="font-mono text-foreground truncate block">{m.grfId}</span>}
-                    {m.imageUrl && !m.grfId && (
-                      <span className="font-mono text-muted-foreground truncate block text-xs italic">{m.imageUrl}</span>
-                    )}
-                    {m.value && <span className="text-foreground break-words block">{m.value}</span>}
-                    {!m.grfId && !m.value && !m.imageUrl && (
-                      <span className="text-muted-foreground italic">pending GRF</span>
+              {mappings.map((m) => {
+                // Fix 7 — validate GRF ID on each slot
+                const grfPresent  = !!m.grfId;
+                const grfValid    = grfPresent && isValidGrfId(m.grfId!);
+                const grfInvalid  = grfPresent && !grfValid;
+
+                // Fix 8/9 — asset slots with no grfId are MISSING (not "pending" or imageUrl fallback)
+                const assetMissingGrf = isAssetSlot(m.type) && !grfPresent;
+
+                return (
+                  <div
+                    key={m.seq}
+                    className="flex items-start gap-2 text-xs"
+                    data-testid={`row-asm-mapping-${asm.id}-${m.seq}`}
+                  >
+                    <span className="font-mono text-muted-foreground w-5 shrink-0 pt-0.5">{m.seq}</span>
+                    <span className={`font-mono px-1.5 py-0.5 rounded shrink-0 ${TYPE_COLORS[m.type] ?? ""}`}>
+                      {m.type}
+                    </span>
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      {/* GRF ID display — Fix 7 */}
+                      {grfPresent && (
+                        <span className={`font-mono truncate block ${grfInvalid ? "text-destructive" : "text-foreground"}`}>
+                          {m.grfId}
+                          {grfInvalid && (
+                            <span className="ml-1.5 text-destructive font-sans not-italic">[⚠ INVALID GRF]</span>
+                          )}
+                        </span>
+                      )}
+
+                      {/* Fix 8/9 — asset slot missing GRF ID */}
+                      {assetMissingGrf && (
+                        <MissingBadge text="MISSING GRF ID" />
+                      )}
+
+                      {/* Text value */}
+                      {m.value && (
+                        <span className="text-foreground break-words block">{m.value}</span>
+                      )}
+
+                      {/* Fix 8 — no GRF, no value, non-asset slot */}
+                      {!grfPresent && !m.value && !isAssetSlot(m.type) && (
+                        <MissingBadge text="MISSING" />
+                      )}
+                    </div>
+
+                    {m.color && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div
+                          className="h-3 w-3 rounded-sm border border-border"
+                          style={{ backgroundColor: m.color }}
+                        />
+                        <span className="font-mono text-muted-foreground">{m.color}</span>
+                      </div>
                     )}
                   </div>
-                  {m.color && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <div className="h-3 w-3 rounded-sm border border-border" style={{ backgroundColor: m.color }} />
-                      <span className="font-mono text-muted-foreground">{m.color}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -490,10 +676,6 @@ export default function AssembliesTab() {
 
   const assemblies = data?.assemblies ?? [];
 
-  function handleReload() {
-    refetch();
-  }
-
   return (
     <div className="space-y-4" data-testid="tab-assemblies">
 
@@ -502,7 +684,9 @@ export default function AssembliesTab() {
         <div className="flex items-center gap-2">
           <Link2 className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Assemblies</span>
-          {!isLoading && <Badge variant="secondary" className="text-xs">{assemblies.length}</Badge>}
+          {!isLoading && (
+            <Badge variant="secondary" className="text-xs">{assemblies.length}</Badge>
+          )}
         </div>
         <Button
           size="sm"
@@ -555,7 +739,10 @@ export default function AssembliesTab() {
 
       {!isLoading && !isError && assemblies.length === 0 && (
         <p className="text-sm text-muted-foreground py-6 text-center" data-testid="empty-assemblies">
-          {filterQrg || filterBld ? "No assemblies match this filter." : "No assemblies yet. Create one above."}
+          {filterQrg || filterBld
+            ? "No assemblies match this filter."
+            : "No assemblies yet. Create one above."
+          }
         </p>
       )}
 
@@ -566,7 +753,7 @@ export default function AssembliesTab() {
               key={asm.id}
               asm={asm}
               onDelete={(asmId) => setDeleteTarget(asmId)}
-              onReload={handleReload}
+              onReload={() => refetch()}
             />
           ))}
         </div>
@@ -578,8 +765,9 @@ export default function AssembliesTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Assembly</AlertDialogTitle>
             <AlertDialogDescription>
-              Permanently delete <span className="font-mono font-semibold">{deleteTarget}</span>?
-              Any packets referencing this assembly will lose their link. This cannot be undone.
+              Permanently delete{" "}
+              <span className="font-mono font-semibold">{deleteTarget}</span>?
+              This cannot be undone. The assembly must have no linked packets before deletion.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -590,7 +778,10 @@ export default function AssembliesTab() {
               className="bg-red-600 hover:bg-red-700 text-white"
               data-testid="button-confirm-delete-asm"
             >
-              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              {deleteMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : "Delete"
+              }
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
