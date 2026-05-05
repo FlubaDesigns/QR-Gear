@@ -615,10 +615,41 @@ function registerAdminBuildSessions(app) {
                 // BLD write failure must never block the commit response
                 console.error(`[BuildSessions] BLD write failed (non-fatal):`, bldErr.message);
             }
+            // ── Write Assembly definition (fire-and-forget, after BLD) ────────────
+            // Assembly is the glue record linking QRG + BLD + content mappings.
+            // Only created when BLD succeeded (so we have a valid bldId to link).
+            let assemblyId = null;
+            if (bldId) {
+                try {
+                    const asmResult = await (0, bld_builder_1.writeAutoAssembly)({
+                        working: session.working || {},
+                        qrgId: qrgIdentity.qrgBlankId,
+                        bldId,
+                        sourceSessionId: id,
+                        packetId: newPacketId,
+                    });
+                    assemblyId = asmResult.assemblyId;
+                    console.log(`[BuildSessions] Assembly written: ${assemblyId} (${asmResult.mappingCount} mappings)`);
+                    // Back-fill assemblyId onto the packet so the four-schema chain is complete
+                    if (newPacketId) {
+                        await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
+                            assemblyId,
+                            updatedAt: now,
+                        });
+                    }
+                    // Back-fill assemblyId onto the admin_catalog_instance for traceability
+                    await instanceRef.update({ assemblyId, updatedAt: now });
+                }
+                catch (asmErr) {
+                    // Assembly write failure must never block the commit response
+                    console.error(`[BuildSessions] Assembly write failed (non-fatal):`, asmErr.message);
+                }
+            }
             await ref.update({
                 status: 'committed',
                 committedInstanceId: instanceId,
                 bldId: bldId || null,
+                assemblyId: assemblyId || null,
                 updatedAt: now,
             });
             res.json({
@@ -628,6 +659,7 @@ function registerAdminBuildSessions(app) {
                 sourceMasterId: session.sourceMasterId,
                 packetId: newPacketId,
                 bldId: bldId || null,
+                assemblyId: assemblyId || null,
             });
         }
         catch (err) {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, Link2, X } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, Link2, X, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
 
-// ── Type labels / colours — mirrors BldDefinitionsTab for visual consistency ──
+// ── Type colours — mirror BldDefinitionsTab ───────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   txt: "txt — Text",
@@ -29,38 +29,39 @@ const TYPE_COLORS: Record<string, string> = {
   doc: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
 };
 
-// Whether a type requires a value (text) vs grfId (asset)
 function isTextType(type: string) { return type === "txt" || type === "act"; }
 function isGrfOnlyType(type: string) { return type === "img" || type === "qrc"; }
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 interface AssemblyMapping {
-  seq:    string;
-  type:   string;
-  grfId?: string;
-  value?: string;
-  color?: string;
+  seq:      string;
+  type:     string;
+  grfId?:   string;
+  value?:   string;
+  color?:   string;
+  imageUrl?: string;
 }
 
 interface Assembly {
-  id:           string;
-  assemblyId:   string;
-  sequence:     number;
-  qrgId:        string;
-  bldId:        string;
-  name?:        string;
-  mappings:     AssemblyMapping[];
-  packetIds?:   string[];
-  createdAt?:   string;
-  createdBy?:   string;
+  id:          string;
+  assemblyId:  string;
+  sequence:    number;
+  qrgId:       string;
+  bldId:       string;
+  name?:       string;
+  mappings:    AssemblyMapping[];
+  packetIds?:  string[];
+  source?:     string;
+  createdAt?:  string;
+  createdBy?:  string;
 }
 
 interface FormMapping {
-  type:   string;
-  grfId:  string;
-  value:  string;
-  color:  string;
+  type:  string;
+  grfId: string;
+  value: string;
+  color: string;
 }
 
 const DEFAULT_MAPPING: FormMapping = { type: "txt", grfId: "", value: "", color: "" };
@@ -77,12 +78,11 @@ function MappingFormRow({
   onChange,
   onRemove,
 }: {
-  mapping: FormMapping;
-  index:   number;
+  mapping:  FormMapping;
+  index:    number;
   onChange: (i: number, field: keyof FormMapping, v: string) => void;
   onRemove: (i: number) => void;
 }) {
-  const seq = padSeq(index);
   const needsValue  = isTextType(mapping.type);
   const needsGrf    = isGrfOnlyType(mapping.type);
   const eitherOrGrf = mapping.type === "vid" || mapping.type === "doc";
@@ -90,7 +90,7 @@ function MappingFormRow({
   return (
     <div className="rounded-md border bg-muted/30 p-2 space-y-2" data-testid={`row-mapping-${index}`}>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{seq}</span>
+        <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{padSeq(index)}</span>
         <Select value={mapping.type} onValueChange={(v) => onChange(index, "type", v)}>
           <SelectTrigger className="h-7 text-xs flex-1" data-testid={`select-mapping-type-${index}`}>
             <SelectValue />
@@ -154,9 +154,9 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   const [bldId,    setBldId]    = useState("");
   const [name,     setName]     = useState("");
   const [mappings, setMappings] = useState<FormMapping[]>([
-    { type: "img",  grfId: "", value: "", color: "" },
-    { type: "txt",  grfId: "", value: "", color: "" },
-    { type: "qrc",  grfId: "", value: "", color: "" },
+    { type: "img", grfId: "", value: "", color: "" },
+    { type: "txt", grfId: "", value: "", color: "" },
+    { type: "qrc", grfId: "", value: "", color: "" },
   ]);
 
   const mutation = useMutation({
@@ -176,23 +176,9 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
     setMappings(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: v } : m));
   }
 
-  function handleAddMapping() {
-    setMappings(prev => [...prev, { ...DEFAULT_MAPPING }]);
-  }
-
-  function handleRemoveMapping(i: number) {
-    setMappings(prev => prev.filter((_, idx) => idx !== i));
-  }
-
   function handleSubmit() {
-    if (!qrgId.trim()) {
-      toast({ title: "qrgId is required", variant: "destructive" });
-      return;
-    }
-    if (!bldId.trim()) {
-      toast({ title: "bldId is required", variant: "destructive" });
-      return;
-    }
+    if (!qrgId.trim()) { toast({ title: "qrgId is required", variant: "destructive" }); return; }
+    if (!bldId.trim()) { toast({ title: "bldId is required", variant: "destructive" }); return; }
 
     const built = mappings.map((m, i) => {
       const entry: Record<string, string> = { seq: padSeq(i), type: m.type };
@@ -202,12 +188,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
       return entry;
     });
 
-    mutation.mutate({
-      qrgId:    qrgId.trim(),
-      bldId:    bldId.trim(),
-      name:     name.trim() || undefined,
-      mappings: built,
-    });
+    mutation.mutate({ qrgId: qrgId.trim(), bldId: bldId.trim(), name: name.trim() || undefined, mappings: built });
   }
 
   return (
@@ -215,76 +196,133 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">QRG ID</label>
-          <Input
-            value={qrgId}
-            onChange={(e) => setQrgId(e.target.value)}
-            placeholder="e.g. 11101"
-            className="font-mono"
-            data-testid="input-asm-qrgid"
-          />
+          <Input value={qrgId} onChange={(e) => setQrgId(e.target.value)} placeholder="e.g. 11101" className="font-mono" data-testid="input-asm-qrgid" />
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">BLD ID</label>
-          <Input
-            value={bldId}
-            onChange={(e) => setBldId(e.target.value)}
-            placeholder="e.g. BLD-SZ9-001"
-            className="font-mono"
-            data-testid="input-asm-bldid"
-          />
+          <Input value={bldId} onChange={(e) => setBldId(e.target.value)} placeholder="e.g. BLD-SZ9-001" className="font-mono" data-testid="input-asm-bldid" />
         </div>
       </div>
-
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name (optional)</label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Armed Forces Tee — Zone Build"
-          data-testid="input-asm-name"
-        />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Armed Forces Tee — Zone Build" data-testid="input-asm-name" />
       </div>
-
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Mappings ({mappings.length})
-          </label>
-          <Button size="sm" variant="outline" onClick={handleAddMapping} data-testid="button-add-mapping">
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add slot
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mappings ({mappings.length})</label>
+          <Button size="sm" variant="outline" onClick={() => setMappings(p => [...p, { ...DEFAULT_MAPPING }])} data-testid="button-add-mapping">
+            <Plus className="h-3.5 w-3.5 mr-1" />Add slot
           </Button>
         </div>
-
-        {mappings.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-2 text-center">No mappings — add at least one slot.</p>
-        ) : (
-          <div className="space-y-1.5">
-            {mappings.map((m, i) => (
-              <MappingFormRow
-                key={i}
-                mapping={m}
-                index={i}
-                onChange={handleMappingChange}
-                onRemove={handleRemoveMapping}
-              />
-            ))}
-          </div>
-        )}
+        {mappings.length === 0
+          ? <p className="text-xs text-muted-foreground py-2 text-center">No mappings — add at least one slot.</p>
+          : <div className="space-y-1.5">{mappings.map((m, i) => (
+              <MappingFormRow key={i} mapping={m} index={i} onChange={handleMappingChange} onRemove={(idx) => setMappings(p => p.filter((_, j) => j !== idx))} />
+            ))}</div>
+        }
       </div>
-
-      <Button
-        onClick={handleSubmit}
-        disabled={mutation.isPending || mappings.length === 0}
-        className="w-full"
-        data-testid="button-submit-assembly"
-      >
-        {mutation.isPending ? (
-          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</>
-        ) : (
-          "Create Assembly"
-        )}
+      <Button onClick={handleSubmit} disabled={mutation.isPending || mappings.length === 0} className="w-full" data-testid="button-submit-assembly">
+        {mutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating…</> : "Create Assembly"}
       </Button>
+    </div>
+  );
+}
+
+// ── Linked packets panel inside the card ─────────────────────────────────────
+
+function LinkedPackets({
+  asm,
+  onReload,
+}: {
+  asm:      Assembly;
+  onReload: () => void;
+}) {
+  const { toast } = useToast();
+  const [linkInput, setLinkInput] = useState("");
+  const [linking,   setLinking]   = useState(false);
+  const [unlinking, setUnlinking] = useState<string | null>(null);
+
+  const packetIds = asm.packetIds ?? [];
+
+  async function handleLink() {
+    const pid = linkInput.trim();
+    if (!pid) return;
+    setLinking(true);
+    try {
+      await adminFetch(`/packets/${pid}`, { method: "PATCH", json: { assemblyId: asm.assemblyId } });
+      toast({ title: "Packet linked", description: pid });
+      setLinkInput("");
+      onReload();
+    } catch (e: any) {
+      toast({ title: "Link failed", description: e.message, variant: "destructive" });
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  async function handleUnlink(packetId: string) {
+    setUnlinking(packetId);
+    try {
+      await adminFetch(`/packets/${packetId}`, { method: "PATCH", json: { assemblyId: null } });
+      toast({ title: "Packet unlinked", description: packetId });
+      onReload();
+    } catch (e: any) {
+      toast({ title: "Unlink failed", description: e.message, variant: "destructive" });
+    } finally {
+      setUnlinking(null);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        Linked Packets ({packetIds.length})
+      </p>
+
+      {packetIds.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No packets linked.</p>
+      ) : (
+        <div className="space-y-1">
+          {packetIds.map((pid) => (
+            <div key={pid} className="flex items-center gap-2" data-testid={`row-linked-packet-${pid}`}>
+              <span className="text-xs font-mono text-foreground flex-1 truncate">{pid}</span>
+              <button
+                type="button"
+                onClick={() => handleUnlink(pid)}
+                disabled={unlinking === pid}
+                className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
+                data-testid={`button-unlink-packet-${pid}`}
+                title="Unlink this packet"
+              >
+                {unlinking === pid
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Unlink className="h-3.5 w-3.5" />
+                }
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 pt-1">
+        <Input
+          value={linkInput}
+          onChange={(e) => setLinkInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleLink()}
+          placeholder="Packet ID to link…"
+          className="h-7 text-xs font-mono flex-1"
+          data-testid={`input-link-packet-${asm.id}`}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleLink}
+          disabled={linking || !linkInput.trim()}
+          data-testid={`button-link-packet-${asm.id}`}
+        >
+          {linking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -294,15 +332,20 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
 function AssemblyCard({
   asm,
   onDelete,
+  onReload,
 }: {
   asm:      Assembly;
   onDelete: (assemblyId: string) => void;
+  onReload: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const mappings = asm.mappings ?? [];
+  const [expanded,        setExpanded]        = useState(false);
+  const [showPacketPanel, setShowPacketPanel] = useState(false);
+  const mappings  = asm.mappings  ?? [];
+  const packetIds = asm.packetIds ?? [];
 
   return (
     <div className="rounded-md border bg-card" data-testid={`card-asm-${asm.id}`}>
+      {/* Header row */}
       <div
         className="flex items-start justify-between gap-3 p-3 cursor-pointer"
         onClick={() => setExpanded(v => !v)}
@@ -314,23 +357,35 @@ function AssemblyCard({
             </span>
             <Badge variant="outline" className="text-xs font-mono">{asm.qrgId}</Badge>
             <Badge variant="outline" className="text-xs font-mono">{asm.bldId}</Badge>
+            {asm.source === "auto_commit" && (
+              <Badge variant="secondary" className="text-xs">auto</Badge>
+            )}
           </div>
-
           {asm.name && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-asm-name-${asm.id}`}>
               {asm.name}
             </p>
           )}
-
           <p className="text-xs text-muted-foreground">
             {mappings.length} mapping{mappings.length !== 1 ? "s" : ""}
-            {asm.packetIds && asm.packetIds.length > 0 && (
-              <span className="ml-2">· {asm.packetIds.length} packet{asm.packetIds.length !== 1 ? "s" : ""}</span>
+            {packetIds.length > 0 && (
+              <span className="ml-2 text-foreground font-medium">
+                · {packetIds.length} packet{packetIds.length !== 1 ? "s" : ""}
+              </span>
             )}
           </p>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
+            onClick={(e) => { e.stopPropagation(); setShowPacketPanel(v => !v); setExpanded(true); }}
+            data-testid={`button-packets-${asm.id}`}
+            title="Manage linked packets"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+          </button>
           <button
             type="button"
             className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -347,40 +402,50 @@ function AssemblyCard({
         </div>
       </div>
 
+      {/* Expanded body */}
       {expanded && (
-        <div className="border-t px-3 py-2 space-y-1.5">
+        <div className="border-t px-3 py-2 space-y-3">
+          {/* Mappings */}
           {mappings.length === 0 ? (
             <p className="text-xs text-muted-foreground">No mappings recorded.</p>
           ) : (
-            mappings.map((m) => (
-              <div
-                key={m.seq}
-                className="flex items-start gap-2 text-xs"
-                data-testid={`row-asm-mapping-${asm.id}-${m.seq}`}
-              >
-                <span className="font-mono text-muted-foreground w-5 shrink-0 pt-0.5">{m.seq}</span>
-                <span className={`font-mono px-1.5 py-0.5 rounded shrink-0 ${TYPE_COLORS[m.type] ?? ""}`}>
-                  {m.type}
-                </span>
-                <div className="min-w-0 flex-1">
-                  {m.grfId && (
-                    <span className="font-mono text-foreground truncate block">{m.grfId}</span>
-                  )}
-                  {m.value && (
-                    <span className="text-foreground break-words block">{m.value}</span>
+            <div className="space-y-1.5">
+              {mappings.map((m) => (
+                <div
+                  key={m.seq}
+                  className="flex items-start gap-2 text-xs"
+                  data-testid={`row-asm-mapping-${asm.id}-${m.seq}`}
+                >
+                  <span className="font-mono text-muted-foreground w-5 shrink-0 pt-0.5">{m.seq}</span>
+                  <span className={`font-mono px-1.5 py-0.5 rounded shrink-0 ${TYPE_COLORS[m.type] ?? ""}`}>
+                    {m.type}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    {m.grfId && <span className="font-mono text-foreground truncate block">{m.grfId}</span>}
+                    {m.imageUrl && !m.grfId && (
+                      <span className="font-mono text-muted-foreground truncate block text-xs italic">{m.imageUrl}</span>
+                    )}
+                    {m.value && <span className="text-foreground break-words block">{m.value}</span>}
+                    {!m.grfId && !m.value && !m.imageUrl && (
+                      <span className="text-muted-foreground italic">pending GRF</span>
+                    )}
+                  </div>
+                  {m.color && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <div className="h-3 w-3 rounded-sm border border-border" style={{ backgroundColor: m.color }} />
+                      <span className="font-mono text-muted-foreground">{m.color}</span>
+                    </div>
                   )}
                 </div>
-                {m.color && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <div
-                      className="h-3 w-3 rounded-sm border border-border"
-                      style={{ backgroundColor: m.color }}
-                    />
-                    <span className="font-mono text-muted-foreground text-xs">{m.color}</span>
-                  </div>
-                )}
-              </div>
-            ))
+              ))}
+            </div>
+          )}
+
+          {/* Packet link panel */}
+          {showPacketPanel && (
+            <div className="rounded-md border bg-muted/30 p-2">
+              <LinkedPackets asm={asm} onReload={onReload} />
+            </div>
           )}
         </div>
       )}
@@ -394,18 +459,17 @@ export default function AssembliesTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [showCreate,    setShowCreate]    = useState(false);
-  const [deleteTarget,  setDeleteTarget]  = useState<string | null>(null);
-  const [filterQrg,     setFilterQrg]     = useState("");
-  const [filterBld,     setFilterBld]     = useState("");
+  const [showCreate,   setShowCreate]   = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [filterQrg,    setFilterQrg]    = useState("");
+  const [filterBld,    setFilterBld]    = useState("");
 
-  // Build query key including filters so each combination caches independently
   const queryParams = new URLSearchParams();
   if (filterQrg.trim()) queryParams.set("qrgId", filterQrg.trim());
   if (filterBld.trim()) queryParams.set("bldId", filterBld.trim());
   const qs = queryParams.toString();
 
-  const { data, isLoading, isError } = useQuery<{ assemblies: Assembly[]; count: number }>({
+  const { data, isLoading, isError, refetch } = useQuery<{ assemblies: Assembly[]; count: number }>({
     queryKey: ["/api/admin/assemblies", qs],
     queryFn: () => adminFetch(`/assemblies${qs ? `?${qs}` : ""}`),
   });
@@ -426,17 +490,19 @@ export default function AssembliesTab() {
 
   const assemblies = data?.assemblies ?? [];
 
+  function handleReload() {
+    refetch();
+  }
+
   return (
     <div className="space-y-4" data-testid="tab-assemblies">
 
-      {/* Header row */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Link2 className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Assemblies</span>
-          {!isLoading && (
-            <Badge variant="secondary" className="text-xs">{assemblies.length}</Badge>
-          )}
+          {!isLoading && <Badge variant="secondary" className="text-xs">{assemblies.length}</Badge>}
         </div>
         <Button
           size="sm"
@@ -475,30 +541,24 @@ export default function AssembliesTab() {
         />
       </div>
 
-      {/* Loading */}
       {isLoading && (
         <div className="flex items-center justify-center py-10" data-testid="loading-assemblies">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
 
-      {/* Error */}
       {isError && (
         <p className="text-sm text-red-600 dark:text-red-400 py-4 text-center" data-testid="error-assemblies">
           Failed to load assemblies.
         </p>
       )}
 
-      {/* Empty */}
       {!isLoading && !isError && assemblies.length === 0 && (
         <p className="text-sm text-muted-foreground py-6 text-center" data-testid="empty-assemblies">
-          {filterQrg || filterBld
-            ? "No assemblies match this filter."
-            : "No assemblies yet. Create one above."}
+          {filterQrg || filterBld ? "No assemblies match this filter." : "No assemblies yet. Create one above."}
         </p>
       )}
 
-      {/* List */}
       {!isLoading && assemblies.length > 0 && (
         <div className="space-y-2">
           {assemblies.map((asm) => (
@@ -506,6 +566,7 @@ export default function AssembliesTab() {
               key={asm.id}
               asm={asm}
               onDelete={(asmId) => setDeleteTarget(asmId)}
+              onReload={handleReload}
             />
           ))}
         </div>
@@ -517,8 +578,7 @@ export default function AssembliesTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Assembly</AlertDialogTitle>
             <AlertDialogDescription>
-              Permanently delete{" "}
-              <span className="font-mono font-semibold">{deleteTarget}</span>?
+              Permanently delete <span className="font-mono font-semibold">{deleteTarget}</span>?
               Any packets referencing this assembly will lose their link. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

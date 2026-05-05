@@ -336,6 +336,44 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     const cleanUpdates = stripUndef(updates);
     if (cleanUpdates.headerStyle) cleanUpdates.headerStyle = sanitizeStyleForFirestore(cleanUpdates.headerStyle);
     if (cleanUpdates.footerStyle) cleanUpdates.footerStyle = sanitizeStyleForFirestore(cleanUpdates.footerStyle);
+
+    // ── assemblyId bi-directional sync ────────────────────────────────────
+    // When assemblyId is being set or changed, keep assemblies.packetIds in sync.
+    if ('assemblyId' in cleanUpdates) {
+      const existingAssemblyId: string | null = (doc.data() as any)?.assemblyId || null;
+      const newAssemblyId: string | null = cleanUpdates.assemblyId || null;
+
+      if (newAssemblyId !== existingAssemblyId) {
+        const now = admin.firestore.FieldValue.serverTimestamp();
+
+        // Remove packetId from old assembly's packetIds
+        if (existingAssemblyId) {
+          try {
+            const oldRef = db.collection('assemblies').doc(existingAssemblyId);
+            const oldDoc = await oldRef.get();
+            if (oldDoc.exists) {
+              const filtered = ((oldDoc.data() as any).packetIds || []).filter((p: string) => p !== packetId);
+              await oldRef.update({ packetIds: filtered, updatedAt: now });
+            }
+          } catch (_) { /* non-fatal */ }
+        }
+
+        // Add packetId to new assembly's packetIds
+        if (newAssemblyId) {
+          try {
+            const newRef = db.collection('assemblies').doc(newAssemblyId);
+            const newDoc = await newRef.get();
+            if (newDoc.exists) {
+              const existing = (newDoc.data() as any).packetIds || [];
+              const merged = [...new Set([...existing, packetId])];
+              await newRef.update({ packetIds: merged, updatedAt: now });
+            }
+          } catch (_) { /* non-fatal */ }
+        }
+      }
+    }
+    // ── end assemblyId sync ────────────────────────────────────────────────
+
     await docRef.update({ ...cleanUpdates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     console.log(`[Packets PATCH] Updated packet ${packetId}:`, Object.keys(updates));
     res.json({ success: true, packetId, message: "Packet updated" });

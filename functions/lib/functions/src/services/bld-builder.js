@@ -25,6 +25,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deriveBldCounterKey = deriveBldCounterKey;
 exports.extractBldInstances = extractBldInstances;
 exports.writeBldDefinition = writeBldDefinition;
+exports.extractAssemblyMappings = extractAssemblyMappings;
+exports.writeAutoAssembly = writeAutoAssembly;
 const core_1 = require("../core");
 const BLD_DEFINITIONS_COLLECTION = 'bld_definitions';
 const BLD_COUNTERS_COLLECTION = 'bld_counters';
@@ -288,5 +290,114 @@ async function writeBldDefinition(opts) {
     await batch.commit();
     console.log(`[BLD] Wrote ${bldId} with ${instanceCount} instances (session=${sourceSessionId}, instance=${sourceInstanceId})`);
     return { bldId, instanceCount, buildSequence };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// Assembly auto-creation from builder working state
+// ─────────────────────────────────────────────────────────────────────────────
+const ASM_COUNTERS_COLLECTION = 'asm_counters';
+const ASSEMBLIES_COLLECTION = 'assemblies';
+/**
+ * Walk the builder working-state snapshot and extract ordered Assembly mappings.
+ * Mirrors extractBldInstances in sequence order but captures content values
+ * (text strings, image URLs) rather than styling metadata.
+ *
+ * Asset slots (img, qrc) are recorded without grfId at auto-create time.
+ * grfId can be back-filled later via PATCH /admin/assemblies/:assemblyId
+ * when the corresponding GRF asset is formally registered.
+ */
+function extractAssemblyMappings(working) {
+    const graphics = (working.graphics || {});
+    const content = (graphics.content || {});
+    const mappings = [];
+    let seq = 1;
+    const pad = (n) => String(n).padStart(2, '0');
+    // ── 01 img — background image ─────────────────────────────────────────────
+    const bgUrl = graphics.loadedBackground?.url || null;
+    const areaImgUrl = content.areaImageUrl || null;
+    const imageUrl = bgUrl || areaImgUrl || null;
+    if (imageUrl) {
+        mappings.push({ seq: pad(seq++), type: 'img', imageUrl });
+    }
+    // ── 02 qrc — QR code slot (always present, grfId pending) ─────────────────
+    mappings.push({ seq: pad(seq++), type: 'qrc' });
+    // ── 03 txt — header ───────────────────────────────────────────────────────
+    const header = content.headerStyle || {};
+    if (header.enabled && header.text) {
+        const m = { seq: pad(seq++), type: 'txt', value: header.text };
+        if (header.color)
+            m.color = header.color;
+        mappings.push(m);
+    }
+    // ── 04 txt — footer ───────────────────────────────────────────────────────
+    const footer = content.footerStyle || {};
+    if (footer.enabled && footer.text) {
+        const m = { seq: pad(seq++), type: 'txt', value: footer.text };
+        if (footer.color)
+            m.color = footer.color;
+        mappings.push(m);
+    }
+    // ── 05 txt — sub-bottom ───────────────────────────────────────────────────
+    const subBottom = content.subBottomStyle || {};
+    if (subBottom.enabled && subBottom.text) {
+        const m = { seq: pad(seq++), type: 'txt', value: subBottom.text };
+        if (subBottom.color)
+            m.color = subBottom.color;
+        mappings.push(m);
+    }
+    // ── 06+ txt — landing text blocks ─────────────────────────────────────────
+    const landingBlocks = Array.isArray(content.landingTextBlocks)
+        ? content.landingTextBlocks : [];
+    for (const block of landingBlocks) {
+        if (!block.enabled || !block.text)
+            continue;
+        const m = { seq: pad(seq++), type: 'txt', value: block.text };
+        if (block.color)
+            m.color = block.color;
+        mappings.push(m);
+    }
+    return mappings;
+}
+/**
+ * Mint an ASM ID atomically and write an Assembly document to Firestore.
+ * Called automatically at build-session commit (after writeBldDefinition).
+ * Never throws — callers should wrap in try/catch and treat as non-fatal.
+ */
+async function writeAutoAssembly(opts) {
+    const { working, qrgId, bldId, sourceSessionId, packetId } = opts;
+    const mappings = extractAssemblyMappings(working);
+    // Atomically mint the next ASM sequence number
+    const counterRef = core_1.db.collection(ASM_COUNTERS_COLLECTION).doc('global');
+    const sequence = await core_1.db.runTransaction(async (txn) => {
+        const doc = await txn.get(counterRef);
+        const current = doc.exists ? (doc.data()?.count ?? 0) : 0;
+        const next = current + 1;
+        txn.set(counterRef, { count: next }, { merge: true });
+        return next;
+    });
+    const assemblyId = `ASM-${String(sequence).padStart(6, '0')}`;
+    const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+    // Strip undefined from each mapping so Firestore doesn't choke
+    const cleanMappings = mappings.map((m) => {
+        const clean = {};
+        for (const [k, v] of Object.entries(m)) {
+            if (v !== undefined && v !== null && v !== '')
+                clean[k] = v;
+        }
+        return clean;
+    });
+    await core_1.db.collection(ASSEMBLIES_COLLECTION).doc(assemblyId).set({
+        assemblyId,
+        sequence,
+        qrgId,
+        bldId,
+        mappings: cleanMappings,
+        packetIds: packetId ? [packetId] : [],
+        sourceSessionId: sourceSessionId || null,
+        source: 'auto_commit',
+        createdAt: now,
+        createdBy: 'system',
+    });
+    console.log(`[Assembly] Auto-wrote ${assemblyId} — qrgId=${qrgId} bldId=${bldId} mappings=${cleanMappings.length}`);
+    return { assemblyId, sequence, mappingCount: cleanMappings.length };
 }
 //# sourceMappingURL=bld-builder.js.map
