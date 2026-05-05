@@ -340,38 +340,41 @@ function register(app) {
                 cleanUpdates.headerStyle = sanitizeStyleForFirestore(cleanUpdates.headerStyle);
             if (cleanUpdates.footerStyle)
                 cleanUpdates.footerStyle = sanitizeStyleForFirestore(cleanUpdates.footerStyle);
-            // ── assemblyId bi-directional sync ────────────────────────────────────
-            // When assemblyId is being set or changed, keep assemblies.packetIds in sync.
+            // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
+            if (cleanUpdates.status === 'published') {
+                const existingAssemblyId = doc.data()?.assemblyId || null;
+                const incomingAssemblyId = cleanUpdates.assemblyId || null;
+                if (!existingAssemblyId && !incomingAssemblyId) {
+                    res.status(400).json({
+                        error: 'Cannot publish packet — assemblyId is missing. The three-schema chain (QRG → BLD → GRF) must be complete before a packet can be published.',
+                    });
+                    return;
+                }
+            }
+            // ── end publish guard ──────────────────────────────────────────────────
+            // ── Fix 13: assemblyId bi-directional sync (atomic transaction) ───────
+            // When assemblyId is being set or changed, keep assemblies.packetIds in sync
+            // inside a single Firestore transaction so both writes succeed or both fail.
             if ('assemblyId' in cleanUpdates) {
                 const existingAssemblyId = doc.data()?.assemblyId || null;
                 const newAssemblyId = cleanUpdates.assemblyId || null;
                 if (newAssemblyId !== existingAssemblyId) {
-                    const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-                    // Remove packetId from old assembly's packetIds
-                    if (existingAssemblyId) {
-                        try {
-                            const oldRef = core_1.db.collection('assemblies').doc(existingAssemblyId);
-                            const oldDoc = await oldRef.get();
-                            if (oldDoc.exists) {
-                                const filtered = (oldDoc.data().packetIds || []).filter((p) => p !== packetId);
-                                await oldRef.update({ packetIds: filtered, updatedAt: now });
-                            }
+                    const oldRef = existingAssemblyId ? core_1.db.collection('assemblies').doc(existingAssemblyId) : null;
+                    const newRef = newAssemblyId ? core_1.db.collection('assemblies').doc(newAssemblyId) : null;
+                    await core_1.db.runTransaction(async (txn) => {
+                        const oldDoc = oldRef ? await txn.get(oldRef) : null;
+                        const newDoc = newRef ? await txn.get(newRef) : null;
+                        const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+                        if (oldDoc?.exists && oldRef) {
+                            const filtered = (oldDoc.data().packetIds || []).filter((p) => p !== packetId);
+                            txn.update(oldRef, { packetIds: filtered, updatedAt: now });
                         }
-                        catch (_) { /* non-fatal */ }
-                    }
-                    // Add packetId to new assembly's packetIds
-                    if (newAssemblyId) {
-                        try {
-                            const newRef = core_1.db.collection('assemblies').doc(newAssemblyId);
-                            const newDoc = await newRef.get();
-                            if (newDoc.exists) {
-                                const existing = newDoc.data().packetIds || [];
-                                const merged = [...new Set([...existing, packetId])];
-                                await newRef.update({ packetIds: merged, updatedAt: now });
-                            }
+                        if (newDoc?.exists && newRef) {
+                            const existing = newDoc.data().packetIds || [];
+                            const merged = [...new Set([...existing, packetId])];
+                            txn.update(newRef, { packetIds: merged, updatedAt: now });
                         }
-                        catch (_) { /* non-fatal */ }
-                    }
+                    });
                 }
             }
             // ── end assemblyId sync ────────────────────────────────────────────────

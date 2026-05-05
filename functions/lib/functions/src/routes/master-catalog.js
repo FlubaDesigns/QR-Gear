@@ -6,7 +6,7 @@ const middleware_1 = require("../middleware");
 const master_catalog_1 = require("../services/master-catalog");
 const printify_1 = require("../services/printify");
 const printful_1 = require("../services/printful");
-const qrgVariantMappings_1 = require("../services/qrgVariantMappings");
+const qrgVariantMappings_1 = require("../../shared/qrgVariantMappings");
 function register(app) {
     // POST /admin/master-catalog/sync — trigger a full sync (runs synchronously)
     app.post('/admin/master-catalog/sync', middleware_1.requireAdmin, async (req, res) => {

@@ -312,14 +312,16 @@ function extractAssemblyMappings(working) {
     let seq = 1;
     const pad = (n) => String(n).padStart(2, '0');
     // ── 01 img — background image ─────────────────────────────────────────────
+    // grfIdPending: true signals that this slot exists but the GRF asset has not
+    // yet been registered. A grfId must be back-filled before the mapping is complete.
     const bgUrl = graphics.loadedBackground?.url || null;
     const areaImgUrl = content.areaImageUrl || null;
     const imageUrl = bgUrl || areaImgUrl || null;
     if (imageUrl) {
-        mappings.push({ seq: pad(seq++), type: 'img', imageUrl });
+        mappings.push({ seq: pad(seq++), type: 'img', imageUrl, grfIdPending: true });
     }
     // ── 02 qrc — QR code slot (always present, grfId pending) ─────────────────
-    mappings.push({ seq: pad(seq++), type: 'qrc' });
+    mappings.push({ seq: pad(seq++), type: 'qrc', grfIdPending: true });
     // ── 03 txt — header ───────────────────────────────────────────────────────
     const header = content.headerStyle || {};
     if (header.enabled && header.text) {

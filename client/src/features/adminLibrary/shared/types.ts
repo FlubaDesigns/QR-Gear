@@ -1,5 +1,22 @@
 import type { libraryAssets } from "@shared/schema";
 
+export interface GrfAsset {
+  id: string;
+  grfId: string;
+  name: string;
+  description: string | null;
+  publicUrl: string;
+  mimeType: string;
+  storagePath: string | null;
+  typeCode: string;
+  roleCode: string;
+  sourceGrfId: string | null;
+  tags: string[] | null;
+  createdAt: string | null;
+  createdBy: string | null;
+  isActive: boolean;
+}
+
 export type AssetType =
   | "source"
   | "cropped"

@@ -17,6 +17,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerAssemblies = registerAssemblies;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
+const graphicCodes_1 = require("../../../shared/graphicCodes");
 const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASM_COUNTER_DOC = 'global';
 const ASSEMBLIES_COLLECTION = 'assemblies';
@@ -37,9 +39,19 @@ async function mintAsmId() {
     });
     return { assemblyId: formatAsmId(next), sequence: next };
 }
+// Fix 9: GRF type codes allowed per slot vehicle type.
+// img slots accept background (03), cropped derivative (02), and canvas design (05).
+// qrc slots must be strictly QR graphic (04).
+// vid/doc grfId is optional; when present any renderable GRF type is accepted.
+const GRF_TYPES_FOR_SLOT = {
+    img: ['02', '03', '05'],
+    qrc: ['04'],
+};
 /**
  * Validate a mappings array.
  * Returns a human-readable error string, or null if valid.
+ * Includes GRF format validity and slot-type compatibility checks (Fix 9).
+ * Does NOT check Firestore existence — that is done by validateGrfIdsExist (Fix 8).
  */
 function validateMappings(mappings) {
     if (!Array.isArray(mappings))
@@ -56,11 +68,26 @@ function validateMappings(mappings) {
         if ((m.type === 'txt' || m.type === 'act') && !m.value) {
             return `mapping seq ${m.seq} type "${m.type}" requires a non-empty value`;
         }
-        if ((m.type === 'img' || m.type === 'qrc') && !m.grfId) {
+        if ((m.type === 'img' || m.type === 'qrc') && !m.grfId && !m.grfIdPending) {
             return `mapping seq ${m.seq} type "${m.type}" requires a grfId`;
         }
         if ((m.type === 'vid' || m.type === 'doc') && !m.grfId && !m.value) {
             return `mapping seq ${m.seq} type "${m.type}" requires either grfId or value (URL)`;
+        }
+        // Fix 9: GRF format and slot-type compatibility check
+        if (m.grfId) {
+            if (!(0, graphicCodes_1.isValidGraphicId)(String(m.grfId))) {
+                return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-TT-K-NNNNNN)`;
+            }
+            const allowedTypes = GRF_TYPES_FOR_SLOT[m.type];
+            if (allowedTypes) {
+                const parsed = (0, graphicCodes_1.parseGraphicId)(String(m.grfId));
+                if (!allowedTypes.includes(parsed.typeCode)) {
+                    return (`mapping seq ${m.seq}: grfId "${m.grfId}" has GRF type "${parsed.typeCode}" (${parsed.typeName}) ` +
+                        `which is not compatible with slot type "${m.type}". ` +
+                        `Allowed GRF type codes for "${m.type}": ${allowedTypes.join(', ')}`);
+                }
+            }
         }
     }
     // Duplicate seq check
@@ -68,6 +95,75 @@ function validateMappings(mappings) {
     const unique = new Set(seqs);
     if (unique.size !== seqs.length) {
         return 'mapping seq values must be unique within an assembly';
+    }
+    return null;
+}
+/**
+ * Fix 8: Async validator — verifies every grfId in mappings exists in grf_assets and is active.
+ * Returns a human-readable error string, or null if all grfIds are valid.
+ * Auto-skips slots with grfIdPending: true (auto-committed assemblies).
+ */
+async function validateGrfIdsExist(mappings) {
+    const grfIdsToCheck = [
+        ...new Set(mappings
+            .filter((m) => m.grfId && !m.grfIdPending)
+            .map((m) => String(m.grfId))),
+    ];
+    if (grfIdsToCheck.length === 0)
+        return null;
+    const results = await Promise.all(grfIdsToCheck.map((grfId) => core_1.db.collection('grf_assets').doc(grfId).get()));
+    for (let i = 0; i < results.length; i++) {
+        const doc = results[i];
+        const grfId = grfIdsToCheck[i];
+        if (!doc.exists) {
+            return `grfId "${grfId}" does not exist in the GRF asset library`;
+        }
+        if (doc.data()?.isActive === false) {
+            return `grfId "${grfId}" has been archived and cannot be used in a new mapping`;
+        }
+    }
+    return null;
+}
+/**
+ * Fix 10: Fetch the referenced BLD and verify that every required slot has a corresponding mapping.
+ * Handles both builder-generated BLDs (instances sub-collection) and admin-created BLDs (flat array).
+ * Returns a human-readable error string, or null if coverage is complete.
+ */
+async function validateBldSlotCoverage(bldId, mappings) {
+    const bldDoc = await core_1.db.collection('bld_definitions').doc(bldId).get();
+    if (!bldDoc.exists) {
+        return `bldId "${bldId}" does not exist in bld_definitions`;
+    }
+    const bldData = bldDoc.data();
+    // Resolve instances from sub-collection (builder) or flat array (admin-created)
+    let slots = [];
+    const flatInstances = Array.isArray(bldData.instances) ? bldData.instances : [];
+    if (flatInstances.length > 0) {
+        slots = flatInstances.map((inst) => ({
+            seq: String(inst.seq).padStart(2, '0'),
+            type: inst.type,
+            required: inst.required !== false,
+        }));
+    }
+    else {
+        // Builder-generated: fetch sub-collection
+        const subSnap = await core_1.db.collection('bld_definitions').doc(bldId).collection('instances').get();
+        slots = subSnap.docs.map((d) => {
+            const inst = d.data();
+            return {
+                seq: String(inst.seq).padStart(2, '0'),
+                type: inst.type,
+                required: inst.required !== false,
+            };
+        });
+    }
+    if (slots.length === 0)
+        return null; // No slots defined — nothing to cross-validate
+    const filledSeqs = new Set(mappings.map((m) => m.seq));
+    for (const slot of slots) {
+        if (slot.required !== false && !filledSeqs.has(slot.seq)) {
+            return `required BLD slot ${slot.seq} (type: ${slot.type}) in "${bldId}" has no corresponding mapping`;
+        }
     }
     return null;
 }
@@ -90,6 +186,10 @@ function registerAssemblies(app) {
                 res.status(400).json({ error: 'qrgId is required' });
                 return;
             }
+            if (!(0, qrgCodes_1.isValidQrgBlankId)(String(qrgId))) {
+                res.status(400).json({ error: `qrgId "${qrgId}" is not a valid STNNN blank ID (S=1-6, T=1-9, NNN=000-999)` });
+                return;
+            }
             if (!bldId) {
                 res.status(400).json({ error: 'bldId is required' });
                 return;
@@ -101,6 +201,18 @@ function registerAssemblies(app) {
             const validationError = validateMappings(mappings);
             if (validationError) {
                 res.status(400).json({ error: validationError });
+                return;
+            }
+            // Fix 8: Verify every grfId in mappings exists in grf_assets and is active
+            const grfExistenceError = await validateGrfIdsExist(mappings);
+            if (grfExistenceError) {
+                res.status(400).json({ error: grfExistenceError });
+                return;
+            }
+            // Fix 10: Cross-validate mappings against required BLD slots
+            const bldSlotError = await validateBldSlotCoverage(bldId, mappings);
+            if (bldSlotError) {
+                res.status(400).json({ error: bldSlotError });
                 return;
             }
             // Sort mappings by seq before persisting
@@ -194,6 +306,19 @@ function registerAssemblies(app) {
                 res.status(404).json({ error: 'Assembly not found' });
                 return;
             }
+            const existingData = existing.data();
+            const livePacketIds = existingData?.packetIds || [];
+            // Fix 14: Block qrgId / bldId changes on live assemblies (ones already linked to packets)
+            if (livePacketIds.length > 0) {
+                if (req.body.qrgId !== undefined || req.body.bldId !== undefined) {
+                    res.status(409).json({
+                        error: `Cannot change qrgId or bldId on an Assembly that is already linked to ${livePacketIds.length} packet(s). ` +
+                            `Unlink all packets first, then update the Assembly.`,
+                        linkedPacketIds: livePacketIds,
+                    });
+                    return;
+                }
+            }
             const updates = {
                 updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
             };
@@ -212,6 +337,12 @@ function registerAssemblies(app) {
                     res.status(400).json({ error: validationError });
                     return;
                 }
+                // Fix 8: Verify every grfId in updated mappings exists in grf_assets and is active
+                const grfExistenceError = await validateGrfIdsExist(req.body.mappings);
+                if (grfExistenceError) {
+                    res.status(400).json({ error: grfExistenceError });
+                    return;
+                }
                 updates.mappings = [...req.body.mappings].sort((a, b) => a.seq.localeCompare(b.seq));
             }
             await docRef.update(updates);
@@ -224,6 +355,7 @@ function registerAssemblies(app) {
         }
     });
     // ── DELETE /admin/assemblies/:assemblyId ───────────────────────────────────
+    // Fix 12: Before deleting, clear assemblyId from every packet that references this assembly.
     app.delete('/admin/assemblies/:assemblyId', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { assemblyId } = req.params;
@@ -232,9 +364,22 @@ function registerAssemblies(app) {
                 res.status(404).json({ error: 'Assembly not found' });
                 return;
             }
+            const data = doc.data();
+            const packetIds = data?.packetIds || [];
+            // Clear assemblyId on all linked packets in a batch
+            if (packetIds.length > 0) {
+                const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+                const batch = core_1.db.batch();
+                for (const packetId of packetIds) {
+                    const pRef = core_1.db.collection('productPackets').doc(packetId);
+                    batch.update(pRef, { assemblyId: null, updatedAt: now });
+                }
+                await batch.commit();
+                console.log(`[Assemblies] Cleared assemblyId from ${packetIds.length} packet(s) before deleting ${assemblyId}`);
+            }
             await doc.ref.delete();
             console.log(`[Assemblies] Deleted ${assemblyId}`);
-            res.json({ success: true, assemblyId });
+            res.json({ success: true, assemblyId, packetsCleared: packetIds.length });
         }
         catch (e) {
             console.error('[Assemblies] delete error:', e.message);

@@ -54,6 +54,7 @@ const middleware_1 = require("../middleware");
 const composite_image_1 = require("../services/composite-image");
 const qrg_instance_allocator_1 = require("../services/qrg-instance-allocator");
 const bld_builder_1 = require("../services/bld-builder");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
 const BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
 const ADMIN_INSTANCES_COLLECTION = 'admin_catalog_instances';
 const MASTER_CATALOG_COLLECTION = 'master_catalog';
@@ -552,7 +553,7 @@ function registerAdminBuildSessions(app) {
             // ── Allocate QRG identity for this new instance ────────────────────────
             // context = 'I' (Internal — admin-created catalog instance)
             const masterQrgBlankId = master.qrgBlankId || null;
-            if (!masterQrgBlankId || !/^[1-6][1-9][0-9]{3}$/.test(masterQrgBlankId)) {
+            if (!masterQrgBlankId || !(0, qrgCodes_1.isValidQrgBlankId)(masterQrgBlankId)) {
                 res.status(400).json({ error: `Master ${session.sourceMasterId} has no valid qrgBlankId — cannot commit session without QRG identity` });
                 return;
             }

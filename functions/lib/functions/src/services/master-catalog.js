@@ -11,7 +11,7 @@ const safeAssign_1 = require("../safeAssign");
 const instance_resolver_1 = require("./instance-resolver");
 const printify_1 = require("./printify");
 const printful_1 = require("./printful");
-const qrgVariantMappings_1 = require("./qrgVariantMappings");
+const qrgVariantMappings_1 = require("../../shared/qrgVariantMappings");
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw) {
     if (!raw)
@@ -84,7 +84,7 @@ const PRINTIFY_PROVIDERS_COLLECTION = 'printifyPrintProviders';
 const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 // ── QRG Top-Level Category Definitions ───────────────────────────────────────
-// Source of truth: replit.md — QRG Numbering System section
+// Source of truth: REPLIT.md — QRG Numbering System section
 // Each top-level gets a X000 code. Subcategories get X100–X900.
 // Each subcategory holds up to 99 products (X101–X199, etc.).
 exports.QRG_TOP_LEVEL_CATEGORIES = [

@@ -1,31 +1,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Layers, ImageIcon, X, ChevronLeft, ChevronRight, Tag } from "lucide-react";
+import { Loader2, Layers, ImageIcon, X, ChevronLeft, ChevronRight, Tag, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
+import type { GrfAsset } from "../shared/types";
 
-interface GraphicAsset {
-  id: string;
-  grfId: string;
-  name: string;
-  description?: string | null;
-  publicUrl: string;
-  mimeType?: string | null;
-  storagePath?: string | null;
-  typeCode?: string | null;
-  typeName?: string | null;
-  roleCode?: string | null;
-  sourceGrfId?: string | null;
-  tags?: string[] | null;
-  createdAt?: string | null;
-  createdBy?: string | null;
-  isActive?: boolean;
-}
+const GRF_ID_REGEX = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
 
 const TYPE_CODE_LABELS: Record<string, string> = {
   '01': 'Source',
@@ -45,18 +31,47 @@ const ROLE_CODE_LABELS: Record<string, string> = {
   '5': 'Template',
 };
 
+function isValidGrfId(grfId: string): boolean {
+  return GRF_ID_REGEX.test(grfId);
+}
+
+function isValidMime(mimeType: string): boolean {
+  return mimeType.startsWith("image/");
+}
+
+function resolveTypeLabel(typeCode: string): { label: string; valid: boolean } {
+  const label = TYPE_CODE_LABELS[typeCode];
+  return label ? { label, valid: true } : { label: typeCode || "—", valid: false };
+}
+
+function resolveRoleLabel(roleCode: string): { label: string; valid: boolean } {
+  const label = ROLE_CODE_LABELS[roleCode];
+  return label ? { label, valid: true } : { label: roleCode || "—", valid: false };
+}
+
+function MissingBadge({ text }: { text: string }) {
+  return (
+    <Badge variant="destructive" className="text-xs gap-1 font-mono">
+      <AlertTriangle className="h-3 w-3" />
+      {text}
+    </Badge>
+  );
+}
+
 function GraphicCard({
   asset,
   onClick,
   onArchive,
 }: {
-  asset: GraphicAsset;
+  asset: GrfAsset;
   onClick: () => void;
   onArchive: (id: string) => void;
 }) {
-  const typeLabel = asset.typeCode
-    ? (TYPE_CODE_LABELS[asset.typeCode] ?? asset.typeName ?? 'Graphic')
-    : (asset.typeName ?? 'Graphic');
+  const typeResult = resolveTypeLabel(asset.typeCode);
+  const roleResult = resolveRoleLabel(asset.roleCode);
+  const idValid    = isValidGrfId(asset.grfId);
+  const mimeValid  = isValidMime(asset.mimeType);
+  const hasWarning = !typeResult.valid || !roleResult.valid || !idValid || !mimeValid;
 
   return (
     <div
@@ -77,13 +92,19 @@ function GraphicCard({
         )}
       </div>
 
-      {asset.grfId && (
-        <div className="absolute top-1.5 left-1.5">
-          <Badge className="text-xs font-mono px-1.5 py-0.5 bg-background/90 text-foreground border">
+      <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+        {asset.grfId && (
+          <Badge className={`text-xs font-mono px-1.5 py-0.5 ${idValid ? "bg-background/90 text-foreground border" : "bg-destructive/90 text-destructive-foreground border-destructive"}`}>
             {asset.grfId}
           </Badge>
-        </div>
-      )}
+        )}
+        {hasWarning && (
+          <Badge variant="destructive" className="text-xs px-1.5 py-0.5 gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            Schema
+          </Badge>
+        )}
+      </div>
 
       <button
         type="button"
@@ -101,12 +122,9 @@ function GraphicCard({
           {asset.name}
         </p>
         <p className="text-xs text-muted-foreground">
-          {typeLabel}
-          {asset.roleCode && (
-            <span className="ml-1 opacity-70">
-              · {ROLE_CODE_LABELS[asset.roleCode] ?? asset.roleCode}
-            </span>
-          )}
+          {typeResult.valid ? typeResult.label : <span className="text-destructive font-semibold">⚠ MISSING TYPE</span>}
+          {" · "}
+          {roleResult.valid ? roleResult.label : <span className="text-destructive font-semibold">⚠ MISSING ROLE</span>}
         </p>
       </div>
     </div>
@@ -123,7 +141,7 @@ function GraphicDetailPanel({
   hasPrev,
   hasNext,
 }: {
-  asset: GraphicAsset;
+  asset: GrfAsset;
   onArchive: () => void;
   isArchiving: boolean;
   onClose: () => void;
@@ -132,9 +150,10 @@ function GraphicDetailPanel({
   hasPrev: boolean;
   hasNext: boolean;
 }) {
-  const typeLabel = asset.typeCode
-    ? (TYPE_CODE_LABELS[asset.typeCode] ?? asset.typeName ?? 'Graphic')
-    : (asset.typeName ?? 'Graphic');
+  const typeResult = resolveTypeLabel(asset.typeCode);
+  const roleResult = resolveRoleLabel(asset.roleCode);
+  const idValid    = isValidGrfId(asset.grfId);
+  const mimeValid  = isValidMime(asset.mimeType);
 
   return (
     <div className="p-4 space-y-3">
@@ -146,51 +165,57 @@ function GraphicDetailPanel({
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge variant="secondary" className="text-xs">{typeLabel}</Badge>
-          {asset.roleCode && (
-            <Badge variant="outline" className="text-xs">
-              {ROLE_CODE_LABELS[asset.roleCode] ?? asset.roleCode}
-            </Badge>
-          )}
+          {typeResult.valid
+            ? <Badge variant="secondary" className="text-xs">{typeResult.label}</Badge>
+            : <MissingBadge text="MISSING TYPE" />
+          }
+          {roleResult.valid
+            ? <Badge variant="outline" className="text-xs">{roleResult.label}</Badge>
+            : <MissingBadge text="MISSING ROLE" />
+          }
         </div>
       </div>
 
-      {asset.grfId && (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="space-y-1.5 text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
           <Tag className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="font-mono select-all" data-testid="text-detail-graphic-id">{asset.grfId}</span>
+          <span className={`font-mono select-all ${idValid ? "" : "text-destructive font-semibold"}`} data-testid="text-detail-graphic-id">
+            {asset.grfId}
+          </span>
+          {!idValid && <MissingBadge text="INVALID ID" />}
         </div>
-      )}
+
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="font-mono">{asset.mimeType}</span>
+          {!mimeValid && <MissingBadge text="INVALID MIME" />}
+        </div>
+
+        {asset.typeCode && (
+          <div className="text-muted-foreground">
+            TT: <span className="font-mono">{asset.typeCode}</span>
+            {" · "}
+            K: <span className="font-mono">{asset.roleCode}</span>
+          </div>
+        )}
+
+        {asset.sourceGrfId && (
+          <div className="text-muted-foreground">
+            Source: <span className="font-mono select-all">{asset.sourceGrfId}</span>
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onPrev}
-            disabled={!hasPrev}
-            data-testid="button-detail-prev"
-          >
+          <Button variant="ghost" size="icon" onClick={onPrev} disabled={!hasPrev} data-testid="button-detail-prev">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onNext}
-            disabled={!hasNext}
-            data-testid="button-detail-next"
-          >
+          <Button variant="ghost" size="icon" onClick={onNext} disabled={!hasNext} data-testid="button-detail-next">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onArchive}
-            disabled={isArchiving}
-            data-testid="button-detail-archive"
-          >
+          <Button variant="destructive" size="sm" onClick={onArchive} disabled={isArchiving} data-testid="button-detail-archive">
             {isArchiving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
             Archive
           </Button>
@@ -208,11 +233,13 @@ export default function GraphicsTab() {
   const { toast } = useToast();
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [showConfirm, setShowConfirm]     = useState(false);
+  const [filterTT, setFilterTT]           = useState<string>("all");
+  const [filterK, setFilterK]             = useState<string>("all");
 
-  const { data: assets = [], isLoading } = useQuery<GraphicAsset[]>({
+  const { data: assets = [], isLoading } = useQuery<GrfAsset[]>({
     queryKey: ["library", "/api/admin", "assets", "grf"],
-    queryFn: () => adminFetch<GraphicAsset[]>("/graphics"),
+    queryFn: () => adminFetch<GrfAsset[]>("/graphics"),
   });
 
   const archiveMutation = useMutation({
@@ -228,12 +255,18 @@ export default function GraphicsTab() {
     },
   });
 
-  const selectedAsset = selectedIndex !== null ? assets[selectedIndex] : null;
-  const hasPrev = selectedIndex !== null && selectedIndex > 0;
-  const hasNext = selectedIndex !== null && selectedIndex < assets.length - 1;
+  const filtered = assets.filter((a) => {
+    if (filterTT !== "all" && a.typeCode !== filterTT) return false;
+    if (filterK  !== "all" && a.roleCode !== filterK)  return false;
+    return true;
+  });
 
-  const handlePrev = () => { if (hasPrev) setSelectedIndex(selectedIndex! - 1); };
-  const handleNext = () => { if (hasNext) setSelectedIndex(selectedIndex! + 1); };
+  const selectedAsset = selectedIndex !== null ? filtered[selectedIndex] : null;
+  const hasPrev = selectedIndex !== null && selectedIndex > 0;
+  const hasNext = selectedIndex !== null && selectedIndex < filtered.length - 1;
+
+  const handlePrev  = () => { if (hasPrev) setSelectedIndex(selectedIndex! - 1); };
+  const handleNext  = () => { if (hasNext) setSelectedIndex(selectedIndex! + 1); };
   const handleClose = () => setSelectedIndex(null);
 
   const handleArchive = (id: string) => {
@@ -265,21 +298,61 @@ export default function GraphicsTab() {
 
   return (
     <>
-      <ScrollGridView
-        items={assets.map((a) => ({ id: a.id, name: a.name }))}
-        columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-        height="auto"
-        emptyMessage="No graphics to display."
-        emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
-        footer={null}
-        renderItem={(_, index) => (
-          <GraphicCard
-            asset={assets[index]}
-            onClick={() => setSelectedIndex(index)}
-            onArchive={(id) => { setSelectedIndex(index); setShowConfirm(true); void id; }}
-          />
-        )}
-      />
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <Select value={filterTT} onValueChange={(v) => { setFilterTT(v); setSelectedIndex(null); }}>
+          <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-tt">
+            <SelectValue placeholder="Type (TT)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All types</SelectItem>
+            {Object.entries(TYPE_CODE_LABELS).map(([code, label]) => (
+              <SelectItem key={code} value={code} className="text-xs font-mono">
+                {code} — {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterK} onValueChange={(v) => { setFilterK(v); setSelectedIndex(null); }}>
+          <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-k">
+            <SelectValue placeholder="Role (K)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All roles</SelectItem>
+            {Object.entries(ROLE_CODE_LABELS).map(([code, label]) => (
+              <SelectItem key={code} value={code} className="text-xs font-mono">
+                {code} — {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <span className="text-xs text-muted-foreground ml-auto" data-testid="text-graphics-count">
+          {filtered.length} / {assets.length}
+        </span>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-8 bg-muted/30 rounded-lg">
+          <p className="text-sm text-muted-foreground">No graphics match the current filters.</p>
+        </div>
+      ) : (
+        <ScrollGridView
+          items={filtered.map((a) => ({ id: a.id, name: a.name }))}
+          columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+          height="auto"
+          emptyMessage="No graphics to display."
+          emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+          footer={null}
+          renderItem={(_, index) => (
+            <GraphicCard
+              asset={filtered[index]}
+              onClick={() => setSelectedIndex(index)}
+              onArchive={(id) => { setSelectedIndex(index); setShowConfirm(true); void id; }}
+            />
+          )}
+        />
+      )}
 
       <ModalView
         open={selectedIndex !== null}
@@ -311,30 +384,18 @@ export default function GraphicsTab() {
             )}
 
             {hasPrev && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="absolute left-2 top-1/2 -translate-y-1/2"
-                onClick={handlePrev}
-                data-testid="button-gallery-prev"
-              >
+              <Button variant="secondary" size="icon" className="absolute left-2 top-1/2 -translate-y-1/2" onClick={handlePrev} data-testid="button-gallery-prev">
                 <ChevronLeft className="h-5 w-5" />
               </Button>
             )}
             {hasNext && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                onClick={handleNext}
-                data-testid="button-gallery-next"
-              >
+              <Button variant="secondary" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleNext} data-testid="button-gallery-next">
                 <ChevronRight className="h-5 w-5" />
               </Button>
             )}
 
             <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-              {(selectedIndex ?? 0) + 1} / {assets.length}
+              {(selectedIndex ?? 0) + 1} / {filtered.length}
             </div>
           </div>
 
