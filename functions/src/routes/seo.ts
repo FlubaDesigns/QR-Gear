@@ -17,10 +17,6 @@ import { printfulClient } from '../services/printful';
   export function register(app: express.Express): void {
   // ============ SEO & SOCIAL SHARE ROUTES ============
 
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
-
 app.get('/sitemap.xml', async (req: Request, res: Response): Promise<void> => {
   try {
     const productsSnap = await db.collection('products').where('isPublished', '==', true).get();

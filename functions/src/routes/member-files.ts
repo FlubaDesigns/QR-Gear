@@ -69,14 +69,10 @@ app.get('/member-files/:memberId/:filename', async (req: Request, res: Response)
 
 // ============ BATCH: MEMBER MEDIA UPLOAD ============
 
-app.post('/members/:memberId/media', async (req: Request, res: Response): Promise<void> => {
+app.post('/members/:memberId/media', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) { res.status(401).json({ error: "Authentication required" }); return; }
-    const idToken = authHeader.substring(7);
-    let decodedToken;
-    try { decodedToken = await admin.auth().verifyIdToken(idToken); } catch { res.status(401).json({ error: "Invalid authentication token" }); return; }
-    const userId = decodedToken.uid;
+    const userId = (req as any).user?.uid || (req as any).userId;
+    if (!userId) { res.status(401).json({ error: "Authentication required" }); return; }
     console.log(`[CF MemberMedia] Starting media upload for member: ${userId}`);
     const contentType = req.headers["content-type"] || "";
     const boundaryMatch = contentType.match(/boundary=(.+)/);

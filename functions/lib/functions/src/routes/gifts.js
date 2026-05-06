@@ -5,17 +5,6 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 function register(app) {
     // ============ BATCH: GIFT SYSTEM ============
-    function generateGiftCode() {
-        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        let code = "GIFT";
-        for (let i = 0; i < 3; i++) {
-            code += "-";
-            for (let j = 0; j < 4; j++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-        }
-        return code;
-    }
     app.get('/gifts/packages', async (req, res) => {
         try {
             const snap = await core_1.db.collection('gift_packages').where('isActive', '==', true).get();
@@ -53,7 +42,7 @@ function register(app) {
             }
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + (pkg.redemptionValidDays || 365));
-            const code = generateGiftCode();
+            const code = (0, core_1.generateGiftCode)();
             const ref = await core_1.db.collection('gift_codes').add({ code, giftPackageId, buyerEmail, buyerName, personalMessage: pkg.includePersonalMessage ? personalMessage : null, expiresAt, status: 'active', lastEmailedTo: recipientEmail || null, lastEmailedAt: recipientEmail ? new Date() : null, createdAt: new Date() });
             res.json({ success: true, giftCode: code, expiresAt, packageName: pkg.name });
         }

@@ -7,8 +7,17 @@ function register(app) {
     // ============ BATCH: PACKETS & LANDING PAGES ============
     app.post('/packets', middleware_1.requireAdmin, async (req, res) => {
         try {
+            const body = req.body;
+            // Validate assemblyId exists in master_catalog if provided
+            if (body.assemblyId) {
+                const asmDoc = await core_1.db.collection('master_catalog').doc(String(body.assemblyId)).get();
+                if (!asmDoc.exists) {
+                    res.status(400).json({ error: `assemblyId '${body.assemblyId}' not found in master_catalog` });
+                    return;
+                }
+            }
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            const packetData = (0, core_1.stripUndef)({ ...req.body, createdAt: now, updatedAt: now });
+            const packetData = (0, core_1.stripUndef)({ ...body, createdAt: now, updatedAt: now });
             delete packetData.mockupJobsQueued;
             if (packetData.headerStyle)
                 packetData.headerStyle = (0, core_1.sanitizeStyleForFirestore)(packetData.headerStyle);
@@ -25,7 +34,7 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
-    app.get('/packets', async (req, res) => {
+    app.get('/packets', middleware_1.requireAdmin, async (req, res) => {
         try {
             const snap = await core_1.db.collection('productPackets').orderBy('createdAt', 'desc').limit(100).get();
             const packets = snap.docs.map(d => { const data = d.data(); return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null }; });

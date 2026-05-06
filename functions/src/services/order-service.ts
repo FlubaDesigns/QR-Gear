@@ -272,7 +272,7 @@ async function createEmbedOrder(input: CreateOrderInput, nowISO: string): Promis
     return { orderId: input.stripeSessionId, orderItemId: existing.orderItemId || '', alreadyExisted: true, orderData: existing };
   }
 
-  const orderItemId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const orderItemId = require('crypto').randomBytes(16).toString('hex');
 
   const attributionData: Record<string, any> = {
     orderId: input.stripeSessionId,

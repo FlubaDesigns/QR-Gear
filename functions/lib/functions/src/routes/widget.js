@@ -211,6 +211,11 @@ function register(app) {
     });
     app.post('/widget/mosaics', async (req, res) => {
         try {
+            const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+            if (!core_1.WIDGET_API_KEY || apiKey !== core_1.WIDGET_API_KEY) {
+                res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+                return;
+            }
             const ref = await core_1.db.collection(constants_1.MOSAICS_COLLECTION).add({ ...req.body, createdAt: new Date(), status: 'draft' });
             const doc = await ref.get();
             res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
@@ -221,6 +226,11 @@ function register(app) {
     });
     app.patch('/widget/mosaics/:mosaicId', async (req, res) => {
         try {
+            const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+            if (!core_1.WIDGET_API_KEY || apiKey !== core_1.WIDGET_API_KEY) {
+                res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+                return;
+            }
             await core_1.db.collection(constants_1.MOSAICS_COLLECTION).doc(req.params.mosaicId).update(req.body);
             res.json({ ok: true });
         }

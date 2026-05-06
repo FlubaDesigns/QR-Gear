@@ -5,9 +5,6 @@ const core_1 = require("../core");
 const constants_1 = require("../constants");
 function register(app) {
     // ============ SEO & SOCIAL SHARE ROUTES ============
-    function escapeHtml(str) {
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    }
     app.get('/sitemap.xml', async (req, res) => {
         try {
             const productsSnap = await core_1.db.collection('products').where('isPublished', '==', true).get();
@@ -58,7 +55,7 @@ function register(app) {
                     ogImage = packet.shareCardUrl || packet.compositeUrl || packet.videoSource?.posterUrl || packet.previewUrl || ogImage;
                 }
             }
-            const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${escapeHtml(title)}</title><meta property="og:type" content="website"/><meta property="og:title" content="${escapeHtml(title)}"/><meta property="og:description" content="${escapeHtml(description)}"/><meta property="og:image" content="${ogImage}"/><meta property="og:url" content="${canonicalUrl}"/><meta property="og:site_name" content="QR Gear"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="${escapeHtml(title)}"/><meta name="twitter:description" content="${escapeHtml(description)}"/><meta name="twitter:image" content="${ogImage}"/><meta http-equiv="refresh" content="0;url=/app/p/${packetId}"/><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:#fff}.loading{text-align:center}.spinner{width:40px;height:40px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="loading"><div class="spinner"></div><p>Loading your QR experience...</p></div></body></html>`;
+            const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${(0, core_1.escapeHtml)(title)}</title><meta property="og:type" content="website"/><meta property="og:title" content="${(0, core_1.escapeHtml)(title)}"/><meta property="og:description" content="${(0, core_1.escapeHtml)(description)}"/><meta property="og:image" content="${ogImage}"/><meta property="og:url" content="${canonicalUrl}"/><meta property="og:site_name" content="QR Gear"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="${(0, core_1.escapeHtml)(title)}"/><meta name="twitter:description" content="${(0, core_1.escapeHtml)(description)}"/><meta name="twitter:image" content="${ogImage}"/><meta http-equiv="refresh" content="0;url=/app/p/${packetId}"/><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:#fff}.loading{text-align:center}.spinner{width:40px;height:40px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="loading"><div class="spinner"></div><p>Loading your QR experience...</p></div></body></html>`;
             res.set('Content-Type', 'text/html');
             res.set('Cache-Control', 'public, max-age=300');
             res.send(html);

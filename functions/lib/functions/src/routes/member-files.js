@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const middleware_1 = require("../middleware");
 function register(app) {
     // ============ BATCH: MEMBER FILES PROXY ============
     app.get('/member-files/:memberId/:filename', async (req, res) => {
@@ -59,23 +60,13 @@ function register(app) {
         }
     });
     // ============ BATCH: MEMBER MEDIA UPLOAD ============
-    app.post('/members/:memberId/media', async (req, res) => {
+    app.post('/members/:memberId/media', middleware_1.requireAuth, async (req, res) => {
         try {
-            const authHeader = req.headers.authorization;
-            if (!authHeader?.startsWith('Bearer ')) {
+            const userId = req.user?.uid || req.userId;
+            if (!userId) {
                 res.status(401).json({ error: "Authentication required" });
                 return;
             }
-            const idToken = authHeader.substring(7);
-            let decodedToken;
-            try {
-                decodedToken = await core_1.admin.auth().verifyIdToken(idToken);
-            }
-            catch {
-                res.status(401).json({ error: "Invalid authentication token" });
-                return;
-            }
-            const userId = decodedToken.uid;
             console.log(`[CF MemberMedia] Starting media upload for member: ${userId}`);
             const contentType = req.headers["content-type"] || "";
             const boundaryMatch = contentType.match(/boundary=(.+)/);

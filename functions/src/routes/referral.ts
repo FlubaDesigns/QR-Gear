@@ -84,7 +84,7 @@ app.get('/public/member-packet/:packetId', async (req: Request, res: Response): 
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/public/referral/record-earnings', async (req: Request, res: Response): Promise<void> => {
+app.post('/public/referral/record-earnings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { orderId, buyerKey, orderTotal, productCost } = req.body;
     if (!orderId || !buyerKey) { res.status(400).json({ error: "orderId and buyerKey required" }); return; }

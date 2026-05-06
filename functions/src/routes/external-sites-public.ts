@@ -103,7 +103,7 @@ app.post('/public/embed/session', async (req: Request, res: Response): Promise<v
       pricingPolicyId: ctx.pricingPolicy?.id || '',
       revenueSplitId: ctx.revenueSplit?.id || '',
       visitorId: visitorId || '',
-      anonToken: Math.random().toString(36).substring(2) + Date.now().toString(36),
+      anonToken: require('crypto').randomBytes(16).toString('hex'),
       status: 'active',
       embedMode: ctx.placement.embedMode,
       currentSelections: {},

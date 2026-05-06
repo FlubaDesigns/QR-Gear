@@ -18,8 +18,17 @@ import { printfulClient } from '../services/printful';
 
 app.post('/packets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
+    const body = req.body as Record<string, any>;
+    // Validate assemblyId exists in master_catalog if provided
+    if (body.assemblyId) {
+      const asmDoc = await db.collection('master_catalog').doc(String(body.assemblyId)).get();
+      if (!asmDoc.exists) {
+        res.status(400).json({ error: `assemblyId '${body.assemblyId}' not found in master_catalog` });
+        return;
+      }
+    }
     const now = admin.firestore.FieldValue.serverTimestamp();
-    const packetData = stripUndef({ ...req.body, createdAt: now, updatedAt: now });
+    const packetData = stripUndef({ ...body, createdAt: now, updatedAt: now });
     delete packetData.mockupJobsQueued;
     if (packetData.headerStyle) packetData.headerStyle = sanitizeStyleForFirestore(packetData.headerStyle);
     if (packetData.footerStyle) packetData.footerStyle = sanitizeStyleForFirestore(packetData.footerStyle);
@@ -30,7 +39,7 @@ app.post('/packets', requireAdmin, async (req: Request, res: Response): Promise<
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/packets', async (req: Request, res: Response): Promise<void> => {
+app.get('/packets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const snap = await db.collection('productPackets').orderBy('createdAt', 'desc').limit(100).get();
     const packets = snap.docs.map(d => { const data = d.data(); return { id: d.id, ...data, createdAt: data.createdAt?.toDate?.() || null, updatedAt: data.updatedAt?.toDate?.() || null }; });

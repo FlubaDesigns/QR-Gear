@@ -180,7 +180,7 @@ async function createEmbedOrder(input, nowISO) {
         console.log(`[OrderService] Embed attribution already exists for ${input.stripeSessionId}, returning existing`);
         return { orderId: input.stripeSessionId, orderItemId: existing.orderItemId || '', alreadyExisted: true, orderData: existing };
     }
-    const orderItemId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const orderItemId = require('crypto').randomBytes(16).toString('hex');
     const attributionData = {
         orderId: input.stripeSessionId,
         orderItemId,

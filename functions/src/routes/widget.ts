@@ -202,6 +202,11 @@ app.get('/widget/mosaics/:mosaicId/moments', async (req: Request, res: Response)
 
 app.post('/widget/mosaics', async (req: Request, res: Response): Promise<void> => {
   try {
+    const apiKey = req.headers['x-api-key'] || (req.headers['authorization'] as string)?.replace('Bearer ', '');
+    if (!WIDGET_API_KEY || apiKey !== WIDGET_API_KEY) {
+      res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+      return;
+    }
     const ref = await db.collection(MOSAICS_COLLECTION).add({ ...req.body, createdAt: new Date(), status: 'draft' });
     const doc = await ref.get();
     res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
@@ -210,6 +215,11 @@ app.post('/widget/mosaics', async (req: Request, res: Response): Promise<void> =
 
 app.patch('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promise<void> => {
   try {
+    const apiKey = req.headers['x-api-key'] || (req.headers['authorization'] as string)?.replace('Bearer ', '');
+    if (!WIDGET_API_KEY || apiKey !== WIDGET_API_KEY) {
+      res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+      return;
+    }
     await db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).update(req.body);
     res.json({ ok: true });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }

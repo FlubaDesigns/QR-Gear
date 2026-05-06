@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const constants_1 = require("../constants");
+const middleware_1 = require("../middleware");
 function register(app) {
     // ============ REFERRAL TRACKING (Share & Earn — Forever) ============
     app.post('/public/referral/capture', async (req, res) => {
@@ -96,7 +97,7 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/public/referral/record-earnings', async (req, res) => {
+    app.post('/public/referral/record-earnings', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { orderId, buyerKey, orderTotal, productCost } = req.body;
             if (!orderId || !buyerKey) {

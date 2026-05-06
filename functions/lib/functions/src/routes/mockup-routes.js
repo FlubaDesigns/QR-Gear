@@ -480,36 +480,5 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // ============ PRODUCTS PAGE: MOCKUP PRIORITY ============
-    app.post('/admin/mockup/priority', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
-            if (!blueprintId || !colorName || !artworkUrl) {
-                res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" });
-                return;
-            }
-            console.log(`[Priority Mockup CF] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
-            const result = await (0, mockup_generator_1.generateMockupFromPrintful)({
-                blueprintId: parseInt(blueprintId),
-                printProviderId: printProviderId ? parseInt(printProviderId) : 0,
-                colorName,
-                colorHex,
-                artworkUrl,
-                artworkVariant: "black",
-                fulfillmentProvider: fulfillmentProvider,
-                hasCompositeGraphic: true,
-            });
-            console.log(`[Priority Mockup CF] Generated: ${result.mockupUrl}`);
-            res.json({
-                success: true, mockupUrl: result.mockupUrl,
-                lifestyleMockupUrl: result.lifestyleUrl || null,
-                fromCache: false, generatedAt: new Date().toISOString(),
-            });
-        }
-        catch (error) {
-            console.error("[Priority Mockup CF] Error:", error);
-            res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
-        }
-    });
 }
 //# sourceMappingURL=mockup-routes.js.map

@@ -31,7 +31,7 @@ const BLD_COUNTERS_COLLECTION     = 'bld_counters';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type BldContext    = 'S' | 'U';
-export type BldLayoutMode = 'Z' | 'P';  // S context only
+export type BldLayoutMode = 'Z' | 'P' | 'I' | 'V' | 'D';  // S context: Z=Zone, P=Palette; U context: I=Image, V=Video, D=Document
 export type BldEngine     = 'T' | 'I' | 'Q' | 'A';
 
 export interface BldInstance {

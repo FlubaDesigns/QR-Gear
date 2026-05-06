@@ -550,37 +550,6 @@ app.post('/admin/mockup/queue-process', requireAdmin, async (_req: Request, res:
   }
 });
 
-// ============ PRODUCTS PAGE: MOCKUP PRIORITY ============
-
-app.post('/admin/mockup/priority', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
-    if (!blueprintId || !colorName || !artworkUrl) {
-      res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" });
-      return;
-    }
-    console.log(`[Priority Mockup CF] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
-    const result = await generateMockupFromPrintful({
-      blueprintId: parseInt(blueprintId),
-      printProviderId: printProviderId ? parseInt(printProviderId) : 0,
-      colorName,
-      colorHex,
-      artworkUrl,
-      artworkVariant: "black",
-      fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      hasCompositeGraphic: true,
-    });
-    console.log(`[Priority Mockup CF] Generated: ${(result as any).mockupUrl}`);
-    res.json({
-      success: true, mockupUrl: (result as any).mockupUrl,
-      lifestyleMockupUrl: (result as any).lifestyleUrl || null,
-      fromCache: false, generatedAt: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error("[Priority Mockup CF] Error:", error);
-    res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
-  }
-});
 
 
   }

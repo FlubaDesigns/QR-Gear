@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { PLATFORM_STORE_ID } from '../constants';
+import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient, updatePrintfulKeyCache } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -303,14 +304,30 @@ app.get('/admin/orchestration/master-products/:id', requireAdmin, async (req: Re
 
 app.post('/admin/orchestration/master-products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const docRef = await db.collection('master_catalog').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
+    const body = req.body as Record<string, any>;
+    // Require a valid qrg_STNNN doc ID — reject ad-hoc or provider-keyed creates
+    const docId: string | undefined = body.id || body.docId;
+    if (!docId || !isValidMasterCatalogDocId(docId)) {
+      res.status(400).json({ error: `A valid QRG catalog doc ID (qrg_STNNN format) is required. Got: ${String(docId ?? 'undefined')}` });
+      return;
+    }
+    const { id: _id, docId: _docId, ...data } = body;
+    await db.collection('master_catalog').doc(docId).set({ ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: false });
+    res.json({ id: docId, success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.patch('/admin/orchestration/master-products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('master_catalog').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
+    const docId = req.params.id;
+    if (!isValidMasterCatalogDocId(docId)) {
+      res.status(400).json({ error: `Invalid catalog doc ID: ${docId}. Must be qrg_STNNN format.` });
+      return;
+    }
+    const body = req.body as Record<string, any>;
+    // Strip any attempt to write provider-keyed blankIds directly
+    const { id: _id, docId: _docId, ...data } = body;
+    await db.collection('master_catalog').doc(docId).update({ ...data, updatedAt: new Date().toISOString() });
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });

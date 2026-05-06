@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
 const middleware_1 = require("../middleware");
 function register(app) {
     // ============ BATCH: REMAINING ADMIN & MISC ROUTES ============
@@ -360,8 +361,16 @@ function register(app) {
     });
     app.post('/admin/orchestration/master-products', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const docRef = await core_1.db.collection('master_catalog').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-            res.json({ id: docRef.id, success: true });
+            const body = req.body;
+            // Require a valid qrg_STNNN doc ID — reject ad-hoc or provider-keyed creates
+            const docId = body.id || body.docId;
+            if (!docId || !(0, qrgCodes_1.isValidMasterCatalogDocId)(docId)) {
+                res.status(400).json({ error: `A valid QRG catalog doc ID (qrg_STNNN format) is required. Got: ${String(docId ?? 'undefined')}` });
+                return;
+            }
+            const { id: _id, docId: _docId, ...data } = body;
+            await core_1.db.collection('master_catalog').doc(docId).set({ ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: false });
+            res.json({ id: docId, success: true });
         }
         catch (error) {
             res.status(500).json({ error: error.message });
@@ -369,7 +378,15 @@ function register(app) {
     });
     app.patch('/admin/orchestration/master-products/:id', middleware_1.requireAdmin, async (req, res) => {
         try {
-            await core_1.db.collection('master_catalog').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
+            const docId = req.params.id;
+            if (!(0, qrgCodes_1.isValidMasterCatalogDocId)(docId)) {
+                res.status(400).json({ error: `Invalid catalog doc ID: ${docId}. Must be qrg_STNNN format.` });
+                return;
+            }
+            const body = req.body;
+            // Strip any attempt to write provider-keyed blankIds directly
+            const { id: _id, docId: _docId, ...data } = body;
+            await core_1.db.collection('master_catalog').doc(docId).update({ ...data, updatedAt: new Date().toISOString() });
             res.json({ success: true });
         }
         catch (error) {

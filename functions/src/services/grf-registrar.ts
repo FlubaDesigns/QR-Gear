@@ -113,7 +113,7 @@ export async function registerGrfAsset(
     typeDescription: typeEntry.description,
     sequence,
     sourceUrl,
-    mimeType:        mimeType || 'image/png',
+    mimeType:        mimeType,
     sourceSessionId: sourceSessionId || null,
     packetId:        packetId        || null,
     source:          'auto_commit',

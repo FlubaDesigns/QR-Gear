@@ -16,13 +16,6 @@ import { printfulClient } from '../services/printful';
   export function register(app: express.Express): void {
   // ============ BATCH: GIFT SYSTEM ============
 
-function generateGiftCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "GIFT";
-  for (let i = 0; i < 3; i++) { code += "-"; for (let j = 0; j < 4; j++) { code += chars.charAt(Math.floor(Math.random() * chars.length)); } }
-  return code;
-}
-
 app.get('/gifts/packages', async (req: Request, res: Response): Promise<void> => {
   try {
     const snap = await db.collection('gift_packages').where('isActive', '==', true).get();

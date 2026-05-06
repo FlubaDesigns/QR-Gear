@@ -1,3 +1,5 @@
+import { assertValidQrgCode } from '../../../shared/qrgCodes';
+
 export interface MarketplaceResult {
   success: boolean;
   externalListingId?: string;
@@ -68,6 +70,30 @@ export interface AccountInput {
 
 const ETSY_API_BASE = 'https://api.etsy.com/v3/application';
 
+// ─── QRG parent-category → Etsy taxonomy_id mapping ─────────────────────────
+// QRG super-category S digit: 1=Apparel, 2=Houseware, 3=Print&Display,
+//   4=Accessories, 5=Pet Products, 6=Holiday&Seasonal
+// Etsy taxonomy IDs verified against the Etsy Taxonomy API (v3).
+const QRG_CATEGORY_TO_ETSY_TAXONOMY: Record<string, number> = {
+  '1': 482,   // Apparel → Clothing (top-level apparel node)
+  '2': 68,    // Houseware → Home & Living
+  '3': 2078,  // Print & Display → Art & Collectibles > Prints
+  '4': 164,   // Accessories → Accessories
+  '5': 1,     // Pet Products → Animals & Pet Supplies
+  '6': 985,   // Holiday & Seasonal → Holidays
+};
+
+/** Resolve Etsy taxonomy_id from a QRG master product doc ID (qrg_STNNN). */
+function etsyTaxonomyFromSku(sku: string): number {
+  // Full QRG code format: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
+  // S (super-category) is the first digit of STNNN segment.
+  const match = /^QRG-([1-6])[1-9]\d{3}-/.exec(sku);
+  if (match) {
+    return QRG_CATEGORY_TO_ETSY_TAXONOMY[match[1]] ?? 482;
+  }
+  return 482; // default: Clothing
+}
+
 function getCredentials(account: AccountInput) {
   const apiKey = process.env.ETSY_API_KEYSTRING;
   const accessToken = process.env.ETSY_ACCESS_TOKEN;
@@ -76,6 +102,9 @@ function getCredentials(account: AccountInput) {
 }
 
 export async function createListing(surface: SurfaceInput, account: AccountInput): Promise<MarketplaceResult> {
+  // Validate QRG identity before any marketplace action — same as Amazon/eBay adapters
+  assertValidQrgCode(surface.sku, 'EtsyAdapter');
+
   const { apiKey, accessToken, shopId } = getCredentials(account);
   if (!apiKey || !accessToken || !shopId) {
     return { success: false, error: 'Etsy API credentials not configured (ETSY_API_KEYSTRING, ETSY_ACCESS_TOKEN, ETSY_SHOP_ID)' };
@@ -88,7 +117,7 @@ export async function createListing(surface: SurfaceInput, account: AccountInput
     quantity: 999,
     who_made: 'i_did',
     when_made: 'made_to_order',
-    taxonomy_id: 482,
+    taxonomy_id: etsyTaxonomyFromSku(surface.sku),
     tags: (surface.tags || []).slice(0, 13),
     shipping_profile_id: null,
     type: 'physical',

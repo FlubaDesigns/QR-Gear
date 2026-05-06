@@ -179,15 +179,31 @@ export async function deleteListing(externalListingId: string, _account: Account
   const marketplaceId = process.env.EBAY_MARKETPLACE_ID || 'EBAY_US';
 
   try {
-    const offersRes = await fetch(`${INVENTORY_API}/offer?marketplace_id=${marketplaceId}&limit=100`, { headers });
-    if (offersRes.ok) {
-      const offersData = await offersRes.json() as { offers?: Array<{ offerId: string; sku: string; listing?: { listingId: string } }> };
-      const match = offersData.offers?.find((o) => o.listing?.listingId === externalListingId);
+    // Paginate through all offers to find the matching listingId (eBay limit=100 per page)
+    let offset = 0;
+    const pageSize = 100;
+    let found = false;
+    while (!found) {
+      const offersRes = await fetch(
+        `${INVENTORY_API}/offer?marketplace_id=${marketplaceId}&limit=${pageSize}&offset=${offset}`,
+        { headers }
+      );
+      if (!offersRes.ok) break;
+      const offersData = await offersRes.json() as { offers?: Array<{ offerId: string; sku: string; listing?: { listingId: string } }>; total?: number };
+      const offers = offersData.offers || [];
+      const match = offers.find((o) => o.listing?.listingId === externalListingId);
       if (match) {
+        found = true;
         await fetch(`${INVENTORY_API}/offer/${match.offerId}/withdraw`, { method: 'POST', headers, body: '{}' }).catch(() => {});
         await fetch(`${INVENTORY_API}/offer/${match.offerId}`, { method: 'DELETE', headers }).catch(() => {});
         await fetch(`${INVENTORY_API}/inventory_item/${encodeURIComponent(match.sku)}`, { method: 'DELETE', headers }).catch(() => {});
       }
+      // Stop if we've exhausted all pages
+      if (offers.length < pageSize) break;
+      offset += pageSize;
+    }
+    if (!found) {
+      console.warn(`[EbayAdapter] Offer for listingId ${externalListingId} not found — may already be deleted`);
     }
   } catch (err) {
     console.warn('[EbayAdapter] Delete cleanup error (non-fatal):', err);
