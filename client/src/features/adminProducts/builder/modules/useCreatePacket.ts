@@ -196,6 +196,36 @@ export function useCreatePacket({
         areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
         areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
         areaImageScale: state.content?.areaImageScale ?? 100,
+        qrBasicInputType: state.content?.qrBasicInputType || 'text',
+        // Full builder snapshot so loadFromPacketData can reconstruct the exact input state.
+        // snapshot.content.url is the user's original QR input — never overwritten by the
+        // landing-page URL rewrite that happens to packet.qrContent for canvas/play modes.
+        builderSnapshot: {
+          content: {
+            url: state.content?.url || '',
+            title: state.content?.title || '',
+            description: state.content?.description || '',
+            headerStyle: state.content?.headerStyle ?? null,
+            footerStyle: state.content?.footerStyle ?? null,
+            subBottomStyle: state.content?.subBottomStyle ?? null,
+            qrPositionX: state.content?.qrPositionX ?? 50,
+            qrPositionY: state.content?.qrPositionY ?? 50,
+            qrSizePercent: state.content?.qrSizePercent ?? 75,
+            areaImageUrl: state.content?.areaImageUrl || '',
+            areaImageMode: state.content?.areaImageMode || 'behind-qr',
+            areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
+            areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
+            areaImageScale: state.content?.areaImageScale ?? 100,
+            landingTextBlocks: state.content?.landingTextBlocks || [],
+            graphicLayoutMode: state.content?.graphicLayoutMode || '',
+            qrBasicInputType: state.content?.qrBasicInputType || 'text',
+          },
+          selectedProductId: state.selectedProduct?.id || null,
+          selectedPlacements: state.selectedPlacements || [],
+          selectedColor: state.selectedColor ?? null,
+          qrProductState: state.qrProductState,
+          savedAt: new Date().toISOString(),
+        },
       };
 
       if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {

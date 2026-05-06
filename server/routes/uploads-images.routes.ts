@@ -385,22 +385,186 @@ export function registerUploadsImagesRoutes(app: Express): void {
     }
   });
 
-  // PUBLIC test endpoint to list images (no auth required)
+  // ── Admin image library — list ─────────────────────────────────────────────
   app.get("/api/admin/images", isAdmin, async (req: any, res) => {
     try {
-      const assets = await fsQuery('library_assets', [['isActive', '==', true]], undefined, 'asc', 20);
-      
-      const assetsWithProxy = assets.map(a => {
-        const filename = (a.storageUrl || '').split('/').pop() || '';
-        const proxyUrl = `/api/library-files/${encodeURIComponent(filename)}`;
-        return {
-          ...a,
-          publicUrl: proxyUrl,
-          proxyUrl
-        };
+      const folder = (req.query.folder as string) || '';
+      const { getFirestoreDb, getStorageBucketName } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+      const snap = await db.collection('admin_images').get();
+      const bucketName = getStorageBucketName();
+      const images = snap.docs
+        .map((doc: any) => {
+          const data = doc.data();
+          const gcsUrl = data.storageUrl
+            ? `https://storage.googleapis.com/${bucketName}/${data.storageUrl}`
+            : (data.publicUrl || '');
+          return {
+            id: doc.id,
+            ...data,
+            proxyUrl: `/api/admin/images/${doc.id}/file`,
+            publicUrl: gcsUrl,
+          };
+        })
+        .filter((img: any) => img.isActive !== false)
+        .filter((img: any) => !folder || img.folder === folder)
+        .sort((a: any, b: any) => {
+          const getTime = (val: any): number => {
+            if (!val) return 0;
+            if (val._seconds) return val._seconds * 1000;
+            if (val.toDate) return val.toDate().getTime();
+            if (typeof val === 'string') return new Date(val).getTime() || 0;
+            return 0;
+          };
+          return getTime(b.createdAt) - getTime(a.createdAt);
+        });
+      res.json(images);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Admin image library — list folders ─────────────────────────────────────
+  app.get("/api/admin/images/folders", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+      const [imgSnap, folderSnap] = await Promise.all([
+        db.collection('admin_images').get(),
+        db.collection('admin_image_folders').get(),
+      ]);
+      const folderSet = new Set<string>();
+      folderSnap.docs.forEach((doc: any) => {
+        const name = doc.data().name;
+        if (name) folderSet.add(name);
       });
-      
-      res.json(assetsWithProxy);
+      imgSnap.docs.forEach((doc: any) => {
+        const data = doc.data();
+        if (data.isActive === false) return;
+        const f = data.folder;
+        if (f) folderSet.add(f);
+      });
+      res.json(Array.from(folderSet).sort());
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Admin image library — serve by Firestore doc ID ───────────────────────
+  app.get("/api/admin/images/:id/file", isAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { getFirestoreDb, getStorageBucket } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+      const doc = await db.collection('admin_images').doc(id).get();
+      if (!doc.exists) { return res.status(404).json({ error: 'Image not found' }); }
+      const data = doc.data() as any;
+      if (data.isActive === false) { return res.status(404).json({ error: 'Image not active' }); }
+      const storageUrl: string = data.storageUrl;
+      if (!storageUrl) { return res.status(404).json({ error: 'No storage path on record' }); }
+      const bucket = getStorageBucket();
+      const file = bucket.file(storageUrl);
+      const contentType: string = data.mimeType || 'image/png';
+      res.set('Content-Type', contentType);
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.set('Access-Control-Allow-Origin', '*');
+      file.createReadStream().pipe(res);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Admin image library — upload ───────────────────────────────────────────
+  app.post("/api/admin/images", isAdmin, async (req: any, res) => {
+    try {
+      const contentType = req.headers['content-type'] || '';
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+      if (!boundaryMatch) { return res.status(400).json({ error: 'Expected multipart/form-data' }); }
+      const boundary = boundaryMatch[1];
+      const rawBody: Buffer = await new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+        req.on('error', reject);
+      });
+      if (!rawBody || rawBody.length === 0) { return res.status(400).json({ error: 'No request body' }); }
+      const boundaryBuffer = Buffer.from(`--${boundary}`);
+      const parts: Buffer[] = [];
+      let start = 0;
+      while (true) {
+        const idx = rawBody.indexOf(boundaryBuffer, start);
+        if (idx === -1) break;
+        if (start > 0) parts.push(rawBody.slice(start, idx - 2));
+        start = idx + boundaryBuffer.length + 2;
+      }
+      let fileBuffer: Buffer | null = null;
+      let fileMimeType = 'image/png';
+      let fieldName = '';
+      let fieldFolder = 'general';
+      for (const part of parts) {
+        const headerEnd = part.indexOf('\r\n\r\n');
+        if (headerEnd === -1) continue;
+        const hdrs = part.slice(0, headerEnd).toString();
+        const body = part.slice(headerEnd + 4);
+        const filenameMatch = hdrs.match(/filename="([^"]+)"/);
+        const ctMatch = hdrs.match(/Content-Type:\s*([^\r\n]+)/i);
+        const nameMatch = hdrs.match(/name="([^"]+)"/);
+        if (filenameMatch) {
+          fileBuffer = body;
+          if (ctMatch) fileMimeType = ctMatch[1].trim();
+        } else if (nameMatch) {
+          const val = body.toString().trim();
+          if (nameMatch[1] === 'name') fieldName = val;
+          if (nameMatch[1] === 'folder') fieldFolder = val;
+        }
+      }
+      if (!fileBuffer || fileBuffer.length === 0) { return res.status(400).json({ error: 'No file in upload' }); }
+      const name = fieldName || `image-${Date.now()}`;
+      const folder = fieldFolder || 'general';
+      const { getFirestoreDb, getStorageBucket, getStorageBucketName } = await import("../lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const db = getFirestoreDb();
+      const bucket = getStorageBucket();
+      const bucketName = getStorageBucketName();
+      const ext = fileMimeType.split('/')[1] || 'png';
+      const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fullPath = `library/images/${folder}/${Date.now()}-${safeName}.${ext}`;
+      const file = bucket.file(fullPath);
+      await file.save(fileBuffer, { metadata: { contentType: fileMimeType } });
+      await file.makePublic();
+      const publicGcsUrl = `https://storage.googleapis.com/${bucketName}/${fullPath}`;
+      const docRef = await db.collection('admin_images').add({
+        name, folder, mimeType: fileMimeType, sizeBytes: fileBuffer.length,
+        storageUrl: fullPath, publicUrl: publicGcsUrl, isActive: true,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      const doc = await docRef.get();
+      res.json({ id: doc.id, ...doc.data(), proxyUrl: `/api/admin/images/${docRef.id}/file`, publicUrl: publicGcsUrl });
+    } catch (error: any) {
+      console.error('[AdminImages] Upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── Admin image library — create folder ───────────────────────────────────
+  app.post("/api/admin/images/folders", isAdmin, async (req: any, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: 'Folder name is required' });
+      }
+      const trimmed = name.trim().replace(/\s{2,}/g, ' ');
+      if (trimmed.length > 80) { return res.status(400).json({ error: 'Folder name must be 80 characters or less' }); }
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+      const normalizedName = trimmed.toLowerCase();
+      const allFolders = await db.collection('admin_image_folders').get();
+      const match = allFolders.docs.find((doc: any) => (doc.data().name || '').trim().toLowerCase() === normalizedName);
+      if (match) {
+        return res.json({ ok: true, folder: match.data().name, created: false });
+      }
+      await db.collection('admin_image_folders').add({ name: trimmed, normalizedName, createdAt: new Date().toISOString() });
+      res.json({ ok: true, folder: trimmed, created: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

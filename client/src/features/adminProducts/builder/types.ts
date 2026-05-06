@@ -225,6 +225,7 @@ export interface ContentData {
   composeStep: 'pick-items' | 'mode' | 'durations' | 'order' | 'hosting' | 'preview' | 'publish' | 'confirm' | '';
   composeMockup: string;
   composeInstanceId: string | null;
+  qrBasicInputType: 'text' | 'url';
 }
 
 export interface PricingBreakdown {

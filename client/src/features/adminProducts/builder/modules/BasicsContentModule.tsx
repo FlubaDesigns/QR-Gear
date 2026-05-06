@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Type, Link2, FileText } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Label } from "@/components/ui/label";
@@ -9,11 +8,13 @@ import { useBuilderContext } from "../BuilderContext";
 
 export function BasicsContentModule() {
   const { state, setContent } = useBuilderContext();
-  const [basicsMode, setBasicsMode] = useState<"text" | "url">("text");
 
   if (state.qrProductState !== "qr_basics" || !state.selectedProduct || !state.content) {
     return null;
   }
+
+  // Persist input mode through the session — never use local component state for this.
+  const basicsMode: "text" | "url" = state.content.qrBasicInputType || "text";
 
   return (
     <CollapsibleModule
@@ -28,10 +29,7 @@ export function BasicsContentModule() {
             type="button"
             variant={basicsMode === "text" ? "default" : "outline"}
             size="lg"
-            onClick={() => {
-              setBasicsMode("text");
-              setContent({ url: "" });
-            }}
+            onClick={() => setContent({ qrBasicInputType: "text" })}
             className="flex-1 h-14 text-base"
             data-testid="button-basics-text"
           >
@@ -42,10 +40,7 @@ export function BasicsContentModule() {
             type="button"
             variant={basicsMode === "url" ? "default" : "outline"}
             size="lg"
-            onClick={() => {
-              setBasicsMode("url");
-              setContent({ url: "" });
-            }}
+            onClick={() => setContent({ qrBasicInputType: "url" })}
             className="flex-1 h-14 text-base"
             data-testid="button-basics-url"
           >
@@ -102,7 +97,7 @@ export function BasicsContentModule() {
           <div className="p-3 bg-primary/5 rounded-md border">
             <p className="text-sm font-medium">Content Ready</p>
             <p className="text-xs text-muted-foreground break-all">
-              {basicsMode === "text" 
+              {basicsMode === "text"
                 ? `Text: ${state.content.url.substring(0, 60)}${state.content.url.length > 60 ? "..." : ""}`
                 : `URL: ${state.content.url}`
               }

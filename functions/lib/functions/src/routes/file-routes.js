@@ -750,7 +750,7 @@ function register(app) {
                 return {
                     id: doc.id,
                     ...data,
-                    proxyUrl: gcsUrl,
+                    proxyUrl: `/api/admin/images/${doc.id}/file`,
                     publicUrl: gcsUrl,
                 };
             })
@@ -908,7 +908,7 @@ function register(app) {
                 createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
             });
             const doc = await docRef.get();
-            res.json({ id: doc.id, ...doc.data(), proxyUrl: publicGcsUrl, publicUrl: publicGcsUrl });
+            res.json({ id: doc.id, ...doc.data(), proxyUrl: `/api/admin/images/${docRef.id}/file`, publicUrl: publicGcsUrl });
         }
         catch (error) {
             console.error('[AdminImages] Native upload error:', error);
@@ -928,6 +928,42 @@ function register(app) {
         }
         catch (error) {
             console.error('[AdminImages] Update error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    // ── Serve admin image by Firestore doc ID (stable, auth-bypassing proxy) ──
+    app.get('/admin/images/:id/file', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const doc = await core_1.db.collection('admin_images').doc(id).get();
+            if (!doc.exists) {
+                res.status(404).json({ error: 'Image not found' });
+                return;
+            }
+            const data = doc.data();
+            if (data.isActive === false) {
+                res.status(404).json({ error: 'Image not active' });
+                return;
+            }
+            const storageUrl = data.storageUrl;
+            if (!storageUrl) {
+                res.status(404).json({ error: 'No storage path on record' });
+                return;
+            }
+            const file = core_1.storage.bucket().file(storageUrl);
+            const [exists] = await file.exists();
+            if (!exists) {
+                res.status(404).json({ error: 'File not found in storage' });
+                return;
+            }
+            const contentType = data.mimeType || 'image/png';
+            res.set('Content-Type', contentType);
+            res.set('Cache-Control', 'public, max-age=86400');
+            res.set('Access-Control-Allow-Origin', '*');
+            file.createReadStream().pipe(res);
+        }
+        catch (error) {
+            console.error('[AdminImages] File serve error:', error.message);
             res.status(500).json({ error: error.message });
         }
     });

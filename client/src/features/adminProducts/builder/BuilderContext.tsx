@@ -76,6 +76,7 @@ const initialContent: ContentData = {
   areaImageScale: 100,
   subBottomStyle: { ...defaultTextStyle, enabled: false, text: '', fontFamily: 'Arial', fontWeight: '400', fontSize: '14', color: '#666666', mode: 'text' as const },
   graphicLayoutMode: "" as "" | "zone" | "freeform",
+  qrBasicInputType: 'text' as 'text' | 'url',
   composeItems: [],
   composeMode: '',
   composeHostingTerm: '',
@@ -798,8 +799,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       mode: 'text' as const,
     };
 
+    if (packetData.qrContent && !snapshot?.url) {
+      console.warn('[BuilderContext] loadFromPacketData: Packet has qrContent but builder snapshot url is missing. Falling back to qrContent.');
+    }
+
     const newContent: Partial<ContentData> = {
-      url: packetData.qrContent || snapshot?.url || '',
+      url: snapshot?.url || packetData.qrContent || '',
       title: packetData.landingPageTitle || snapshot?.title || '',
       description: packetData.landingPageDescription || snapshot?.description || '',
       headerStyle,
@@ -815,6 +820,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       areaImageScale: packetData.areaImageScale ?? snapshot?.areaImageScale ?? 100,
       landingTextBlocks: snapshot?.landingTextBlocks || (packetData.landingTextBlocks as any[]) || [],
       graphicLayoutMode: (packetData.graphicLayoutMode || snapshot?.graphicLayoutMode || '') as "" | "zone" | "freeform",
+      qrBasicInputType: (packetData.qrBasicInputType || (snapshot as any)?.qrBasicInputType || 'text') as 'text' | 'url',
     };
 
     const selectedColor: SelectedColor | null = packetData.defaultColor

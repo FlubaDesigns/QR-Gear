@@ -811,7 +811,7 @@ app.get('/admin/images', requireAdmin, async (req: Request, res: Response): Prom
         return {
           id: doc.id,
           ...data,
-          proxyUrl: gcsUrl,
+          proxyUrl: `/api/admin/images/${doc.id}/file`,
           publicUrl: gcsUrl,
         };
       })
@@ -946,7 +946,7 @@ app.post('/admin/images', requireAdmin, async (req: Request, res: Response): Pro
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const doc = await docRef.get();
-    res.json({ id: doc.id, ...doc.data(), proxyUrl: publicGcsUrl, publicUrl: publicGcsUrl });
+    res.json({ id: doc.id, ...doc.data(), proxyUrl: `/api/admin/images/${docRef.id}/file`, publicUrl: publicGcsUrl });
   } catch (error: any) {
     console.error('[AdminImages] Native upload error:', error);
     res.status(500).json({ error: error.message });
@@ -963,6 +963,30 @@ app.patch('/admin/images/:id', requireAdmin, async (req: Request, res: Response)
     res.json({ success: true });
   } catch (error: any) {
     console.error('[AdminImages] Update error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── Serve admin image by Firestore doc ID (stable, auth-bypassing proxy) ──
+app.get('/admin/images/:id/file', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const doc = await db.collection('admin_images').doc(id).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Image not found' }); return; }
+    const data = doc.data()!;
+    if (data.isActive === false) { res.status(404).json({ error: 'Image not active' }); return; }
+    const storageUrl = data.storageUrl as string | undefined;
+    if (!storageUrl) { res.status(404).json({ error: 'No storage path on record' }); return; }
+    const file = storage.bucket().file(storageUrl);
+    const [exists] = await file.exists();
+    if (!exists) { res.status(404).json({ error: 'File not found in storage' }); return; }
+    const contentType = (data.mimeType as string | undefined) || 'image/png';
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.set('Access-Control-Allow-Origin', '*');
+    file.createReadStream().pipe(res);
+  } catch (error: any) {
+    console.error('[AdminImages] File serve error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
