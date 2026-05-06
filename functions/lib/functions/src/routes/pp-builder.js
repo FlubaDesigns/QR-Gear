@@ -323,7 +323,7 @@ function register(app) {
     });
     app.get('/admin/build-shelf', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { provider, groupId, catalogId } = req.query;
+            const { provider, groupId, catalogId, mode } = req.query;
             let items;
             if (catalogId) {
                 const snapshot = await core_1.db.collection("admin_build_shelf").where("catalogId", "==", catalogId).orderBy("createdAt", "desc").get();
@@ -333,12 +333,43 @@ function register(app) {
                 const snapshot = await core_1.db.collection("admin_build_shelf").where("groupIds", "array-contains", groupId).orderBy("createdAt", "desc").get();
                 items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
-            else {
+            else if (mode === "global") {
                 const snapshot = await core_1.db.collection("admin_build_shelf").orderBy("createdAt", "desc").get();
                 items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }
+            else {
+                res.status(400).json({ error: "catalogId is required. Pass ?mode=global to list all shelf items." });
+                return;
+            }
             if (provider) {
                 items = items.filter((item) => item.providerId === provider);
+            }
+            // Augment each shelf item's catalog with images[] and qrgCategory from master_catalog.
+            const shelfKeys = [...new Set(items.map((i) => i.shelfKey).filter(Boolean))];
+            if (shelfKeys.length > 0) {
+                const CHUNK = 30;
+                const masterMap = new Map();
+                for (let i = 0; i < shelfKeys.length; i += CHUNK) {
+                    const chunk = shelfKeys.slice(i, i + CHUNK);
+                    const docs = await Promise.all(chunk.map((key) => core_1.db.collection("master_catalog").doc(key).get()));
+                    for (const doc of docs) {
+                        if (doc.exists)
+                            masterMap.set(doc.id, doc.data());
+                    }
+                }
+                items = items.map((item) => {
+                    const master = masterMap.get(item.shelfKey);
+                    const masterImages = master?.images || [];
+                    const qrgCategory = master?.qrgCategory || null;
+                    if (!masterImages.length && !qrgCategory)
+                        return item;
+                    const catalogPatch = {};
+                    if (masterImages.length)
+                        catalogPatch.images = masterImages;
+                    if (qrgCategory)
+                        catalogPatch.qrgCategory = qrgCategory;
+                    return { ...item, catalog: { ...item.catalog, ...catalogPatch } };
+                });
             }
             res.json(items);
         }

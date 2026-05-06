@@ -316,19 +316,49 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
 
   app.get("/api/admin/build-shelf", isAdmin, async (req: any, res) => {
     try {
-      const { provider, groupId, catalogId } = req.query;
+      const { provider, groupId, catalogId, mode } = req.query;
       let items;
 
       if (catalogId) {
         items = await fsQuery("admin_build_shelf", [["catalogId", "==", catalogId]], "createdAt", "desc");
       } else if (groupId) {
         items = await fsQuery("admin_build_shelf", [["groupIds", "array-contains", groupId]], "createdAt", "desc");
-      } else {
+      } else if (mode === "global") {
         items = await fsGetAll("admin_build_shelf", "createdAt", "desc");
+      } else {
+        return res.status(400).json({ error: "catalogId is required. Pass ?mode=global to list all shelf items." });
       }
 
       if (provider) {
         items = items.filter((item: any) => item.providerId === provider);
+      }
+
+      // Augment each shelf item's catalog with the full images[] from master_catalog.
+      // admin_build_shelf only stores a single imageUrl; the authoritative image list
+      // lives in master_catalog.images (written during catalog import / sync).
+      const shelfKeys = [...new Set(items.map((i: any) => i.shelfKey).filter(Boolean))] as string[];
+      if (shelfKeys.length > 0) {
+        const { getFirestoreDb } = await import("../lib/firebase-admin");
+        const fsDb = getFirestoreDb();
+        const masterMap = new Map<string, any>();
+        const CHUNK = 30;
+        for (let i = 0; i < shelfKeys.length; i += CHUNK) {
+          const chunk = shelfKeys.slice(i, i + CHUNK);
+          const docs = await Promise.all(chunk.map((key: string) => fsDb.collection("master_catalog").doc(key).get()));
+          for (const doc of docs) {
+            if (doc.exists) masterMap.set(doc.id, doc.data());
+          }
+        }
+        items = items.map((item: any) => {
+          const master = masterMap.get(item.shelfKey);
+          const masterImages: string[] = master?.images || [];
+          const qrgCategory: string | null = master?.qrgCategory || null;
+          if (!masterImages.length && !qrgCategory) return item;
+          const catalogPatch: Record<string, any> = {};
+          if (masterImages.length) catalogPatch.images = masterImages;
+          if (qrgCategory) catalogPatch.qrgCategory = qrgCategory;
+          return { ...item, catalog: { ...item.catalog, ...catalogPatch } };
+        });
       }
 
       res.json(items);

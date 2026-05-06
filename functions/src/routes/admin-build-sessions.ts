@@ -113,7 +113,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
   // ── Create or load a build session from a master catalog item ─────────────
   app.post('/admin/build-sessions/from-master', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
-      const { sourceMasterId, catalogId, blankKey: bodyBlankKey } = req.body;
+      const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId } = req.body;
 
       if (!sourceMasterId) {
         res.status(400).json({ error: 'sourceMasterId is required' });
@@ -124,6 +124,15 @@ export function registerAdminBuildSessions(app: express.Express): void {
       if (!ownerAdminId) {
         res.status(401).json({ error: 'Admin UID required' });
         return;
+      }
+
+      // P6: validate catalog scope — reject if shelfItem doesn't belong to the stated catalog
+      if (shelfItemId && catalogId) {
+        const shelfDoc = await db.collection("admin_build_shelf").doc(shelfItemId).get();
+        if (!shelfDoc.exists || shelfDoc.data()?.catalogId !== catalogId) {
+          res.status(403).json({ error: 'Product does not belong to the selected catalog' });
+          return;
+        }
       }
 
       // Filter status in-memory to avoid requiring a composite Firestore index.

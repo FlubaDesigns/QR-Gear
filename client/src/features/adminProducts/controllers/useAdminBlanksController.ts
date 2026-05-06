@@ -113,8 +113,10 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
-  // Collect all available provider images into one deduplicated array
+  // Collect all available provider images into one deduplicated array.
+  // p.images is the master_catalog images array (injected by build-shelf GET).
   const allImages = Array.from(new Set([
+    ...(p.images || []),
     ...(p.printifyImages || []),
     ...(p.printfulImages || []),
   ])).filter(Boolean);

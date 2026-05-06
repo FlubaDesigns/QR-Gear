@@ -47,7 +47,7 @@ export function useBuildShelf(catalogId?: string | null) {
       try {
         const url = scopedCatalogId
           ? `/build-shelf?catalogId=${encodeURIComponent(scopedCatalogId)}`
-          : "/build-shelf";
+          : "/build-shelf?mode=global";
         return await adminFetch<ShelfItem[]>(url);
       } catch {
         return [];

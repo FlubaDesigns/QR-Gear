@@ -311,7 +311,7 @@ app.delete('/admin/shelf-groups/:id', requireAdmin, async (req: Request, res: Re
 
 app.get('/admin/build-shelf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { provider, groupId, catalogId } = req.query;
+    const { provider, groupId, catalogId, mode } = req.query;
     let items: any[];
     if (catalogId) {
       const snapshot = await db.collection("admin_build_shelf").where("catalogId", "==", catalogId).orderBy("createdAt", "desc").get();
@@ -319,11 +319,39 @@ app.get('/admin/build-shelf', requireAdmin, async (req: Request, res: Response):
     } else if (groupId) {
       const snapshot = await db.collection("admin_build_shelf").where("groupIds", "array-contains", groupId).orderBy("createdAt", "desc").get();
       items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } else {
+    } else if (mode === "global") {
       const snapshot = await db.collection("admin_build_shelf").orderBy("createdAt", "desc").get();
       items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else {
+      res.status(400).json({ error: "catalogId is required. Pass ?mode=global to list all shelf items." });
+      return;
     }
     if (provider) { items = items.filter((item: any) => item.providerId === provider); }
+
+    // Augment each shelf item's catalog with images[] and qrgCategory from master_catalog.
+    const shelfKeys = [...new Set(items.map((i: any) => i.shelfKey).filter(Boolean))] as string[];
+    if (shelfKeys.length > 0) {
+      const CHUNK = 30;
+      const masterMap = new Map<string, any>();
+      for (let i = 0; i < shelfKeys.length; i += CHUNK) {
+        const chunk = shelfKeys.slice(i, i + CHUNK);
+        const docs = await Promise.all(chunk.map((key: string) => db.collection("master_catalog").doc(key).get()));
+        for (const doc of docs) {
+          if (doc.exists) masterMap.set(doc.id, doc.data());
+        }
+      }
+      items = items.map((item: any) => {
+        const master = masterMap.get(item.shelfKey);
+        const masterImages: string[] = master?.images || [];
+        const qrgCategory: string | null = master?.qrgCategory || null;
+        if (!masterImages.length && !qrgCategory) return item;
+        const catalogPatch: Record<string, any> = {};
+        if (masterImages.length) catalogPatch.images = masterImages;
+        if (qrgCategory) catalogPatch.qrgCategory = qrgCategory;
+        return { ...item, catalog: { ...item.catalog, ...catalogPatch } };
+      });
+    }
+
     res.json(items);
   } catch (error: any) {
     console.error("[BuildShelf CF] List items error:", error);

@@ -28,7 +28,7 @@ import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
-import { getLookupBlankKey, safeBlankId } from "@shared/blankKeys";
+import { getLookupBlankKey } from "@shared/blankKeys";
 import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
@@ -183,15 +183,15 @@ export function ProductsModule() {
     queryKey: ["/api/admin/shelf-groups"],
   });
 
-  const { data: buildShelfItems = [] } = useQuery<Array<{ id: string; shelfKey: string; groupIds: string[] }>>({
+  const { data: buildShelfItems = [], isLoading: loadingCatalogProducts } = useQuery<Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }>>({
     queryKey: ["/api/admin/build-shelf", selectedCatalogId],
     queryFn: async () => {
       const url = selectedCatalogId && selectedCatalogId !== "all" && selectedCatalogId !== "joint"
         ? `/api/admin/build-shelf?catalogId=${encodeURIComponent(selectedCatalogId)}`
-        : "/api/admin/build-shelf";
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error(`build-shelf fetch failed: ${res.status}`);
-      return res.json();
+        : "/api/admin/build-shelf?mode=global";
+      const r = await apiRequest("GET", url);
+      if (!r.ok) throw new Error(`build-shelf fetch failed: ${r.status}`);
+      return r.json();
     },
     enabled: dataMode === "catalog",
   });
@@ -201,6 +201,19 @@ export function ProductsModule() {
     for (const item of buildShelfItems) {
       // shelfKeys are now master_catalog doc IDs (py_X / pf_X) — use directly
       map.set(item.shelfKey, item.groupIds || []);
+    }
+    return map;
+  }, [buildShelfItems]);
+
+  // Fast lookup from any canonical product key → shelf item (used for blankKey resolution + P6 shelfItemId)
+  const shelfItemByCanonicalId = useMemo(() => {
+    const map = new Map<string, { id: string; shelfKey: string; catalogId: string }>();
+    for (const item of buildShelfItems) {
+      const catDocId = (item.catalog as any).docId as string | undefined;
+      if (catDocId) map.set(catDocId, item);
+      map.set(item.shelfKey, item);
+      const numId = String((item.catalog as any).id || "");
+      if (numId) map.set(numId, item);
     }
     return map;
   }, [buildShelfItems]);
@@ -231,68 +244,21 @@ export function ProductsModule() {
     }
   }, [selectProduct]);
 
-  const { data: masterCatalogAllProducts = [], isLoading: loadingCatalogProducts } = useQuery<CatalogProduct[]>({
-    queryKey: ["all-catalog-products", "master"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/master-catalog");
-      const data = (await res.json()) as CatalogCategoryResponse[];
-      const items: CatalogProduct[] = [];
-      const seen = new Set<string>();
-      for (const cat of data) {
-        for (const item of (cat.items || [])) {
-          const key = getLookupBlankKey(item);
-          if (!seen.has(key)) { seen.add(key); items.push(item); }
-        }
-      }
-      return items;
-    },
-    enabled: dataMode === "catalog",
-    staleTime: 60000,
-  });
-
+  // catalogModeProducts — derived directly from build shelf items scoped to the selected catalog.
+  // Each shelf item carries a catalog snapshot (augmented server-side with master_catalog
+  // images[] and qrgCategory). No separate master catalog fetch is needed in catalog mode.
   const { catalogModeProducts, catalogKeyMap } = useMemo(() => {
-    // Build a set that recognises both old formats (numeric "123" / "pf:123") and
-    // new docId formats ("py_123" / "pf_123") so catalogs built before the QRG
-    // sync still resolve correctly.
-    const rawIds = activeCatalog?.blankIds || [];
-    const catalogSet = new Set<string>();
-    for (const raw of rawIds) {
-      const id = safeBlankId(raw);
-      catalogSet.add(id);
-      if (id.startsWith('py_')) { catalogSet.add(id.slice(3)); }           // py_123 → 123
-      else if (id.startsWith('pf_')) {
-        catalogSet.add(`pf:${id.slice(3)}`);                                 // pf_123 → pf:123
-        catalogSet.add(id.slice(3));                                         // pf_123 → 123
-      } else if (id.startsWith('pf:')) {
-        catalogSet.add(`pf_${id.slice(3)}`);                                 // pf:123 → pf_123
-      } else {
-        // Plain numeric — add all possible prefixed variants
-        catalogSet.add(`py_${id}`);
-        catalogSet.add(`pf_${id}`);
-        catalogSet.add(`pf:${id}`);
-      }
-    }
-
     const products: CatalogProduct[] = [];
     const keyMap = new Map<string, string>();
-
-    for (const p of masterCatalogAllProducts) {
-      const docId = (p as any).docId as string | undefined;
-      const numericId = String(p.id);
-      const oldKey = (p as any).fulfillmentProvider === 'printful' ? `pf:${numericId}` : numericId;
-
-      const matched =
-        (docId && catalogSet.has(docId)) ||
-        catalogSet.has(oldKey) ||
-        catalogSet.has(numericId);
-
-      if (matched) {
-        products.push(p);
-        keyMap.set(numericId, docId ?? oldKey);
-      }
+    for (const item of buildShelfItems) {
+      products.push(item.catalog);
+      const numericId = String((item.catalog as any).id || "");
+      if (numericId) keyMap.set(numericId, item.shelfKey);
+      const catDocId = (item.catalog as any).docId as string | undefined;
+      if (catDocId) keyMap.set(catDocId, item.shelfKey);
     }
     return { catalogModeProducts: products, catalogKeyMap: keyMap };
-  }, [masterCatalogAllProducts, activeCatalog]);
+  }, [buildShelfItems]);
 
   const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
     queryKey: ["joint-catalog-products"],
@@ -720,10 +686,13 @@ export function ProductsModule() {
     setActiveSession(null, null, null);
     // Use the Firestore document ID (docId), not the blueprint number (id)
     const sourceMasterId = entry.catalog.docId ?? String(entry.catalog.id);
+    // P6: resolve shelf item to pass its Firestore ID for catalog-scope validation on the backend
+    const shelfItem = shelfItemByCanonicalId.get(id) ?? shelfItemByCanonicalId.get(entry.blankKey) ?? null;
     apiRequest("POST", "/api/admin/build-sessions/from-master", {
       sourceMasterId,
       catalogId: activeCatalog?.id || null,
       blankKey: entry.blankKey || null,
+      shelfItemId: shelfItem?.id || null,
     })
       .then(r => r.json())
       .then(data => {
@@ -757,7 +726,7 @@ export function ProductsModule() {
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast]);
+  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast, shelfItemByCanonicalId]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {

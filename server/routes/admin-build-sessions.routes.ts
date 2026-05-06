@@ -119,7 +119,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
   // Never creates a real admin_catalog_instance.
   app.post("/api/admin/build-sessions/from-master", isAdmin, async (req: any, res) => {
     try {
-      const { sourceMasterId, catalogId, blankKey: bodyBlankKey } = req.body;
+      const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId } = req.body;
 
       if (!sourceMasterId) {
         return res.status(400).json({ error: "sourceMasterId is required" });
@@ -132,6 +132,14 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
 
       if (!ownerAdminId) {
         return res.status(401).json({ error: "Admin UID required" });
+      }
+
+      // P6: validate catalog scope — reject if shelfItem doesn't belong to the stated catalog
+      if (shelfItemId && catalogId) {
+        const shelfDoc = await db.collection("admin_build_shelf").doc(shelfItemId).get();
+        if (!shelfDoc.exists || shelfDoc.data()?.catalogId !== catalogId) {
+          return res.status(403).json({ error: "Product does not belong to the selected catalog" });
+        }
       }
 
       // Check for an existing active/working session for this product + admin.
