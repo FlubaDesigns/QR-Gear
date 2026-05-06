@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer, ChevronDown, ChevronRight } from "lucide-react";
+import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
@@ -98,7 +98,7 @@ function ColorSection({
 }
 
 export function PlacementModule() {
-  const { state, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor } = useBuilderContext();
+  const { state, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements } = useBuilderContext();
   const isMobile = useIsMobile();
 
   if (!state.qrProductState || !state.selectedProduct) {
@@ -186,21 +186,51 @@ export function PlacementModule() {
         {!isLoading && state.placementsError && (
           <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-            <span>{state.placementsError} — placements defaulted to standard. Reselect the product to retry.</span>
+            <span className="flex-1">{state.placementsError} — placements defaulted to standard.</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-auto py-0 px-1 text-xs text-destructive"
+              onClick={refreshPlacements}
+              data-testid="button-refresh-placements-error"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Retry
+            </Button>
           </div>
         )}
 
         {!isLoading && hasApiPlacements && (
           <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
             <Check className="h-3 w-3" />
-            <span>{placementOptions.length} placement{placementOptions.length !== 1 ? 's' : ''} from {state.selectedProduct.fulfillmentProvider || 'provider'}</span>
+            <span className="flex-1">{placementOptions.length} placement{placementOptions.length !== 1 ? 's' : ''} from {state.selectedProduct.fulfillmentProvider || 'provider'}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-auto py-0 px-1 text-xs text-muted-foreground"
+              onClick={refreshPlacements}
+              data-testid="button-refresh-placements"
+              title="Reload placements from provider"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </Button>
           </div>
         )}
 
         {!isLoading && !hasApiPlacements && (
           <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
             <AlertCircle className="h-3 w-3" />
-            <span>No placements found from printer — this product may not support custom printing</span>
+            <span className="flex-1">No placements found from printer — this product may not support custom printing</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-auto py-0 px-1 text-xs text-muted-foreground"
+              onClick={refreshPlacements}
+              data-testid="button-refresh-placements-empty"
+              title="Reload placements from provider"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </Button>
           </div>
         )}
 

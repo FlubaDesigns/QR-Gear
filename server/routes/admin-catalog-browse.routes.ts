@@ -747,25 +747,59 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         placementMap.set(d.id, d.data());
       }
 
-      let printLocations: Array<{ id: string; label: string; provider: string; providerPlacement: string; dimensions?: any }> = [];
+      type PrintLocation = {
+        id: string; label: string; canonicalLocationCode: string;
+        provider: string; providerPlacement: string; providerPlacementId: string;
+        sourceTable: string; dimensions?: any; printArea?: any; safeArea?: any;
+        dpi?: number; rawProviderPlacement?: any;
+      };
+      let printLocations: PrintLocation[] = [];
+
+      // Helper: resolve a canonical print_placements doc + id for a given position name.
+      // Tries direct doc-id lookup first, then scans provider dtgNames/dtfNames.
+      const resolvePlacement = (
+        map: Map<string, any>, pos: string, provider: string,
+      ): { canonicalId: string; pp: any } | null => {
+        const direct = map.get(pos);
+        if (direct) return { canonicalId: pos, pp: direct };
+        const entries = Array.from(map.entries());
+        for (const [cId, candidate] of entries) {
+          const entry = candidate.providers?.[provider];
+          if (!entry) continue;
+          if ((entry.dtgNames || []).includes(pos) || (entry.dtfNames || []).includes(pos)) {
+            return { canonicalId: cId, pp: candidate };
+          }
+        }
+        return null;
+      };
+
+      const buildLocation = (canonicalId: string, pp: any, providerEntry: any, provider: string): PrintLocation => ({
+        id: canonicalId,
+        label: pp.displayName || canonicalId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+        canonicalLocationCode: canonicalId,
+        provider,
+        providerPlacement: providerEntry.defaultDtgName || canonicalId,
+        providerPlacementId: providerEntry.providerPlacementId || providerEntry.defaultDtgName || canonicalId,
+        sourceTable: providerEntry.sourceTable || `${provider}_print_placements`,
+        dimensions: providerEntry.dimensions || pp.dimensions || null,
+        printArea: providerEntry.printArea || null,
+        safeArea: providerEntry.safeArea || null,
+        dpi: providerEntry.dpi || pp.dimensions?.dpi || 300,
+        rawProviderPlacement: providerEntry,
+      });
 
       if (cachedPositions.length > 0) {
         for (const pos of cachedPositions) {
           if (isEmbroideryPlacement(pos)) continue;
-          const pp = placementMap.get(pos);
-          if (!pp) {
+          const resolved = resolvePlacement(placementMap, pos, requestedProvider);
+          if (!resolved) {
             console.warn(`[master-catalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
             continue;
           }
+          const { canonicalId, pp } = resolved;
           const providerEntry = pp.providers?.[requestedProvider];
           if (!providerEntry) continue;
-          printLocations.push({
-            id: pos,
-            label: pp.displayName || pos.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-            provider: requestedProvider,
-            providerPlacement: providerEntry.defaultDtgName || pos,
-            dimensions: pp.dimensions || null,
-          });
+          printLocations.push(buildLocation(canonicalId, pp, providerEntry, requestedProvider));
         }
         printLocations.sort((a, b) => {
           const aOrd = placementMap.get(a.id)?.sortOrder ?? 99;
@@ -773,29 +807,25 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
           return aOrd - bOrd;
         });
       } else {
-        const all: Array<{ id: string; label: string; provider: string; providerPlacement: string; dimensions?: any; sortOrder: number }> = [];
-        for (const entry of Array.from(placementMap.entries())) {
-          const internalName = entry[0];
-          const pp = entry[1];
+        const all: Array<PrintLocation & { sortOrder: number }> = [];
+        for (const [internalName, pp] of Array.from(placementMap.entries())) {
           if (!pp.isActive) continue;
           if (isEmbroideryPlacement(internalName)) continue;
           const providerEntry = pp.providers?.[requestedProvider];
           if (!providerEntry) continue;
-          all.push({
-            id: internalName,
-            label: pp.displayName || internalName.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-            provider: requestedProvider,
-            providerPlacement: providerEntry.defaultDtgName || internalName,
-            dimensions: pp.dimensions || null,
-            sortOrder: pp.sortOrder ?? 99,
-          });
+          all.push({ ...buildLocation(internalName, pp, providerEntry, requestedProvider), sortOrder: pp.sortOrder ?? 99 });
         }
         all.sort((a, b) => a.sortOrder - b.sortOrder);
         printLocations = all;
       }
 
       if (printLocations.length === 0) {
-        printLocations = [{ id: 'front', label: 'Front', provider: requestedProvider, providerPlacement: 'front' }];
+        printLocations = [{
+          id: 'front', label: 'Front', canonicalLocationCode: 'front',
+          provider: requestedProvider, providerPlacement: 'front',
+          providerPlacementId: 'front', sourceTable: `${requestedProvider}_print_placements`,
+          dpi: 300,
+        }];
       }
 
       console.log(`[master-catalog/options] ${docId} provider=${requestedProvider} → ${printLocations.length} placements`);

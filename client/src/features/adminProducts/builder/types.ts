@@ -46,6 +46,9 @@ export interface ProductPlacement {
   /** Provider-specific layout data preserved from the print_placements crosswalk */
   provider?: string;
   providerPlacement?: string;
+  providerPlacementId?: string;
+  sourceTable?: string;
+  rawProviderPlacement?: any;
   dimensions?: { widthPx: number; heightPx: number; widthIn?: number; heightIn?: number; dpi?: number };
   printArea?: { widthPx: number; heightPx: number };
   safeArea?: { widthPx: number; heightPx: number };

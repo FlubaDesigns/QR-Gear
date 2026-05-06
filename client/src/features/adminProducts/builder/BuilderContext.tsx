@@ -30,6 +30,7 @@ interface BuilderContextValue {
   setPlacementSize: (placementId: string, size: PlacementSize) => void;
   setPlacementMethod: (placementId: string, method: 'dtg' | 'dtf') => void;
   setSelectedColor: (color: SelectedColor | null) => void;
+  refreshPlacements: () => void;
   setSelectedCatalogId: (id: string) => void;
   setActivePacketId: (id: string | null) => void;
   setActiveSession: (id: string | null, status: 'working' | 'artifact_ready' | 'committed' | null, instanceId: string | null) => void;
@@ -663,13 +664,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             methods: [],
             provider: pl.provider,
             providerPlacement: pl.providerPlacement,
+            providerPlacementId: pl.providerPlacementId || pl.providerPlacement || pl.id,
+            sourceTable: pl.sourceTable || null,
+            rawProviderPlacement: pl.rawProviderPlacement || null,
             dimensions: pl.dimensions || null,
             printArea: pl.printArea || (pl.dimensions
               ? { widthPx: pl.dimensions.widthPx, heightPx: pl.dimensions.heightPx }
               : null),
             safeArea: pl.safeArea || null,
             dpi: pl.dpi || pl.dimensions?.dpi || 300,
-            canonicalLocationCode: pl.id,
+            canonicalLocationCode: pl.canonicalLocationCode || pl.id,
           }));
 
           const merged: CatalogProduct = {
@@ -852,6 +856,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       selectedColor: color,
     }));
   }, []);
+
+  const refreshPlacements = useCallback(() => {
+    setState(prev => {
+      const product = prev.selectedProduct;
+      if (!product?.docId) return prev;
+      // Schedule the fetch after this state update so placementsLoading is already true
+      setTimeout(() => fetchOptionsForProduct(product), 0);
+      return { ...prev, placementsLoading: true, placementsError: null };
+    });
+  }, [fetchOptionsForProduct]);
 
   const setActivePacketId = useCallback((id: string | null) => {
     setState(prev => ({
@@ -1158,6 +1172,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setPlacementSize,
     setPlacementMethod,
     setSelectedColor,
+    refreshPlacements,
     setSelectedCatalogId,
     setActivePacketId,
     setActiveSession,
@@ -1169,7 +1184,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, autoSaveFailed, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, autoSaveFailed, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

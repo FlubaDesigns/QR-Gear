@@ -633,9 +633,39 @@ function register(app) {
                 label: qrgVariantMappings_1.COLOR_LABELS[code] ?? code,
                 providerValues: colorProviderValues[code] ? Array.from(colorProviderValues[code]) : [],
             }));
-            // 6. Resolve print locations — filter by selected provider via print_placements crosswalk
-            // Rule: showPlacement = print_placements[internalName].providers[requestedProvider] exists
             let printLocations = [];
+            // Helper: resolve a canonical print_placements doc + id for a given position name.
+            // Tries direct doc-id lookup first, then falls back to scanning provider dtgNames/dtfNames.
+            function resolvePlacement(placementMap, pos, provider) {
+                const direct = placementMap.get(pos);
+                if (direct)
+                    return { canonicalId: pos, pp: direct };
+                for (const [cId, candidate] of placementMap.entries()) {
+                    const entry = candidate.providers?.[provider];
+                    if (!entry)
+                        continue;
+                    if ((entry.dtgNames || []).includes(pos) || (entry.dtfNames || []).includes(pos)) {
+                        return { canonicalId: cId, pp: candidate };
+                    }
+                }
+                return null;
+            }
+            function buildLocation(canonicalId, pp, providerEntry, provider) {
+                return {
+                    id: canonicalId,
+                    label: pp.displayName || canonicalId.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                    canonicalLocationCode: canonicalId,
+                    provider,
+                    providerPlacement: providerEntry.defaultDtgName || canonicalId,
+                    providerPlacementId: providerEntry.providerPlacementId || providerEntry.defaultDtgName || canonicalId,
+                    sourceTable: providerEntry.sourceTable || `${provider}_print_placements`,
+                    dimensions: providerEntry.dimensions || pp.dimensions || null,
+                    printArea: providerEntry.printArea || null,
+                    safeArea: providerEntry.safeArea || null,
+                    dpi: providerEntry.dpi || pp.dimensions?.dpi || 300,
+                    rawProviderPlacement: providerEntry,
+                };
+            }
             try {
                 const placementsSnap = await core_1.db.collection('print_placements').get();
                 const placementMap = new Map();
@@ -647,21 +677,16 @@ function register(app) {
                     for (const pos of cachedPositions) {
                         if ((0, core_1.isEmbroideryPlacement)(pos))
                             continue;
-                        const pp = placementMap.get(pos);
-                        if (!pp) {
+                        const resolved = resolvePlacement(placementMap, pos, requestedProvider);
+                        if (!resolved) {
                             console.warn(`[MasterCatalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
                             continue;
                         }
+                        const { canonicalId, pp } = resolved;
                         const providerEntry = pp.providers?.[requestedProvider];
                         if (!providerEntry)
                             continue; // this provider has no mapping for this placement — hide it
-                        printLocations.push({
-                            id: pos,
-                            label: pp.displayName || pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-                            provider: requestedProvider,
-                            providerPlacement: providerEntry.defaultDtgName || pos,
-                            dimensions: pp.dimensions || null,
-                        });
+                        printLocations.push(buildLocation(canonicalId, pp, providerEntry, requestedProvider));
                     }
                     printLocations.sort((a, b) => {
                         const aOrd = placementMap.get(a.id)?.sortOrder ?? 99;
@@ -680,14 +705,7 @@ function register(app) {
                         const providerEntry = pp.providers?.[requestedProvider];
                         if (!providerEntry)
                             continue;
-                        all.push({
-                            id: internalName,
-                            label: pp.displayName || internalName.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-                            provider: requestedProvider,
-                            providerPlacement: providerEntry.defaultDtgName || internalName,
-                            dimensions: pp.dimensions || null,
-                            sortOrder: pp.sortOrder ?? 99,
-                        });
+                        all.push({ ...buildLocation(internalName, pp, providerEntry, requestedProvider), sortOrder: pp.sortOrder ?? 99 });
                     }
                     all.sort((a, b) => a.sortOrder - b.sortOrder);
                     printLocations = all;
@@ -703,8 +721,12 @@ function register(app) {
                         .map((pos) => ({
                         id: pos,
                         label: pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                        canonicalLocationCode: pos,
                         provider: requestedProvider,
                         providerPlacement: pos,
+                        providerPlacementId: pos,
+                        sourceTable: `${requestedProvider}_print_placements`,
+                        dpi: 300,
                     }));
                 }
             }
@@ -729,8 +751,12 @@ function register(app) {
                     printLocations = normalized.map((pos) => ({
                         id: pos,
                         label: pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                        canonicalLocationCode: pos,
                         provider: 'printify',
                         providerPlacement: pos,
+                        providerPlacementId: pos,
+                        sourceTable: 'printify_print_placements',
+                        dpi: 300,
                     }));
                 }
                 catch (err) {
@@ -740,7 +766,12 @@ function register(app) {
                 }
             }
             if (printLocations.length === 0) {
-                printLocations = [{ id: 'front', label: 'Front', provider: requestedProvider, providerPlacement: 'front' }];
+                printLocations = [{
+                        id: 'front', label: 'Front', canonicalLocationCode: 'front',
+                        provider: requestedProvider, providerPlacement: 'front',
+                        providerPlacementId: 'front', sourceTable: `${requestedProvider}_print_placements`,
+                        dpi: 300,
+                    }];
             }
             // 7. Build response — product identity uses QRG doc ID, provider IDs are metadata only
             res.json({

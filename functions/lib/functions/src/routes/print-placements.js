@@ -42,11 +42,6 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const COLLECTION = 'print_placements';
-// ── Canonical seed data ────────────────────────────────────────────────────────
-// Source of truth for all placement definitions.
-// Dimensions derived from CF_PLACEMENT_DIMENSIONS in composite-image.ts at 300 dpi.
-// Provider mappings derived from core.ts PRINTIFY_TO_INTERNAL / PRINTFUL_TO_INTERNAL
-// and INTERNAL_TO_PRINTFUL / INTERNAL_TO_PRINTFUL_DTF constants.
 const SEED_PLACEMENTS = [
     {
         internalName: 'front',
@@ -89,18 +84,41 @@ const SEED_PLACEMENTS = [
         isActive: true,
     },
     {
-        internalName: 'pocket',
+        internalName: 'left_chest',
         displayName: 'Left Chest',
-        description: 'Left chest pocket print area',
+        description: 'Left chest print area (canonical name used in product printPositions)',
         dimensions: { widthPx: 1200, heightPx: 1200, widthIn: 4, heightIn: 4, dpi: 300 },
         providers: {
-            // Printful does not currently have a pocket placement in the canonical mapping
+            printful: {
+                dtgNames: ['left_chest'],
+                defaultDtgName: 'left_chest',
+                providerPlacementId: 'left_chest',
+                sourceTable: 'printful_print_placements',
+            },
             printify: {
                 dtgNames: ['pocket'],
                 defaultDtgName: 'pocket',
+                providerPlacementId: 'pocket',
+                sourceTable: 'printify_print_placements',
             },
         },
         sortOrder: 3,
+        isActive: true,
+    },
+    {
+        internalName: 'pocket',
+        displayName: 'Pocket',
+        description: 'Left chest pocket print area (legacy canonical name — prefer left_chest)',
+        dimensions: { widthPx: 1200, heightPx: 1200, widthIn: 4, heightIn: 4, dpi: 300 },
+        providers: {
+            printify: {
+                dtgNames: ['pocket'],
+                defaultDtgName: 'pocket',
+                providerPlacementId: 'pocket',
+                sourceTable: 'printify_print_placements',
+            },
+        },
+        sortOrder: 3.5,
         isActive: true,
     },
     {
