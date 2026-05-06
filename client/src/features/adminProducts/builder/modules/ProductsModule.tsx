@@ -313,6 +313,21 @@ export function ProductsModule() {
   });
 
   const sortedCategories = useMemo(() => {
+    if (dataMode === "catalog" && activeCatalog) {
+      const counts = new Map<string, number>();
+      for (const p of catalogModeProducts) {
+        const catName = p.qrgCategory || null;
+        if (catName) counts.set(catName, (counts.get(catName) ?? 0) + 1);
+      }
+      return Array.from(counts.entries())
+        .map(([name, itemCount]) => ({ name, itemCount }))
+        .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
+        .sort((a, b) => {
+          if (a.name === "T-Shirts & Tops") return -1;
+          if (b.name === "T-Shirts & Tops") return 1;
+          return a.name.localeCompare(b.name);
+        });
+    }
     return [...categories]
       .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
       .sort((a, b) => {
@@ -320,7 +335,7 @@ export function ProductsModule() {
         if (b.name === "T-Shirts & Tops") return 1;
         return a.name.localeCompare(b.name);
       });
-  }, [categories]);
+  }, [categories, dataMode, activeCatalog, catalogModeProducts]);
 
   const categoryOptions = sortedCategories.map(cat => ({
     value: cat.name,
