@@ -4,3 +4,4 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gzserver/printify-token.txt
+.firebase/hosting.ZGlzdC9wdWJsaWM.cache
