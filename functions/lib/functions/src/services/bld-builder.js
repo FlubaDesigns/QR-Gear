@@ -250,6 +250,11 @@ async function writeBldDefinition(opts) {
     const counterKey = `S${layoutCode}`;
     const instances = extractBldInstances(working);
     const instanceCount = instances.length;
+    // Canon (BLD.md): instanceCount is a single digit (0–9). BLD v1 does not support more.
+    if (instanceCount > 9) {
+        throw new Error(`[BLD] instanceCount ${instanceCount} exceeds maximum of 9 — BLD v1 supports single-digit instance counts only. ` +
+            `Split into multiple BLDs if more layers are required.`);
+    }
     const buildSequence = await incrementBldCounter(counterKey);
     const bldId = formatBldId('S', layoutCode, instanceCount, buildSequence);
     const now = core_1.admin.firestore.FieldValue.serverTimestamp();

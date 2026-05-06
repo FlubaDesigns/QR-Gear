@@ -353,7 +353,9 @@ function registerAssemblies(app) {
         }
     });
     // ── DELETE /admin/assemblies/:assemblyId ───────────────────────────────────
-    // Fix 12: Before deleting, clear assemblyId from every packet that references this assembly.
+    // Canon (ASSEMBLY.md): returns 409 if Assembly has any linked Packets.
+    // Admin must manually unlink all Packets before deletion is allowed.
+    // No auto-clearing — silent unlinking violates canon.
     app.delete('/admin/assemblies/:assemblyId', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { assemblyId } = req.params;
@@ -364,20 +366,17 @@ function registerAssemblies(app) {
             }
             const data = doc.data();
             const packetIds = data?.packetIds || [];
-            // Clear assemblyId on all linked packets in a batch
+            // Block delete if any Packets are still linked — canon requires manual unlinking first
             if (packetIds.length > 0) {
-                const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-                const batch = core_1.db.batch();
-                for (const packetId of packetIds) {
-                    const pRef = core_1.db.collection('productPackets').doc(packetId);
-                    batch.update(pRef, { assemblyId: null, updatedAt: now });
-                }
-                await batch.commit();
-                console.log(`[Assemblies] Cleared assemblyId from ${packetIds.length} packet(s) before deleting ${assemblyId}`);
+                res.status(409).json({
+                    error: `Cannot delete Assembly "${assemblyId}" — it is linked to ${packetIds.length} packet(s). Unlink all packets from this assembly first.`,
+                    linkedPacketIds: packetIds,
+                });
+                return;
             }
             await doc.ref.delete();
             console.log(`[Assemblies] Deleted ${assemblyId}`);
-            res.json({ success: true, assemblyId, packetsCleared: packetIds.length });
+            res.json({ success: true, assemblyId });
         }
         catch (e) {
             console.error('[Assemblies] delete error:', e.message);

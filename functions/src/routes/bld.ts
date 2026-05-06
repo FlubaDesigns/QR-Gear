@@ -38,11 +38,15 @@ const BLD_DEFINITIONS_COLLECTION = 'bld_definitions';
 const BLD_COUNTERS_COLLECTION     = 'bld_counters';
 
 type BldContext      = 'S' | 'U';
-type BldLayout       = 'Z' | 'P';
+type BldLayout       = 'Z' | 'P' | 'I' | 'V' | 'D';
 type BldInstanceType = 'txt' | 'img' | 'qrc' | 'act' | 'vid' | 'doc';
 
 const VALID_CONTEXTS: BldContext[]      = ['S', 'U'];
-const VALID_LAYOUTS:  BldLayout[]       = ['Z', 'P'];
+// S-context layouts: Z (Zone), P (Palette)
+// U-context layouts: I (Image), V (Video), D (Document)
+const S_LAYOUTS: BldLayout[] = ['Z', 'P'];
+const U_LAYOUTS: BldLayout[] = ['I', 'V', 'D'];
+const VALID_LAYOUTS: BldLayout[] = [...S_LAYOUTS, ...U_LAYOUTS];
 const VALID_TYPES:    BldInstanceType[] = ['txt', 'img', 'qrc', 'act', 'vid', 'doc'];
 
 function convertTimestamps(data: Record<string, any>): Record<string, any> {
@@ -127,13 +131,16 @@ export function registerBld(app: express.Express): void {
         return;
       }
       if (!VALID_LAYOUTS.includes(layout as BldLayout)) {
-        res.status(400).json({ error: `Invalid layout. Must be one of: ${VALID_LAYOUTS.join(', ')}` });
+        res.status(400).json({ error: `Invalid layout "${layout}". S-context: Z, P. U-context: I, V, D.` });
         return;
       }
-      // U-context uses layout modes I/V/D (reserved, not yet implemented).
-      // Z and P are S-context only. Reject the cross-contamination.
-      if (context === 'U' && (layout === 'Z' || layout === 'P')) {
-        res.status(400).json({ error: `Layout "${layout}" is only valid for S-context BLDs. U-context layout modes (I, V, D) are reserved.` });
+      // Canon (BLD.md): S-context only allows Z/P; U-context only allows I/V/D.
+      if (context === 'S' && U_LAYOUTS.includes(layout as BldLayout)) {
+        res.status(400).json({ error: `Layout "${layout}" is only valid for U-context BLDs. S-context layouts are: Z, P.` });
+        return;
+      }
+      if (context === 'U' && S_LAYOUTS.includes(layout as BldLayout)) {
+        res.status(400).json({ error: `Layout "${layout}" is only valid for S-context BLDs. U-context layouts are: I, V, D.` });
         return;
       }
       if (!Array.isArray(instances)) {
@@ -151,10 +158,17 @@ export function registerBld(app: express.Express): void {
         }
       }
 
-      const counterKey   = `${context}${layout}` as string;
+      const counterKey    = `${context}${layout}` as string;
+      const instanceCount = instances.length;
+
+      // Canon (BLD.md): instanceCount is a single digit (0–9). Values above 9 are not supported in BLD v1.
+      if (instanceCount > 9) {
+        res.status(400).json({ error: `instanceCount ${instanceCount} exceeds maximum of 9 — BLD v1 supports single-digit instance counts only. Split into multiple BLDs if more layers are needed.` });
+        return;
+      }
+
       const buildSeq     = await incrementCounter(counterKey, context as BldContext, layout as BldLayout);
       const seqPadded    = String(buildSeq).padStart(3, '0');
-      const instanceCount = instances.length;
       const bldId        = `BLD-${context}${layout}${instanceCount}-${seqPadded}`;
 
       const now = admin.firestore.FieldValue.serverTimestamp();
@@ -310,6 +324,11 @@ export function registerBld(app: express.Express): void {
             res.status(400).json({ error: `Invalid instance type "${inst.type}". Must be one of: ${VALID_TYPES.join(', ')}` });
             return;
           }
+        }
+        // Canon (BLD.md): instanceCount is a single digit (0–9).
+        if (instances.length > 9) {
+          res.status(400).json({ error: `instanceCount ${instances.length} exceeds maximum of 9 — BLD v1 supports single-digit instance counts only.` });
+          return;
         }
         updates.instances      = instances;
         updates.instanceCount  = instances.length;

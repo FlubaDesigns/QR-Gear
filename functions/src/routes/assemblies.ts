@@ -370,7 +370,9 @@ export function registerAssemblies(app: express.Express): void {
   });
 
   // ── DELETE /admin/assemblies/:assemblyId ───────────────────────────────────
-  // Fix 12: Before deleting, clear assemblyId from every packet that references this assembly.
+  // Canon (ASSEMBLY.md): returns 409 if Assembly has any linked Packets.
+  // Admin must manually unlink all Packets before deletion is allowed.
+  // No auto-clearing — silent unlinking violates canon.
   app.delete('/admin/assemblies/:assemblyId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { assemblyId } = req.params;
@@ -380,21 +382,18 @@ export function registerAssemblies(app: express.Express): void {
       const data = doc.data() as any;
       const packetIds: string[] = data?.packetIds || [];
 
-      // Clear assemblyId on all linked packets in a batch
+      // Block delete if any Packets are still linked — canon requires manual unlinking first
       if (packetIds.length > 0) {
-        const now = admin.firestore.FieldValue.serverTimestamp();
-        const batch = db.batch();
-        for (const packetId of packetIds) {
-          const pRef = db.collection('productPackets').doc(packetId);
-          batch.update(pRef, { assemblyId: null, updatedAt: now });
-        }
-        await batch.commit();
-        console.log(`[Assemblies] Cleared assemblyId from ${packetIds.length} packet(s) before deleting ${assemblyId}`);
+        res.status(409).json({
+          error: `Cannot delete Assembly "${assemblyId}" — it is linked to ${packetIds.length} packet(s). Unlink all packets from this assembly first.`,
+          linkedPacketIds: packetIds,
+        });
+        return;
       }
 
       await doc.ref.delete();
       console.log(`[Assemblies] Deleted ${assemblyId}`);
-      res.json({ success: true, assemblyId, packetsCleared: packetIds.length });
+      res.json({ success: true, assemblyId });
     } catch (e: any) {
       console.error('[Assemblies] delete error:', e.message);
       res.status(500).json({ error: e.message });
