@@ -120,6 +120,13 @@ export interface CatalogProduct {
   providerMappings?: Record<string, any>;
   /** True once the /options endpoint has been called and merged */
   optionsLoaded?: boolean;
+  /** Per-provider image arrays — sourced from master_catalog */
+  printifyImages?: string[];
+  printfulImages?: string[];
+  /** QRG subcategory label e.g. "T-Shirts", "Hoodies & Sweatshirts" */
+  qrgCategory?: string | null;
+  /** QRG parent category label e.g. "Apparel" */
+  qrgParentCategory?: string | null;
 }
 
 export interface OriginFilter {

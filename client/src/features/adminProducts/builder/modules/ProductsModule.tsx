@@ -84,7 +84,14 @@ function catalogToSelectItem(
   const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
   const raw = p as any;
   const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
-  const masterImages: string[] = p.images?.length ? p.images : (imageUrl ? [imageUrl] : []);
+  // Combine per-provider image arrays — same logic as useAdminBlanksController normalizeSourceBlank
+  const allProviderImages = Array.from(new Set([
+    ...(p.printifyImages || raw.printifyImages || []),
+    ...(p.printfulImages || raw.printfulImages || []),
+  ])).filter(Boolean) as string[];
+  const masterImages: string[] = allProviderImages.length > 0
+    ? allProviderImages
+    : (p.images?.length ? p.images : (imageUrl ? [imageUrl] : []));
   const effectiveImages = (adminCatalogImages && adminCatalogImages.length > 0) ? adminCatalogImages : masterImages;
   const providerDescription = p.description || null;
   const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
@@ -805,20 +812,32 @@ export function ProductsModule() {
           ) : (
             <div className="space-y-2">
               {(() => {
-                const sortedGroups = [...shelfGroups].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-                const usedProductIds = new Set<string>();
-                const sections: JSX.Element[] = [];
+                // Auto-group by qrgCategory derived from the QRG STNNN schema.
+                // Use the master catalog category order for consistent sort order.
+                const categoryOrder = sortedCategories.map(c => c.name);
+                const sectionMap = new Map<string, CatalogProduct[]>();
+                for (const p of catalogModeProducts) {
+                  const cat = (p as any).qrgCategory || "Other";
+                  if (!sectionMap.has(cat)) sectionMap.set(cat, []);
+                  sectionMap.get(cat)!.push(p);
+                }
+                // Sort sections: known categories in API order first, then "Other" last
+                const sectionKeys = Array.from(sectionMap.keys()).sort((a, b) => {
+                  if (a === "Other") return 1;
+                  if (b === "Other") return -1;
+                  const ai = categoryOrder.indexOf(a);
+                  const bi = categoryOrder.indexOf(b);
+                  if (ai === -1 && bi === -1) return a.localeCompare(b);
+                  if (ai === -1) return 1;
+                  if (bi === -1) return -1;
+                  return ai - bi;
+                });
 
-                for (const group of sortedGroups) {
-                  const groupProducts = catalogModeProducts.filter(p => {
-                    const blankKey = catalogKeyMap.get(String(p.id)) ?? (
-                      (p as any).fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id)
-                    );
-                    return (shelfKeyToGroupIds.get(blankKey) || []).includes(group.id);
-                  });
-                  if (groupProducts.length === 0) continue;
-                  groupProducts.forEach(p => usedProductIds.add((p as any).docId || String(p.id)));
-                  const isOpen = openShelfIds.has(group.id);
+                const sections: JSX.Element[] = [];
+                for (const shelfKey of sectionKeys) {
+                  const groupProducts = sectionMap.get(shelfKey)!;
+                  const shelfId = `qrg-shelf-${shelfKey}`;
+                  const isOpen = openShelfIds.has(shelfId);
                   const groupScrollItems = groupProducts.map(p => ({
                     id: (p as any).docId || String(p.id),
                     imageUrl: p.imageUrl || "",
@@ -831,15 +850,15 @@ export function ProductsModule() {
                     hasMockupMapping: p.hasMockupMapping,
                   }));
                   sections.push(
-                    <div key={group.id} className="border rounded-md overflow-hidden">
+                    <div key={shelfId} className="border rounded-md overflow-hidden">
                       <button
                         type="button"
                         className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-muted/30 hover-elevate"
-                        onClick={() => toggleShelf(group.id)}
-                        data-testid={`shelf-group-${group.id}`}
+                        onClick={() => toggleShelf(shelfId)}
+                        data-testid={`shelf-group-${shelfId}`}
                       >
                         <span>
-                          {group.name}{" "}
+                          {shelfKey}{" "}
                           <span className="text-muted-foreground font-normal">({groupProducts.length})</span>
                         </span>
                         {isOpen ? <ChevronUp className="h-4 w-4 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 flex-shrink-0" />}
@@ -847,46 +866,6 @@ export function ProductsModule() {
                       {isOpen && (
                         <ScrollVerticalView
                           items={groupScrollItems}
-                          renderItem={(item) => renderProductCard(item as ScrollViewItem)}
-                          height={isMobile ? undefined : "calc(100vh - 280px)"}
-                          emptyMessage=""
-                        />
-                      )}
-                    </div>
-                  );
-                }
-
-                const uncategorized = catalogModeProducts.filter(p => !usedProductIds.has((p as any).docId || String(p.id)));
-                if (uncategorized.length > 0) {
-                  const isOpen = openShelfIds.has("__other__");
-                  const otherScrollItems = uncategorized.map(p => ({
-                    id: (p as any).docId || String(p.id),
-                    imageUrl: p.imageUrl || "",
-                    title: p.title,
-                    subtitle: p.brand,
-                    minPrice: p.minPrice,
-                    maxPrice: p.maxPrice,
-                    colorCount: p.colorCount,
-                    madeInUSA: p.madeInUSA,
-                    hasMockupMapping: p.hasMockupMapping,
-                  }));
-                  sections.push(
-                    <div key="__other__" className="border rounded-md overflow-hidden">
-                      <button
-                        type="button"
-                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium bg-muted/30 hover-elevate"
-                        onClick={() => toggleShelf("__other__")}
-                        data-testid="shelf-group-other"
-                      >
-                        <span>
-                          Other{" "}
-                          <span className="text-muted-foreground font-normal">({uncategorized.length})</span>
-                        </span>
-                        {isOpen ? <ChevronUp className="h-4 w-4 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 flex-shrink-0" />}
-                      </button>
-                      {isOpen && (
-                        <ScrollVerticalView
-                          items={otherScrollItems}
                           renderItem={(item) => renderProductCard(item as ScrollViewItem)}
                           height={isMobile ? undefined : "calc(100vh - 280px)"}
                           emptyMessage=""

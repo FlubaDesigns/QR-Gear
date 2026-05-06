@@ -870,6 +870,44 @@ const TIER_LABELS: Record<string, string> = {
 export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [cardImageIndex, setCardImageIndex] = useState(0);
+  const [deletingCardImage, setDeletingCardImage] = useState(false);
+
+  // All images available for the card thumbnail slider
+  const cardImages = useMemo(() => {
+    const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
+    return imgs;
+  }, [item.images, item.primaryImageUrl]);
+
+  // Reset index when product changes
+  useEffect(() => {
+    setCardImageIndex(0);
+  }, [item.id]);
+
+  const clampedIndex = Math.min(cardImageIndex, Math.max(0, cardImages.length - 1));
+  const currentCardImage = cardImages[clampedIndex] ?? null;
+
+  const handleCardPrev = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCardImageIndex(i => Math.max(0, i - 1));
+  }, []);
+
+  const handleCardNext = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCardImageIndex(i => Math.min(cardImages.length - 1, i + 1));
+  }, [cardImages.length]);
+
+  const handleCardImageDelete = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onImageDelete || deletingCardImage || !currentCardImage) return;
+    setDeletingCardImage(true);
+    try {
+      await onImageDelete(item.id, currentCardImage);
+      setCardImageIndex(i => Math.max(0, i - 1));
+    } finally {
+      setDeletingCardImage(false);
+    }
+  }, [onImageDelete, deletingCardImage, currentCardImage, item.id]);
 
   useEffect(() => {
     if (!confirmDelete) return;
@@ -894,6 +932,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         className={`overflow-hidden transition-all ${isSelected ? "ring-2 ring-primary ring-offset-2" : ""}`}
         data-testid={`select-card-${item.id}`}
       >
+        {/* ── Main image area with nav arrows ── */}
         <div
           className="relative w-full aspect-square max-h-[180px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
           onClick={() => setPreviewOpen(true)}
@@ -908,9 +947,10 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             </div>
           )}
 
-          {item.primaryImageUrl ? (
+          {currentCardImage ? (
             <img
-              src={item.primaryImageUrl}
+              key={currentCardImage}
+              src={currentCardImage}
               alt={item.name}
               loading="lazy"
               decoding="async"
@@ -923,8 +963,49 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             </div>
           )}
 
+          {/* Prev / Next arrows — only when multiple images */}
+          {cardImages.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={handleCardPrev}
+                disabled={clampedIndex === 0}
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow disabled:opacity-30"
+                data-testid={`button-card-prev-${item.id}`}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCardNext}
+                disabled={clampedIndex === cardImages.length - 1}
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow disabled:opacity-30"
+                data-testid={`button-card-next-${item.id}`}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          {/* Delete current image — only in catalog mode with permission */}
+          {onImageDelete && currentCardImage && cardImages.length > 0 && (
+            <button
+              type="button"
+              onClick={handleCardImageDelete}
+              disabled={deletingCardImage}
+              className="absolute top-1 right-1 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow text-destructive"
+              title="Remove this image from catalog"
+              data-testid={`button-card-delete-img-${item.id}`}
+            >
+              {deletingCardImage
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Trash2 className="w-3.5 h-3.5" />
+              }
+            </button>
+          )}
+
           {item.madeInUSA && (
-            <div className="absolute top-2 right-2">
+            <div className="absolute top-2 left-2">
               <Badge variant="secondary" className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm">
                 <UsaFlag className="w-3 h-2" />
                 USA
@@ -933,17 +1014,12 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
           )}
 
           {tier && (
-            <div className="absolute top-2 left-2">
+            <div className="absolute bottom-2 left-2">
               <Badge className={`text-xs shadow-sm ${TIER_COLORS[tier]}`} data-testid={`badge-tier-${item.id}`}>
                 {TIER_LABELS[tier]}
               </Badge>
             </div>
           )}
-
-          <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-background/80 backdrop-blur-sm px-2 py-1 text-[11px] text-muted-foreground">
-            <Eye className="w-3.5 h-3.5" />
-            {item.images && item.images.length > 1 ? `${item.images.length} photos` : "Tap to preview"}
-          </div>
 
           {fulfillmentProvider && (
             <div className="absolute bottom-2 right-2">
@@ -957,6 +1033,29 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             </div>
           )}
         </div>
+
+        {/* ── Thumbnail strip ── */}
+        {cardImages.length > 1 && (
+          <div className="flex gap-1 px-2 pt-1.5 pb-0 overflow-x-auto" data-testid={`thumbnails-${item.id}`}>
+            {cardImages.map((img, idx) => (
+              <button
+                key={img}
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setCardImageIndex(idx); }}
+                className={`flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-colors ${
+                  idx === clampedIndex ? "border-primary" : "border-transparent"
+                }`}
+                data-testid={`thumbnail-${item.id}-${idx}`}
+              >
+                <img
+                  src={img}
+                  alt={`${item.name} thumbnail ${idx + 1}`}
+                  className="w-full h-full object-contain bg-muted"
+                />
+              </button>
+            ))}
+          </div>
+        )}
 
         <CardContent className="p-3 space-y-2">
           <h3
