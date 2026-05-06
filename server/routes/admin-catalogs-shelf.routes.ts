@@ -12,9 +12,11 @@ const QRG_DOC_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
  */
 class CatalogBlankResolverError extends Error {
   readonly statusCode = 400;
-  constructor(message: string) {
+  readonly failedBlankId?: string;
+  constructor(message: string, failedBlankId?: string) {
     super(message);
     this.name = 'CatalogBlankResolverError';
+    this.failedBlankId = failedBlankId;
   }
 }
 
@@ -48,7 +50,7 @@ async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
     const fsDb = getFirestoreDb();
     const doc = await fsDb.collection('master_catalog').doc(id).get();
     if (doc.exists) return id;
-    throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
+    throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`, id);
   }
 
   // Pending migration IDs — soft allow, caller decides
@@ -112,7 +114,8 @@ async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
 
   throw new CatalogBlankResolverError(
     `Cannot resolve "${id}" to a QRG master_catalog record. ` +
-    `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`
+    `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`,
+    id
   );
 }
 
@@ -556,7 +559,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {
       console.error("[Catalogs] Add blanks error:", error);
-      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
       res.status(500).json({ error: error.message });
     }
   });

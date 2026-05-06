@@ -17,9 +17,11 @@ import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 
 class CatalogBlankResolverError extends Error {
   readonly statusCode = 400;
-  constructor(message: string) {
+  readonly failedBlankId?: string;
+  constructor(message: string, failedBlankId?: string) {
     super(message);
     this.name = 'CatalogBlankResolverError';
+    this.failedBlankId = failedBlankId;
   }
 }
 
@@ -50,7 +52,7 @@ async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
   if (isValidMasterCatalogDocId(id)) {
     const doc = await db.collection('master_catalog').doc(id).get();
     if (doc.exists) return id;
-    throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
+    throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`, id);
   }
 
   if (id.startsWith('pending_')) return null;
@@ -105,7 +107,8 @@ async function resolveCatalogBlankId(inputId: string): Promise<string | null> {
 
   throw new CatalogBlankResolverError(
     `Cannot resolve "${id}" to a QRG master_catalog record. ` +
-    `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`
+    `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`,
+    id
   );
 }
 
@@ -188,7 +191,7 @@ app.patch('/admin/catalogs/:catalogId', requireAdmin, async (req: Request, res: 
     console.log(`[Catalogs] Updated catalog ${catalogId}`);
     res.json({ success: true, catalogId });
   } catch (error: any) {
-    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message }); return; }
+    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId }); return; }
     res.status(500).json({ error: error.message });
   }
 });
@@ -264,7 +267,7 @@ app.post('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Request,
     console.log(`[Catalogs] Added ${resolvedIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
     res.json({ success: true, count: merged.length });
   } catch (error: any) {
-    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message }); return; }
+    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId }); return; }
     res.status(500).json({ error: error.message });
   }
 });
@@ -319,7 +322,7 @@ app.delete('/admin/catalogs/:catalogId/blanks', requireAdmin, async (req: Reques
     }
     res.json({ success: true, removed: removedCount, total: remaining.length });
   } catch (error: any) {
-    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message }); return; }
+    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId }); return; }
     res.status(500).json({ error: error.message });
   }
 });
@@ -394,7 +397,7 @@ app.post('/admin/catalogs/:catalogId/bulk-copy', requireAdmin, async (req: Reque
     console.log(`[Catalogs] Bulk copied ${resolvedIds.length} blanks from ${catalogId} to ${targetCatalogId}. ${added} new, ${merged.length} total`);
     res.json({ success: true, added, total: merged.length });
   } catch (error: any) {
-    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message }); return; }
+    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId }); return; }
     res.status(500).json({ error: error.message });
   }
 });
@@ -444,7 +447,7 @@ app.put('/admin/catalogs/:catalogId/blank-images', requireAdmin, async (req: Req
     console.log(`[Catalogs] Updated images for blank ${canonicalId} in catalog ${catalogId}: ${images.length} images`);
     res.json({ success: true, blankId: canonicalId, imageCount: images.length });
   } catch (error: any) {
-    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message }); return; }
+    if (error instanceof CatalogBlankResolverError) { res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId }); return; }
     res.status(500).json({ error: error.message });
   }
 });

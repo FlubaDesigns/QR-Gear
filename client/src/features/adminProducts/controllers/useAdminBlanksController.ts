@@ -382,9 +382,18 @@ export function useAdminBlanksController() {
       const statusMatch = msg.match(/^(\d{3}):/);
       const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : null;
       if (statusCode === 400) {
+        // Prefer structured body attached by throwIfResNotOk, fall back to string parsing
+        let failedBlankId: string | undefined = err?.responseBody?.failedBlankId;
+        if (!failedBlankId) {
+          try {
+            const bodyText = msg.slice(statusMatch![0].length).trim();
+            failedBlankId = JSON.parse(bodyText)?.failedBlankId;
+          } catch {}
+        }
+        const blankInfo = failedBlankId ? ` (${failedBlankId})` : "";
         toast({
           title: "Cannot add blank to catalog",
-          description: "This blank hasn't been synced to the master catalog yet. Run a master catalog sync first, then try again.",
+          description: `Blank${blankInfo} hasn't been synced to the master catalog yet. Run a master catalog sync first, then try again.`,
           variant: "destructive",
         });
       } else {

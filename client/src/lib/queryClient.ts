@@ -30,7 +30,9 @@ async function getAuthHeader(): Promise<Record<string, string>> {
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const err = new Error(`${res.status}: ${text}`) as any;
+    try { err.responseBody = JSON.parse(text); } catch {}
+    throw err;
   }
 }
 
