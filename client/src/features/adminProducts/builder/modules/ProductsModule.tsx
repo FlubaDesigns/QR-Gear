@@ -144,7 +144,12 @@ export function ProductsModule() {
 
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
-  const [dataMode, setDataMode] = useState<DataMode>("all");
+  const [dataMode, setDataMode] = useState<DataMode>(() => {
+    const id = state.selectedCatalogId;
+    if (!id || id === "all") return "all";
+    if (id === "joint") return "joint";
+    return "catalog";
+  });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [openShelfIds, setOpenShelfIds] = useState<Set<string>>(new Set());
@@ -158,6 +163,16 @@ export function ProductsModule() {
   const [addingShelf, setAddingShelf] = useState(false);
   const [newShelfName, setNewShelfName] = useState("");
   const [savingShelf, setSavingShelf] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCatalogId || selectedCatalogId === "all") {
+      setDataMode("all");
+    } else if (selectedCatalogId === "joint") {
+      setDataMode("joint");
+    } else {
+      setDataMode("catalog");
+    }
+  }, [selectedCatalogId]);
 
   const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],

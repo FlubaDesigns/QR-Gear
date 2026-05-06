@@ -25,7 +25,7 @@ export interface ShelfItem {
 const SHELF_ITEMS_KEY = "admin-build-shelf";
 const SHELF_GROUPS_KEY = "admin-shelf-groups";
 
-export function useBuildShelf() {
+export function useBuildShelf(catalogId?: string | null) {
   const groupsQuery = useQuery<ShelfGroup[]>({
     queryKey: [SHELF_GROUPS_KEY],
     queryFn: async () => {
@@ -37,11 +37,18 @@ export function useBuildShelf() {
     },
   });
 
+  const scopedCatalogId = catalogId && catalogId !== "all" && catalogId !== "joint"
+    ? catalogId
+    : null;
+
   const itemsQuery = useQuery<ShelfItem[]>({
-    queryKey: [SHELF_ITEMS_KEY],
+    queryKey: [SHELF_ITEMS_KEY, scopedCatalogId],
     queryFn: async () => {
       try {
-        return await adminFetch<ShelfItem[]>("/build-shelf");
+        const url = scopedCatalogId
+          ? `/build-shelf?catalogId=${encodeURIComponent(scopedCatalogId)}`
+          : "/build-shelf";
+        return await adminFetch<ShelfItem[]>(url);
       } catch {
         return [];
       }
