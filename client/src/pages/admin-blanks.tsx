@@ -467,6 +467,9 @@ export default function AdminBlanks() {
           ? 'bg-sky-600 text-white'
           : 'bg-orange-600 text-white';
 
+      const hasQRGIdentity = !!(product?.docId && product.docId.startsWith("qrg_"));
+      const addDisabled = !!validSelectedCatalogId && !inTarget && !hasQRGIdentity;
+
       const handleSelect = () => {
         if (validSelectedCatalogId) {
           if (!inTarget) onAddToCatalog(blankKey, product);
@@ -493,6 +496,8 @@ export default function AdminBlanks() {
             selectLabel={validSelectedCatalogId ? `Add to ${targetName}` : undefined}
             selectedLabel={validSelectedCatalogId ? `In ${targetName}` : undefined}
             disableWhenSelected={!!validSelectedCatalogId}
+            selectDisabled={addDisabled}
+            selectDisabledTitle="Not yet synced to master catalog — run a master catalog sync first"
           />
           {/* Provider badge — shows which fulfillment provider(s) carry this blank */}
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1">

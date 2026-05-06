@@ -377,7 +377,20 @@ export function useAdminBlanksController() {
       toast({ title: "Added to catalog", description: `${data.total} total blanks` });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: any) => {
+      const msg: string = err?.message || "";
+      const statusMatch = msg.match(/^(\d{3}):/);
+      const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : null;
+      if (statusCode === 400) {
+        toast({
+          title: "Cannot add blank to catalog",
+          description: "This blank hasn't been synced to the master catalog yet. Run a master catalog sync first, then try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Error", description: msg, variant: "destructive" });
+      }
+    },
   });
 
   const removeBlanksMutation = useMutation({

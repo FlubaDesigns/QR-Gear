@@ -68,6 +68,8 @@ export interface ProductSelectCardSkinProps {
   selectLabel?: React.ReactNode;
   selectedLabel?: React.ReactNode;
   disableWhenSelected?: boolean;
+  selectDisabled?: boolean;
+  selectDisabledTitle?: string;
   onDelete?: (id: string) => Promise<void>;
   deleting?: boolean;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
@@ -865,7 +867,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -997,7 +999,8 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             variant={isSelected ? "secondary" : "default"}
             className="w-full min-h-11 text-sm"
             onClick={(e) => { e.stopPropagation(); onSelect(item.id, item); }}
-            disabled={isSelected && !!disableWhenSelected}
+            disabled={(isSelected && !!disableWhenSelected) || !!selectDisabled}
+            title={selectDisabled ? selectDisabledTitle : undefined}
             data-testid={`button-select-${item.id}`}
           >
             {isSelected ? (
