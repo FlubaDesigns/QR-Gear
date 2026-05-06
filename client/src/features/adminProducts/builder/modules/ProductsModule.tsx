@@ -848,9 +848,12 @@ export function ProductsModule() {
       if (!entry) return null;
       const cardId = String(scrollItem.id);
       const rawProduct = entry.catalog as any;
-      const rawImages: string[] = rawProduct.images?.length
-        ? rawProduct.images
-        : rawProduct.imageUrl ? [rawProduct.imageUrl] : [];
+      const rawImages: string[] = Array.from(new Set([
+        ...(Array.isArray(rawProduct.printifyImages) ? rawProduct.printifyImages : []),
+        ...(Array.isArray(rawProduct.printfulImages) ? rawProduct.printfulImages : []),
+        ...(Array.isArray(rawProduct.images) ? rawProduct.images : []),
+        ...(rawProduct.imageUrl ? [rawProduct.imageUrl] : []),
+      ])).filter(Boolean) as string[];
       const blankKey = entry.blankKey;
       const itemTier = (activeCatalog?.blankTiers?.[blankKey] ?? null) as "good" | "better" | "best" | null;
       return (

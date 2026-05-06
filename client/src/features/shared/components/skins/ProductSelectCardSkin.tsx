@@ -265,14 +265,14 @@ function PreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-lg w-[95vw] max-h-[90vh] p-0 overflow-hidden"
+        className="fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
         data-testid={`modal-preview-${item.id}`}
       >
         <VisuallyHidden>
           <DialogTitle>{item.name}</DialogTitle>
         </VisuallyHidden>
 
-        <div className="max-h-[90vh] overflow-y-auto">
+        <div className="h-full sm:max-h-[90vh] overflow-y-auto">
           <div className="relative">
             {/* Main image gallery */}
             <div
