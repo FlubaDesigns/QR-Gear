@@ -4,6 +4,7 @@ import { isAdmin, isAuthenticated } from "../firebaseAuth";
 import { uploadImageFromBuffer } from "../lib/image-upload";
 import { generatePrintifyComposite } from "../lib/composite-image-generator";
 import QRCode from "qrcode";
+import { buildStructuredOptions, deriveCardMode } from "../../shared/storefrontTypes";
 
 export function registerAdminLibraryRoutes(app: Express): void {
   // ============ LIBRARY ASSET ENDPOINTS ============
@@ -671,12 +672,6 @@ export function registerAdminLibraryRoutes(app: Express): void {
         const toStrArr = (arr: any[]): string[] =>
           (arr || []).map((v: any) => typeof v === 'string' ? v : v?.name || v?.label || String(v)).filter(Boolean);
 
-        const buildOptions = (colors: string[], sizes: string[]) => {
-          const opts: any[] = [];
-          if (colors.length) opts.push({ name: 'Color', values: colors });
-          if (sizes.length) opts.push({ name: 'Size', values: sizes });
-          return opts;
-        };
 
         const products = await Promise.all(
           instancesSnap.docs
@@ -697,6 +692,7 @@ export function registerAdminLibraryRoutes(app: Express): void {
               let pktMockupImages: string[] = [];
               let pktMockupsByColor: Record<string, any> | null = null;
               let pktDefaultColor: string | null = null;
+              let pktQrCodeUrl: string | null = null;
 
               if (d.currentPacketId) {
                 try {
@@ -704,6 +700,7 @@ export function registerAdminLibraryRoutes(app: Express): void {
                   if (pDoc.exists) {
                     const pkt = pDoc.data()!;
                     packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                    pktQrCodeUrl = pkt.qrOnlyUrl || null;
                     if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                     const byColor = pkt.mockupsByColor || {};
                     const colorKeys = Object.keys(byColor);
@@ -742,15 +739,16 @@ export function registerAdminLibraryRoutes(app: Express): void {
                 isFeatured: false,
                 isSeasonalPromo: false,
                 templateVariant: null,
-                qrProductType: d.qrProductType || 'qr-canvas',
-                qrCodeUrl: null,
+                qrProductType: d.qrProductType || 'qr-basics',
+                qrCodeUrl: pktQrCodeUrl,
                 selectedColors: colors,
                 availableSizes: sizes,
                 defaultColor: pktDefaultColor,
                 mockupsByColor: pktMockupsByColor,
                 price: price !== null ? Math.round(price * 100) / 100 : null,
                 createdAt: d.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-                options: buildOptions(colors, sizes),
+                options: buildStructuredOptions(colors, sizes),
+                cardMode: deriveCardMode(colors, sizes),
                 media: { images: allImages, mockupPriority: true, heroStrategy: 'mockupFirst' },
               };
             })
