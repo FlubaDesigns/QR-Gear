@@ -24,7 +24,8 @@ import { Request, Response, NextFunction } from 'express';
     status: 'ok', 
     mode: 'firebase-functions', 
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: '1.0.0',
+    buildId: process.env.QRGEAR_BUILD_ID || 'unknown',
   });
 });
 

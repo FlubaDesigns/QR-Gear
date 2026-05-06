@@ -546,7 +546,10 @@ export function register(app: express.Express): void {
   app.get('/admin/master-catalog/products/:docId/options', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { docId } = req.params;
-      const requestedProvider = (typeof req.query.provider === 'string' ? req.query.provider : 'printify').toLowerCase();
+      // Normalize "both" → "printify". The crosswalk only has entries for a specific
+      // provider; "both" would match nothing and fall through to the front-only fallback.
+      const rawProvider = (typeof req.query.provider === 'string' ? req.query.provider : 'printify').toLowerCase();
+      const requestedProvider = (!rawProvider || rawProvider === 'both') ? 'printify' : rawProvider;
 
       // 1. Validate docId format: qrg_[STNNN]
       if (!/^qrg_[1-6][1-9][0-9]{3}$/.test(docId)) {

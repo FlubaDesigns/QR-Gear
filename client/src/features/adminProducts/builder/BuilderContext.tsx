@@ -646,7 +646,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return;
     }
 
-    const provider = fulfillmentProviderRef.current;
+    // Normalize "both" → use the product's own provider, or printify as default.
+    // The crosswalk only has entries for "printify" or "printful" — "both" would
+    // match nothing and fall through to the front-only fallback.
+    const rawProvider = fulfillmentProviderRef.current;
+    const provider =
+      !rawProvider || rawProvider === 'both'
+        ? (product.fulfillmentProvider && product.fulfillmentProvider !== 'both'
+            ? product.fulfillmentProvider
+            : 'printify')
+        : rawProvider;
     adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}`)
       .then(options => {
         setState(prev => {

@@ -12,7 +12,8 @@ function register(app) {
             status: 'ok',
             mode: 'firebase-functions',
             timestamp: new Date().toISOString(),
-            version: '1.0.0'
+            version: '1.0.0',
+            buildId: process.env.QRGEAR_BUILD_ID || 'unknown',
         });
     });
     app.get('/members/allowed-products', async (req, res) => {

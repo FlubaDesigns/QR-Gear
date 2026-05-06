@@ -720,7 +720,10 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
   app.get("/api/admin/master-catalog/products/:docId/options", isAdmin, async (req: any, res) => {
     try {
       const { docId } = req.params;
-      const requestedProvider = (typeof req.query.provider === 'string' ? req.query.provider : 'printify').toLowerCase();
+      // Normalize "both" → "printify". The crosswalk only has entries for a specific
+      // provider; "both" would match nothing and fall through to the front-only fallback.
+      const rawProvider = (typeof req.query.provider === 'string' ? req.query.provider : 'printify').toLowerCase();
+      const requestedProvider = (!rawProvider || rawProvider === 'both') ? 'printify' : rawProvider;
 
       if (!/^qrg_[1-6][1-9][0-9]{3}$/.test(docId)) {
         return res.status(400).json({ error: 'INVALID_QRG_DOC_ID' });
