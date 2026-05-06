@@ -554,7 +554,8 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
 
       const existing = new Set(catalog.blankIds || []);
       const newIds = resolvedIds.filter((id) => !existing.has(id));
-      const merged = [...(catalog.blankIds || []), ...newIds];
+      // Deduplicate the full merged array — also heals any pre-existing duplicates in Firestore
+      const merged = [...new Set([...(catalog.blankIds || []), ...newIds])];
       await fsUpdate("catalogs", req.params.id, { blankIds: merged });
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {
@@ -642,7 +643,8 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
 
       const existing = new Set(target.blankIds || []);
       const newIds = resolvedIds.filter((id) => !existing.has(id));
-      const merged = [...(target.blankIds || []), ...newIds];
+      // Deduplicate the full merged array — also heals any pre-existing duplicates in Firestore
+      const merged = [...new Set([...(target.blankIds || []), ...newIds])];
       await fsUpdate("catalogs", targetCatalogId, { blankIds: merged });
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {

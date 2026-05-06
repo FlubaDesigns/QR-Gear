@@ -97,7 +97,7 @@ function catalogToSelectItem(
     : null;
   const effectiveTitle = normalizedAdminTitle ?? providerTitle;
   return {
-    id: String(p.id),
+    id: (p as any).docId || String(p.id),
     name: effectiveTitle,
     providerTitle,
     adminCatalogTitle: normalizedAdminTitle,
@@ -382,17 +382,24 @@ export function ProductsModule() {
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
+    const seen = new Set<string>();
     activeProducts.forEach(p => {
+      // Canonical identity: qrg_STNNN docId takes priority over numeric provider id
+      const canonicalId = (p as any).docId || String(p.id);
+      // Skip duplicates — enforce one card per canonical ID
+      if (seen.has(canonicalId)) return;
+      seen.add(canonicalId);
       const withGender = { ...p, gender: detectGender(p.title) };
       // Use the exact key that matched this product into the catalog, so delete/description/title
       // always targets the same entry that caused it to appear — never a guessed derived key
       const blankKey = catalogKeyMap.get(String(p.id))
+        ?? (p as any).docId
         ?? (p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id));
       // Load catalog-level admin overrides so cards always show the admin's version
       const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
       const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
       const adminImages = activeCatalog?.blankImages?.[blankKey] ?? null;
-      map.set(String(p.id), { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages), catalog: withGender, blankKey });
+      map.set(canonicalId, { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages), catalog: withGender, blankKey });
     });
     return map;
   }, [activeProducts, activeCatalog, catalogKeyMap]);
