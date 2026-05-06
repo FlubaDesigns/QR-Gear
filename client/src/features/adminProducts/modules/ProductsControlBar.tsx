@@ -39,9 +39,11 @@ export function ProductsControlBar() {
   }, []);
 
   const rebuildMasterProducts = useCallback(async () => {
-    // no-op: legacy dev-server sync-master-products route removed;
-    // master_catalog is now rebuilt via Cloud Functions syncMasterCatalog.
-  }, []);
+    toast({
+      title: "Use Cloud Functions sync to rebuild the master catalog",
+      description: "The dev-server rebuild route has been removed. Trigger a sync from the Sync module in the admin panel instead.",
+    });
+  }, [toast]);
 
   const pollSyncStatus = useCallback(
     async (syncId?: string) => {
