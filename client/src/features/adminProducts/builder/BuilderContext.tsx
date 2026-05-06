@@ -359,6 +359,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.activeSessionId,
     state.activePacketId,
     state.selectedCatalogId,
+    selectedRole,
     selectedStore,
     selectedChannel,
     selectedCollection,
