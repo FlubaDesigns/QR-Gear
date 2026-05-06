@@ -887,7 +887,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     if (metadata.selectedCollection) setSelectedCollection(metadata.selectedCollection as Collection);
 
     const product = resolvedProduct ?? null;
-    const needsOptionsFetch = !!(product && !product.optionsLoaded);
+    // Always re-fetch options on load — the saved product may have stale/partial
+    // placements (e.g. only 'front' from a previous session). Setting optionsLoaded:false
+    // above is not enough because needsOptionsFetch was computed from the original value.
+    const needsOptionsFetch = !!product;
 
     setState(prev => ({
       ...prev,
@@ -1045,7 +1048,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       blueprintId,
     );
 
-    const needsOptionsFetch = !!(resolvedProduct && !resolvedProduct.optionsLoaded);
+    // Always re-fetch options on load — the saved product may have stale/partial
+    // placements (e.g. only 'front' from a previous session).
+    const needsOptionsFetch = !!resolvedProduct;
 
     setState(prev => ({
       ...prev,
