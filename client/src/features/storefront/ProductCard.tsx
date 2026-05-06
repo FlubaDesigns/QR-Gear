@@ -16,10 +16,10 @@ export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: stri
 export function StoreProductCard({ product }: { product: StoreProduct }) {
   const href = `/shop/product/${product.id}`;
   // Always use gallery logic so lifestyle/model shot leads; QR graphic never appears first
-  const gallery = buildProductGallery(product as any);
+  const gallery = buildProductGallery(product);
   const heroImage = gallery[0]?.url ?? product.imageUrl;
   const heroType = gallery[0]?.type ?? 'mockup';
-  const hasMockup = !!(product as any).packetImageUrl;
+  const hasMockup = !!product.packetImageUrl;
   const typeInfo = product.qrProductType ? QR_PRODUCT_TYPE_LABELS[product.qrProductType] : null;
 
   return (
