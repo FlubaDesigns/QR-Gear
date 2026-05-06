@@ -5,10 +5,11 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const qrgCodes_1 = require("../../../shared/qrgCodes");
 class CatalogBlankResolverError extends Error {
-    constructor(message) {
+    constructor(message, failedBlankId) {
         super(message);
         this.statusCode = 400;
         this.name = 'CatalogBlankResolverError';
+        this.failedBlankId = failedBlankId;
     }
 }
 /**
@@ -39,7 +40,7 @@ async function resolveCatalogBlankId(inputId) {
         const doc = await core_1.db.collection('master_catalog').doc(id).get();
         if (doc.exists)
             return id;
-        throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
+        throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`, id);
     }
     if (id.startsWith('pending_'))
         return null;
@@ -105,7 +106,7 @@ async function resolveCatalogBlankId(inputId) {
         }
     }
     throw new CatalogBlankResolverError(`Cannot resolve "${id}" to a QRG master_catalog record. ` +
-        `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`);
+        `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`, id);
 }
 function register(app) {
     // ── Helper: seed blanks + metadata into the "Primary" catalog ────────────
@@ -195,7 +196,7 @@ function register(app) {
         }
         catch (error) {
             if (error instanceof CatalogBlankResolverError) {
-                res.status(400).json({ error: error.message });
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
                 return;
             }
             res.status(500).json({ error: error.message });
@@ -282,7 +283,7 @@ function register(app) {
         }
         catch (error) {
             if (error instanceof CatalogBlankResolverError) {
-                res.status(400).json({ error: error.message });
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
                 return;
             }
             res.status(500).json({ error: error.message });
@@ -346,7 +347,7 @@ function register(app) {
         }
         catch (error) {
             if (error instanceof CatalogBlankResolverError) {
-                res.status(400).json({ error: error.message });
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
                 return;
             }
             res.status(500).json({ error: error.message });
@@ -449,7 +450,7 @@ function register(app) {
         }
         catch (error) {
             if (error instanceof CatalogBlankResolverError) {
-                res.status(400).json({ error: error.message });
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
                 return;
             }
             res.status(500).json({ error: error.message });
@@ -516,7 +517,7 @@ function register(app) {
         }
         catch (error) {
             if (error instanceof CatalogBlankResolverError) {
-                res.status(400).json({ error: error.message });
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
                 return;
             }
             res.status(500).json({ error: error.message });

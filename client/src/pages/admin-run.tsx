@@ -24,6 +24,7 @@ import {
   AlertCircle,
   CheckCircle,
   Trash2,
+  LayoutGrid,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,7 @@ const quickActions: QuickAction[] = [
   { label: "Load Template", description: "Resume from a saved template", icon: FolderOpen, href: "/admin/products" },
   { label: "Library", description: "Browse images and graphics", icon: Layers, href: "/admin/library" },
   { label: "Store Builder", description: "Configure stores and channels", icon: Store, href: "/admin/store-builder" },
+  { label: "Store Planner", description: "Product configs and store links", icon: LayoutGrid, href: "/admin/store-planner" },
   { label: "Orders", description: "Review pending and recent", icon: ShoppingCart, href: "/admin/orders" },
   { label: "Customers", description: "View registered members", icon: Users, href: "/admin/customers" },
 ];

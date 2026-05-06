@@ -73,6 +73,7 @@ The admin panel is organized into five top-level sections. `/admin` lands on the
 
 | Route | Purpose |
 |-------|---------|
+| `/admin/store-planner` | Hub — product configs, store tool links, and ProductsHarness |
 | `/admin/store-builder` | Configure storefronts and assign products |
 | `/admin/store-library` | Browse existing stores and channels |
 | `/admin/partners` | Partner/referral management |
