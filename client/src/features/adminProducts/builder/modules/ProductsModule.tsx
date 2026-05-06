@@ -183,15 +183,59 @@ export function ProductsModule() {
     queryKey: ["/api/admin/shelf-groups"],
   });
 
+  // Derive activeCatalog early (only needs adminCatalogsData + selectedCatalogId)
+  // so catalogBlankIds is available for the buildShelfItems query below.
+  const activeCatalog = selectedCatalogId !== "all"
+    ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
+    : null;
+
+  const catalogBlankIds = activeCatalog?.blankIds ?? [];
+
   const { data: buildShelfItems = [], isLoading: loadingCatalogProducts } = useQuery<Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }>>({
-    queryKey: ["/api/admin/build-shelf", selectedCatalogId],
+    queryKey: ["/api/admin/build-shelf", selectedCatalogId, catalogBlankIds],
     queryFn: async () => {
       const url = selectedCatalogId && selectedCatalogId !== "all" && selectedCatalogId !== "joint"
         ? `/api/admin/build-shelf?catalogId=${encodeURIComponent(selectedCatalogId)}`
         : "/api/admin/build-shelf?mode=global";
       const r = await apiRequest("GET", url);
       if (!r.ok) throw new Error(`build-shelf fetch failed: ${r.status}`);
-      return r.json();
+      const items: Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }> = await r.json();
+
+      // If the shelf has no items yet (blanks were added via BlankPickerModal
+      // which only writes catalogs.blankIds, not admin_build_shelf), fall back
+      // to resolving those blankIds directly from master_catalog.
+      if (items.length === 0 && catalogBlankIds.length > 0) {
+        console.log(`[ProductsModule] build-shelf empty for catalog ${selectedCatalogId}, falling back to master catalog for ${catalogBlankIds.length} blankIds`);
+        try {
+          const masterRes = await apiRequest("GET", "/api/master-catalog");
+          if (!masterRes.ok) return items;
+          const masterData: Array<{ name: string; items: any[] }> = await masterRes.json();
+          const blankIdSet = new Set(catalogBlankIds);
+          const fallback: Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }> = [];
+          const seen = new Set<string>();
+          for (const cat of masterData) {
+            for (const item of (cat.items || [])) {
+              const docId: string | undefined = item.docId;
+              if (docId && blankIdSet.has(docId) && !seen.has(docId)) {
+                seen.add(docId);
+                fallback.push({
+                  id: `fallback:${docId}`,
+                  shelfKey: docId,
+                  catalogId: selectedCatalogId!,
+                  groupIds: [],
+                  catalog: item as CatalogProduct,
+                });
+              }
+            }
+          }
+          console.log(`[ProductsModule] Fallback resolved ${fallback.length} items from master catalog`);
+          return fallback;
+        } catch (fallbackErr: any) {
+          console.error("[ProductsModule] Master catalog fallback failed:", fallbackErr.message);
+        }
+      }
+
+      return items;
     },
     enabled: dataMode === "catalog",
   });
@@ -217,10 +261,6 @@ export function ProductsModule() {
     }
     return map;
   }, [buildShelfItems]);
-
-  const activeCatalog = selectedCatalogId !== "all"
-    ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
-    : null;
 
   // O(1) membership check — used in selectItemMap to resolve the canonical blankKey
   // without going through catalogKeyMap (which is keyed by numeric provider ID and
