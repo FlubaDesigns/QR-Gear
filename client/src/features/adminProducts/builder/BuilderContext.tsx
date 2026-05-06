@@ -216,10 +216,13 @@ function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext):
   const packetDescription = state.productDescription !== null && state.productDescription !== undefined
     ? state.productDescription : null;
   const descriptionSource: TextLayerSource = state.descriptionSource ?? null;
+  const adminCatalogDescription = state.adminCatalogDescription !== null && state.adminCatalogDescription !== undefined
+    ? state.adminCatalogDescription : null;
   return {
     title: packetTitle,
     titleSource,
     description: packetDescription,
+    adminCatalogDescription,
     descriptionSource,
     images: state.selectedProduct?.images ?? [],
     graphics: {
@@ -357,6 +360,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.genderFilter,
     state.productDescription,
     state.adminCatalogTitle,
+    state.adminCatalogDescription,
     state.activeSessionId,
     state.activePacketId,
     state.selectedCatalogId,
@@ -717,6 +721,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       adminCatalogTitle: working.title ?? null,
       titleSource: (working.titleSource as TextLayerSource) ?? null,
       productDescription: working.description ?? null,
+      adminCatalogDescription: working.adminCatalogDescription ?? working.description ?? null,
       descriptionSource: (working.descriptionSource as TextLayerSource) ?? null,
       selectedProduct: product ? { ...product, optionsLoaded: false } : prev.selectedProduct,
       placementsLoading: needsOptionsFetch,
@@ -832,7 +837,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       ? { id: 'template-bg', name: 'Template Background', url: bgUrl }
       : null;
 
-    const selectedPlacements: string[] = Array.isArray(packetData.placements) ? packetData.placements : [];
+    const selectedPlacements: string[] = Array.isArray(packetData.selectedPlacements)
+      ? packetData.selectedPlacements
+      : (Array.isArray(packetData.builderSnapshot?.selectedPlacements) ? packetData.builderSnapshot.selectedPlacements : []);
     const blueprintId: number | null = packetData.blueprintId ? Number(packetData.blueprintId) : null;
 
     const hint: TemplateProductHint = {
@@ -873,6 +880,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       // resolvedProduct?.description (upstream provider text). NULL is correct when the
       // packet has no explicit description; display resolver handles fallback at render time.
       productDescription: packetData.productDescription !== undefined ? packetData.productDescription : null,
+      adminCatalogDescription: packetData.adminCatalogDescription !== undefined ? packetData.adminCatalogDescription : null,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
     }));

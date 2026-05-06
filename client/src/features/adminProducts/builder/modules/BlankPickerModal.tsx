@@ -153,7 +153,7 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
               <div className="flex items-center gap-2 flex-wrap">
                 <Layers className="h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold">{activeCatalog.name}</span>
-                <Badge variant="secondary" className="text-xs">{activeCatalog.blankIds?.length || 0} blanks</Badge>
+                <Badge variant="secondary" className="text-xs">{catalogItems.length} blank{catalogItems.length !== 1 ? "s" : ""}</Badge>
               </div>
               <ScrollArea className="w-full">
                 <div className="flex gap-2 pb-2">
