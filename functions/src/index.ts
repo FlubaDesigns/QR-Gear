@@ -1,4 +1,5 @@
-const _BUILD_ID = '20260506-161553-32326';
+const _BUILD_ID = '20260506-163052-15853';
+process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
@@ -60,6 +61,7 @@ import { register as registerAmazonOAuth } from './routes/amazon-oauth';
 import { register as registerEbayOAuth } from './routes/ebay-oauth';
 import { register as registerEtsyOAuth } from './routes/etsy-oauth';
 import { register as registerConnect } from './routes/connect';
+import { register as registerDeployProof } from './routes/deploy-proof';
 
 const app = express();
 
@@ -124,6 +126,7 @@ registerAmazonOAuth(app);
 registerEbayOAuth(app);
 registerEtsyOAuth(app);
 registerConnect(app);
+registerDeployProof(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

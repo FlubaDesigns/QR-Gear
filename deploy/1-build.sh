@@ -12,4 +12,4 @@ npm run build 2>&1 | tail -5
 echo "[deploy/1-build] Building functions..."
 cd functions && npm run build 2>&1 | tail -3 && cd ..
 
-echo "[deploy/1-build] Done. Run deploy/2-functions.sh next."
+echo "[deploy/1-build] Done. Run deploy/2-functions.sh next, then deploy/3-hosting.sh, then deploy/4-verify-functions.sh."
