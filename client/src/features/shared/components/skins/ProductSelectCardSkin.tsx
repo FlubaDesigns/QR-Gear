@@ -966,6 +966,13 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             {item.name}
           </h3>
 
+          <p
+            className="text-[10px] text-muted-foreground/60 font-mono"
+            data-testid={`text-id-${item.id}`}
+          >
+            ID: {item.id}
+          </p>
+
           {(item.manufacturer || item.model) && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-make-model-${item.id}`}>
               {[item.manufacturer, item.model].filter(Boolean).join(' ')}
