@@ -469,7 +469,12 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
 
       const colors = p.colors ?? p.availableColors ?? [];
       const sizes = p.sizes ?? p.availableSizes ?? [];
-      const allImages: string[] = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+      const allImages: string[] = Array.from(new Set([
+        ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
+        ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
+        ...(Array.isArray(p.images) ? p.images.filter(Boolean).map(String) : []),
+        ...(p.imageUrl ? [String(p.imageUrl)] : []),
+      ]));
       const imageUrl = allImages[0] ?? null;
 
       // madeInUSA: true if any provider mapping is USA
@@ -617,7 +622,12 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
       if (!categories[category]) categories[category] = [];
       const colors = p.colors ?? p.availableColors ?? [];
       const sizes = p.sizes ?? p.availableSizes ?? [];
-      const allImages: string[] = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+      const allImages: string[] = Array.from(new Set([
+        ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
+        ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
+        ...(Array.isArray(p.images) ? p.images.filter(Boolean).map(String) : []),
+        ...(p.imageUrl ? [String(p.imageUrl)] : []),
+      ]));
       const imageUrl = allImages[0] ?? null;
       const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
       categories[category].push({
@@ -629,6 +639,8 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
         model: p.model ?? null,
         images: allImages,
         imageUrl,
+        printifyImages: Array.isArray(p.printifyImages) ? p.printifyImages : [],
+        printfulImages: Array.isArray(p.printfulImages) ? p.printfulImages : [],
         madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
         blueprintId,
         printProviderId: p.printProviderId ?? null,

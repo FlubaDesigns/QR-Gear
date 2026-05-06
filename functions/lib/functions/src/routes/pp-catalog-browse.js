@@ -522,7 +522,12 @@ function registerPpCatalogBrowseRoutes(app) {
                 const fulfillmentProvider = availableVia.length > 1 ? 'both' : (availableVia[0] || 'printify');
                 const colors = p.colors ?? p.availableColors ?? [];
                 const sizes = p.sizes ?? p.availableSizes ?? [];
-                const allImages = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+                const allImages = Array.from(new Set([
+                    ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
+                    ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
+                    ...(Array.isArray(p.images) ? p.images.filter(Boolean).map(String) : []),
+                    ...(p.imageUrl ? [String(p.imageUrl)] : []),
+                ]));
                 const imageUrl = allImages[0] ?? null;
                 // madeInUSA: true if any provider mapping is USA
                 const madeInUSA = p.madeInUSA ??
@@ -668,7 +673,12 @@ function registerPpCatalogBrowseRoutes(app) {
                     categories[category] = [];
                 const colors = p.colors ?? p.availableColors ?? [];
                 const sizes = p.sizes ?? p.availableSizes ?? [];
-                const allImages = Array.isArray(p.images) ? p.images : (p.imageUrl ? [p.imageUrl] : []);
+                const allImages = Array.from(new Set([
+                    ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
+                    ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
+                    ...(Array.isArray(p.images) ? p.images.filter(Boolean).map(String) : []),
+                    ...(p.imageUrl ? [String(p.imageUrl)] : []),
+                ]));
                 const imageUrl = allImages[0] ?? null;
                 const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
                 categories[category].push({
@@ -680,6 +690,8 @@ function registerPpCatalogBrowseRoutes(app) {
                     model: p.model ?? null,
                     images: allImages,
                     imageUrl,
+                    printifyImages: Array.isArray(p.printifyImages) ? p.printifyImages : [],
+                    printfulImages: Array.isArray(p.printfulImages) ? p.printfulImages : [],
                     madeInUSA: p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US'),
                     blueprintId,
                     printProviderId: p.printProviderId ?? null,
