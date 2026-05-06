@@ -197,6 +197,9 @@ export function useCreatePacket({
         areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
         areaImageScale: state.content?.areaImageScale ?? 100,
         qrBasicInputType: state.content?.qrBasicInputType || 'text',
+        // Provider layout for the primary selected placement — drives renderer canvas size.
+        // Persisted so the renderer and export always use provider-correct dimensions.
+        providerLayout: state.providerLayout || null,
         // Full builder snapshot so loadFromPacketData can reconstruct the exact input state.
         // snapshot.content.url is the user's original QR input — never overwritten by the
         // landing-page URL rewrite that happens to packet.qrContent for canvas/play modes.
@@ -333,6 +336,9 @@ export function useCreatePacket({
           subBottomFontSize: state.content.subBottomStyle?.fontSize || '14',
           subBottomFontWeight: state.content.subBottomStyle?.fontWeight || '400',
           subBottomColor: state.content.subBottomStyle?.color || '#666666',
+          // Provider layout drives canvas dimensions — must be passed so the rendered
+          // graphic uses provider-correct size instead of hardcoded fallback dimensions.
+          providerLayout: state.providerLayout || null,
         });
       } catch (e) {
         console.warn('Product graphic generation failed:', e);

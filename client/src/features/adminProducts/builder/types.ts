@@ -43,6 +43,14 @@ export interface ProductPlacement {
   additionalPrice?: number;
   options?: any;
   methods?: PlacementMethodOption[];
+  /** Provider-specific layout data preserved from the print_placements crosswalk */
+  provider?: string;
+  providerPlacement?: string;
+  dimensions?: { widthPx: number; heightPx: number; widthIn?: number; heightIn?: number; dpi?: number };
+  printArea?: { widthPx: number; heightPx: number };
+  safeArea?: { widthPx: number; heightPx: number };
+  dpi?: number;
+  canonicalLocationCode?: string;
 }
 
 export interface CarrierPlacement {
@@ -83,6 +91,29 @@ export interface QrgPrintLocation {
   label: string;
   provider: string;
   providerPlacement: string;
+  /** Full provider layout data from print_placements crosswalk */
+  dimensions?: { widthPx: number; heightPx: number; widthIn?: number; heightIn?: number; dpi?: number };
+  printArea?: { widthPx: number; heightPx: number };
+  safeArea?: { widthPx: number; heightPx: number };
+  dpi?: number;
+  canonicalLocationCode?: string;
+}
+
+/**
+ * Provider-specific layout for the currently selected print placement.
+ * Derived from print_placements crosswalk on placement select.
+ * Stored in builder state and persisted to BLD under bld.providerLayout.
+ * Renderer reads this before falling back to hardcoded dimensions.
+ */
+export interface ProviderLayout {
+  provider: string;
+  canonicalLocationCode: string;
+  providerPlacementId: string;
+  label: string;
+  dimensions: { widthPx: number; heightPx: number; widthIn?: number; heightIn?: number; dpi?: number } | null;
+  printArea: { widthPx: number; heightPx: number } | null;
+  safeArea: { widthPx: number; heightPx: number } | null;
+  dpi: number;
 }
 
 export interface CatalogProduct {
@@ -313,4 +344,6 @@ export interface BuilderState {
   sessionStatus: 'working' | 'artifact_ready' | 'committed' | null;
   committedInstanceId: string | null;
   selectedCatalogId: string;
+  /** Provider layout for the primary selected placement — drives renderer canvas size. */
+  providerLayout: ProviderLayout | null;
 }

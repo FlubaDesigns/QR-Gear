@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useMemo, useEffect, u
 import { useProductsContext } from "../ProductsContext";
 import { adminFetch } from "@/lib/adminFetch";
 import { auth } from "@/lib/firebase";
-import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint, TextLayerSource } from "./types";
+import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint, TextLayerSource, ProviderLayout, ProductPlacement } from "./types";
 import type { RoleType, Store, Channel, Collection } from "../shared/types";
 import { defaultTextStyle } from "./types";
 
@@ -132,6 +132,7 @@ const initialState: BuilderState = {
   sessionStatus: null,
   committedInstanceId: null,
   selectedCatalogId: "all",
+  providerLayout: null,
 };
 
 interface BuilderProviderProps {
@@ -287,6 +288,9 @@ function buildBldLayoutZones(state: BuilderState): Record<string, any> {
         bottom:    bottomZone,
       },
     },
+    // Persisted so the renderer/export reads provider-correct dimensions from BLD
+    // rather than falling back to hardcoded FALLBACK_PLACEMENT_DIMENSIONS.
+    providerLayout: state.providerLayout ?? null,
   };
 }
 
@@ -647,13 +651,25 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         setState(prev => {
           if (prev.selectedProduct?.docId !== docId) return prev;
 
-          // Map QRG print locations → builder ProductPlacement shape
+          // Map QRG print locations → builder ProductPlacement shape.
+          // Preserve the full provider layout data from the print_placements crosswalk
+          // so togglePlacement can derive providerLayout and the renderer can use
+          // provider-correct dimensions instead of hardcoded FALLBACK_PLACEMENT_DIMENSIONS.
           const printLocations: ProductPlacement[] = (options.printLocations || []).map((pl: any) => ({
             id: pl.id,
             type: pl.id,
             title: pl.label || pl.id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
             additionalPrice: 0,
             methods: [],
+            provider: pl.provider,
+            providerPlacement: pl.providerPlacement,
+            dimensions: pl.dimensions || null,
+            printArea: pl.printArea || (pl.dimensions
+              ? { widthPx: pl.dimensions.widthPx, heightPx: pl.dimensions.heightPx }
+              : null),
+            safeArea: pl.safeArea || null,
+            dpi: pl.dpi || pl.dimensions?.dpi || 300,
+            canonicalLocationCode: pl.id,
           }));
 
           const merged: CatalogProduct = {
@@ -766,13 +782,36 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         delete newSizes[placementId];
         delete newMethods[placementId];
       }
-      
+
+      // Derive providerLayout from the primary (first) selected placement.
+      // This ensures the renderer and BLD use provider-correct dimensions, not
+      // hardcoded FALLBACK_PLACEMENT_DIMENSIONS. Only updated when the primary
+      // placement changes — otherwise keep the existing providerLayout.
+      const primaryId = newPlacements[0] || null;
+      const primaryPlacement = primaryId
+        ? prev.selectedProduct?.placements?.find(p => p.id === primaryId)
+        : null;
+      const newProviderLayout: ProviderLayout | null = (primaryPlacement?.provider && primaryPlacement.dimensions)
+        ? {
+            provider: primaryPlacement.provider,
+            canonicalLocationCode: primaryPlacement.id,
+            providerPlacementId: primaryPlacement.providerPlacement || primaryPlacement.id,
+            label: primaryPlacement.title,
+            dimensions: primaryPlacement.dimensions,
+            printArea: primaryPlacement.printArea
+              || { widthPx: primaryPlacement.dimensions.widthPx, heightPx: primaryPlacement.dimensions.heightPx },
+            safeArea: primaryPlacement.safeArea || null,
+            dpi: primaryPlacement.dpi || primaryPlacement.dimensions?.dpi || 300,
+          }
+        : prev.providerLayout;
+
       return {
         ...prev,
         selectedPlacements: newPlacements,
         placementConfig: newConfig,
         placementSizes: newSizes,
         placementMethods: newMethods,
+        providerLayout: newProviderLayout,
       };
     });
   }, []);
@@ -878,6 +917,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       originFilter: (metadata.originFilter as OriginFilter) ?? prev.originFilter,
       genderFilter: (metadata.genderFilter as GenderFilter) ?? prev.genderFilter,
       sourceType: (metadata.sourceType as SourceType) ?? prev.sourceType,
+      // Restore persisted provider layout so renderer uses correct dims on session reload
+      providerLayout: (working.bld?.providerLayout as ProviderLayout) ?? null,
     }));
 
     if (needsOptionsFetch && product) {
@@ -1028,6 +1069,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       adminCatalogDescription: packetData.adminCatalogDescription !== undefined ? packetData.adminCatalogDescription : null,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
+      // Restore persisted provider layout so renderer uses correct dims when loading from packet
+      providerLayout: (packetData.providerLayout as ProviderLayout) ?? null,
     }));
 
     if (needsOptionsFetch && resolvedProduct) {

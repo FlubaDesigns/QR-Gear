@@ -75,9 +75,24 @@ export interface RenderOptions {
    *  When canvas is 1200×1800 (canonical front), middle.size is preferred
    *  over qrSizePercent fallback; Palette mode also reads positionLR/UD. */
   bldZones?: BldLayoutZones | null;
+  /**
+   * Provider layout from bld.providerLayout — drives canvas dimensions.
+   * When present, dimensions.widthPx/heightPx override FALLBACK_PLACEMENT_DIMENSIONS.
+   * Hardcoded fallback dimensions are used only when this is absent or incomplete.
+   */
+  providerLayout?: {
+    dimensions?: { widthPx: number; heightPx: number; dpi?: number } | null;
+    printArea?: { widthPx: number; heightPx: number } | null;
+    safeArea?: { widthPx: number; heightPx: number } | null;
+    provider?: string;
+    canonicalLocationCode?: string;
+    providerPlacementId?: string;
+    label?: string;
+    dpi?: number;
+  } | null;
 }
 
-const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
+const FALLBACK_PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
   front: { width: 3600, height: 4800 },
   front_large: { width: 3600, height: 4800 },
   back: { width: 3600, height: 4200 },
@@ -231,12 +246,17 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomFontWeight = "400",
     graphicLayoutMode = "zone",
     bldZones,
+    providerLayout,
   } = options;
 
-  const dims = PLACEMENT_DIMENSIONS[placement || ""] || {
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
-  };
+  // Provider layout dims take priority over hardcoded fallback.
+  // providerLayout.dimensions come from the print_placements crosswalk via BLD.
+  const providerDims = providerLayout?.dimensions
+    ? { width: providerLayout.dimensions.widthPx, height: providerLayout.dimensions.heightPx }
+    : null;
+  const dims = providerDims
+    || FALLBACK_PLACEMENT_DIMENSIONS[placement || ""]
+    || { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
 
   const W = dims.width;
   const H = dims.height;
@@ -407,12 +427,18 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   return canvas.toDataURL("image/png");
 }
 
-export function getDimensions(placement?: string): {
+export function getDimensions(
+  placement?: string,
+  providerLayout?: { dimensions?: { widthPx: number; heightPx: number } | null } | null,
+): {
   width: number;
   height: number;
 } {
-  if (placement && PLACEMENT_DIMENSIONS[placement]) {
-    return PLACEMENT_DIMENSIONS[placement];
+  if (providerLayout?.dimensions) {
+    return { width: providerLayout.dimensions.widthPx, height: providerLayout.dimensions.heightPx };
+  }
+  if (placement && FALLBACK_PLACEMENT_DIMENSIONS[placement]) {
+    return FALLBACK_PLACEMENT_DIMENSIONS[placement];
   }
   return { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
 }
