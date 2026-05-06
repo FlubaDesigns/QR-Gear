@@ -29,6 +29,7 @@ import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getLookupBlankKey } from "@shared/blankKeys";
+import { getSwatchColor } from "@/lib/admin-utils";
 import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
@@ -117,11 +118,17 @@ function catalogToSelectItem(
     description: effectiveDescription,
     providerDescription,
     adminCatalogDescription: normalizedAdminDesc,
-    colorsAvailable: (p.availableColors || raw.colors || []).map((c: any) => ({ name: c.name, hex: c.hex })),
+    colorsAvailable: (p.availableColors || raw.colors || []).map((c: any) => {
+      const name = typeof c === 'string' ? c : (c.name || String(c));
+      const hex = (typeof c === 'object' && c.hex) ? c.hex : getSwatchColor(name);
+      return { name, hex };
+    }),
     sizesAvailable: p.availableSizes || raw.sizes || [],
-    defaultColor: (p.availableColors || raw.colors || []).length > 0
-      ? (p.availableColors || raw.colors)[0].name
-      : null,
+    defaultColor: (() => {
+      const first = (p.availableColors || raw.colors || [])[0];
+      if (!first) return null;
+      return typeof first === 'string' ? first : (first.name || null);
+    })(),
   };
 }
 
