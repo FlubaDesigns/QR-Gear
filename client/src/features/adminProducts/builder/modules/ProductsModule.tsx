@@ -183,6 +183,12 @@ export function ProductsModule() {
     queryKey: ["/api/admin/shelf-groups"],
   });
 
+  // Derived early so it is available inside the buildShelfItems queryFn closure below.
+  const activeCatalogEarly = selectedCatalogId && selectedCatalogId !== "all" && selectedCatalogId !== "joint"
+    ? (adminCatalogsData?.catalogs || []).find(c => c.id === selectedCatalogId) || null
+    : null;
+  const catalogBlankIds = activeCatalogEarly?.blankIds || [];
+
   // build-shelf query — kept for shelfItemByCanonicalId (optional shelfItemId in build sessions).
   // Not used as the primary source for catalogModeProducts (see below).
   const { data: buildShelfItems = [] } = useQuery<Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }>>({
