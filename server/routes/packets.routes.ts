@@ -546,6 +546,16 @@ export function registerPacketRoutes(app: Express): void {
         return res.status(404).json({ error: "Packet not found" });
       }
       
+      // ── Publish guard (parity with functions pp-pricing-packets Fix 15) ──────
+      if (updates.status === 'published') {
+        const existingData = doc.data() as any;
+        const resolvedAssemblyId = updates.assemblyId || existingData?.assemblyId || null;
+        if (!resolvedAssemblyId) {
+          return res.status(400).json({ error: 'Cannot publish packet — assemblyId is missing. Complete the QRG → BLD → GRF chain first.' });
+        }
+      }
+      // ── end publish guard ─────────────────────────────────────────────────────
+
       await docRef.update({
         ...updates,
         updatedAt: FieldValue.serverTimestamp(),

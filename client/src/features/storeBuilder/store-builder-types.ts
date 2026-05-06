@@ -15,6 +15,7 @@ export interface ProductColor {
 export interface ProductPackage {
   packetId?: string;
   templateId?: string;
+  assemblyId?: string | null;
   productId?: string;
   qrContent?: string;
   productName?: string;

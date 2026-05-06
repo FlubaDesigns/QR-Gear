@@ -36,7 +36,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
         storeId, storeName, channel, collection, packetId, templateId, graphicsId, 
         qrContent, productName, compositeUrl, qrOnlyUrl, pricing,
         enabledColors, enabledSizes, selectedGraphicSize, defaultColor,
-        qrProductState, landingPageUrl, mockupUrl
+        qrProductState, landingPageUrl, mockupUrl, assemblyId: bodyAssemblyId
       } = req.body;
 
       console.log("[Store Links] Creating link:", { storeId, channel, packetId, templateId, productName });
@@ -52,6 +52,21 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       const admin = (await import("../../lib/firebase-admin")).getFirebaseAdmin();
+
+      // ── Assembly guard: packet must be linked to an assembly before store assignment ──
+      let resolvedAssemblyId: string | null = bodyAssemblyId || null;
+      if (packetId) {
+        const packetDoc = await firestoreDb.collection("productPackets").doc(packetId).get();
+        if (!packetDoc.exists) {
+          return res.status(404).json({ error: `Packet ${packetId} not found` });
+        }
+        const packetData = packetDoc.data() as any;
+        resolvedAssemblyId = packetData.assemblyId || bodyAssemblyId || null;
+        if (!resolvedAssemblyId) {
+          return res.status(400).json({ error: "Cannot assign to store — packet is missing an assembly. Complete the QRG → BLD → GRF chain in the Library first." });
+        }
+      }
+      // ── end assembly guard ────────────────────────────────────────────────────────────
       
       const now = admin.firestore.FieldValue.serverTimestamp();
       
@@ -75,6 +90,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
         qrProductState: qrProductState || null,
         landingPageUrl: landingPageUrl || null,
         mockupUrl: mockupUrl || null,
+        assemblyId: resolvedAssemblyId,
         createdAt: now,
         updatedAt: now,
       };
@@ -204,7 +220,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
         storeId, storeName, channel, collection, packetId, templateId, graphicsId, 
         qrContent, productName, compositeUrl, qrOnlyUrl, pricing,
         enabledColors, enabledSizes, selectedGraphicSize, defaultColor,
-        qrProductState, landingPageUrl, mockupUrl
+        qrProductState, landingPageUrl, mockupUrl, assemblyId: bodyAssemblyId
       } = req.body;
 
       console.log("[Store Links TEST] Creating link:", { storeId, channel, packetId, templateId, productName });
@@ -220,6 +236,21 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../../lib/firebase-admin");
       const firestoreDb = getFirestoreDb();
       const admin = (await import("../../lib/firebase-admin")).getFirebaseAdmin();
+
+      // ── Assembly guard: packet must be linked to an assembly before store assignment ──
+      let resolvedAssemblyId: string | null = bodyAssemblyId || null;
+      if (packetId) {
+        const packetDoc = await firestoreDb.collection("productPackets").doc(packetId).get();
+        if (!packetDoc.exists) {
+          return res.status(404).json({ error: `Packet ${packetId} not found` });
+        }
+        const packetData = packetDoc.data() as any;
+        resolvedAssemblyId = packetData.assemblyId || bodyAssemblyId || null;
+        if (!resolvedAssemblyId) {
+          return res.status(400).json({ error: "Cannot assign to store — packet is missing an assembly. Complete the QRG → BLD → GRF chain in the Library first." });
+        }
+      }
+      // ── end assembly guard ────────────────────────────────────────────────────────────
       
       const now = admin.firestore.FieldValue.serverTimestamp();
       
@@ -243,6 +274,7 @@ export function registerStoreProductLinksRoutes(app: Express): void {
         qrProductState: qrProductState || null,
         landingPageUrl: landingPageUrl || null,
         mockupUrl: mockupUrl || null,
+        assemblyId: resolvedAssemblyId,
         createdAt: now,
         updatedAt: now,
       };

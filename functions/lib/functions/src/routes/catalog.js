@@ -3,6 +3,110 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
+class CatalogBlankResolverError extends Error {
+    constructor(message) {
+        super(message);
+        this.statusCode = 400;
+        this.name = 'CatalogBlankResolverError';
+    }
+}
+/**
+ * Resolves any blank ID input to its canonical master_catalog doc ID (qrg_STNNN).
+ *
+ * Accepted input forms:
+ *   qrg_STNNN   — canonical QRG doc ID (verified against master_catalog)
+ *   pending_*   — migration pending; returns null (caller decides whether to allow)
+ *   py_NNN      — Printify blueprint ID prefix
+ *   pf_NNN      — Printful product ID prefix (underscore form)
+ *   pf:NNN      — Printful product ID prefix (colon form)
+ *   NNN         — plain numeric (tried as Printify blueprint ID first)
+ *
+ * Returns:
+ *   string  — canonical qrg_STNNN doc ID
+ *   null    — intentional pending/migration ID (soft allow)
+ *
+ * Throws CatalogBlankResolverError (HTTP 400):
+ *   — input cannot be resolved to any master_catalog record, or is structurally invalid
+ *
+ * Never invents a QRG ID. Only returns what exists in Firestore.
+ */
+async function resolveCatalogBlankId(inputId) {
+    const id = String(inputId ?? '').trim();
+    if (!id)
+        throw new CatalogBlankResolverError('blankId must be a non-empty string');
+    if ((0, qrgCodes_1.isValidMasterCatalogDocId)(id)) {
+        const doc = await core_1.db.collection('master_catalog').doc(id).get();
+        if (doc.exists)
+            return id;
+        throw new CatalogBlankResolverError(`QRG blank "${id}" not found in master_catalog. Verify the blank has been synced.`);
+    }
+    if (id.startsWith('pending_'))
+        return null;
+    let numericId = null;
+    const candidates = [id];
+    if (id.startsWith('py_')) {
+        const n = parseInt(id.slice(3), 10);
+        if (!isNaN(n)) {
+            numericId = n;
+            candidates.push(String(n));
+        }
+    }
+    else if (id.startsWith('pf_')) {
+        const n = parseInt(id.slice(3), 10);
+        if (!isNaN(n)) {
+            numericId = n;
+            candidates.push(`pf:${n}`, String(n));
+        }
+    }
+    else if (id.startsWith('pf:')) {
+        const n = parseInt(id.slice(3), 10);
+        if (!isNaN(n)) {
+            numericId = n;
+            candidates.push(`pf_${n}`, String(n));
+        }
+    }
+    else {
+        const n = parseInt(id, 10);
+        if (!isNaN(n) && String(n) === id) {
+            numericId = n;
+            candidates.push(`py_${n}`, `pf_${n}`, `pf:${n}`);
+        }
+    }
+    for (const candidate of candidates) {
+        const doc = await core_1.db.collection('master_catalog').doc(candidate).get();
+        if (doc.exists) {
+            const docId = doc.id;
+            if ((0, qrgCodes_1.isValidMasterCatalogDocId)(docId))
+                return docId;
+            if (docId.startsWith('pending_'))
+                return null;
+            break;
+        }
+    }
+    if (numericId !== null) {
+        const pyQ = await core_1.db.collection('master_catalog')
+            .where('printifyBlueprintId', '==', numericId).limit(1).get();
+        if (!pyQ.empty) {
+            const docId = pyQ.docs[0].id;
+            if ((0, qrgCodes_1.isValidMasterCatalogDocId)(docId))
+                return docId;
+            if (docId.startsWith('pending_'))
+                return null;
+        }
+        const pfQ = await core_1.db.collection('master_catalog')
+            .where('printfulProductId', '==', numericId).limit(1).get();
+        if (!pfQ.empty) {
+            const docId = pfQ.docs[0].id;
+            if ((0, qrgCodes_1.isValidMasterCatalogDocId)(docId))
+                return docId;
+            if (docId.startsWith('pending_'))
+                return null;
+        }
+    }
+    throw new CatalogBlankResolverError(`Cannot resolve "${id}" to a QRG master_catalog record. ` +
+        `Provider IDs (py_/pf_/pf:) are lookup references only — the blank must exist in master_catalog with a qrg_STNNN identity.`);
+}
 function register(app) {
     // ── Helper: seed blanks + metadata into the "Primary" catalog ────────────
     async function seedIntoPrimary(excludeCatalogId, blankIds, metaMaps) {
@@ -75,13 +179,25 @@ function register(app) {
                 updates.name = String(req.body.name).trim();
             if (req.body.description !== undefined)
                 updates.description = String(req.body.description).trim();
-            if (Array.isArray(req.body.blankIds))
-                updates.blankIds = req.body.blankIds.map(String);
+            if (Array.isArray(req.body.blankIds)) {
+                // Resolve all IDs to canonical qrg_STNNN before persisting
+                const resolvedIds = [];
+                for (const rawId of req.body.blankIds) {
+                    const canonical = await resolveCatalogBlankId(String(rawId));
+                    if (canonical !== null)
+                        resolvedIds.push(canonical);
+                }
+                updates.blankIds = resolvedIds;
+            }
             await core_1.db.collection('catalogs').doc(catalogId).update(updates);
             console.log(`[Catalogs] Updated catalog ${catalogId}`);
             res.json({ success: true, catalogId });
         }
         catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
             res.status(500).json({ error: error.message });
         }
     });
@@ -122,8 +238,20 @@ function register(app) {
                 return;
             }
             const catalog = doc.data();
+            // Resolve all inputs to canonical qrg_STNNN identities before persisting.
+            // Also build a rawId → canonicalId map so blankSnapshots keys are re-keyed correctly.
+            const resolvedIds = [];
+            const rawToCanonical = new Map();
+            for (const rawId of blankIds) {
+                const canonical = await resolveCatalogBlankId(String(rawId));
+                if (canonical !== null) {
+                    resolvedIds.push(canonical);
+                    rawToCanonical.set(String(rawId), canonical);
+                }
+                // null = pending migration ID → silently skip (not persisted)
+            }
             const existing = (catalog.blankIds || []).map(String);
-            const merged = [...new Set([...existing, ...blankIds.map(String)])];
+            const merged = [...new Set([...existing, ...resolvedIds])];
             const updates = { blankIds: merged, updatedAt: new Date().toISOString() };
             if (blankSnapshots && typeof blankSnapshots === 'object') {
                 const snapshotFieldMap = [
@@ -136,19 +264,27 @@ function register(app) {
                 ];
                 for (const { field, key } of snapshotFieldMap) {
                     const existingMap = { ...(catalog[field] || {}) };
-                    for (const [blankId, snap] of Object.entries(blankSnapshots)) {
-                        if (!(blankId in existingMap) && snap[key] != null)
-                            existingMap[blankId] = snap[key];
+                    for (const [rawBlankId, snap] of Object.entries(blankSnapshots)) {
+                        // Only write under the canonical key — skip entirely if not resolvable or pending
+                        const canonicalKey = rawToCanonical.get(String(rawBlankId));
+                        if (!canonicalKey)
+                            continue;
+                        if (!(canonicalKey in existingMap) && snap[key] != null)
+                            existingMap[canonicalKey] = snap[key];
                     }
                     updates[field] = existingMap;
                 }
             }
             await docRef.update(updates);
-            seedIntoPrimary(catalogId, blankIds.map(String), updates);
-            console.log(`[Catalogs] Added ${blankIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
+            seedIntoPrimary(catalogId, resolvedIds, updates);
+            console.log(`[Catalogs] Added ${resolvedIds.length} blanks to catalog ${catalogId}. Total: ${merged.length}`);
             res.json({ success: true, count: merged.length });
         }
         catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
             res.status(500).json({ error: error.message });
         }
     });
@@ -167,8 +303,18 @@ function register(app) {
                 return;
             }
             const catalog = doc.data();
+            // Build the set of keys to remove: always include the raw input key (handles
+            // legacy stored IDs), plus the resolved canonical key when resolvable.
+            // Unresolvable IDs (not found in master_catalog) return 400.
+            const removeSet = new Set();
+            for (const rawId of blankIds) {
+                const raw = String(rawId);
+                removeSet.add(raw);
+                const canonical = await resolveCatalogBlankId(raw);
+                if (canonical)
+                    removeSet.add(canonical);
+            }
             const existing = catalog.blankIds || [];
-            const removeSet = new Set(blankIds.map(String));
             const remaining = existing.filter(id => !removeSet.has(String(id)));
             const removedCount = existing.length - remaining.length;
             const blankTiers = { ...(catalog.blankTiers || {}) };
@@ -179,16 +325,16 @@ function register(app) {
             const blankProviders = { ...(catalog.blankProviders || {}) };
             const blankImages = { ...(catalog.blankImages || {}) };
             const blankPrimaryImages = { ...(catalog.blankPrimaryImages || {}) };
-            for (const id of blankIds) {
-                delete blankTiers[String(id)];
-                delete blankDescriptions[String(id)];
-                delete blankTitles[String(id)];
-                delete blankMakers[String(id)];
-                delete blankModels[String(id)];
-                delete blankProviders[String(id)];
-                delete blankImages[String(id)];
-                delete blankPrimaryImages[String(id)];
-            }
+            removeSet.forEach((key) => {
+                delete blankTiers[key];
+                delete blankDescriptions[key];
+                delete blankTitles[key];
+                delete blankMakers[key];
+                delete blankModels[key];
+                delete blankProviders[key];
+                delete blankImages[key];
+                delete blankPrimaryImages[key];
+            });
             await docRef.update({ blankIds: remaining, blankTiers, blankDescriptions, blankTitles, blankMakers, blankModels, blankProviders, blankImages, blankPrimaryImages, updatedAt: new Date().toISOString() });
             if (removedCount === 0) {
                 console.warn(`[Catalogs] WARNING: Delete for [${blankIds.join(', ')}] in catalog ${catalogId} matched nothing. Existing keys: [${existing.slice(0, 20).join(', ')}]`);
@@ -199,6 +345,10 @@ function register(app) {
             res.json({ success: true, removed: removedCount, total: remaining.length });
         }
         catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
             res.status(500).json({ error: error.message });
         }
     });
@@ -270,14 +420,21 @@ function register(app) {
             }
             const src = srcDoc.data();
             const target = targetDoc.data();
+            // Resolve all inputs to canonical qrg_STNNN identities before persisting
+            const resolvedIds = [];
+            for (const rawId of blankIds) {
+                const canonical = await resolveCatalogBlankId(String(rawId));
+                if (canonical !== null)
+                    resolvedIds.push(canonical);
+            }
             const existing = (target.blankIds || []).map(String);
-            const merged = [...new Set([...existing, ...blankIds.map(String)])];
+            const merged = [...new Set([...existing, ...resolvedIds])];
             const updates = { blankIds: merged, updatedAt: new Date().toISOString() };
             const metaFields = ['blankTiers', 'blankDescriptions', 'blankTitles', 'blankMakers', 'blankModels', 'blankProviders', 'blankImages', 'blankPrimaryImages'];
             for (const field of metaFields) {
                 const srcMap = src[field] || {};
                 const targetMap = { ...(target[field] || {}) };
-                for (const blankId of blankIds.map(String)) {
+                for (const blankId of resolvedIds) {
                     if (!(blankId in targetMap) && blankId in srcMap) {
                         targetMap[blankId] = srcMap[blankId];
                     }
@@ -285,12 +442,16 @@ function register(app) {
                 updates[field] = targetMap;
             }
             await targetRef.update(updates);
-            seedIntoPrimary(targetCatalogId, blankIds.map(String), updates);
+            seedIntoPrimary(targetCatalogId, resolvedIds, updates);
             const added = merged.length - existing.length;
-            console.log(`[Catalogs] Bulk copied ${blankIds.length} blanks from ${catalogId} to ${targetCatalogId}. ${added} new, ${merged.length} total`);
+            console.log(`[Catalogs] Bulk copied ${resolvedIds.length} blanks from ${catalogId} to ${targetCatalogId}. ${added} new, ${merged.length} total`);
             res.json({ success: true, added, total: merged.length });
         }
         catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
             res.status(500).json({ error: error.message });
         }
     });
@@ -336,12 +497,28 @@ function register(app) {
                 res.status(404).json({ error: 'Catalog not found' });
                 return;
             }
-            const blankImages = { ...(doc.data()?.blankImages || {}), [String(blankId)]: images.map(String) };
+            const canonicalId = await resolveCatalogBlankId(String(blankId));
+            if (canonicalId === null) {
+                res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
+                return;
+            }
+            const blankImages = { ...(doc.data()?.blankImages || {}) };
+            if (images.length > 0) {
+                blankImages[canonicalId] = images.map(String);
+            }
+            else {
+                // Empty array = restore master — remove override entry
+                delete blankImages[canonicalId];
+            }
             await docRef.update({ blankImages, updatedAt: new Date().toISOString() });
-            console.log(`[Catalogs] Updated images for blank ${blankId} in catalog ${catalogId}: ${images.length} images`);
-            res.json({ success: true, blankId, imageCount: images.length });
+            console.log(`[Catalogs] Updated images for blank ${canonicalId} in catalog ${catalogId}: ${images.length} images`);
+            res.json({ success: true, blankId: canonicalId, imageCount: images.length });
         }
         catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
             res.status(500).json({ error: error.message });
         }
     });

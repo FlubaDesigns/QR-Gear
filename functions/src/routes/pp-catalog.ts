@@ -43,10 +43,25 @@ app.post('/admin/store-product-links', requireAdmin, async (req: Request, res: R
       storeId, storeName, channel, collection, packetId, templateId, graphicsId,
       qrContent, productName, compositeUrl, qrOnlyUrl, pricing,
       enabledColors, enabledSizes, selectedGraphicSize, defaultColor,
-      qrProductState, landingPageUrl, mockupUrl
+      qrProductState, landingPageUrl, mockupUrl, assemblyId: bodyAssemblyId
     } = req.body;
     if (!storeId || !channel) { res.status(400).json({ error: "storeId and channel are required" }); return; }
     if (!packetId && !templateId && !graphicsId) { res.status(400).json({ error: "At least one of packetId, templateId, or graphicsId is required" }); return; }
+
+    // ── Assembly guard: packet must be linked to an assembly before store assignment ──
+    let resolvedAssemblyId: string | null = bodyAssemblyId || null;
+    if (packetId) {
+      const packetDoc = await db.collection('productPackets').doc(packetId).get();
+      if (!packetDoc.exists) { res.status(404).json({ error: `Packet ${packetId} not found` }); return; }
+      const packetData = packetDoc.data() as any;
+      resolvedAssemblyId = packetData.assemblyId || bodyAssemblyId || null;
+      if (!resolvedAssemblyId) {
+        res.status(400).json({ error: "Cannot assign to store — packet is missing an assembly. Complete the QRG → BLD → GRF chain in the Library first." });
+        return;
+      }
+    }
+    // ── end assembly guard ────────────────────────────────────────────────────────────
+
     const now = admin.firestore.FieldValue.serverTimestamp();
     const linkData: Record<string, any> = {
       storeId, storeName: storeName || "", channel, collection: collection || null,
@@ -56,7 +71,7 @@ app.post('/admin/store-product-links', requireAdmin, async (req: Request, res: R
       enabledColors: enabledColors || [], enabledSizes: enabledSizes || [],
       selectedGraphicSize: selectedGraphicSize || null, defaultColor: defaultColor || null,
       qrProductState: qrProductState || null, landingPageUrl: landingPageUrl || null,
-      mockupUrl: mockupUrl || null, createdAt: now, updatedAt: now,
+      mockupUrl: mockupUrl || null, assemblyId: resolvedAssemblyId, createdAt: now, updatedAt: now,
     };
     const linkRef = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).add(linkData);
     console.log(`[Store Links] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);

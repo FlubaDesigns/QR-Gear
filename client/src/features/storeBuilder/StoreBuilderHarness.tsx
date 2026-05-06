@@ -166,6 +166,7 @@ export function StoreBuilderHarness() {
               destinationStoreName: packet.storeName || null,
               destinationChannelId: packet.channelId || null,
               destinationChannelName: packet.channelName || null,
+              assemblyId: packet.assemblyId || null,
             };
             setProductPackage(loadedPackage);
             
@@ -321,6 +322,10 @@ export function StoreBuilderHarness() {
 
   const handleAssign = async () => {
     if (!productPackage || !selectedStore || !selectedChannel) return;
+    if (!productPackage.assemblyId) {
+      setSaveStatus({ type: "error", message: "Packet is missing an assembly — complete the QRG → BLD → GRF chain in the Library before assigning to a store." });
+      return;
+    }
     setIsSaving(true);
     setSaveStatus(null);
     try {

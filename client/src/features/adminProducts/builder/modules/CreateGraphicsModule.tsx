@@ -37,6 +37,7 @@ export interface PacketResult {
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
   compositeUrl?: string | null;
+  assemblyId?: string | null;
   printifyProductId?: string | null;
   printifyPublishedAt?: string | Date | null;
   printifyVariantMap?: Record<string, number> | null;
@@ -186,6 +187,7 @@ export function CreateGraphicsModule() {
           priorityMockupUrl: strOrNull(p.priorityMockupUrl),
           priorityMockupLoading: false,
           compositeUrl: strOrNull(p.compositeUrl),
+          assemblyId: strOrNull(p.assemblyId),
           printifyProductId: strOrNull(p.printifyProductId),
           printifyPublishedAt: strOrNull(p.printifyPublishedAt),
           printifyVariantMap: (p.printifyVariantMap as Record<string, number> | null | undefined) ?? null,

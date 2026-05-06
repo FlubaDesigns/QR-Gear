@@ -30,7 +30,7 @@ function register(app) {
     });
     app.post('/admin/store-product-links', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { storeId, storeName, channel, collection, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing, enabledColors, enabledSizes, selectedGraphicSize, defaultColor, qrProductState, landingPageUrl, mockupUrl } = req.body;
+            const { storeId, storeName, channel, collection, packetId, templateId, graphicsId, qrContent, productName, compositeUrl, qrOnlyUrl, pricing, enabledColors, enabledSizes, selectedGraphicSize, defaultColor, qrProductState, landingPageUrl, mockupUrl, assemblyId: bodyAssemblyId } = req.body;
             if (!storeId || !channel) {
                 res.status(400).json({ error: "storeId and channel are required" });
                 return;
@@ -39,6 +39,22 @@ function register(app) {
                 res.status(400).json({ error: "At least one of packetId, templateId, or graphicsId is required" });
                 return;
             }
+            // ── Assembly guard: packet must be linked to an assembly before store assignment ──
+            let resolvedAssemblyId = bodyAssemblyId || null;
+            if (packetId) {
+                const packetDoc = await core_1.db.collection('productPackets').doc(packetId).get();
+                if (!packetDoc.exists) {
+                    res.status(404).json({ error: `Packet ${packetId} not found` });
+                    return;
+                }
+                const packetData = packetDoc.data();
+                resolvedAssemblyId = packetData.assemblyId || bodyAssemblyId || null;
+                if (!resolvedAssemblyId) {
+                    res.status(400).json({ error: "Cannot assign to store — packet is missing an assembly. Complete the QRG → BLD → GRF chain in the Library first." });
+                    return;
+                }
+            }
+            // ── end assembly guard ────────────────────────────────────────────────────────────
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
             const linkData = {
                 storeId, storeName: storeName || "", channel, collection: collection || null,
@@ -48,7 +64,7 @@ function register(app) {
                 enabledColors: enabledColors || [], enabledSizes: enabledSizes || [],
                 selectedGraphicSize: selectedGraphicSize || null, defaultColor: defaultColor || null,
                 qrProductState: qrProductState || null, landingPageUrl: landingPageUrl || null,
-                mockupUrl: mockupUrl || null, createdAt: now, updatedAt: now,
+                mockupUrl: mockupUrl || null, assemblyId: resolvedAssemblyId, createdAt: now, updatedAt: now,
             };
             const linkRef = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).add(linkData);
             console.log(`[Store Links] Created link: ${linkRef.id} for store ${storeId} / channel ${channel}`);

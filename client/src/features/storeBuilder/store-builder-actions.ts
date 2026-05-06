@@ -67,6 +67,10 @@ export async function executeAssign(params: {
     return { success: false, message: "Package missing IDs. Please use 'Create Graphics' in Products Builder first." };
   }
 
+  if (!productPackage.assemblyId) {
+    return { success: false, message: "Packet is missing an assembly — complete the QRG → BLD → GRF chain in the Library before assigning to a store." };
+  }
+
   let currentPacketId = productPackage.packetId;
   let templateId = productPackage.templateId;
   let wasForked = false;
@@ -97,6 +101,7 @@ export async function executeAssign(params: {
         colors: productPackage.colors,
         basePrice: productPackage.basePrice,
         customerPrice: productPackage.customerPrice,
+        assemblyId: productPackage.assemblyId,
         forkedFrom: originalPacketId,
       },
     });
@@ -148,6 +153,7 @@ export async function executeAssign(params: {
       defaultColor: configuration.defaultColor,
       qrProductState: productPackage.qrProductState || null,
       mockupUrl: productPackage.priorityMockupUrl || null,
+      assemblyId: productPackage.assemblyId || null,
     },
   });
 

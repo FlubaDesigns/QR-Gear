@@ -938,6 +938,10 @@ function registerAdminBuildSessions(app) {
                 res.status(400).json({ error: 'Packet is missing compositeUrl — regenerate composite first' });
                 return;
             }
+            if (!packet.assemblyId) {
+                res.status(400).json({ error: 'Packet is missing assemblyId — complete the QRG → BLD → GRF chain in the Library before publishing to Printify' });
+                return;
+            }
             const blueprintId = parseInt(packet.blueprintId, 10);
             const printProviderId = overrideProviderId || packet.printProviderId || 99;
             // ── 1. Resolve enabled colors + sizes ──────────────────────────────────

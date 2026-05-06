@@ -19,6 +19,7 @@ interface PacketResult {
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
   compositeUrl?: string | null;
+  assemblyId?: string | null;
   printifyProductId?: string | null;
   printifyPublishedAt?: string | Date | null;
   printifyVariantMap?: Record<string, number> | null;
@@ -76,6 +77,7 @@ function PrintifySection({
 
   const isPublished = !!packetResult.printifyProductId;
   const hasComposite = !!packetResult.compositeUrl;
+  const hasAssembly = !!packetResult.assemblyId;
 
   const publishedColors: string[] = (() => {
     if (!packetResult.printifyVariantMap) return packetResult.enabledColors || [];
@@ -200,6 +202,13 @@ function PrintifySection({
           </p>
         )}
 
+        {!hasAssembly && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1" data-testid="text-printify-no-assembly">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+            No assembly linked — complete the QRG → BLD → GRF chain in the Library before publishing.
+          </p>
+        )}
+
         <div className="space-y-2">
           {availableColors.length > 0 && (
             <div className="flex items-center gap-2">
@@ -248,7 +257,7 @@ function PrintifySection({
             size="sm"
             className="w-full"
             onClick={handlePublish}
-            disabled={isPublishing || !hasComposite}
+            disabled={isPublishing || !hasComposite || !hasAssembly}
             data-testid={isPublished ? "button-republish-printify" : "button-publish-printify"}
           >
             {isPublishing ? (
