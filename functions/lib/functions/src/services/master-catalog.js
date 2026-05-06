@@ -12,6 +12,7 @@ const instance_resolver_1 = require("./instance-resolver");
 const printify_1 = require("./printify");
 const printful_1 = require("./printful");
 const qrgVariantMappings_1 = require("../../../shared/qrgVariantMappings");
+const qrgCodes_1 = require("../../../shared/qrgCodes");
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw) {
     if (!raw)
@@ -352,6 +353,10 @@ async function commitBatch(writes) {
         const chunk = writes.slice(i, i + CHUNK);
         const batch = core_1.db.batch();
         for (const w of chunk) {
+            if (!(0, qrgCodes_1.isValidMasterCatalogDocId)(w.ref.id)) {
+                console.warn(`[MasterCatalog] SKIPPED non-QRG doc ID "${w.ref.id}" — only qrg_STNNN format is allowed in master_catalog`);
+                continue;
+            }
             if (w.merge) {
                 batch.set(w.ref, w.data, { merge: true });
             }

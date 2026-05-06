@@ -88,7 +88,7 @@ export function SyncModule({ selectedProviders: _selectedProviders }: SyncModule
         { label: "Printful products", status: "idle" },
         { label: "Master catalog build", status: "idle" },
       ]);
-      const res = await apiRequest("POST", "/api/admin/master-catalog/rebuild-full", {});
+      const res = await apiRequest("POST", "/api/admin/master-catalog/sync", { cleanSweep: false });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || `HTTP ${res.status}`);

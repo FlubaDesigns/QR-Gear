@@ -327,6 +327,14 @@ export function ProductsModule() {
     return { catalogModeProducts: products, catalogKeyMap: keyMap };
   }, [activeCatalog, masterCatalogFull]);
 
+  useEffect(() => {
+    if (dataMode !== "catalog" || catalogModeProducts.length === 0) return;
+    const categoryKeys = Array.from(
+      new Set(catalogModeProducts.map((p: any) => p.qrgCategory || "Other"))
+    );
+    setOpenShelfIds(new Set(categoryKeys.map(key => `qrg-shelf-${key}`)));
+  }, [dataMode, selectedCatalogId, catalogModeProducts]);
+
   const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
     queryKey: ["joint-catalog-products"],
     queryFn: async () => {
@@ -862,7 +870,7 @@ export function ProductsModule() {
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, handleImagesBulkSave]
   );
 
   return (

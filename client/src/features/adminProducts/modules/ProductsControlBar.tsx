@@ -39,11 +39,8 @@ export function ProductsControlBar() {
   }, []);
 
   const rebuildMasterProducts = useCallback(async () => {
-    try {
-      await adminFetch("/sync-master-products", { method: "POST" });
-    } catch (e) {
-      console.error("[rebuildMasterProducts] Failed:", e);
-    }
+    // no-op: legacy dev-server sync-master-products route removed;
+    // master_catalog is now rebuilt via Cloud Functions syncMasterCatalog.
   }, []);
 
   const pollSyncStatus = useCallback(

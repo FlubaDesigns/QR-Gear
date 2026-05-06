@@ -4,6 +4,7 @@ import { mergeImagesByUrl, ImageRecord } from './instance-resolver';
 import { printifyClient } from './printify';
 import { printfulClient, getPrintfulApiKeyAsync } from './printful';
 import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
+import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw: string | null | undefined): string | null {
@@ -356,6 +357,10 @@ async function commitBatch(writes: Array<{ ref: FirebaseFirestore.DocumentRefere
     const chunk = writes.slice(i, i + CHUNK);
     const batch = db.batch();
     for (const w of chunk) {
+      if (!isValidMasterCatalogDocId(w.ref.id)) {
+        console.warn(`[MasterCatalog] SKIPPED non-QRG doc ID "${w.ref.id}" — only qrg_STNNN format is allowed in master_catalog`);
+        continue;
+      }
       if (w.merge) {
         batch.set(w.ref, w.data, { merge: true });
       } else {
