@@ -396,6 +396,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
   const cachedAuthHeadersRef = useRef<Record<string, string> | null>(null);
   const flushSaveRef = useRef<(() => void) | null>(null);
+  // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
+  const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || 'printify');
 
   useEffect(() => {
     const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
@@ -406,6 +408,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return prev;
     });
   }, [selectedProviders]);
+
+  // Keep ref in sync so async fetch closures always read the current provider
+  useEffect(() => {
+    fulfillmentProviderRef.current = state.fulfillmentProvider || 'printify';
+  }, [state.fulfillmentProvider]);
 
   useEffect(() => {
     if (!state.activeSessionId) {
@@ -634,7 +641,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return;
     }
 
-    adminFetch<any>(`/master-catalog/products/${docId}/options`)
+    const provider = fulfillmentProviderRef.current;
+    adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}`)
       .then(options => {
         setState(prev => {
           if (prev.selectedProduct?.docId !== docId) return prev;
@@ -669,6 +677,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         });
       });
   }, []);
+
+  // Re-fetch placements when the fulfillment provider changes while a product is selected.
+  // The ref sync effect runs first (defined earlier), so fulfillmentProviderRef.current is
+  // already updated by the time fetchOptionsForProduct reads it.
+  useEffect(() => {
+    const product = state.selectedProduct;
+    if (!product?.docId || !product.optionsLoaded) return;
+    setState(prev => ({ ...prev, placementsLoading: true, placementsError: null }));
+    fetchOptionsForProduct(product);
+  }, [state.fulfillmentProvider]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
     if (!product) {

@@ -515,6 +515,9 @@ function register(app) {
     // Given a qrg_STNNN doc ID, returns sizes, colors, print locations and variant
     // mappings without requiring callers to know provider IDs.
     //
+    // Query params:
+    //   ?provider=printify|printful  — which provider to filter placements for (default: printify)
+    //
     // Validation codes:
     //   400  INVALID_QRG_DOC_ID
     //   404  MASTER_PRODUCT_NOT_FOUND
@@ -523,6 +526,7 @@ function register(app) {
     app.get('/admin/master-catalog/products/:docId/options', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { docId } = req.params;
+            const requestedProvider = (typeof req.query.provider === 'string' ? req.query.provider : 'printify').toLowerCase();
             // 1. Validate docId format: qrg_[STNNN]
             if (!/^qrg_[1-6][1-9][0-9]{3}$/.test(docId)) {
                 res.status(400).json({ error: 'INVALID_QRG_DOC_ID' });
@@ -536,6 +540,8 @@ function register(app) {
             }
             const product = doc.data();
             const qrgBlankId = product.qrgBlankId || docId.slice(4);
+            // Read cached Printify positions early — used for provider guard and placement crosswalk
+            const cachedPositions = Array.isArray(product.printPositions) ? product.printPositions : [];
             // 3. Resolve Printify provider IDs
             // Canonical source: providerMappings.printify — fall back to legacy flat fields
             const pm = product.providerMappings;
@@ -549,17 +555,19 @@ function register(app) {
                 product.printifyPrintProviderId ||
                 product.printProviderId ||
                 null;
-            if (!rawBlueprintId) {
+            // blueprintId is required for the Printify live API fallback only.
+            // For Printful, or for Printify when printPositions are already cached, proceed without it.
+            if (!rawBlueprintId && requestedProvider === 'printify' && cachedPositions.length === 0) {
                 res.status(409).json({
                     error: 'PRINTIFY_MAPPING_MISSING',
-                    message: 'This master product does not have blueprintId and printProviderId mapping.',
+                    message: 'This master product does not have blueprintId. Sync the catalog to populate print positions.',
                 });
                 return;
             }
-            const blueprintId = parseInt(rawBlueprintId, 10);
+            const blueprintId = rawBlueprintId ? parseInt(rawBlueprintId, 10) : null;
             let printProviderId = rawPrintProviderId ? parseInt(rawPrintProviderId, 10) : null;
-            // 4. Resolve printProviderId if missing — check DB then live API
-            if (!printProviderId) {
+            // 4. Resolve printProviderId if missing — check DB then live API (Printify only)
+            if (blueprintId !== null && !printProviderId) {
                 try {
                     const provSnap = await core_1.db.collection('printify_providers').get();
                     const matching = provSnap.docs
@@ -576,7 +584,7 @@ function register(app) {
                 }
                 catch (_) { /* continue — live API fallback below */ }
             }
-            if (!printProviderId && printify_1.printifyClient.isConfigured) {
+            if (blueprintId !== null && !printProviderId && printify_1.printifyClient.isConfigured) {
                 try {
                     const liveProviders = await printify_1.printifyClient.getPrintProviders(blueprintId);
                     if (liveProviders && liveProviders.length > 0) {
@@ -598,7 +606,6 @@ function register(app) {
                 const cc = vc.slice(2, 4);
                 sizeCodesInVariants.add(sc);
                 colorCodesInVariants.add(cc);
-                // Collect provider size/color labels for providerValues
                 if (v.sizeLabel) {
                     if (!sizeProviderValues[sc])
                         sizeProviderValues[sc] = new Set();
@@ -610,7 +617,6 @@ function register(app) {
                     colorProviderValues[cc].add(v.colorLabel);
                 }
             }
-            // Fall back to flat availableSizes/Colors code arrays if variants are empty
             const sizeCodes = sizeCodesInVariants.size > 0
                 ? Array.from(sizeCodesInVariants).sort()
                 : (Array.isArray(product.availableSizes) ? product.availableSizes : []);
@@ -627,22 +633,83 @@ function register(app) {
                 label: qrgVariantMappings_1.COLOR_LABELS[code] ?? code,
                 providerValues: colorProviderValues[code] ? Array.from(colorProviderValues[code]) : [],
             }));
-            // 6. Resolve print locations
-            // First try cached printPositions on the master doc — no live API call needed
+            // 6. Resolve print locations — filter by selected provider via print_placements crosswalk
+            // Rule: showPlacement = print_placements[internalName].providers[requestedProvider] exists
             let printLocations = [];
-            const cachedPositions = Array.isArray(product.printPositions) ? product.printPositions : [];
-            if (cachedPositions.length > 0) {
-                printLocations = cachedPositions
-                    .filter((p) => !(0, core_1.isEmbroideryPlacement)(p))
-                    .map((pos) => ({
-                    id: pos,
-                    label: pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-                    provider: 'printify',
-                    providerPlacement: pos,
-                }));
+            try {
+                const placementsSnap = await core_1.db.collection('print_placements').get();
+                const placementMap = new Map();
+                for (const d of placementsSnap.docs) {
+                    placementMap.set(d.id, d.data());
+                }
+                if (cachedPositions.length > 0) {
+                    // Filter the blank's cached positions through the crosswalk for the requested provider
+                    for (const pos of cachedPositions) {
+                        if ((0, core_1.isEmbroideryPlacement)(pos))
+                            continue;
+                        const pp = placementMap.get(pos);
+                        if (!pp) {
+                            console.warn(`[MasterCatalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
+                            continue;
+                        }
+                        const providerEntry = pp.providers?.[requestedProvider];
+                        if (!providerEntry)
+                            continue; // this provider has no mapping for this placement — hide it
+                        printLocations.push({
+                            id: pos,
+                            label: pp.displayName || pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                            provider: requestedProvider,
+                            providerPlacement: providerEntry.defaultDtgName || pos,
+                            dimensions: pp.dimensions || null,
+                        });
+                    }
+                    printLocations.sort((a, b) => {
+                        const aOrd = placementMap.get(a.id)?.sortOrder ?? 99;
+                        const bOrd = placementMap.get(b.id)?.sortOrder ?? 99;
+                        return aOrd - bOrd;
+                    });
+                }
+                else {
+                    // No cached positions — return all active placements that have the requested provider mapping
+                    const all = [];
+                    for (const [internalName, pp] of placementMap.entries()) {
+                        if (!pp.isActive)
+                            continue;
+                        if ((0, core_1.isEmbroideryPlacement)(internalName))
+                            continue;
+                        const providerEntry = pp.providers?.[requestedProvider];
+                        if (!providerEntry)
+                            continue;
+                        all.push({
+                            id: internalName,
+                            label: pp.displayName || internalName.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                            provider: requestedProvider,
+                            providerPlacement: providerEntry.defaultDtgName || internalName,
+                            dimensions: pp.dimensions || null,
+                            sortOrder: pp.sortOrder ?? 99,
+                        });
+                    }
+                    all.sort((a, b) => a.sortOrder - b.sortOrder);
+                    printLocations = all;
+                }
+                console.log(`[MasterCatalog/options] ${docId} provider=${requestedProvider} → ${printLocations.length} placements`);
             }
-            else if (printProviderId && printify_1.printifyClient.isConfigured) {
-                // Live API fallback — same logic as /admin/catalog/placements
+            catch (crosswalkErr) {
+                console.error(`[MasterCatalog/options] print_placements load failed for ${docId}:`, crosswalkErr.message);
+                // Fall back to unfiltered cached positions so the builder is not broken
+                if (cachedPositions.length > 0) {
+                    printLocations = cachedPositions
+                        .filter((p) => !(0, core_1.isEmbroideryPlacement)(p))
+                        .map((pos) => ({
+                        id: pos,
+                        label: pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                        provider: requestedProvider,
+                        providerPlacement: pos,
+                    }));
+                }
+            }
+            // Printify live API fallback — only if crosswalk returned nothing and we have Printify IDs
+            if (printLocations.length === 0 && requestedProvider === 'printify' && blueprintId !== null && printProviderId && printify_1.printifyClient.isConfigured) {
                 try {
                     const variantData = await printify_1.printifyClient.getVariants(blueprintId, printProviderId);
                     const placementSet = new Set();
@@ -667,14 +734,13 @@ function register(app) {
                     }));
                 }
                 catch (err) {
-                    console.error(`[MasterCatalog/options] Placements fetch failed for blueprint ${blueprintId}:`, err.message);
+                    console.error(`[MasterCatalog/options] Printify live fallback failed for blueprint ${blueprintId}:`, err.message);
                     res.status(502).json({ error: 'PRINTIFY_PLACEMENTS_FAILED' });
                     return;
                 }
             }
-            else {
-                // No cached positions and no provider ID — return front as safe default
-                printLocations = [{ id: 'front', label: 'Front', provider: 'printify', providerPlacement: 'front' }];
+            if (printLocations.length === 0) {
+                printLocations = [{ id: 'front', label: 'Front', provider: requestedProvider, providerPlacement: 'front' }];
             }
             // 7. Build response — product identity uses QRG doc ID, provider IDs are metadata only
             res.json({
@@ -688,8 +754,8 @@ function register(app) {
                 availableColors,
                 printLocations,
                 provider: {
-                    name: 'printify',
-                    blueprintId: String(blueprintId),
+                    name: requestedProvider,
+                    blueprintId: blueprintId !== null ? String(blueprintId) : null,
                     printProviderId: printProviderId ? String(printProviderId) : null,
                 },
                 qrgVariants,

@@ -711,4 +711,135 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ── GET /api/admin/master-catalog/products/:docId/options ─────────────────────
+  // Dev-server equivalent of the Cloud Functions options endpoint.
+  // Filters print locations through the print_placements crosswalk for the
+  // selected provider — only placements with a providers[requestedProvider] entry
+  // are returned.
+  app.get("/api/admin/master-catalog/products/:docId/options", isAdmin, async (req: any, res) => {
+    try {
+      const { docId } = req.params;
+      const requestedProvider = (typeof req.query.provider === 'string' ? req.query.provider : 'printify').toLowerCase();
+
+      if (!/^qrg_[1-6][1-9][0-9]{3}$/.test(docId)) {
+        return res.status(400).json({ error: 'INVALID_QRG_DOC_ID' });
+      }
+
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      const fsDb = getFirestoreDb();
+      if (!fsDb) {
+        return res.status(503).json({ error: 'Firestore not available' });
+      }
+
+      const doc = await fsDb.collection('master_catalog').doc(docId).get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: 'MASTER_PRODUCT_NOT_FOUND' });
+      }
+      const product = doc.data() as any;
+      const qrgBlankId: string = product.qrgBlankId || docId.slice(4);
+      const cachedPositions: string[] = Array.isArray(product.printPositions) ? product.printPositions : [];
+
+      // Load print_placements crosswalk
+      const placementsSnap = await fsDb.collection('print_placements').get();
+      const placementMap = new Map<string, any>();
+      for (const d of placementsSnap.docs) {
+        placementMap.set(d.id, d.data());
+      }
+
+      let printLocations: Array<{ id: string; label: string; provider: string; providerPlacement: string; dimensions?: any }> = [];
+
+      if (cachedPositions.length > 0) {
+        for (const pos of cachedPositions) {
+          if (isEmbroideryPlacement(pos)) continue;
+          const pp = placementMap.get(pos);
+          if (!pp) {
+            console.warn(`[master-catalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
+            continue;
+          }
+          const providerEntry = pp.providers?.[requestedProvider];
+          if (!providerEntry) continue;
+          printLocations.push({
+            id: pos,
+            label: pp.displayName || pos.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            provider: requestedProvider,
+            providerPlacement: providerEntry.defaultDtgName || pos,
+            dimensions: pp.dimensions || null,
+          });
+        }
+        printLocations.sort((a, b) => {
+          const aOrd = placementMap.get(a.id)?.sortOrder ?? 99;
+          const bOrd = placementMap.get(b.id)?.sortOrder ?? 99;
+          return aOrd - bOrd;
+        });
+      } else {
+        const all: Array<{ id: string; label: string; provider: string; providerPlacement: string; dimensions?: any; sortOrder: number }> = [];
+        for (const entry of Array.from(placementMap.entries())) {
+          const internalName = entry[0];
+          const pp = entry[1];
+          if (!pp.isActive) continue;
+          if (isEmbroideryPlacement(internalName)) continue;
+          const providerEntry = pp.providers?.[requestedProvider];
+          if (!providerEntry) continue;
+          all.push({
+            id: internalName,
+            label: pp.displayName || internalName.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            provider: requestedProvider,
+            providerPlacement: providerEntry.defaultDtgName || internalName,
+            dimensions: pp.dimensions || null,
+            sortOrder: pp.sortOrder ?? 99,
+          });
+        }
+        all.sort((a, b) => a.sortOrder - b.sortOrder);
+        printLocations = all;
+      }
+
+      if (printLocations.length === 0) {
+        printLocations = [{ id: 'front', label: 'Front', provider: requestedProvider, providerPlacement: 'front' }];
+      }
+
+      console.log(`[master-catalog/options] ${docId} provider=${requestedProvider} → ${printLocations.length} placements`);
+
+      // Build sizes and colors from qrgVariants
+      const qrgVariants: Record<string, any> = product.qrgVariants || {};
+      const sizeCodesInVariants = new Set<string>();
+      const colorCodesInVariants = new Set<string>();
+
+      for (const vc of Object.keys(qrgVariants)) {
+        sizeCodesInVariants.add(vc.slice(0, 2));
+        colorCodesInVariants.add(vc.slice(2, 4));
+      }
+
+      const sizeCodes = sizeCodesInVariants.size > 0
+        ? Array.from(sizeCodesInVariants).sort()
+        : (Array.isArray(product.availableSizes) ? product.availableSizes : []);
+      const colorCodes = colorCodesInVariants.size > 0
+        ? Array.from(colorCodesInVariants).sort()
+        : (Array.isArray(product.availableColors) ? product.availableColors : []);
+
+      const availableSizes = sizeCodes.map((code: string) => ({ code, label: code, providerValues: [] }));
+      const availableColors = colorCodes.map((code: string) => ({ code, label: code, providerValues: [] }));
+
+      return res.json({
+        docId,
+        qrgBlankId,
+        title: product.canonicalTitle || product.title || null,
+        brand: product.brand || null,
+        model: product.model || null,
+        category: product.qrgCategory || product.category || null,
+        availableSizes,
+        availableColors,
+        printLocations,
+        provider: {
+          name: requestedProvider,
+          blueprintId: product.blueprintId ? String(product.blueprintId) : null,
+          printProviderId: null,
+        },
+        qrgVariants,
+      });
+    } catch (e: any) {
+      console.error('[master-catalog/options]', e.message);
+      return res.status(500).json({ error: e.message });
+    }
+  });
 }
