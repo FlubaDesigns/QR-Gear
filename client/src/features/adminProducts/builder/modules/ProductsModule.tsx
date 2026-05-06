@@ -29,7 +29,7 @@ import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getLookupBlankKey } from "@shared/blankKeys";
-import { getSwatchColor } from "@/lib/admin-utils";
+import { getColorHexByName } from "@shared/colorUtils";
 import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
@@ -118,16 +118,40 @@ function catalogToSelectItem(
     description: effectiveDescription,
     providerDescription,
     adminCatalogDescription: normalizedAdminDesc,
-    colorsAvailable: (p.availableColors || raw.colors || []).map((c: any) => {
-      const name = typeof c === 'string' ? c : (c.name || String(c));
-      const hex = (typeof c === 'object' && c.hex) ? c.hex : getSwatchColor(name);
-      return { name, hex };
-    }),
-    sizesAvailable: p.availableSizes || raw.sizes || [],
+    colorsAvailable: (() => {
+      // Prefer normalized colorMap from CF (canonical QRG schema)
+      const colorMap = raw.colorMap || p.colorMap;
+      if (Array.isArray(colorMap) && colorMap.length > 0) {
+        return colorMap.map((c: any) => ({
+          name: c.colorName || c.name || '',
+          hex: c.hex || getColorHexByName(c.colorName || c.name || '') || '#CCCCCC',
+        }));
+      }
+      // Fall back to availableColors with proper name/hex resolution
+      return (p.availableColors || raw.colors || []).map((c: any) => {
+        const name = typeof c === 'string' ? c : (c.name || c.colorName || c.label || '');
+        const hex = (typeof c === 'object' && c.hex) ? c.hex : (getColorHexByName(name) || '#CCCCCC');
+        return { name, hex };
+      });
+    })(),
+    sizesAvailable: (() => {
+      // Prefer normalized sizeMap from CF (canonical QRG schema)
+      const sizeMap = raw.sizeMap || p.sizeMap;
+      if (Array.isArray(sizeMap) && sizeMap.length > 0) {
+        return sizeMap.map((s: any) => s.sizeLabel || s.label || s.qrgSizeCode || s);
+      }
+      return (p.availableSizes || raw.sizes || []).map((s: any) =>
+        typeof s === 'string' ? s : (s.sizeLabel || s.label || '')
+      );
+    })(),
     defaultColor: (() => {
+      const colorMap = raw.colorMap || p.colorMap;
+      if (Array.isArray(colorMap) && colorMap.length > 0) {
+        return colorMap[0].colorName || colorMap[0].name || null;
+      }
       const first = (p.availableColors || raw.colors || [])[0];
       if (!first) return null;
-      return typeof first === 'string' ? first : (first.name || null);
+      return typeof first === 'string' ? first : (first.name || first.colorName || null);
     })(),
   };
 }

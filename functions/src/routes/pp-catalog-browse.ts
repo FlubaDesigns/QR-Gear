@@ -16,6 +16,54 @@ import { printfulClient } from '../services/printful';
 
 
 
+import { resolveColorHex } from '../../../shared/colorUtils';
+import { COLOR_LABELS, SIZE_LABELS } from '../../../shared/qrgVariantMappings';
+
+/**
+ * Build normalized colorMap and sizeMap from a Firestore master_catalog doc.
+ * Reads qrgVariants as the canonical source (colorLabel, sizeLabel, colorCode, sizeCode).
+ * Falls back to legacy availableColors/availableSizes only if qrgVariants is absent.
+ */
+function buildColorSizeFromDoc(p: any): {
+  colorMap: Array<{ qrgColorCode: string; colorName: string; hex: string; available: boolean }>;
+  sizeMap: Array<{ qrgSizeCode: string; sizeLabel: string; available: boolean }>;
+} {
+  const qrgVariants: Record<string, any> = p.qrgVariants || {};
+  const colorCodesSeen = new Map<string, { label: string; providerLabels: Set<string> }>();
+  const sizeCodesSeen = new Map<string, { label: string; providerLabels: Set<string> }>();
+
+  for (const [vc, variant] of Object.entries(qrgVariants)) {
+    if (typeof vc !== 'string' || vc.length < 4) continue;
+    const v = variant as any;
+    const sc = vc.slice(0, 2);
+    const cc = vc.slice(2, 4);
+    if (cc) {
+      if (!colorCodesSeen.has(cc)) {
+        colorCodesSeen.set(cc, { label: v.colorLabel || COLOR_LABELS[cc] || cc, providerLabels: new Set() });
+      }
+      if (v.colorLabel) colorCodesSeen.get(cc)!.providerLabels.add(v.colorLabel);
+    }
+    if (sc) {
+      if (!sizeCodesSeen.has(sc)) {
+        sizeCodesSeen.set(sc, { label: v.sizeLabel || SIZE_LABELS[sc] || sc, providerLabels: new Set() });
+      }
+      if (v.sizeLabel) sizeCodesSeen.get(sc)!.providerLabels.add(v.sizeLabel);
+    }
+  }
+
+  const colorMap = Array.from(colorCodesSeen.entries()).map(([code, info]) => {
+    const colorName = info.providerLabels.size > 0 ? Array.from(info.providerLabels)[0] : info.label;
+    return { qrgColorCode: code, colorName, hex: resolveColorHex(colorName), available: true };
+  });
+
+  const sizeMap = Array.from(sizeCodesSeen.entries()).map(([code, info]) => {
+    const sizeLabel = info.providerLabels.size > 0 ? Array.from(info.providerLabels)[0] : info.label;
+    return { qrgSizeCode: code, sizeLabel, available: true };
+  });
+
+  return { colorMap, sizeMap };
+}
+
 export function registerPpCatalogBrowseRoutes(app: express.Express): void {
 app.get('/public/catalog/placements', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -467,8 +515,7 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       // fulfillmentProvider for backward compat with existing frontend code
       const fulfillmentProvider = availableVia.length > 1 ? 'both' : (availableVia[0] || 'printify');
 
-      const colors = p.colors ?? p.availableColors ?? [];
-      const sizes = p.sizes ?? p.availableSizes ?? [];
+      const { colorMap, sizeMap } = buildColorSizeFromDoc(p);
       const allImages: string[] = Array.from(new Set([
         ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
         ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
@@ -511,9 +558,11 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
         printProviderId: pyMapping?.printProviderId ?? p.printProviderId ?? null,
         minPrice: p.minPrice ?? null,
         maxPrice: p.maxPrice ?? null,
-        colorCount: colors.length,
-        availableColors: colors,
-        availableSizes: sizes,
+        colorMap,
+        sizeMap,
+        colorCount: colorMap.length,
+        availableColors: colorMap.map(c => ({ name: c.colorName, hex: c.hex })),
+        availableSizes: sizeMap.map(s => s.sizeLabel),
         fulfillmentProvider,
         availableVia,
         providers: availableVia,
@@ -620,8 +669,7 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
 
       const category = (p.category && p.category !== 'Other') ? p.category : classifyCategory(p.title || '');
       if (!categories[category]) categories[category] = [];
-      const colors = p.colors ?? p.availableColors ?? [];
-      const sizes = p.sizes ?? p.availableSizes ?? [];
+      const { colorMap: jColorMap, sizeMap: jSizeMap } = buildColorSizeFromDoc(p);
       const allImages: string[] = Array.from(new Set([
         ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
         ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
@@ -646,9 +694,11 @@ app.get('/master-catalog/joint', async (_req: Request, res: Response): Promise<v
         printProviderId: p.printProviderId ?? null,
         minPrice: p.minPrice ?? null,
         maxPrice: p.maxPrice ?? null,
-        colorCount: colors.length,
-        availableColors: colors,
-        availableSizes: sizes,
+        colorMap: jColorMap,
+        sizeMap: jSizeMap,
+        colorCount: jColorMap.length,
+        availableColors: jColorMap.map(c => ({ name: c.colorName, hex: c.hex })),
+        availableSizes: jSizeMap.map(s => s.sizeLabel),
         fulfillmentProvider,
         availableVia: p.availableVia ?? [fulfillmentProvider],
         printfulId,
