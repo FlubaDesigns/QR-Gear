@@ -316,6 +316,62 @@ app.get('/admin/build-shelf', requireAdmin, async (req: Request, res: Response):
     if (catalogId) {
       const snapshot = await db.collection("admin_build_shelf").where("catalogId", "==", catalogId).orderBy("createdAt", "desc").get();
       items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Synthesize shelf items for any blankIds in the catalog that have no
+      // corresponding admin_build_shelf entry. This bridges the gap when blanks
+      // are added via BlankPickerModal (which only writes catalogs.blankIds) vs
+      // the old shelf flow (which writes admin_build_shelf rows).
+      try {
+        const catalogDoc = await db.collection("catalogs").doc(String(catalogId)).get();
+        if (catalogDoc.exists) {
+          const catalogData = catalogDoc.data() as any;
+          const blankIds: string[] = catalogData?.blankIds || [];
+          const coveredKeys = new Set<string>(items.map((i: any) => i.shelfKey).filter(Boolean));
+          const uncoveredIds = blankIds.filter((id: string) => !coveredKeys.has(id));
+          if (uncoveredIds.length > 0) {
+            const CHUNK = 30;
+            for (let i = 0; i < uncoveredIds.length; i += CHUNK) {
+              const chunk = uncoveredIds.slice(i, i + CHUNK);
+              const docs = await Promise.all(chunk.map((key: string) => db.collection("master_catalog").doc(key).get()));
+              for (const doc of docs) {
+                if (!doc.exists) continue;
+                const m = doc.data() as any;
+                const providerId = m.printfulProductId ? "printful" : "printify";
+                const numericId = m.printifyBlueprintId ?? m.printfulProductId ?? 0;
+                const synthetic = {
+                  id: `synthetic:${doc.id}`,
+                  shelfKey: doc.id,
+                  catalogId: String(catalogId),
+                  groupIds: [],
+                  providerId,
+                  catalog: {
+                    docId: doc.id,
+                    id: numericId,
+                    title: m.canonicalTitle || m.title || "",
+                    description: m.canonicalDescription || m.description || null,
+                    brand: m.brand || null,
+                    imageUrl: m.images?.[0] || m.imageUrl || null,
+                    images: m.images || [],
+                    madeInUSA: m.madeInUSA ?? false,
+                    minPrice: m.minPrice || null,
+                    maxPrice: m.maxPrice || null,
+                    colorCount: m.colorCount ?? null,
+                    availableColors: m.availableColors || [],
+                    availableSizes: m.availableSizes || [],
+                    fulfillmentProvider: providerId,
+                    qrgCategory: m.qrgCategory || null,
+                    printifyImages: m.printifyImages || [],
+                    printfulImages: m.printfulImages || [],
+                  },
+                };
+                items = [...items, synthetic];
+              }
+            }
+          }
+        }
+      } catch (synthErr: any) {
+        console.warn("[BuildShelf CF] Synthetic item synthesis failed (non-fatal):", synthErr.message);
+      }
     } else if (groupId) {
       const snapshot = await db.collection("admin_build_shelf").where("groupIds", "array-contains", groupId).orderBy("createdAt", "desc").get();
       items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
