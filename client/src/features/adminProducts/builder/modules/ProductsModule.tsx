@@ -186,6 +186,14 @@ export function ProductsModule() {
     ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
     : null;
 
+  // O(1) membership check — used in selectItemMap to resolve the canonical blankKey
+  // without going through catalogKeyMap (which is keyed by numeric provider ID and
+  // loses precision when two qrg_STNNN entries share the same blueprint number).
+  const activeCatalogBlankIdSet = useMemo(
+    () => new Set<string>(activeCatalog?.blankIds || []),
+    [activeCatalog],
+  );
+
 
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
@@ -397,11 +405,19 @@ export function ProductsModule() {
       if (seen.has(canonicalId)) return;
       seen.add(canonicalId);
       const withGender = { ...p, gender: detectGender(p.title) };
-      // Use the exact key that matched this product into the catalog, so delete/description/title
-      // always targets the same entry that caused it to appear — never a guessed derived key
-      const blankKey = catalogKeyMap.get(String(p.id))
-        ?? (p as any).docId
-        ?? (p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id));
+      // Canonical blank key resolution — priority order:
+      //   1. p.docId (qrg_STNNN) when it is directly present in the catalog's blankIds.
+      //      This is the only correct path for QRG-classified blanks: two distinct qrg_STNNN
+      //      entries that share a provider blueprint numeric ID must each resolve to their own
+      //      docId, not whatever the catalogKeyMap last wrote for that shared numeric ID.
+      //   2. catalogKeyMap lookup by numeric provider ID — legacy/unclassified blanks only.
+      //   3. Fallback to docId or provider-shaped key.
+      const docId = (p as any).docId as string | undefined;
+      const blankKey = (docId && activeCatalogBlankIdSet.has(docId))
+        ? docId
+        : (catalogKeyMap.get(String(p.id))
+            ?? docId
+            ?? (p.fulfillmentProvider === "printful" ? `pf:${p.id}` : String(p.id)));
       // Load catalog-level admin overrides so cards always show the admin's version
       const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
       const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
@@ -409,7 +425,7 @@ export function ProductsModule() {
       map.set(canonicalId, { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages), catalog: withGender, blankKey });
     });
     return map;
-  }, [activeProducts, activeCatalog, catalogKeyMap]);
+  }, [activeProducts, activeCatalog, catalogKeyMap, activeCatalogBlankIdSet]);
 
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     const entry = selectItemMap.get(id);
