@@ -274,7 +274,7 @@ app.get('/admin/printify/catalog', requireAdmin, async (req: Request, res: Respo
         const rawDesc = bp.richDescription || bp.description || '';
         const cleanDesc = rawDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         categories[category].push({
-          id: bp.id, title: bp.title, description: cleanDesc, brand: bp.brand, model: bp.model,
+          id: bp.id, title: bp.title, description: cleanDesc, providerDescription: cleanDesc, brand: bp.brand, model: bp.model,
           imageUrl: bp.images?.[0] || null, madeInUSA: isUSABrand, blueprintId: bp.id,
           printProviderId: provData?.providerId || null,
           minPrice: provData?.minCost ? (provData.minCost / 100).toFixed(2) : null,
@@ -300,7 +300,7 @@ app.get('/admin/printify/catalog', requireAdmin, async (req: Request, res: Respo
         const pfColors = Array.isArray(pf.availableColors) ? pf.availableColors : [];
         const pfSizes = Array.isArray(pf.availableSizes) ? pf.availableSizes : [];
         categories[category].push({
-          id: pf.id, title: pf.title, description: pf.description || '', brand: pf.brand || '', model: pf.model || '',
+          id: pf.id, title: pf.title, description: pf.description || '', providerDescription: pf.description || '', brand: pf.brand || '', model: pf.model || '',
           imageUrl: pf.image || null, madeInUSA: isUSABrand, blueprintId: pf.id, printProviderId: null,
           minPrice: pf.minPrice || null, maxPrice: pf.maxPrice || null, colorCount: pfColors.length,
           availableColors: pfColors, availableSizes: pfSizes, fulfillmentProvider: 'printful', provider: 'printful',

@@ -164,6 +164,7 @@ export function wizardProductToPacketBoundProduct(wp: WizardProduct): Record<str
     baseCost: wp.baseCost,
     description: wp.effectiveDescription,
     providerDescription: snapshot.providerDescription || '',
+    originalDescription: snapshot.providerDescription || '',
     adminCatalogDescription: snapshot.adminCatalogDescription || '',
     memberPacketDescription: snapshot.memberPacketDescription || '',
     effectiveDescription: snapshot.effectiveDescription || '',

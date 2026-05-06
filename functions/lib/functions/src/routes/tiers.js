@@ -263,6 +263,7 @@ function register(app) {
                     title: bp.title,
                     description: effectiveDescription,
                     providerDescription,
+                    originalDescription: providerDescription,
                     adminCatalogDescription: adminCatalogDescription || null,
                     effectiveDescription,
                     brand: bp.brand,
