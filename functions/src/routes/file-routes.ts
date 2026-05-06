@@ -799,14 +799,20 @@ app.get('/admin/images', requireAdmin, async (req: Request, res: Response): Prom
     console.log('[AdminImages] GET request - folder filter:', folder || '(all)');
     const snap = await db.collection('admin_images').get();
     console.log('[AdminImages] Raw docs:', snap.size);
+    const bucketName = storage.bucket().name;
     const images = snap.docs
       .map(doc => {
         const data = doc.data();
-        const filename = (data.storageUrl || '').split('/').pop() || '';
+        // Use direct GCS public URL so subdirectory paths (library/images/{folder}/) resolve correctly.
+        // Files are made public on upload, so the GCS URL always works.
+        const gcsUrl = data.storageUrl
+          ? `https://storage.googleapis.com/${bucketName}/${data.storageUrl}`
+          : (data.publicUrl || '');
         return {
           id: doc.id,
           ...data,
-          proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
+          proxyUrl: gcsUrl,
+          publicUrl: gcsUrl,
         };
       })
       .filter((img: any) => img.isActive !== false)
@@ -932,15 +938,15 @@ app.post('/admin/images', requireAdmin, async (req: Request, res: Response): Pro
     const file = bucket.file(fullPath);
     await file.save(fileBuffer, { metadata: { contentType: fileMimeType } });
     await file.makePublic();
-    const fileNameOnly = fullPath.split('/').pop() || safeName;
-    const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
+    // Use direct GCS public URL — the proxy alias only matches the filename, not the folder subdirectory.
+    const publicGcsUrl = `https://storage.googleapis.com/${bucket.name}/${fullPath}`;
     const docRef = await db.collection('admin_images').add({
       name, folder, mimeType: fileMimeType, sizeBytes: fileBuffer.length,
-      storageUrl: fullPath, publicUrl: proxyUrl, isActive: true,
+      storageUrl: fullPath, publicUrl: publicGcsUrl, isActive: true,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const doc = await docRef.get();
-    res.json({ id: doc.id, ...doc.data(), proxyUrl });
+    res.json({ id: doc.id, ...doc.data(), proxyUrl: publicGcsUrl, publicUrl: publicGcsUrl });
   } catch (error: any) {
     console.error('[AdminImages] Native upload error:', error);
     res.status(500).json({ error: error.message });
