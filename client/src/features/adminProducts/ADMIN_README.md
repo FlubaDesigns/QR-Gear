@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 6, 2026
+Last updated: May 6, 2026 (provider placement filter)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -277,6 +277,26 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 | `library/backgrounds/cropped/` | Cropped backgrounds |
 | `library/member/{userId}/` | Member uploaded media |
 | `mockups/` | Generated product mockups |
+
+---
+
+## Recent Changes Log
+
+### May 6, 2026 — Provider-Filtered Print Placement
+
+The product options endpoint now filters print locations by the selected fulfillment provider using the `print_placements` canonical crosswalk. Previously, all placements were always returned as Printify positions regardless of the selected provider.
+
+**Correct chain:** selected provider → `print_placements` crosswalk filter → only placements where `providers[selectedProvider]` exists → provider-specific `providerPlacement` name (e.g. `front_large` for Printful DTG front) + dimensions returned.
+
+**Frontend:** `BuilderContext` now passes `?provider=` on the options fetch and re-fetches placements automatically when the fulfillment provider changes while a product is already selected.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/master-catalog.ts` | Options endpoint accepts `?provider=`, loads `print_placements` crosswalk, filters by provider |
+| `server/routes/admin-catalog-browse.routes.ts` | Added matching native dev-server route for `/api/admin/master-catalog/products/:docId/options` |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | Passes `?provider=` param; adds `fulfillmentProviderRef` + re-fetch effect on provider change |
+| `functions/src/index.ts` | BUILD_ID bumped |
 
 ---
 
