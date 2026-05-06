@@ -183,16 +183,10 @@ export function ProductsModule() {
     queryKey: ["/api/admin/shelf-groups"],
   });
 
-  // Derive activeCatalog early (only needs adminCatalogsData + selectedCatalogId)
-  // so catalogBlankIds is available for the buildShelfItems query below.
-  const activeCatalog = selectedCatalogId !== "all"
-    ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
-    : null;
-
-  const catalogBlankIds = activeCatalog?.blankIds ?? [];
-
-  const { data: buildShelfItems = [], isLoading: loadingCatalogProducts } = useQuery<Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }>>({
-    queryKey: ["/api/admin/build-shelf", selectedCatalogId, catalogBlankIds],
+  // build-shelf query — kept for shelfItemByCanonicalId (optional shelfItemId in build sessions).
+  // Not used as the primary source for catalogModeProducts (see below).
+  const { data: buildShelfItems = [] } = useQuery<Array<{ id: string; shelfKey: string; catalogId: string; groupIds: string[]; catalog: CatalogProduct }>>({
+    queryKey: ["/api/admin/build-shelf", selectedCatalogId],
     queryFn: async () => {
       const url = selectedCatalogId && selectedCatalogId !== "all" && selectedCatalogId !== "joint"
         ? `/api/admin/build-shelf?catalogId=${encodeURIComponent(selectedCatalogId)}`
@@ -240,16 +234,34 @@ export function ProductsModule() {
     enabled: dataMode === "catalog",
   });
 
+  // Full master catalog data — used as the authoritative source for catalog-mode products.
+  // Same approach as useAdminBlanksController (which works in production): read catalog.blankIds
+  // then look up each blank in master_catalog. This avoids depending on admin_build_shelf
+  // (which blanks added via BlankPickerModal never write to).
+  const { data: masterCatalogFull = [], isLoading: loadingCatalogProducts } = useQuery<Array<{ name: string; items: CatalogProduct[]; count: number }>>({
+    queryKey: ["/api/master-catalog"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/master-catalog");
+      const d = await res.json();
+      return Array.isArray(d) ? d : [];
+    },
+    enabled: dataMode === "catalog",
+    staleTime: 60000,
+  });
+
+  const activeCatalog = selectedCatalogId !== "all"
+    ? adminCatalogs.find(c => c.id === selectedCatalogId) || null
+    : null;
+
   const shelfKeyToGroupIds = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const item of buildShelfItems) {
-      // shelfKeys are now master_catalog doc IDs (py_X / pf_X) — use directly
       map.set(item.shelfKey, item.groupIds || []);
     }
     return map;
   }, [buildShelfItems]);
 
-  // Fast lookup from any canonical product key → shelf item (used for blankKey resolution + P6 shelfItemId)
+  // Fast lookup from any canonical product key → shelf item (used for shelfItemId in build sessions)
   const shelfItemByCanonicalId = useMemo(() => {
     const map = new Map<string, { id: string; shelfKey: string; catalogId: string }>();
     for (const item of buildShelfItems) {
@@ -284,21 +296,36 @@ export function ProductsModule() {
     }
   }, [selectProduct]);
 
-  // catalogModeProducts — derived directly from build shelf items scoped to the selected catalog.
-  // Each shelf item carries a catalog snapshot (augmented server-side with master_catalog
-  // images[] and qrgCategory). No separate master catalog fetch is needed in catalog mode.
+  // catalogModeProducts — derived from master_catalog filtered by catalog.blankIds.
+  // Mirrors the approach used by useAdminBlanksController (the working "add blanks" path):
+  // catalog.blankIds are qrg_STNNN keys; master_catalog items carry docId + qrgCategory.
+  // This bypasses admin_build_shelf entirely, which blanks added via BlankPickerModal
+  // never write to (they only write to catalogs.blankIds).
   const { catalogModeProducts, catalogKeyMap } = useMemo(() => {
+    if (!activeCatalog || masterCatalogFull.length === 0) {
+      return { catalogModeProducts: [] as CatalogProduct[], catalogKeyMap: new Map<string, string>() };
+    }
+    const blankIdSet = new Set<string>(activeCatalog.blankIds || []);
     const products: CatalogProduct[] = [];
     const keyMap = new Map<string, string>();
-    for (const item of buildShelfItems) {
-      products.push(item.catalog);
-      const numericId = String((item.catalog as any).id || "");
-      if (numericId) keyMap.set(numericId, item.shelfKey);
-      const catDocId = (item.catalog as any).docId as string | undefined;
-      if (catDocId) keyMap.set(catDocId, item.shelfKey);
+    const seen = new Set<string>();
+    for (const cat of masterCatalogFull) {
+      for (const item of (cat.items || [])) {
+        const docId = (item as any).docId as string | undefined;
+        const numId = String((item as any).id || "");
+        const canonicalId = docId || numId;
+        if (seen.has(canonicalId)) continue;
+        if ((docId && blankIdSet.has(docId)) || blankIdSet.has(numId)) {
+          seen.add(canonicalId);
+          const withCategory = { ...item, qrgCategory: (item as any).qrgCategory || cat.name || null } as CatalogProduct;
+          products.push(withCategory);
+          if (numId) keyMap.set(numId, docId || numId);
+          if (docId) keyMap.set(docId, docId);
+        }
+      }
     }
     return { catalogModeProducts: products, catalogKeyMap: keyMap };
-  }, [buildShelfItems]);
+  }, [activeCatalog, masterCatalogFull]);
 
   const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
     queryKey: ["joint-catalog-products"],
@@ -310,7 +337,10 @@ export function ProductsModule() {
       for (const cat of data) {
         for (const item of (cat.items || [])) {
           const key = getLookupBlankKey(item);
-          if (!seen.has(key)) { seen.add(key); items.push(item); }
+          if (!seen.has(key)) {
+            seen.add(key);
+            items.push({ ...item, qrgCategory: item.qrgCategory ?? cat.name ?? null });
+          }
         }
       }
       return items;
@@ -368,6 +398,21 @@ export function ProductsModule() {
           return a.name.localeCompare(b.name);
         });
     }
+    if (dataMode === "joint") {
+      const counts = new Map<string, number>();
+      for (const p of jointCatalogProducts) {
+        const catName = p.qrgCategory || null;
+        if (catName) counts.set(catName, (counts.get(catName) ?? 0) + 1);
+      }
+      return Array.from(counts.entries())
+        .map(([name, itemCount]) => ({ name, itemCount }))
+        .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
+        .sort((a, b) => {
+          if (a.name === "T-Shirts & Tops") return -1;
+          if (b.name === "T-Shirts & Tops") return 1;
+          return a.name.localeCompare(b.name);
+        });
+    }
     return [...categories]
       .filter(c => c.itemCount > 0 && c.name && c.name.trim() !== "")
       .sort((a, b) => {
@@ -375,7 +420,7 @@ export function ProductsModule() {
         if (b.name === "T-Shirts & Tops") return 1;
         return a.name.localeCompare(b.name);
       });
-  }, [categories, dataMode, activeCatalog, catalogModeProducts]);
+  }, [categories, dataMode, activeCatalog, catalogModeProducts, jointCatalogProducts]);
 
   const categoryOptions = sortedCategories.map(cat => ({
     value: cat.name,
