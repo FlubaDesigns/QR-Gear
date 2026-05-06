@@ -229,7 +229,8 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
           graphics: null,
           qrConfig: null,
           layoutConfig: null,
-          zones: null,
+          // bld.layout.zones is populated on first autosave per BLD.md canonical schema
+          bld: null,
           metadata: null,
         },
 

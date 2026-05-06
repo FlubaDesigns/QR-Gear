@@ -19,6 +19,26 @@ interface TextStyleProp {
   horizontalOffset?: number;
 }
 
+/**
+ * Canonical BLD zone entry passed from stored session data.
+ * Structural params only — conforms to BLD.md schema.
+ * Renderer prefers these over calculated fallbacks when canvas is 1200×1800.
+ */
+interface BldZoneEntry {
+  type:      'txt' | 'img' | 'qrc';
+  size?:     number;       // % — qrSizePercent for middle zone
+  positionLR?: number;     // % — required for Palette mode qrc
+  positionUD?: number;     // % — required for Palette mode qrc
+  [key: string]: any;
+}
+
+interface BldLayoutZones {
+  top?:       BldZoneEntry;
+  middle?:    BldZoneEntry;
+  subBottom?: BldZoneEntry;
+  bottom?:    BldZoneEntry;
+}
+
 interface UnifiedGraphicProps {
   headerStyle?: TextStyleProp;
   footerStyle?: TextStyleProp;
@@ -34,6 +54,9 @@ interface UnifiedGraphicProps {
   qrSizePercent?: number;
   subBottomEnabled?: boolean;
   subBottomText?: string;
+  /** Canonical BLD zone layout from working.bld.layout.zones.
+   *  When canvas is 1200×1800, middle.size is preferred over qrSizePercent default. */
+  bldZones?: BldLayoutZones | null;
   "data-testid"?: string;
 }
 
@@ -219,6 +242,7 @@ export function UnifiedGraphic({
   qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
   subBottomEnabled = false,
   subBottomText = "",
+  bldZones,
   "data-testid": testId,
 }: UnifiedGraphicProps) {
   const headerActive = !!(
@@ -235,6 +259,14 @@ export function UnifiedGraphic({
 
   const subBottomActive = !!(subBottomEnabled && subBottomText?.trim());
 
+  // Prefer bld.layout.zones.middle.size (canonical BLD structural param) when available.
+  // This is the stored zone data from working.bld — prefer it over the prop default.
+  // Only applies at 1200×1800 (the canonical front canvas dimensions per BLD.md).
+  const resolvedQrSizePercent =
+    (bldZones?.middle?.type === 'qrc' && typeof bldZones.middle.size === 'number')
+      ? bldZones.middle.size
+      : qrSizePercent;
+
   const layout = getGraphicLayout({
     canvasWidth: CANVAS_W,
     canvasHeight: CANVAS_H,
@@ -243,7 +275,7 @@ export function UnifiedGraphic({
     subBottomActive,
     qrPositionX,
     qrPositionY,
-    qrSizePercent,
+    qrSizePercent: resolvedQrSizePercent,
   });
 
   const headerOpacity = highlightFooter ? 0.4 : 1;

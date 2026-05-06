@@ -61,6 +61,36 @@ export interface BldInstance {
   imageScale?: number;
 }
 
+/**
+ * Canonical zone entry shape stored at bld.layout.zones.{top|middle|subBottom|bottom}.
+ * Conforms to BLD.md structural schema — structural params only, no content.
+ * Vehicle types: txt | img | qrc  (shorthand T/I/Q never used per BLD.md rules)
+ */
+export interface BldZoneEntry {
+  seq:           string;               // two-digit render order: "01"–"04"
+  type:          'txt' | 'img' | 'qrc';
+  role?:         string;               // "header" | "footer" | "sub_bottom"
+  enabled?:      boolean;
+  // txt structural params (no content — actual text lives in Assembly)
+  fontFamily?:   string;
+  fontSize?:     number;
+  fontWeight?:   number | string;
+  letterSpacing?: number;
+  strokeWidth?:  number;
+  strokeColor?:  string;
+  positionLR?:   number;              // % — omitted for Zone-mode qrc (implicit center)
+  positionUD?:   number;              // % — omitted for Zone-mode qrc (implicit center)
+  // img / qrc sizing
+  size?:         number;              // %
+}
+
+export interface BldLayoutZones {
+  top:       BldZoneEntry;   // TOP ZONE    → txt | img
+  middle:    BldZoneEntry;   // MIDDLE ZONE → qrc (centered in Zone, floating in Palette)
+  subBottom: BldZoneEntry;   // SUB-BOTTOM  → txt strip below QR
+  bottom:    BldZoneEntry;   // BOTTOM ZONE → txt | img
+}
+
 export interface BldDefinitionHeader {
   bldId:         string;
   context:       BldContext;
@@ -79,6 +109,9 @@ export interface BldDefinitionHeader {
   qrSizePercent:     number;
   qrPositionX:       number;
   qrPositionY:       number;
+  // Canonical zone layout per BLD.md — structural params, no content
+  // Source: working.bld.layout.zones (populated by buildBldLayoutZones in BuilderContext)
+  layoutZones:   BldLayoutZones | null;
   createdAt: any;
   updatedAt: any;
 }
@@ -357,6 +390,11 @@ export async function writeBldDefinition(opts: WriteBldOptions): Promise<WriteBl
 
   const now = admin.firestore.FieldValue.serverTimestamp();
 
+  // Extract canonical BLD zone layout from working.bld.layout.zones.
+  // Populated by buildBldLayoutZones() in BuilderContext at autosave time.
+  // Conforms to BLD.md structural schema — structural params only, no content.
+  const layoutZones: BldLayoutZones | null = (working.bld?.layout?.zones) || null;
+
   const header: Omit<BldDefinitionHeader, 'createdAt' | 'updatedAt'> & { createdAt: any; updatedAt: any } = {
     bldId,
     context:       'S',
@@ -373,6 +411,8 @@ export async function writeBldDefinition(opts: WriteBldOptions): Promise<WriteBl
     qrSizePercent:     typeof content.qrSizePercent === 'number' ? content.qrSizePercent : 75,
     qrPositionX:       typeof content.qrPositionX   === 'number' ? content.qrPositionX   : 50,
     qrPositionY:       typeof content.qrPositionY   === 'number' ? content.qrPositionY   : 50,
+    // Canonical zone layout per BLD.md — flows through to bld_definitions Firestore doc
+    layoutZones,
     createdAt: now,
     updatedAt: now,
   };

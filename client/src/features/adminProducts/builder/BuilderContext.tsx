@@ -167,6 +167,130 @@ function normalizeLandingTextBlocks(blocks: any[]): any[] {
 }
 
 /**
+ * Compute canonical BLD zone data conforming to BLD.md structural schema.
+ * Stored at working.bld.layout.zones — the canonical session-level zone record.
+ *
+ * BLD.md rules enforced:
+ *   - Structural params ONLY — no content (no text, no GRF IDs, no QRG refs)
+ *   - Vehicle types: txt | img | qrc  (shorthand T/I/Q never used outside diagrams)
+ *   - Zone mode (Z): qrc positionLR/UD are implicit center — NOT stored per spec
+ *   - Palette mode (P): qrc positionLR/UD required
+ *
+ * Zone structure per BLD.md:
+ *   top       → txt | img   (header region)
+ *   middle    → qrc         (QR code — centered+locked in Zone, floating in Palette)
+ *   subBottom → txt         (strip below QR)
+ *   bottom    → txt | img   (footer region)
+ *
+ * @see BLD.md
+ */
+function buildBldLayoutZones(state: BuilderState): Record<string, any> {
+  const content = state.content || {};
+  const layoutMode = (content.graphicLayoutMode as string) || 'zone';
+  const layoutCode: 'Z' | 'P' = layoutMode === 'freeform' ? 'P' : 'Z';
+
+  const header = (content.headerStyle || {}) as any;
+  const footer = (content.footerStyle || {}) as any;
+  const sub    = (content.subBottomStyle || {}) as any;
+
+  const topType: 'txt' | 'img'    = header.mode === 'image' ? 'img' : 'txt';
+  const bottomType: 'txt' | 'img' = footer.mode === 'image' ? 'img' : 'txt';
+
+  // Strip undefined/null/'' so Firestore doesn't store empty fields
+  const v = (val: any): any => (val !== undefined && val !== null && val !== '') ? val : undefined;
+
+  // ── TOP ZONE (header) ────────────────────────────────────────────────────
+  const topZone: Record<string, any> = {
+    seq:     '01',
+    type:    topType,
+    role:    'header',
+    enabled: !!header.enabled,
+  };
+  if (topType === 'txt') {
+    Object.assign(topZone, {
+      fontFamily:    v(header.fontFamily),
+      fontSize:      header.fontSize     ? Number(header.fontSize)     : undefined,
+      fontWeight:    v(header.fontWeight),
+      letterSpacing: header.letterSpacing != null ? Number(header.letterSpacing) : undefined,
+      strokeWidth:   header.strokeWidth   != null ? Number(header.strokeWidth)   : undefined,
+      strokeColor:   v(header.strokeColor),
+      positionLR:    header.horizontalOffset ?? 50,
+      positionUD:    header.verticalOffset   ?? 80,
+    });
+  } else {
+    Object.assign(topZone, {
+      size:       header.imageScale      ?? 100,
+      positionLR: header.horizontalOffset ?? 50,
+      positionUD: header.verticalOffset   ?? 50,
+    });
+  }
+
+  // ── MIDDLE ZONE (qrc) ────────────────────────────────────────────────────
+  // BLD.md: Zone mode — positionLR/UD are implicit center, NOT stored.
+  //         Palette mode — positionLR/UD REQUIRED.
+  const middleZone: Record<string, any> = {
+    seq:  '02',
+    type: 'qrc',
+    size: content.qrSizePercent ?? 75,
+  };
+  if (layoutCode === 'P') {
+    middleZone.positionLR = content.qrPositionX ?? 50;
+    middleZone.positionUD = content.qrPositionY ?? 50;
+  }
+
+  // ── SUB-BOTTOM ZONE (txt strip below QR) ────────────────────────────────
+  const subBottomZone: Record<string, any> = {
+    seq:       '03',
+    type:      'txt',
+    role:      'sub_bottom',
+    enabled:   !!(sub.enabled && sub.text),
+    fontFamily: v(sub.fontFamily),
+    fontSize:   sub.fontSize ? Number(sub.fontSize) : undefined,
+    fontWeight: v(sub.fontWeight),
+    positionLR: 50,
+    positionUD: 50,
+  };
+
+  // ── BOTTOM ZONE (footer) ─────────────────────────────────────────────────
+  const bottomZone: Record<string, any> = {
+    seq:     '04',
+    type:    bottomType,
+    role:    'footer',
+    enabled: !!footer.enabled,
+  };
+  if (bottomType === 'txt') {
+    Object.assign(bottomZone, {
+      fontFamily:    v(footer.fontFamily),
+      fontSize:      footer.fontSize     ? Number(footer.fontSize)     : undefined,
+      fontWeight:    v(footer.fontWeight),
+      letterSpacing: footer.letterSpacing != null ? Number(footer.letterSpacing) : undefined,
+      strokeWidth:   footer.strokeWidth   != null ? Number(footer.strokeWidth)   : undefined,
+      strokeColor:   v(footer.strokeColor),
+      positionLR:    footer.horizontalOffset ?? 50,
+      positionUD:    footer.verticalOffset   ?? 80,
+    });
+  } else {
+    Object.assign(bottomZone, {
+      size:       footer.imageScale      ?? 100,
+      positionLR: footer.horizontalOffset ?? 50,
+      positionUD: footer.verticalOffset   ?? 50,
+    });
+  }
+
+  return {
+    layoutMode: layoutCode,
+    layout: {
+      zones: {
+        top:       topZone,
+        middle:    middleZone,
+        subBottom: subBottomZone,
+        bottom:    bottomZone,
+      },
+    },
+  };
+}
+
+/**
  * Compute a client-side BLD draft summary from the current builder state.
  * Mirrors the server-side extractBldInstances logic (bld-builder.ts) but
  * produces a lightweight preview — no IDs, no Firestore writes.
@@ -257,7 +381,10 @@ function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext):
       selectedChannel: ctx.selectedChannel ?? null,
       selectedCollection: ctx.selectedCollection ?? null,
     },
-    // BLD draft — mirrors server-side extractBldInstances for session-level visibility
+    // BLD canonical zone data — structural schema per BLD.md (no content, no GRF IDs)
+    // Stored at working.bld.layout.zones; read by bld-builder at commit time
+    bld: buildBldLayoutZones(state),
+    // BLD draft — lightweight layer preview for server-side validation without a commit
     bldDraft: buildBldDraft(state),
   };
 }

@@ -27,6 +27,25 @@ export interface TextStyle {
   imageScale?: number;
 }
 
+/**
+ * Canonical BLD zone entry from working.bld.layout.zones.
+ * Structural params only — conforms to BLD.md schema, no content.
+ */
+interface BldZoneEntry {
+  type:        'txt' | 'img' | 'qrc';
+  size?:       number;     // % — qrSizePercent for middle zone
+  positionLR?: number;     // % — required for Palette mode qrc
+  positionUD?: number;     // % — required for Palette mode qrc
+  [key: string]: any;
+}
+
+interface BldLayoutZones {
+  top?:       BldZoneEntry;
+  middle?:    BldZoneEntry;
+  subBottom?: BldZoneEntry;
+  bottom?:    BldZoneEntry;
+}
+
 export interface RenderOptions {
   qrContent: string;
   qrColor?: "black" | "white";
@@ -52,6 +71,10 @@ export interface RenderOptions {
   subBottomFontFamily?: string;
   subBottomFontWeight?: string;
   graphicLayoutMode?: "zone" | "freeform";
+  /** Canonical BLD zone layout from working.bld.layout.zones.
+   *  When canvas is 1200×1800 (canonical front), middle.size is preferred
+   *  over qrSizePercent fallback; Palette mode also reads positionLR/UD. */
+  bldZones?: BldLayoutZones | null;
 }
 
 const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = {
@@ -207,6 +230,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomFontFamily = "sans-serif",
     subBottomFontWeight = "400",
     graphicLayoutMode = "zone",
+    bldZones,
   } = options;
 
   const dims = PLACEMENT_DIMENSIONS[placement || ""] || {
@@ -216,6 +240,27 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
 
   const W = dims.width;
   const H = dims.height;
+
+  // ── BLD zone preference ────────────────────────────────────────────────────
+  // Prefer canonical BLD zone params (working.bld.layout.zones) over fallbacks.
+  // Only applied at 1200×1800 (canonical front placement) where the stored zone
+  // snapshot was captured. Other placements always recalculate via getGraphicLayout().
+  // Per BLD.md: Zone mode qrc has implicit center (no positionLR/UD stored);
+  //             Palette mode qrc requires positionLR/UD.
+  const isCanonicalDims = W === DEFAULT_WIDTH && H === DEFAULT_HEIGHT;
+  const bldMiddle = bldZones?.middle;
+  const resolvedQrSizePercent =
+    (isCanonicalDims && bldMiddle?.type === 'qrc' && typeof bldMiddle.size === 'number')
+      ? bldMiddle.size
+      : qrSizePercent;
+  const resolvedQrPositionX =
+    (isCanonicalDims && bldMiddle?.type === 'qrc' && typeof bldMiddle.positionLR === 'number')
+      ? bldMiddle.positionLR
+      : qrPositionX;
+  const resolvedQrPositionY =
+    (isCanonicalDims && bldMiddle?.type === 'qrc' && typeof bldMiddle.positionUD === 'number')
+      ? bldMiddle.positionUD
+      : qrPositionY;
 
   const headerActive = Boolean(
     (headerStyle?.enabled !== false && headerStyle?.text) ||
@@ -237,9 +282,11 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     headerActive,
     footerActive,
     subBottomActive,
-    qrPositionX: graphicLayoutMode === "zone" ? 50 : qrPositionX,
-    qrPositionY: graphicLayoutMode === "zone" ? 50 : qrPositionY,
-    qrSizePercent,
+    // Zone mode: positionLR/UD implicit center per BLD.md — pass 50 regardless of stored value
+    // Palette mode: prefer stored BLD positionLR/UD when at canonical 1200×1800 dimensions
+    qrPositionX: graphicLayoutMode === "zone" ? 50 : resolvedQrPositionX,
+    qrPositionY: graphicLayoutMode === "zone" ? 50 : resolvedQrPositionY,
+    qrSizePercent: resolvedQrSizePercent,
     layoutMode: graphicLayoutMode,
   });
 

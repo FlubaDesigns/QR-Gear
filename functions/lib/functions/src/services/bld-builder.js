@@ -258,6 +258,10 @@ async function writeBldDefinition(opts) {
     const buildSequence = await incrementBldCounter(counterKey);
     const bldId = formatBldId('S', layoutCode, instanceCount, buildSequence);
     const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+    // Extract canonical BLD zone layout from working.bld.layout.zones.
+    // Populated by buildBldLayoutZones() in BuilderContext at autosave time.
+    // Conforms to BLD.md structural schema — structural params only, no content.
+    const layoutZones = (working.bld?.layout?.zones) || null;
     const header = {
         bldId,
         context: 'S',
@@ -274,6 +278,8 @@ async function writeBldDefinition(opts) {
         qrSizePercent: typeof content.qrSizePercent === 'number' ? content.qrSizePercent : 75,
         qrPositionX: typeof content.qrPositionX === 'number' ? content.qrPositionX : 50,
         qrPositionY: typeof content.qrPositionY === 'number' ? content.qrPositionY : 50,
+        // Canonical zone layout per BLD.md — flows through to bld_definitions Firestore doc
+        layoutZones,
         createdAt: now,
         updatedAt: now,
     };
