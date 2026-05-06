@@ -323,9 +323,13 @@ function register(app) {
     });
     app.get('/admin/build-shelf', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { provider, groupId } = req.query;
+            const { provider, groupId, catalogId } = req.query;
             let items;
-            if (groupId) {
+            if (catalogId) {
+                const snapshot = await core_1.db.collection("admin_build_shelf").where("catalogId", "==", catalogId).orderBy("createdAt", "desc").get();
+                items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            }
+            else if (groupId) {
                 const snapshot = await core_1.db.collection("admin_build_shelf").where("groupIds", "array-contains", groupId).orderBy("createdAt", "desc").get();
                 items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             }

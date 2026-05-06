@@ -316,10 +316,12 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
 
   app.get("/api/admin/build-shelf", isAdmin, async (req: any, res) => {
     try {
-      const { provider, groupId } = req.query;
+      const { provider, groupId, catalogId } = req.query;
       let items;
 
-      if (groupId) {
+      if (catalogId) {
+        items = await fsQuery("admin_build_shelf", [["catalogId", "==", catalogId]], "createdAt", "desc");
+      } else if (groupId) {
         items = await fsQuery("admin_build_shelf", [["groupIds", "array-contains", groupId]], "createdAt", "desc");
       } else {
         items = await fsGetAll("admin_build_shelf", "createdAt", "desc");

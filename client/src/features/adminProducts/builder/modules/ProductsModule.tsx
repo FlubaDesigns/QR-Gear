@@ -169,7 +169,15 @@ export function ProductsModule() {
   });
 
   const { data: buildShelfItems = [] } = useQuery<Array<{ id: string; shelfKey: string; groupIds: string[] }>>({
-    queryKey: ["/api/admin/build-shelf"],
+    queryKey: ["/api/admin/build-shelf", selectedCatalogId],
+    queryFn: async () => {
+      const url = selectedCatalogId && selectedCatalogId !== "all" && selectedCatalogId !== "joint"
+        ? `/api/admin/build-shelf?catalogId=${encodeURIComponent(selectedCatalogId)}`
+        : "/api/admin/build-shelf";
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error(`build-shelf fetch failed: ${res.status}`);
+      return res.json();
+    },
     enabled: dataMode === "catalog",
   });
 

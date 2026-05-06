@@ -311,9 +311,12 @@ app.delete('/admin/shelf-groups/:id', requireAdmin, async (req: Request, res: Re
 
 app.get('/admin/build-shelf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { provider, groupId } = req.query;
+    const { provider, groupId, catalogId } = req.query;
     let items: any[];
-    if (groupId) {
+    if (catalogId) {
+      const snapshot = await db.collection("admin_build_shelf").where("catalogId", "==", catalogId).orderBy("createdAt", "desc").get();
+      items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else if (groupId) {
       const snapshot = await db.collection("admin_build_shelf").where("groupIds", "array-contains", groupId).orderBy("createdAt", "desc").get();
       items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } else {
