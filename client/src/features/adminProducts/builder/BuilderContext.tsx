@@ -138,6 +138,7 @@ interface BuilderProviderProps {
 }
 
 interface BuilderSnapshotContext {
+  selectedRole: RoleType | null;
   selectedStore: Store | null;
   selectedChannel: Channel | null;
   selectedCollection: Collection | null;
@@ -247,6 +248,7 @@ function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext):
       selectedProductBlueprintId: state.selectedProduct?.blueprintId ?? null,
       templateProductHint: state.templateProductHint ?? null,
       selectedCatalogId: state.selectedCatalogId ?? "all",
+      selectedRole: ctx.selectedRole ?? null,
       selectedStore: ctx.selectedStore ?? null,
       selectedChannel: ctx.selectedChannel ?? null,
       selectedCollection: ctx.selectedCollection ?? null,
@@ -257,7 +259,7 @@ function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext):
 }
 
 export function BuilderProvider({ children }: BuilderProviderProps) {
-  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
+  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
@@ -282,7 +284,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
     // Build snapshot immediately so flushSaveRef always has the latest data,
     // even if the 1.5-second debounce timer hasn't fired yet when the user navigates away.
-    const snapshot = buildWorkingSnapshot(state, { selectedStore, selectedChannel, selectedCollection });
+    const snapshot = buildWorkingSnapshot(state, { selectedRole, selectedStore, selectedChannel, selectedCollection });
     const sessionId = state.activeSessionId;
 
     flushSaveRef.current = () => {
@@ -688,7 +690,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     const metadata = (working.metadata || {}) as Record<string, any>;
     const { playMediaFile: _pmf, playMediaPreview: _pmp, ...cleanContent } = (graphics.content || {}) as any;
 
-    // Restore store → channel → collection in dependency order
+    // Restore role → store → channel → collection in dependency order
+    if (metadata.selectedRole) setSelectedRole(metadata.selectedRole as RoleType);
     if (metadata.selectedStore) setSelectedStore(metadata.selectedStore as Store);
     if (metadata.selectedChannel) setSelectedChannel(metadata.selectedChannel as Channel);
     if (metadata.selectedCollection) setSelectedCollection(metadata.selectedCollection as Collection);
@@ -728,7 +731,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     if (needsOptionsFetch && product) {
       fetchOptionsForProduct(product);
     }
-  }, [setSelectedStore, setSelectedChannel, setSelectedCollection, fetchOptionsForProduct]);
+  }, [setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection, fetchOptionsForProduct]);
 
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
