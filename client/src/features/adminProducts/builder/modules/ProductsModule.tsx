@@ -627,7 +627,7 @@ export function ProductsModule() {
 
   const scrollItems: ScrollViewItem[] = useMemo(() =>
     activeProducts.map(p => ({
-      id: String(p.id),
+      id: (p as any).docId || String(p.id),
       imageUrl: p.imageUrl || "",
       title: p.title,
       subtitle: p.brand,
@@ -817,10 +817,10 @@ export function ProductsModule() {
                     return (shelfKeyToGroupIds.get(blankKey) || []).includes(group.id);
                   });
                   if (groupProducts.length === 0) continue;
-                  groupProducts.forEach(p => usedProductIds.add(String(p.id)));
+                  groupProducts.forEach(p => usedProductIds.add((p as any).docId || String(p.id)));
                   const isOpen = openShelfIds.has(group.id);
                   const groupScrollItems = groupProducts.map(p => ({
-                    id: String(p.id),
+                    id: (p as any).docId || String(p.id),
                     imageUrl: p.imageUrl || "",
                     title: p.title,
                     subtitle: p.brand,
@@ -856,11 +856,11 @@ export function ProductsModule() {
                   );
                 }
 
-                const uncategorized = catalogModeProducts.filter(p => !usedProductIds.has(String(p.id)));
+                const uncategorized = catalogModeProducts.filter(p => !usedProductIds.has((p as any).docId || String(p.id)));
                 if (uncategorized.length > 0) {
                   const isOpen = openShelfIds.has("__other__");
                   const otherScrollItems = uncategorized.map(p => ({
-                    id: String(p.id),
+                    id: (p as any).docId || String(p.id),
                     imageUrl: p.imageUrl || "",
                     title: p.title,
                     subtitle: p.brand,
