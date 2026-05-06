@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 npm install
-yes '' | npx drizzle-kit push --force
+cd functions && npm install && cd ..
