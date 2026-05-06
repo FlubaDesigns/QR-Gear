@@ -196,7 +196,6 @@ function buildBldDraft(state: BuilderState): Record<string, any> {
   }
 
   return {
-    qrgBlankId:    (state.selectedProduct as any)?.qrgBlankId ?? null,
     layoutMode:    content.graphicLayoutMode || 'zone',
     instanceCount: layers.length,
     layers,
