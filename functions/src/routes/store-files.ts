@@ -193,7 +193,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrProductType: d.qrProductType || 'qr-basics',
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes: bSizes,
-        availableColors: bColors,
+        selectedColors: bColors,
         availablePlacements: [],
         defaultColor: packetDefaultColor,
         mockupsByColor: packetMockupsByColor,
@@ -318,7 +318,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrProductType: link.qrProductState || 'qr-basics',
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes,
-        availableColors,
+        selectedColors: availableColors,
         availablePlacements,
         defaultColor: link.defaultColor || null,
         mockupsByColor: packetMockupsByColorA,
@@ -516,6 +516,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupsByColor1: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
             let pktMockupImages1: string[] = [];
             let pktDefaultColor1: string | null = null;
+            let pktQrCodeUrl1: string | null = null;
 
             if (d.currentPacketId) {
               try {
@@ -527,6 +528,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                   pktMockupImages1 = extracted.mockupImages;
                   pktDefaultColor1 = extracted.defaultColor;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                  pktQrCodeUrl1 = pkt.qrOnlyUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
               } catch (e: any) {
@@ -563,8 +565,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               isFeatured: false,
               isSeasonalPromo: false,
               templateVariant: null,
-              qrProductType: 'qr-basics',
-              qrCodeUrl: null,
+              qrProductType: d.qrProductType || 'qr-basics',
+              qrCodeUrl: pktQrCodeUrl1,
               selectedColors: l1Colors,
               availableSizes: l1Sizes,
               defaultColor: pktDefaultColor1,
@@ -659,6 +661,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupsByColor2: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
             let pktMockupImages2: string[] = [];
             let pktDefaultColor2: string | null = null;
+            let pktQrCodeUrl2: string | null = null;
 
             if (d.currentPacketId) {
               try {
@@ -670,6 +673,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                   pktMockupImages2 = extracted.mockupImages;
                   pktDefaultColor2 = extracted.defaultColor;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                  pktQrCodeUrl2 = pkt.qrOnlyUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
               } catch (e: any) {
@@ -699,8 +703,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               isFeatured: false,
               isSeasonalPromo: false,
               templateVariant: null,
-              qrProductType: 'qr-basics',
-              qrCodeUrl: null,
+              qrProductType: d.qrProductType || 'qr-basics',
+              qrCodeUrl: pktQrCodeUrl2,
               selectedColors: l2Colors,
               availableSizes: l2Sizes,
               defaultColor: pktDefaultColor2,
@@ -761,6 +765,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           let pktMockupsByColor3: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
           let pktMockupImages3: string[] = [];
           let pktDefaultColor3: string | null = null;
+          let pktQrCodeUrl3: string | null = null;
 
           if (d.currentPacketId) {
             try {
@@ -772,6 +777,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                 pktMockupImages3 = extracted.mockupImages;
                 pktDefaultColor3 = extracted.defaultColor;
                 packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
+                pktQrCodeUrl3 = pkt.qrOnlyUrl || null;
                 if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
               }
             } catch (e: any) {
@@ -801,8 +807,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             isFeatured: false,
             isSeasonalPromo: false,
             templateVariant: null,
-            qrProductType: 'qr-basics',
-            qrCodeUrl: null,
+            qrProductType: d.qrProductType || 'qr-basics',
+            qrCodeUrl: pktQrCodeUrl3,
             selectedColors: l3Colors,
             availableSizes: l3Sizes,
             defaultColor: pktDefaultColor3,
