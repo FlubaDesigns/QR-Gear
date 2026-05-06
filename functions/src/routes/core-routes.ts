@@ -146,6 +146,7 @@ app.get('/members/allowed-products', async (req: Request, res: Response): Promis
           placements,
           description: effectiveDescription,
           providerDescription,
+          originalDescription: providerDescription,
           adminCatalogDescription: adminCatalogDescription || null,
           effectiveDescription,
         };

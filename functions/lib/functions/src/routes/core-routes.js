@@ -127,6 +127,7 @@ function register(app) {
                         placements,
                         description: effectiveDescription,
                         providerDescription,
+                        originalDescription: providerDescription,
                         adminCatalogDescription: adminCatalogDescription || null,
                         effectiveDescription,
                     };
