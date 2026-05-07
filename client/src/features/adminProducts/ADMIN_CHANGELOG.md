@@ -4,6 +4,26 @@
 
 ---
 
+### May 7, 2026 — Rename: QRG Navigator state and helpers
+
+Renamed internal state and helper identifiers in `ProductsModule.tsx` to better reflect canonical QRG terminology. No behaviour change — purely a naming correction.
+
+| Old name | New name |
+|----------|----------|
+| `qrgWall` / `qrgShelf` (state) | `qrgSuperCategory` / `qrgSubCategory` |
+| `QRG_WALL_LABELS` | `SUPER_CATEGORY_LABELS` |
+| `parseQrgWall` / `parseQrgShelf` | `getQrgDigits()` |
+| `matchesProvider` | `providerStocksProduct()` |
+
+All `data-testid` attributes updated to match. `SUPER_CATEGORY_LABELS` now sources labels from `PARENT_CATEGORY_LABELS` in `shared/qrgCodes.ts` (single source of truth).
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` | All navigator state and helpers renamed as above |
+
+---
+
 ### May 6, 2026 — Fix: Remove qrgBlankId from BLD draft (autosave purity)
 
 `buildBldDraft()` in `BuilderContext.tsx` was embedding `qrgBlankId` inside the BLD draft payload sent with every autosave — a violation of BLD's Iron Rule (BLD is pure structure, no QRG references). Removed. BLD draft now contains only `{ layoutMode, instanceCount, layers[] }`. Blank identity is already persisted separately at `working.metadata.selectedProductDocId`. Commit reads `qrgBlankId` from `master_catalog` via `session.sourceMasterId` — server never touched `bldDraft.qrgBlankId`.
