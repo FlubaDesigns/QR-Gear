@@ -100,7 +100,7 @@ title = "QR Gear Full Source Backup"
 id = "LpkDWMxG1f-h35YkcrvEo"
 uri = "file://downloads/QR_Gear_Full_Website.zip"
 type = "unspecified"
-title = "QR Gear — compose mode upload fix (2 files)"
+title = "QR Gear — Area image upload fix (ProductGraphicTextModule.tsx)"
 
 [[outputs]]
 id = "VCcE20W2Vqioz2fz1HEQl"

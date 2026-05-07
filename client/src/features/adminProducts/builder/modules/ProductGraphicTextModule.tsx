@@ -532,6 +532,7 @@ export function ProductGraphicTextModule() {
   const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | "area" | null>(null);
   const [saveImageDataUrl, setSaveImageDataUrl] = useState<string | null>(null);
   const adminAreaFileRef = useRef<HTMLInputElement>(null);
+  const [isAreaUploading, setIsAreaUploading] = useState(false);
 
   const openLibraryFor = useCallback((target: "header" | "footer" | "area") => {
     setLibraryTarget(target);
@@ -566,15 +567,25 @@ export function ProductGraphicTextModule() {
   const areaOffY = state.content.areaImageOffsetY ?? 50;
   const areaSc = state.content.areaImageScale ?? 100;
 
-  const handleAdminAreaImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAdminAreaImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setContent({ areaImageUrl: reader.result as string, areaImageMode: adminAreaImageMode });
-    };
-    reader.readAsDataURL(file);
     if (adminAreaFileRef.current) adminAreaFileRef.current.value = "";
+    setIsAreaUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", `area-image-${Date.now()}`);
+      formData.append("folder", "area-images");
+      const result = await adminFetch<{ publicUrl: string }>("/images", { method: "POST", body: formData });
+      if (!result?.publicUrl) throw new Error("Upload succeeded but no public URL was returned");
+      setContent({ areaImageUrl: result.publicUrl, areaImageMode: adminAreaImageMode });
+    } catch (err: any) {
+      console.error("[AreaImage] Upload failed:", err);
+      alert(`Image upload failed: ${err.message || "Unknown error"}. Please try again.`);
+    } finally {
+      setIsAreaUploading(false);
+    }
   };
 
   const hasHeaderContent = (state.content.headerStyle as TextStyleConfig)?.enabled;
@@ -897,10 +908,11 @@ export function ProductGraphicTextModule() {
                     variant="outline"
                     size="sm"
                     onClick={() => adminAreaFileRef.current?.click()}
+                    disabled={isAreaUploading}
                     data-testid="button-admin-replace-area-image"
                   >
-                    <Upload className="h-4 w-4 mr-1" />
-                    Replace
+                    {isAreaUploading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                    {isAreaUploading ? "Uploading…" : "Replace"}
                   </Button>
                   <Button
                     variant="outline"
@@ -987,13 +999,13 @@ export function ProductGraphicTextModule() {
             ) : (
               <div className="flex gap-2">
                 <div
-                  onClick={() => adminAreaFileRef.current?.click()}
-                  className="flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                  onClick={() => !isAreaUploading && adminAreaFileRef.current?.click()}
+                  className={`flex-1 border-2 border-dashed rounded-md p-4 flex flex-col items-center gap-1.5 transition-colors ${isAreaUploading ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted/30"}`}
                   data-testid="dropzone-admin-area-image"
                 >
-                  <Upload className="h-6 w-6 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground font-medium">Upload</p>
-                  <p className="text-xs text-muted-foreground/60">PNG, JPG, SVG</p>
+                  {isAreaUploading ? <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" /> : <Upload className="h-6 w-6 text-muted-foreground" />}
+                  <p className="text-xs text-muted-foreground font-medium">{isAreaUploading ? "Uploading…" : "Upload"}</p>
+                  {!isAreaUploading && <p className="text-xs text-muted-foreground/60">PNG, JPG, SVG</p>}
                 </div>
                 <div
                   onClick={() => openLibraryFor("area")}
