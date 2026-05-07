@@ -57,16 +57,18 @@ async function testHttpEndpoint() {
   
   console.log('[HTTP TEST] Calling production endpoint...');
   
-  const response = await fetch('https://api-b3rye3vhuq-uc.a.run.app/api/admin/background-assets', {
+  // NOTE: background-assets endpoint removed (410 Gone). Testing save-grf instead.
+  const response = await fetch('https://api-b3rye3vhuq-uc.a.run.app/api/admin/graphics/save-grf', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${tokenData.idToken}`
     },
     body: JSON.stringify({
+      typeCode: '01',
+      roleCode: '1',
+      imageUrl: `data:image/png;base64,${testImageBase64}`,
       name: testName,
-      assetType: 'source',
-      imageData: testImageBase64,
       mimeType: 'image/png'
     })
   });
@@ -76,9 +78,9 @@ async function testHttpEndpoint() {
   const result = await response.json();
   console.log('[HTTP TEST] Response:', JSON.stringify(result, null, 2));
   
-  if (response.ok && result.id) {
+  if (response.ok && result.grfId) {
     console.log('[HTTP TEST] ✅ HTTP ENDPOINT VERIFIED!');
-    console.log(`[HTTP TEST] Created asset: ${result.id}`);
+    console.log(`[HTTP TEST] Created GRF: ${result.grfId}`);
     return true;
   } else {
     console.log('[HTTP TEST] ❌ HTTP ENDPOINT FAILED');

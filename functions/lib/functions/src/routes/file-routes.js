@@ -5,7 +5,6 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const graphicCodes_1 = require("../../../shared/graphicCodes");
-const storage_helpers_1 = require("../services/storage-helpers");
 const mockup_generator_1 = require("../services/mockup-generator");
 async function processQueueInBackground() {
     const processLimit = 10;
@@ -194,295 +193,35 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // ============ LIBRARY ASSETS (ADMIN) ============
-    app.get('/admin/background-assets', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const typeFilter = req.query.type || 'source';
-            const validTypes = ['source', 'cropped', 'background', 'template', 'design'];
-            if (!validTypes.includes(typeFilter)) {
-                res.status(400).json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` });
-                return;
-            }
-            console.log('[BackgroundAssets] GET request - type:', typeFilter);
-            const snapshot = await core_1.db.collection('library_assets')
-                .where('assetType', '==', typeFilter)
-                .get();
-            console.log('[BackgroundAssets] Raw docs for type', typeFilter, ':', snapshot.size);
-            const assets = snapshot.docs
-                .map(doc => (0, core_1.docToObject)(doc))
-                .filter(doc => doc.isActive === true)
-                .sort((a, b) => {
-                const getTime = (val) => {
-                    if (!val)
-                        return 0;
-                    if (typeof val === 'string')
-                        return new Date(val).getTime() || 0;
-                    if (val.toDate)
-                        return val.toDate().getTime();
-                    if (val._seconds)
-                        return val._seconds * 1000;
-                    if (val instanceof Date)
-                        return val.getTime();
-                    return 0;
-                };
-                return getTime(a.createdAt) - getTime(b.createdAt);
-            })
-                .map(data => {
-                const storageUrl = data.storageUrl || '';
-                const filename = storageUrl.split('/').pop() || data.fileName || '';
-                return {
-                    ...data,
-                    proxyUrl: `/api/library-files/${encodeURIComponent(filename)}`,
-                    publicUrl: `/api/library-files/${encodeURIComponent(filename)}`
-                };
-            });
-            console.log('[BackgroundAssets] Filtered assets:', assets.length);
-            res.json(assets);
-        }
-        catch (error) {
-            console.error('[BackgroundAssets] Error:', error);
-            res.status(500).json({ error: error.message });
-        }
+    // ============ LEGACY library_assets ENDPOINTS — REMOVED ============
+    // All routes below return 410 Gone. Clients must use grf_assets endpoints instead:
+    //   Backgrounds : GET /admin/graphics?typeCode=03
+    //   Videos      : GET /admin/graphics?typeCode=06
+    //   Upload/mint : POST /admin/graphics/save-grf
+    //   Archive     : PATCH /admin/graphics/:grfId/archive
+    app.get('/admin/background-assets', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?typeCode=03' });
     });
-    app.post('/admin/background-assets', middleware_1.requireAdmin, async (req, res) => {
-        console.log('[BackgroundAssets] POST request received');
-        try {
-            const { name, assetType, imageData, mimeType, sourceAssetId, cropData, tags, fromZip } = req.body;
-            console.log(`[BackgroundAssets] Uploading: ${name}, type: ${assetType}, fromZip: ${fromZip}, dataSize: ${imageData?.length || 0}`);
-            if (!name || !assetType || !imageData) {
-                console.log('[BackgroundAssets] Missing required fields');
-                res.status(400).json({ error: "Missing required fields: name, assetType, imageData" });
-                return;
-            }
-            if (assetType !== 'source' && assetType !== 'cropped') {
-                res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
-                return;
-            }
-            // Fix 2: Reject non-image MIME types — ZIP, PDF, video, etc. must never reach storage as "images"
-            if (!mimeType || !mimeType.startsWith('image/')) {
-                res.status(400).json({ error: `Invalid mimeType "${mimeType}". Only image/* types are accepted for source and cropped uploads. Extract ZIP files client-side before uploading.` });
-                return;
-            }
-            // Upload to Firebase Storage with organized paths
-            // library/backgrounds/raw/ for individual uploads
-            // library/backgrounds/raw/zip/ for ZIP uploads
-            // library/backgrounds/cropped/ for cropped versions
-            const bucket = core_1.storage.bucket();
-            let folderPath;
-            if (assetType === 'cropped') {
-                folderPath = 'library/backgrounds/cropped';
-            }
-            else if (fromZip) {
-                folderPath = 'library/backgrounds/raw/zip';
-            }
-            else {
-                folderPath = 'library/backgrounds/raw';
-            }
-            const fileName = `${folderPath}/${Date.now()}-${name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-            const ext = (mimeType || 'image/png').split('/')[1] || 'png';
-            const fullPath = `${fileName}.${ext}`;
-            const file = bucket.file(fullPath);
-            const buffer = Buffer.from(imageData, 'base64');
-            await file.save(buffer, {
-                metadata: {
-                    contentType: mimeType || 'image/png',
-                },
-            });
-            await file.makePublic();
-            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fullPath}`;
-            // Save metadata to Firestore library_assets collection
-            const fileNameOnly = fullPath.split('/').pop() || name;
-            const proxyUrl = `/api/library-files/${encodeURIComponent(fileNameOnly)}`;
-            const docRef = await core_1.db.collection('library_assets').add({
-                ownerType: 'admin',
-                assetType: assetType, // Use the requested type (source/cropped), not hardcoded
-                mediaType: 'image',
-                name,
-                fileName: fullPath.split('/').pop() || name,
-                originalName: name,
-                mimeType: mimeType || 'image/png',
-                sizeBytes: buffer.length,
-                storageUrl: fullPath, // Relative path without gs:// prefix
-                publicUrl: proxyUrl,
-                sourceAssetId: sourceAssetId || null,
-                cropData: cropData || null,
-                tags: tags || null,
-                isActive: true,
-                createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            });
-            if (assetType === 'cropped' && sourceAssetId) {
-                try {
-                    await core_1.db.collection('library_assets').doc(sourceAssetId).update({
-                        assetType: 'background',
-                        updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-                    });
-                    console.log(`[BackgroundAssets] Source ${sourceAssetId} moved to background after crop`);
-                }
-                catch (moveErr) {
-                    console.error(`[BackgroundAssets] Failed to move source to background:`, moveErr.message);
-                }
-            }
-            const doc = await docRef.get();
-            console.log(`[BackgroundAssets] Upload complete: ${doc.id}`);
-            res.json((0, core_1.docToObject)(doc));
-        }
-        catch (error) {
-            console.error("[BackgroundAssets] Upload error:", error.message, error.stack);
-            res.status(500).json({ error: error.message });
-        }
+    app.post('/admin/background-assets', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use POST /admin/graphics/save-grf' });
     });
-    app.delete('/admin/background-assets/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            // Soft delete (set isActive to false)
-            await core_1.db.collection('library_assets').doc(req.params.id).update({
-                isActive: false,
-                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            });
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.post('/admin/background-assets/sync', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed.' });
     });
-    // Sync storage folder with database - creates DB records for existing files
-    app.post('/admin/background-assets/sync', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const folder = req.body.folder || 'library/backgrounds/raw';
-            const assetType = folder.includes('cropped') ? 'cropped' : 'source';
-            console.log(`[BackgroundAssets] Syncing folder: ${folder}`);
-            // List all files in the storage folder
-            const bucket = core_1.storage.bucket();
-            const [files] = await bucket.getFiles({ prefix: folder + '/' });
-            const storageFiles = files
-                .filter(f => !f.name.endsWith('/'))
-                .map(f => ({
-                name: f.name.split('/').pop() || f.name,
-                fullPath: f.name,
-                contentType: f.metadata.contentType || 'application/octet-stream',
-            }));
-            console.log(`[BackgroundAssets] Found ${storageFiles.length} files in storage`);
-            // Get existing records from Firestore library_assets - filter in memory to avoid index
-            const existingSnapshot = await core_1.db.collection('library_assets').get();
-            const existingPaths = new Set(existingSnapshot.docs
-                .map(d => d.data())
-                .filter(data => data.isActive === true && data.assetType === 'source')
-                .map(data => data.storageUrl));
-            // Find files that don't have database records
-            const newFiles = storageFiles.filter(f => !existingPaths.has(`gs://${bucket.name}/${f.fullPath}`));
-            console.log(`[BackgroundAssets] ${newFiles.length} files need database records`);
-            // Create database records for new files
-            const createdAssets = [];
-            for (const file of newFiles) {
-                if (!file.contentType.startsWith('image/'))
-                    continue;
-                try {
-                    const displayName = file.name.replace(/\.[^/.]+$/, '');
-                    const proxyUrl = `/api/library-files/${encodeURIComponent(file.name)}`;
-                    const docRef = await core_1.db.collection('library_assets').add({
-                        ownerType: 'admin',
-                        assetType: 'background',
-                        mediaType: 'image',
-                        name: displayName,
-                        fileName: file.name,
-                        originalName: file.name,
-                        mimeType: file.contentType,
-                        sizeBytes: 0,
-                        storageUrl: `gs://${bucket.name}/${file.fullPath}`,
-                        publicUrl: proxyUrl,
-                        sourceAssetId: null,
-                        cropData: null,
-                        tags: null,
-                        isActive: true,
-                        createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-                    });
-                    const doc = await docRef.get();
-                    createdAssets.push((0, core_1.docToObject)(doc));
-                    console.log(`[BackgroundAssets] Created record for: ${file.name}`);
-                }
-                catch (err) {
-                    console.error(`[BackgroundAssets] Failed to create record for ${file.name}:`, err);
-                }
-            }
-            res.json({
-                scanned: storageFiles.length,
-                existing: existingSnapshot.size,
-                created: createdAssets.length,
-                assets: createdAssets,
-            });
-        }
-        catch (error) {
-            console.error("Error syncing background assets:", error);
-            res.status(500).json({ error: error.message });
-        }
+    app.delete('/admin/background-assets/:id', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
     });
-    // ============ ADMIN LIBRARY ENDPOINTS ============
-    // Admin: Get admin-owned library assets
-    app.get('/admin/library/admin', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { assetType, mediaType, category, season, event } = req.query;
-            let query = core_1.db.collection('library_assets').where('ownerType', '==', 'admin');
-            if (assetType)
-                query = query.where('assetType', '==', assetType);
-            if (mediaType)
-                query = query.where('mediaType', '==', mediaType);
-            if (category)
-                query = query.where('category', '==', category);
-            if (season)
-                query = query.where('season', '==', season);
-            if (event)
-                query = query.where('event', '==', event);
-            const snapshot = await query.get();
-            const assets = (0, core_1.docsToArray)(snapshot);
-            const assetsWithSignedUrls = await (0, storage_helpers_1.addSignedUrlsToAssets)(assets);
-            res.json(assetsWithSignedUrls);
-        }
-        catch (error) {
-            console.error('[Library] Error fetching admin assets:', error);
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/admin/library/admin', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?typeCode=06' });
     });
-    // Admin: Get library templates (custom designs saved to library)
-    app.get('/admin/library/templates', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const snapshot = await core_1.db.collection('customDesigns')
-                .where('savedToLibrary', '==', true)
-                .get();
-            const templates = (0, core_1.docsToArray)(snapshot);
-            res.json(templates);
-        }
-        catch (error) {
-            console.error('[Library] Error fetching templates:', error);
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/admin/library/templates', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use GET /admin/templates' });
     });
-    // Admin: Update library asset
-    app.put('/admin/library/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { id } = req.params;
-            const updateData = {
-                ...req.body,
-                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            };
-            await core_1.db.collection('library_assets').doc(id).update(updateData);
-            const doc = await core_1.db.collection('library_assets').doc(id).get();
-            res.json((0, core_1.docToObject)(doc));
-        }
-        catch (error) {
-            console.error('[Library] Error updating asset:', error);
-            res.status(500).json({ error: error.message });
-        }
+    app.put('/admin/library/:id', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
     });
-    // Admin: Delete library asset
-    app.delete('/admin/library/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { id } = req.params;
-            await core_1.db.collection('library_assets').doc(id).delete();
-            res.json({ success: true });
-        }
-        catch (error) {
-            console.error('[Library] Error deleting asset:', error);
-            res.status(500).json({ error: error.message });
-        }
+    app.delete('/admin/library/:id', middleware_1.requireAdmin, (_req, res) => {
+        res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
     });
     // Admin: Mint a GRF code and save a graphic asset to grf_assets
     app.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, res) => {

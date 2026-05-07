@@ -5,32 +5,6 @@ import type { LibraryContextValue, LibraryApi, LibraryAssetWithProxy, UploadAsse
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  maxRetries = 3
-): Promise<Response> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const res = await fetch(url, options);
-      if (res.ok) return res;
-      if (res.status >= 500 || res.status === 429) {
-        lastError = new Error(`Server error: ${res.status}`);
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-        continue;
-      }
-      return res;
-    } catch (err) {
-      lastError = err as Error;
-      if (attempt < maxRetries - 1) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-      }
-    }
-  }
-  throw lastError || new Error("Upload failed after retries");
-}
-
 interface LibraryProviderProps {
   children: React.ReactNode;
   storeId?: string | null;
@@ -45,7 +19,7 @@ export function LibraryProvider({
   permissions,
 }: LibraryProviderProps) {
   const api = useMemo<LibraryApi>(() => {
-    const getQueryKey = (type: AssetType): string[] => ["library", "/api/admin", "assets", type];
+    const getQueryKey = (type: AssetType): string[] => ["library", "/api/admin", "grf", type];
 
     const invalidateAssets = (type: AssetType): void => {
       queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
@@ -55,17 +29,24 @@ export function LibraryProvider({
       getQueryKey,
       invalidateAssets,
 
-      fetchAssets: (type: AssetType) =>
-        adminFetch<LibraryAssetWithProxy[]>(`/background-assets?type=${type}`),
+      // All asset reads go through grf_assets now
+      fetchAssets: (typeCode: AssetType) =>
+        adminFetch<LibraryAssetWithProxy[]>(`/graphics?typeCode=${typeCode}`),
 
-      uploadAsset: (params: UploadAssetParams) =>
-        adminFetch<{ id: string; extractedCount?: number }>("/background-assets", { method: "POST", json: params }),
+      // Upload/mint: callers should POST to /api/admin/graphics/save-grf directly.
+      // These shims keep old callers compiling but should not be reachable from
+      // the current UI (all legacy Source/Cropped/Backgrounds tabs are removed).
+      uploadAsset: (_params: UploadAssetParams) => {
+        throw new Error("uploadAsset: legacy library_assets upload removed. Use /api/admin/graphics/save-grf.");
+      },
 
-      uploadZip: (params: UploadAssetParams) =>
-        adminFetch<{ extractedCount: number }>("/background-assets", { method: "POST", json: params }),
+      uploadZip: (_params: UploadAssetParams) => {
+        throw new Error("uploadZip: legacy library_assets upload removed.");
+      },
 
-      deleteAsset: (id: string) =>
-        adminFetch(`/background-assets/${id}`, { method: "DELETE" }).then(() => {}),
+      deleteAsset: (_id: string) => {
+        throw new Error("deleteAsset: use PATCH /api/admin/graphics/:grfId/archive instead.");
+      },
 
       fetchImageBlob: async (url: string): Promise<string> => {
         const res = await fetch(url);
@@ -77,22 +58,20 @@ export function LibraryProvider({
   }, []);
 
   const value = useMemo<LibraryContextValue>(() => ({
-    storeId: storeId ?? null,
-    requiresAuth: true,
     api,
+    storeId: storeId ?? null,
     storageRoots: {
       backgrounds: "library/backgrounds",
-      source: "library/source",
-      cropped: "library/cropped",
-      ...storageRoots,
+      designs: "library/designs",
+      videos: "library/videos",
+      ...(storageRoots ?? {}),
     },
     permissions: {
       canUpload: true,
       canDelete: true,
-      canEdit: true,
-      ...permissions,
+      ...(permissions ?? {}),
     },
-  }), [storeId, api, storageRoots, permissions]);
+  }), [api, storeId, storageRoots, permissions]);
 
   return (
     <LibraryContext.Provider value={value}>
@@ -101,10 +80,8 @@ export function LibraryProvider({
   );
 }
 
-export function useLibraryContext(): LibraryContextValue {
+export function useLibrary(): LibraryContextValue {
   const ctx = useContext(LibraryContext);
-  if (!ctx) throw new Error("useLibraryContext must be used within LibraryProvider");
+  if (!ctx) throw new Error("useLibrary must be used within a LibraryProvider");
   return ctx;
 }
-
-export { LibraryContext };

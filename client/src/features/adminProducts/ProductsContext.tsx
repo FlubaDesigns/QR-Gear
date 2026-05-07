@@ -157,7 +157,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
       fetchLibraryAssets: async (assetType: string): Promise<any[]> => {
         try {
-          return await adminFetch<any[]>(`/background-assets?type=${assetType}`);
+          return await adminFetch<any[]>(`/graphics?typeCode=${assetType}`);
         } catch (err: any) {
           if (err?.message?.includes("404")) return [];
           throw err;

@@ -812,14 +812,7 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.post('/admin/background-assets/migrate', middleware_1.requireAdmin, async (_req, res) => {
-        try {
-            res.json({ success: true, message: 'Migration complete', migratedCount: 0 });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    // /admin/background-assets/migrate — removed (legacy library_assets pipeline purged)
     app.get('/fonts', async (_req, res) => {
         try {
             const doc = await core_1.db.collection('config').doc('fonts').get();

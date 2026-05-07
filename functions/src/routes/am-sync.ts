@@ -686,11 +686,7 @@ app.patch('/admin/email-templates/:id', requireAdmin, async (req: Request, res: 
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/admin/background-assets/migrate', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    res.json({ success: true, message: 'Migration complete', migratedCount: 0 });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+// /admin/background-assets/migrate — removed (legacy library_assets pipeline purged)
 
 app.get('/fonts', async (_req: Request, res: Response): Promise<void> => {
   try {
