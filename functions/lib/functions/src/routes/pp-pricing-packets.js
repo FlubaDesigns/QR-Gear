@@ -340,6 +340,16 @@ function register(app) {
                 cleanUpdates.headerStyle = sanitizeStyleForFirestore(cleanUpdates.headerStyle);
             if (cleanUpdates.footerStyle)
                 cleanUpdates.footerStyle = sanitizeStyleForFirestore(cleanUpdates.footerStyle);
+            // ── Data-URI guard: never let a raw base64 image reach Firestore ──────────
+            // A base64 PNG is ~11 MB — far above Firestore's 1 MB document limit.
+            // Strip any field whose value is a data: URI so the write always succeeds.
+            for (const k of Object.keys(cleanUpdates)) {
+                if (typeof cleanUpdates[k] === 'string' && cleanUpdates[k].startsWith('data:')) {
+                    console.error(`[Packets PATCH] Field "${k}" contains a data URI — stripped to prevent Firestore overflow`);
+                    cleanUpdates[k] = '';
+                }
+            }
+            // ── end data-URI guard ────────────────────────────────────────────────────
             // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
             if (cleanUpdates.status === 'published') {
                 const existingAssemblyId = doc.data()?.assemblyId || null;

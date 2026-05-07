@@ -556,8 +556,22 @@ export function registerPacketRoutes(app: Express): void {
       }
       // ── end publish guard ─────────────────────────────────────────────────────
 
+      // ── Data-URI guard: never let a raw base64 image reach Firestore ──────────
+      // A base64 PNG is ~11 MB — far above Firestore's 1 MB document limit.
+      // Strip any field whose value is a data: URI so the write always succeeds.
+      const safeUpdates: Record<string, any> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        if (typeof v === 'string' && v.startsWith('data:')) {
+          console.error(`[Packets PATCH] Field "${k}" contains a data URI — stripped to prevent Firestore overflow`);
+          safeUpdates[k] = '';
+        } else {
+          safeUpdates[k] = v;
+        }
+      }
+      // ── end data-URI guard ────────────────────────────────────────────────────
+
       await docRef.update({
-        ...updates,
+        ...safeUpdates,
         updatedAt: FieldValue.serverTimestamp(),
       });
       

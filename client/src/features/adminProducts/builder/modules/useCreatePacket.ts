@@ -383,7 +383,15 @@ export function useCreatePacket({
         });
         if (uploadData?.publicUrl) productGraphicUrl = uploadData.publicUrl;
       } catch (uploadErr) {
-        console.warn("Product graphic upload error, using data URL:", uploadErr);
+        console.warn("Product graphic upload error:", uploadErr);
+      }
+
+      // Safety: if the upload failed or was skipped, productGraphicUrl is still a
+      // raw base64 data URI (~11 MB). Never write that to Firestore — strip it to ""
+      // so the packet PATCH stays well under the 1 MB document limit.
+      if (productGraphicUrl && productGraphicUrl.startsWith('data:')) {
+        console.error('[CreatePacket] productGraphicUrl is still a data URI after upload — stripping to prevent Firestore overflow');
+        productGraphicUrl = '';
       }
 
       if (landingPageSnapshotUrl) {
@@ -399,6 +407,10 @@ export function useCreatePacket({
           if (uploadData?.publicUrl) landingPageSnapshotUrl = uploadData.publicUrl;
         } catch (uploadErr) {
           console.warn("Landing page snapshot upload error:", uploadErr);
+        }
+        if (landingPageSnapshotUrl && landingPageSnapshotUrl.startsWith('data:')) {
+          console.error('[CreatePacket] landingPageSnapshotUrl is still a data URI after upload — stripping');
+          landingPageSnapshotUrl = '';
         }
       }
 
