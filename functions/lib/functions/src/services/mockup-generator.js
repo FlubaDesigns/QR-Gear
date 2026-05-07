@@ -81,7 +81,7 @@ async function toPublicUrl(url) {
             const file = bucket.file(filePath);
             const [signedUrl] = await file.getSignedUrl({
                 action: 'read',
-                expires: Date.now() + 30 * 60 * 1000,
+                expires: Date.now() + 120 * 60 * 1000, // 2 hours — must outlive Printful task wait
             });
             console.log(`[Mockup] Converted to signed URL: ${filePath}`);
             return signedUrl;
@@ -232,8 +232,9 @@ async function generateMockupFromPrintful(request) {
                 console.log(`[Printful] Retry ${attempt}/${maxRetries} - waiting ${delayMs / 1000}s`);
                 await new Promise(resolve => setTimeout(resolve, delayMs));
             }
-            // Create mockup task - don't pass option_groups as it filters out variants
-            const task = await printful_1.printfulClient.createMockupTask(printfulProductId, [variantId], mockupFiles, 'jpg');
+            // Request lifestyle/model shots alongside the flat mockup
+            const lifestyleOptionGroups = ["Men's Lifestyle", "Women's Lifestyle"];
+            const task = await printful_1.printfulClient.createMockupTask(printfulProductId, [variantId], mockupFiles, 'jpg', lifestyleOptionGroups);
             // Wait for completion with longer timeout
             const result = await printful_1.printfulClient.waitForMockupTask(task.task_key, 120000);
             if (!result.mockups || result.mockups.length === 0) {
@@ -259,32 +260,45 @@ async function generateMockupFromPrintful(request) {
 }
 // Helper function to process mockup result
 async function processMockupResult(result, blueprintId, colorName, artworkVariant, cacheKey) {
-    // Find flat and lifestyle mockups
-    let flatMockup = result.mockups.find((m) => !m.placement.includes('lifestyle'));
-    let lifestyleMockup = result.mockups.find((m) => m.placement.includes('lifestyle'));
-    if (!flatMockup)
-        flatMockup = result.mockups[0];
-    // Download and store in Firebase Storage
+    // Printful returns the flat product shot as mockups[0].mockup_url.
+    // Lifestyle/model shots come back in mockups[0].extra[] with option_group
+    // containing "lifestyle" or "model" — NOT as a separate top-level mockup.
+    const mainMockup = result.mockups[0];
+    if (!mainMockup)
+        throw new Error('No mockups returned from Printful');
+    const flatUrl = mainMockup.mockup_url;
+    // Extract lifestyle from extra[] — prefer "model" or "lifestyle" option_group
+    let lifestyleRawUrl = null;
+    if (mainMockup.extra && mainMockup.extra.length > 0) {
+        const lifestyleExtra = mainMockup.extra.find((e) => e.option_group?.toLowerCase().includes('model') ||
+            e.option_group?.toLowerCase().includes('lifestyle') ||
+            e.title?.toLowerCase().includes('lifestyle'));
+        if (lifestyleExtra?.url)
+            lifestyleRawUrl = lifestyleExtra.url;
+    }
+    // Download and store flat mockup in Firebase Storage
     const timestamp = Date.now();
     const storagePath = `mockups/${blueprintId}/${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${timestamp}.jpg`;
-    const permanentUrl = await (0, storage_helpers_1.downloadAndStoreImage)(flatMockup.mockup_url, storagePath);
+    const permanentUrl = await (0, storage_helpers_1.downloadAndStoreImage)(flatUrl, storagePath);
     let lifestyleUrl = null;
-    if (lifestyleMockup) {
+    if (lifestyleRawUrl) {
         const lifestylePath = `mockups/${blueprintId}/${colorName.replace(/\s+/g, '_')}_${artworkVariant}_lifestyle_${timestamp}.jpg`;
-        lifestyleUrl = await (0, storage_helpers_1.downloadAndStoreImage)(lifestyleMockup.mockup_url, lifestylePath);
+        lifestyleUrl = await (0, storage_helpers_1.downloadAndStoreImage)(lifestyleRawUrl, lifestylePath);
+        console.log(`[Mockup] Stored lifestyle mockup: ${lifestyleUrl ? 'ok' : 'failed'}`);
     }
     // Cache in Firestore
     await core_1.db.collection('mockup_cache').doc(cacheKey).set({
         blueprintId,
         colorName,
         artworkVariant,
-        mockupUrl: permanentUrl || flatMockup.mockup_url,
+        mockupUrl: permanentUrl || flatUrl,
         lifestyleMockupUrl: lifestyleUrl,
         status: 'active',
         generatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
     });
+    console.log(`[Mockup] Cached: flat=${!!(permanentUrl || flatUrl)}, lifestyle=${!!lifestyleUrl}`);
     return {
-        mockupUrl: permanentUrl || flatMockup.mockup_url,
+        mockupUrl: permanentUrl || flatUrl,
         lifestyleMockupUrl: lifestyleUrl,
         fromCache: false,
     };

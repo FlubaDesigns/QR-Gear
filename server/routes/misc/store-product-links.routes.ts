@@ -431,4 +431,109 @@ export function registerStoreProductLinksRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ── POST /api/store/product/:linkId/mockup-for-color ─────────────────────────
+  // Dev-server mirror of the Cloud Functions equivalent in store-files.ts.
+  // Checks the packet mockupsByColor cache first; on miss generates via Printful
+  // and writes the result back to the packet.
+  app.post("/api/store/product/:linkId/mockup-for-color", async (req: any, res) => {
+    try {
+      const { linkId } = req.params;
+      const { colorName } = req.body;
+      if (!colorName) { res.status(400).json({ error: "colorName is required" }); return; }
+
+      const { getFirestoreDb } = await import("../../lib/firebase-admin");
+      const db = getFirestoreDb();
+      const norm = (s: string) =>
+        s.replace(/^(Solid|Heather)\s+/i, "").toLowerCase().trim().replace(/\s+/g, "-");
+      const targetNorm = norm(colorName);
+
+      // Load packet via admin_catalog_instances
+      const instanceDoc = await db.collection("admin_catalog_instances").doc(linkId).get();
+      if (!instanceDoc.exists) {
+        res.json({ success: false, error: "Instance not found", colorName }); return;
+      }
+      const instanceData = instanceDoc.data()!;
+      const packetId: string | null = instanceData.currentPacketId || null;
+      let packetData: Record<string, any> | null = null;
+      if (packetId) {
+        const pDoc = await db.collection("productPackets").doc(packetId).get();
+        if (pDoc.exists) packetData = pDoc.data()!;
+      }
+
+      // Cache check — 3-level format
+      if (packetData?.mockupsByColor && typeof packetData.mockupsByColor === "object") {
+        const raw = packetData.mockupsByColor as Record<string, any>;
+        for (const [colorKey, placementsRaw] of Object.entries(raw)) {
+          if (norm(colorKey) !== targetNorm) continue;
+          if (placementsRaw && typeof placementsRaw === "object") {
+            let frontUrl: string | null = null;
+            let lifestyleUrl: string | null = null;
+            for (const [, sizeDataRaw] of Object.entries(placementsRaw as Record<string, any>)) {
+              if (!sizeDataRaw || typeof sizeDataRaw !== "object") continue;
+              const sizeData = sizeDataRaw as Record<string, any>;
+              if (sizeData.lifestyle && !lifestyleUrl) lifestyleUrl = sizeData.lifestyle;
+              const hit = Object.entries(sizeData)
+                .filter(([k]) => k !== "lifestyle")
+                .map(([, v]) => v as string)
+                .find((v) => typeof v === "string" && v.startsWith("http"));
+              if (hit && !frontUrl) frontUrl = hit;
+            }
+            if (frontUrl || lifestyleUrl) {
+              res.json({ success: true, fromCache: true, colorName, mockupUrl: frontUrl, lifestyleMockupUrl: lifestyleUrl }); return;
+            }
+          }
+          const flat = placementsRaw as any;
+          if (flat?.front || flat?.lifestyle) {
+            res.json({ success: true, fromCache: true, colorName, mockupUrl: flat.front || null, lifestyleMockupUrl: flat.lifestyle || null }); return;
+          }
+        }
+      }
+
+      // Cache miss — generate
+      if (!packetData) { res.json({ success: false, error: "No packet data", colorName }); return; }
+      const artworkUrl: string | null =
+        packetData.artworkUrl || packetData.compositeUrl || packetData.productGraphicUrl || null;
+      const blueprintId: number | null = packetData.blueprintId || instanceData?.baseSnapshot?.printifyBlueprintId || null;
+      if (!artworkUrl || !blueprintId) {
+        res.json({ success: false, error: "Insufficient packet data — artwork or blueprintId missing", colorName }); return;
+      }
+
+      const { getMockupWithFallback } = await import("../../lib/mockup-service");
+      const storageModule = await import("../../storage");
+      const result = await getMockupWithFallback({
+        blueprintId,
+        printProviderId: packetData.printProviderId || 99,
+        colorName,
+        colorHex: packetData.defaultColorHex || "#ffffff",
+        canonicalPlacementId: "front",
+        artworkUrl,
+        artworkVariant: "black",
+        fulfillmentProvider: (packetData.fulfillmentProvider || "printify") as "printify" | "printful",
+      }, storageModule.storage);
+
+      // Write back to packet
+      if (result.mockupUrl && packetId) {
+        try {
+          const colorKey = norm(colorName);
+          const { FieldValue } = await import("firebase-admin/firestore");
+          const update: Record<string, any> = {
+            [`mockupsByColor.${colorKey}.front.medium`]: result.mockupUrl,
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          if (result.lifestyleMockupUrl) {
+            update[`mockupsByColor.${colorKey}.front.lifestyle`] = result.lifestyleMockupUrl;
+          }
+          await db.collection("productPackets").doc(packetId).update(update);
+        } catch (saveErr: any) {
+          console.warn(`[StoreColorMockup] Save failed: ${saveErr.message}`);
+        }
+      }
+
+      res.json({ success: true, fromCache: false, colorName, mockupUrl: result.mockupUrl || null, lifestyleMockupUrl: result.lifestyleMockupUrl || null });
+    } catch (err: any) {
+      console.error("[StoreColorMockup] Error:", err.message);
+      res.json({ success: false, error: err.message, colorName: req.body?.colorName });
+    }
+  });
 }
