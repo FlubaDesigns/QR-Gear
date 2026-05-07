@@ -15,8 +15,8 @@
  */
 
 import { db, admin } from '../core';
-import type { GrfTypeCode, GrfRoleCode } from '../../../shared/graphicCodes';
-import { buildGraphicId, grfCounterKey, GRF_TYPE_MAP } from '../../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../../shared/graphicCodes';
+import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from '../../../shared/graphicCodes';
 
 const GRF_ASSETS_COLLECTION   = 'grf_assets';
 const GRF_COUNTERS_COLLECTION  = 'grf_counters';
@@ -24,8 +24,12 @@ const GRF_COUNTERS_COLLECTION  = 'grf_counters';
 export interface RegisterGrfAssetOptions {
   /** Pre-uploaded asset URL in Firebase Storage */
   sourceUrl:        string;
-  typeCode:         GrfTypeCode;
-  roleCode:         GrfRoleCode;
+  assetClass:       GrfAssetClass;
+  mediaType:        GrfMediaType;
+  channel:          GrfChannel;
+  purpose:          GrfPurpose;
+  format:           string;
+  subContext:       string;
   mimeType?:        string | null;
   sourceSessionId?: string | null;
   packetId?:        string | null;
@@ -38,49 +42,23 @@ export interface RegisterGrfAssetResult {
 }
 
 /**
- * Atomically allocate the next GRF sequence for a typeCode+roleCode pair,
+ * Atomically allocate the next GRF sequence from the global counter,
  * write to grf_assets, and return the canonical grfId.
  *
  * @throws if sourceUrl is empty
- * @throws if typeCode+roleCode pairing is invalid
+ * @throws if GRF params are invalid
  * @throws if the Firestore transaction fails
  */
 export async function registerGrfAsset(
   opts: RegisterGrfAssetOptions,
 ): Promise<RegisterGrfAssetResult> {
-  const { sourceUrl, typeCode, roleCode, mimeType, sourceSessionId, packetId } = opts;
+  const { sourceUrl, assetClass, mediaType, channel, purpose, format, subContext, mimeType, sourceSessionId, packetId } = opts;
 
   if (!sourceUrl || sourceUrl.trim() === '') {
     throw new Error(`[GRFRegistrar] sourceUrl is required — cannot register empty URL as GRF asset`);
   }
 
-  // Canon (GRF.md): mimeType must be provided and compatible with typeCode.
-  // All current GRF types (01–07) require image/* — no silent default allowed.
-  if (!mimeType || mimeType.trim() === '') {
-    throw new Error(
-      `[GRFRegistrar] mimeType is required for typeCode "${typeCode}" — provide a valid MIME type (e.g. "image/png"). No default is applied.`,
-    );
-  }
-  if (!mimeType.startsWith('image/')) {
-    throw new Error(
-      `[GRFRegistrar] mimeType "${mimeType}" is not compatible with typeCode "${typeCode}". ` +
-      `All current GRF asset types (01–07) require an image/* MIME type.`,
-    );
-  }
-
-  const typeEntry = GRF_TYPE_MAP[typeCode];
-  if (!typeEntry) {
-    throw new Error(`[GRFRegistrar] Unknown GRF typeCode: "${typeCode}"`);
-  }
-  if (!typeEntry.validRoles.includes(roleCode)) {
-    throw new Error(
-      `[GRFRegistrar] Role "${roleCode}" is not valid for typeCode "${typeCode}". ` +
-      `Valid roles: ${typeEntry.validRoles.join(', ')}`,
-    );
-  }
-
-  const counterKey = grfCounterKey(typeCode, roleCode);
-  const counterRef = db.collection(GRF_COUNTERS_COLLECTION).doc(counterKey);
+  const counterRef = db.collection(GRF_COUNTERS_COLLECTION).doc(GRF_COUNTER_KEY);
   let sequence = 0;
 
   await db.runTransaction(async (tx) => {
@@ -88,9 +66,7 @@ export async function registerGrfAsset(
     if (!snap.exists) {
       sequence = 1;
       tx.set(counterRef, {
-        count:    1,
-        typeCode,
-        roleCode,
+        count:     1,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } else {
@@ -102,18 +78,27 @@ export async function registerGrfAsset(
     }
   });
 
-  const grfId = buildGraphicId(typeCode, roleCode, sequence);
-  const now   = admin.firestore.FieldValue.serverTimestamp();
+  const grfId = buildGrfId({ assetClass, mediaType, channel, purpose, format, subContext, sequence });
+  const parsed = parseGrfId(grfId);
+  const now    = admin.firestore.FieldValue.serverTimestamp();
 
   await db.collection(GRF_ASSETS_COLLECTION).doc(grfId).set({
     grfId,
-    typeCode,
-    roleCode,
-    typeName:        typeEntry.label,
-    typeDescription: typeEntry.description,
-    sequence,
+    assetClass:      parsed.assetClass,
+    mediaType:       parsed.mediaType,
+    channel:         parsed.channel,
+    purpose:         parsed.purpose,
+    format:          parsed.format,
+    subContext:      parsed.subContext,
+    sequence:        parsed.sequence,
+    assetClassName:  parsed.assetClassName,
+    mediaTypeName:   parsed.mediaTypeName,
+    channelName:     parsed.channelName,
+    purposeName:     parsed.purposeName,
+    formatName:      parsed.formatName,
+    subContextName:  parsed.subContextName,
+    mimeType:        mimeType || parsed.mimeType,
     sourceUrl,
-    mimeType:        mimeType,
     sourceSessionId: sourceSessionId || null,
     packetId:        packetId        || null,
     source:          'auto_commit',
@@ -121,7 +106,7 @@ export async function registerGrfAsset(
     createdAt:       now,
   });
 
-  console.log(`[GRFRegistrar] ${grfId} (${typeEntry.label}) → ${sourceUrl.slice(0, 80)}…`);
+  console.log(`[GRFRegistrar] ${grfId} (${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
   return { grfId, sourceUrl, sequence };
 }
 
@@ -160,25 +145,25 @@ export async function registerPacketGrfAssets(
 
   const bgUrl = packetData.backgroundUrl || packetData.landingPageBackgroundUrl || null;
   if (isStorageUrl(bgUrl)) {
-    const r = await registerGrfAsset({ sourceUrl: bgUrl, typeCode: '03', roleCode: '3', mimeType: 'image/png', sourceSessionId, packetId });
+    const r = await registerGrfAsset({ sourceUrl: bgUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.background });
     result.backgroundGrfId = r.grfId;
   }
 
   const qrUrl = packetData.qrOnlyUrl || null;
   if (isStorageUrl(qrUrl)) {
-    const r = await registerGrfAsset({ sourceUrl: qrUrl, typeCode: '04', roleCode: '3', mimeType: 'image/png', sourceSessionId, packetId });
+    const r = await registerGrfAsset({ sourceUrl: qrUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.qrStandalone });
     result.qrGrfId = r.grfId;
   }
 
   const compositeUrl = packetData.compositeUrl || packetData.productGraphicUrl || null;
   if (isStorageUrl(compositeUrl)) {
-    const r = await registerGrfAsset({ sourceUrl: compositeUrl, typeCode: '05', roleCode: '3', mimeType: 'image/png', sourceSessionId, packetId });
+    const r = await registerGrfAsset({ sourceUrl: compositeUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.qrComposite });
     result.compositeGrfId = r.grfId;
   }
 
   const snapshotUrl = packetData.landingPageSnapshotUrl || null;
   if (isStorageUrl(snapshotUrl)) {
-    const r = await registerGrfAsset({ sourceUrl: snapshotUrl, typeCode: '06', roleCode: '3', mimeType: 'image/png', sourceSessionId, packetId });
+    const r = await registerGrfAsset({ sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.urlGraphic });
     result.landingSnapshotGrfId = r.grfId;
   }
 

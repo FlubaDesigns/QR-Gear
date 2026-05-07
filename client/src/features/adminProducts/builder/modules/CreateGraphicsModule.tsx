@@ -7,6 +7,7 @@ import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";
+import { GRF_PACKET_SLOTS } from "@shared/graphicCodes";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PacketResultDisplay } from "./PacketResultDisplay";
@@ -118,12 +119,7 @@ export function CreateGraphicsModule() {
       await adminFetch('/graphics/save-grf', {
         method: 'POST',
         json: {
-          assetClass: '2',  // output artifact
-          mediaType:  '1',  // image
-          channel:    '1',  // print
-          purpose:    '2',  // qr_standalone
-          format:     '1',  // PNG
-          subContext: '1',  // front
+          ...GRF_PACKET_SLOTS.qrStandalone,
           imageUrl: packetResult.qrOnlyUrl,
           name: graphicName ? `${graphicName} — QR Standalone` : 'QR Standalone',
           relatedPacketId: packetResult.packetId || null,
@@ -145,12 +141,7 @@ export function CreateGraphicsModule() {
       await adminFetch('/graphics/save-grf', {
         method: 'POST',
         json: {
-          assetClass: '2',  // output artifact
-          mediaType:  '1',  // image
-          channel:    '1',  // print
-          purpose:    '1',  // qr_composite
-          format:     '1',  // PNG
-          subContext: '1',  // front
+          ...GRF_PACKET_SLOTS.qrComposite,
           imageUrl: packetResult.compositeUrl,
           name: graphicName ? `${graphicName} — QR Composite` : 'QR Composite',
           relatedPacketId: packetResult.packetId || null,

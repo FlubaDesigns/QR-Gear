@@ -13,8 +13,8 @@
  *   registerPacketGrfsDev — registers all packet GRF assets
  */
 
-import type { GrfTypeCode, GrfRoleCode } from '../../shared/graphicCodes';
-import { buildGraphicId, grfCounterKey, GRF_TYPE_MAP } from '../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../shared/graphicCodes';
+import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from '../../shared/graphicCodes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // QRG instance allocation
@@ -88,51 +88,64 @@ async function getDb(): Promise<FirebaseFirestore.Firestore> {
 }
 
 async function registerGrfDev(opts: {
-  db:              FirebaseFirestore.Firestore;
-  sourceUrl:       string;
-  typeCode:        GrfTypeCode;
-  roleCode:        GrfRoleCode;
-  mimeType?:       string | null;
+  db:               FirebaseFirestore.Firestore;
+  sourceUrl:        string;
+  assetClass:       GrfAssetClass;
+  mediaType:        GrfMediaType;
+  channel:          GrfChannel;
+  purpose:          GrfPurpose;
+  format:           string;
+  subContext:       string;
+  mimeType?:        string | null;
   sourceSessionId?: string | null;
   packetId?:        string | null;
 }): Promise<string> {
-  const { db, sourceUrl, typeCode, roleCode, mimeType, sourceSessionId, packetId } = opts;
+  const { db, sourceUrl, assetClass, mediaType, channel, purpose, format, subContext, mimeType, sourceSessionId, packetId } = opts;
   const { FieldValue } = await import('firebase-admin/firestore');
 
-  const typeEntry = GRF_TYPE_MAP[typeCode];
-  if (!typeEntry) throw new Error(`[GRFRegistrar-dev] Unknown typeCode: "${typeCode}"`);
-  if (!typeEntry.validRoles.includes(roleCode)) {
-    throw new Error(`[GRFRegistrar-dev] Role "${roleCode}" invalid for typeCode "${typeCode}"`);
-  }
-
-  const counterKey = grfCounterKey(typeCode, roleCode);
-  const counterRef = db.collection('grf_counters').doc(counterKey);
+  const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
   let sequence = 0;
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(counterRef);
     if (!snap.exists) {
       sequence = 1;
-      tx.set(counterRef, { count: 1, typeCode, roleCode, createdAt: FieldValue.serverTimestamp() });
+      tx.set(counterRef, { count: 1, createdAt: FieldValue.serverTimestamp() });
     } else {
       sequence = (snap.data()!.count || 0) + 1;
       tx.update(counterRef, { count: sequence, updatedAt: FieldValue.serverTimestamp() });
     }
   });
 
-  const grfId = buildGraphicId(typeCode, roleCode, sequence);
-  const now = FieldValue.serverTimestamp();
+  const grfId = buildGrfId({ assetClass, mediaType, channel, purpose, format, subContext, sequence });
+  const parsed = parseGrfId(grfId);
+  const now    = FieldValue.serverTimestamp();
 
   await db.collection('grf_assets').doc(grfId).set({
-    grfId, typeCode, roleCode,
-    typeName: typeEntry.label, typeDescription: typeEntry.description,
-    sequence, sourceUrl, mimeType: mimeType || 'image/png',
+    grfId,
+    assetClass:      parsed.assetClass,
+    mediaType:       parsed.mediaType,
+    channel:         parsed.channel,
+    purpose:         parsed.purpose,
+    format:          parsed.format,
+    subContext:      parsed.subContext,
+    sequence:        parsed.sequence,
+    assetClassName:  parsed.assetClassName,
+    mediaTypeName:   parsed.mediaTypeName,
+    channelName:     parsed.channelName,
+    purposeName:     parsed.purposeName,
+    formatName:      parsed.formatName,
+    subContextName:  parsed.subContextName,
+    mimeType:        mimeType || parsed.mimeType,
+    sourceUrl,
     sourceSessionId: sourceSessionId || null,
-    packetId: packetId || null,
-    source: 'auto_commit', isActive: true, createdAt: now,
+    packetId:        packetId        || null,
+    source:          'auto_commit',
+    isActive:        true,
+    createdAt:       now,
   });
 
-  console.log(`[GRFRegistrar-dev] ${grfId} (${typeEntry.label}) → ${sourceUrl.slice(0, 80)}…`);
+  console.log(`[GRFRegistrar-dev] ${grfId} (${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
   return grfId;
 }
 
@@ -151,19 +164,19 @@ export async function registerPacketGrfsDev(
 
   const bgUrl = packetData.backgroundUrl || packetData.landingPageBackgroundUrl || null;
   if (isStorageUrl(bgUrl))
-    result.backgroundGrfId = await registerGrfDev({ db, sourceUrl: bgUrl, typeCode: '03', roleCode: '3', sourceSessionId, packetId });
+    result.backgroundGrfId = await registerGrfDev({ db, sourceUrl: bgUrl, ...GRF_PACKET_SLOTS.background, sourceSessionId, packetId });
 
   const qrUrl = packetData.qrOnlyUrl || null;
   if (isStorageUrl(qrUrl))
-    result.qrGrfId = await registerGrfDev({ db, sourceUrl: qrUrl, typeCode: '04', roleCode: '3', sourceSessionId, packetId });
+    result.qrGrfId = await registerGrfDev({ db, sourceUrl: qrUrl, ...GRF_PACKET_SLOTS.qrStandalone, sourceSessionId, packetId });
 
   const compositeUrl = packetData.compositeUrl || packetData.productGraphicUrl || null;
   if (isStorageUrl(compositeUrl))
-    result.compositeGrfId = await registerGrfDev({ db, sourceUrl: compositeUrl, typeCode: '05', roleCode: '3', sourceSessionId, packetId });
+    result.compositeGrfId = await registerGrfDev({ db, sourceUrl: compositeUrl, ...GRF_PACKET_SLOTS.qrComposite, sourceSessionId, packetId });
 
   const snapshotUrl = packetData.landingPageSnapshotUrl || null;
   if (isStorageUrl(snapshotUrl))
-    result.landingSnapshotGrfId = await registerGrfDev({ db, sourceUrl: snapshotUrl, typeCode: '06', roleCode: '3', sourceSessionId, packetId });
+    result.landingSnapshotGrfId = await registerGrfDev({ db, sourceUrl: snapshotUrl, ...GRF_PACKET_SLOTS.urlGraphic, sourceSessionId, packetId });
 
   return result;
 }

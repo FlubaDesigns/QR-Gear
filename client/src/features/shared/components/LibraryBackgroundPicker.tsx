@@ -12,8 +12,8 @@ interface GrfAsset {
   name: string;
   publicUrl: string;
   mimeType: string;
-  typeCode: string;
-  roleCode: string;
+  assetClass: string;
+  purpose: string;
   isActive: boolean;
 }
 
@@ -49,8 +49,8 @@ export function LibraryBackgroundPicker({
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const { data: assets = [], isLoading } = useQuery<GrfAsset[]>({
-    queryKey: ["/api/admin/graphics", { typeCode: "03" }],
-    queryFn: () => adminFetch<GrfAsset[]>("/graphics?typeCode=03"),
+    queryKey: ["/api/admin/graphics", { assetClass: "1", purpose: "6" }],
+    queryFn: () => adminFetch<GrfAsset[]>("/graphics?assetClass=1&purpose=6"),
     enabled,
   });
 
@@ -73,7 +73,7 @@ export function LibraryBackgroundPicker({
         <div className="text-center py-6 border rounded-md bg-muted/20">
           <Image className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm text-muted-foreground">
-            No background images found. Mint a GRF-03-3 asset in the Graphics Library.
+            No background images found. Upload a background in the Graphics Library (input build · background).
           </p>
         </div>
       ) : (

@@ -256,6 +256,43 @@ export function grfMimeType(grfId: string): string {
 
 export const GRF_COUNTER_KEY = 'global';
 
+// ── Canonical packet slot definitions ──────────────────────────────────────
+// Single source of truth for which GRF descriptor params map to each
+// auto-registered packet asset slot. Import this everywhere — never
+// hardcode slot params in registrar files or UI save handlers.
+
+export interface GrfSlotParams {
+  assetClass: GrfAssetClass;
+  mediaType:  GrfMediaType;
+  channel:    GrfChannel;
+  purpose:    GrfPurpose;
+  format:     string;
+  subContext: string;
+}
+
+export const GRF_PACKET_SLOTS = {
+  /** Background image used in the builder — input_build · image · print · background · png · front */
+  background: {
+    assetClass: '1' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '1' as GrfChannel, purpose: '6' as GrfPurpose, format: '1', subContext: '1',
+  },
+  /** QR code standalone — output_artifact · image · print · qr_standalone · png · front */
+  qrStandalone: {
+    assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '1' as GrfChannel, purpose: '2' as GrfPurpose, format: '1', subContext: '1',
+  },
+  /** QR composite (canvas design) — output_artifact · image · print · qr_composite · png · front */
+  qrComposite: {
+    assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '1' as GrfChannel, purpose: '1' as GrfPurpose, format: '1', subContext: '1',
+  },
+  /** Landing page snapshot — output_artifact · image · url · url_graphic · png · internal */
+  urlGraphic: {
+    assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '3' as GrfChannel, purpose: '3' as GrfPurpose, format: '1', subContext: '1',
+  },
+} satisfies Record<string, GrfSlotParams>;
+
 // ── Legacy compatibility shims ─────────────────────────────────────────────
 // Allow old call sites to compile during migration. Remove once fully migrated.
 
