@@ -9,19 +9,30 @@ The GRF system is the canonical identity and storage schema for all graphic asse
 ## ID Format
 
 ```
-[D1][D2][D3][D4][D5]-[NNNNNN]
+[D1][D2][D3][D4][D5][D6]-[NNNNNN]
 ```
 
-Five single-digit descriptor positions followed by a hyphen and a 6-digit zero-padded global sequence number.
+Six single-digit descriptor positions followed by a hyphen and a 6-digit zero-padded global sequence number.
 
-**Example:** `12421-000003`
-→ Image · Store · Glamor Shot · JPEG · First to show · Sequence 3
+**Example:** `212421-000001`
+→ Output artifact · Image · Store · Glamor Shot · JPEG · First to show · Sequence 1
 
 ---
 
 ## Digit Key
 
-### D1 — Media Type
+### D1 — Asset Class
+
+The most fundamental classification — is this a build input or a build output?
+
+| Value | Name | Description |
+|---|---|---|
+| `1` | Input build | Input to the build process — source uploads, backgrounds, templates, cropped derivatives |
+| `2` | Output artifact | Output of the build — QR composites, glamor shots, URL graphics |
+
+---
+
+### D2 — Media Type
 
 | Value | Type |
 |---|---|
@@ -31,7 +42,7 @@ Five single-digit descriptor positions followed by a hyphen and a 6-digit zero-p
 
 ---
 
-### D2 — Channel
+### D3 — Channel
 
 Where this asset lives and is served from.
 
@@ -43,27 +54,27 @@ Where this asset lives and is served from.
 
 ---
 
-### D3 — Purpose
+### D4 — Purpose
 
 What the asset *is* — its functional role in the build chain.
 
-| Value | Name | Description |
-|---|---|---|
-| `1` | QR Composite | QR code merged with zone/palette graphic or text — what goes on the front of the item |
-| `2` | QR Standalone | The QR code with QRG logo centered on a white box |
-| `3` | URL Graphic | Image created for the online landing page / digital artifact |
-| `4` | Glamor Shot | Lifestyle/mockup render — shirt with design applied, store-facing presentation |
-| `5` | Source Upload | Raw asset uploaded by user before any processing |
-| `6` | Background | Background image used during composition in the builder |
-| `7` | Template | Reusable graphic element applied across multiple products |
+| Value | Name | Asset class | Description |
+|---|---|---|---|
+| `1` | QR Composite | Output | QR code merged with zone/palette graphic or text — goes on the front of the item |
+| `2` | QR Standalone | Output | QR code with QRG logo centered on a white box |
+| `3` | URL Graphic | Output | Image created for the online landing page / digital artifact |
+| `4` | Glamor Shot | Output | Lifestyle/mockup render — shirt with design applied, store-facing |
+| `5` | Source Upload | Input | Raw asset uploaded by user before any processing |
+| `6` | Background | Input | Background image used during composition in the builder |
+| `7` | Template | Input | Reusable graphic element applied across multiple products |
 
 ---
 
-### D4 — Format *(conditional on D1)*
+### D5 — Format *(conditional on D2)*
 
-Valid format values depend on the media type in D1.
+Valid values depend on the media type in D2.
 
-**If D1 = `1` (Image):**
+**If D2 = `1` (Image):**
 
 | Value | Format |
 |---|---|
@@ -72,14 +83,14 @@ Valid format values depend on the media type in D1.
 | `3` | WebP |
 | `4` | SVG |
 
-**If D1 = `2` (Video):**
+**If D2 = `2` (Video):**
 
 | Value | Format |
 |---|---|
 | `1` | MP4 |
 | `2` | WebM |
 
-**If D1 = `3` (Document):**
+**If D2 = `3` (Document):**
 
 | Value | Format |
 |---|---|
@@ -87,11 +98,11 @@ Valid format values depend on the media type in D1.
 
 ---
 
-### D5 — Sub-context *(conditional on D2)*
+### D6 — Sub-context *(conditional on D3)*
 
-Meaning depends on the channel in D2.
+Meaning depends on the channel in D3.
 
-**If D2 = `1` (Print) — Location on item:**
+**If D3 = `1` (Print) — Location on item:**
 
 | Value | Location |
 |---|---|
@@ -99,7 +110,7 @@ Meaning depends on the channel in D2.
 | `2` | Back |
 | `3` | Sleeve |
 
-**If D2 = `2` (Store) — Display index:**
+**If D3 = `2` (Store) — Display index:**
 
 | Value | Position |
 |---|---|
@@ -109,7 +120,7 @@ Meaning depends on the channel in D2.
 | `4` | Fourth image shown |
 | `5` | Fifth image shown |
 
-**If D2 = `3` (URL) — File location:**
+**If D3 = `3` (URL) — File location:**
 
 | Value | Location |
 |---|---|
@@ -120,7 +131,7 @@ Meaning depends on the channel in D2.
 
 ### Sequence — NNNNNN
 
-Six-digit zero-padded global sequence number. Minted atomically from `grf_counters/global` in Firestore. Codes are **global and fixed** — never renumber once assigned.
+Six-digit zero-padded global sequence number. Minted atomically from `grf_counters/global`. Never reused once assigned.
 
 ---
 
@@ -128,27 +139,23 @@ Six-digit zero-padded global sequence number. Minted atomically from `grf_counte
 
 | GRF ID | Reads as |
 |---|---|
-| `11111-000001` | Image · Print · QR Composite · PNG · Front · #1 |
-| `11211-000001` | Image · Print · QR Standalone · PNG · Front · #1 |
-| `12421-000001` | Image · Store · Glamor Shot · JPEG · First shown · #1 |
-| `12422-000002` | Image · Store · Glamor Shot · JPEG · Second shown · #2 |
-| `13311-000001` | Image · URL · URL Graphic · WebP · Internal file · #1 |
-| `13312-000001` | Image · URL · URL Graphic · WebP · External URL · #1 |
-| `12111-000005` | Image · Store · QR Composite · PNG · First shown · #5 |
+| `211111-000001` | Output · Image · Print · QR Composite · PNG · Front |
+| `211211-000001` | Output · Image · Print · QR Standalone · PNG · Front |
+| `212421-000001` | Output · Image · Store · Glamor Shot · JPEG · First shown |
+| `213311-000001` | Output · Image · URL · URL Graphic · WebP · Internal file |
+| `111611-000001` | Input · Image · Print · Background · PNG · Front |
+| `111511-000001` | Input · Image · Print · Source Upload · PNG · Front |
+| `111711-000001` | Input · Image · Print · Template · PNG · Front |
 
 ---
 
 ## Storage Path Convention
 
-Assets are stored in Firebase Storage at:
-
 ```
 grf/{grfId}/{filename}
 ```
 
-The filename uses a human-readable slug based on purpose:
-
-| Purpose (D3) | Filename |
+| Purpose (D4) | Filename |
 |---|---|
 | `1` QR Composite | `composite.png` |
 | `2` QR Standalone | `qr-standalone.png` |
@@ -158,7 +165,7 @@ The filename uses a human-readable slug based on purpose:
 | `6` Background | `background.{ext}` |
 | `7` Template | `template.{ext}` |
 
-**Example:** `grf/12421-000001/glamor.jpg`
+**Example:** `grf/212421-000001/glamor.jpg`
 
 ---
 
@@ -166,20 +173,22 @@ The filename uses a human-readable slug based on purpose:
 
 ```json
 {
-  "grfId":          "12421-000001",
+  "grfId":          "212421-000001",
+  "assetClass":     "2",
   "mediaType":      "1",
   "channel":        "2",
   "purpose":        "4",
   "format":         "2",
   "subContext":     "1",
   "sequence":       1,
+  "assetClassName": "output_artifact",
   "mediaTypeName":  "image",
   "channelName":    "store",
   "purposeName":    "glamor_shot",
   "formatName":     "jpeg",
   "subContextName": "first",
   "mimeType":       "image/jpeg",
-  "storagePath":    "grf/12421-000001/glamor.jpg",
+  "storagePath":    "grf/212421-000001/glamor.jpg",
   "publicUrl":      "https://...",
   "packetId":       "abc123",
   "sourceSessionId":"session456",
@@ -192,20 +201,20 @@ The filename uses a human-readable slug based on purpose:
 
 ## Counter
 
-Global sequence counter: `grf_counters/global { count: N }`
+Single global counter: `grf_counters/global { count: N }`
 
-Atomically incremented in a Firestore transaction for every new GRF ID minted. The counter is never decremented or reset.
+Atomically incremented in a Firestore transaction for every new GRF ID. Never decremented or reset.
 
 ---
 
 ## Rules
 
-1. **Assembly mappings must use grfId — never raw URLs.** The store and build chain resolve grfId → publicUrl at read time.
-2. **Never reuse or renumber a GRF ID.** Once minted it is permanent, even if the asset is deleted or replaced.
-3. **Format must be compatible with media type.** PNG/JPEG/WebP/SVG for images; MP4/WebM for video; PDF for documents.
-4. **Sub-context is always set** — use the appropriate value for the channel; do not leave it zero or null.
-5. **Source uploads (purpose `5`) are internal only** — never exposed in store display or URL artifact chains.
-6. **STOP on invalid ID — never silently accept.** Hard error, do not save, do not continue.
+1. **Assembly mappings must use grfId — never raw URLs.**
+2. **Never reuse or renumber a GRF ID.** Permanent once minted.
+3. **Format must be compatible with media type.**
+4. **Sub-context is always set** — never zero or null.
+5. **Input build assets (D1=`1`) are never exposed in store display or URL artifact chains.**
+6. **Hard fail on invalid ID** — stop, throw, do not save, do not continue.
 
 ---
 
@@ -214,7 +223,7 @@ Atomically incremented in a Firestore transaction for every new GRF ID minted. T
 **Save a GRF asset:**
 ```
 POST /api/admin/graphics/save-grf
-{ mediaType, channel, purpose, format, subContext, imageUrl, name, mimeType, packetId }
+{ assetClass, mediaType, channel, purpose, format, subContext, imageUrl, name, mimeType, packetId }
 ```
 
 **Get GRF assets (filtered):**
@@ -237,8 +246,7 @@ Assembly → { qrgId, bldId, mappings: [{ grfId, ... }] }
 GRF asset → { publicUrl, storagePath, ... }
 ```
 
-The store reads images by walking: `packet → assembly → grfIds → publicUrls`.
-Raw URLs are never stored on packets or assemblies.
+The store reads images by walking: `packet → assembly → grfIds → publicUrls`. Raw URLs are never stored on packets or assemblies.
 
 ---
 
