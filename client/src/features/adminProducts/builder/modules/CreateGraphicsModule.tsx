@@ -118,10 +118,14 @@ export function CreateGraphicsModule() {
       await adminFetch('/graphics/save-grf', {
         method: 'POST',
         json: {
-          typeCode: '04',
-          roleCode: '3',
+          assetClass: '2',  // output artifact
+          mediaType:  '1',  // image
+          channel:    '1',  // print
+          purpose:    '2',  // qr_standalone
+          format:     '1',  // PNG
+          subContext: '1',  // front
           imageUrl: packetResult.qrOnlyUrl,
-          name: graphicName ? `${graphicName} — QR Graphic` : 'QR Graphic',
+          name: graphicName ? `${graphicName} — QR Standalone` : 'QR Standalone',
           relatedPacketId: packetResult.packetId || null,
         },
       });
@@ -141,10 +145,14 @@ export function CreateGraphicsModule() {
       await adminFetch('/graphics/save-grf', {
         method: 'POST',
         json: {
-          typeCode: '05',
-          roleCode: '4',
+          assetClass: '2',  // output artifact
+          mediaType:  '1',  // image
+          channel:    '1',  // print
+          purpose:    '1',  // qr_composite
+          format:     '1',  // PNG
+          subContext: '1',  // front
           imageUrl: packetResult.compositeUrl,
-          name: graphicName ? `${graphicName} — Canvas Design` : 'Canvas Design',
+          name: graphicName ? `${graphicName} — QR Composite` : 'QR Composite',
           relatedPacketId: packetResult.packetId || null,
         },
       });

@@ -6,10 +6,10 @@ import { fsGetAll, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/f
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from "../lib/constants";
 import { registerAdminCatalogsShelfRoutes } from "./admin-catalogs-shelf.routes";
 import {
-  GRF_TYPE_MAP, GRF_TYPE_ALLOWED_MIMES, isValidGraphicId,
-  buildGraphicId, grfCounterKey,
+  isValidGraphicId, buildGrfId, parseGrfId, grfStoragePath,
+  GRF_COUNTER_KEY,
 } from "../../shared/graphicCodes";
-import type { GrfTypeCode, GrfRoleCode } from "../../shared/graphicCodes";
+import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from "../../shared/graphicCodes";
 
 export function registerAdminContentRoutes(app: Express): void {
   registerAdminCatalogsShelfRoutes(app);
@@ -295,68 +295,79 @@ export function registerAdminContentRoutes(app: Express): void {
 
   app.post("/api/admin/graphics/save-grf", isAdmin, async (req: any, res) => {
     try {
-      const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags } = req.body;
+      const {
+        assetClass, mediaType, channel, purpose, format, subContext,
+        imageUrl, name, description, mimeType, storagePath,
+        sourceGrfId, relatedPacketId, tags,
+      } = req.body;
 
-      if (!typeCode || !roleCode || !imageUrl) {
-        return res.status(400).json({ error: "Missing required fields: typeCode, roleCode, imageUrl" });
-      }
-
-      const validTypeCodes = Object.keys(GRF_TYPE_MAP) as GrfTypeCode[];
-      if (!validTypeCodes.includes(typeCode as GrfTypeCode)) {
-        return res.status(400).json({ error: `Invalid typeCode. Must be one of: ${validTypeCodes.join(", ")}` });
-      }
-
-      const entry = GRF_TYPE_MAP[typeCode as GrfTypeCode];
-      if (!entry.validRoles.includes(roleCode as GrfRoleCode)) {
-        return res.status(400).json({
-          error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(", ")}`,
-        });
-      }
-
-      if (mimeType) {
-        const allowedMimes = GRF_TYPE_ALLOWED_MIMES[typeCode as GrfTypeCode] as string[];
-        if (!allowedMimes.includes(mimeType)) {
-          return res.status(400).json({
-            error: `MIME type "${mimeType}" is not valid for GRF typeCode "${typeCode}" (${entry.label}). Allowed: ${allowedMimes.join(", ")}`,
-          });
-        }
+      if (!assetClass || !mediaType || !channel || !purpose || !format || !subContext || !imageUrl) {
+        return res.status(400).json({ error: "Missing required fields: assetClass, mediaType, channel, purpose, format, subContext, imageUrl" });
       }
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const { FieldValue } = await import("firebase-admin/firestore");
       const db = getFirestoreDb();
 
-      const counterKey = grfCounterKey(typeCode as GrfTypeCode, roleCode as GrfRoleCode);
-      const counterRef = db.collection("grf_counters").doc(counterKey);
+      const counterRef = db.collection("grf_counters").doc(GRF_COUNTER_KEY);
       let newSeq = 0;
       await db.runTransaction(async (tx: any) => {
         const doc = await tx.get(counterRef);
         newSeq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
-        tx.set(counterRef, { count: newSeq, typeCode, roleCode, updatedAt: FieldValue.serverTimestamp() });
+        tx.set(counterRef, { count: newSeq, updatedAt: FieldValue.serverTimestamp() });
       });
 
-      const grfId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
+      let grfId: string;
+      try {
+        grfId = buildGrfId({
+          assetClass: assetClass as GrfAssetClass,
+          mediaType: mediaType as GrfMediaType,
+          channel: channel as GrfChannel,
+          purpose: purpose as GrfPurpose,
+          format,
+          subContext,
+          sequence: newSeq,
+        });
+      } catch (e: any) {
+        return res.status(400).json({ error: `Invalid GRF params: ${e.message}` });
+      }
+
+      const parsed = parseGrfId(grfId);
 
       const existingAsset = await db.collection("grf_assets").doc(grfId).get();
       if (existingAsset.exists) {
-        console.error(`[GRF] Counter integrity violation — ${grfId} already exists. Counter key: ${counterKey}`);
-        return res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${counterKey}.` });
+        console.error(`[GRF] Counter integrity violation — ${grfId} already exists.`);
+        return res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${GRF_COUNTER_KEY}.` });
       }
 
       const now = FieldValue.serverTimestamp();
+      const canonicalStoragePath = storagePath || grfStoragePath(grfId);
       const assetData: Record<string, any> = {
-        grfId, typeCode, roleCode,
-        typeName: entry.label,
-        name: name || `${entry.label} ${grfId}`,
-        description: description || null,
-        mimeType: mimeType || "image/png",
-        storagePath: storagePath || null,
-        publicUrl: imageUrl,
-        sourceGrfId: sourceGrfId || null,
+        grfId,
+        assetClass:      parsed.assetClass,
+        mediaType:       parsed.mediaType,
+        channel:         parsed.channel,
+        purpose:         parsed.purpose,
+        format:          parsed.format,
+        subContext:      parsed.subContext,
+        sequence:        parsed.sequence,
+        assetClassName:  parsed.assetClassName,
+        mediaTypeName:   parsed.mediaTypeName,
+        channelName:     parsed.channelName,
+        purposeName:     parsed.purposeName,
+        formatName:      parsed.formatName,
+        subContextName:  parsed.subContextName,
+        mimeType:        mimeType || parsed.mimeType,
+        name:            name || `${parsed.purposeName} ${grfId}`,
+        description:     description || null,
+        storagePath:     canonicalStoragePath,
+        publicUrl:       imageUrl,
+        sourceGrfId:     sourceGrfId || null,
         relatedPacketId: relatedPacketId || null,
-        tags: tags || null,
-        createdAt: now, createdBy: "admin",
-        isActive: true,
+        tags:            tags || null,
+        createdAt:       now,
+        createdBy:       "admin",
+        isActive:        true,
       };
 
       await db.collection("grf_assets").doc(grfId).set(assetData);
@@ -373,7 +384,7 @@ export function registerAdminContentRoutes(app: Express): void {
 
   app.get("/api/admin/graphics", isAdmin, async (req: any, res) => {
     try {
-      const { typeCode, roleCode } = req.query;
+      const { assetClass, mediaType, channel, purpose, format, subContext } = req.query;
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const db = getFirestoreDb();
 
@@ -387,7 +398,14 @@ export function registerAdminContentRoutes(app: Express): void {
       };
       const assets = snapshot.docs
         .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-        .filter((a: any) => (!typeCode || a.typeCode === typeCode) && (!roleCode || a.roleCode === roleCode))
+        .filter((a: any) =>
+          (!assetClass  || a.assetClass  === assetClass)  &&
+          (!mediaType   || a.mediaType   === mediaType)   &&
+          (!channel     || a.channel     === channel)     &&
+          (!purpose     || a.purpose     === purpose)     &&
+          (!format      || a.format      === format)      &&
+          (!subContext  || a.subContext  === subContext)
+        )
         .sort((a: any, b: any) => getTime(b.createdAt) - getTime(a.createdAt));
 
       res.json(assets);

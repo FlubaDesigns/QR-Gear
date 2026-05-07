@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { buildGraphicId, grfCounterKey, GRF_TYPE_MAP, GRF_TYPE_ALLOWED_MIMES } from '../../../shared/graphicCodes';
-import type { GrfTypeCode, GrfRoleCode } from '../../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, isValidGraphicId, GRF_COUNTER_KEY } from '../../../shared/graphicCodes';
+import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from '../../../shared/graphicCodes';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
@@ -255,84 +255,83 @@ app.delete('/admin/library/:id', requireAdmin, (_req: Request, res: Response): v
 // Admin: Mint a GRF code and save a graphic asset to grf_assets
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags } = req.body;
+    const {
+      assetClass, mediaType, channel, purpose, format, subContext,
+      imageUrl, name, description, mimeType, storagePath,
+      sourceGrfId, relatedPacketId, tags,
+    } = req.body;
 
-    if (!typeCode || !roleCode || !imageUrl) {
-      res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
+    if (!assetClass || !mediaType || !channel || !purpose || !format || !subContext || !imageUrl) {
+      res.status(400).json({ error: 'Missing required fields: assetClass, mediaType, channel, purpose, format, subContext, imageUrl' });
       return;
     }
 
-    const validTypeCodes = Object.keys(GRF_TYPE_MAP) as GrfTypeCode[];
-    if (!validTypeCodes.includes(typeCode as GrfTypeCode)) {
-      res.status(400).json({ error: `Invalid typeCode. Must be one of: ${validTypeCodes.join(', ')}` });
-      return;
-    }
-
-    const entry = GRF_TYPE_MAP[typeCode as GrfTypeCode];
-    if (!entry.validRoles.includes(roleCode as GrfRoleCode)) {
-      res.status(400).json({
-        error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
-      });
-      return;
-    }
-
-    if (mimeType) {
-      const allowedMimes = GRF_TYPE_ALLOWED_MIMES[typeCode as GrfTypeCode] as string[];
-      if (!allowedMimes.includes(mimeType)) {
-        res.status(400).json({
-          error: `MIME type "${mimeType}" is not valid for GRF typeCode "${typeCode}" (${entry.label}). Allowed: ${allowedMimes.join(', ')}`,
-        });
-        return;
-      }
-    }
-
-    // Atomically mint the next sequence number for this typeCode+roleCode pair
-    const counterKey = grfCounterKey(typeCode as GrfTypeCode, roleCode as GrfRoleCode);
-    const counterRef = db.collection('grf_counters').doc(counterKey);
+    // Atomically mint the next sequence number from the single global counter
+    const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
     let newSeq = 0;
     await db.runTransaction(async (transaction: any) => {
       const doc = await transaction.get(counterRef);
       newSeq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
       transaction.set(counterRef, {
         count: newSeq,
-        typeCode,
-        roleCode,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
 
-    const grfId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
+    let grfId: string;
+    try {
+      grfId = buildGrfId({
+        assetClass: assetClass as GrfAssetClass,
+        mediaType:  mediaType  as GrfMediaType,
+        channel:    channel    as GrfChannel,
+        purpose:    purpose    as GrfPurpose,
+        format,
+        subContext,
+        sequence:   newSeq,
+      });
+    } catch (e: any) {
+      res.status(400).json({ error: `Invalid GRF params: ${e.message}` });
+      return;
+    }
 
-    // Fix 16: Guard against silent overwrite if counter is ever corrupted.
-    // The counter is atomic so this should never fire in normal operation —
-    // but if it does, we surface the error explicitly instead of silently overwriting.
+    const parsed = parseGrfId(grfId);
+
     const existingAsset = await db.collection('grf_assets').doc(grfId).get();
     if (existingAsset.exists) {
-      console.error(`[GRF] Counter integrity violation — ${grfId} already exists in grf_assets. Counter key: ${counterKey}`);
-      res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${counterKey}.` });
+      console.error(`[GRF] Counter integrity violation — ${grfId} already exists in grf_assets.`);
+      res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${GRF_COUNTER_KEY}.` });
       return;
     }
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const assetData: Record<string, any> = {
       grfId,
-      typeCode,
-      roleCode,
-      typeName: entry.label,
-      name: name || `${entry.label} ${grfId}`,
-      description: description || null,
-      mimeType: mimeType || 'image/png',
-      storagePath: storagePath || null,
-      publicUrl: imageUrl,
-      sourceGrfId: sourceGrfId || null,
+      assetClass:      parsed.assetClass,
+      mediaType:       parsed.mediaType,
+      channel:         parsed.channel,
+      purpose:         parsed.purpose,
+      format:          parsed.format,
+      subContext:      parsed.subContext,
+      sequence:        parsed.sequence,
+      assetClassName:  parsed.assetClassName,
+      mediaTypeName:   parsed.mediaTypeName,
+      channelName:     parsed.channelName,
+      purposeName:     parsed.purposeName,
+      formatName:      parsed.formatName,
+      subContextName:  parsed.subContextName,
+      mimeType:        mimeType || parsed.mimeType,
+      name:            name || `${parsed.purposeName} ${grfId}`,
+      description:     description || null,
+      storagePath:     storagePath || null,
+      publicUrl:       imageUrl,
+      sourceGrfId:     sourceGrfId || null,
       relatedPacketId: relatedPacketId || null,
-      tags: tags || null,
-      createdAt: now,
-      createdBy: 'admin',
-      isActive: true,
+      tags:            tags || null,
+      createdAt:       now,
+      createdBy:       'admin',
+      isActive:        true,
     };
 
-    // Document ID = grfId (stable, human-readable key)
     await db.collection('grf_assets').doc(grfId).set(assetData);
     const doc = await db.collection('grf_assets').doc(grfId).get();
 
@@ -344,11 +343,11 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
   }
 });
 
-// Admin: Get GRF assets, optionally filtered by typeCode and/or roleCode.
-// typeCode/roleCode are filtered in memory to avoid requiring composite Firestore indexes.
+// Admin: Get GRF assets, optionally filtered by any descriptor digit.
+// Filtered in memory to avoid requiring composite Firestore indexes.
 app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { typeCode, roleCode } = req.query;
+    const { assetClass, mediaType, channel, purpose, format, subContext } = req.query;
     const snapshot = await db.collection('grf_assets').where('isActive', '==', true).get();
     const getTime = (val: any): number => {
       if (!val) return 0;
@@ -359,7 +358,14 @@ app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Pr
     };
     const assets = snapshot.docs
       .map((doc: any) => docToObject(doc))
-      .filter((a: any) => (!typeCode || a.typeCode === typeCode) && (!roleCode || a.roleCode === roleCode))
+      .filter((a: any) =>
+        (!assetClass || a.assetClass === assetClass) &&
+        (!mediaType  || a.mediaType  === mediaType)  &&
+        (!channel    || a.channel    === channel)     &&
+        (!purpose    || a.purpose    === purpose)     &&
+        (!format     || a.format     === format)      &&
+        (!subContext || a.subContext === subContext)
+      )
       .sort((a: any, b: any) => getTime(b.createdAt) - getTime(a.createdAt));
     res.json(assets);
   } catch (error: any) {
