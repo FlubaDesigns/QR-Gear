@@ -647,16 +647,23 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return;
     }
 
-    // Normalize "both" → use the product's own provider, or printify as default.
-    // The crosswalk only has entries for "printify" or "printful" — "both" would
-    // match nothing and fall through to the front-only fallback.
+    // Resolve which provider to query.
+    // Priority: product's own fulfillmentProvider > global ref > 'printify' default.
+    //
+    // WHY product-first: setSelectedProviders(['printful']) and selectProduct() are called
+    // synchronously in handleCardSelect. The state update from setSelectedProviders must
+    // propagate through two React effect hops before fulfillmentProviderRef.current updates,
+    // but fetchOptionsForProduct runs immediately — so the ref is always stale on first call.
+    // The product.fulfillmentProvider field is set by the catalog browse API at selection
+    // time and is immediately available, making it the correct race-condition-free source.
     const rawProvider = fulfillmentProviderRef.current;
+    const productProvider =
+      product.fulfillmentProvider && product.fulfillmentProvider !== 'both'
+        ? product.fulfillmentProvider
+        : null;
     const provider =
-      !rawProvider || rawProvider === 'both'
-        ? (product.fulfillmentProvider && product.fulfillmentProvider !== 'both'
-            ? product.fulfillmentProvider
-            : 'printify')
-        : rawProvider;
+      productProvider ||
+      (!rawProvider || rawProvider === 'both' ? 'printify' : rawProvider);
     adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}`)
       .then(options => {
         setState(prev => {

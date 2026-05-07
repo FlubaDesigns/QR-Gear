@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 7, 2026 (Placement restore fix — options endpoint now reads printful_products/{id}.printLocations as authoritative source for Printful; cross-walk deduplicates canonical IDs; layoutSource field added to response and ProviderLayout; restored placements validated against fetched list with amber warning on mismatch)
+Last updated: May 7, 2026 (Provider race-condition fix — fetchOptionsForProduct now gives product.fulfillmentProvider priority over fulfillmentProviderRef; fixes Printful products always querying with provider=printify because setSelectedProviders hasn't propagated through React effects by the time the fetch runs)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
