@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 7, 2026 (schema-first layout pipeline — Tier1/2/3/4 canonical profile + QRG digit resolution)
+Last updated: May 7, 2026 (QRG wall/shelf catalog navigator — provider-gated wall+shelf browsing in all-products mode)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -342,6 +342,17 @@ The product options endpoint now filters print locations by the selected fulfill
 | `server/routes/admin-catalog-browse.routes.ts` | Added matching native dev-server route for `/api/admin/master-catalog/products/:docId/options` |
 | `client/src/features/adminProducts/builder/BuilderContext.tsx` | Passes `?provider=` param; adds `fulfillmentProviderRef` + re-fetch effect on provider change |
 | `functions/src/index.ts` | BUILD_ID bumped |
+
+---
+
+### May 7, 2026 — QRG Wall/Shelf Catalog Navigator
+
+Replaced the freeform category dropdown in the "All Products" browsing mode with a structured QRG wall/shelf navigator. The navigator uses QRG STNNN digit parsing to group blanks by wall (S-digit = super-category: Apparel, Houseware, etc.) and shelf (ST-digit = product type within category). The current print provider (Printify/Printful) acts as the catalog gate — only blanks available via the selected provider are shown and counted in the navigator. Switching providers re-filters the same wall/shelf from the new provider's data without deselecting the current product or resetting navigation. The freeform category dropdown and the provider-switch reset effect have been removed.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/ProductsModule.tsx` | Added QRG_WALL_LABELS, parseQrgWall, parseQrgShelf, matchesProvider helpers; added qrgWall/qrgShelf state; extended masterCatalogFull to also load in "all" mode; added qrgNavigatorData useMemo; added provider filter to filteredProducts; removed provider-switch reset effect; replaced CustomDropdown with wall/shelf button navigator |
 
 ---
 
