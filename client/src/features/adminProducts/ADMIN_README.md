@@ -43,6 +43,10 @@ INSTANCE = a committed product in a store/channel
 Source files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `shared/assemblyCodes.ts`
 Full definitions: `BLD.md`, `GRF.md`, `QRG.md`, `ASSEMBLY.md` (Canonical Core — these win over everything)
 
+**GRF ID format:** `DDDDDD-NNNNNN` — 6 descriptor digits + 6-digit sequence.
+D1=asset class (1=input build, 2=output artifact) · D2=media type · D3=channel · D4=purpose · D5=format · D6=sub-context.
+Example: `211111-000001` = output artifact · image · print · QR composite · PNG · front · #1
+
 ---
 
 ## BUILD FLOW
@@ -272,7 +276,8 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 
 | Path | Content |
 |------|---------|
-| `library/images/{folder}/{file}` | Admin uploaded images |
+| `grf/{grfId}/{filename}` | GRF assets — canonical path for all product graphics (composites, glamor shots, URL graphics, source uploads, backgrounds, templates) |
+| `library/images/{folder}/{file}` | Admin uploaded images (UI assets — not GRF pipeline) |
 | `library/backgrounds/raw/` | Raw background images |
 | `library/backgrounds/cropped/` | Cropped backgrounds |
 | `library/member/{userId}/` | Member uploaded media |

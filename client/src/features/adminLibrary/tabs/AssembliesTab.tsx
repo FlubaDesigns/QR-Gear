@@ -193,12 +193,12 @@ function MappingFormRow({
           <Input
             value={mapping.grfId}
             onChange={(e) => onChange(index, "grfId", e.target.value)}
-            placeholder="GRF ID (e.g. GRF-03-3-000007)"
+            placeholder="GRF ID (e.g. 211111-000001)"
             className={`h-7 text-xs font-mono ${grfInvalid ? "border-red-500 dark:border-red-600" : ""}`}
             data-testid={`input-mapping-grfid-${index}`}
           />
           {grfInvalid && (
-            <FieldError text="Invalid GRF ID — must match GRF-TT-K-NNNNNN (e.g. GRF-03-3-000007)" />
+            <FieldError text="Invalid GRF ID — must match DDDDDD-NNNNNN (e.g. 211111-000001)" />
           )}
         </div>
       )}

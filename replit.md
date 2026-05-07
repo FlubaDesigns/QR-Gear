@@ -43,10 +43,14 @@ shared/                # Code shared across all layers
   schema.ts            # Main Drizzle schema
   blankKeys.ts         # isQRGBlankId, getCanonicalBlankKey helpers
   qrgCodes.ts          # isValidMasterCatalogDocId, QRG code helpers
+  graphicCodes.ts      # buildGrfId, parseGrfId, isValidGrfId — GRF identity system
   __tests__/           # Vitest unit tests
+QRG.md                 # QRG identity system — canonical source of truth
+GRF.md                 # GRF graphic asset schema — canonical source of truth
+BLD.md                 # BLD build definition schema — canonical source of truth
 ```
 
-Key source-of-truth files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `docs/QRG.md`, `ADMIN_README.md`
+Key source-of-truth files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `QRG.md`, `GRF.md`, `BLD.md`, `ADMIN_README.md`
 
 ## Architecture decisions
 
@@ -83,6 +87,8 @@ Key source-of-truth files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `docs/QR
 ## Pointers
 
 - Admin guide: `client/src/features/adminProducts/ADMIN_README.md`
-- QRG identity: `docs/QRG.md`, `shared/qrgCodes.ts`
+- QRG identity: `QRG.md`, `shared/qrgCodes.ts`
+- GRF graphic assets: `GRF.md`, `shared/graphicCodes.ts`
+- BLD build definitions: `BLD.md`
 - Blank key helpers: `shared/blankKeys.ts`, `shared/__tests__/blankKeys.test.ts`
 - Skills: `.agents/skills/always-deploy`, `.agents/skills/ask-before-starting`, `.agents/skills/fail-loudly`

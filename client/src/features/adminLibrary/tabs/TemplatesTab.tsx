@@ -197,7 +197,7 @@ function TemplatesTabInner() {
       >
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
         <p className="text-xs text-blue-800 dark:text-blue-300">
-          Product templates. Graphics embedded here should be GRF-07-5-NNNNNN (template_graphic) assets. Mint them from the Graphics tab.
+          Product templates. Graphics embedded here should be input build template assets (D1=1, D4=7 — e.g. 111711-000001). Mint them from the Graphics tab.
         </p>
       </div>
 
