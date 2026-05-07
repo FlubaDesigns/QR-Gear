@@ -1,305 +1,249 @@
-# GRF — Graphic Reference Format: Full Schema Reference
+# GRF — Graphic Reference Format
 
-> **Iron Rule:** GRF is a PURE ASSET IDENTITY SYSTEM. It identifies files only. It does not describe layout, context, placement, sequence, or usage. Codes are GLOBAL and FIXED — never renumber once assigned.
+The GRF system is the canonical identity and storage schema for all graphic assets in the QR Gear platform. Every asset — whether it goes on a printed shirt, appears in the store, or lives on a landing page — is issued a unique GRF ID and stored as a record in `grf_assets/{grfId}`.
 
----
-
-## Changelog
-
-| Date | Update |
-|------|--------|
-| 2026-05-05 | Hardening pass — Fix 2: hard failure enforcement (stop/throw on invalid ID, TT, K, or pairing); Fix 3: MIME type validation rule per TT; Fix 6: TT/K pair enforcement explicit (no dynamic/inferred pairings); Fix 7: GRF Responsibility Boundary section added |
-
----
-
-## Overview
-
-GRF is the identity system for all graphic and design asset files in the QR Gear platform. It is completely separate from QRG (product identity), BLD (build structure), and Assembly (the glue layer). Every image, QR graphic, canvas composite, background, and template file gets a GRF ID at the moment it is saved to the library.
-
-GRF answers one question only: **What file is this?**
-
-Everything else — layout, context, placement, content type, usage — belongs in BLD or Assembly.
+> Previous schema archived at `GRF_v1_ARCHIVED.md`
 
 ---
 
 ## ID Format
 
 ```
-GRF - TT - K - NNNNNN
-      │    │   └── Sequence number (6 digits, zero-padded, 000001–999999)
-      │    └─────── Role code (1–5)
-      └──────────── Type code (01–07)
+[D1][D2][D3][D4][D5]-[NNNNNN]
 ```
 
-**Regex:** `^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$`
+Five single-digit descriptor positions followed by a hyphen and a 6-digit zero-padded global sequence number.
 
-**Examples:**
+**Example:** `12421-000003`
+→ Image · Store · Glamor Shot · JPEG · First to show · Sequence 3
+
+---
+
+## Digit Key
+
+### D1 — Media Type
+
+| Value | Type |
+|---|---|
+| `1` | Image |
+| `2` | Video |
+| `3` | Document |
+
+---
+
+### D2 — Channel
+
+Where this asset lives and is served from.
+
+| Value | Channel | Description |
+|---|---|---|
+| `1` | Print | Goes to the physical product (sent to print provider) |
+| `2` | Store | Displayed in the customer-facing storefront |
+| `3` | URL | Lives on a landing page / online digital artifact |
+
+---
+
+### D3 — Purpose
+
+What the asset *is* — its functional role in the build chain.
+
+| Value | Name | Description |
+|---|---|---|
+| `1` | QR Composite | QR code merged with zone/palette graphic or text — what goes on the front of the item |
+| `2` | QR Standalone | The QR code with QRG logo centered on a white box |
+| `3` | URL Graphic | Image created for the online landing page / digital artifact |
+| `4` | Glamor Shot | Lifestyle/mockup render — shirt with design applied, store-facing presentation |
+| `5` | Source Upload | Raw asset uploaded by user before any processing |
+| `6` | Background | Background image used during composition in the builder |
+| `7` | Template | Reusable graphic element applied across multiple products |
+
+---
+
+### D4 — Format *(conditional on D1)*
+
+Valid format values depend on the media type in D1.
+
+**If D1 = `1` (Image):**
+
+| Value | Format |
+|---|---|
+| `1` | PNG |
+| `2` | JPEG |
+| `3` | WebP |
+| `4` | SVG |
+
+**If D1 = `2` (Video):**
+
+| Value | Format |
+|---|---|
+| `1` | MP4 |
+| `2` | WebM |
+
+**If D1 = `3` (Document):**
+
+| Value | Format |
+|---|---|
+| `1` | PDF |
+
+---
+
+### D5 — Sub-context *(conditional on D2)*
+
+Meaning depends on the channel in D2.
+
+**If D2 = `1` (Print) — Location on item:**
+
+| Value | Location |
+|---|---|
+| `1` | Front |
+| `2` | Back |
+| `3` | Sleeve |
+
+**If D2 = `2` (Store) — Display index:**
+
+| Value | Position |
+|---|---|
+| `1` | First image shown |
+| `2` | Second image shown |
+| `3` | Third image shown |
+| `4` | Fourth image shown |
+| `5` | Fifth image shown |
+
+**If D2 = `3` (URL) — File location:**
+
+| Value | Location |
+|---|---|
+| `1` | Internal file (Firebase Storage) |
+| `2` | External URL (e.g. YouTube, Vimeo) |
+
+---
+
+### Sequence — NNNNNN
+
+Six-digit zero-padded global sequence number. Minted atomically from `grf_counters/global` in Firestore. Codes are **global and fixed** — never renumber once assigned.
+
+---
+
+## Examples
+
+| GRF ID | Reads as |
+|---|---|
+| `11111-000001` | Image · Print · QR Composite · PNG · Front · #1 |
+| `11211-000001` | Image · Print · QR Standalone · PNG · Front · #1 |
+| `12421-000001` | Image · Store · Glamor Shot · JPEG · First shown · #1 |
+| `12422-000002` | Image · Store · Glamor Shot · JPEG · Second shown · #2 |
+| `13311-000001` | Image · URL · URL Graphic · WebP · Internal file · #1 |
+| `13312-000001` | Image · URL · URL Graphic · WebP · External URL · #1 |
+| `12111-000005` | Image · Store · QR Composite · PNG · First shown · #5 |
+
+---
+
+## Storage Path Convention
+
+Assets are stored in Firebase Storage at:
+
 ```
-GRF-04-3-000001  →  QR Graphic · Renderable · sequence 1
-GRF-05-4-000003  →  Canvas Design · Final · sequence 3
-GRF-01-1-000012  →  Upload Source · Source · sequence 12
-GRF-07-5-000002  →  Template Graphic · Template · sequence 2
-GRF-03-3-000007  →  Background · Renderable · sequence 7
+grf/{grfId}/{filename}
 ```
 
----
+The filename uses a human-readable slug based on purpose:
 
-## Segment 1 — Type Code (TT)
+| Purpose (D3) | Filename |
+|---|---|
+| `1` QR Composite | `composite.png` |
+| `2` QR Standalone | `qr-standalone.png` |
+| `3` URL Graphic | `url-graphic.{ext}` |
+| `4` Glamor Shot | `glamor.{ext}` |
+| `5` Source Upload | `source.{ext}` |
+| `6` Background | `background.{ext}` |
+| `7` Template | `template.{ext}` |
 
-Two digits. Defines what kind of asset file this is.
-
-| Code | Label | Description | Valid Roles |
-|------|-------|-------------|-------------|
-| 01 | upload_source | Raw uploaded source image — unmodified, as received | 1 |
-| 02 | cropped_derivative | Cropped or derived from a source image | 2 |
-| 03 | background | Background image used in canvas compositions | 3 |
-| 04 | qr_graphic | QR code image file only — no surrounding design | 3 |
-| 05 | canvas_design | Full canvas composite — QR + overlays + background rendered together | 3, 4 |
-| 06 | url_artifact_asset | Landing page or URL artifact image file | 3 |
-| 07 | template_graphic | Reusable template file | 5 |
-
-**Rules:**
-- Types 01–07 are globally fixed and cannot be reassigned
-- Only predefined TT/K combinations are valid — see pairing table below
-- Any undefined TT/K pairing must throw a hard error and reject creation
-- No dynamic pairings, no inferred pairings, no exceptions
+**Example:** `grf/12421-000001/glamor.jpg`
 
 ---
 
-## Segment 2 — Role Code (K)
+## Firestore Record — `grf_assets/{grfId}`
 
-Single digit. Defines the production lifecycle stage of the asset.
-
-| Code | Label | Meaning |
-|------|-------|---------|
-| 1 | Source | Original, unmodified — the raw input file |
-| 2 | Derivative | Processed or transformed from a source |
-| 3 | Renderable | Ready to display, embed, or print |
-| 4 | Final | Approved and locked — no further modification |
-| 5 | Template | Reusable pattern — not a one-off instance |
-
-### Valid TT → K pairings
-
-| TT | Valid K | Typical use |
-|----|---------|-------------|
-| 01 | 1 | Raw user upload |
-| 02 | 2 | Cropped version of an upload |
-| 03 | 3 | Background for canvas |
-| 04 | 3 | QR code file |
-| 05 | 3, 4 | Canvas composite (working or approved) |
-| 06 | 3 | Landing page snapshot |
-| 07 | 5 | Reusable design template |
-
----
-
-## Validation and Failure Rule
-
-If a GRF ID or save operation fails any of the following checks:
-
-- ID does not match regex `^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$`
-- TT is not a defined type code (01–07)
-- K is not a defined role code (1–5)
-- TT/K pairing is not in the valid pairings table
-
-Then:
-
-- STOP OPERATION
-- THROW HARD ERROR
-- DO NOT SAVE
-- DO NOT CONTINUE
-
-No fallbacks. No auto-correction. No silent failures.
-
----
-
-## Segment 3 — Sequence Number (NNNNNN)
-
-Six digits, zero-padded. A globally unique, atomically incrementing counter per TT+K pairing.
-
-- Range: `000001` to `999999`
-- Stored and incremented atomically in Firestore
-- Never reused once assigned
-
----
-
-## Counter Storage
-
-**Collection:** `grf_counters`
-**Document key:** `{TT}_{K}`
-
-| Counter key | Tracks |
-|-------------|--------|
-| `01_1` | Upload sources |
-| `02_2` | Cropped derivatives |
-| `03_3` | Background renderables |
-| `04_3` | QR graphics |
-| `05_3` | Canvas design renderables |
-| `05_4` | Canvas design finals |
-| `06_3` | URL artifact assets |
-| `07_5` | Template graphics |
-
----
-
-## Asset Database Record
-
-All additional data about an asset is stored in Firestore, not in the ID.
-
-**Collection:** `grf_assets/{grfId}`
-
-```
+```json
 {
-  grfId:            "GRF-04-3-000001",   // document ID = grfId
-  typeCode:         "04",
-  roleCode:         "3",
-  typeName:         "qr_graphic",        // GRF_TYPE_MAP[typeCode].label
-  name:             "Navy QR Graphic",
-  description:      null,                // optional
-  mimeType:         "image/png",
-  storagePath:      "graphics/qr/...",  // GCS path, null if URL-only
-  publicUrl:        "https://...",
-  sourceGrfId:      null,               // GRF ID of the source asset, if derived
-  relatedPacketId:  "abc123",           // optional cross-reference — never drive logic from this
-  tags:             null,               // optional string[]
-  isActive:         true,               // false = archived
-  archivedAt:       null,               // set on PATCH /archive
-  createdAt:        timestamp,
-  createdBy:        "admin"
+  "grfId":          "12421-000001",
+  "mediaType":      "1",
+  "channel":        "2",
+  "purpose":        "4",
+  "format":         "2",
+  "subContext":     "1",
+  "sequence":       1,
+  "mediaTypeName":  "image",
+  "channelName":    "store",
+  "purposeName":    "glamor_shot",
+  "formatName":     "jpeg",
+  "subContextName": "first",
+  "mimeType":       "image/jpeg",
+  "storagePath":    "grf/12421-000001/glamor.jpg",
+  "publicUrl":      "https://...",
+  "packetId":       "abc123",
+  "sourceSessionId":"session456",
+  "isActive":       true,
+  "createdAt":      "..."
 }
 ```
 
-**What does NOT go in the database record:**
-- Layout or zone information
-- Context (shirt vs URL)
-- Content type (image/video/document)
-- Placement or sequence
-- BLD or Assembly references (those link from Assembly → GRF, not the reverse)
-- `relatedPacketId` is a weak cross-reference only — it is never used to drive logic
+---
+
+## Counter
+
+Global sequence counter: `grf_counters/global { count: N }`
+
+Atomically incremented in a Firestore transaction for every new GRF ID minted. The counter is never decremented or reset.
 
 ---
 
-## MIME Type Validation Rule
+## Rules
 
-`mimeType` must be compatible with the asset's `typeCode` (TT).
-
-| TT | Valid mimeType prefix |
-|----|----------------------|
-| 01 | `image/*` |
-| 02 | `image/*` |
-| 03 | `image/*` |
-| 04 | `image/*` |
-| 05 | `image/*` |
-| 06 | `image/*` |
-| 07 | `image/*` |
-
-If `mimeType` is incompatible with `typeCode`:
-- THROW ERROR
-- REJECT SAVE
-
-No silent acceptance of mismatched types.
+1. **Assembly mappings must use grfId — never raw URLs.** The store and build chain resolve grfId → publicUrl at read time.
+2. **Never reuse or renumber a GRF ID.** Once minted it is permanent, even if the asset is deleted or replaced.
+3. **Format must be compatible with media type.** PNG/JPEG/WebP/SVG for images; MP4/WebM for video; PDF for documents.
+4. **Sub-context is always set** — use the appropriate value for the channel; do not leave it zero or null.
+5. **Source uploads (purpose `5`) are internal only** — never exposed in store display or URL artifact chains.
+6. **STOP on invalid ID — never silently accept.** Hard error, do not save, do not continue.
 
 ---
 
-## GRF Responsibility Boundary
+## API Endpoints
 
-GRF defines FILE IDENTITY ONLY.
-
-GRF must NOT contain:
-- Layout data — that is BLD responsibility
-- Content structure — that is BLD responsibility
-- Mapping logic — that is Assembly responsibility
-- Identity linkage — that is QRG responsibility
-
-Any attempt to extend GRF beyond file identity is INVALID and must be rejected.
-
----
-
-## What GRF Is NOT
-
-GRF does not and must never describe:
-
-| Concept | Belongs in |
-|---------|-----------|
-| Layout mode (zone / freeform) | BLD |
-| Context (shirt graphic vs URL surface) | BLD |
-| Content type (image / video / document) | BLD |
-| Placement on product | BLD |
-| Instance sequence in a build | BLD |
-| Which packet used this asset | Assembly |
-| Which QRG blank this supports | Assembly |
-
----
-
-## Relationship to the Full Chain
-
-```
-QRG  (product blank identity)
-  └── Assembly
-        ├── qrgId   → QRG
-        ├── bldId   → BLD  (layout + structure)
-        └── mappings
-              └── grfId → GRF  (asset file identity)  ← GRF lives here
-                              └── grf_assets/{grfId}  (file metadata)
-
-Packet  (top-level published offer)
-  └── assemblyId → Assembly
-```
-
-GRF is the leaf node. It identifies the file. Everything above it provides context.
-
----
-
-## API
-
-**Save a GRF asset to the library:**
+**Save a GRF asset:**
 ```
 POST /api/admin/graphics/save-grf
-{
-  typeCode: "04",
-  roleCode: "3",
-  imageUrl: "https://...",
-  name: "Navy QR Graphic",
-  relatedPacketId: "abc123"    ← optional, for cross-reference only
-}
+{ mediaType, channel, purpose, format, subContext, imageUrl, name, mimeType, packetId }
 ```
 
-Response:
+**Get GRF assets (filtered):**
 ```
-{
-  success: true,
-  grfId:  "GRF-04-3-000042",
-  asset:  { ...full grf_assets record }
-}
+GET /api/admin/graphics?channel=2&purpose=4
 ```
-
-**Get GRF assets:**
-```
-GET /api/admin/graphics?typeCode=04&roleCode=3
-```
-- `typeCode` and `roleCode` are optional filters
-- Filtering is done in memory after a single `WHERE isActive = true` Firestore query (no composite index required)
-- Returns assets sorted by `createdAt` descending
 
 **Archive a GRF asset:**
 ```
 PATCH /api/admin/graphics/:grfId/archive
 ```
-- Sets `isActive = false` and `archivedAt = now`
-- Asset record is preserved; only hidden from queries
+
+---
+
+## Relationship to Assembly
+
+```
+Packet → assemblyId
+Assembly → { qrgId, bldId, mappings: [{ grfId, ... }] }
+GRF asset → { publicUrl, storagePath, ... }
+```
+
+The store reads images by walking: `packet → assembly → grfIds → publicUrls`.
+Raw URLs are never stored on packets or assemblies.
 
 ---
 
 ## Source File
 
-All GRF types, roles, regex, builder/parser, and counter key helpers:
+`shared/graphicCodes.ts`
 
-```
-shared/graphicCodes.ts
-```
-
-Functions exported:
-- `isValidGraphicId(id)` — validates a GRF ID string
-- `assertValidGraphicId(id)` — throws if invalid
-- `parseGraphicId(id)` — returns all parsed components
-- `buildGraphicId(typeCode, roleCode, sequence)` — constructs a valid GRF ID
-- `grfCounterKey(typeCode, roleCode)` — returns the Firestore counter doc key
-- `GRF_VALID_PAIRINGS` — flat list of all valid TT + K combinations
+Key exports: `buildGrfId`, `parseGrfId`, `isValidGrfId`, `grfStoragePath`, `grfMimeType`, `GRF_COUNTER_KEY`

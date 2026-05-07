@@ -221,3 +221,15 @@ id = "4rFKloZB2okOcPjFy4e1w"
 uri = "file://QRG.md"
 type = "text"
 title = "QRG Number System — Full Schema Reference"
+
+[[outputs]]
+id = "JfokCpcmDcHEGbRXrGyMI"
+uri = "file://docs/GRF.md"
+type = "text"
+title = "GRF Schema — Rebuilt"
+
+[[outputs]]
+id = "C-OhlWP2Sal6EBoJAodDO"
+uri = "file://GRF.md"
+type = "text"
+title = "GRF.md — New Schema"
