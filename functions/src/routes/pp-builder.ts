@@ -171,7 +171,7 @@ app.post('/admin/content/upload', requireAdmin, async (req: Request, res: Respon
       res.status(400).json({ error: "mode, userId, packetId, and base64Data are required" });
       return;
     }
-    const validModes = ['canvas', 'play', 'dynamics', 'basics'];
+    const validModes = ['canvas', 'play', 'dynamics', 'basics', 'compose'];
     if (!validModes.includes(mode)) {
       res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` });
       return;
@@ -193,7 +193,7 @@ app.post('/admin/content/upload', requireAdmin, async (req: Request, res: Respon
     await file.makePublic();
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
     const updateData: Record<string, any> = { updatedAt: new Date() };
-    if (mode === 'canvas' || mode === 'basics') { updateData.compositeUrl = publicUrl; }
+    if (mode === 'canvas' || mode === 'basics' || mode === 'compose') { updateData.compositeUrl = publicUrl; }
     else if (mode === 'play') { updateData.playMediaUrl = publicUrl; updateData.playMediaType = actualMimeType; }
     else if (mode === 'dynamics') { updateData.dynamicsMediaUrl = publicUrl; updateData.dynamicsMediaType = actualMimeType; }
     await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update(updateData);

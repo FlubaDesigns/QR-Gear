@@ -164,7 +164,7 @@ function register(app) {
                 res.status(400).json({ error: "mode, userId, packetId, and base64Data are required" });
                 return;
             }
-            const validModes = ['canvas', 'play', 'dynamics', 'basics'];
+            const validModes = ['canvas', 'play', 'dynamics', 'basics', 'compose'];
             if (!validModes.includes(mode)) {
                 res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` });
                 return;
@@ -189,7 +189,7 @@ function register(app) {
             await file.makePublic();
             const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
             const updateData = { updatedAt: new Date() };
-            if (mode === 'canvas' || mode === 'basics') {
+            if (mode === 'canvas' || mode === 'basics' || mode === 'compose') {
                 updateData.compositeUrl = publicUrl;
             }
             else if (mode === 'play') {

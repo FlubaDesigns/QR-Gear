@@ -356,7 +356,7 @@ export function registerFontsAndTestRoutes(app: Express): void {
         });
       }
 
-      const validModes = ['canvas', 'play', 'dynamics', 'basics'];
+      const validModes = ['canvas', 'play', 'dynamics', 'basics', 'compose'];
       if (!validModes.includes(mode)) {
         return res.status(400).json({ 
           error: `Invalid mode. Must be one of: ${validModes.join(', ')}` 
@@ -367,7 +367,7 @@ export function registerFontsAndTestRoutes(app: Express): void {
       
       let result;
       
-      if (mode === 'canvas' || mode === 'basics') {
+      if (mode === 'canvas' || mode === 'basics' || mode === 'compose') {
         result = await uploadCanvasComposite(base64Data, userId, packetId, fileName);
       } else {
         const base64Match = base64Data.match(/^data:([^;]+);base64,(.+)$/);
@@ -404,7 +404,7 @@ export function registerFontsAndTestRoutes(app: Express): void {
         updatedAt: new Date(),
       };
       
-      if (mode === 'canvas' || mode === 'basics') {
+      if (mode === 'canvas' || mode === 'basics' || mode === 'compose') {
         updateData.compositeUrl = result.publicUrl;
       } else if (mode === 'play') {
         updateData.playMediaUrl = result.publicUrl;
