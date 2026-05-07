@@ -8,7 +8,7 @@ import type { CatalogBlankItem } from "@/features/shared/components/skins/AdminC
 interface CatalogProduct {
   id: number;
   docId?: string;
-  qrgBlankId?: number | null;
+  qrgBlankId?: string | null;
   qrgCategory?: string | null;
   categorySource?: string | null;
   canonicalTitle?: string | null;
@@ -95,7 +95,7 @@ export interface NormalizedSourceBlank {
   colorsAvailable: Array<{ name: string; hex?: string }>;
   sizesAvailable: string[];
   defaultColor: string | null;
-  qrgBlankId?: number | null;
+  qrgBlankId?: string | null;
 }
 
 export type ProviderFilter = "printify" | "printful";
@@ -336,7 +336,7 @@ export function useAdminBlanksController() {
       const docId = p.docId;
       const numId = String(p.id);
 
-      // Primary index: QRG docId (qrg_101, pending_py_123)
+      // Primary index: QRG docId (qrg_11001, pending_py_123)
       if (docId && !seen.has(docId)) {
         map.set(docId, p);
         seen.add(docId);

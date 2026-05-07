@@ -436,21 +436,20 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       });
       const parsed = schema.parse(req.body);
 
-      // Resolve master_catalog docId — always store that as the shelfKey
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
+      // Resolve to canonical qrg_STNNN shelfKey via resolveCatalogBlankId().
+      // Provider keys (py_NNN, pf_NNN) are lookup references only — never stored as identity.
+      const providerPrefixedId = parsed.providerId === "printify"
+        ? `py_${parsed.catalogId}`
+        : `pf_${parsed.catalogId}`;
       let masterDocId: string;
-      if (parsed.providerId === "printify") {
-        masterDocId = `py_${parsed.catalogId}`;
-      } else {
-        const numId = parseInt(parsed.catalogId);
-        const direct = await fsDb.collection("master_catalog").doc(`pf_${numId}`).get();
-        if (direct.exists) {
-          masterDocId = `pf_${numId}`;
-        } else {
-          const q = await fsDb.collection("master_catalog").where("printfulProductId", "==", numId).get();
-          masterDocId = q.empty ? `pf_${numId}` : q.docs[0].id;
-        }
+      try {
+        const resolved = await resolveCatalogBlankId(providerPrefixedId);
+        // null means pending_ migration ID — keep provider-prefixed key as fallback
+        masterDocId = resolved ?? providerPrefixedId;
+      } catch {
+        // Not yet in master_catalog — store provider key temporarily, migration will fix later
+        console.warn(`[BuildShelf] Cannot resolve "${providerPrefixedId}" to QRG canonical ID — blank not yet synced to master_catalog. Storing provider key as fallback.`);
+        masterDocId = providerPrefixedId;
       }
 
       // Also accept old-style legacy key for upsert lookup

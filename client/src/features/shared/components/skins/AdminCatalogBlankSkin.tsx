@@ -10,7 +10,7 @@ export interface CatalogBlankItem {
   tier?: "good" | "better" | "best" | null;
   isPrintful?: boolean;
   hasMockupMapping?: boolean;
-  qrgBlankId?: number | null;
+  qrgBlankId?: string | null;
 }
 
 export interface AdminCatalogBlankSkinProps {

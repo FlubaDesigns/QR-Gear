@@ -93,7 +93,7 @@ function register(app) {
                 res.status(404).json({ error: 'Product not found' });
                 return;
             }
-            const allowed = ['title', 'description', 'brand', 'images', 'colors', 'sizes', 'originCountry', 'category', 'minPrice', 'maxPrice'];
+            const allowed = ['title', 'description', 'brand', 'images', 'colors', 'sizes', 'originCountry', 'category', 'qrgCategory', 'minPrice', 'maxPrice'];
             const updates = { updatedAt: new Date().toISOString() };
             for (const field of allowed) {
                 if (req.body[field] !== undefined)

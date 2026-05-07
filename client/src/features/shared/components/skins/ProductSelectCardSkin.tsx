@@ -47,7 +47,7 @@ export interface ProductSelectItem {
   colorsAvailable: Array<{ name: string; hex?: string }>;
   sizesAvailable: string[];
   defaultColor: string | null;
-  qrgBlankId?: number | null;
+  qrgBlankId?: string | null;
 }
 
 export type TierValue = "good" | "better" | "best" | null;
