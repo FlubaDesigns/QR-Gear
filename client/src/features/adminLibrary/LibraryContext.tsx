@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/adminFetch";
-import type { LibraryContextValue, LibraryApi, LibraryAssetWithProxy, UploadAssetParams, AssetType } from "./shared/types";
+import type { LibraryContextValue, LibraryApi, UploadAssetParams } from "./shared/types";
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
@@ -19,32 +19,24 @@ export function LibraryProvider({
   permissions,
 }: LibraryProviderProps) {
   const api = useMemo<LibraryApi>(() => {
-    const getQueryKey = (type: AssetType): string[] => ["library", "/api/admin", "grf", type];
+    const getQueryKey = (typeCode: string): string[] => ["/api/admin/graphics", typeCode];
 
-    const invalidateAssets = (type: AssetType): void => {
-      queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
+    const invalidateAssets = (typeCode: string): void => {
+      queryClient.invalidateQueries({ queryKey: getQueryKey(typeCode) });
     };
 
     return {
       getQueryKey,
       invalidateAssets,
 
-      // All asset reads go through grf_assets now
-      fetchAssets: (typeCode: AssetType) =>
-        adminFetch<LibraryAssetWithProxy[]>(`/graphics?typeCode=${typeCode}`),
+      fetchAssets: (typeCode: string) =>
+        adminFetch(`/graphics?typeCode=${typeCode}`),
 
-      // Upload/mint: callers should POST to /api/admin/graphics/save-grf directly.
-      // These shims keep old callers compiling but should not be reachable from
-      // the current UI (all legacy Source/Cropped/Backgrounds tabs are removed).
-      uploadAsset: (_params: UploadAssetParams) => {
-        throw new Error("uploadAsset: legacy library_assets upload removed. Use /api/admin/graphics/save-grf.");
+      uploadAsset: (_params: UploadAssetParams): Promise<{ grfId: string }> => {
+        throw new Error("uploadAsset: use POST /api/admin/graphics/save-grf directly.");
       },
 
-      uploadZip: (_params: UploadAssetParams) => {
-        throw new Error("uploadZip: legacy library_assets upload removed.");
-      },
-
-      deleteAsset: (_id: string) => {
+      deleteAsset: (_grfId: string): Promise<void> => {
         throw new Error("deleteAsset: use PATCH /api/admin/graphics/:grfId/archive instead.");
       },
 

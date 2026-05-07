@@ -1,4 +1,6 @@
-import type { libraryAssets } from "@shared/schema";
+import type { GrfTypeCode } from "@shared/graphicCodes";
+
+export type { GrfTypeCode };
 
 export interface GrfAsset {
   id: string;
@@ -17,49 +19,38 @@ export interface GrfAsset {
   isActive: boolean;
 }
 
-export type AssetType =
-  | "source"
-  | "cropped"
-  | "background"
-  | "graphic"
-  | "template"
-  | "design"
-  | "unknown";
-
-export type LibraryAsset = typeof libraryAssets.$inferSelect;
-
-export type LibraryAssetWithProxy = LibraryAsset & { proxyUrl?: string | null };
-
 export interface UploadAssetParams {
   name: string;
-  assetType: AssetType;
+  typeCode: string;
   imageData: string;
   mimeType: string;
-  sourceAssetId?: string;
+  sourceGrfId?: string;
 }
 
 export interface LibraryApi {
-  fetchAssets: (type: AssetType) => Promise<LibraryAssetWithProxy[]>;
-  uploadAsset: (params: UploadAssetParams) => Promise<{ id: string; extractedCount?: number }>;
-  uploadZip: (params: UploadAssetParams) => Promise<{ extractedCount: number }>;
-  deleteAsset: (id: string) => Promise<void>;
+  fetchAssets: (typeCode: string) => Promise<GrfAsset[]>;
+  uploadAsset: (params: UploadAssetParams) => Promise<{ grfId: string }>;
+  deleteAsset: (grfId: string) => Promise<void>;
   fetchImageBlob: (url: string) => Promise<string>;
-  getQueryKey: (type: AssetType) => string[];
-  invalidateAssets: (type: AssetType) => void;
+  getQueryKey: (typeCode: string) => string[];
+  invalidateAssets: (typeCode: string) => void;
 }
 
 export interface LibraryContextValue {
   storeId: string | null;
-  requiresAuth: boolean;
   api: LibraryApi;
   storageRoots: {
     backgrounds: string;
-    source: string;
-    cropped: string;
+    designs: string;
+    videos: string;
   };
   permissions: {
     canUpload: boolean;
     canDelete: boolean;
-    canEdit: boolean;
   };
 }
+
+// Legacy aliases kept so any remaining import sites compile cleanly
+export type AssetType = string;
+export type LibraryAsset = GrfAsset;
+export type LibraryAssetWithProxy = GrfAsset & { proxyUrl?: string | null };
