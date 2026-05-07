@@ -332,9 +332,14 @@ export async function writeAssemblyDev(opts: {
     mappings.push({ seq: pad(seq++), type: 'img', grfId, imageUrl });
   }
 
+  // QR slot: only write a mapping when a real GRF ID exists.
+  // External QR URLs (api.qrserver.com) are skipped by registerPacketGrfsDev,
+  // so qrGrfId will be null when no stored QR asset was uploaded — that is valid.
+  // The QR image is generated dynamically at render time from qrgBaseCode.
   const qrGrfId = grfIds.qrGrfId;
-  if (!qrGrfId) throw new Error(`[Assembly-dev] QR code slot has no registered GRF ID. Register the QR image via GRF before writing Assembly.`);
-  mappings.push({ seq: pad(seq++), type: 'qrc', grfId: qrGrfId });
+  if (qrGrfId) {
+    mappings.push({ seq: pad(seq++), type: 'qrc', grfId: qrGrfId });
+  }
 
   const textSlot = (style: Record<string, any>) => {
     if (!style.enabled || !style.text) return;

@@ -516,16 +516,18 @@ export function extractAssemblyMappings(
     mappings.push({ seq: pad(seq++), type: 'img', grfId, imageUrl });
   }
 
-  // ── 02 qrc — QR code slot (always present — requires registered GRF asset) ─
+  // ── 02 qrc — QR code slot ─────────────────────────────────────────────────
+  // Only written when a real GRF ID exists. External QR service URLs
+  // (api.qrserver.com) are not stored assets and are skipped by
+  // registerPacketGrfAssets — so grfId will be null in that case,
+  // which is valid. The Assembly records structure-only for the QR slot;
+  // the actual QR image is generated at render time from qrgBaseCode.
   {
     const grfId = grfIds?.qrGrfId || null;
-    if (!grfId) {
-      throw new Error(
-        `[Assembly] QR code slot has no registered GRF ID. ` +
-        `Register the QR image via registerGrfAsset() before writing Assembly.`,
-      );
+    if (grfId) {
+      mappings.push({ seq: pad(seq++), type: 'qrc', grfId });
     }
-    mappings.push({ seq: pad(seq++), type: 'qrc', grfId });
+    // No grfId → QR code is rendered dynamically at display time; no mapping needed.
   }
 
   // ── 03 txt — header ───────────────────────────────────────────────────────

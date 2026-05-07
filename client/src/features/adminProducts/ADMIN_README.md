@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 7, 2026 (Provider race-condition fix — fetchOptionsForProduct now gives product.fulfillmentProvider priority over fulfillmentProviderRef; fixes Printful products always querying with provider=printify because setSelectedProviders hasn't propagated through React effects by the time the fetch runs)
+Last updated: May 7, 2026 (Commit fix — Assembly QR slot no longer throws when qrGrfId is null; external QR URLs from api.qrserver.com are not stored assets and are intentionally skipped; QR image is generated dynamically at render time from qrgBaseCode. Fixed in both functions/src/services/bld-builder.ts and server/lib/schema-commit.ts)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
