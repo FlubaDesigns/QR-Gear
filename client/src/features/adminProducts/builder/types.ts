@@ -104,12 +104,19 @@ export interface QrgPrintLocation {
 
 /**
  * Provider-specific layout for the currently selected print placement.
- * Derived from print_placements crosswalk on placement select.
+ * Schema-first: schemaFamily/schemaType/canonicalProfilePath are derived from
+ * QRG STNNN digits and identify the product type before any provider query.
  * Stored in builder state and persisted to BLD under bld.providerLayout.
  * Renderer reads this before falling back to hardcoded dimensions.
  */
 export interface ProviderLayout {
   provider: string;
+  /** QRG S-digit family — e.g. "apparel" */
+  schemaFamily: string;
+  /** QRG ST-digit type — e.g. "tshirt" */
+  schemaType: string;
+  /** Firestore collection path for the canonical type profile — e.g. "layout_profiles/apparel/tshirts" */
+  canonicalProfilePath: string;
   canonicalLocationCode: string;
   providerPlacementId: string;
   label: string;
@@ -161,6 +168,12 @@ export interface CatalogProduct {
   qrgCategory?: string | null;
   /** QRG parent category label e.g. "Apparel" */
   qrgParentCategory?: string | null;
+  /** Schema family resolved from QRG S-digit (e.g. "apparel") — set by /options endpoint */
+  schemaFamily?: string | null;
+  /** Schema type resolved from QRG ST-digits (e.g. "tshirt") — set by /options endpoint */
+  schemaType?: string | null;
+  /** Canonical layout profile collection path (e.g. "layout_profiles/apparel/tshirts") */
+  canonicalProfilePath?: string | null;
 }
 
 export interface OriginFilter {

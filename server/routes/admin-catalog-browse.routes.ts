@@ -743,11 +743,62 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       const qrgBlankId: string = product.qrgBlankId || docId.slice(4);
       const cachedPositions: string[] = Array.isArray(product.printPositions) ? product.printPositions : [];
 
-      // Load print_placements crosswalk
-      const placementsSnap = await fsDb.collection('print_placements').get();
+      // ── Schema-first resolution (QRG.md §3) ─────────────────────────────────
+      const stnnn = docId.slice(4);
+      const sDigit = stnnn[0];
+      const tDigit = stnnn[1];
+      const stKey = `${sDigit}${tDigit}`;
+
+      const QRG_S_FAMILY: Record<string, string> = {
+        '1': 'apparel', '2': 'houseware', '3': 'print_display',
+        '4': 'accessories', '5': 'pet', '6': 'holiday',
+      };
+      const QRG_ST_TYPE: Record<string, string> = {
+        '11': 'tshirt', '12': 'hoodie', '13': 'tank', '14': 'longsleeve',
+        '15': 'jacket', '16': 'shorts', '17': 'dress', '18': 'leggings',
+        '21': 'drinkware', '22': 'kitchen', '23': 'home_decor',
+        '31': 'poster', '32': 'canvas', '33': 'card',
+        '41': 'bag', '42': 'hat', '43': 'phone_case', '44': 'jewelry',
+        '51': 'pet_apparel', '52': 'pet_accessory',
+        '61': 'ornament', '62': 'seasonal_decor',
+      };
+      const QRG_ST_COLLECTION: Record<string, string> = {
+        '11': 'tshirts', '12': 'hoodies', '13': 'tanks', '14': 'longsleeves',
+        '15': 'jackets', '16': 'shorts', '17': 'dresses', '18': 'leggings',
+        '21': 'drinkware', '22': 'kitchen', '23': 'home_decor',
+        '31': 'posters', '32': 'canvas', '33': 'cards',
+        '41': 'bags', '42': 'hats', '43': 'phone_cases', '44': 'jewelry',
+        '51': 'pet_apparel', '52': 'pet_accessories',
+        '61': 'ornaments', '62': 'seasonal_decor',
+      };
+
+      const schemaFamily = QRG_S_FAMILY[sDigit] || 'unknown';
+      const schemaType = QRG_ST_TYPE[stKey] || 'unknown';
+      const schemaCollection = QRG_ST_COLLECTION[stKey] || 'unknown';
+      const canonicalProfilePath = `layout_profiles/${schemaFamily}/${schemaCollection}`;
+
+      // Load print_placements crosswalk + Tier 1 canonical profile in parallel
+      const canonicalProfileRef = (schemaFamily !== 'unknown' && schemaCollection !== 'unknown')
+        ? fsDb.collection('layout_profiles').doc(schemaFamily).collection(schemaCollection).doc('canonical')
+        : null;
+
+      const [placementsSnap, canonicalProfileDoc] = await Promise.all([
+        fsDb.collection('print_placements').get(),
+        canonicalProfileRef ? canonicalProfileRef.get() : Promise.resolve(null as any),
+      ]);
+
       const placementMap = new Map<string, any>();
       for (const d of placementsSnap.docs) {
         placementMap.set(d.id, d.data());
+      }
+
+      // Build canonical dims map from Tier 1 profile
+      const canonicalProfile = canonicalProfileDoc?.exists ? canonicalProfileDoc.data() : null;
+      const canonicalDimsMap = new Map<string, any>();
+      if (canonicalProfile?.placements) {
+        for (const p of (canonicalProfile.placements as any[])) {
+          if (p.id) canonicalDimsMap.set(p.id, p);
+        }
       }
 
       type PrintLocation = {
@@ -759,7 +810,6 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       let printLocations: PrintLocation[] = [];
 
       // Helper: resolve a canonical print_placements doc + id for a given position name.
-      // Tries direct doc-id lookup first, then scans provider dtgNames/dtfNames.
       const resolvePlacement = (
         map: Map<string, any>, pos: string, provider: string,
       ): { canonicalId: string; pp: any } | null => {
@@ -776,20 +826,27 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         return null;
       };
 
-      const buildLocation = (canonicalId: string, pp: any, providerEntry: any, provider: string): PrintLocation => ({
-        id: canonicalId,
-        label: pp.displayName || canonicalId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        canonicalLocationCode: canonicalId,
-        provider,
-        providerPlacement: providerEntry.defaultDtgName || canonicalId,
-        providerPlacementId: providerEntry.providerPlacementId || providerEntry.defaultDtgName || canonicalId,
-        sourceTable: providerEntry.sourceTable || `${provider}_print_placements`,
-        dimensions: providerEntry.dimensions || pp.dimensions || null,
-        printArea: providerEntry.printArea || null,
-        safeArea: providerEntry.safeArea || null,
-        dpi: providerEntry.dpi || pp.dimensions?.dpi || 300,
-        rawProviderPlacement: providerEntry,
-      });
+      const buildLocation = (canonicalId: string, pp: any, providerEntry: any, provider: string): PrintLocation => {
+        // Dimension fallback: provider crosswalk → print_placements doc → Tier 1 canonical profile
+        const canonicalP = canonicalDimsMap.get(canonicalId);
+        const dims = providerEntry.dimensions || pp.dimensions || canonicalP?.dimensions || null;
+        const printArea = providerEntry.printArea || canonicalP?.printArea
+          || (dims ? { widthPx: dims.widthPx, heightPx: dims.heightPx } : null);
+        return {
+          id: canonicalId,
+          label: pp.displayName || canonicalId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          canonicalLocationCode: canonicalId,
+          provider,
+          providerPlacement: providerEntry.defaultDtgName || canonicalId,
+          providerPlacementId: providerEntry.providerPlacementId || providerEntry.defaultDtgName || canonicalId,
+          sourceTable: providerEntry.sourceTable || `${provider}_print_placements`,
+          dimensions: dims,
+          printArea,
+          safeArea: providerEntry.safeArea || canonicalP?.safeArea || null,
+          dpi: providerEntry.dpi || pp.dimensions?.dpi || canonicalP?.dpi || 300,
+          rawProviderPlacement: providerEntry,
+        };
+      };
 
       if (cachedPositions.length > 0) {
         for (const pos of cachedPositions) {
@@ -822,6 +879,36 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         printLocations = all;
       }
 
+      // Tier 2: backfilled provider placements stored on master_catalog doc
+      if (printLocations.length === 0) {
+        const backfilled: any[] = requestedProvider === 'printful'
+          ? (Array.isArray(product.printfulPlacements) ? product.printfulPlacements : [])
+          : (Array.isArray(product.printifyPlacements) ? product.printifyPlacements : []);
+
+        if (backfilled.length > 0) {
+          printLocations = backfilled
+            .filter((p: any) => !/embroider/i.test(p.position || ''))
+            .map((p: any) => {
+              const canonicalP = canonicalDimsMap.get(p.position);
+              const dims = canonicalP?.dimensions
+                || (p.width && p.height ? { widthPx: p.width, heightPx: p.height, dpi: 300 } : null);
+              return {
+                id: p.position,
+                label: p.label || p.position.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                canonicalLocationCode: p.position,
+                provider: requestedProvider,
+                providerPlacement: p.position,
+                providerPlacementId: p.position,
+                sourceTable: `${requestedProvider}_placements_cached`,
+                dimensions: dims,
+                printArea: canonicalP?.printArea || (dims ? { widthPx: dims.widthPx, heightPx: dims.heightPx } : null),
+                safeArea: canonicalP?.safeArea || null,
+                dpi: canonicalP?.dpi || 300,
+              };
+            });
+        }
+      }
+
       if (printLocations.length === 0) {
         printLocations = [{
           id: 'front', label: 'Front', canonicalLocationCode: 'front',
@@ -831,7 +918,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         }];
       }
 
-      console.log(`[master-catalog/options] ${docId} provider=${requestedProvider} → ${printLocations.length} placements`);
+      console.log(`[master-catalog/options] ${docId} schema=${schemaFamily}/${schemaType} provider=${requestedProvider} → ${printLocations.length} placements`);
 
       // Build sizes and colors from qrgVariants
       const qrgVariants: Record<string, any> = product.qrgVariants || {};
@@ -856,6 +943,10 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       return res.json({
         docId,
         qrgBlankId,
+        // Schema identity — resolved from QRG STNNN digits before any provider query
+        schemaFamily,
+        schemaType,
+        canonicalProfilePath,
         title: product.canonicalTitle || product.title || null,
         brand: product.brand || null,
         model: product.model || null,
@@ -865,8 +956,8 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         printLocations,
         provider: {
           name: requestedProvider,
-          blueprintId: product.blueprintId ? String(product.blueprintId) : null,
-          printProviderId: null,
+          blueprintId: product.printifyBlueprintId ? String(product.printifyBlueprintId) : (product.blueprintId ? String(product.blueprintId) : null),
+          printProviderId: product.printifyProviderId ? String(product.printifyProviderId) : null,
         },
         qrgVariants,
       });

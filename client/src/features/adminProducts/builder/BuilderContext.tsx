@@ -692,6 +692,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             qrgBlankId: options.qrgBlankId || prev.selectedProduct!.qrgBlankId,
             qrgVariants: options.qrgVariants || {},
             providerMappings: options.providerMappings || prev.selectedProduct!.providerMappings,
+            // Schema-first fields resolved from QRG STNNN digits — identify product type
+            // before any provider query. Persisted into providerLayout on placement select.
+            schemaFamily: options.schemaFamily || null,
+            schemaType: options.schemaType || null,
+            canonicalProfilePath: options.canonicalProfilePath || null,
             optionsLoaded: true,
           };
 
@@ -797,6 +802,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       }
 
       // Derive providerLayout from the primary (first) selected placement.
+      // Schema-first: schemaFamily/schemaType/canonicalProfilePath come from the
+      // product (set by fetchOptionsForProduct from the /options response).
       // This ensures the renderer and BLD use provider-correct dimensions, not
       // hardcoded FALLBACK_PLACEMENT_DIMENSIONS. Only updated when the primary
       // placement changes — otherwise keep the existing providerLayout.
@@ -807,6 +814,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       const newProviderLayout: ProviderLayout | null = (primaryPlacement?.provider && primaryPlacement.dimensions)
         ? {
             provider: primaryPlacement.provider,
+            schemaFamily: prev.selectedProduct?.schemaFamily || '',
+            schemaType: prev.selectedProduct?.schemaType || '',
+            canonicalProfilePath: prev.selectedProduct?.canonicalProfilePath || '',
             canonicalLocationCode: primaryPlacement.id,
             providerPlacementId: primaryPlacement.providerPlacement || primaryPlacement.id,
             label: primaryPlacement.title,

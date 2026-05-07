@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "generatedAt": "2026-05-06T06:07:45.923Z",
+  "generatedAt": "2026-05-07T00:47:39.655Z",
   "algorithm": "sha256",
   "extraFilePolicy": "flag",
   "requiredFiles": [
@@ -30,9 +30,9 @@
     "QRG.md": "ec111cdefa9e71469050c5cee86d2ba467cf0d6dd53701109a588a791f1b39c3",
     "README.md": "89f8ba5b499bc6e8561a43ecd52bf548fc5d117098d60919539ffbcfd45cfdf8",
     "REPLIT.md": "53981ed33cb31a49228d70d8dde0153fefe0df3af64b00cf28155fcce92af3f7",
-    "SKILLS.md": "baea7b005655b63c38fb46f06aa18bc0ed0a32ea7d0dbfbd496eef2175c7f745",
+    "SKILLS.md": "14ad2e2501cba16a997c8d180ffb373de42654f2d779ad89689d82eca15c85fb",
     "SYSTEM_KEYS.md": "5e8ef1dcd1bdf25f804f3ad788be836da3321cb95fcd50f5d0aafaaa0f36e4b5",
     "design_guidelines.md": "e066eeece9e47e40c8956c1876d32582e0b23507ef5c1167c7a51006cf81e15b"
   },
-  "packageHash": "d4c48a98930b866f444ec1bb257c8b50fc728f3f68fff80b0dc59d8e1397baf3"
+  "packageHash": "84048fa053fc23fac9dc42ff8d89cdedc4c3facd4c1c9a8d6aa8a2bec8a7a843"
 }

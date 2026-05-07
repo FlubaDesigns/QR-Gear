@@ -530,10 +530,17 @@ export function register(app: express.Express): void {
     }
   });
 
-  // ── GET /admin/master-catalog/products/:docId/options ────────────────────────
-  // QRG-native product options resolver.
-  // Given a qrg_STNNN doc ID, returns sizes, colors, print locations and variant
-  // mappings without requiring callers to know provider IDs.
+  // ── QRG Schema Resolution ────────────────────────────────────────────────────
+  // Maps QRG STNNN digits → schemaFamily, schemaType, canonicalProfilePath.
+  // S = super-category digit, T = product-type digit (per QRG.md §3).
+
+  // GET /admin/master-catalog/products/:docId/options ────────────────────────
+  // QRG-native product options resolver — schema-first, provider-refined.
+  // Resolution order:
+  //   Tier 1: canonical layout_profiles/{family}/{type} document
+  //   Tier 2: backfilled provider placements on master_catalog doc
+  //   Tier 3: live provider API call
+  //   Tier 4: generic front fallback
   //
   // Query params:
   //   ?provider=printify|printful  — which provider to filter placements for (default: printify)
@@ -565,6 +572,41 @@ export function register(app: express.Express): void {
       }
       const product = doc.data() as any;
       const qrgBlankId: string = product.qrgBlankId || docId.slice(4);
+
+      // ── Schema-first resolution (QRG.md §3) ─────────────────────────────────
+      // Parse STNNN from docId to resolve product family + type before any provider query.
+      const stnnn = docId.slice(4);           // e.g. "11001"
+      const sDigit = stnnn[0];               // S = super-category
+      const tDigit = stnnn[1];               // T = product type
+      const stKey = `${sDigit}${tDigit}`;   // e.g. "11"
+
+      const QRG_S_FAMILY: Record<string, string> = {
+        '1': 'apparel', '2': 'houseware', '3': 'print_display',
+        '4': 'accessories', '5': 'pet', '6': 'holiday',
+      };
+      const QRG_ST_TYPE: Record<string, string> = {
+        '11': 'tshirt', '12': 'hoodie', '13': 'tank', '14': 'longsleeve',
+        '15': 'jacket', '16': 'shorts', '17': 'dress', '18': 'leggings',
+        '21': 'drinkware', '22': 'kitchen', '23': 'home_decor',
+        '31': 'poster', '32': 'canvas', '33': 'card',
+        '41': 'bag', '42': 'hat', '43': 'phone_case', '44': 'jewelry',
+        '51': 'pet_apparel', '52': 'pet_accessory',
+        '61': 'ornament', '62': 'seasonal_decor',
+      };
+      const QRG_ST_COLLECTION: Record<string, string> = {
+        '11': 'tshirts', '12': 'hoodies', '13': 'tanks', '14': 'longsleeves',
+        '15': 'jackets', '16': 'shorts', '17': 'dresses', '18': 'leggings',
+        '21': 'drinkware', '22': 'kitchen', '23': 'home_decor',
+        '31': 'posters', '32': 'canvas', '33': 'cards',
+        '41': 'bags', '42': 'hats', '43': 'phone_cases', '44': 'jewelry',
+        '51': 'pet_apparel', '52': 'pet_accessories',
+        '61': 'ornaments', '62': 'seasonal_decor',
+      };
+
+      const schemaFamily = QRG_S_FAMILY[sDigit] || 'unknown';
+      const schemaType = QRG_ST_TYPE[stKey] || 'unknown';
+      const schemaCollection = QRG_ST_COLLECTION[stKey] || 'unknown';
+      const canonicalProfilePath = `layout_profiles/${schemaFamily}/${schemaCollection}`;
 
       // Read cached Printify positions early — used for provider guard and placement crosswalk
       const cachedPositions: string[] = Array.isArray(product.printPositions) ? product.printPositions : [];
@@ -695,7 +737,16 @@ export function register(app: express.Express): void {
         return null;
       }
 
+      // Declared here so buildLocation (below) can close over it.
+      // Populated in the inner try block once the canonical profile is fetched.
+      let canonicalDimsMap = new Map<string, any>();
+
       function buildLocation(canonicalId: string, pp: any, providerEntry: any, provider: string): PrintLocation {
+        // Dimension fallback order: provider crosswalk → print_placements doc → Tier 1 canonical profile
+        const canonicalP = canonicalDimsMap.get(canonicalId);
+        const dims = providerEntry.dimensions || pp.dimensions || canonicalP?.dimensions || null;
+        const printArea = providerEntry.printArea || canonicalP?.printArea
+          || (dims ? { widthPx: dims.widthPx, heightPx: dims.heightPx } : null);
         return {
           id: canonicalId,
           label: pp.displayName || canonicalId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
@@ -704,20 +755,40 @@ export function register(app: express.Express): void {
           providerPlacement: providerEntry.defaultDtgName || canonicalId,
           providerPlacementId: providerEntry.providerPlacementId || providerEntry.defaultDtgName || canonicalId,
           sourceTable: providerEntry.sourceTable || `${provider}_print_placements`,
-          dimensions: providerEntry.dimensions || pp.dimensions || null,
-          printArea: providerEntry.printArea || null,
-          safeArea: providerEntry.safeArea || null,
-          dpi: providerEntry.dpi || pp.dimensions?.dpi || 300,
+          dimensions: dims,
+          printArea,
+          safeArea: providerEntry.safeArea || canonicalP?.safeArea || null,
+          dpi: providerEntry.dpi || pp.dimensions?.dpi || canonicalP?.dpi || 300,
           rawProviderPlacement: providerEntry,
         };
       }
 
       try {
-        const placementsSnap = await db.collection('print_placements').get();
+        // Load print_placements crosswalk + canonical profile in parallel (Tier 1)
+        const canonicalProfileRef = db
+          .collection('layout_profiles').doc(schemaFamily)
+          .collection(schemaCollection).doc('canonical');
+
+        const [placementsSnap, canonicalProfileDoc] = await Promise.all([
+          db.collection('print_placements').get(),
+          schemaFamily !== 'unknown' && schemaCollection !== 'unknown'
+            ? canonicalProfileRef.get()
+            : Promise.resolve(null as any),
+        ]);
+
         const placementMap = new Map<string, any>();
         for (const d of placementsSnap.docs) {
           placementMap.set(d.id, d.data());
         }
+
+        // Populate canonical dims map from Tier 1 profile (layout_profiles/family/type/canonical)
+        const canonicalProfile = canonicalProfileDoc?.exists ? canonicalProfileDoc.data() : null;
+        if (canonicalProfile?.placements) {
+          for (const p of (canonicalProfile.placements as any[])) {
+            if (p.id) canonicalDimsMap.set(p.id, p);
+          }
+        }
+        console.log(`[MasterCatalog/options] ${docId} schema=${schemaFamily}/${schemaType} canonicalProfile=${canonicalProfile ? 'found' : 'none'} placements=${canonicalDimsMap.size}`);
 
         if (cachedPositions.length > 0) {
           // Filter the blank's cached positions through the crosswalk for the requested provider
@@ -772,7 +843,39 @@ export function register(app: express.Express): void {
         }
       }
 
-      // Printify live API fallback — only if crosswalk returned nothing and we have Printify IDs
+      // Tier 2: backfilled provider placements stored on master_catalog doc
+      // These are written by POST /admin/master-catalog/backfill-placements
+      if (printLocations.length === 0) {
+        const backfilled: any[] = requestedProvider === 'printful'
+          ? (Array.isArray(product.printfulPlacements) ? product.printfulPlacements : [])
+          : (Array.isArray(product.printifyPlacements) ? product.printifyPlacements : []);
+
+        if (backfilled.length > 0) {
+          printLocations = backfilled
+            .filter((p: any) => !isEmbroideryPlacement(p.position))
+            .map((p: any) => {
+              const canonicalP = canonicalDimsMap.get(p.position);
+              const dims = canonicalP?.dimensions
+                || (p.width && p.height ? { widthPx: p.width, heightPx: p.height, dpi: 300 } : null);
+              return {
+                id: p.position,
+                label: p.label || p.position.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                canonicalLocationCode: p.position,
+                provider: requestedProvider,
+                providerPlacement: p.position,
+                providerPlacementId: p.position,
+                sourceTable: `${requestedProvider}_placements_cached`,
+                dimensions: dims,
+                printArea: canonicalP?.printArea || (dims ? { widthPx: dims.widthPx, heightPx: dims.heightPx } : null),
+                safeArea: canonicalP?.safeArea || null,
+                dpi: canonicalP?.dpi || 300,
+              };
+            });
+          console.log(`[MasterCatalog/options] ${docId} Tier2: ${printLocations.length} from cached ${requestedProvider} placements`);
+        }
+      }
+
+      // Tier 3: Printify live API fallback — only if Tier 2 also empty and we have Printify IDs
       if (printLocations.length === 0 && requestedProvider === 'printify' && blueprintId !== null && printProviderId && printifyClient.isConfigured) {
         try {
           const variantData = await printifyClient.getVariants(blueprintId, printProviderId);
@@ -814,10 +917,14 @@ export function register(app: express.Express): void {
         }];
       }
 
-      // 7. Build response — product identity uses QRG doc ID, provider IDs are metadata only
+      // 7. Build response — schema-first: QRG identity leads, provider IDs are metadata only
       res.json({
         docId,
         qrgBlankId,
+        // Schema identity — resolved from QRG STNNN digits before any provider query
+        schemaFamily,
+        schemaType,
+        canonicalProfilePath,
         title: product.canonicalTitle || product.title || null,
         brand: product.brand || null,
         model: product.model || null,
