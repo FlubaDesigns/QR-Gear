@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 7, 2026 (QRG wall/shelf catalog navigator — provider-gated wall+shelf browsing in all-products mode)
+Last updated: May 7, 2026 (QRG Super Category / Subcategory Navigator — renamed state to qrgSuperCategory/qrgSubCategory, replaced parseQrgWall/parseQrgShelf with getQrgDigits(), replaced matchesProvider with providerStocksProduct(), updated data-testids)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 

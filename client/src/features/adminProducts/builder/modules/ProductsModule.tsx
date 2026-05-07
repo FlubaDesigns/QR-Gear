@@ -163,8 +163,8 @@ interface CatalogCategoryResponse {
   count: number;
 }
 
-// QRG wall labels per S-digit (QRG.md §3) — display-only, parsing is canonical read
-const QRG_WALL_LABELS: Record<string, string> = {
+// QRG super-category labels per S-digit (QRG.md §3) — display-only
+const SUPER_CATEGORY_LABELS: Record<string, string> = {
   "1": "Apparel",
   "2": "Houseware",
   "3": "Print & Display",
@@ -173,23 +173,21 @@ const QRG_WALL_LABELS: Record<string, string> = {
   "6": "Holiday & Seasonal",
 };
 
-function parseQrgWall(docId: string | undefined): string | null {
-  if (!docId) return null;
-  const m = docId.match(/^qrg_([1-6])/);
-  return m ? m[1] : null;
+// Strip qrg_ prefix and return the 5-digit STNNN string.
+// digits[0] = S (super-category), digits.slice(0,2) = ST (subcategory).
+function getQrgDigits(docId: string | undefined): string {
+  if (!docId) return "";
+  const m = docId.match(/^qrg_([1-6][1-9]\d{3})$/);
+  return m ? m[1] : "";
 }
 
-function parseQrgShelf(docId: string | undefined): string | null {
-  if (!docId) return null;
-  const m = docId.match(/^qrg_([1-6][1-9])/);
-  return m ? m[1] : null;
-}
-
-function matchesProvider(item: any, prov: string): boolean {
-  if (prov === "printful") {
-    return item.fulfillmentProvider === "printful" || !!item.printfulProductId;
-  }
-  return item.fulfillmentProvider === "printify" || !!item.printifyProviderId || (!item.fulfillmentProvider && !item.printfulProductId);
+// True when the item is stocked by the given provider.
+// printful: must have printfulProductId.
+// printify: must have both printifyBlueprintId and printifyProviderId.
+function providerStocksProduct(item: any, prov: string): boolean {
+  if (prov === "printful") return !!item.printfulProductId;
+  if (prov === "printify") return !!item.printifyBlueprintId && !!item.printifyProviderId;
+  return false;
 }
 
 export function ProductsModule() {
@@ -223,20 +221,20 @@ export function ProductsModule() {
   const [addingShelf, setAddingShelf] = useState(false);
   const [newShelfName, setNewShelfName] = useState("");
   const [savingShelf, setSavingShelf] = useState(false);
-  const [qrgWall, setQrgWall] = useState<string | null>(null);
-  const [qrgShelf, setQrgShelf] = useState<string | null>(null);
+  const [qrgSuperCategory, setQrgSuperCategory] = useState<string | null>(null);
+  const [qrgSubCategory, setQrgSubCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedCatalogId || selectedCatalogId === "all") {
       setDataMode("all");
     } else if (selectedCatalogId === "joint") {
       setDataMode("joint");
-      setQrgWall(null);
-      setQrgShelf(null);
+      setQrgSuperCategory(null);
+      setQrgSubCategory(null);
     } else {
       setDataMode("catalog");
-      setQrgWall(null);
-      setQrgShelf(null);
+      setQrgSuperCategory(null);
+      setQrgSubCategory(null);
     }
   }, [selectedCatalogId]);
 
@@ -459,26 +457,27 @@ export function ProductsModule() {
     },
   });
 
-  // QRG wall/shelf navigator data — derived from masterCatalogFull filtered by current provider.
-  // wallCode (S-digit) → Map of shelfCode (ST-digits) → { categoryName, count }
+  // QRG super-category / subcategory navigator data — derived from masterCatalogFull filtered by provider.
+  // superCategoryCode (S-digit) → Map of subCategoryCode (ST-digits) → { categoryName, count }
   const qrgNavigatorData = useMemo(() => {
     if (dataMode !== "all" || masterCatalogFull.length === 0) return null;
-    const wallMap = new Map<string, Map<string, { categoryName: string; count: number }>>();
+    const superMap = new Map<string, Map<string, { categoryName: string; count: number }>>();
     for (const cat of masterCatalogFull) {
       for (const rawItem of (cat.items || [])) {
         const item = rawItem as any;
-        if (!matchesProvider(item, provider)) continue;
-        const wall = parseQrgWall(item.docId);
-        const shelf = parseQrgShelf(item.docId);
-        if (!wall || !shelf) continue;
-        if (!wallMap.has(wall)) wallMap.set(wall, new Map());
-        const shelves = wallMap.get(wall)!;
-        const entry = shelves.get(shelf);
-        if (!entry) shelves.set(shelf, { categoryName: cat.name, count: 1 });
+        if (!providerStocksProduct(item, provider)) continue;
+        const digits = getQrgDigits(item.docId);
+        if (digits.length < 2) continue;
+        const superCode = digits[0];
+        const subCode = digits.slice(0, 2);
+        if (!superMap.has(superCode)) superMap.set(superCode, new Map());
+        const subMap = superMap.get(superCode)!;
+        const entry = subMap.get(subCode);
+        if (!entry) subMap.set(subCode, { categoryName: cat.name, count: 1 });
         else entry.count++;
       }
     }
-    return wallMap;
+    return superMap;
   }, [masterCatalogFull, provider, dataMode]);
 
   const sortedCategories = useMemo(() => {
@@ -557,11 +556,11 @@ export function ProductsModule() {
                            (state.originFilter.showOther && !p.madeInUSA);
       const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
       const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
-      // When browsing via the QRG wall/shelf navigator, gate by current provider
-      const passesProvider = !qrgShelf || matchesProvider(p as any, provider);
+      // When browsing via the QRG subcategory navigator, gate by current provider
+      const passesProvider = !qrgSubCategory || providerStocksProduct(p as any, provider);
       return passesOrigin && passesGender && passesSearch && passesProvider;
     });
-  }, [productsWithGender, state.originFilter, state.genderFilter, search, qrgShelf, provider]);
+  }, [productsWithGender, state.originFilter, state.genderFilter, search, qrgSubCategory, provider]);
 
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
@@ -1206,15 +1205,15 @@ export function ProductsModule() {
               </div>
             ) : qrgNavigatorData && qrgNavigatorData.size > 0 ? (
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-1" data-testid="qrg-wall-nav">
+                <div className="flex flex-wrap gap-1" data-testid="qrg-super-category-nav">
                   {Array.from(qrgNavigatorData.entries())
                     .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([wallCode, shelves]) => {
-                      const totalCount = Array.from(shelves.values()).reduce((n, s) => n + s.count, 0);
-                      const isActive = qrgWall === wallCode;
+                    .map(([superCode, subMap]) => {
+                      const totalCount = Array.from(subMap.values()).reduce((n, s) => n + s.count, 0);
+                      const isActive = qrgSuperCategory === superCode;
                       return (
                         <button
-                          key={wallCode}
+                          key={superCode}
                           type="button"
                           className={[
                             "text-xs px-2.5 py-1.5 rounded-md border transition-colors",
@@ -1223,34 +1222,34 @@ export function ProductsModule() {
                               : "bg-muted/40 border-border hover-elevate",
                           ].join(" ")}
                           onClick={() => {
-                            if (qrgWall === wallCode) {
-                              setQrgWall(null);
-                              setQrgShelf(null);
+                            if (qrgSuperCategory === superCode) {
+                              setQrgSuperCategory(null);
+                              setQrgSubCategory(null);
                               setCategory(null);
                             } else {
-                              setQrgWall(wallCode);
-                              setQrgShelf(null);
+                              setQrgSuperCategory(superCode);
+                              setQrgSubCategory(null);
                               setCategory(null);
                             }
                           }}
-                          data-testid={`qrg-wall-${wallCode}`}
+                          data-testid={`qrg-super-category-${superCode}`}
                         >
-                          {QRG_WALL_LABELS[wallCode] ?? wallCode}
+                          {SUPER_CATEGORY_LABELS[superCode] ?? superCode}
                           <span className="ml-1 opacity-60">({totalCount})</span>
                         </button>
                       );
                     })}
                 </div>
 
-                {qrgWall && qrgNavigatorData.get(qrgWall) && (
-                  <div className="flex flex-wrap gap-1 pl-2 border-l border-border" data-testid="qrg-shelf-nav">
-                    {Array.from(qrgNavigatorData.get(qrgWall)!.entries())
+                {qrgSuperCategory && qrgNavigatorData.get(qrgSuperCategory) && (
+                  <div className="flex flex-wrap gap-1 pl-2 border-l border-border" data-testid="qrg-sub-category-nav">
+                    {Array.from(qrgNavigatorData.get(qrgSuperCategory)!.entries())
                       .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([shelfCode, { categoryName, count }]) => {
-                        const isActive = qrgShelf === shelfCode;
+                      .map(([subCode, { categoryName, count }]) => {
+                        const isActive = qrgSubCategory === subCode;
                         return (
                           <button
-                            key={shelfCode}
+                            key={subCode}
                             type="button"
                             className={[
                               "text-xs px-2.5 py-1.5 rounded-md border transition-colors",
@@ -1259,15 +1258,15 @@ export function ProductsModule() {
                                 : "bg-muted/40 border-border hover-elevate",
                             ].join(" ")}
                             onClick={() => {
-                              if (qrgShelf === shelfCode) {
-                                setQrgShelf(null);
+                              if (qrgSubCategory === subCode) {
+                                setQrgSubCategory(null);
                                 setCategory(null);
                               } else {
-                                setQrgShelf(shelfCode);
+                                setQrgSubCategory(subCode);
                                 setCategory(categoryName);
                               }
                             }}
-                            data-testid={`qrg-shelf-${shelfCode}`}
+                            data-testid={`qrg-sub-category-${subCode}`}
                           >
                             {categoryName}
                             <span className="ml-1 opacity-60">({count})</span>
@@ -1277,9 +1276,9 @@ export function ProductsModule() {
                   </div>
                 )}
 
-                {qrgWall && !qrgNavigatorData.get(qrgWall)?.size && (
+                {qrgSuperCategory && !qrgNavigatorData.get(qrgSuperCategory)?.size && (
                   <p className="text-xs text-muted-foreground pl-2">
-                    No shelves available via {provider} for this wall.
+                    No subcategories available via {provider} for this category.
                   </p>
                 )}
               </div>
@@ -1292,19 +1291,19 @@ export function ProductsModule() {
             )}
           </div>
 
-          {!qrgWall && !loadingCatalogProducts && (
-            <p className="text-xs text-muted-foreground" data-testid="hint-select-wall">
-              Select a wall above to browse by product type.
+          {!qrgSuperCategory && !loadingCatalogProducts && (
+            <p className="text-xs text-muted-foreground" data-testid="hint-select-super-category">
+              Select a category above to browse by product type.
             </p>
           )}
 
-          {qrgWall && !qrgShelf && (
-            <p className="text-xs text-muted-foreground" data-testid="hint-select-shelf">
-              Select a shelf to see products.
+          {qrgSuperCategory && !qrgSubCategory && (
+            <p className="text-xs text-muted-foreground" data-testid="hint-select-sub-category">
+              Select a subcategory to see products.
             </p>
           )}
 
-          {qrgShelf && state.category && (
+          {qrgSubCategory && state.category && (
             <>
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
