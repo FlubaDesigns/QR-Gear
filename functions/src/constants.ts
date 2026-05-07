@@ -77,6 +77,29 @@ export const PROVIDER_MAPPING_COLLECTION = 'printify_printful_mapping';
 
 export const QRG_COUNTERS_COLLECTION = 'qrg_counters';
 
+// ── Canonical core operational collections ────────────────────────────────────
+// These collections are accessed exclusively via Cloud Functions middleware
+// (requireAdmin). Direct client SDK access is blocked by Firestore wildcard deny.
+export const BLD_DEFINITIONS_COLLECTION  = 'bld_definitions';
+export const BLD_COUNTERS_COLLECTION     = 'bld_counters';
+export const GRF_ASSETS_COLLECTION       = 'grf_assets';
+export const GRF_COUNTERS_COLLECTION     = 'grf_counters';
+export const ASSEMBLIES_COLLECTION       = 'assemblies';
+export const ASM_COUNTERS_COLLECTION     = 'asm_counters';
+export const CATALOGS_COLLECTION         = 'catalogs';
+export const ADMIN_BUILD_SESSIONS_COLLECTION = 'admin_build_sessions';
+export const ADMIN_BUILD_SHELF_COLLECTION    = 'admin_build_shelf';
+
+// ── System settings collections ───────────────────────────────────────────────
+// systemSettings — catalog section assignments + catalog defaults (admin-only)
+export const SYSTEM_SETTINGS_COLLECTION  = 'systemSettings';
+
+// IMPORTANT: Despite the name, testSettings/pricing IS the live production
+// pricing store (markup %, member profit share, fixed markup). It is read by
+// 14+ routes in both server/ and functions/. Do NOT wipe this in testing.
+export const PRICING_SETTINGS_COLLECTION = 'testSettings';
+export const PRICING_SETTINGS_DOC        = 'pricing';
+
 export type QrgSource = 'I' | 'M' | 'E' | 'D';
 
 export const QRG_BLANK_CODES: Record<number, string> = {

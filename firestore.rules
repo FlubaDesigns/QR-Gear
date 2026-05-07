@@ -110,6 +110,91 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ── Canonical core collections — Cloud Functions access only ──────────────
+    // All of these are accessed exclusively through Cloud Functions middleware
+    // (requireAdmin). Direct client SDK access is intentionally blocked.
+
+    // Master catalog — QRG blank identity registry
+    match /master_catalog/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /master_catalog_syncs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // BLD definitions and counters — product graphic structure (layout + slots)
+    match /bld_definitions/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /bld_counters/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // GRF assets and counters — graphic/image asset registry
+    match /grf_assets/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /grf_counters/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Assemblies and counters — links QRG + BLD + GRF together
+    match /assemblies/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /asm_counters/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Catalogs — curated blank sets assigned to storefronts
+    match /catalogs/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // System settings — catalog section assignments and defaults
+    match /systemSettings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Pricing settings — PRODUCTION pricing store (markup %, profit share)
+    // Named "testSettings" for historical reasons — this IS live production data
+    match /testSettings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Admin build sessions and shelf — product builder workflow state
+    match /admin_build_sessions/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /admin_build_shelf/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Provider data — Printify and Printful staging collections
+    match /printify_blueprints/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /printifyPrintProviders/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /printful_products/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /printful_variants/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /printfulCatalog/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Product packets and templates — fulfillment packet definitions
+    match /productPackets/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /productTemplates/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // Deny all other access by default
     match /{document=**} {
       allow read, write: if false;

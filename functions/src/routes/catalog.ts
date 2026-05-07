@@ -481,6 +481,80 @@ app.put('/admin/catalog-assignments', requireAdmin, async (req: Request, res: Re
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+// POST /admin/catalogs/migrate-blank-ids
+// Finding-A remediation: scans every catalog for legacy provider-prefixed blankIds
+// (py_NNN, pf_NNN, pf:NNN, plain numeric) and resolves them to canonical qrg_STNNN.
+// Also remaps all overlay maps (blankTiers, blankDescriptions, blankTitles, etc.) to
+// use the new key. Unresolvable IDs are dropped and reported. Idempotent — safe to re-run.
+app.post('/admin/catalogs/migrate-blank-ids', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const OVERLAY_MAPS = ['blankTiers', 'blankDescriptions', 'blankTitles', 'blankMakers', 'blankModels', 'blankProviders', 'blankImages', 'blankPrimaryImages'];
+    const QRG_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
+
+    const snap = await db.collection('catalogs').get();
+    const report: any[] = [];
+
+    for (const docSnap of snap.docs) {
+      const catalogId = docSnap.id;
+      const data = docSnap.data();
+      const blankIds: string[] = (data.blankIds || []).map(String);
+
+      const legacyIds = blankIds.filter(id => !QRG_RE.test(id) && !id.startsWith('pending_'));
+      if (legacyIds.length === 0) {
+        report.push({ catalogId, name: data.name, status: 'clean' });
+        continue;
+      }
+
+      const resolvedIds: string[] = [];
+      const dropped: string[] = [];
+      const remap = new Map<string, string | null>(); // oldKey → newKey (null = drop)
+
+      for (const rawId of blankIds) {
+        const id = String(rawId);
+        if (QRG_RE.test(id) || id.startsWith('pending_')) {
+          resolvedIds.push(id);
+          continue;
+        }
+        try {
+          const canonical = await resolveCatalogBlankId(id);
+          if (canonical === null) { resolvedIds.push(id); continue; } // pending — keep
+          remap.set(id, canonical);
+          resolvedIds.push(canonical);
+        } catch {
+          remap.set(id, null);
+          dropped.push(id);
+        }
+      }
+
+      const newBlankIds = [...new Set(resolvedIds)]; // deduplicate
+
+      const updates: any = { blankIds: newBlankIds, updatedAt: new Date().toISOString() };
+      for (const mapField of OVERLAY_MAPS) {
+        const oldMap: Record<string, any> = data[mapField] || {};
+        if (Object.keys(oldMap).length === 0) continue;
+        const newMap: Record<string, any> = {};
+        for (const [k, v] of Object.entries(oldMap)) {
+          const newKey = remap.has(k) ? remap.get(k) : k;
+          if (newKey !== null && newKey !== undefined) newMap[newKey] = v;
+        }
+        updates[mapField] = newMap;
+      }
+
+      await docSnap.ref.update(updates);
+      console.log(`[CatalogMigration] Migrated catalog "${data.name}" (${catalogId}): ${remap.size} remapped, ${dropped.length} dropped`);
+      report.push({ catalogId, name: data.name, status: 'migrated', remapped: remap.size, dropped: dropped.length, droppedIds: dropped });
+    }
+
+    const migrated = report.filter(r => r.status === 'migrated').length;
+    const clean = report.filter(r => r.status === 'clean').length;
+    console.log(`[CatalogMigration] Done: ${snap.size} catalogs scanned, ${migrated} migrated, ${clean} already clean`);
+    res.json({ success: true, catalogsScanned: snap.size, migrated, clean, report });
+  } catch (error: any) {
+    console.error('[CatalogMigration] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
   }
   
