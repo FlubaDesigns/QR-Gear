@@ -129,7 +129,7 @@ async function registerGrfDev(opts: {
     sequence, sourceUrl, mimeType: mimeType || 'image/png',
     sourceSessionId: sourceSessionId || null,
     packetId: packetId || null,
-    source: 'auto_commit', createdAt: now,
+    source: 'auto_commit', isActive: true, createdAt: now,
   });
 
   console.log(`[GRFRegistrar-dev] ${grfId} (${typeEntry.label}) → ${sourceUrl.slice(0, 80)}…`);

@@ -5,6 +5,11 @@ import { z } from "zod";
 import { fsGetAll, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/firestore-crud";
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from "../lib/constants";
 import { registerAdminCatalogsShelfRoutes } from "./admin-catalogs-shelf.routes";
+import {
+  GRF_TYPE_MAP, GRF_TYPE_ALLOWED_MIMES, isValidGraphicId,
+  buildGraphicId, grfCounterKey,
+} from "../../shared/graphicCodes";
+import type { GrfTypeCode, GrfRoleCode } from "../../shared/graphicCodes";
 
 export function registerAdminContentRoutes(app: Express): void {
   registerAdminCatalogsShelfRoutes(app);
@@ -350,6 +355,136 @@ export function registerAdminContentRoutes(app: Express): void {
       res.json({ success: true, instanceId: docRef.id, composeInstanceId: docRef.id });
     } catch (error: any) {
       console.error("[ComposePublish] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ── GRF asset routes (mirrors functions/src/routes/file-routes.ts) ──────────
+
+  app.post("/api/admin/graphics/save-grf", isAdmin, async (req: any, res) => {
+    try {
+      const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags } = req.body;
+
+      if (!typeCode || !roleCode || !imageUrl) {
+        return res.status(400).json({ error: "Missing required fields: typeCode, roleCode, imageUrl" });
+      }
+
+      const validTypeCodes = Object.keys(GRF_TYPE_MAP) as GrfTypeCode[];
+      if (!validTypeCodes.includes(typeCode as GrfTypeCode)) {
+        return res.status(400).json({ error: `Invalid typeCode. Must be one of: ${validTypeCodes.join(", ")}` });
+      }
+
+      const entry = GRF_TYPE_MAP[typeCode as GrfTypeCode];
+      if (!entry.validRoles.includes(roleCode as GrfRoleCode)) {
+        return res.status(400).json({
+          error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(", ")}`,
+        });
+      }
+
+      if (mimeType) {
+        const allowedMimes = GRF_TYPE_ALLOWED_MIMES[typeCode as GrfTypeCode] as string[];
+        if (!allowedMimes.includes(mimeType)) {
+          return res.status(400).json({
+            error: `MIME type "${mimeType}" is not valid for GRF typeCode "${typeCode}" (${entry.label}). Allowed: ${allowedMimes.join(", ")}`,
+          });
+        }
+      }
+
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const db = getFirestoreDb();
+
+      const counterKey = grfCounterKey(typeCode as GrfTypeCode, roleCode as GrfRoleCode);
+      const counterRef = db.collection("grf_counters").doc(counterKey);
+      let newSeq = 0;
+      await db.runTransaction(async (tx: any) => {
+        const doc = await tx.get(counterRef);
+        newSeq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
+        tx.set(counterRef, { count: newSeq, typeCode, roleCode, updatedAt: FieldValue.serverTimestamp() });
+      });
+
+      const grfId = buildGraphicId(typeCode as GrfTypeCode, roleCode as GrfRoleCode, newSeq);
+
+      const existingAsset = await db.collection("grf_assets").doc(grfId).get();
+      if (existingAsset.exists) {
+        console.error(`[GRF] Counter integrity violation — ${grfId} already exists. Counter key: ${counterKey}`);
+        return res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${counterKey}.` });
+      }
+
+      const now = FieldValue.serverTimestamp();
+      const assetData: Record<string, any> = {
+        grfId, typeCode, roleCode,
+        typeName: entry.label,
+        name: name || `${entry.label} ${grfId}`,
+        description: description || null,
+        mimeType: mimeType || "image/png",
+        storagePath: storagePath || null,
+        publicUrl: imageUrl,
+        sourceGrfId: sourceGrfId || null,
+        relatedPacketId: relatedPacketId || null,
+        tags: tags || null,
+        createdAt: now, createdBy: "admin",
+        isActive: true,
+      };
+
+      await db.collection("grf_assets").doc(grfId).set(assetData);
+      const doc = await db.collection("grf_assets").doc(grfId).get();
+      const saved = { id: doc.id, ...doc.data() };
+
+      console.log(`[GRF] Minted ${grfId} → grf_assets/${grfId}`);
+      res.json({ success: true, grfId, asset: saved });
+    } catch (error: any) {
+      console.error("[GRF] Error saving graphic:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/graphics", isAdmin, async (req: any, res) => {
+    try {
+      const { typeCode, roleCode } = req.query;
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const snapshot = await db.collection("grf_assets").where("isActive", "==", true).get();
+      const getTime = (val: any): number => {
+        if (!val) return 0;
+        if (typeof val === "string") return new Date(val).getTime() || 0;
+        if (val.toDate) return val.toDate().getTime();
+        if (val._seconds) return val._seconds * 1000;
+        return 0;
+      };
+      const assets = snapshot.docs
+        .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+        .filter((a: any) => (!typeCode || a.typeCode === typeCode) && (!roleCode || a.roleCode === roleCode))
+        .sort((a: any, b: any) => getTime(b.createdAt) - getTime(a.createdAt));
+
+      res.json(assets);
+    } catch (error: any) {
+      console.error("[GRF] Error fetching graphics:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/admin/graphics/:grfId/archive", isAdmin, async (req: any, res) => {
+    try {
+      const { grfId } = req.params;
+      if (!isValidGraphicId(grfId)) {
+        return res.status(400).json({ error: `Invalid GRF ID format: ${grfId}` });
+      }
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const db = getFirestoreDb();
+
+      const docRef = db.collection("grf_assets").doc(grfId);
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        return res.status(404).json({ error: `GRF asset not found: ${grfId}` });
+      }
+      await docRef.update({ isActive: false, archivedAt: FieldValue.serverTimestamp() });
+      console.log(`[GRF] Archived ${grfId}`);
+      res.json({ success: true, grfId });
+    } catch (error: any) {
+      console.error("[GRF] Error archiving graphic:", error);
       res.status(500).json({ error: error.message });
     }
   });

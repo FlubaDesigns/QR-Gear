@@ -117,6 +117,7 @@ export async function registerGrfAsset(
     sourceSessionId: sourceSessionId || null,
     packetId:        packetId        || null,
     source:          'auto_commit',
+    isActive:        true,
     createdAt:       now,
   });
 

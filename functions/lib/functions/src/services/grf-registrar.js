@@ -87,6 +87,7 @@ async function registerGrfAsset(opts) {
         sourceSessionId: sourceSessionId || null,
         packetId: packetId || null,
         source: 'auto_commit',
+        isActive: true,
         createdAt: now,
     });
     console.log(`[GRFRegistrar] ${grfId} (${typeEntry.label}) → ${sourceUrl.slice(0, 80)}…`);
