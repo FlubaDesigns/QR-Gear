@@ -715,6 +715,41 @@ function register(app) {
                     rawProviderPlacement: providerEntry,
                 };
             }
+            // ── Provider-first resolution ──────────────────────────────────────────
+            // For Printful: derive positions from printful_products/{id}.printLocations.
+            // This is authoritative — product.printPositions is legacy cache only.
+            // For Printify: falls through to cachedPositions + crosswalk (existing path).
+            let providerPositions = [];
+            const providerDimsMap = new Map();
+            let layoutSource = 'legacy_printPositions';
+            let providerProductId = null;
+            if (requestedProvider === 'printful' && product.printfulProductId) {
+                try {
+                    providerProductId = String(product.printfulProductId);
+                    const pfDoc = await core_1.db.collection('printful_products').doc(providerProductId).get();
+                    if (pfDoc.exists) {
+                        const pfData = pfDoc.data();
+                        const pfLocs = Array.isArray(pfData.printLocations) ? pfData.printLocations : [];
+                        if (pfLocs.length > 0) {
+                            for (const loc of pfLocs) {
+                                if (loc.placement && !(0, core_1.isEmbroideryPlacement)(loc.placement)) {
+                                    providerPositions.push(loc.placement);
+                                    if (loc.width && loc.height) {
+                                        providerDimsMap.set(loc.placement, { widthPx: loc.width, heightPx: loc.height, dpi: 300 });
+                                    }
+                                }
+                            }
+                            layoutSource = 'provider_product_locations';
+                            console.log(`[MasterCatalog/options] ${docId} Printful product ${providerProductId}: ${providerPositions.length} locations`);
+                        }
+                    }
+                }
+                catch (pfErr) {
+                    console.warn(`[MasterCatalog/options] ${docId}: printful_products lookup failed:`, pfErr.message);
+                }
+            }
+            // Positions to resolve: provider product data takes precedence over legacy cache
+            const resolvePositions = providerPositions.length > 0 ? providerPositions : cachedPositions;
             try {
                 // Load print_placements crosswalk + canonical profile in parallel (Tier 1)
                 const canonicalProfileRef = core_1.db
@@ -738,22 +773,61 @@ function register(app) {
                             canonicalDimsMap.set(p.id, p);
                     }
                 }
-                console.log(`[MasterCatalog/options] ${docId} schema=${schemaFamily}/${schemaType} canonicalProfile=${canonicalProfile ? 'found' : 'none'} placements=${canonicalDimsMap.size}`);
-                if (cachedPositions.length > 0) {
-                    // Filter the blank's cached positions through the crosswalk for the requested provider
-                    for (const pos of cachedPositions) {
+                console.log(`[MasterCatalog/options] ${docId} schema=${schemaFamily}/${schemaType} canonicalProfile=${canonicalProfile ? 'found' : 'none'} placements=${canonicalDimsMap.size} layoutSource=${layoutSource}`);
+                if (resolvePositions.length > 0) {
+                    // Resolve positions through the crosswalk for the requested provider.
+                    // seenCanonicalIds deduplicates cases where multiple provider names map to the
+                    // same canonical ID (e.g. "front" + "front_large" both → canonical "front").
+                    const seenCanonicalIds = new Set();
+                    for (const pos of resolvePositions) {
                         if ((0, core_1.isEmbroideryPlacement)(pos))
                             continue;
                         const resolved = resolvePlacement(placementMap, pos, requestedProvider);
                         if (!resolved) {
-                            console.warn(`[MasterCatalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
+                            // Not in crosswalk — if we have actual provider dims, build a direct location
+                            if (layoutSource === 'provider_product_locations' && providerDimsMap.has(pos)) {
+                                if (seenCanonicalIds.has(pos))
+                                    continue;
+                                seenCanonicalIds.add(pos);
+                                const dims = providerDimsMap.get(pos);
+                                printLocations.push({
+                                    id: pos,
+                                    label: pos.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+                                    canonicalLocationCode: pos,
+                                    provider: requestedProvider,
+                                    providerPlacement: pos,
+                                    providerPlacementId: pos,
+                                    sourceTable: `printful_products/${providerProductId}.printLocations`,
+                                    layoutSource,
+                                    dimensions: dims,
+                                    printArea: { widthPx: dims.widthPx, heightPx: dims.heightPx },
+                                    dpi: dims.dpi,
+                                });
+                            }
+                            else {
+                                console.warn(`[MasterCatalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
+                            }
                             continue;
                         }
                         const { canonicalId, pp } = resolved;
+                        // Deduplicate: skip if this canonical ID was already added
+                        // (e.g. "front_large" resolves to canonical "front" already added via "front")
+                        if (seenCanonicalIds.has(canonicalId))
+                            continue;
+                        seenCanonicalIds.add(canonicalId);
                         const providerEntry = pp.providers?.[requestedProvider];
                         if (!providerEntry)
-                            continue; // this provider has no mapping for this placement — hide it
-                        printLocations.push(buildLocation(canonicalId, pp, providerEntry, requestedProvider));
+                            continue;
+                        // Enrich crosswalk entry with actual provider dims when the crosswalk lacks them
+                        const actualDims = providerDimsMap.get(pos) || null;
+                        const enrichedEntry = (actualDims && !providerEntry.dimensions)
+                            ? { ...providerEntry, dimensions: actualDims }
+                            : providerEntry;
+                        const loc = buildLocation(canonicalId, pp, enrichedEntry, requestedProvider);
+                        const srcTable = layoutSource === 'provider_product_locations'
+                            ? `printful_products/${providerProductId}.printLocations`
+                            : (loc.sourceTable || `${requestedProvider}_print_placements`);
+                        printLocations.push({ ...loc, layoutSource, sourceTable: srcTable });
                     }
                     printLocations.sort((a, b) => {
                         const aOrd = placementMap.get(a.id)?.sortOrder ?? 99;
@@ -762,7 +836,7 @@ function register(app) {
                     });
                 }
                 else {
-                    // No cached positions — return all active placements that have the requested provider mapping
+                    // No positions from either source — return all active placements for the provider
                     const all = [];
                     for (const [internalName, pp] of placementMap.entries()) {
                         if (!pp.isActive)
@@ -772,18 +846,19 @@ function register(app) {
                         const providerEntry = pp.providers?.[requestedProvider];
                         if (!providerEntry)
                             continue;
-                        all.push({ ...buildLocation(internalName, pp, providerEntry, requestedProvider), sortOrder: pp.sortOrder ?? 99 });
+                        all.push({ ...buildLocation(internalName, pp, providerEntry, requestedProvider), sortOrder: pp.sortOrder ?? 99, layoutSource });
                     }
                     all.sort((a, b) => a.sortOrder - b.sortOrder);
                     printLocations = all;
                 }
-                console.log(`[MasterCatalog/options] ${docId} provider=${requestedProvider} → ${printLocations.length} placements`);
+                console.log(`[MasterCatalog/options] ${docId} provider=${requestedProvider} → ${printLocations.length} placements (source=${layoutSource})`);
             }
             catch (crosswalkErr) {
                 console.error(`[MasterCatalog/options] print_placements load failed for ${docId}:`, crosswalkErr.message);
-                // Fall back to unfiltered cached positions so the builder is not broken
-                if (cachedPositions.length > 0) {
-                    printLocations = cachedPositions
+                // Fall back to provider positions (if any) then cached positions so the builder is not broken
+                const fallbackPositions = providerPositions.length > 0 ? providerPositions : cachedPositions;
+                if (fallbackPositions.length > 0) {
+                    printLocations = fallbackPositions
                         .filter((p) => !(0, core_1.isEmbroideryPlacement)(p))
                         .map((pos) => ({
                         id: pos,
@@ -792,7 +867,10 @@ function register(app) {
                         provider: requestedProvider,
                         providerPlacement: pos,
                         providerPlacementId: pos,
-                        sourceTable: `${requestedProvider}_print_placements`,
+                        sourceTable: layoutSource === 'provider_product_locations'
+                            ? `printful_products/${providerProductId}.printLocations`
+                            : `${requestedProvider}_print_placements`,
+                        layoutSource,
                         dpi: 300,
                     }));
                 }
@@ -863,11 +941,12 @@ function register(app) {
                 }
             }
             if (printLocations.length === 0) {
+                layoutSource = 'emergency_fallback';
                 printLocations = [{
                         id: 'front', label: 'Front', canonicalLocationCode: 'front',
                         provider: requestedProvider, providerPlacement: 'front',
                         providerPlacementId: 'front', sourceTable: `${requestedProvider}_print_placements`,
-                        dpi: 300,
+                        layoutSource: 'emergency_fallback', dpi: 300,
                     }];
             }
             // 7. Build response — schema-first: QRG identity leads, provider IDs are metadata only
@@ -878,6 +957,7 @@ function register(app) {
                 schemaFamily,
                 schemaType,
                 canonicalProfilePath,
+                layoutSource,
                 title: product.canonicalTitle || product.title || null,
                 brand: product.brand || null,
                 model: product.model || null,
@@ -889,6 +969,7 @@ function register(app) {
                     name: requestedProvider,
                     blueprintId: blueprintId !== null ? String(blueprintId) : null,
                     printProviderId: printProviderId ? String(printProviderId) : null,
+                    printfulProductId: providerProductId,
                 },
                 qrgVariants,
             });

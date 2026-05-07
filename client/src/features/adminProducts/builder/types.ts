@@ -54,6 +54,8 @@ export interface ProductPlacement {
   safeArea?: { widthPx: number; heightPx: number };
   dpi?: number;
   canonicalLocationCode?: string;
+  /** Source of this placement — e.g. "provider_product_locations" or "legacy_printPositions" */
+  layoutSource?: string;
 }
 
 export interface CarrierPlacement {
@@ -124,6 +126,10 @@ export interface ProviderLayout {
   printArea: { widthPx: number; heightPx: number } | null;
   safeArea: { widthPx: number; heightPx: number } | null;
   dpi: number;
+  /** Source of this layout — "provider_product_locations" | "legacy_printPositions" | "emergency_fallback" */
+  layoutSource?: string;
+  /** Firestore table/path the location data came from, e.g. "printful_products/71.printLocations" */
+  sourceTable?: string;
 }
 
 export interface CatalogProduct {
@@ -174,6 +180,10 @@ export interface CatalogProduct {
   schemaType?: string | null;
   /** Canonical layout profile collection path (e.g. "layout_profiles/apparel/tshirts") */
   canonicalProfilePath?: string | null;
+  /** Source authority for the returned print locations — "provider_product_locations" | "legacy_printPositions" | "emergency_fallback" */
+  layoutSource?: string | null;
+  /** Provider-specific product ID (e.g. Printful product ID "71") — set by /options endpoint */
+  providerProductId?: string | null;
 }
 
 export interface OriginFilter {
@@ -349,6 +359,8 @@ export interface BuilderState {
   content: ContentData;
   placementsLoading: boolean;
   placementsError: string | null;
+  /** Amber warning shown when autosaved placements are no longer valid for the current provider */
+  placementsRestoreWarning: string | null;
   selectedPlacements: string[];
   placementConfig: _PlacementConfig;
   placementSizes: _PlacementSizeConfig;

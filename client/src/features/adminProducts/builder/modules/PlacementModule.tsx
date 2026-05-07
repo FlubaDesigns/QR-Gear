@@ -200,20 +200,42 @@ export function PlacementModule() {
           </div>
         )}
 
+        {!isLoading && state.placementsRestoreWarning && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400" data-testid="banner-placements-restore-warning">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <span className="flex-1">{state.placementsRestoreWarning}</span>
+          </div>
+        )}
+
         {!isLoading && hasApiPlacements && (
-          <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-            <Check className="h-3 w-3" />
-            <span className="flex-1">{placementOptions.length} placement{placementOptions.length !== 1 ? 's' : ''} from {state.selectedProduct.fulfillmentProvider || 'provider'}</span>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-auto py-0 px-1 text-xs text-muted-foreground"
-              onClick={refreshPlacements}
-              data-testid="button-refresh-placements"
-              title="Reload placements from provider"
-            >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+              <Check className="h-3 w-3" />
+              <span className="flex-1">{placementOptions.length} placement{placementOptions.length !== 1 ? 's' : ''} from {state.selectedProduct.fulfillmentProvider || 'provider'}</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-auto py-0 px-1 text-xs text-muted-foreground"
+                onClick={refreshPlacements}
+                data-testid="button-refresh-placements"
+                title="Reload placements from provider"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
+            {state.selectedProduct.layoutSource && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground pl-4" data-testid="text-layout-source">
+                <span>
+                  {state.selectedProduct.layoutSource === 'provider_product_locations'
+                    ? `Source: ${state.selectedProduct.fulfillmentProvider || 'provider'} product catalog${state.selectedProduct.providerProductId ? ` (ID ${state.selectedProduct.providerProductId})` : ''}`
+                    : state.selectedProduct.layoutSource === 'legacy_printPositions'
+                      ? 'Source: cached print positions (may be stale)'
+                      : state.selectedProduct.layoutSource === 'emergency_fallback'
+                        ? 'Source: fallback (front only)'
+                        : state.selectedProduct.layoutSource}
+                </span>
+              </div>
+            )}
           </div>
         )}
 

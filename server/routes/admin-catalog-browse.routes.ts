@@ -804,7 +804,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       type PrintLocation = {
         id: string; label: string; canonicalLocationCode: string;
         provider: string; providerPlacement: string; providerPlacementId: string;
-        sourceTable: string; dimensions?: any; printArea?: any; safeArea?: any;
+        sourceTable: string; layoutSource?: string; dimensions?: any; printArea?: any; safeArea?: any;
         dpi?: number; rawProviderPlacement?: any;
       };
       let printLocations: PrintLocation[] = [];
@@ -848,18 +848,84 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         };
       };
 
-      if (cachedPositions.length > 0) {
-        for (const pos of cachedPositions) {
+      // ── Provider-first resolution ──────────────────────────────────────────
+      // For Printful: derive positions from printful_products/{id}.printLocations.
+      // This is authoritative — product.printPositions is legacy cache only.
+      // For Printify: falls through to cachedPositions + crosswalk (existing path).
+      let providerPositions: string[] = [];
+      const providerDimsMap = new Map<string, { widthPx: number; heightPx: number; dpi: number }>();
+      let layoutSource = 'legacy_printPositions';
+      let providerProductId: string | null = null;
+
+      if (requestedProvider === 'printful' && product.printfulProductId) {
+        try {
+          providerProductId = String(product.printfulProductId);
+          const pfDoc = await fsDb.collection('printful_products').doc(providerProductId).get();
+          if (pfDoc.exists) {
+            const pfData = pfDoc.data() as any;
+            const pfLocs: any[] = Array.isArray(pfData.printLocations) ? pfData.printLocations : [];
+            if (pfLocs.length > 0) {
+              for (const loc of pfLocs) {
+                if (loc.placement && !isEmbroideryPlacement(loc.placement)) {
+                  providerPositions.push(loc.placement);
+                  if (loc.width && loc.height) {
+                    providerDimsMap.set(loc.placement, { widthPx: loc.width, heightPx: loc.height, dpi: 300 });
+                  }
+                }
+              }
+              layoutSource = 'provider_product_locations';
+            }
+          }
+        } catch (_pfErr: any) { /* continue — fall through to cached positions */ }
+      }
+
+      // Positions to resolve: provider product data takes precedence over legacy cache
+      const resolvePositions = providerPositions.length > 0 ? providerPositions : cachedPositions;
+
+      if (resolvePositions.length > 0) {
+        // seenCanonicalIds deduplicates cases where multiple provider names map to the
+        // same canonical ID (e.g. "front" + "front_large" both → canonical "front").
+        const seenCanonicalIds = new Set<string>();
+        for (const pos of resolvePositions) {
           if (isEmbroideryPlacement(pos)) continue;
           const resolved = resolvePlacement(placementMap, pos, requestedProvider);
           if (!resolved) {
-            console.warn(`[master-catalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
+            if (layoutSource === 'provider_product_locations' && providerDimsMap.has(pos)) {
+              if (seenCanonicalIds.has(pos)) continue;
+              seenCanonicalIds.add(pos);
+              const dims = providerDimsMap.get(pos)!;
+              printLocations.push({
+                id: pos,
+                label: pos.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                canonicalLocationCode: pos,
+                provider: requestedProvider,
+                providerPlacement: pos,
+                providerPlacementId: pos,
+                sourceTable: `printful_products/${providerProductId}.printLocations`,
+                layoutSource,
+                dimensions: dims,
+                printArea: { widthPx: dims.widthPx, heightPx: dims.heightPx },
+                dpi: dims.dpi,
+              });
+            } else {
+              console.warn(`[master-catalog/options] ${docId}: position "${pos}" not in print_placements — skipping`);
+            }
             continue;
           }
           const { canonicalId, pp } = resolved;
+          if (seenCanonicalIds.has(canonicalId)) continue;
+          seenCanonicalIds.add(canonicalId);
           const providerEntry = pp.providers?.[requestedProvider];
           if (!providerEntry) continue;
-          printLocations.push(buildLocation(canonicalId, pp, providerEntry, requestedProvider));
+          const actualDims = providerDimsMap.get(pos) || null;
+          const enrichedEntry = (actualDims && !providerEntry.dimensions)
+            ? { ...providerEntry, dimensions: actualDims }
+            : providerEntry;
+          const loc = buildLocation(canonicalId, pp, enrichedEntry, requestedProvider);
+          const srcTable = layoutSource === 'provider_product_locations'
+            ? `printful_products/${providerProductId}.printLocations`
+            : (loc.sourceTable || `${requestedProvider}_print_placements`);
+          printLocations.push({ ...loc, layoutSource, sourceTable: srcTable });
         }
         printLocations.sort((a, b) => {
           const aOrd = placementMap.get(a.id)?.sortOrder ?? 99;
@@ -873,7 +939,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
           if (isEmbroideryPlacement(internalName)) continue;
           const providerEntry = pp.providers?.[requestedProvider];
           if (!providerEntry) continue;
-          all.push({ ...buildLocation(internalName, pp, providerEntry, requestedProvider), sortOrder: pp.sortOrder ?? 99 });
+          all.push({ ...buildLocation(internalName, pp, providerEntry, requestedProvider), sortOrder: pp.sortOrder ?? 99, layoutSource });
         }
         all.sort((a, b) => a.sortOrder - b.sortOrder);
         printLocations = all;
@@ -910,15 +976,16 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       }
 
       if (printLocations.length === 0) {
+        layoutSource = 'emergency_fallback';
         printLocations = [{
           id: 'front', label: 'Front', canonicalLocationCode: 'front',
           provider: requestedProvider, providerPlacement: 'front',
           providerPlacementId: 'front', sourceTable: `${requestedProvider}_print_placements`,
-          dpi: 300,
+          layoutSource: 'emergency_fallback', dpi: 300,
         }];
       }
 
-      console.log(`[master-catalog/options] ${docId} schema=${schemaFamily}/${schemaType} provider=${requestedProvider} → ${printLocations.length} placements`);
+      console.log(`[master-catalog/options] ${docId} schema=${schemaFamily}/${schemaType} provider=${requestedProvider} → ${printLocations.length} placements (source=${layoutSource})`);
 
       // Build sizes and colors from qrgVariants
       const qrgVariants: Record<string, any> = product.qrgVariants || {};
@@ -947,6 +1014,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         schemaFamily,
         schemaType,
         canonicalProfilePath,
+        layoutSource,
         title: product.canonicalTitle || product.title || null,
         brand: product.brand || null,
         model: product.model || null,
@@ -958,6 +1026,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
           name: requestedProvider,
           blueprintId: product.printifyBlueprintId ? String(product.printifyBlueprintId) : (product.blueprintId ? String(product.blueprintId) : null),
           printProviderId: product.printifyProviderId ? String(product.printifyProviderId) : null,
+          printfulProductId: providerProductId,
         },
         qrgVariants,
       });

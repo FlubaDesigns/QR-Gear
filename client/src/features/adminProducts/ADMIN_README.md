@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 7, 2026 (QRG Super Category / Subcategory Navigator — renamed state to qrgSuperCategory/qrgSubCategory, replaced parseQrgWall/parseQrgShelf with getQrgDigits(), replaced matchesProvider with providerStocksProduct(), updated data-testids)
+Last updated: May 7, 2026 (Placement restore fix — options endpoint now reads printful_products/{id}.printLocations as authoritative source for Printful; cross-walk deduplicates canonical IDs; layoutSource field added to response and ProviderLayout; restored placements validated against fetched list with amber warning on mismatch)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 

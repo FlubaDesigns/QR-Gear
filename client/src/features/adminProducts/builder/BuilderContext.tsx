@@ -122,6 +122,7 @@ const initialState: BuilderState = {
   },
   placementsLoading: false,
   placementsError: null,
+  placementsRestoreWarning: null,
   selectedPlacements: [],
   placementConfig: {},
   placementSizes: {},
@@ -641,7 +642,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       console.warn('[BuilderContext] Product missing qrg_ docId, skipping options fetch:', docId);
       setState(prev => {
         if (prev.selectedProduct?.docId !== docId) return prev;
-        return { ...prev, placementsLoading: false };
+        return { ...prev, placementsLoading: false, placementsRestoreWarning: null };
       });
       return;
     }
@@ -683,6 +684,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             safeArea: pl.safeArea || null,
             dpi: pl.dpi || pl.dimensions?.dpi || 300,
             canonicalLocationCode: pl.canonicalLocationCode || pl.id,
+            layoutSource: pl.layoutSource || null,
           }));
 
           const merged: CatalogProduct = {
@@ -697,17 +699,37 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             schemaFamily: options.schemaFamily || null,
             schemaType: options.schemaType || null,
             canonicalProfilePath: options.canonicalProfilePath || null,
+            layoutSource: options.layoutSource || null,
+            providerProductId: options.provider?.printfulProductId || null,
             optionsLoaded: true,
           };
 
-          return { ...prev, selectedProduct: merged, placementsLoading: false, placementsError: null };
+          // Validate restored placements against the freshly-fetched placement list.
+          // If any saved placement no longer exists (e.g. left_chest was in legacy cache
+          // but Printful product doesn't actually have it), deselect and warn the user.
+          const validPlacementIds = new Set(printLocations.map(p => p.id));
+          const restoredSelected = prev.selectedPlacements || [];
+          const invalidRestored = restoredSelected.filter(id => !validPlacementIds.has(id));
+          const validSelected = restoredSelected.filter(id => validPlacementIds.has(id));
+          const restoreWarning = (invalidRestored.length > 0 && restoredSelected.length > 0)
+            ? `Saved placement${invalidRestored.length > 1 ? 's' : ''} "${invalidRestored.join('", "')}" ${invalidRestored.length > 1 ? 'are' : 'is'} not available for this product. ${invalidRestored.length > 1 ? 'They have' : 'It has'} been deselected — please reselect a placement.`
+            : null;
+
+          return {
+            ...prev,
+            selectedProduct: merged,
+            placementsLoading: false,
+            placementsError: null,
+            placementsRestoreWarning: restoreWarning,
+            selectedPlacements: validSelected,
+          };
         });
       })
       .catch(err => {
         console.error('[BuilderContext] Failed to fetch product options:', err);
         setState(prev => {
           if (prev.selectedProduct?.docId !== docId) return prev;
-          return { ...prev, placementsLoading: false, placementsError: err?.message || 'Failed to load product options' };
+          return { ...prev, placementsLoading: false, placementsError: err?.message || 'Failed to load product options', placementsRestoreWarning: null };
         });
       });
   }, []);
@@ -718,13 +740,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   useEffect(() => {
     const product = state.selectedProduct;
     if (!product?.docId || !product.optionsLoaded) return;
-    setState(prev => ({ ...prev, placementsLoading: true, placementsError: null }));
+    setState(prev => ({ ...prev, placementsLoading: true, placementsError: null, placementsRestoreWarning: null }));
     fetchOptionsForProduct(product);
   }, [state.fulfillmentProvider]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
     if (!product) {
-      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false, placementsError: null }));
+      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false, placementsError: null, placementsRestoreWarning: null }));
       return;
     }
 
@@ -754,6 +776,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       descriptionSource: 'provider' as TextLayerSource,
       placementsLoading: true,
       placementsError: null,
+      placementsRestoreWarning: null,
     }));
 
     fetchOptionsForProduct(product);
@@ -825,6 +848,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
               || { widthPx: primaryPlacement.dimensions.widthPx, heightPx: primaryPlacement.dimensions.heightPx },
             safeArea: primaryPlacement.safeArea || null,
             dpi: primaryPlacement.dpi || primaryPlacement.dimensions?.dpi || 300,
+            layoutSource: primaryPlacement.layoutSource || prev.selectedProduct?.layoutSource || null,
+            sourceTable: primaryPlacement.sourceTable || null,
           }
         : prev.providerLayout;
 
@@ -882,7 +907,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       if (!product?.docId) return prev;
       // Schedule the fetch after this state update so placementsLoading is already true
       setTimeout(() => fetchOptionsForProduct(product), 0);
-      return { ...prev, placementsLoading: true, placementsError: null };
+      return { ...prev, placementsLoading: true, placementsError: null, placementsRestoreWarning: null };
     });
   }, [fetchOptionsForProduct]);
 
@@ -946,6 +971,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       selectedProduct: product ? { ...product, optionsLoaded: false } : prev.selectedProduct,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
+      placementsRestoreWarning: null,
       activePacketId: null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
       fulfillmentProvider: (metadata.fulfillmentProvider as string) ?? prev.fulfillmentProvider,
@@ -1107,6 +1133,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       adminCatalogDescription: packetData.adminCatalogDescription !== undefined ? packetData.adminCatalogDescription : null,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
+      placementsRestoreWarning: null,
       // Restore persisted provider layout so renderer uses correct dims when loading from packet
       providerLayout: (packetData.providerLayout as ProviderLayout) ?? null,
     }));
