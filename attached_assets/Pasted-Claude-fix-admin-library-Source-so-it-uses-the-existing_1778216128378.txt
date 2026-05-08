@@ -1,0 +1,497 @@
+Claude — fix admin/library Source so it uses the existing Viewer / View / Skin system AND the existing GRF engine.
+
+Do not redesign the admin library.
+Do not invent a new schema.
+Do not use legacy uploadAsset.
+Do not hand-render Source image cards.
+Do not bypass the shared skins.
+
+============================================================
+GOAL
+============================================================
+
+The Source button in admin/library must become the proper GRF original intake viewer.
+
+Expected user flow:
+
+1. User opens Admin → Library → Source.
+2. Source tab displays original uploaded source images using the shared Viewer / View / Skin system.
+3. User uploads an image.
+4. The uploaded image is saved as the original/source image using GRF_engine authority.
+5. The uploaded name/original filename is preserved.
+6. Nothing else is created at upload time.
+7. User crops the image.
+8. Crop action automatically creates TWO GRF records:
+   - cropped derivative
+   - background/promoted original
+9. Source, Cropped, and Background library areas refresh.
+10. The UI remains consistent with the shared admin library card/detail skins.
+
+============================================================
+AUTHORITY FILE
+============================================================
+
+Use this as the GRF authority:
+
+client/src/features/adminLibrary/shared/GRF_engine.ts
+
+Do not duplicate GRF logic from this file.
+
+Use the exports that already exist there, especially:
+
+- originalGrfParams()
+- buildCropTransition()
+- GRF_FILTER_ORIGINALS
+
+The Source tab means:
+
+GRF channel 4 + purpose 1
+
+In plain English:
+
+Source = original/raw library intake image.
+
+============================================================
+VIEWER / VIEW / SKIN LAW
+============================================================
+
+The Source tab must use the shared rendering architecture.
+
+The pattern is:
+
+Viewer
+→ View
+→ Skin
+
+For Source:
+
+Viewer:
+SourceImagesTab.tsx
+
+View:
+ScrollGridView
+ItemModalView, if detail modal exists
+
+Skin:
+SourceImageCardSkin
+SourceImageDetailSkin
+
+Existing skin file:
+
+client/src/features/shared/components/skins/SourceImageSkin.tsx
+
+Do not manually render Source image cards with raw div/img blocks if a Source skin exists.
+
+Bad pattern to remove:
+
+<ScrollGridView
+  items={gridItems}
+  renderItem={(item) => (
+    <div>
+      <img src={item.imageUrl} />
+    </div>
+  )}
+/>
+
+Correct pattern:
+
+GRF original assets
+→ map to SkinItem
+→ ScrollGridView
+→ SourceImageCardSkin
+→ SourceImageDetailSkin
+
+============================================================
+FILES TO INSPECT FIRST
+============================================================
+
+Inspect these before changing anything:
+
+1. client/src/features/adminLibrary/LibraryPage.tsx
+2. client/src/features/adminLibrary/tabs/SourceImagesTab.tsx
+3. client/src/features/adminLibrary/shared/GRF_engine.ts
+4. client/src/features/shared/components/views/ScrollGridView.tsx
+5. client/src/features/shared/components/views/ItemModalView.tsx
+6. client/src/features/shared/components/skins/SourceImageSkin.tsx
+7. client/src/features/shared/components/skins/types.ts
+8. client/src/lib/adminFetch.ts
+9. Any existing CroppedImagesTab / BackgroundsTab files if present
+
+============================================================
+STEP 1 — WIRE SOURCE BUTTON INTO LIBRARY PAGE
+============================================================
+
+File:
+
+client/src/features/adminLibrary/LibraryPage.tsx
+
+Make sure Source is registered as a real tab.
+
+Add import if missing:
+
+import SourceImagesTab from "./tabs/SourceImagesTab";
+
+Update TabType.
+
+Example:
+
+type TabType =
+  | "graphics"
+  | "templates"
+  | "images"
+  | "source"
+  | "bld"
+  | "asm";
+
+Add Source to the tab/button list.
+
+Example:
+
+{
+  id: "source" as const,
+  label: "Source",
+  icon: ImageIcon
+}
+
+Render it:
+
+{tab === "source" && <SourceImagesTab />}
+
+If Cropped and Backgrounds tabs already exist and are intended to be reachable, register those too, but do not let that distract from fixing Source first.
+
+============================================================
+STEP 2 — CONVERT SOURCE TAB TO GRF ORIGINAL FILTER
+============================================================
+
+File:
+
+client/src/features/adminLibrary/tabs/SourceImagesTab.tsx
+
+Remove dependence on legacy library asset upload behavior.
+
+Do not use:
+
+api.uploadAsset()
+assetType: "source"
+sourceAssetId
+
+Those belong to the old library asset system.
+
+Instead import:
+
+import adminFetch from "@/lib/adminFetch";
+
+import {
+  originalGrfParams,
+  buildCropTransition,
+  GRF_FILTER_ORIGINALS,
+} from "../shared/GRF_engine";
+
+The Source query must fetch GRF originals.
+
+Use GRF_FILTER_ORIGINALS.
+
+Example query:
+
+const sourceQuery = useQuery({
+  queryKey: [
+    "admin-library",
+    "grf",
+    "source-originals",
+    GRF_FILTER_ORIGINALS.channel,
+    GRF_FILTER_ORIGINALS.purpose,
+  ],
+  queryFn: async () => {
+    return adminFetch(
+      `/graphics?channel=${GRF_FILTER_ORIGINALS.channel}&purpose=${GRF_FILTER_ORIGINALS.purpose}`
+    );
+  },
+});
+
+Normalize the response according to the actual API shape.
+
+If the API returns:
+
+{ items: [...] }
+
+use items.
+
+If it returns an array directly, handle that.
+
+Do not hard-crash because of a response shape mismatch.
+
+============================================================
+STEP 3 — MAP GRF ORIGINALS TO SKINITEM
+============================================================
+
+Use the shared skin item type.
+
+Import:
+
+import type { SkinItem } from "@/features/shared/components/skins/types";
+
+Import the Source skins:
+
+import {
+  SourceImageCardSkin,
+  SourceImageDetailSkin,
+} from "@/features/shared/components/skins/SourceImageSkin";
+
+Create a mapper.
+
+Adapt field names to the actual GRF asset shape.
+
+Example:
+
+function getSourceImageUrl(asset: any): string {
+  return (
+    asset.imageUrl ||
+    asset.proxyUrl ||
+    asset.url ||
+    asset.publicUrl ||
+    asset.downloadUrl ||
+    ""
+  );
+}
+
+function assetToSkinItem(asset: any): SkinItem {
+  const imageUrl = getSourceImageUrl(asset);
+
+  return {
+    id: asset.id || asset.grfId,
+    name: asset.name || asset.originalFilename || "Untitled source image",
+    primaryImage: imageUrl,
+    imageUrl,
+    dimensions:
+      asset.width && asset.height
+        ? `${asset.width}x${asset.height}`
+        : undefined,
+    metadata: {
+      grfId: asset.grfId || asset.id,
+      mimeType: asset.mimeType,
+      originalFilename: asset.originalFilename,
+      channel: asset.channel,
+      purpose: asset.purpose,
+      sourceGrfId: asset.sourceGrfId,
+      raw: asset,
+    },
+  };
+}
+
+Important:
+
+- Keep the raw asset in metadata.raw so crop/delete/detail actions can access original GRF fields.
+- Do not lose originalFilename.
+- Do not lose mimeType.
+- Do not lose grfId/id.
+
+============================================================
+STEP 4 — RENDER SOURCE THROUGH VIEW + SKIN
+============================================================
+
+Still in SourceImagesTab.tsx.
+
+Use ScrollGridView as the view.
+
+Import if needed:
+
+import ScrollGridView from "@/features/shared/components/views/ScrollGridView";
+
+or match the actual export style used elsewhere.
+
+Replace any raw custom grid card rendering with:
+
+const skinItems = sourceAssets.map(assetToSkinItem);
+
+Then render:
+
+<ScrollGridView
+  items={skinItems}
+  isLoading={isLoading}
+  emptyMessage="No source images uploaded yet."
+  renderItem={(item) => (
+    <SourceImageCardSkin
+      item={item}
+      onClick={() => handleSelectItem(item)}
+      actions={{
+        onCrop: () => handleStartCrop(item),
+        onDelete: () => handleDeleteSource(item),
+      }}
+    />
+  )}
+/>
+
+Adjust prop names to match the real SourceImageCardSkin signature.
+
+If the skin expects separate props instead of actions, use the existing skin contract. Do not change the skin unless absolutely necessary.
+
+For detail modal:
+
+<ItemModalView
+  item={selectedItem}
+  open={detailOpen}
+  onOpenChange={setDetailOpen}
+>
+  {selectedItem && (
+    <SourceImageDetailSkin
+      item={selectedItem}
+      actions={{
+        onCrop: () => handleStartCrop(selectedItem),
+        onDelete: () => handleDeleteSource(selectedItem),
+      }}
+      onClose={() => setDetailOpen(false)}
+    />
+  )}
+</ItemModalView>
+
+Again, adapt to the real ItemModalView and SourceImageDetailSkin props.
+
+The requirement is not exact prop names.
+
+The requirement is:
+
+SourceImagesTab must use:
+- ScrollGridView
+- SourceImageCardSkin
+- SourceImageDetailSkin where applicable
+
+============================================================
+STEP 5 — FIX UPLOAD: ORIGINAL ONLY
+============================================================
+
+Upload behavior:
+
+When a user uploads a file, create exactly ONE GRF record.
+
+That record must be the original/source intake asset.
+
+Use:
+
+originalGrfParams(mimeType)
+
+POST to:
+
+/api/admin/graphics/save-grf
+
+through adminFetch path:
+
+/graphics/save-grf
+
+Example:
+
+async function saveSourceOriginal(file: File, imageDataBase64: string) {
+  const mimeType = file.type || "image/jpeg";
+  const grf = originalGrfParams(mimeType);
+
+  return adminFetch("/graphics/save-grf", {
+    method: "POST",
+    body: JSON.stringify({
+      ...grf,
+      name: file.name,
+      originalFilename: file.name,
+      mimeType,
+      imageUrl: `data:${mimeType};base64,${imageDataBase64}`,
+    }),
+  });
+}
+
+If existing upload helper passes:
+
+{
+  name,
+  imageData,
+  mimeType
+}
+
+then use:
+
+const mimeType = params.mimeType || "image/jpeg";
+const grf = originalGrfParams(mimeType);
+
+await adminFetch("/graphics/save-grf", {
+  method: "POST",
+  body: JSON.stringify({
+    ...grf,
+    name: params.name,
+    originalFilename: params.name,
+    mimeType,
+    imageUrl: `data:${mimeType};base64,${params.imageData}`,
+  }),
+});
+
+Do not create cropped/background records during upload.
+
+Upload creates only the original.
+
+============================================================
+STEP 6 — FIX CROP: CREATE TWO GRF RECORDS
+============================================================
+
+Cropping is where the magic happens.
+
+When crop completes, create TWO records automatically:
+
+1. cropped derivative
+2. background/promoted original
+
+Use:
+
+buildCropTransition(originalMimeType, "image/jpeg")
+
+Example:
+
+async function handleCropComplete(croppedDataUrl: string) {
+  const originalAsset =
+    selectedItem?.metadata?.raw || selectedAsset || assetToCrop;
+
+  if (!originalAsset) {
+    throw new Error("No original source asset selected for crop.");
+  }
+
+  const originalMimeType = originalAsset.mimeType || "image/jpeg";
+
+  const transition = buildCropTransition(originalMimeType, "image/jpeg");
+
+  const sourceGrfId =
+    originalAsset.grfId ||
+    originalAsset.id ||
+    selectedItem?.metadata?.grfId ||
+    selectedItem?.id;
+
+  const originalImageUrl = getSourceImageUrl(originalAsset);
+
+  await adminFetch("/graphics/save-grf", {
+    method: "POST",
+    body: JSON.stringify({
+      ...transition.cropped,
+      imageUrl: croppedDataUrl,
+      name: `cropped_${originalAsset.name || originalAsset.originalFilename || sourceGrfId}`,
+      mimeType: "image/jpeg",
+      sourceGrfId,
+      originalFilename: `cropped_${
+        originalAsset.originalFilename || originalAsset.name || sourceGrfId
+      }.jpg`,
+    }),
+  });
+
+  await adminFetch("/graphics/save-grf", {
+    method: "POST",
+    body: JSON.stringify({
+      ...transition.background,
+      imageUrl: originalImageUrl,
+      name: originalAsset.name || originalAsset.originalFilename || "background_source",
+      mimeType: originalMimeType,
+      sourceGrfId,
+      originalFilename:
+        originalAsset.originalFilename ||
+        originalAsset.name ||
+        `${sourceGrfId}.jpg`,
+    }),
+  });
+
+  invalidateSourceCroppedBackgroundQueries();
+}
+
+Important:
+
+- Cropped image uses croppedDataUrl.
