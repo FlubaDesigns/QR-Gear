@@ -8,6 +8,8 @@ import { queryClient } from "@/lib/queryClient";
 import { ImageUploader, type UploadParams } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
+import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
+import { ModalView } from "@/features/shared/components/shapes/ModalView";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import { SourceDetailShape } from "@/features/shared/components/shapes/SourceShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
@@ -223,9 +225,10 @@ function SourceImagesTabInner() {
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  // VVSS: 1·1·1·1 — SinglePaneViewer · VScrollView · SourceCardSkin · ModalView + SourceDetailShape
 
   return (
-    <>
+    <SinglePaneViewer>
       <ImageUploader
         onUploadSingle={handleUploadSingle}
         title="Upload Source Images"
@@ -274,29 +277,26 @@ function SourceImagesTabInner() {
         />
       )}
 
-      {/* Detail modal (popup) */}
-      {selectedItem && detailOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setDetailOpen(false)}
-          data-testid="overlay-source-detail"
-        >
-          <div
-            className="bg-background rounded-lg p-6 w-full max-w-sm mx-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="modal-source-detail"
-          >
+      {/* VVSS Shape — digit 4 */}
+      <ModalView
+        open={!!(selectedItem && detailOpen)}
+        onOpenChange={(open) => { if (!open) { setDetailOpen(false); setSelectedItem(null); } }}
+        title="Source Image"
+        maxWidth="max-w-sm"
+      >
+        {selectedItem && (
+          <div className="p-6">
             <SourceDetailShape
               item={selectedItem}
               actions={{
                 onCrop:   () => handleStartCrop(selectedItem),
                 onDelete: () => handleDelete(selectedItem.id),
               }}
-              onClose={() => setDetailOpen(false)}
+              onClose={() => { setDetailOpen(false); setSelectedItem(null); }}
             />
           </div>
-        </div>
-      )}
+        )}
+      </ModalView>
 
       <CropUtility
         asset={assetToCrop}
@@ -310,7 +310,7 @@ function SourceImagesTabInner() {
         aspectRatio={9 / 16}
         title="Crop Source Image"
       />
-    </>
+    </SinglePaneViewer>
   );
 }
 

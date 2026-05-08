@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Crop, Trash2, Image } from "lucide-react";
 import type { CardSkinProps } from "./types";
 
-// VVS Skin: SourceSkin
-// Layer: Skin (renders inside ScrollGridView)
+// VVSS Skin: SourceCardSkin (digit 3)
+// Layer: Skin — renders inside VScrollView
 // Actions: crop, delete
 // Detail/popup content lives in shapes/SourceShape.tsx
 

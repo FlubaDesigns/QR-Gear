@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-// VVS Viewer code: 1
+// VVSS Viewer: SinglePaneViewer (digit 1, code 1)
 // Single pane — one full-width panel.
 // Owns the structural container only.
 // Does not control scrolling, item rendering, or popup behavior.

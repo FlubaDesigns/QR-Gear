@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Crop, Trash2, Image } from "lucide-react";
 import type { DetailSkinProps } from "../skins/types";
 
-// VVS Shape: SourceShape
-// Layer: Shape (renders inside a popup/modal)
+// VVSS Shape: SourceDetailShape (digit 4)
+// Layer: Shape — renders inside ModalView
 // Data type: Source GRF original
 // Actions: crop, delete
 
