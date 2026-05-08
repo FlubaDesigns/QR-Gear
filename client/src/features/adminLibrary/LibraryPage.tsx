@@ -51,8 +51,11 @@ export default function LibraryPage() {
               Asset Library
             </h1>
 
-            <h2 className="glass-title text-base mb-4">Select Tab</h2>
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            {/* Horizontal scrolling tab bar — compact, mobile-friendly */}
+            <div
+              className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
               {TABS.map((t) => {
                 const Icon = t.icon;
                 const isActive = tab === t.id;
@@ -60,11 +63,18 @@ export default function LibraryPage() {
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
-                    className={`qr-btn qr-btn--touch aspect-square flex flex-col items-center justify-center text-center ${isActive ? "qr-btn--primary" : "qr-btn--outline"}`}
                     data-testid={`tab-${t.id}`}
+                    style={{ flexShrink: 0 }}
+                    className={`inline-flex items-center gap-2 px-4 rounded-md font-semibold text-sm transition-all
+                      ${isActive
+                        ? "qr-btn--primary"
+                        : "qr-btn qr-btn--outline"
+                      }`}
                   >
-                    <Icon className="h-6 w-6 mb-1" />
-                    <span className="text-sm">{t.label}</span>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="whitespace-nowrap" style={{ minHeight: 44, display: "inline-flex", alignItems: "center" }}>
+                      {t.label}
+                    </span>
                   </button>
                 );
               })}
