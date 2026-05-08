@@ -1,5 +1,5 @@
 import AdminShell from "@/components/AdminShell";
-import { SIZE_CODE_MAP, COLOR_CODE_MAP, PARENT_CATEGORY_LABELS } from "@shared/qrgCodes";
+import { SIZE_TYPES, COLOR_CODE_MAP, PARENT_CATEGORY_LABELS } from "@shared/qrgCodes";
 import {
   GRF_ASSET_CLASSES,
   GRF_MEDIA_TYPES,
@@ -88,16 +88,6 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Derived data from shared constants ───────────────────────────────────────
-
-const SIZE_ROWS = (() => {
-  const seen = new Map<string, string>();
-  for (const [name, code] of Object.entries(SIZE_CODE_MAP)) {
-    if (!seen.has(code)) seen.set(code, name);
-  }
-  return Array.from(seen.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([code, name]) => [code, name]);
-})();
 
 const COLOR_ROWS = (() => {
   const seen = new Map<string, string>();
