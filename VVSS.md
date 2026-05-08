@@ -52,8 +52,10 @@ Folder: `client/src/features/shared/components/views/`
 
 ## Digit 3 — Skin (card component)
 
-The Skin renders card content: image, title, metadata, badges, actions.
-Everything the user sees and taps on a card in the grid.
+The Skin is everything the user sees in the grid: the card tile, the image, the name, the action buttons.
+When the user taps the card they cross into the Shape layer. The Skin owns that crossing — it holds the
+popup open/close state and renders the `ModalView` container — but it does NOT own what is inside the popup.
+What is inside belongs entirely to the Shape.
 
 | Code | Pattern | Description |
 |---|---|---|
@@ -64,26 +66,35 @@ Naming: `[DataType]CardSkin` or `[DataType]RowSkin`, file: `skins/[DataType]Skin
 
 Folder: `client/src/features/shared/components/skins/`
 
-The Skin does NOT:
-- Define business truth
-- Decide where saves go
-- Render popup/detail content (that belongs in Shape)
-- Know what Viewer, View, or Shape contains it
+The Skin owns:
+- The card tile (image, name, badges, action buttons)
+- The popup open/close state (`useState`)
+- The `ModalView` container that wraps the popup
+- Closing the popup before firing crop/delete actions
+
+The Skin does NOT own:
+- The content inside the popup — that is the Shape's responsibility
+- Business truth, save targets, permissions
+- Any knowledge of the Viewer or View above it
 
 ---
 
 ## Digit 4 — Shape (popup layer)
 
-The Shape layer answers one question: does this surface have a popup on top of the View?
+The Shape is a separate layer with its own information. It is what the user enters when they tap a Skin card.
+The Skin calls it — but the Shape is fully independent of the card that triggered it.
 
 | Code | Description |
 |---|---|
-| 0 | Flat — no popup |
-| 1 | Popup — `ModalView` container + a named `[DataType]Shape` content component |
+| 0 | Flat — no popup, the Skin is the whole experience |
+| 1 | Popup — the Skin renders `ModalView` containing a named `[DataType]Shape` |
 
 The Shape layer has two parts:
-- **Container** — `ModalView` in `shapes/` wraps the popup shell (dialog, overlay)
-- **Content** — a named `[DataType]Shape` component renders inside the popup
+- **Container** — `ModalView` wraps the popup shell (dialog, backdrop, close button). Owned by the Skin.
+- **Content** — `[DataType]Shape` renders its own information inside the popup. Owned by the Shape file.
+
+Two files, two layers. The Skin file (`skins/[DataType]Skin.tsx`) and the Shape file (`shapes/[DataType]Shape.tsx`)
+are always kept separate because they are separate layers — even though the Skin calls the Shape.
 
 Shape is NOT a sub-type of View. It is its own layer. Components live in `shapes/`, not `views/`.
 `ModalView` is NOT a View — it is a Shape container.
