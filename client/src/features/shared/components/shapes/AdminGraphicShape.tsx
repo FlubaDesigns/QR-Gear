@@ -1,6 +1,6 @@
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X, ImageIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
 import { AdminGraphicDetailSkin } from "../skins/AdminGraphicSkins";
 import type { GalleryShapeProps } from "../SkinHorizontalViewer";
 
@@ -27,18 +27,7 @@ export function AdminGraphicShape({
         className="max-w-2xl w-[95vw] max-h-[90vh] overflow-hidden p-0"
         aria-describedby={undefined}
       >
-        <div className="relative">
-          {/* Close */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 z-10"
-            onClick={onClose}
-            data-testid="button-shape-close"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-
+        <div className="relative w-full overflow-hidden">
           {/* Image preview */}
           <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center overflow-hidden">
             {item?.primaryImage ? (

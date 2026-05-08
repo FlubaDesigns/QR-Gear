@@ -168,7 +168,7 @@ export function AdminGraphicDetailSkin({
   const mimeValid     = isValidMime(mimeType);
 
   return (
-    <div className="space-y-3">
+    <div className="w-full min-w-0 space-y-3">
       {/* Name + schema badges */}
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="min-w-0">
