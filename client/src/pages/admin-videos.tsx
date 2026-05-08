@@ -30,8 +30,10 @@ interface GrfVideoAsset {
   description: string | null;
   publicUrl: string;
   mimeType: string;
-  typeCode: string;
-  roleCode: string;
+  channel: string;
+  purpose: string;
+  channelName: string | null;
+  purposeName: string | null;
   tags: string[] | null;
   isActive: boolean;
   createdAt: string | null;
@@ -51,8 +53,8 @@ function VideosContent() {
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
   const { data: assets = [], isLoading, error } = useQuery<GrfVideoAsset[]>({
-    queryKey: ["/api/admin/graphics", { typeCode: "06" }],
-    queryFn: () => adminFetch<GrfVideoAsset[]>("/graphics?typeCode=06"),
+    queryKey: ["/api/admin/graphics", { mediaType: "2" }],
+    queryFn: () => adminFetch<GrfVideoAsset[]>("/graphics?mediaType=2"),
   });
 
   const archiveMutation = useMutation({
@@ -60,7 +62,7 @@ function VideosContent() {
       adminFetch(`/graphics/${grfId}/archive`, { method: "PATCH" }),
     onSuccess: () => {
       toast({ title: "Video archived" });
-      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { typeCode: "06" }] });
+      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { mediaType: "2" }] });
     },
     onError: (err: Error) => {
       toast({ title: "Failed to archive", description: err.message, variant: "destructive" });
@@ -140,20 +142,26 @@ function VideosContent() {
         reader.readAsDataURL(videoFile);
       });
 
+      // D1=1 input_build, D2=2 video, D3=3 url, D4=2 graphic, D5=1 mp4/webm
+      const formatCode = videoFile.type === "video/webm" ? "2" : "1";
       await adminFetch("/graphics/save-grf", {
         method: "POST",
         json: {
-          typeCode: "06",
-          roleCode: "3",
+          assetClass: "1",
+          mediaType:  "2",
+          channel:    "3",
+          purpose:    "2",
+          format:     formatCode,
           imageUrl: `data:${videoFile.type};base64,${imageData}`,
           name: formName.trim(),
           description: formDesc.trim() || null,
           mimeType: videoFile.type,
+          originalFilename: videoFile.name,
         },
       });
 
-      toast({ title: "Video minted as GRF-06-3 asset" });
-      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { typeCode: "06" }] });
+      toast({ title: "Video minted as GRF asset (url/graphic)" });
+      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { mediaType: "2" }] });
       handleCloseDialog();
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });

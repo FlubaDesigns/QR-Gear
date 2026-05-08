@@ -1,7 +1,3 @@
-import type { GrfTypeCode } from "@shared/graphicCodes";
-
-export type { GrfTypeCode };
-
 export interface GrfAsset {
   id: string;
   grfId: string;
@@ -10,8 +6,11 @@ export interface GrfAsset {
   publicUrl: string;
   mimeType: string;
   storagePath: string | null;
-  typeCode: string;
-  roleCode: string;
+  channel: string;
+  purpose: string;
+  channelName: string | null;
+  purposeName: string | null;
+  originalFilename: string | null;
   sourceGrfId: string | null;
   tags: string[] | null;
   createdAt: string | null;
@@ -21,19 +20,21 @@ export interface GrfAsset {
 
 export interface UploadAssetParams {
   name: string;
-  typeCode: string;
+  channel: string;
+  purpose: string;
   imageData: string;
   mimeType: string;
   sourceGrfId?: string;
+  originalFilename?: string;
 }
 
 export interface LibraryApi {
-  fetchAssets: (typeCode: string) => Promise<GrfAsset[]>;
+  fetchAssets: () => Promise<GrfAsset[]>;
   uploadAsset: (params: UploadAssetParams) => Promise<{ grfId: string }>;
   deleteAsset: (grfId: string) => Promise<void>;
   fetchImageBlob: (url: string) => Promise<string>;
-  getQueryKey: (typeCode: string) => string[];
-  invalidateAssets: (typeCode: string) => void;
+  getQueryKey: () => string[];
+  invalidateAssets: () => void;
 }
 
 export interface LibraryContextValue {
@@ -50,7 +51,6 @@ export interface LibraryContextValue {
   };
 }
 
-// Legacy aliases kept so any remaining import sites compile cleanly
 export type AssetType = string;
 export type LibraryAsset = GrfAsset;
 export type LibraryAssetWithProxy = GrfAsset & { proxyUrl?: string | null };

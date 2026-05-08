@@ -6,10 +6,10 @@ import { fsGetAll, fsGet, fsInsert, fsUpdate, fsDelete, fsQuery } from "../lib/f
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from "../lib/constants";
 import { registerAdminCatalogsShelfRoutes } from "./admin-catalogs-shelf.routes";
 import {
-  isValidGraphicId, buildGrfId, parseGrfId, grfStoragePath,
+  isValidGrfId, isValidGraphicId, buildGrfId, parseGrfId, grfStoragePath,
   GRF_COUNTER_KEY,
 } from "../../shared/graphicCodes";
-import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from "../../shared/graphicCodes";
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from "../../shared/graphicCodes";
 
 export function registerAdminContentRoutes(app: Express): void {
   registerAdminCatalogsShelfRoutes(app);
@@ -296,13 +296,13 @@ export function registerAdminContentRoutes(app: Express): void {
   app.post("/api/admin/graphics/save-grf", isAdmin, async (req: any, res) => {
     try {
       const {
-        assetClass, mediaType, channel, purpose, format, subContext,
+        assetClass, mediaType, channel, purpose, format,
         imageUrl, name, description, mimeType, storagePath,
-        sourceGrfId, relatedPacketId, tags,
+        sourceGrfId, relatedPacketId, tags, originalFilename,
       } = req.body;
 
-      if (!assetClass || !mediaType || !channel || !purpose || !format || !subContext || !imageUrl) {
-        return res.status(400).json({ error: "Missing required fields: assetClass, mediaType, channel, purpose, format, subContext, imageUrl" });
+      if (!assetClass || !mediaType || !channel || !purpose || !format || !imageUrl) {
+        return res.status(400).json({ error: "Missing required fields: assetClass, mediaType, channel, purpose, format, imageUrl" });
       }
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
@@ -323,9 +323,8 @@ export function registerAdminContentRoutes(app: Express): void {
           assetClass: assetClass as GrfAssetClass,
           mediaType: mediaType as GrfMediaType,
           channel: channel as GrfChannel,
-          purpose: purpose as GrfPurpose,
+          purpose,
           format,
-          subContext,
           sequence: newSeq,
         });
       } catch (e: any) {
@@ -341,34 +340,37 @@ export function registerAdminContentRoutes(app: Express): void {
       }
 
       const now = FieldValue.serverTimestamp();
-      const canonicalStoragePath = storagePath || grfStoragePath(grfId);
+      const canonicalStoragePath = storagePath || grfStoragePath(grfId, originalFilename || undefined);
       const assetData: Record<string, any> = {
         grfId,
-        assetClass:      parsed.assetClass,
-        mediaType:       parsed.mediaType,
-        channel:         parsed.channel,
-        purpose:         parsed.purpose,
-        format:          parsed.format,
-        subContext:      parsed.subContext,
-        sequence:        parsed.sequence,
-        assetClassName:  parsed.assetClassName,
-        mediaTypeName:   parsed.mediaTypeName,
-        channelName:     parsed.channelName,
-        purposeName:     parsed.purposeName,
-        formatName:      parsed.formatName,
-        subContextName:  parsed.subContextName,
-        mimeType:        mimeType || parsed.mimeType,
-        name:            name || `${parsed.purposeName} ${grfId}`,
-        description:     description || null,
-        storagePath:     canonicalStoragePath,
-        publicUrl:       imageUrl,
-        sourceGrfId:     sourceGrfId || null,
+        assetClass:     parsed.assetClass,
+        mediaType:      parsed.mediaType,
+        channel:        parsed.channel,
+        purpose:        parsed.purpose,
+        format:         parsed.format,
+        sequence:       parsed.sequence,
+        assetClassName: parsed.assetClassName,
+        mediaTypeName:  parsed.mediaTypeName,
+        channelName:    parsed.channelName,
+        purposeName:    parsed.purposeName,
+        formatName:     parsed.formatName,
+        mimeType:       mimeType || parsed.mimeType,
+        name:           name || `${parsed.purposeName} ${grfId}`,
+        description:    description || null,
+        storagePath:    canonicalStoragePath,
+        publicUrl:      imageUrl,
+        sourceGrfId:    sourceGrfId    || null,
         relatedPacketId: relatedPacketId || null,
-        tags:            tags || null,
-        createdAt:       now,
-        createdBy:       "admin",
-        isActive:        true,
+        tags:           tags            || null,
+        createdAt:      now,
+        createdBy:      "admin",
+        isActive:       true,
       };
+
+      // Preserve original filename for assets-channel originals (D3=4, D4=1)
+      if (parsed.channel === '4' && parsed.purpose === '1') {
+        assetData.originalFilename = originalFilename || null;
+      }
 
       await db.collection("grf_assets").doc(grfId).set(assetData);
       const doc = await db.collection("grf_assets").doc(grfId).get();
@@ -384,7 +386,7 @@ export function registerAdminContentRoutes(app: Express): void {
 
   app.get("/api/admin/graphics", isAdmin, async (req: any, res) => {
     try {
-      const { assetClass, mediaType, channel, purpose, format, subContext } = req.query;
+      const { assetClass, mediaType, channel, purpose, format } = req.query;
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const db = getFirestoreDb();
 
@@ -403,8 +405,7 @@ export function registerAdminContentRoutes(app: Express): void {
           (!mediaType   || a.mediaType   === mediaType)   &&
           (!channel     || a.channel     === channel)     &&
           (!purpose     || a.purpose     === purpose)     &&
-          (!format      || a.format      === format)      &&
-          (!subContext  || a.subContext  === subContext)
+          (!format      || a.format      === format)
         )
         .sort((a: any, b: any) => getTime(b.createdAt) - getTime(a.createdAt));
 

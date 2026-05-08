@@ -19,18 +19,18 @@ export function LibraryProvider({
   permissions,
 }: LibraryProviderProps) {
   const api = useMemo<LibraryApi>(() => {
-    const getQueryKey = (typeCode: string): string[] => ["/api/admin/graphics", typeCode];
+    const getQueryKey = (): string[] => ["/api/admin/graphics"];
 
-    const invalidateAssets = (typeCode: string): void => {
-      queryClient.invalidateQueries({ queryKey: getQueryKey(typeCode) });
+    const invalidateAssets = (): void => {
+      queryClient.invalidateQueries({ queryKey: getQueryKey() });
     };
 
     return {
       getQueryKey,
       invalidateAssets,
 
-      fetchAssets: (typeCode: string) =>
-        adminFetch(`/graphics?typeCode=${typeCode}`),
+      fetchAssets: () =>
+        adminFetch(`/graphics`),
 
       uploadAsset: (_params: UploadAssetParams): Promise<{ grfId: string }> => {
         throw new Error("uploadAsset: use POST /api/admin/graphics/save-grf directly.");

@@ -16,23 +16,23 @@
 
 import { db, admin } from '../core';
 import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../../shared/graphicCodes';
-import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from '../../../shared/graphicCodes';
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/graphicCodes';
 
 const GRF_ASSETS_COLLECTION   = 'grf_assets';
 const GRF_COUNTERS_COLLECTION  = 'grf_counters';
 
 export interface RegisterGrfAssetOptions {
   /** Pre-uploaded asset URL in Firebase Storage */
-  sourceUrl:        string;
-  assetClass:       GrfAssetClass;
-  mediaType:        GrfMediaType;
-  channel:          GrfChannel;
-  purpose:          GrfPurpose;
-  format:           string;
-  subContext:       string;
-  mimeType?:        string | null;
-  sourceSessionId?: string | null;
-  packetId?:        string | null;
+  sourceUrl:         string;
+  assetClass:        GrfAssetClass;
+  mediaType:         GrfMediaType;
+  channel:           GrfChannel;
+  purpose:           string;
+  format:            string;
+  originalFilename?: string | null;
+  mimeType?:         string | null;
+  sourceSessionId?:  string | null;
+  packetId?:         string | null;
 }
 
 export interface RegisterGrfAssetResult {
@@ -52,7 +52,10 @@ export interface RegisterGrfAssetResult {
 export async function registerGrfAsset(
   opts: RegisterGrfAssetOptions,
 ): Promise<RegisterGrfAssetResult> {
-  const { sourceUrl, assetClass, mediaType, channel, purpose, format, subContext, mimeType, sourceSessionId, packetId } = opts;
+  const {
+    sourceUrl, assetClass, mediaType, channel, purpose, format,
+    originalFilename, mimeType, sourceSessionId, packetId,
+  } = opts;
 
   if (!sourceUrl || sourceUrl.trim() === '') {
     throw new Error(`[GRFRegistrar] sourceUrl is required — cannot register empty URL as GRF asset`);
@@ -78,25 +81,23 @@ export async function registerGrfAsset(
     }
   });
 
-  const grfId = buildGrfId({ assetClass, mediaType, channel, purpose, format, subContext, sequence });
+  const grfId = buildGrfId({ assetClass, mediaType, channel, purpose, format, sequence });
   const parsed = parseGrfId(grfId);
   const now    = admin.firestore.FieldValue.serverTimestamp();
 
-  await db.collection(GRF_ASSETS_COLLECTION).doc(grfId).set({
+  const assetData: Record<string, any> = {
     grfId,
     assetClass:      parsed.assetClass,
     mediaType:       parsed.mediaType,
     channel:         parsed.channel,
     purpose:         parsed.purpose,
     format:          parsed.format,
-    subContext:      parsed.subContext,
     sequence:        parsed.sequence,
     assetClassName:  parsed.assetClassName,
     mediaTypeName:   parsed.mediaTypeName,
     channelName:     parsed.channelName,
     purposeName:     parsed.purposeName,
     formatName:      parsed.formatName,
-    subContextName:  parsed.subContextName,
     mimeType:        mimeType || parsed.mimeType,
     sourceUrl,
     sourceSessionId: sourceSessionId || null,
@@ -104,9 +105,16 @@ export async function registerGrfAsset(
     source:          'auto_commit',
     isActive:        true,
     createdAt:       now,
-  });
+  };
 
-  console.log(`[GRFRegistrar] ${grfId} (${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
+  // Preserve original filename for assets-channel originals (D3=4, D4=1)
+  if (parsed.channel === '4' && parsed.purpose === '1') {
+    assetData.originalFilename = originalFilename || null;
+  }
+
+  await db.collection(GRF_ASSETS_COLLECTION).doc(grfId).set(assetData);
+
+  console.log(`[GRFRegistrar] ${grfId} (${parsed.channelName}/${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
   return { grfId, sourceUrl, sequence };
 }
 
@@ -163,7 +171,7 @@ export async function registerPacketGrfAssets(
 
   const snapshotUrl = packetData.landingPageSnapshotUrl || null;
   if (isStorageUrl(snapshotUrl)) {
-    const r = await registerGrfAsset({ sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.urlGraphic });
+    const r = await registerGrfAsset({ sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.urlSnapshot });
     result.landingSnapshotGrfId = r.grfId;
   }
 

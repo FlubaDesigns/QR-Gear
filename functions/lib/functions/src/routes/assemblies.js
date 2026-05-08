@@ -39,14 +39,28 @@ async function mintAsmId() {
     });
     return { assemblyId: formatAsmId(next), sequence: next };
 }
-// Fix 9: GRF type codes allowed per slot vehicle type.
-// img slots accept background (03), cropped derivative (02), and canvas design (05).
-// qrc slots must be strictly QR graphic (04).
-// vid/doc grfId is optional; when present any renderable GRF type is accepted.
-const GRF_TYPES_FOR_SLOT = {
-    img: ['02', '03', '05'],
-    qrc: ['04'],
-};
+// Allowed channel:purpose pairs per Assembly slot vehicle type.
+// D4 is channel-relative (GRF-[D1][D2][D3][D4][D5]-[NNNNNN]), so we check
+// the channel+purpose combination — not purpose alone.
+//
+// img slots accept:
+//   print/qr_composite (1:1), store/glamor_shot (2:1), store/front (2:2),
+//   store/back (2:3), url/graphic (3:2), assets/original (4:1),
+//   assets/cropped (4:2), assets/background (4:3), assets/template (4:4)
+//
+// qrc slots must be strictly print/qr_standalone (1:2) with output artifact (D1=2).
+const IMG_ALLOWED_CH_PURPOSE = new Set([
+    '1:1', // print · qr_composite
+    '2:1', // store · glamor_shot
+    '2:2', // store · front
+    '2:3', // store · back
+    '3:2', // url · graphic
+    '4:1', // assets · original
+    '4:2', // assets · cropped
+    '4:3', // assets · background
+    '4:4', // assets · template
+]);
+const QRC_REQUIRED_CH_PURPOSE = '1:2'; // print · qr_standalone
 /**
  * Validate a mappings array.
  * Returns a human-readable error string, or null if valid.
@@ -75,16 +89,26 @@ function validateMappings(mappings) {
             return `mapping seq ${m.seq} type "${m.type}" requires either grfId or value (URL)`;
         }
         if (m.grfId) {
-            if (!(0, graphicCodes_1.isValidGraphicId)(String(m.grfId))) {
-                return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-TT-K-NNNNNN)`;
+            if (!(0, graphicCodes_1.isValidGrfId)(String(m.grfId))) {
+                return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-DDDDD-NNNNNN)`;
             }
-            const allowedTypes = GRF_TYPES_FOR_SLOT[m.type];
-            if (allowedTypes) {
-                const parsed = (0, graphicCodes_1.parseGraphicId)(String(m.grfId));
-                if (!allowedTypes.includes(parsed.typeCode)) {
-                    return (`mapping seq ${m.seq}: grfId "${m.grfId}" has GRF type "${parsed.typeCode}" (${parsed.typeName}) ` +
-                        `which is not compatible with slot type "${m.type}". ` +
-                        `Allowed GRF type codes for "${m.type}": ${allowedTypes.join(', ')}`);
+            const parsed = (0, graphicCodes_1.parseGrfId)(String(m.grfId));
+            const chPurpose = `${parsed.channel}:${parsed.purpose}`;
+            if (m.type === 'img') {
+                if (!IMG_ALLOWED_CH_PURPOSE.has(chPurpose)) {
+                    return (`mapping seq ${m.seq}: grfId "${m.grfId}" has channel/purpose "${chPurpose}" ` +
+                        `(${parsed.channelName}/${parsed.purposeName}) which is not compatible with slot type "img". ` +
+                        `Allowed channel:purpose pairs for "img": ${Array.from(IMG_ALLOWED_CH_PURPOSE).join(', ')}`);
+                }
+            }
+            if (m.type === 'qrc') {
+                if (chPurpose !== QRC_REQUIRED_CH_PURPOSE) {
+                    return (`mapping seq ${m.seq}: grfId "${m.grfId}" has channel/purpose "${chPurpose}" ` +
+                        `(${parsed.channelName}/${parsed.purposeName}) but qrc slots require "${QRC_REQUIRED_CH_PURPOSE}" (print/qr_standalone)`);
+                }
+                if (parsed.assetClass !== '2') {
+                    return (`mapping seq ${m.seq}: grfId "${m.grfId}" has assetClass "${parsed.assetClass}" ` +
+                        `but qrc slots require output artifacts (assetClass "2")`);
                 }
             }
         }

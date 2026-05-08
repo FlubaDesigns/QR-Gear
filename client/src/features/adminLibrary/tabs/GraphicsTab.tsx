@@ -10,8 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
-import { isValidGraphicId, GRF_TYPE_MAP, GRF_ROLE_LABELS } from "@shared/graphicCodes";
-import type { GrfTypeCode, GrfRoleCode } from "@shared/graphicCodes";
+import { isValidGrfId, GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL } from "@shared/graphicCodes";
+import type { GrfChannel } from "@shared/graphicCodes";
 import type { GrfAsset } from "../shared/types";
 
 // ── Error boundary ────────────────────────────────────────────────────────────
@@ -54,18 +54,20 @@ class GraphicsBoundary extends Component<
   }
 }
 
+// ── Label helpers ─────────────────────────────────────────────────────────────
+
 function isValidMime(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
-function resolveTypeLabel(typeCode: string): { label: string; valid: boolean } {
-  const entry = GRF_TYPE_MAP[typeCode as GrfTypeCode];
-  return entry ? { label: entry.label, valid: true } : { label: typeCode || "—", valid: false };
+function resolveChannelLabel(channel: string): { label: string; valid: boolean } {
+  const entry = GRF_CHANNELS[channel as GrfChannel];
+  return entry ? { label: entry.label, valid: true } : { label: channel || "—", valid: false };
 }
 
-function resolveRoleLabel(roleCode: string): { label: string; valid: boolean } {
-  const label = GRF_ROLE_LABELS[roleCode as GrfRoleCode];
-  return label ? { label, valid: true } : { label: roleCode || "—", valid: false };
+function resolvePurposeLabel(channel: string, purpose: string): { label: string; valid: boolean } {
+  const entry = GRF_PURPOSES_BY_CHANNEL[channel as GrfChannel]?.[purpose];
+  return entry ? { label: entry.label, valid: true } : { label: purpose || "—", valid: false };
 }
 
 function MissingBadge({ text }: { text: string }) {
@@ -77,6 +79,8 @@ function MissingBadge({ text }: { text: string }) {
   );
 }
 
+// ── GraphicCard ───────────────────────────────────────────────────────────────
+
 function GraphicCard({
   asset,
   onClick,
@@ -86,11 +90,11 @@ function GraphicCard({
   onClick: () => void;
   onArchive: (id: string) => void;
 }) {
-  const typeResult = resolveTypeLabel(asset.typeCode);
-  const roleResult = resolveRoleLabel(asset.roleCode);
-  const idValid    = isValidGraphicId(asset.grfId);
-  const mimeValid  = isValidMime(asset.mimeType);
-  const hasWarning = !typeResult.valid || !roleResult.valid || !idValid || !mimeValid;
+  const channelResult = resolveChannelLabel(asset.channel);
+  const purposeResult = resolvePurposeLabel(asset.channel, asset.purpose);
+  const idValid       = isValidGrfId(asset.grfId);
+  const mimeValid     = isValidMime(asset.mimeType);
+  const hasWarning    = !channelResult.valid || !purposeResult.valid || !idValid || !mimeValid;
 
   return (
     <div
@@ -141,14 +145,16 @@ function GraphicCard({
           {asset.name}
         </p>
         <p className="text-xs text-muted-foreground">
-          {typeResult.valid ? typeResult.label : <span className="text-destructive font-semibold">⚠ MISSING TYPE</span>}
+          {channelResult.valid ? channelResult.label : <span className="text-destructive font-semibold">MISSING CHANNEL</span>}
           {" · "}
-          {roleResult.valid ? roleResult.label : <span className="text-destructive font-semibold">⚠ MISSING ROLE</span>}
+          {purposeResult.valid ? purposeResult.label : <span className="text-destructive font-semibold">MISSING PURPOSE</span>}
         </p>
       </div>
     </div>
   );
 }
+
+// ── GraphicDetailPanel ────────────────────────────────────────────────────────
 
 function GraphicDetailPanel({
   asset,
@@ -169,10 +175,10 @@ function GraphicDetailPanel({
   hasPrev: boolean;
   hasNext: boolean;
 }) {
-  const typeResult = resolveTypeLabel(asset.typeCode);
-  const roleResult = resolveRoleLabel(asset.roleCode);
-  const idValid    = isValidGraphicId(asset.grfId);
-  const mimeValid  = isValidMime(asset.mimeType);
+  const channelResult = resolveChannelLabel(asset.channel);
+  const purposeResult = resolvePurposeLabel(asset.channel, asset.purpose);
+  const idValid       = isValidGrfId(asset.grfId);
+  const mimeValid     = isValidMime(asset.mimeType);
 
   return (
     <div className="p-4 space-y-3">
@@ -184,13 +190,13 @@ function GraphicDetailPanel({
           )}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {typeResult.valid
-            ? <Badge variant="secondary" className="text-xs">{typeResult.label}</Badge>
-            : <MissingBadge text="MISSING TYPE" />
+          {channelResult.valid
+            ? <Badge variant="secondary" className="text-xs">{channelResult.label}</Badge>
+            : <MissingBadge text="MISSING CHANNEL" />
           }
-          {roleResult.valid
-            ? <Badge variant="outline" className="text-xs">{roleResult.label}</Badge>
-            : <MissingBadge text="MISSING ROLE" />
+          {purposeResult.valid
+            ? <Badge variant="outline" className="text-xs">{purposeResult.label}</Badge>
+            : <MissingBadge text="MISSING PURPOSE" />
           }
         </div>
       </div>
@@ -209,11 +215,17 @@ function GraphicDetailPanel({
           {!mimeValid && <MissingBadge text="INVALID MIME" />}
         </div>
 
-        {asset.typeCode && (
+        {(asset.channel || asset.purpose) && (
           <div className="text-muted-foreground">
-            TT: <span className="font-mono">{asset.typeCode}</span>
+            Ch: <span className="font-mono">{asset.channel}</span>
             {" · "}
-            K: <span className="font-mono">{asset.roleCode}</span>
+            P: <span className="font-mono">{asset.purpose}</span>
+          </div>
+        )}
+
+        {asset.originalFilename && (
+          <div className="text-muted-foreground">
+            File: <span className="font-mono select-all">{asset.originalFilename}</span>
           </div>
         )}
 
@@ -247,14 +259,16 @@ function GraphicDetailPanel({
   );
 }
 
+// ── GraphicsTabInner ──────────────────────────────────────────────────────────
+
 function GraphicsTabInner() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showConfirm, setShowConfirm]     = useState(false);
-  const [filterTT, setFilterTT]           = useState<string>("all");
-  const [filterK, setFilterK]             = useState<string>("all");
+  const [filterChannel, setFilterChannel] = useState<string>("all");
+  const [filterPurpose, setFilterPurpose] = useState<string>("all");
 
   const { data: assets = [], isLoading, isError, error } = useQuery<GrfAsset[]>({
     queryKey: ["library", "/api/admin", "assets", "grf"],
@@ -274,11 +288,23 @@ function GraphicsTabInner() {
     },
   });
 
+  // When channel filter changes, reset purpose filter
+  const handleChannelChange = (ch: string) => {
+    setFilterChannel(ch);
+    setFilterPurpose("all");
+    setSelectedIndex(null);
+  };
+
   const filtered = assets.filter((a) => {
-    if (filterTT !== "all" && a.typeCode !== filterTT) return false;
-    if (filterK  !== "all" && a.roleCode !== filterK)  return false;
+    if (filterChannel !== "all" && a.channel !== filterChannel) return false;
+    if (filterPurpose !== "all" && a.purpose !== filterPurpose)  return false;
     return true;
   });
+
+  // Available purposes for the currently-selected channel filter
+  const availablePurposes = filterChannel !== "all"
+    ? Object.entries(GRF_PURPOSES_BY_CHANNEL[filterChannel as GrfChannel] ?? {})
+    : [];
 
   const selectedAsset = selectedIndex !== null ? filtered[selectedIndex] : null;
   const hasPrev = selectedIndex !== null && selectedIndex > 0;
@@ -327,13 +353,13 @@ function GraphicsTabInner() {
   return (
     <>
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <Select value={filterTT} onValueChange={(v) => { setFilterTT(v); setSelectedIndex(null); }}>
-          <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-tt">
-            <SelectValue placeholder="Type (TT)" />
+        <Select value={filterChannel} onValueChange={handleChannelChange}>
+          <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-channel">
+            <SelectValue placeholder="Channel" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">All types</SelectItem>
-            {(Object.entries(GRF_TYPE_MAP) as Array<[GrfTypeCode, typeof GRF_TYPE_MAP[GrfTypeCode]]>).map(([code, entry]) => (
+            <SelectItem value="all" className="text-xs">All channels</SelectItem>
+            {(Object.entries(GRF_CHANNELS) as Array<[GrfChannel, typeof GRF_CHANNELS[GrfChannel]]>).map(([code, entry]) => (
               <SelectItem key={code} value={code} className="text-xs font-mono">
                 {code} — {entry.label}
               </SelectItem>
@@ -341,15 +367,19 @@ function GraphicsTabInner() {
           </SelectContent>
         </Select>
 
-        <Select value={filterK} onValueChange={(v) => { setFilterK(v); setSelectedIndex(null); }}>
-          <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-k">
-            <SelectValue placeholder="Role (K)" />
+        <Select
+          value={filterPurpose}
+          onValueChange={(v) => { setFilterPurpose(v); setSelectedIndex(null); }}
+          disabled={filterChannel === "all"}
+        >
+          <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-purpose">
+            <SelectValue placeholder={filterChannel === "all" ? "Select channel first" : "Purpose"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all" className="text-xs">All roles</SelectItem>
-            {(Object.entries(GRF_ROLE_LABELS) as Array<[GrfRoleCode, string]>).map(([code, label]) => (
+            <SelectItem value="all" className="text-xs">All purposes</SelectItem>
+            {availablePurposes.map(([code, entry]) => (
               <SelectItem key={code} value={code} className="text-xs font-mono">
-                {code} — {label}
+                {code} — {entry.label}
               </SelectItem>
             ))}
           </SelectContent>

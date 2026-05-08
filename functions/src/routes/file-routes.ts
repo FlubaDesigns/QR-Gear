@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { buildGrfId, parseGrfId, isValidGraphicId, GRF_COUNTER_KEY } from '../../../shared/graphicCodes';
-import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from '../../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, isValidGrfId, GRF_COUNTER_KEY, grfStoragePath } from '../../../shared/graphicCodes';
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/graphicCodes';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
@@ -256,13 +256,13 @@ app.delete('/admin/library/:id', requireAdmin, (_req: Request, res: Response): v
 app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const {
-      assetClass, mediaType, channel, purpose, format, subContext,
+      assetClass, mediaType, channel, purpose, format,
       imageUrl, name, description, mimeType, storagePath,
-      sourceGrfId, relatedPacketId, tags,
+      sourceGrfId, relatedPacketId, tags, originalFilename,
     } = req.body;
 
-    if (!assetClass || !mediaType || !channel || !purpose || !format || !subContext || !imageUrl) {
-      res.status(400).json({ error: 'Missing required fields: assetClass, mediaType, channel, purpose, format, subContext, imageUrl' });
+    if (!assetClass || !mediaType || !channel || !purpose || !format || !imageUrl) {
+      res.status(400).json({ error: 'Missing required fields: assetClass, mediaType, channel, purpose, format, imageUrl' });
       return;
     }
 
@@ -284,9 +284,8 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
         assetClass: assetClass as GrfAssetClass,
         mediaType:  mediaType  as GrfMediaType,
         channel:    channel    as GrfChannel,
-        purpose:    purpose    as GrfPurpose,
+        purpose,
         format,
-        subContext,
         sequence:   newSeq,
       });
     } catch (e: any) {
@@ -304,33 +303,37 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
     }
 
     const now = admin.firestore.FieldValue.serverTimestamp();
+    const canonicalStoragePath = storagePath || grfStoragePath(grfId, originalFilename || undefined);
     const assetData: Record<string, any> = {
       grfId,
-      assetClass:      parsed.assetClass,
-      mediaType:       parsed.mediaType,
-      channel:         parsed.channel,
-      purpose:         parsed.purpose,
-      format:          parsed.format,
-      subContext:      parsed.subContext,
-      sequence:        parsed.sequence,
-      assetClassName:  parsed.assetClassName,
-      mediaTypeName:   parsed.mediaTypeName,
-      channelName:     parsed.channelName,
-      purposeName:     parsed.purposeName,
-      formatName:      parsed.formatName,
-      subContextName:  parsed.subContextName,
-      mimeType:        mimeType || parsed.mimeType,
-      name:            name || `${parsed.purposeName} ${grfId}`,
-      description:     description || null,
-      storagePath:     storagePath || null,
-      publicUrl:       imageUrl,
-      sourceGrfId:     sourceGrfId || null,
+      assetClass:     parsed.assetClass,
+      mediaType:      parsed.mediaType,
+      channel:        parsed.channel,
+      purpose:        parsed.purpose,
+      format:         parsed.format,
+      sequence:       parsed.sequence,
+      assetClassName: parsed.assetClassName,
+      mediaTypeName:  parsed.mediaTypeName,
+      channelName:    parsed.channelName,
+      purposeName:    parsed.purposeName,
+      formatName:     parsed.formatName,
+      mimeType:       mimeType || parsed.mimeType,
+      name:           name || `${parsed.purposeName} ${grfId}`,
+      description:    description || null,
+      storagePath:    canonicalStoragePath,
+      publicUrl:      imageUrl,
+      sourceGrfId:    sourceGrfId    || null,
       relatedPacketId: relatedPacketId || null,
-      tags:            tags || null,
-      createdAt:       now,
-      createdBy:       'admin',
-      isActive:        true,
+      tags:           tags            || null,
+      createdAt:      now,
+      createdBy:      'admin',
+      isActive:       true,
     };
+
+    // Preserve original filename for assets-channel originals (D3=4, D4=1)
+    if (parsed.channel === '4' && parsed.purpose === '1') {
+      assetData.originalFilename = originalFilename || null;
+    }
 
     await db.collection('grf_assets').doc(grfId).set(assetData);
     const doc = await db.collection('grf_assets').doc(grfId).get();
@@ -347,7 +350,7 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
 // Filtered in memory to avoid requiring composite Firestore indexes.
 app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { assetClass, mediaType, channel, purpose, format, subContext } = req.query;
+    const { assetClass, mediaType, channel, purpose, format } = req.query;
     const snapshot = await db.collection('grf_assets').where('isActive', '==', true).get();
     const getTime = (val: any): number => {
       if (!val) return 0;
@@ -363,8 +366,7 @@ app.get('/admin/graphics', requireAdmin, async (req: Request, res: Response): Pr
         (!mediaType  || a.mediaType  === mediaType)  &&
         (!channel    || a.channel    === channel)     &&
         (!purpose    || a.purpose    === purpose)     &&
-        (!format     || a.format     === format)      &&
-        (!subContext || a.subContext === subContext)
+        (!format     || a.format     === format)
       )
       .sort((a: any, b: any) => getTime(b.createdAt) - getTime(a.createdAt));
     res.json(assets);

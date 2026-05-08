@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 7, 2026 (Commit fix — Assembly QR slot no longer throws when qrGrfId is null; external QR URLs from api.qrserver.com are not stored assets and are intentionally skipped; QR image is generated dynamically at render time from qrgBaseCode. Fixed in both functions/src/services/bld-builder.ts and server/lib/schema-commit.ts)
+Last updated: May 8, 2026 (GRF schema migration — new 5-digit format `GRF-[D1][D2][D3][D4][D5]-[NNNNNN]`. D4 is now channel-relative. No D6/subContext. Full purge of legacy fields across all layers.)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -43,9 +43,11 @@ INSTANCE = a committed product in a store/channel
 Source files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `shared/assemblyCodes.ts`
 Full definitions: `BLD.md`, `GRF.md`, `QRG.md`, `ASSEMBLY.md` (Canonical Core — these win over everything)
 
-**GRF ID format:** `DDDDDD-NNNNNN` — 6 descriptor digits + 6-digit sequence.
-D1=asset class (1=input build, 2=output artifact) · D2=media type · D3=channel · D4=purpose · D5=format · D6=sub-context.
-Example: `211111-000001` = output artifact · image · print · QR composite · PNG · front · #1
+**GRF ID format:** `GRF-[D1][D2][D3][D4][D5]-[NNNNNN]` — 5 descriptor digits + 6-digit sequence.
+D1=asset class (1=input build, 2=output artifact) · D2=media type · D3=channel · D4=purpose (channel-relative) · D5=format.
+No D6/subContext — D4 purpose meaning depends on D3 channel.
+Example: `GRF-11411-000001` = input build · image · assets · original · PNG · #1
+Example: `GRF-21111-000001` = output artifact · image · print · qr_composite · PNG · #1
 
 ---
 
@@ -346,6 +348,29 @@ The product options endpoint now filters print locations by the selected fulfill
 | `functions/src/routes/master-catalog.ts` | Options endpoint accepts `?provider=`, loads `print_placements` crosswalk, filters by provider |
 | `server/routes/admin-catalog-browse.routes.ts` | Added matching native dev-server route for `/api/admin/master-catalog/products/:docId/options` |
 | `client/src/features/adminProducts/builder/BuilderContext.tsx` | Passes `?provider=` param; adds `fulfillmentProviderRef` + re-fetch effect on provider change |
+| `functions/src/index.ts` | BUILD_ID bumped |
+
+---
+
+### May 8, 2026 — GRF Schema Migration: 5-Digit Format, Channel-Relative Purpose, No subContext
+
+Migrated the entire GRF (Graphic Reference Format) system to the new canonical 5-digit schema: `GRF-[D1][D2][D3][D4][D5]-[NNNNNN]`. The old 6-digit format had D6 as a "subContext" which was ambiguous and tightly coupled to print channel semantics. The new schema eliminates D6 entirely — D4 purpose is now channel-relative, meaning its value depends on which D3 channel is selected. This makes the schema self-describing and removes the need for a separate sub-context concept. All layers were updated: `shared/graphicCodes.ts` (GRF engine), both dev-server and Cloud Functions save-grf endpoints, the GRF registrar service, the Assembly slot validator (now uses `channel:purpose` pairs instead of flat purpose codes), the admin library UI (`LibraryContext`, `GraphicsTab`, `types.ts`), `admin-videos.tsx`, `schema-commit.ts`, `imageUtils.ts`, and `test-http-endpoint.ts`. No legacy shims remain.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/graphicCodes.ts` | Rewritten: 5-digit format, `GRF_PURPOSES_BY_CHANNEL` keyed by channel, removed D6/subContext |
+| `functions/src/services/grf-registrar.ts` | Removed subContext, added originalFilename for assets/original |
+| `functions/src/routes/file-routes.ts` | save-grf + GET filter: removed subContext, added originalFilename |
+| `functions/src/routes/assemblies.ts` | Slot validator now uses `IMG_ALLOWED_CH_PURPOSE` Set + `QRC_REQUIRED_CH_PURPOSE` |
+| `server/routes/admin-content.routes.ts` | save-grf + GET filter: removed subContext, added originalFilename |
+| `server/lib/schema-commit.ts` | registerGrfDev: removed subContext, updated urlGraphic→urlSnapshot |
+| `client/src/features/adminLibrary/shared/types.ts` | GrfAsset: channel/purpose/channelName/purposeName/originalFilename (removed typeCode/roleCode) |
+| `client/src/features/adminLibrary/LibraryContext.tsx` | fetchAssets takes no args; fully rewritten |
+| `client/src/features/adminLibrary/tabs/GraphicsTab.tsx` | Filters by channel+purpose using GRF_PURPOSES_BY_CHANNEL |
+| `client/src/features/adminLibrary/shared/imageUtils.ts` | Removed storageUrl fallback (field no longer exists) |
+| `client/src/pages/admin-videos.tsx` | Updated to new GRF schema (mediaType=2, channel=3, purpose=2) |
+| `functions/test-http-endpoint.ts` | Updated test params to new 5-digit format, removed subContext |
 | `functions/src/index.ts` | BUILD_ID bumped |
 
 ---

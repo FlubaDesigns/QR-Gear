@@ -195,12 +195,12 @@ function register(app) {
     });
     // ============ LEGACY library_assets ENDPOINTS — REMOVED ============
     // All routes below return 410 Gone. Clients must use grf_assets endpoints instead:
-    //   Backgrounds : GET /admin/graphics?typeCode=03
-    //   Videos      : GET /admin/graphics?typeCode=06
+    //   Backgrounds : GET /admin/graphics?assetClass=1&purpose=6
+    //   URL/landing : GET /admin/graphics?assetClass=2&channel=3&purpose=3
     //   Upload/mint : POST /admin/graphics/save-grf
     //   Archive     : PATCH /admin/graphics/:grfId/archive
     app.get('/admin/background-assets', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?typeCode=03' });
+        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=1&purpose=6' });
     });
     app.post('/admin/background-assets', middleware_1.requireAdmin, (_req, res) => {
         res.status(410).json({ error: 'Removed. Use POST /admin/graphics/save-grf' });
@@ -212,7 +212,7 @@ function register(app) {
         res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
     });
     app.get('/admin/library/admin', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?typeCode=06' });
+        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=2&channel=3&purpose=3' });
     });
     app.get('/admin/library/templates', middleware_1.requireAdmin, (_req, res) => {
         res.status(410).json({ error: 'Removed. Use GET /admin/templates' });
@@ -226,66 +226,63 @@ function register(app) {
     // Admin: Mint a GRF code and save a graphic asset to grf_assets
     app.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { typeCode, roleCode, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags } = req.body;
-            if (!typeCode || !roleCode || !imageUrl) {
-                res.status(400).json({ error: 'Missing required fields: typeCode, roleCode, imageUrl' });
+            const { assetClass, mediaType, channel, purpose, format, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags, originalFilename, } = req.body;
+            if (!assetClass || !mediaType || !channel || !purpose || !format || !imageUrl) {
+                res.status(400).json({ error: 'Missing required fields: assetClass, mediaType, channel, purpose, format, imageUrl' });
                 return;
             }
-            const validTypeCodes = Object.keys(graphicCodes_1.GRF_TYPE_MAP);
-            if (!validTypeCodes.includes(typeCode)) {
-                res.status(400).json({ error: `Invalid typeCode. Must be one of: ${validTypeCodes.join(', ')}` });
-                return;
-            }
-            const entry = graphicCodes_1.GRF_TYPE_MAP[typeCode];
-            if (!entry.validRoles.includes(roleCode)) {
-                res.status(400).json({
-                    error: `Role "${roleCode}" is not valid for typeCode "${typeCode}". Valid roles: ${entry.validRoles.join(', ')}`,
-                });
-                return;
-            }
-            if (mimeType) {
-                const allowedMimes = graphicCodes_1.GRF_TYPE_ALLOWED_MIMES[typeCode];
-                if (!allowedMimes.includes(mimeType)) {
-                    res.status(400).json({
-                        error: `MIME type "${mimeType}" is not valid for GRF typeCode "${typeCode}" (${entry.label}). Allowed: ${allowedMimes.join(', ')}`,
-                    });
-                    return;
-                }
-            }
-            // Atomically mint the next sequence number for this typeCode+roleCode pair
-            const counterKey = (0, graphicCodes_1.grfCounterKey)(typeCode, roleCode);
-            const counterRef = core_1.db.collection('grf_counters').doc(counterKey);
+            // Atomically mint the next sequence number from the single global counter
+            const counterRef = core_1.db.collection('grf_counters').doc(graphicCodes_1.GRF_COUNTER_KEY);
             let newSeq = 0;
             await core_1.db.runTransaction(async (transaction) => {
                 const doc = await transaction.get(counterRef);
                 newSeq = (doc.exists ? doc.data().count : 0) + 1;
                 transaction.set(counterRef, {
                     count: newSeq,
-                    typeCode,
-                    roleCode,
                     updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
                 });
             });
-            const grfId = (0, graphicCodes_1.buildGraphicId)(typeCode, roleCode, newSeq);
-            // Fix 16: Guard against silent overwrite if counter is ever corrupted.
-            // The counter is atomic so this should never fire in normal operation —
-            // but if it does, we surface the error explicitly instead of silently overwriting.
+            let grfId;
+            try {
+                grfId = (0, graphicCodes_1.buildGrfId)({
+                    assetClass: assetClass,
+                    mediaType: mediaType,
+                    channel: channel,
+                    purpose,
+                    format,
+                    sequence: newSeq,
+                });
+            }
+            catch (e) {
+                res.status(400).json({ error: `Invalid GRF params: ${e.message}` });
+                return;
+            }
+            const parsed = (0, graphicCodes_1.parseGrfId)(grfId);
             const existingAsset = await core_1.db.collection('grf_assets').doc(grfId).get();
             if (existingAsset.exists) {
-                console.error(`[GRF] Counter integrity violation — ${grfId} already exists in grf_assets. Counter key: ${counterKey}`);
-                res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${counterKey}.` });
+                console.error(`[GRF] Counter integrity violation — ${grfId} already exists in grf_assets.`);
+                res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${graphicCodes_1.GRF_COUNTER_KEY}.` });
                 return;
             }
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+            const canonicalStoragePath = storagePath || (0, graphicCodes_1.grfStoragePath)(grfId, originalFilename || undefined);
             const assetData = {
                 grfId,
-                typeCode,
-                roleCode,
-                typeName: entry.label,
-                name: name || `${entry.label} ${grfId}`,
+                assetClass: parsed.assetClass,
+                mediaType: parsed.mediaType,
+                channel: parsed.channel,
+                purpose: parsed.purpose,
+                format: parsed.format,
+                sequence: parsed.sequence,
+                assetClassName: parsed.assetClassName,
+                mediaTypeName: parsed.mediaTypeName,
+                channelName: parsed.channelName,
+                purposeName: parsed.purposeName,
+                formatName: parsed.formatName,
+                mimeType: mimeType || parsed.mimeType,
+                name: name || `${parsed.purposeName} ${grfId}`,
                 description: description || null,
-                mimeType: mimeType || 'image/png',
-                storagePath: storagePath || null,
+                storagePath: canonicalStoragePath,
                 publicUrl: imageUrl,
                 sourceGrfId: sourceGrfId || null,
                 relatedPacketId: relatedPacketId || null,
@@ -294,7 +291,10 @@ function register(app) {
                 createdBy: 'admin',
                 isActive: true,
             };
-            // Document ID = grfId (stable, human-readable key)
+            // Preserve original filename for assets-channel originals (D3=4, D4=1)
+            if (parsed.channel === '4' && parsed.purpose === '1') {
+                assetData.originalFilename = originalFilename || null;
+            }
             await core_1.db.collection('grf_assets').doc(grfId).set(assetData);
             const doc = await core_1.db.collection('grf_assets').doc(grfId).get();
             console.log(`[GRF] Minted ${grfId} → grf_assets/${grfId}`);
@@ -305,11 +305,11 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // Admin: Get GRF assets, optionally filtered by typeCode and/or roleCode.
-    // typeCode/roleCode are filtered in memory to avoid requiring composite Firestore indexes.
+    // Admin: Get GRF assets, optionally filtered by any descriptor digit.
+    // Filtered in memory to avoid requiring composite Firestore indexes.
     app.get('/admin/graphics', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { typeCode, roleCode } = req.query;
+            const { assetClass, mediaType, channel, purpose, format } = req.query;
             const snapshot = await core_1.db.collection('grf_assets').where('isActive', '==', true).get();
             const getTime = (val) => {
                 if (!val)
@@ -324,7 +324,11 @@ function register(app) {
             };
             const assets = snapshot.docs
                 .map((doc) => (0, core_1.docToObject)(doc))
-                .filter((a) => (!typeCode || a.typeCode === typeCode) && (!roleCode || a.roleCode === roleCode))
+                .filter((a) => (!assetClass || a.assetClass === assetClass) &&
+                (!mediaType || a.mediaType === mediaType) &&
+                (!channel || a.channel === channel) &&
+                (!purpose || a.purpose === purpose) &&
+                (!format || a.format === format))
                 .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
             res.json(assets);
         }

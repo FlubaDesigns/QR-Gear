@@ -67,13 +67,13 @@ async function testHttpEndpoint() {
     body: JSON.stringify({
       assetClass: '1',   // input_build
       mediaType:  '1',   // image
-      channel:    '1',   // print
-      purpose:    '5',   // source_upload
+      channel:    '4',   // assets
+      purpose:    '1',   // original
       format:     '1',   // png
-      subContext: '1',   // front
       imageUrl: `data:image/png;base64,${testImageBase64}`,
       name: testName,
-      mimeType: 'image/png'
+      mimeType: 'image/png',
+      originalFilename: `${testName}.png`,
     })
   });
   

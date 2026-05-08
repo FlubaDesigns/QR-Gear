@@ -14,7 +14,7 @@
  */
 
 import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../shared/graphicCodes';
-import type { GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose } from '../../shared/graphicCodes';
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../shared/graphicCodes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // QRG instance allocation
@@ -93,14 +93,13 @@ async function registerGrfDev(opts: {
   assetClass:       GrfAssetClass;
   mediaType:        GrfMediaType;
   channel:          GrfChannel;
-  purpose:          GrfPurpose;
+  purpose:          string;
   format:           string;
-  subContext:       string;
   mimeType?:        string | null;
   sourceSessionId?: string | null;
   packetId?:        string | null;
 }): Promise<string> {
-  const { db, sourceUrl, assetClass, mediaType, channel, purpose, format, subContext, mimeType, sourceSessionId, packetId } = opts;
+  const { db, sourceUrl, assetClass, mediaType, channel, purpose, format, mimeType, sourceSessionId, packetId } = opts;
   const { FieldValue } = await import('firebase-admin/firestore');
 
   const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
@@ -117,26 +116,24 @@ async function registerGrfDev(opts: {
     }
   });
 
-  const grfId = buildGrfId({ assetClass, mediaType, channel, purpose, format, subContext, sequence });
+  const grfId = buildGrfId({ assetClass, mediaType, channel, purpose, format, sequence });
   const parsed = parseGrfId(grfId);
   const now    = FieldValue.serverTimestamp();
 
   await db.collection('grf_assets').doc(grfId).set({
     grfId,
-    assetClass:      parsed.assetClass,
-    mediaType:       parsed.mediaType,
-    channel:         parsed.channel,
-    purpose:         parsed.purpose,
-    format:          parsed.format,
-    subContext:      parsed.subContext,
-    sequence:        parsed.sequence,
-    assetClassName:  parsed.assetClassName,
-    mediaTypeName:   parsed.mediaTypeName,
-    channelName:     parsed.channelName,
-    purposeName:     parsed.purposeName,
-    formatName:      parsed.formatName,
-    subContextName:  parsed.subContextName,
-    mimeType:        mimeType || parsed.mimeType,
+    assetClass:     parsed.assetClass,
+    mediaType:      parsed.mediaType,
+    channel:        parsed.channel,
+    purpose:        parsed.purpose,
+    format:         parsed.format,
+    sequence:       parsed.sequence,
+    assetClassName: parsed.assetClassName,
+    mediaTypeName:  parsed.mediaTypeName,
+    channelName:    parsed.channelName,
+    purposeName:    parsed.purposeName,
+    formatName:     parsed.formatName,
+    mimeType:       mimeType || parsed.mimeType,
     sourceUrl,
     sourceSessionId: sourceSessionId || null,
     packetId:        packetId        || null,
@@ -145,7 +142,7 @@ async function registerGrfDev(opts: {
     createdAt:       now,
   });
 
-  console.log(`[GRFRegistrar-dev] ${grfId} (${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
+  console.log(`[GRFRegistrar-dev] ${grfId} (${parsed.channelName}/${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
   return grfId;
 }
 
@@ -176,7 +173,7 @@ export async function registerPacketGrfsDev(
 
   const snapshotUrl = packetData.landingPageSnapshotUrl || null;
   if (isStorageUrl(snapshotUrl))
-    result.landingSnapshotGrfId = await registerGrfDev({ db, sourceUrl: snapshotUrl, ...GRF_PACKET_SLOTS.urlGraphic, sourceSessionId, packetId });
+    result.landingSnapshotGrfId = await registerGrfDev({ db, sourceUrl: snapshotUrl, ...GRF_PACKET_SLOTS.urlSnapshot, sourceSessionId, packetId });
 
   return result;
 }
