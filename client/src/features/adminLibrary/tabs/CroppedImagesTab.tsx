@@ -10,7 +10,7 @@ import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
 import { DeleteSkin } from "@/features/shared/components/skins/DeleteSkin";
 import { GRF_FILTER_CROPPED } from "../shared/GRF_engine";
-import { CROPPED_QK } from "./SourceImagesTab";
+import { CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape ───────────────────────────────────────────────────────────
 

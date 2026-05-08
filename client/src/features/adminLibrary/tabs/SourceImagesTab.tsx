@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Component } from "react";
+import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
@@ -9,15 +10,10 @@ import { CropUtility, type CropAsset } from "@/features/shared/components/utilit
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { SourceImageCardSkin, SourceImageDetailSkin } from "@/features/shared/components/skins";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import {
-  originalGrfParams,
-  buildCropTransition,
-  GRF_FILTER_ORIGINALS,
-  GRF_FILTER_CROPPED,
-  GRF_FILTER_BACKGROUNDS,
-} from "../shared/GRF_engine";
+import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
+import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
-// ── GRF asset shape returned by GET /api/admin/graphics ──────────────────────
+// ── GRF asset shape ───────────────────────────────────────────────────────────
 
 interface GrfAsset {
   id: string;
@@ -32,16 +28,44 @@ interface GrfAsset {
   isActive: boolean;
 }
 
-// ── Stable query keys ─────────────────────────────────────────────────────────
+// ── Error boundary ────────────────────────────────────────────────────────────
 
-export const ORIGINALS_QK    = ["admin-graphics", "channel", GRF_FILTER_ORIGINALS.channel,    "purpose", GRF_FILTER_ORIGINALS.purpose];
-export const CROPPED_QK      = ["admin-graphics", "channel", GRF_FILTER_CROPPED.channel,      "purpose", GRF_FILTER_CROPPED.purpose];
-export const BACKGROUNDS_QK  = ["admin-graphics", "channel", GRF_FILTER_BACKGROUNDS.channel,  "purpose", GRF_FILTER_BACKGROUNDS.purpose];
+class SourceImagesBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  state = { hasError: false, error: null as Error | null };
 
-function invalidateGrfQueries() {
-  queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
-  queryClient.invalidateQueries({ queryKey: CROPPED_QK });
-  queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[SourceImagesTab] CRASH:", error.message, error.stack);
+    console.error("[SourceImagesTab] Component stack:", info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-destructive/10 border border-destructive rounded-lg">
+          <h3 className="font-bold text-lg mb-2">Source Images Error</h3>
+          <p className="text-sm mb-2">{this.state.error?.message}</p>
+          <pre className="text-xs overflow-auto max-h-40 bg-black/20 p-2 rounded">
+            {this.state.error?.stack}
+          </pre>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 px-4 py-2 bg-primary text-primary-foreground rounded"
+            data-testid="button-retry-source"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -61,14 +85,14 @@ async function fetchImageBlob(url: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Inner component ───────────────────────────────────────────────────────────
 
-export default function SourceImagesTab() {
+function SourceImagesTabInner() {
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
-  const { data: assets = [], isLoading } = useQuery<GrfAsset[]>({
+  const { data: assets = [], isLoading, error: queryError } = useQuery<GrfAsset[]>({
     queryKey: ORIGINALS_QK,
     queryFn: () =>
       adminFetch<GrfAsset[]>(
@@ -109,7 +133,7 @@ export default function SourceImagesTab() {
 
     const originalAsset = assets.find(a => a.id === sourceAsset.id);
     if (!originalAsset) {
-      console.error("[SourceImagesTab] Original asset not found in assets:", sourceAsset.id);
+      console.error("[SourceImagesTab] Original asset not found:", sourceAsset.id);
       toast({ title: "Crop failed", description: "Original asset not found.", variant: "destructive" });
       return;
     }
@@ -144,7 +168,9 @@ export default function SourceImagesTab() {
       });
 
       toast({ title: "Crop saved", description: "Created cropped derivative and background asset." });
-      invalidateGrfQueries();
+      queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
+      queryClient.invalidateQueries({ queryKey: CROPPED_QK });
+      queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
       setCropDialogOpen(false);
       setAssetToCrop(null);
     } catch (err: unknown) {
@@ -178,14 +204,6 @@ export default function SourceImagesTab() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
   return (
     <>
       <ImageUploader
@@ -194,11 +212,22 @@ export default function SourceImagesTab() {
         description="Source images are original GRF library intake assets. Cropping automatically creates a cropped derivative and a background asset."
       />
 
+      {queryError && (
+        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-source">
+          <p className="text-sm font-medium">Failed to load source images</p>
+          <p className="text-xs text-muted-foreground">{(queryError as Error).message}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">{assets.length} Source Images</h3>
       </div>
 
-      {assets.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      ) : assets.length === 0 ? (
         <div className="text-center py-12 bg-muted/30 rounded-lg">
           <ImagePlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-muted-foreground" data-testid="text-no-source">
@@ -239,5 +268,15 @@ export default function SourceImagesTab() {
         title="Crop Image"
       />
     </>
+  );
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+export default function SourceImagesTab() {
+  return (
+    <SourceImagesBoundary>
+      <SourceImagesTabInner />
+    </SourceImagesBoundary>
   );
 }

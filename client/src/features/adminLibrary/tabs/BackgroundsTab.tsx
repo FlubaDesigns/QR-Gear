@@ -11,7 +11,7 @@ import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
 import { GRF_FILTER_BACKGROUNDS } from "../shared/GRF_engine";
-import { BACKGROUNDS_QK, CROPPED_QK } from "./SourceImagesTab";
+import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape ───────────────────────────────────────────────────────────
 
