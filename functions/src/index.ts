@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260508-060436-5054';
+const _BUILD_ID = '20260508-064216-4174';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
@@ -63,6 +63,7 @@ import { register as registerEtsyOAuth } from './routes/etsy-oauth';
 import { register as registerConnect } from './routes/connect';
 import { register as registerDeployProof } from './routes/deploy-proof';
 import { registerAdminGraphics } from './routes/admin-graphics';
+import { registerAdminLibraryCrop } from './routes/admin-library-crop';
 
 const app = express();
 
@@ -129,6 +130,7 @@ registerEtsyOAuth(app);
 registerConnect(app);
 registerDeployProof(app);
 registerAdminGraphics(app);
+registerAdminLibraryCrop(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

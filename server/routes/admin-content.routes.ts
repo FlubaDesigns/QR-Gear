@@ -341,6 +341,23 @@ export function registerAdminContentRoutes(app: Express): void {
 
       const now = FieldValue.serverTimestamp();
       const canonicalStoragePath = storagePath || grfStoragePath(grfId, originalFilename || undefined);
+
+      // If imageUrl is a base64 data URI, upload to Firebase Storage and use the public GCS URL
+      let publicUrl = imageUrl;
+      if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
+        const { getStorageBucket, getStorageBucketName } = await import("../lib/firebase-admin");
+        const bucket = getStorageBucket();
+        const bucketName = getStorageBucketName();
+        const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        const storageFile = bucket.file(canonicalStoragePath);
+        await storageFile.save(buffer, { metadata: { contentType: mimeType || 'image/jpeg' } });
+        await storageFile.makePublic();
+        const encodedPath = canonicalStoragePath.split('/').map(encodeURIComponent).join('/');
+        publicUrl = `https://storage.googleapis.com/${bucketName}/${encodedPath}`;
+        console.log(`[GRF] Uploaded base64 → Storage: ${publicUrl}`);
+      }
+
       const assetData: Record<string, any> = {
         grfId,
         assetClass:     parsed.assetClass,
@@ -358,7 +375,7 @@ export function registerAdminContentRoutes(app: Express): void {
         name:           name || `${parsed.purposeName} ${grfId}`,
         description:    description || null,
         storagePath:    canonicalStoragePath,
-        publicUrl:      imageUrl,
+        publicUrl,
         sourceGrfId:    sourceGrfId    || null,
         relatedPacketId: relatedPacketId || null,
         tags:           tags            || null,

@@ -5,13 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
-import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
+import { ImageUploader, type UploadParams } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import { SourceDetailShape } from "@/features/shared/components/shapes/SourceShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
+import { originalGrfParams, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape from API ──────────────────────────────────────────────────
@@ -142,7 +142,7 @@ function SourceImagesTabInner() {
 
   const handleDelete = (id: string) => archiveMutation.mutate(id);
 
-  const handleUploadSingle = async (params: { name: string; imageData: string; mimeType: string }) => {
+  const handleUploadSingle = async (params: UploadParams) => {
     const mimeType = params.mimeType || "image/jpeg";
     try {
       await adminFetch("/graphics/save-grf", {
@@ -150,7 +150,7 @@ function SourceImagesTabInner() {
         body: JSON.stringify({
           ...originalGrfParams(mimeType),
           name:             params.name,
-          originalFilename: params.name,
+          originalFilename: params.originalFilename || params.name,
           mimeType,
           imageUrl: `data:${mimeType};base64,${params.imageData}`,
         }),
@@ -171,50 +171,32 @@ function SourceImagesTabInner() {
       return;
     }
 
-    // Pull original GRF fields from the selected SkinItem's metadata.raw
-    const skinItem   = skinItems.find(s => s.id === sourceAsset.id);
-    const raw        = skinItem?.metadata?.raw as GrfAsset | undefined;
-    const grfId      = raw?.grfId || sourceAsset.id;
-    const origMime   = raw?.mimeType || "image/jpeg";
-    const origName   = raw?.name || raw?.originalFilename || sourceAsset.name;
-    const origFile   = raw?.originalFilename || origName;
-    const origUrl    = raw?.publicUrl || sourceAsset.imageUrl;
+    const skinItem = skinItems.find(s => s.id === sourceAsset.id);
+    const raw      = skinItem?.metadata?.raw as GrfAsset | undefined;
+    const grfId    = raw?.grfId || sourceAsset.id;
+    const origMime = raw?.mimeType || "image/jpeg";
+    const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
+    const origUrl  = raw?.publicUrl || sourceAsset.imageUrl;
 
-    const transition = buildCropTransition(origMime, "image/jpeg");
+    // Strip data URI prefix — crop-mint expects raw base64
+    const croppedImageData = croppedDataUrl.startsWith("data:")
+      ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
+      : croppedDataUrl;
 
     try {
-      // croppedDataUrl from CropUtility.onSave is raw base64 — add data URI prefix
-      const croppedImageUrl = croppedDataUrl.startsWith("data:")
-        ? croppedDataUrl
-        : `data:image/jpeg;base64,${croppedDataUrl}`;
-
-      // 1. Cropped derivative (purpose 2)
-      await adminFetch("/graphics/save-grf", {
+      await adminFetch("/library/crop-mint", {
         method: "POST",
         body: JSON.stringify({
-          ...transition.cropped,
-          imageUrl:         croppedImageUrl,
-          name:             `cropped_${origName}`,
-          mimeType:         "image/jpeg",
-          sourceGrfId:      grfId,
-          originalFilename: `cropped_${origFile}.jpg`,
+          croppedImageData,
+          croppedMimeType:   "image/jpeg",
+          originalPublicUrl: origUrl,
+          originalMimeType:  origMime,
+          name:              origName,
+          sourceGrfId:       grfId,
         }),
       });
 
-      // 2. Background / promoted original (purpose 3)
-      await adminFetch("/graphics/save-grf", {
-        method: "POST",
-        body: JSON.stringify({
-          ...transition.background,
-          imageUrl:         origUrl,
-          name:             origName,
-          mimeType:         origMime,
-          sourceGrfId:      grfId,
-          originalFilename: origFile,
-        }),
-      });
-
-      toast({ title: "Crop saved", description: "Created cropped derivative and background asset." });
+      toast({ title: "Crop saved", description: "Cropped derivative and background asset created." });
       queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
       queryClient.invalidateQueries({ queryKey: CROPPED_QK });
       queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });

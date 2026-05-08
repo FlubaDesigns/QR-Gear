@@ -7,6 +7,7 @@ import { Loader2, Upload } from "lucide-react";
 
 export interface UploadParams {
   name: string;
+  originalFilename: string;
   imageData: string;
   mimeType: string;
   assetType?: string;
@@ -217,6 +218,7 @@ export function ImageUploader({
           console.log("[ImageUploader] Calling onUploadSingle for", name);
           await onUploadSingle({
             name: name.replace(/\.[^/.]+$/, ""),
+            originalFilename: name,
             imageData: base64,
             mimeType,
             assetType,

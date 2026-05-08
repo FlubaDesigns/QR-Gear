@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
-import { getFirestoreDb, getStorageBucket } from "../lib/firebase-admin";
+import { getFirestoreDb, getStorageBucket, getStorageBucketName } from "../lib/firebase-admin";
 import {
   buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_FORMATS,
 } from "@shared/graphicCodes";
@@ -50,6 +50,7 @@ export function registerLibraryCropRoutes(app: Express): void {
         originalPublicUrl,
         originalMimeType,
         name,
+        sourceGrfId,
       } = req.body;
 
       if (!croppedImageData || !croppedMimeType || !originalPublicUrl || !originalMimeType || !name) {
@@ -60,6 +61,7 @@ export function registerLibraryCropRoutes(app: Express): void {
 
       const db = getFirestoreDb();
       const bucket = getStorageBucket();
+      const bucketName = getStorageBucketName();
       const { FieldValue } = await import("firebase-admin/firestore");
       const now = FieldValue.serverTimestamp();
 
@@ -78,13 +80,13 @@ export function registerLibraryCropRoutes(app: Express): void {
       const croppedExt    = croppedMimeType.includes('png') ? 'png' : 'jpg';
       const croppedPath   = `grf/${croppedGrfId}/cropped.${croppedExt}`;
 
-      // Upload cropped bytes to GRF storage path
+      // Upload cropped bytes to GRF storage path and make public
       const croppedBuffer = Buffer.from(croppedImageData, 'base64');
-      await bucket.file(croppedPath).save(croppedBuffer, {
-        metadata: { contentType: croppedMimeType },
-      });
-
-      const croppedPublicUrl = `/api/grf-files/${croppedGrfId}/cropped.${croppedExt}`;
+      const croppedFile = bucket.file(croppedPath);
+      await croppedFile.save(croppedBuffer, { metadata: { contentType: croppedMimeType } });
+      await croppedFile.makePublic();
+      const encodedCroppedPath = croppedPath.split('/').map(encodeURIComponent).join('/');
+      const croppedPublicUrl = `https://storage.googleapis.com/${bucketName}/${encodedCroppedPath}`;
 
       // Write grf_assets record for cropped
       await db.collection("grf_assets").doc(croppedGrfId).set({
@@ -104,7 +106,7 @@ export function registerLibraryCropRoutes(app: Express): void {
         name:           `cropped_${name}`,
         storagePath:    croppedPath,
         publicUrl:      croppedPublicUrl,
-        sourceGrfId:    null,
+        sourceGrfId:    sourceGrfId || null,
         createdAt:      now,
         createdBy:      'admin',
         isActive:       true,
@@ -137,7 +139,7 @@ export function registerLibraryCropRoutes(app: Express): void {
         name:           `background_${name}`,
         storagePath:    null,
         publicUrl:      originalPublicUrl,
-        sourceGrfId:    null,
+        sourceGrfId:    sourceGrfId || null,
         createdAt:      now,
         createdBy:      'admin',
         isActive:       true,
