@@ -409,6 +409,7 @@ const ADMIN_SECTIONS = [
   { title: "Email Health", description: "Email system health and queue", icon: Mail, href: "/admin/email-health" },
   { title: "Settings", description: "API keys and integrations", icon: Settings, href: "/admin/settings" },
   { title: "Admin Manual", description: "Complete management guide", icon: Book, href: "/admin/manual" },
+  { title: "Schema Keys", description: "QRG, GRF, ASM, VVS code reference", icon: FileText, href: "/admin/schema-keys" },
 ];
 
 function SectionGrid() {

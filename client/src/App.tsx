@@ -85,6 +85,7 @@ import AdminExternalSites from "@/pages/admin-external-sites";
 import AdminLaunch from "@/pages/admin-launch";
 import CreatorSurface from "@/pages/creator-surface";
 import FontManagement from "@/pages/admin-fonts";
+import AdminSchemaKeys from "@/pages/admin-schema-keys";
 import Members from "@/features/members/MembersPage";
 import PlayLanding from "@/pages/play";
 import ProductLanding from "@/pages/product-landing";
@@ -185,6 +186,7 @@ function Router() {
       <Route path="/admin/store-library">{() => <AdminRoute><AdminStoreLibrary /></AdminRoute>}</Route>
       <Route path="/admin/ar-demo">{() => <AdminRoute><AdminARDemo /></AdminRoute>}</Route>
       <Route path="/admin/fonts">{() => <AdminRoute><FontManagement /></AdminRoute>}</Route>
+      <Route path="/admin/schema-keys">{() => <AdminRoute><AdminSchemaKeys /></AdminRoute>}</Route>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/qr-basics" component={QRBasics} />
