@@ -8,7 +8,8 @@ import { queryClient } from "@/lib/queryClient";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
-import { SourceCardSkin, SourceDetailSkin } from "@/features/shared/components/skins/SourceSkin";
+import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
+import { SourceDetailShape } from "@/features/shared/components/shapes/SourceShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
@@ -290,7 +291,7 @@ function SourceImagesTabInner() {
             onClick={(e) => e.stopPropagation()}
             data-testid="modal-source-detail"
           >
-            <SourceDetailSkin
+            <SourceDetailShape
               item={selectedItem}
               actions={{
                 onCrop:   () => handleStartCrop(selectedItem),

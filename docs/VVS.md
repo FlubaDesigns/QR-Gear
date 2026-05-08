@@ -218,10 +218,11 @@ client/src/features/shared/components/
     SingleView.tsx             # View code 0 — no scroll
 
   shapes/                      # Shape components (third digit)
-    ModalView.tsx              # Shape code 1 — popup/modal
+    ModalView.tsx              # Shape code 1 — popup/modal container
+    SourceShape.tsx            # SourceDetailShape — popup content for source images
 
   skins/                       # Skin components (named)
-    SourceSkin.tsx             # SourceCardSkin + SourceDetailSkin
+    SourceSkin.tsx             # SourceCardSkin — card in the grid
 
 client/src/features/adminLibrary/tabs/
   SourceImagesTab.tsx          # VVS 1·1·1 — source GRF originals
