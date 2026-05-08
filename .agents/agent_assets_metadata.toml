@@ -239,3 +239,9 @@ id = "FEZOkyck3xawaR9_k5Ie4"
 uri = "file://qrgear-project.zip"
 type = "unspecified"
 title = "QR Gear Project Source"
+
+[[outputs]]
+id = "pEk3T009qKO4WCnJE-Tyl"
+uri = "file://downloads/qrgear-website-full.zip"
+type = "unspecified"
+title = "QR Gear Website Full Zip"
