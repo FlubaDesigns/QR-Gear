@@ -233,3 +233,9 @@ id = "p0NKf4BoJpwgQC2H944TO"
 uri = "file://qrgear-source.zip"
 type = "unspecified"
 title = "QR Gear Source Code — Complete"
+
+[[outputs]]
+id = "FEZOkyck3xawaR9_k5Ie4"
+uri = "file://qrgear-project.zip"
+type = "unspecified"
+title = "QR Gear Project Source"
