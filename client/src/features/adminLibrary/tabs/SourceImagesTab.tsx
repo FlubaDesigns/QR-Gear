@@ -147,13 +147,13 @@ function SourceImagesTabInner() {
     try {
       await adminFetch("/graphics/save-grf", {
         method: "POST",
-        body: JSON.stringify({
+        json: {
           ...originalGrfParams(mimeType),
           name:             params.name,
           originalFilename: params.originalFilename || params.name,
           mimeType,
           imageUrl: `data:${mimeType};base64,${params.imageData}`,
-        }),
+        },
       });
       toast({ title: "Image uploaded" });
       queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
@@ -186,14 +186,14 @@ function SourceImagesTabInner() {
     try {
       await adminFetch("/library/crop-mint", {
         method: "POST",
-        body: JSON.stringify({
+        json: {
           croppedImageData,
           croppedMimeType:   "image/jpeg",
           originalPublicUrl: origUrl,
           originalMimeType:  origMime,
           name:              origName,
           sourceGrfId:       grfId,
-        }),
+        },
       });
 
       toast({ title: "Crop saved", description: "Cropped derivative and background asset created." });
