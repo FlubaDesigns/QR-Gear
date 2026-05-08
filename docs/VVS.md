@@ -19,7 +19,7 @@ Each layer has exactly one job.
 
 ---
 
-## V1 — Viewer
+## Viewer — Layer 1
 
 **The pane.**
 
@@ -28,22 +28,22 @@ The Viewer is the structural container. It owns the overall page or panel layout
 It answers:
 - How many panels are visible?
 - Where do they live on screen?
-- Single pane? Split pane? Drawer? Full screen? Modal overlay?
 
 The Viewer does NOT know:
 - How items scroll or arrange
 - What individual items look like
 - What buttons exist
 
-### Viewer types (examples)
+### Viewer type codes
 
-| Name | Description |
-|---|---|
-| SinglePaneViewer | One full-width pane, no split |
-| SplitPaneViewer | Left list + right detail |
-| DrawerViewer | Content + sliding drawer panel |
-| ModalViewer | Overlay / dialog pane |
-| FullScreenViewer | Full browser viewport, no chrome |
+The first digit of any VVS code identifies the Viewer type.
+
+| Code | Name | Description |
+|---|---|---|
+| 1 | Single pane | One full-width pane |
+| 2 | Two pane | Side by side — list left, detail right |
+
+More Viewer types will be added as they appear in the codebase.
 
 ---
 
