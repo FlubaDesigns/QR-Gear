@@ -227,7 +227,8 @@ export function grfStoragePath(grfId: string, originalFilename?: string): string
   const ext    = parsed.formatName === 'jpeg' ? 'jpg' : parsed.formatName;
   let   base   = CHANNEL_PURPOSE_FILENAMES[parsed.channel]?.[parsed.purpose] ?? 'asset';
   if (parsed.channel === '4' && parsed.purpose === '1' && originalFilename) {
-    base = originalFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '');
+    base = nameWithoutExt.replace(/[^a-zA-Z0-9._-]/g, '_') || 'original';
   }
   return `grf/${grfId}/${base}.${ext}`;
 }
