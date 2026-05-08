@@ -47,34 +47,34 @@ More Viewer types will be added as they appear in the codebase.
 
 ---
 
-## V2 — View
+## View — Layer 2
 
 **The behavior.**
 
-The View lives inside the Viewer. It controls how items arrange and move.
+The View lives inside the Viewer. It controls how items move and arrange.
 
 It answers:
-- Does it scroll?
-- Vertically or horizontally?
-- Grid or list?
-- Paginated or infinite?
-- Fixed height or auto?
+- Does it scroll, and which direction?
+- Is it paginated?
+- Is there no movement at all?
 
 The View does NOT know:
 - What the Viewer looks like structurally
 - What individual items look like
 - What buttons exist
 
-### View types (examples)
+### View type codes
 
-| Name | Description |
-|---|---|
-| ScrollGridView | Vertical scroll, grid columns |
-| HorizontalScrollView | Horizontal scroll, row of cards |
-| PaginatedListView | List with page controls |
-| InfiniteScrollView | Auto-loads next page on scroll |
-| SingleItemView | Displays one item at a time |
-| TableView | Tabular rows with columns |
+The second digit of any VVS code identifies the View type.
+
+| Code | Name | Description |
+|---|---|---|
+| 0 | None | No scroll, no pagination — static or single item |
+| 1 | Vertical | Vertical scroll (grid or list) |
+| 2 | Horizontal | Horizontal scroll, row of cards |
+| 3 | Paginated | Page-by-page navigation |
+
+More View types will be added as they appear in the codebase.
 
 ---
 
