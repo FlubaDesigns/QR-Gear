@@ -1,4 +1,3 @@
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import type { SkinItem, CardSkinProps } from "../skins/types";
 
@@ -55,9 +54,9 @@ export function SkinHorizontalView({
   }
 
   return (
-    <div className={`relative ${className ?? ""}`} data-testid="skin-horizontal-view">
-      <ScrollArea className="w-full" type="scroll">
-        <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
+    <div className={`min-w-0 overflow-hidden ${className ?? ""}`} data-testid="skin-horizontal-view">
+      <div className="overflow-x-auto w-full">
+        <div className="flex gap-3 pb-3">
           {items.map((item, index) => (
             <div
               key={item.id}
@@ -75,8 +74,7 @@ export function SkinHorizontalView({
             </div>
           ))}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
       {footer !== undefined ? footer : (
         <p className="text-xs text-muted-foreground text-center mt-2">
           {items.length} {items.length === 1 ? "item" : "items"} — scroll to see more
