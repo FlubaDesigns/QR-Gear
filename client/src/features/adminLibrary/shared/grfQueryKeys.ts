@@ -2,7 +2,7 @@ import {
   GRF_FILTER_ORIGINALS,
   GRF_FILTER_CROPPED,
   GRF_FILTER_BACKGROUNDS,
-} from "./GRF_engine";
+} from "@shared/GRF_engine";
 
 export const ORIGINALS_QK   = ["admin-graphics", "channel", GRF_FILTER_ORIGINALS.channel,   "purpose", GRF_FILTER_ORIGINALS.purpose];
 export const CROPPED_QK     = ["admin-graphics", "channel", GRF_FILTER_CROPPED.channel,     "purpose", GRF_FILTER_CROPPED.purpose];

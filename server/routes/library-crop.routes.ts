@@ -3,6 +3,7 @@ import { isAdmin } from "../firebaseAuth";
 import { getFirestoreDb, getStorageBucket, getStorageBucketName } from "../lib/firebase-admin";
 import { buildGrfId, parseGrfId, GRF_COUNTER_KEY } from "@shared/graphicCodes";
 import type { GrfAssetClass, GrfChannel, GrfMediaType } from "@shared/graphicCodes";
+import { buildCropTransition } from "@shared/GRF_engine";
 
 async function mintGrfSequence(db: FirebaseFirestore.Firestore): Promise<number> {
   const { FieldValue } = await import("firebase-admin/firestore");
@@ -38,18 +39,20 @@ export function registerLibraryCropRoutes(app: Express): void {
       const {
         croppedImageData,
         croppedMimeType,
-        croppedGrfParams,
-        backgroundGrfParams,
+        originalMimeType,
         originalPublicUrl,
         name,
         sourceGrfId,
       } = req.body;
 
-      if (!croppedImageData || !croppedMimeType || !croppedGrfParams || !backgroundGrfParams || !originalPublicUrl || !name) {
+      if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !name) {
         return res.status(400).json({
-          error: "Missing required fields: croppedImageData, croppedMimeType, croppedGrfParams, backgroundGrfParams, originalPublicUrl, name",
+          error: "Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name",
         });
       }
+
+      const { cropped: croppedGrfParams, background: backgroundGrfParams } =
+        buildCropTransition(originalMimeType, croppedMimeType);
 
       const db = getFirestoreDb();
       const bucket = getStorageBucket();

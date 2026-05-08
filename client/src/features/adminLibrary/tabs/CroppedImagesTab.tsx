@@ -9,7 +9,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { CroppedCardSkin } from "@/features/shared/components/skins/CroppedImageSkin";
 import { CroppedShape } from "@/features/shared/components/shapes/CroppedShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { GRF_FILTER_CROPPED } from "../shared/GRF_engine";
+import { GRF_FILTER_CROPPED } from "@shared/GRF_engine";
 import { CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape from API ──────────────────────────────────────────────────

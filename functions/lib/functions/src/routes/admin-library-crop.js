@@ -14,6 +14,7 @@ const express_1 = require("express");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const graphicCodes_1 = require("../../../shared/graphicCodes");
+const GRF_engine_1 = require("../../../shared/GRF_engine");
 const router = (0, express_1.Router)();
 async function mintGrfSequence() {
     const counterRef = core_1.db.collection('grf_counters').doc(graphicCodes_1.GRF_COUNTER_KEY);
@@ -27,13 +28,14 @@ async function mintGrfSequence() {
 }
 router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, res) => {
     try {
-        const { croppedImageData, croppedMimeType, croppedGrfParams, backgroundGrfParams, originalPublicUrl, name, sourceGrfId, } = req.body;
-        if (!croppedImageData || !croppedMimeType || !croppedGrfParams || !backgroundGrfParams || !originalPublicUrl || !name) {
+        const { croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name, sourceGrfId, } = req.body;
+        if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !name) {
             res.status(400).json({
-                error: 'Missing required fields: croppedImageData, croppedMimeType, croppedGrfParams, backgroundGrfParams, originalPublicUrl, name',
+                error: 'Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name',
             });
             return;
         }
+        const { cropped: croppedGrfParams, background: backgroundGrfParams } = (0, GRF_engine_1.buildCropTransition)(originalMimeType, croppedMimeType);
         const now = core_1.admin.firestore.FieldValue.serverTimestamp();
         const bucket = core_1.admin.storage().bucket();
         // ── 1. Cropped record ─────────────────────────────────────────────────────

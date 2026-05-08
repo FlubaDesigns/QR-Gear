@@ -16,6 +16,7 @@ import {
   parseGrfId,
   GRF_COUNTER_KEY,
 } from '../../../shared/graphicCodes';
+import { buildCropTransition } from '../../../shared/GRF_engine';
 
 const router = Router();
 
@@ -35,19 +36,21 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
     const {
       croppedImageData,
       croppedMimeType,
-      croppedGrfParams,
-      backgroundGrfParams,
+      originalMimeType,
       originalPublicUrl,
       name,
       sourceGrfId,
     } = req.body;
 
-    if (!croppedImageData || !croppedMimeType || !croppedGrfParams || !backgroundGrfParams || !originalPublicUrl || !name) {
+    if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !name) {
       res.status(400).json({
-        error: 'Missing required fields: croppedImageData, croppedMimeType, croppedGrfParams, backgroundGrfParams, originalPublicUrl, name',
+        error: 'Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name',
       });
       return;
     }
+
+    const { cropped: croppedGrfParams, background: backgroundGrfParams } =
+      buildCropTransition(originalMimeType, croppedMimeType);
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const bucket = admin.storage().bucket();

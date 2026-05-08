@@ -10,7 +10,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { BackgroundCardSkin } from "@/features/shared/components/skins/BackgroundSkin";
 import { BackgroundShape } from "@/features/shared/components/shapes/BackgroundShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "../shared/GRF_engine";
+import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "@shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape ───────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
+import { originalGrfParams, GRF_FILTER_ORIGINALS } from "@shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
 async function fetchImageBlob(url: string): Promise<string> {
@@ -39,13 +39,16 @@ interface GrfAsset {
 // ── SkinItem mapper — metadata.raw carries full API asset ─────────────────────
 
 function assetToSkinItem(asset: GrfAsset): SkinItem {
+  if (!asset.grfId) {
+    console.error(`[SourceImagesTab] Asset "${asset.id}" has no grfId — document predates GRF system or save-grf failed. This must be fixed.`);
+  }
   return {
     id:           asset.grfId || asset.id,
     name:         asset.name || asset.originalFilename || "Untitled",
     primaryImage: asset.publicUrl || "",
     metadata: {
       raw:              asset,
-      grfId:            asset.grfId || asset.id,
+      grfId:            asset.grfId,
       mimeType:         asset.mimeType,
       originalFilename: asset.originalFilename ?? undefined,
       channel:          asset.channel,
@@ -175,10 +178,7 @@ function SourceImagesTabInner() {
     const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
     const origUrl  = raw?.publicUrl || sourceAsset.imageUrl;
 
-    // Pre-compute GRF params via GRF_engine — same pattern as save-grf
     const croppedMimeType = "image/jpeg";
-    const { cropped: croppedGrfParams, background: backgroundGrfParams } =
-      buildCropTransition(origMime, croppedMimeType);
 
     // Strip data URI prefix — crop-mint expects raw base64
     const croppedImageData = croppedDataUrl.startsWith("data:")
@@ -191,8 +191,7 @@ function SourceImagesTabInner() {
         json: {
           croppedImageData,
           croppedMimeType,
-          croppedGrfParams,
-          backgroundGrfParams,
+          originalMimeType:  origMime,
           originalPublicUrl: origUrl,
           name:              origName,
           sourceGrfId:       grfId,
