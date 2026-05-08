@@ -1,56 +1,63 @@
-export interface GrfAsset {
+export type AssetType =
+  | "source"
+  | "cropped"
+  | "background"
+  | "template"
+  | "design"
+  | "unknown";
+
+export interface LibraryAsset {
   id: string;
-  grfId: string;
   name: string;
-  description: string | null;
-  publicUrl: string;
-  mimeType: string;
-  storagePath: string | null;
-  channel: string;
-  purpose: string;
-  channelName: string | null;
-  purposeName: string | null;
-  originalFilename: string | null;
-  sourceGrfId: string | null;
-  tags: string[] | null;
-  createdAt: string | null;
-  createdBy: string | null;
-  isActive: boolean;
+  assetType: AssetType;
+  mediaType?: string;
+  mimeType?: string;
+  storageUrl?: string;
+  publicUrl?: string;
+  fileName?: string;
+  originalName?: string;
+  sizeBytes?: number;
+  width?: number;
+  height?: number;
+  isActive?: boolean;
+  ownerType?: string;
+  sourceAssetId?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
+
+export type LibraryAssetWithProxy = LibraryAsset & { proxyUrl?: string | null };
 
 export interface UploadAssetParams {
   name: string;
-  channel: string;
-  purpose: string;
+  assetType: AssetType;
   imageData: string;
   mimeType: string;
-  sourceGrfId?: string;
-  originalFilename?: string;
+  sourceAssetId?: string;
 }
 
 export interface LibraryApi {
-  fetchAssets: () => Promise<GrfAsset[]>;
-  uploadAsset: (params: UploadAssetParams) => Promise<{ grfId: string }>;
-  deleteAsset: (grfId: string) => Promise<void>;
+  fetchAssets: (type: AssetType) => Promise<LibraryAssetWithProxy[]>;
+  uploadAsset: (params: UploadAssetParams) => Promise<{ id: string; extractedCount?: number }>;
+  uploadZip: (params: UploadAssetParams) => Promise<{ extractedCount: number }>;
+  deleteAsset: (id: string) => Promise<void>;
   fetchImageBlob: (url: string) => Promise<string>;
-  getQueryKey: () => string[];
-  invalidateAssets: () => void;
+  getQueryKey: (type: AssetType) => string[];
+  invalidateAssets: (type: AssetType) => void;
 }
 
 export interface LibraryContextValue {
   storeId: string | null;
+  requiresAuth: boolean;
   api: LibraryApi;
   storageRoots: {
     backgrounds: string;
-    designs: string;
-    videos: string;
+    source: string;
+    cropped: string;
   };
   permissions: {
     canUpload: boolean;
     canDelete: boolean;
+    canEdit: boolean;
   };
 }
-
-export type AssetType = string;
-export type LibraryAsset = GrfAsset;
-export type LibraryAssetWithProxy = GrfAsset & { proxyUrl?: string | null };
