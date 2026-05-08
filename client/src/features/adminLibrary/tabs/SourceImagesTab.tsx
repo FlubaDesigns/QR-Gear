@@ -9,9 +9,7 @@ import { ImageUploader, type UploadParams } from "@/features/shared/components/u
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
-import { ModalView } from "@/features/shared/components/shapes/ModalView";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
-import { SourceDetailShape } from "@/features/shared/components/shapes/SourceShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
@@ -96,8 +94,6 @@ class SourceImagesBoundary extends Component<
 
 function SourceImagesTabInner() {
   const { toast } = useToast();
-  const [selectedItem,   setSelectedItem]   = useState<SkinItem | null>(null);
-  const [detailOpen,     setDetailOpen]     = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
@@ -121,8 +117,6 @@ function SourceImagesTabInner() {
     onSuccess: () => {
       toast({ title: "Image archived" });
       queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
-      setDetailOpen(false);
-      setSelectedItem(null);
     },
     onError: (error: Error) => {
       console.error("[SourceImagesTab] Archive error:", error.message);
@@ -132,11 +126,6 @@ function SourceImagesTabInner() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const handleSelectItem = (item: SkinItem) => {
-    setSelectedItem(item);
-    setDetailOpen(true);
-  };
-
   const handleStartCrop = (item: SkinItem) => {
     const raw = item.metadata?.raw as GrfAsset | undefined;
     setAssetToCrop({
@@ -144,7 +133,6 @@ function SourceImagesTabInner() {
       name:     item.name,
       imageUrl: item.primaryImage || "",
     });
-    setDetailOpen(false);
     setCropDialogOpen(true);
     console.log("[SourceImagesTab] Starting crop for:", item.id, raw?.grfId);
   };
@@ -266,7 +254,6 @@ function SourceImagesTabInner() {
           renderItem={(item) => (
             <SourceCardSkin
               item={item}
-              onClick={() => handleSelectItem(item)}
               actions={{
                 onCrop:   () => handleStartCrop(item),
                 onDelete: () => handleDelete(item.id),
@@ -276,27 +263,6 @@ function SourceImagesTabInner() {
           )}
         />
       )}
-
-      {/* VVSS Shape — digit 4 */}
-      <ModalView
-        open={!!(selectedItem && detailOpen)}
-        onOpenChange={(open) => { if (!open) { setDetailOpen(false); setSelectedItem(null); } }}
-        title="Source Image"
-        maxWidth="max-w-sm"
-      >
-        {selectedItem && (
-          <div className="p-6">
-            <SourceDetailShape
-              item={selectedItem}
-              actions={{
-                onCrop:   () => handleStartCrop(selectedItem),
-                onDelete: () => handleDelete(selectedItem.id),
-              }}
-              onClose={() => { setDetailOpen(false); setSelectedItem(null); }}
-            />
-          </div>
-        )}
-      </ModalView>
 
       <CropUtility
         asset={assetToCrop}
