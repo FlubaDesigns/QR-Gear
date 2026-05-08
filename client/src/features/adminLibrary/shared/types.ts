@@ -37,9 +37,55 @@ export interface LibraryApi {
   invalidateAssets: () => void;
 }
 
+export interface LegacyLibraryAsset {
+  id: string;
+  name: string;
+  assetType?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  storageUrl?: string;
+  publicUrl?: string | null;
+  proxyUrl?: string | null;
+  width?: number | null;
+  height?: number | null;
+  sourceAssetId?: string | null;
+  isActive?: boolean;
+  createdAt?: any;
+}
+
+export type LibraryAsset = LegacyLibraryAsset;
+export type LibraryAssetWithProxy = LegacyLibraryAsset;
+
+export type AssetType =
+  | "source"
+  | "cropped"
+  | "background"
+  | "graphic"
+  | "template"
+  | "design"
+  | "unknown";
+
+export interface LegacyUploadAssetParams {
+  name: string;
+  assetType: AssetType;
+  imageData: string;
+  mimeType: string;
+  sourceAssetId?: string;
+}
+
+export interface LegacyLibraryApi {
+  fetchAssets: (type: AssetType) => Promise<LibraryAssetWithProxy[]>;
+  uploadAsset: (params: LegacyUploadAssetParams) => Promise<{ id: string; extractedCount?: number }>;
+  deleteAsset: (id: string) => Promise<void>;
+  fetchImageBlob: (url: string) => Promise<string>;
+  getQueryKey: (type: AssetType) => string[];
+  invalidateAssets: (type: AssetType) => void;
+}
+
 export interface LibraryContextValue {
   storeId: string | null;
   api: LibraryApi;
+  legacyApi: LegacyLibraryApi;
   storageRoots: {
     backgrounds: string;
     designs: string;
@@ -50,7 +96,3 @@ export interface LibraryContextValue {
     canDelete: boolean;
   };
 }
-
-export type AssetType = string;
-export type LibraryAsset = GrfAsset;
-export type LibraryAssetWithProxy = GrfAsset & { proxyUrl?: string | null };
