@@ -13,6 +13,9 @@ Before making any changes to this project, read these files in full:
 | `replit.md` | Project overview, stack, architecture decisions, gotchas, and user preferences — the top-level source of truth |
 | `VVSS.md` | VVSS four-digit code system — naming conventions, folder structure, and canon component set for all UI surfaces |
 | `ARCHITECTURE_VIEWER.md` | Binding law for the five-layer UI architecture (Domain → Controller → Viewer → View → Skin/Shape) — no exceptions |
+| `QRG.md` | QRG identity system — canonical blank identity, STNNN format, and QRG code rules |
+| `GRF.md` | GRF schema — graphic/asset file identity, 5-digit format, channel-relative purpose, and registration rules |
+| `BLD.md` | BLD schema — build/layout structure, what BLD owns and must never contain |
 
 ---
 
