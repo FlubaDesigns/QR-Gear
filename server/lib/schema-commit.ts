@@ -102,6 +102,27 @@ async function registerGrfDev(opts: {
   const { db, sourceUrl, assetClass, mediaType, channel, purpose, format, mimeType, sourceSessionId, packetId } = opts;
   const { FieldValue } = await import('firebase-admin/firestore');
 
+  // ── GRF engine: dedup by sourceUrl ───────────────────────────────────────
+  // If this exact URL already has a GRF ID, reuse it — the atomic number
+  // follows the asset, never re-minted for the same file.
+  const existing = await db.collection('grf_assets')
+    .where('sourceUrl', '==', sourceUrl)
+    .limit(1)
+    .get();
+  if (!existing.empty) {
+    const existingGrfId = existing.docs[0].data().grfId as string;
+    if (packetId || sourceSessionId) {
+      await existing.docs[0].ref.update({
+        ...(packetId       ? { packetId }       : {}),
+        ...(sourceSessionId ? { sourceSessionId } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    console.log(`[GRF-engine] reused existing grfId=${existingGrfId} for url=${sourceUrl}`);
+    return existingGrfId;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
   let sequence = 0;
 

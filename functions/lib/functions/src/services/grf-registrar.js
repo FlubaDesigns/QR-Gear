@@ -34,6 +34,25 @@ async function registerGrfAsset(opts) {
     if (!sourceUrl || sourceUrl.trim() === '') {
         throw new Error(`[GRFRegistrar] sourceUrl is required — cannot register empty URL as GRF asset`);
     }
+    // ── GRF engine: dedup by sourceUrl ───────────────────────────────────────
+    // The atomic number follows the asset — same URL always returns the same GRF ID.
+    const existing = await core_1.db.collection(GRF_ASSETS_COLLECTION)
+        .where('sourceUrl', '==', sourceUrl)
+        .limit(1)
+        .get();
+    if (!existing.empty) {
+        const existingGrfId = existing.docs[0].data().grfId;
+        if (packetId || sourceSessionId) {
+            await existing.docs[0].ref.update({
+                ...(packetId ? { packetId } : {}),
+                ...(sourceSessionId ? { sourceSessionId } : {}),
+                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        console.log(`[GRFRegistrar] reused existing grfId=${existingGrfId} for url=${sourceUrl.slice(0, 80)}…`);
+        return { grfId: existingGrfId, sourceUrl, sequence: existing.docs[0].data().sequence };
+    }
+    // ─────────────────────────────────────────────────────────────────────────
     const counterRef = core_1.db.collection(GRF_COUNTERS_COLLECTION).doc(graphicCodes_1.GRF_COUNTER_KEY);
     let sequence = 0;
     await core_1.db.runTransaction(async (tx) => {
