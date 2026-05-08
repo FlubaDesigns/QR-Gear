@@ -2,17 +2,24 @@
 /**
  * functions/src/services/grf-registrar.ts
  *
- * GRF (Graphic Reference Format) asset registration.
+ * GRF asset registration — single authoritative mint engine for production.
+ * ALL GRF minting goes through this file. Routes must NOT inline counter
+ * transactions, buildGrfId calls, or grf_assets writes.
  *
- * Registers a pre-uploaded storage URL as a canonical GRF record.
- * Atomically allocates a GRF ID from grf_counters and writes to grf_assets.
+ * Two source modes:
+ *   imageData  — raw base64 (no data: prefix); registrar uploads to Storage,
+ *                builds canonical path from the minted GRF ID, writes Firestore.
+ *   sourceUrl  — asset already in Storage; registrar dedup-checks by URL,
+ *                mints only if not found, writes Firestore.
  *
- * REQUIRED ORDER:
+ * Required order for imageData mode:
+ *   1. Call registerGrfAsset({ imageData, ... }) → get { grfId, publicUrl }
+ *   2. Use grfId downstream (Assembly mappings, etc.)
+ *
+ * Required order for sourceUrl mode:
  *   1. Upload asset to Firebase Storage → get URL
- *   2. Call registerGrfAsset() → get grfId
- *   3. Use grfId in Assembly mappings
- *
- * Assembly mappings MUST use grfId — never raw URLs.
+ *   2. Call registerGrfAsset({ sourceUrl, ... }) → get { grfId }
+ *   3. Use grfId downstream
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerGrfAsset = registerGrfAsset;
@@ -21,48 +28,15 @@ const core_1 = require("../core");
 const GRF_engine_1 = require("../../../shared/GRF_engine");
 const GRF_ASSETS_COLLECTION = 'grf_assets';
 const GRF_COUNTERS_COLLECTION = 'grf_counters';
-/**
- * Atomically allocate the next GRF sequence from the global counter,
- * write to grf_assets, and return the canonical grfId.
- *
- * @throws if sourceUrl is empty
- * @throws if GRF params are invalid
- * @throws if the Firestore transaction fails
- */
-async function registerGrfAsset(opts) {
-    const { sourceUrl, assetClass, mediaType, channel, purpose, format, originalFilename, mimeType, sourceSessionId, packetId, } = opts;
-    if (!sourceUrl || sourceUrl.trim() === '') {
-        throw new Error(`[GRFRegistrar] sourceUrl is required — cannot register empty URL as GRF asset`);
-    }
-    // ── GRF engine: dedup by sourceUrl ───────────────────────────────────────
-    // The atomic number follows the asset — same URL always returns the same GRF ID.
-    const existing = await core_1.db.collection(GRF_ASSETS_COLLECTION)
-        .where('sourceUrl', '==', sourceUrl)
-        .limit(1)
-        .get();
-    if (!existing.empty) {
-        const existingGrfId = existing.docs[0].data().grfId;
-        if (packetId || sourceSessionId) {
-            await existing.docs[0].ref.update({
-                ...(packetId ? { packetId } : {}),
-                ...(sourceSessionId ? { sourceSessionId } : {}),
-                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            });
-        }
-        console.log(`[GRFRegistrar] reused existing grfId=${existingGrfId} for url=${sourceUrl.slice(0, 80)}…`);
-        return { grfId: existingGrfId, sourceUrl, sequence: existing.docs[0].data().sequence };
-    }
-    // ─────────────────────────────────────────────────────────────────────────
+// ── Core mint ─────────────────────────────────────────────────────────────────
+async function allocateSequence() {
     const counterRef = core_1.db.collection(GRF_COUNTERS_COLLECTION).doc(GRF_engine_1.GRF_COUNTER_KEY);
     let sequence = 0;
     await core_1.db.runTransaction(async (tx) => {
         const snap = await tx.get(counterRef);
         if (!snap.exists) {
             sequence = 1;
-            tx.set(counterRef, {
-                count: 1,
-                createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            });
+            tx.set(counterRef, { count: 1, createdAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
         }
         else {
             sequence = (snap.data().count || 0) + 1;
@@ -72,9 +46,76 @@ async function registerGrfAsset(opts) {
             });
         }
     });
+    return sequence;
+}
+/**
+ * Register a GRF asset. Mints a new canonical GRF ID and writes to grf_assets.
+ *
+ * @throws if neither sourceUrl nor imageData is provided
+ * @throws if GRF params are invalid
+ */
+async function registerGrfAsset(opts) {
+    const { assetClass, mediaType, channel, purpose, format, sourceUrl, imageData, mimeType, name, description, originalFilename, storagePath: storagePathOverride, sourceGrfId, relatedPacketId, tags, createdBy = 'admin', sourceSessionId, packetId, } = opts;
+    if (!sourceUrl && !imageData) {
+        throw new Error('[GRFRegistrar] Either sourceUrl or imageData is required');
+    }
+    // ── sourceUrl mode: dedup by URL ─────────────────────────────────────────
+    if (sourceUrl && !imageData) {
+        if (sourceUrl.trim() === '') {
+            throw new Error('[GRFRegistrar] sourceUrl must not be empty');
+        }
+        const existing = await core_1.db.collection(GRF_ASSETS_COLLECTION)
+            .where('sourceUrl', '==', sourceUrl)
+            .limit(1)
+            .get();
+        if (!existing.empty) {
+            const doc = existing.docs[0];
+            const data = doc.data();
+            const existingId = data.grfId;
+            if (packetId || sourceSessionId) {
+                await doc.ref.update({
+                    ...(packetId ? { packetId } : {}),
+                    ...(sourceSessionId ? { sourceSessionId } : {}),
+                    updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+            console.log(`[GRFRegistrar] reused grfId=${existingId} for url=${sourceUrl.slice(0, 80)}…`);
+            return {
+                grfId: existingId,
+                publicUrl: data.publicUrl || sourceUrl,
+                storagePath: data.storagePath || null,
+                sequence: data.sequence || 0,
+            };
+        }
+    }
+    // ── Allocate sequence + build GRF ID ─────────────────────────────────────
+    const sequence = await allocateSequence();
     const grfId = (0, GRF_engine_1.buildGrfId)({ assetClass, mediaType, channel, purpose, format, sequence });
     const parsed = (0, GRF_engine_1.parseGrfId)(grfId);
     const now = core_1.admin.firestore.FieldValue.serverTimestamp();
+    // ── imageData mode: upload to Storage ────────────────────────────────────
+    let publicUrl;
+    let storagePath;
+    if (imageData) {
+        const ext = (mimeType || '').includes('png') ? 'png' : 'jpg';
+        const canonicalPath = storagePathOverride
+            || (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined)
+            || `grf/${grfId}/original.${ext}`;
+        const bucket = core_1.admin.storage().bucket();
+        const buffer = Buffer.from(imageData, 'base64');
+        const fileRef = bucket.file(canonicalPath);
+        await fileRef.save(buffer, { metadata: { contentType: mimeType || 'image/jpeg' } });
+        await fileRef.makePublic();
+        const encoded = canonicalPath.split('/').map(encodeURIComponent).join('/');
+        publicUrl = `https://storage.googleapis.com/${bucket.name}/${encoded}`;
+        storagePath = canonicalPath;
+        console.log(`[GRFRegistrar] uploaded base64 → ${publicUrl}`);
+    }
+    else {
+        publicUrl = sourceUrl;
+        storagePath = null;
+    }
+    // ── Write grf_assets ─────────────────────────────────────────────────────
     const assetData = {
         grfId,
         assetClass: parsed.assetClass,
@@ -89,21 +130,32 @@ async function registerGrfAsset(opts) {
         purposeName: parsed.purposeName,
         formatName: parsed.formatName,
         mimeType: mimeType || parsed.mimeType,
-        sourceUrl,
+        name: name || `${parsed.purposeName} ${grfId}`,
+        description: description || null,
+        storagePath,
+        publicUrl,
+        sourceUrl: publicUrl, // keep both field names populated
+        sourceGrfId: sourceGrfId || null,
+        relatedPacketId: relatedPacketId || null,
+        tags: tags || null,
         sourceSessionId: sourceSessionId || null,
         packetId: packetId || null,
-        source: 'auto_commit',
+        source: 'grf_registrar',
+        createdBy,
         isActive: true,
         createdAt: now,
     };
-    // Preserve original filename for assets-channel originals (D3=4, D4=1)
     if (parsed.channel === '4' && parsed.purpose === '1') {
         assetData.originalFilename = originalFilename || null;
     }
     await core_1.db.collection(GRF_ASSETS_COLLECTION).doc(grfId).set(assetData);
-    console.log(`[GRFRegistrar] ${grfId} (${parsed.channelName}/${parsed.purposeName}) → ${sourceUrl.slice(0, 80)}…`);
-    return { grfId, sourceUrl, sequence };
+    console.log(`[GRFRegistrar] minted ${grfId} (${parsed.channelName}/${parsed.purposeName}) → ${publicUrl.slice(0, 80)}…`);
+    return { grfId, publicUrl, storagePath, sequence };
 }
+/**
+ * Register all graphic assets from a packet at commit time.
+ * Skips external QR URLs (api.qrserver.com) and data URLs.
+ */
 async function registerPacketGrfAssets(packetData, sourceSessionId, packetId) {
     const result = {
         backgroundGrfId: null,
@@ -122,22 +174,34 @@ async function registerPacketGrfAssets(packetData, sourceSessionId, packetId) {
     };
     const bgUrl = packetData.backgroundUrl || packetData.landingPageBackgroundUrl || null;
     if (isStorageUrl(bgUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: bgUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.background });
+        const r = await registerGrfAsset({
+            sourceUrl: bgUrl, mimeType: 'image/png', sourceSessionId, packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS.background,
+        });
         result.backgroundGrfId = r.grfId;
     }
     const qrUrl = packetData.qrOnlyUrl || null;
     if (isStorageUrl(qrUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: qrUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.qrStandalone });
+        const r = await registerGrfAsset({
+            sourceUrl: qrUrl, mimeType: 'image/png', sourceSessionId, packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS.qrStandalone,
+        });
         result.qrGrfId = r.grfId;
     }
     const compositeUrl = packetData.compositeUrl || packetData.productGraphicUrl || null;
     if (isStorageUrl(compositeUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: compositeUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.qrComposite });
+        const r = await registerGrfAsset({
+            sourceUrl: compositeUrl, mimeType: 'image/png', sourceSessionId, packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS.qrComposite,
+        });
         result.compositeGrfId = r.grfId;
     }
     const snapshotUrl = packetData.landingPageSnapshotUrl || null;
     if (isStorageUrl(snapshotUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.urlSnapshot });
+        const r = await registerGrfAsset({
+            sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS.urlSnapshot,
+        });
         result.landingSnapshotGrfId = r.grfId;
     }
     return result;

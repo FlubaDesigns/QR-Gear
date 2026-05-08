@@ -1,8 +1,7 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
 import { getFirestoreDb, getStorageBucket, getStorageBucketName } from "../lib/firebase-admin";
-import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, buildCropTransition } from "@shared/GRF_engine";
-import type { GrfAssetClass, GrfChannel, GrfMediaType } from "@shared/GRF_engine";
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, buildCropTransition, normalizeMimeType } from "@shared/GRF_engine";
 
 async function mintGrfSequence(db: FirebaseFirestore.Firestore): Promise<number> {
   const { FieldValue } = await import("firebase-admin/firestore");
@@ -50,8 +49,11 @@ export function registerLibraryCropRoutes(app: Express): void {
         });
       }
 
+      const safeOriginalMime = normalizeMimeType(originalMimeType);
+      const safeCroppedMime  = normalizeMimeType(croppedMimeType);
+
       const { cropped: croppedGrfParams, background: backgroundGrfParams } =
-        buildCropTransition(originalMimeType, croppedMimeType);
+        buildCropTransition(safeOriginalMime, safeCroppedMime);
 
       const db = getFirestoreDb();
       const bucket = getStorageBucket();
@@ -114,7 +116,7 @@ export function registerLibraryCropRoutes(app: Express): void {
         channelName:    backgroundParsed.channelName,
         purposeName:    backgroundParsed.purposeName,
         formatName:     backgroundParsed.formatName,
-        mimeType:       backgroundGrfParams.format === '1' ? 'image/png' : 'image/jpeg',
+        mimeType:       backgroundParsed.mimeType,
         name:           `background_${name}`,
         storagePath:    null,
         publicUrl:      originalPublicUrl,

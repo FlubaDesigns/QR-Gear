@@ -16,6 +16,7 @@ import {
   parseGrfId,
   GRF_COUNTER_KEY,
   buildCropTransition,
+  normalizeMimeType,
 } from '../../../shared/GRF_engine';
 
 const router = Router();
@@ -49,8 +50,11 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
       return;
     }
 
+    const safeOriginalMime = normalizeMimeType(originalMimeType);
+    const safeCroppedMime  = normalizeMimeType(croppedMimeType);
+
     const { cropped: croppedGrfParams, background: backgroundGrfParams } =
-      buildCropTransition(originalMimeType, croppedMimeType);
+      buildCropTransition(safeOriginalMime, safeCroppedMime);
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     const bucket = admin.storage().bucket();

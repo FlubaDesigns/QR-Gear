@@ -33,6 +33,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GRF_FILTER_TEMPLATES = exports.GRF_FILTER_BACKGROUNDS = exports.GRF_FILTER_CROPPED = exports.GRF_FILTER_ORIGINALS = exports.PURPOSE_TEMPLATE = exports.PURPOSE_BACKGROUND = exports.PURPOSE_CROPPED = exports.PURPOSE_ORIGINAL = exports.LIBRARY_CHANNEL = exports.LIBRARY_MEDIA_TYPE = exports.LIBRARY_ASSET_CLASS = void 0;
 exports.mimeToGrfFormat = mimeToGrfFormat;
+exports.normalizeMimeType = normalizeMimeType;
 exports.originalGrfParams = originalGrfParams;
 exports.croppedGrfParams = croppedGrfParams;
 exports.backgroundGrfParams = backgroundGrfParams;
@@ -76,6 +77,29 @@ function mimeToGrfFormat(mimeType) {
         throw new Error(`GRF_engine: unrecognized MIME type "${mimeType}"`);
     }
     return digit;
+}
+// ── MIME normalization — browser → GRF-compatible MIME ───────────────────────
+// Some browsers (especially mobile/iOS) report MIME types that are not in
+// GRF_FORMATS. Map them to the nearest supported type before calling
+// mimeToGrfFormat. All callers must go through here — never define this map
+// locally in a component or route file.
+const _MIME_NORMALIZE = {
+    'image/jpg': 'image/jpeg',
+    'image/heic': 'image/jpeg',
+    'image/heif': 'image/jpeg',
+    'image/avif': 'image/jpeg',
+    'image/gif': 'image/png',
+    'image/bmp': 'image/png',
+    'image/tiff': 'image/png',
+};
+function normalizeMimeType(raw) {
+    const lower = (raw || '').toLowerCase();
+    const mapped = _MIME_NORMALIZE[lower];
+    if (mapped) {
+        console.warn(`GRF_engine: normalizeMimeType mapped "${raw}" → "${mapped}"`);
+        return mapped;
+    }
+    return lower || 'image/jpeg';
 }
 // ── Param builders — one per asset purpose ────────────────────────────────────
 function originalGrfParams(mimeType) {

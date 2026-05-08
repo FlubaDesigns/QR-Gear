@@ -34,7 +34,9 @@ router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, r
             });
             return;
         }
-        const { cropped: croppedGrfParams, background: backgroundGrfParams } = (0, GRF_engine_1.buildCropTransition)(originalMimeType, croppedMimeType);
+        const safeOriginalMime = (0, GRF_engine_1.normalizeMimeType)(originalMimeType);
+        const safeCroppedMime = (0, GRF_engine_1.normalizeMimeType)(croppedMimeType);
+        const { cropped: croppedGrfParams, background: backgroundGrfParams } = (0, GRF_engine_1.buildCropTransition)(safeOriginalMime, safeCroppedMime);
         const now = core_1.admin.firestore.FieldValue.serverTimestamp();
         const bucket = core_1.admin.storage().bucket();
         // ── 1. Cropped record ─────────────────────────────────────────────────────
