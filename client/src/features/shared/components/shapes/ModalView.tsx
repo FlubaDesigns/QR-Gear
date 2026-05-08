@@ -85,8 +85,7 @@ export function ImageModalView({
         <button
           type="button"
           onClick={onClose}
-          className="qr-btn qr-btn--primary qr-btn--touch qr-btn--xl mt-8"
-          style={{ minWidth: '280px' }}
+          className="qr-btn qr-btn--primary qr-btn--touch qr-btn--xl mt-8 min-w-[280px]"
           data-testid="button-lightbox-close"
         >
           Tap to Close
