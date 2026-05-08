@@ -165,6 +165,14 @@ function SourceImagesTabInner() {
 
       const { croppedGrfId, backgroundGrfId } = await result.json();
       console.log(`[SourceImages] Minted cropped=${croppedGrfId} background=${backgroundGrfId}`);
+
+      // Remove source image from staging — it has graduated to cropped + background
+      try {
+        await api.deleteAsset(sourceAsset.id);
+      } catch (delErr) {
+        console.error("[SourceImages] Failed to remove source after crop:", delErr);
+      }
+
       toast({
         title: "GRF IDs minted",
         description: `${croppedGrfId} · ${backgroundGrfId}`,
