@@ -14,6 +14,13 @@ import type { SkinItem } from "@/features/shared/components/skins/types";
 import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
+async function fetchImageBlob(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 // ── GRF asset shape from API ──────────────────────────────────────────────────
 
 interface GrfAsset {
@@ -299,6 +306,7 @@ function SourceImagesTabInner() {
           if (!open) setAssetToCrop(null);
         }}
         onSave={handleSaveCrop}
+        fetchImageBlob={fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Source Image"
       />
