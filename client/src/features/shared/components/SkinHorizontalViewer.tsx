@@ -1,29 +1,44 @@
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X, ImageIcon } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SinglePaneViewer } from "./viewers/SinglePaneViewer";
 import { SkinHorizontalView } from "./views/SkinHorizontalView";
-import type { SkinItem, SkinActions, CardSkinProps, DetailSkinProps } from "./skins/types";
+import type { SkinItem, SkinActions, CardSkinProps } from "./skins/types";
 
 // VVS Viewer code: 1·2·1
-// SinglePane + HorizontalScroll + Popup shape.
-// Composed viewer — owns selection state, popup dialog, prev/next, and optional confirm.
+// SinglePane + HorizontalScroll + Shape popup.
+// Owns: selection state, prev/next navigation, optional confirm dialog.
+// Does NOT own: popup UI, detail content — those belong to the Shape layer.
 
 type CardSkinComponent = React.ComponentType<CardSkinProps>;
-type DetailSkinComponent = React.ComponentType<DetailSkinProps>;
+
+// Props that every Shape used with this viewer must accept.
+export interface GalleryShapeProps {
+  open: boolean;
+  item: SkinItem | null;
+  actions?: SkinActions;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  hasPrev: boolean;
+  hasNext: boolean;
+  isActionPending?: boolean;
+  itemIndex: number;
+  totalItems: number;
+}
+
+type GalleryShapeComponent = React.ComponentType<GalleryShapeProps>;
 
 export interface SkinHorizontalViewerProps {
   items: SkinItem[];
   CardSkin: CardSkinComponent;
-  DetailSkin: DetailSkinComponent;
+  Shape: GalleryShapeComponent;
   actions: SkinActions;
   isActionPending?: boolean;
   cardWidth?: string;
   isLoading?: boolean;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
+  /** When set, archive/delete actions show a confirm dialog before firing */
   confirmAction?: {
     type: "archive" | "delete";
     title: string;
@@ -37,7 +52,7 @@ export interface SkinHorizontalViewerProps {
 export function SkinHorizontalViewer({
   items,
   CardSkin,
-  DetailSkin,
+  Shape,
   actions,
   isActionPending = false,
   cardWidth = "160px",
@@ -59,16 +74,17 @@ export function SkinHorizontalViewer({
   const handleNext  = () => { if (hasNext) setSelectedIndex(selectedIndex! + 1); };
   const handleClose = () => setSelectedIndex(null);
 
-  const handleConfirmAction = () => {
+  const handleConfirm = () => {
     if (selectedItem && confirmAction) {
       if (confirmAction.type === "archive") actions.onArchive?.(selectedItem.id);
       else                                   actions.onDelete?.(selectedItem.id);
     }
     setShowConfirm(false);
+    handleClose(); // Close shape popup immediately — item will vanish after query invalidates
   };
 
-  // Intercept archive/delete to show confirm dialog when configured
-  const wrappedActions: SkinActions = {
+  // Intercept destructive actions to show confirm dialog when configured
+  const shapeActions: SkinActions = {
     ...actions,
     onArchive: confirmAction?.type === "archive" ? () => setShowConfirm(true) : actions.onArchive,
     onDelete:  confirmAction?.type === "delete"  ? () => setShowConfirm(true) : actions.onDelete,
@@ -83,7 +99,7 @@ export function SkinHorizontalViewer({
         CardSkin={CardSkin}
         onSelect={(_, index) => setSelectedIndex(index)}
         selectedId={selectedItem?.id ?? null}
-        actions={wrappedActions}
+        actions={shapeActions}
         isActionPending={isActionPending}
         cardWidth={cardWidth}
         isLoading={isLoading}
@@ -91,81 +107,22 @@ export function SkinHorizontalViewer({
         emptyIcon={emptyIcon}
       />
 
-      {/* Detail popup */}
-      <Dialog open={selectedIndex !== null} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] overflow-hidden p-0" aria-describedby={undefined}>
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 z-10"
-              onClick={handleClose}
-              data-testid="button-viewer-close"
-            >
-              <X className="h-5 w-5" />
-            </Button>
+      {/* Shape owns the popup presentation entirely */}
+      <Shape
+        open={selectedIndex !== null}
+        item={selectedItem}
+        actions={shapeActions}
+        onClose={handleClose}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        isActionPending={isActionPending}
+        itemIndex={selectedIndex ?? 0}
+        totalItems={items.length}
+      />
 
-            {/* Image preview with prev/next */}
-            <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center overflow-hidden">
-              {selectedItem?.primaryImage ? (
-                <img
-                  src={selectedItem.primaryImage}
-                  alt={selectedItem.name}
-                  className="max-w-full max-h-full object-contain"
-                  data-testid="img-viewer-preview"
-                />
-              ) : (
-                <ImageIcon className="h-24 w-24 text-muted-foreground" />
-              )}
-
-              {hasPrev && (
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute left-2 top-1/2 -translate-y-1/2"
-                  onClick={handlePrev}
-                  data-testid="button-viewer-prev"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-              )}
-              {hasNext && (
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
-                  onClick={handleNext}
-                  data-testid="button-viewer-next"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              )}
-
-              <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-                {(selectedIndex ?? 0) + 1} / {items.length}
-              </div>
-            </div>
-
-            {/* Detail skin */}
-            {selectedItem && (
-              <div className="p-4 border-t">
-                <DetailSkin
-                  item={selectedItem}
-                  actions={wrappedActions}
-                  isActionPending={isActionPending}
-                  onClose={handleClose}
-                  onPrev={handlePrev}
-                  onNext={handleNext}
-                  hasPrev={hasPrev}
-                  hasNext={hasNext}
-                />
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Optional confirm dialog */}
+      {/* Confirm dialog — system-level, not popup content */}
       {confirmAction && (
         <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
           <AlertDialogContent>
@@ -176,7 +133,7 @@ export function SkinHorizontalViewer({
             <AlertDialogFooter>
               <AlertDialogCancel data-testid="button-confirm-cancel">Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleConfirmAction}
+                onClick={handleConfirm}
                 className={confirmAction.type === "delete" ? "bg-destructive hover:bg-destructive/90" : ""}
                 data-testid="button-confirm-action"
               >
@@ -190,4 +147,4 @@ export function SkinHorizontalViewer({
   );
 }
 
-export type { SkinItem, SkinActions, CardSkinProps, DetailSkinProps };
+export type { SkinItem, SkinActions, CardSkinProps };
