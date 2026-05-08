@@ -9,13 +9,13 @@ The GRF system is the canonical identity and storage schema for all graphic asse
 ## ID Format
 
 ```
-GRF-[D1][D2][D3][D4][D5][D6]-[NNNNNN]
+GRF-[D1][D2][D3][D4][D5]-[NNNNNN]
 ```
 
-Three-character brand prefix (`GRF`), six single-digit descriptor positions, and a 6-digit zero-padded global sequence number.
+Three-character brand prefix (`GRF`), five single-digit descriptor positions, and a 6-digit zero-padded global sequence number.
 
-**Example:** `GRF-212421-000001`
-→ Output artifact · Image · Store · Glamor Shot · JPEG · First to show · Sequence 1
+**Example:** `GRF-21241-000001`
+→ Output artifact · Image · Store · Glamor Shot · JPEG · Sequence 1
 
 ---
 
@@ -48,25 +48,47 @@ Where this asset lives and is served from.
 
 | Value | Channel | Description |
 |---|---|---|
-| `1` | Print | Goes to the physical product (sent to print provider) |
-| `2` | Store | Displayed in the customer-facing storefront |
-| `3` | URL | Lives on a landing page / online digital artifact |
+| `1` | print | Goes to the physical product (sent to print provider) |
+| `2` | store | Displayed in the customer-facing storefront |
+| `3` | url | Lives on a landing page / online digital artifact |
+| `4` | assets | Internal asset library — source uploads, backgrounds, templates |
 
 ---
 
-### D4 — Purpose
+### D4 — Purpose *(relative to D3)*
 
-What the asset *is* — its functional role in the build chain.
+D4 is indexed within each channel. The same digit means different things in different channels.
 
-| Value | Name | Asset class | Description |
-|---|---|---|---|
-| `1` | QR Composite | Output | QR code merged with zone/palette graphic or text — goes on the front of the item |
-| `2` | QR Standalone | Output | QR code with QRG logo centered on a white box |
-| `3` | URL Graphic | Output | Image created for the online landing page / digital artifact |
-| `4` | Glamor Shot | Output | Lifestyle/mockup render — shirt with design applied, store-facing |
-| `5` | Source Upload | Input | Raw asset uploaded by user before any processing |
-| `6` | Background | Input | Background image used during composition in the builder |
-| `7` | Template | Input | Reusable graphic element applied across multiple products |
+**If D3 = `1` (print):**
+
+| D4 | Name | Description |
+|---|---|---|
+| `1` | qr_composite | QR code merged with zone/palette graphic — goes on the product |
+| `2` | qr_standalone | QR code with QRG logo centered on a white box |
+
+**If D3 = `2` (store):**
+
+| D4 | Name | Description |
+|---|---|---|
+| `1` | glamor_shot | Hero image — first shown in storefront, lifestyle/glamor render |
+| `2` | front | Front-facing product render |
+| `3` | back | Back-facing product render |
+
+**If D3 = `3` (url):**
+
+| D4 | Name | Description |
+|---|---|---|
+| `1` | snapshot | Rendered capture of the landing page |
+| `2` | graphic | Designed image placed on the landing page |
+
+**If D3 = `4` (assets):**
+
+| D4 | Name | Description |
+|---|---|---|
+| `1` | original | Raw asset as uploaded — filename preserved |
+| `2` | cropped | Cropped derivative of the original |
+| `3` | background | Background image used during builder composition |
+| `4` | template | Reusable graphic applied across multiple products |
 
 ---
 
@@ -98,37 +120,6 @@ Valid values depend on the media type in D2.
 
 ---
 
-### D6 — Sub-context *(conditional on D3)*
-
-Meaning depends on the channel in D3.
-
-**If D3 = `1` (Print) — Location on item:**
-
-| Value | Location |
-|---|---|
-| `1` | Front |
-| `2` | Back |
-| `3` | Sleeve |
-
-**If D3 = `2` (Store) — Display index:**
-
-| Value | Position |
-|---|---|
-| `1` | First image shown |
-| `2` | Second image shown |
-| `3` | Third image shown |
-| `4` | Fourth image shown |
-| `5` | Fifth image shown |
-
-**If D3 = `3` (URL) — File location:**
-
-| Value | Location |
-|---|---|
-| `1` | Internal file (Firebase Storage) |
-| `2` | External URL (e.g. YouTube, Vimeo) |
-
----
-
 ### Sequence — NNNNNN
 
 Six-digit zero-padded global sequence number. Minted atomically from `grf_counters/global`. Never reused once assigned.
@@ -139,13 +130,14 @@ Six-digit zero-padded global sequence number. Minted atomically from `grf_counte
 
 | GRF ID | Reads as |
 |---|---|
-| `GRF-211111-000001` | Output · Image · Print · QR Composite · PNG · Front |
-| `GRF-211211-000001` | Output · Image · Print · QR Standalone · PNG · Front |
-| `GRF-212421-000001` | Output · Image · Store · Glamor Shot · JPEG · First shown |
-| `GRF-213311-000001` | Output · Image · URL · URL Graphic · WebP · Internal file |
-| `GRF-111611-000001` | Input · Image · Print · Background · PNG · Front |
-| `GRF-111511-000001` | Input · Image · Print · Source Upload · PNG · Front |
-| `GRF-111711-000001` | Input · Image · Print · Template · PNG · Front |
+| `GRF-21111-000001` | Output · Image · Print · QR Composite · PNG |
+| `GRF-21121-000001` | Output · Image · Print · QR Standalone · PNG |
+| `GRF-21211-000001` | Output · Image · Store · Glamor Shot · PNG |
+| `GRF-21312-000001` | Output · Image · URL · Snapshot · JPEG |
+| `GRF-11431-000001` | Input · Image · Assets · Background · PNG |
+| `GRF-11411-000001` | Input · Image · Assets · Original · PNG |
+| `GRF-11421-000001` | Input · Image · Assets · Cropped · PNG |
+| `GRF-11441-000001` | Input · Image · Assets · Template · PNG |
 
 ---
 
@@ -155,17 +147,25 @@ Six-digit zero-padded global sequence number. Minted atomically from `grf_counte
 grf/{grfId}/{filename}
 ```
 
-| Purpose (D4) | Filename |
-|---|---|
-| `1` QR Composite | `composite.png` |
-| `2` QR Standalone | `qr-standalone.png` |
-| `3` URL Graphic | `url-graphic.{ext}` |
-| `4` Glamor Shot | `glamor.{ext}` |
-| `5` Source Upload | `source.{ext}` |
-| `6` Background | `background.{ext}` |
-| `7` Template | `template.{ext}` |
+Filenames are derived from D3+D4 purpose:
 
-**Example:** `grf/GRF-212421-000001/glamor.jpg`
+| D3 | D4 | Name | Filename |
+|---|---|---|---|
+| print | `1` | qr_composite | `composite.png` |
+| print | `2` | qr_standalone | `qr-standalone.png` |
+| store | `1` | glamor_shot | `glamor.{ext}` |
+| store | `2` | front | `front.{ext}` |
+| store | `3` | back | `back.{ext}` |
+| url | `1` | snapshot | `snapshot.{ext}` |
+| url | `2` | graphic | `graphic.{ext}` |
+| assets | `1` | original | `{original-filename}.{ext}` |
+| assets | `2` | cropped | `cropped.{ext}` |
+| assets | `3` | background | `background.{ext}` |
+| assets | `4` | template | `template.{ext}` |
+
+**Note:** `original` (assets D4=`1`) preserves the uploaded filename as-is. All other purposes use the canonical filename above.
+
+**Example:** `grf/GRF-21211-000001/glamor.jpg`
 
 ---
 
@@ -173,29 +173,29 @@ grf/{grfId}/{filename}
 
 ```json
 {
-  "grfId":          "GRF-212421-000001",
+  "grfId":          "GRF-21211-000001",
   "assetClass":     "2",
   "mediaType":      "1",
   "channel":        "2",
-  "purpose":        "4",
-  "format":         "2",
-  "subContext":     "1",
+  "purpose":        "1",
+  "format":         "1",
   "sequence":       1,
   "assetClassName": "output_artifact",
   "mediaTypeName":  "image",
   "channelName":    "store",
   "purposeName":    "glamor_shot",
-  "formatName":     "jpeg",
-  "subContextName": "first",
-  "mimeType":       "image/jpeg",
-  "storagePath":    "grf/GRF-212421-000001/glamor.jpg",
+  "formatName":     "png",
+  "mimeType":       "image/png",
+  "storagePath":    "grf/GRF-21211-000001/glamor.png",
   "publicUrl":      "https://...",
+  "originalFilename": null,
   "packetId":       "abc123",
-  "sourceSessionId":"session456",
   "isActive":       true,
   "createdAt":      "..."
 }
 ```
+
+For `original` assets (assets channel, D4=`1`), `originalFilename` stores the uploaded filename.
 
 ---
 
@@ -211,10 +211,11 @@ Atomically incremented in a Firestore transaction for every new GRF ID. Never de
 
 1. **Assembly mappings must use grfId — never raw URLs.**
 2. **Never reuse or renumber a GRF ID.** Permanent once minted.
-3. **Format must be compatible with media type.**
-4. **Sub-context is always set** — never zero or null.
+3. **Format (D5) must be compatible with media type (D2).**
+4. **D4 is interpreted relative to D3** — the same digit means different things in different channels.
 5. **Input build assets (D1=`1`) are never exposed in store display or URL artifact chains.**
 6. **Hard fail on invalid ID** — stop, throw, do not save, do not continue.
+7. **Original uploads preserve their filename** — all other purposes use canonical filenames.
 
 ---
 
@@ -223,12 +224,12 @@ Atomically incremented in a Firestore transaction for every new GRF ID. Never de
 **Save a GRF asset:**
 ```
 POST /api/admin/graphics/save-grf
-{ assetClass, mediaType, channel, purpose, format, subContext, imageUrl, name, mimeType, packetId }
+{ assetClass, mediaType, channel, purpose, format, imageUrl, name, mimeType, packetId, originalFilename? }
 ```
 
 **Get GRF assets (filtered):**
 ```
-GET /api/admin/graphics?channel=2&purpose=4
+GET /api/admin/graphics?channel=2&purpose=1
 ```
 
 **Archive a GRF asset:**
