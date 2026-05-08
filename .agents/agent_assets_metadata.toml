@@ -221,3 +221,9 @@ id = "4rFKloZB2okOcPjFy4e1w"
 uri = "file://QRG.md"
 type = "text"
 title = "QRG Number System — Full Schema Reference"
+
+[[outputs]]
+id = "nUABfFDkyzut8IRva3z2w"
+uri = "file://changed_files.zip"
+type = "unspecified"
+title = "All Changed Files"
