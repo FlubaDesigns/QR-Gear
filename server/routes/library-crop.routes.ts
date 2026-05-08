@@ -1,19 +1,8 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
 import { getFirestoreDb, getStorageBucket, getStorageBucketName } from "../lib/firebase-admin";
-import {
-  buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_FORMATS,
-} from "@shared/graphicCodes";
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY } from "@shared/graphicCodes";
 import type { GrfAssetClass, GrfChannel, GrfMediaType } from "@shared/graphicCodes";
-
-function mimeToFormatDigit(mimeType: string): string {
-  const imageFormats = GRF_FORMATS['1' as GrfMediaType];
-  const normalized = mimeType.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mimeType.toLowerCase();
-  for (const [digit, entry] of Object.entries(imageFormats)) {
-    if (entry.mime === normalized) return digit;
-  }
-  return '2'; // fallback: JPEG
-}
 
 async function mintGrfSequence(db: FirebaseFirestore.Firestore): Promise<number> {
   const { FieldValue } = await import("firebase-admin/firestore");
@@ -31,31 +20,34 @@ export function registerLibraryCropRoutes(app: Express): void {
   /**
    * POST /api/admin/library/crop-mint
    *
-   * Mints two GRF IDs when a source image is cropped:
-   *   1. Cropped result  → GRF-1142X-NNNNNN  (input · image · assets · cropped)
-   *   2. Promoted original → GRF-1143X-NNNNNN (input · image · assets · background)
+   * Mints two GRF IDs when a source image is cropped.
+   * GRF params (assetClass, mediaType, channel, purpose, format) are pre-computed
+   * by the frontend using GRF_engine.buildCropTransition() — same pattern as save-grf.
    *
    * Body:
-   *   croppedImageData  — base64 encoded cropped image
-   *   croppedMimeType   — MIME type of the crop (usually image/jpeg)
-   *   originalPublicUrl — existing URL of the source image (becomes background's publicUrl)
-   *   originalMimeType  — MIME type of the original
-   *   name              — display name (original filename)
+   *   croppedImageData    — base64 encoded cropped image
+   *   croppedMimeType     — MIME type of the crop (for Storage content-type)
+   *   croppedGrfParams    — { assetClass, mediaType, channel, purpose, format }
+   *   backgroundGrfParams — { assetClass, mediaType, channel, purpose, format }
+   *   originalPublicUrl   — existing GCS URL of source image (becomes background publicUrl)
+   *   name                — display name
+   *   sourceGrfId         — grfId of the source image
    */
   app.post("/api/admin/library/crop-mint", isAdmin, async (req: any, res) => {
     try {
       const {
         croppedImageData,
         croppedMimeType,
+        croppedGrfParams,
+        backgroundGrfParams,
         originalPublicUrl,
-        originalMimeType,
         name,
         sourceGrfId,
       } = req.body;
 
-      if (!croppedImageData || !croppedMimeType || !originalPublicUrl || !originalMimeType || !name) {
+      if (!croppedImageData || !croppedMimeType || !croppedGrfParams || !backgroundGrfParams || !originalPublicUrl || !name) {
         return res.status(400).json({
-          error: "Missing required fields: croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name",
+          error: "Missing required fields: croppedImageData, croppedMimeType, croppedGrfParams, backgroundGrfParams, originalPublicUrl, name",
         });
       }
 
@@ -65,30 +57,20 @@ export function registerLibraryCropRoutes(app: Express): void {
       const { FieldValue } = await import("firebase-admin/firestore");
       const now = FieldValue.serverTimestamp();
 
-      const D1: GrfAssetClass = '1'; // input_build
-      const D2: GrfMediaType  = '1'; // image
-      const D3: GrfChannel    = '4'; // assets
-
-      // ── 1. Mint GRF ID for cropped (D4=2) ──────────────────────────────────
-      const croppedSeq    = await mintGrfSequence(db);
-      const croppedFormat = mimeToFormatDigit(croppedMimeType);
-      const croppedGrfId  = buildGrfId({
-        assetClass: D1, mediaType: D2, channel: D3,
-        purpose: '2', format: croppedFormat, sequence: croppedSeq,
-      });
+      // ── 1. Mint GRF ID for cropped ──────────────────────────────────────────
+      const croppedSeq   = await mintGrfSequence(db);
+      const croppedGrfId = buildGrfId({ ...croppedGrfParams, sequence: croppedSeq });
       const croppedParsed = parseGrfId(croppedGrfId);
-      const croppedExt    = croppedMimeType.includes('png') ? 'png' : 'jpg';
-      const croppedPath   = `grf/${croppedGrfId}/cropped.${croppedExt}`;
+      const croppedExt   = croppedMimeType.includes('png') ? 'png' : 'jpg';
+      const croppedPath  = `grf/${croppedGrfId}/cropped.${croppedExt}`;
 
-      // Upload cropped bytes to GRF storage path and make public
       const croppedBuffer = Buffer.from(croppedImageData, 'base64');
-      const croppedFile = bucket.file(croppedPath);
+      const croppedFile   = bucket.file(croppedPath);
       await croppedFile.save(croppedBuffer, { metadata: { contentType: croppedMimeType } });
       await croppedFile.makePublic();
       const encodedCroppedPath = croppedPath.split('/').map(encodeURIComponent).join('/');
-      const croppedPublicUrl = `https://storage.googleapis.com/${bucketName}/${encodedCroppedPath}`;
+      const croppedPublicUrl   = `https://storage.googleapis.com/${bucketName}/${encodedCroppedPath}`;
 
-      // Write grf_assets record for cropped
       await db.collection("grf_assets").doc(croppedGrfId).set({
         grfId:          croppedGrfId,
         assetClass:     croppedParsed.assetClass,
@@ -112,16 +94,11 @@ export function registerLibraryCropRoutes(app: Express): void {
         isActive:       true,
       });
 
-      // ── 2. Mint GRF ID for background (D4=3) ───────────────────────────────
+      // ── 2. Mint GRF ID for background ───────────────────────────────────────
       const backgroundSeq    = await mintGrfSequence(db);
-      const backgroundFormat = mimeToFormatDigit(originalMimeType);
-      const backgroundGrfId  = buildGrfId({
-        assetClass: D1, mediaType: D2, channel: D3,
-        purpose: '3', format: backgroundFormat, sequence: backgroundSeq,
-      });
+      const backgroundGrfId  = buildGrfId({ ...backgroundGrfParams, sequence: backgroundSeq });
       const backgroundParsed = parseGrfId(backgroundGrfId);
 
-      // Write grf_assets record for background (points to original file URL)
       await db.collection("grf_assets").doc(backgroundGrfId).set({
         grfId:          backgroundGrfId,
         assetClass:     backgroundParsed.assetClass,
@@ -135,7 +112,7 @@ export function registerLibraryCropRoutes(app: Express): void {
         channelName:    backgroundParsed.channelName,
         purposeName:    backgroundParsed.purposeName,
         formatName:     backgroundParsed.formatName,
-        mimeType:       originalMimeType,
+        mimeType:       backgroundGrfParams.format === '1' ? 'image/png' : 'image/jpeg',
         name:           `background_${name}`,
         storagePath:    null,
         publicUrl:      originalPublicUrl,
@@ -147,11 +124,7 @@ export function registerLibraryCropRoutes(app: Express): void {
 
       console.log(`[CropMint] Minted ${croppedGrfId} (cropped) + ${backgroundGrfId} (background) for "${name}"`);
 
-      res.json({
-        success: true,
-        croppedGrfId,
-        backgroundGrfId,
-      });
+      res.json({ success: true, croppedGrfId, backgroundGrfId });
     } catch (error: any) {
       console.error("[CropMint] Error:", error);
       res.status(500).json({ error: error.message });

@@ -11,7 +11,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import { SourceDetailShape } from "@/features/shared/components/shapes/SourceShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { originalGrfParams, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
+import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape from API ──────────────────────────────────────────────────
@@ -178,6 +178,11 @@ function SourceImagesTabInner() {
     const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
     const origUrl  = raw?.publicUrl || sourceAsset.imageUrl;
 
+    // Pre-compute GRF params via GRF_engine — same pattern as save-grf
+    const croppedMimeType = "image/jpeg";
+    const { cropped: croppedGrfParams, background: backgroundGrfParams } =
+      buildCropTransition(origMime, croppedMimeType);
+
     // Strip data URI prefix — crop-mint expects raw base64
     const croppedImageData = croppedDataUrl.startsWith("data:")
       ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
@@ -188,9 +193,10 @@ function SourceImagesTabInner() {
         method: "POST",
         json: {
           croppedImageData,
-          croppedMimeType:   "image/jpeg",
+          croppedMimeType,
+          croppedGrfParams,
+          backgroundGrfParams,
           originalPublicUrl: origUrl,
-          originalMimeType:  origMime,
           name:              origName,
           sourceGrfId:       grfId,
         },
