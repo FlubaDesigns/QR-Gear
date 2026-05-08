@@ -216,10 +216,12 @@ client/src/features/shared/components/
     ScrollHorizontalView.tsx   # View code 2 — horizontal scroll
     ScrollVerticalView.tsx     # View code 1 — vertical scroll, list
     SingleView.tsx             # View code 0 — no scroll
+
+  shapes/                      # Shape components (third digit)
     ModalView.tsx              # Shape code 1 — popup/modal
 
   skins/                       # Skin components (named)
-    SourceImageSkin.tsx        # SourceImageCardSkin + SourceImageDetailSkin
+    SourceSkin.tsx             # SourceCardSkin + SourceDetailSkin
 
 client/src/features/adminLibrary/tabs/
   SourceImagesTab.tsx          # VVS 1·1·1 — source GRF originals

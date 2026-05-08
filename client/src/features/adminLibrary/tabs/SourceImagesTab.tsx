@@ -8,7 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
-import { SourceImageCardSkin, SourceImageDetailSkin } from "@/features/shared/components/skins/SourceImageSkin";
+import { SourceCardSkin, SourceDetailSkin } from "@/features/shared/components/skins/SourceSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { originalGrfParams, buildCropTransition, GRF_FILTER_ORIGINALS } from "../shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
@@ -265,7 +265,7 @@ function SourceImagesTabInner() {
           emptyMessage="No source images uploaded yet."
           emptyIcon={<ImagePlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
           renderItem={(item) => (
-            <SourceImageCardSkin
+            <SourceCardSkin
               item={item}
               onClick={() => handleSelectItem(item)}
               actions={{
@@ -290,7 +290,7 @@ function SourceImagesTabInner() {
             onClick={(e) => e.stopPropagation()}
             data-testid="modal-source-detail"
           >
-            <SourceImageDetailSkin
+            <SourceDetailSkin
               item={selectedItem}
               actions={{
                 onCrop:   () => handleStartCrop(selectedItem),
