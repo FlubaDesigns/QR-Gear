@@ -36,7 +36,7 @@ export function ModalView({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-2 right-2 z-10 bg-background/80"
+            className="absolute top-2 left-2 z-10 bg-background/80"
             onClick={() => onOpenChange(false)}
             data-testid="button-modal-close"
           >

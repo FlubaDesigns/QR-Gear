@@ -16,7 +16,6 @@ export function SourceDetailShape({ item, actions, onClose }: DetailSkinProps) {
 
   const handleCrop = () => {
     actions?.onCrop?.(item.id);
-    onClose?.();
   };
 
   const handleDelete = () => {
