@@ -2,14 +2,13 @@ import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
-import { ItemModalView } from "@/features/shared/components/views/ModalView";
-import type { GridViewItem } from "@/features/shared/components/views/index";
-import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
+import { BackgroundCardSkin, BackgroundDetailSkin } from "@/features/shared/components/skins/BackgroundSkin";
+import type { SkinItem } from "@/features/shared/components/skins/types";
 import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "../shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
 
@@ -28,6 +27,29 @@ interface GrfAsset {
   isActive: boolean;
 }
 
+// ── SkinItem mapper ───────────────────────────────────────────────────────────
+
+function assetToSkinItem(asset: GrfAsset): SkinItem {
+  return {
+    id:           asset.grfId || asset.id,
+    name:         asset.name || asset.originalFilename || "Untitled",
+    primaryImage: asset.publicUrl || "",
+    metadata: {
+      raw:         asset,
+      grfId:       asset.grfId || asset.id,
+      mimeType:    asset.mimeType,
+      sourceGrfId: asset.sourceGrfId ?? undefined,
+    },
+  };
+}
+
+async function fetchImageBlob(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 // ── Error boundary ────────────────────────────────────────────────────────────
 
 class BackgroundsBoundary extends Component<
@@ -35,16 +57,11 @@ class BackgroundsBoundary extends Component<
   { hasError: boolean; error: Error | null }
 > {
   state = { hasError: false, error: null as Error | null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[BackgroundsTab] CRASH:", error.message, error.stack);
     console.error("[BackgroundsTab] Component stack:", info.componentStack);
   }
-
   render() {
     if (this.state.hasError) {
       return (
@@ -68,29 +85,12 @@ class BackgroundsBoundary extends Component<
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function assetToGridItem(asset: GrfAsset): GridViewItem {
-  return {
-    id:       asset.id,
-    name:     asset.name,
-    imageUrl: asset.publicUrl || "",
-  };
-}
-
-async function fetchImageBlob(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
-
 // ── Inner tab ─────────────────────────────────────────────────────────────────
 
 function BackgroundsTabInner() {
   const { toast } = useToast();
-  const [selectedItem,   setSelectedItem]   = useState<GridViewItem | null>(null);
-  const [singleViewOpen, setSingleViewOpen] = useState(false);
+  const [selectedItem,   setSelectedItem]   = useState<SkinItem | null>(null);
+  const [detailOpen,     setDetailOpen]     = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
@@ -102,38 +102,43 @@ function BackgroundsTabInner() {
       ),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) =>
-      adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
+  const archiveMutation = useMutation({
+    mutationFn: (skinId: string) => {
+      const raw = assets.find(a => (a.grfId || a.id) === skinId);
+      const id  = raw?.id ?? skinId;
+      return adminFetch(`/graphics/${id}/archive`, { method: "PATCH" });
+    },
     onSuccess: () => {
       toast({ title: "Image archived" });
       queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
-      setSingleViewOpen(false);
+      setDetailOpen(false);
       setSelectedItem(null);
     },
     onError: (error: Error) => {
-      console.error("[BackgroundsTab] Archive error:", error);
+      console.error("[BackgroundsTab] Archive error:", error.message);
       toast({ title: "Archive failed", description: error.message, variant: "destructive" });
     },
   });
 
-  const gridItems = useMemo(() => assets.map(assetToGridItem), [assets]);
+  const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
 
-  const handleSelect = (item: GridViewItem) => {
+  const handleSelect = (item: SkinItem) => {
     setSelectedItem(item);
-    setSingleViewOpen(true);
+    setDetailOpen(true);
   };
 
-  const handleCrop = (id: string) => {
-    const asset = assets.find(a => a.id === id);
-    if (!asset) {
-      console.error("[BackgroundsTab] Asset not found for crop:", id);
+  const handleStartCrop = (skinId: string) => {
+    const raw = assets.find(a => (a.grfId || a.id) === skinId);
+    if (!raw) {
+      console.error("[BackgroundsTab] Asset not found for crop:", skinId);
       return;
     }
-    setAssetToCrop({ id: asset.id, name: asset.name, imageUrl: asset.publicUrl || "" });
-    setSingleViewOpen(false);
+    setAssetToCrop({ id: raw.id, name: raw.name, imageUrl: raw.publicUrl || "" });
+    setDetailOpen(false);
     setCropDialogOpen(true);
   };
+
+  const handleArchive = (skinId: string) => archiveMutation.mutate(skinId);
 
   const handleSaveCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) {
@@ -149,7 +154,6 @@ function BackgroundsTabInner() {
     try {
       const originalMimeType = originalAsset.mimeType || "image/jpeg";
       const croppedMimeType  = "image/jpeg";
-
       const { cropped: croppedGrfParams, background: backgroundGrfParams } =
         buildCropTransition(originalMimeType, croppedMimeType);
 
@@ -182,19 +186,12 @@ function BackgroundsTabInner() {
     }
   };
 
-  const handleDelete = (id: string) => deleteMutation.mutate(id);
-
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold" data-testid="text-backgrounds-count">
-            {assets.length} Background Images
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Promoted originals from the crop pipeline — GRF channel 4, purpose 3
-          </p>
-        </div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide" data-testid="text-backgrounds-count">
+          {assets.length} Background Images
+        </h3>
       </div>
 
       {queryError && (
@@ -205,59 +202,60 @@ function BackgroundsTabInner() {
       )}
 
       {assets.length === 0 && !isLoading && !queryError ? (
-        <div className="text-center py-12 bg-muted/30 rounded-lg">
+        <div className="text-center py-12 bg-muted/30 rounded-lg" data-testid="empty-backgrounds">
           <ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground" data-testid="text-no-backgrounds">
-            No background images yet.
-          </p>
+          <p className="text-muted-foreground">No background images yet.</p>
           <p className="text-sm text-muted-foreground mt-1">
             Crop a source image to promote its original here as a background asset.
           </p>
         </div>
       ) : (
         <ScrollGridView
-          items={gridItems}
-          renderItem={(item) => (
-            <div
-              className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
-              onClick={() => handleSelect(item)}
-              data-testid={`card-grid-item-${item.id}`}
-            >
-              {item.imageUrl ? (
-                <img src={item.imageUrl} alt="" className="w-full h-auto" />
-              ) : (
-                <div className="flex flex-col items-center justify-center bg-muted h-32 gap-1" data-testid={`placeholder-no-url-${item.id}`}>
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <span className="text-xs text-destructive font-mono">No URL</span>
-                </div>
-              )}
-            </div>
-          )}
+          items={skinItems}
           isLoading={isLoading}
           emptyMessage="No background images yet."
-          columns="grid-cols-2 sm:grid-cols-3"
+          emptyIcon={<ImageIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+          columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
           height="auto"
           footer={null}
+          renderItem={(item) => (
+            <BackgroundCardSkin
+              item={item}
+              onClick={() => handleSelect(item)}
+              actions={{
+                onCrop:   handleStartCrop,
+                onDelete: handleArchive,
+              }}
+              isActionPending={archiveMutation.isPending}
+            />
+          )}
         />
       )}
 
-      <ItemModalView
-        item={selectedItem ? {
-          id:       selectedItem.id,
-          name:     selectedItem.name,
-          imageUrl: selectedItem.imageUrl,
-        } : null}
-        open={singleViewOpen}
-        onOpenChange={setSingleViewOpen}
-      >
-        <CropDeleteSkin
-          itemId={selectedItem?.id || ""}
-          onCrop={handleCrop}
-          onDelete={handleDelete}
-          onClose={() => setSingleViewOpen(false)}
-          isDeleting={deleteMutation.isPending}
-        />
-      </ItemModalView>
+      {/* Detail popup */}
+      {selectedItem && detailOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setDetailOpen(false)}
+          data-testid="overlay-background-detail"
+        >
+          <div
+            className="bg-background rounded-lg p-6 w-full max-w-xs mx-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="modal-background-detail"
+          >
+            <BackgroundDetailSkin
+              item={selectedItem}
+              actions={{
+                onCrop:   handleStartCrop,
+                onDelete: handleArchive,
+              }}
+              onClose={() => setDetailOpen(false)}
+              isActionPending={archiveMutation.isPending}
+            />
+          </div>
+        </div>
+      )}
 
       <CropUtility
         asset={assetToCrop}
