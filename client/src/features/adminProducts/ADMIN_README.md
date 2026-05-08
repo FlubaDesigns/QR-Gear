@@ -399,3 +399,34 @@ bash deploy/3-hosting.sh    # Deploy frontend hosting (75s)
 - Frontend-only changes: step 1 → step 3, skip step 2
 
 **Live URL:** https://qrgear-c1ffd.web.app
+
+---
+
+## PENDING AGENT WORK — GRF ATOMIC NUMBER (May 8 2026)
+
+### What needs to happen
+
+Every file in the system — source upload, crop, background, QR, composite, landing snapshot — must carry one permanent GRF ID from the moment it is created through every downstream step (builder, packet, assembly). The user calls this the "atomic number." Right now the chain breaks at the builder: a background is selected by URL only, and when a packet is committed `registerPacketGrfsDev`/`registerGrfAsset` mints a brand-new GRF ID for a URL that already has one in `grf_assets`, producing duplicates and losing the lineage.
+
+### What was attempted
+
+1. Added URL-dedup lookup inside `registerGrfDev` (dev) and `registerGrfAsset` (prod) — query `grf_assets` where `sourceUrl == url` before minting a new counter sequence. If found, reuse and update `packetId`/`sourceSessionId`. This is in `server/lib/schema-commit.ts` and `functions/src/services/grf-registrar.ts`.
+2. Consolidated all `graphicCodes` imports behind `shared/GRF_engine.ts` so the engine is the single door. Every server route, Cloud Function, and frontend file now imports from `@shared/GRF_engine` only.
+
+### Why it is still broken
+
+The URL-dedup fix only works for the packet-commit path. It does NOT fix the case where an asset was uploaded/cropped before a proper GRF ID existed — those old Firestore docs have wrong `grfId` values (legacy Firestore document IDs like `1000050493` instead of `GRF-11411-NNNNNN`). The dedup query finds those bad docs and returns the bad ID.
+
+The real fix requires:
+- A one-time Firestore migration to backfill correct `GRF-114XX-NNNNNN` IDs on all `grf_assets` docs that have non-GRF `grfId` values
+- Possibly also fixing the `sourceGrfId` field on cropped/background docs that point to those bad parent IDs
+- Verifying the crop-mint route correctly passes `originalMimeType` so `buildCropTransition` produces 114XX codes (it appears correct in code but has not been confirmed against live data)
+
+### Source of truth files
+
+- `shared/GRF_engine.ts` — ALL GRF logic must go through here
+- `shared/graphicCodes.ts` — internal implementation, do not import directly
+- `server/lib/schema-commit.ts` — dev server GRF registration (has dedup)
+- `functions/src/services/grf-registrar.ts` — prod GRF registration (has dedup)
+- `server/routes/library-crop.routes.ts` — crop-mint route (uses engine)
+- `functions/src/routes/admin-library-crop.ts` — prod crop-mint (uses engine)

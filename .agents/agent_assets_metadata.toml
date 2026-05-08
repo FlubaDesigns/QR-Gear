@@ -227,3 +227,9 @@ id = "nUABfFDkyzut8IRva3z2w"
 uri = "file://changed_files.zip"
 type = "unspecified"
 title = "All Changed Files"
+
+[[outputs]]
+id = "p0NKf4BoJpwgQC2H944TO"
+uri = "file://qrgear-source.zip"
+type = "unspecified"
+title = "QR Gear Source Code"
