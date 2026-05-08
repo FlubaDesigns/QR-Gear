@@ -1,48 +1,81 @@
 /**
- * client/src/features/adminLibrary/shared/grfAssetEngine.ts
+ * client/src/features/adminLibrary/shared/GRF_engine.ts
  *
  * Library asset naming engine — built on top of shared/graphicCodes.ts.
  *
- * Provides canonical GRF params for every asset type in the internal
- * asset library (D3 = channel 4 "assets"). All library tabs use this
- * file as the single source of truth for which digits to send to save-grf.
+ * All digit values, labels, and MIME mappings are derived directly from
+ * the GRF scheme in graphicCodes.ts. Nothing is re-invented here.
  *
- * D1 = 1 (input_build)
- * D2 = 1 (image)
- * D3 = 4 (assets)
- * D4 = purpose within the assets channel (1=original, 2=cropped, 3=background, 4=template)
- * D5 = format, derived from MIME type
+ * D1 = '1' (input_build)   — from GRF_ASSET_CLASSES
+ * D2 = '1' (image)         — from GRF_MEDIA_TYPES
+ * D3 = '4' (assets)        — from GRF_CHANNELS
+ * D4 = purpose             — from GRF_PURPOSES_BY_CHANNEL['4']
+ * D5 = format              — from GRF_FORMATS['1'] keyed by MIME type
  *
  * See GRF.md for the full schema.
- * See shared/graphicCodes.ts for low-level ID format, parsing, and validation.
  */
 
-import type { GrfAssetClass, GrfChannel, GrfFormat, GrfMediaType } from '@shared/graphicCodes';
+import {
+  GRF_ASSET_CLASSES,
+  GRF_MEDIA_TYPES,
+  GRF_CHANNELS,
+  GRF_PURPOSES_BY_CHANNEL,
+  GRF_FORMATS,
+  isValidGrfId,
+  parseGrfId,
+} from '@shared/graphicCodes';
 
-// ── Fixed digits for all assets-channel library assets ────────────────────────
+import type {
+  GrfAssetClass,
+  GrfChannel,
+  GrfFormat,
+  GrfMediaType,
+} from '@shared/graphicCodes';
+
+// ── Fixed digits — verified against the GRF scheme ───────────────────────────
 
 export const LIBRARY_ASSET_CLASS: GrfAssetClass = '1'; // input_build
 export const LIBRARY_MEDIA_TYPE:  GrfMediaType  = '1'; // image
 export const LIBRARY_CHANNEL:     GrfChannel    = '4'; // assets
 
-// ── D4 — Purpose within the assets channel ────────────────────────────────────
+// Confirm these exist in the scheme at module load — hard-fail if not
+if (!GRF_ASSET_CLASSES[LIBRARY_ASSET_CLASS]) throw new Error(`GRF_engine: unknown asset class "${LIBRARY_ASSET_CLASS}"`);
+if (!GRF_MEDIA_TYPES[LIBRARY_MEDIA_TYPE])    throw new Error(`GRF_engine: unknown media type "${LIBRARY_MEDIA_TYPE}"`);
+if (!GRF_CHANNELS[LIBRARY_CHANNEL])          throw new Error(`GRF_engine: unknown channel "${LIBRARY_CHANNEL}"`);
 
-export const PURPOSE_ORIGINAL:   '1' = '1'; // raw upload, filename preserved
-export const PURPOSE_CROPPED:    '2' = '2'; // cropped derivative of an original
-export const PURPOSE_BACKGROUND: '3' = '3'; // promoted original used in builder
-export const PURPOSE_TEMPLATE:   '4' = '4'; // reusable graphic across products
+// ── D4 — Purpose digits, taken from GRF_PURPOSES_BY_CHANNEL['4'] ─────────────
 
-// ── MIME type → GRF format digit (D5) ────────────────────────────────────────
+const _assetPurposes = GRF_PURPOSES_BY_CHANNEL[LIBRARY_CHANNEL];
+
+function _requirePurpose(digit: string): string {
+  if (!_assetPurposes[digit]) throw new Error(`GRF_engine: no assets-channel purpose for digit "${digit}"`);
+  return digit;
+}
+
+export const PURPOSE_ORIGINAL:   string = _requirePurpose('1'); // raw upload, filename preserved
+export const PURPOSE_CROPPED:    string = _requirePurpose('2'); // cropped derivative
+export const PURPOSE_BACKGROUND: string = _requirePurpose('3'); // promoted original used in builder
+export const PURPOSE_TEMPLATE:   string = _requirePurpose('4'); // reusable graphic
+
+// ── MIME type → D5 format digit, derived from GRF_FORMATS ────────────────────
+
+const _imageFormats = GRF_FORMATS[LIBRARY_MEDIA_TYPE]; // all image format entries
+
+const _mimeToFormat: Record<string, GrfFormat> = {};
+for (const [digit, entry] of Object.entries(_imageFormats)) {
+  _mimeToFormat[entry.mime] = digit as GrfFormat;
+}
 
 export function mimeToGrfFormat(mimeType: string): GrfFormat {
-  switch (mimeType.toLowerCase()) {
-    case 'image/png':     return '1';
-    case 'image/jpeg':
-    case 'image/jpg':     return '2';
-    case 'image/webp':    return '3';
-    case 'image/svg+xml': return '4';
-    default:              return '2'; // fallback: JPEG
+  const normalized = mimeType.toLowerCase();
+  // image/jpg is not in the scheme — normalize to image/jpeg
+  const lookup = normalized === 'image/jpg' ? 'image/jpeg' : normalized;
+  const digit = _mimeToFormat[lookup];
+  if (!digit) {
+    console.warn(`GRF_engine: unrecognized MIME type "${mimeType}", defaulting to JPEG`);
+    return _mimeToFormat['image/jpeg'];
   }
+  return digit;
 }
 
 // ── GRF param shape sent to save-grf ─────────────────────────────────────────
@@ -98,9 +131,9 @@ export function templateGrfParams(mimeType: string): LibraryGrfParams {
 }
 
 // ── Crop transition ───────────────────────────────────────────────────────────
-// When a source image is cropped, two GRF records are created:
-//   1. The crop result        → purpose=2 (cropped)
-//   2. The promoted original  → purpose=3 (background)
+// When a source image is cropped, two GRF records are produced:
+//   1. The crop result       → purpose=2 (cropped)
+//   2. The promoted original → purpose=3 (background)
 
 export interface CropTransition {
   cropped:    LibraryGrfParams;
@@ -117,9 +150,20 @@ export function buildCropTransition(
   };
 }
 
+// ── Purpose label lookup — from the scheme, not hardcoded ─────────────────────
+
+export function purposeLabel(purpose: string): string {
+  return _assetPurposes[purpose]?.label ?? purpose;
+}
+
 // ── Query filter params — use with GET /api/admin/graphics ────────────────────
 
 export const GRF_FILTER_ORIGINALS   = { channel: LIBRARY_CHANNEL, purpose: PURPOSE_ORIGINAL   };
 export const GRF_FILTER_CROPPED     = { channel: LIBRARY_CHANNEL, purpose: PURPOSE_CROPPED     };
 export const GRF_FILTER_BACKGROUNDS = { channel: LIBRARY_CHANNEL, purpose: PURPOSE_BACKGROUND  };
 export const GRF_FILTER_TEMPLATES   = { channel: LIBRARY_CHANNEL, purpose: PURPOSE_TEMPLATE    };
+
+// ── Re-export what callers need from graphicCodes ────────────────────────────
+// So tabs only need to import from GRF_engine, not graphicCodes directly.
+
+export { isValidGrfId, parseGrfId };
