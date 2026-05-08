@@ -66,11 +66,11 @@ VITE_SITE_ID = "qr-gear"
 FLUBA_BRAIN_URL = "https://us-central1-flubadesigns-25482.cloudfunctions.net/brainIngressHttp"
 FLUBA_SITE_SECRET = "32755af7ebe92c9b7cab06a7cbb45040c8be2bab80a21ff81fcd835c34293619"
 PRINTFUL-API-TOKEN = "KnKgzeCB7Y3X6S1Wh7cVH1TAwWQPHCii0e4TuvHZ"
-VITE_ADMIN_BYPASS = "false"
 
 [userenv.development]
 PRINTFUL_API_KEY = "2O4DwAZeuDDrzW1sJqQDbT7wHCBe6ECFgo4zoam8"
 ADMIN_BYPASS = "true"
+VITE_ADMIN_BYPASS = "true"
 
 [userenv.production]
 PRINTFUL_API_KEY = "tHcnUzAhXlK3oqwQBLv1hEFM4iua9laLPIon3pIt"
