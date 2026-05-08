@@ -100,7 +100,7 @@ title = "QR Gear Full Source Backup"
 id = "LpkDWMxG1f-h35YkcrvEo"
 uri = "file://downloads/QR_Gear_Full_Website.zip"
 type = "unspecified"
-title = "QR Gear Full Website (updated)"
+title = "QR Gear Full Website (rev 34 — May 5, 2026)"
 
 [[outputs]]
 id = "VCcE20W2Vqioz2fz1HEQl"
@@ -221,15 +221,3 @@ id = "4rFKloZB2okOcPjFy4e1w"
 uri = "file://QRG.md"
 type = "text"
 title = "QRG Number System — Full Schema Reference"
-
-[[outputs]]
-id = "JfokCpcmDcHEGbRXrGyMI"
-uri = "file://docs/GRF.md"
-type = "text"
-title = "GRF Schema — Rebuilt"
-
-[[outputs]]
-id = "C-OhlWP2Sal6EBoJAodDO"
-uri = "file://GRF.md"
-type = "text"
-title = "GRF.md — Final Schema"

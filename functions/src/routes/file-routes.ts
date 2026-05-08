@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { buildGrfId, parseGrfId, isValidGrfId, GRF_COUNTER_KEY, grfStoragePath, GRF_FORMATS } from '../../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, isValidGrfId, GRF_COUNTER_KEY, grfStoragePath } from '../../../shared/graphicCodes';
 import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/graphicCodes';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -220,155 +220,24 @@ app.post('/upload', async (req: Request, res: Response): Promise<void> => {
 });
 
 
-// ============ LIBRARY ASSET ENDPOINTS (source / cropped / background pipeline) ============
+// ============ LEGACY library_assets ENDPOINTS — REMOVED ============
+// All routes below return 410 Gone. Clients must use grf_assets endpoints instead:
+//   Backgrounds : GET /admin/graphics?assetClass=1&purpose=6
+//   URL/landing : GET /admin/graphics?assetClass=2&channel=3&purpose=3
+//   Upload/mint : POST /admin/graphics/save-grf
+//   Archive     : PATCH /admin/graphics/:grfId/archive
 
-const VALID_ASSET_TYPES = new Set(['source', 'cropped', 'background', 'template', 'design']);
-
-function sanitizeAssetFilename(name: string): string {
-  return String(name || 'file').replace(/[^a-zA-Z0-9.-]/g, '_');
-}
-
-app.get('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const typeFilter = (req.query.type as string) || 'source';
-    if (!VALID_ASSET_TYPES.has(typeFilter)) {
-      res.status(400).json({ error: `Invalid type. Must be one of: ${[...VALID_ASSET_TYPES].join(', ')}` });
-      return;
-    }
-    const snapshot = await db.collection('library_assets')
-      .where('isActive', '==', true)
-      .where('assetType', '==', typeFilter)
-      .get();
-
-    const assets = snapshot.docs.map((doc: any) => {
-      const data = doc.data();
-      const filename = (data.storageUrl || '').split('/').pop() || data.fileName || '';
-      const proxyUrl = `/api/library-files/${encodeURIComponent(filename)}`;
-      return { id: doc.id, ...data, proxyUrl, publicUrl: proxyUrl };
-    });
-
-    assets.sort((a: any, b: any) => {
-      const getTime = (val: any): number => {
-        if (!val) return 0;
-        if (typeof val === 'string') return new Date(val).getTime() || 0;
-        if (val.toDate) return val.toDate().getTime();
-        if (val._seconds) return val._seconds * 1000;
-        return 0;
-      };
-      return getTime(a.createdAt) - getTime(b.createdAt);
-    });
-
-    res.json(assets);
-  } catch (error: any) {
-    console.error('[BackgroundAssets][GET] Error:', error);
-    res.status(500).json({ error: error.message });
-  }
+app.get('/admin/background-assets', requireAdmin, (_req: Request, res: Response): void => {
+  res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=1&purpose=6' });
 });
-
-app.post('/admin/background-assets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { name, assetType, imageData, mimeType, sourceAssetId } = req.body;
-
-    if (!name || !assetType || !imageData) {
-      res.status(400).json({ error: 'Missing required fields: name, assetType, imageData' });
-      return;
-    }
-    if (assetType !== 'source' && assetType !== 'cropped') {
-      res.status(400).json({ error: "assetType must be 'source' or 'cropped'" });
-      return;
-    }
-
-    const buffer = Buffer.from(imageData, 'base64');
-    const folderPath = assetType === 'source' ? 'library/backgrounds/raw' : 'library/backgrounds/cropped';
-    const safeName = sanitizeAssetFilename(name);
-
-    const timestamp = Date.now();
-    const fullPath = `${folderPath}/${timestamp}-${safeName}`;
-    const file = storage.bucket().file(fullPath);
-    await file.save(buffer, { metadata: { contentType: mimeType || 'image/png' } });
-
-    const actualFilename = fullPath.split('/').pop() || safeName;
-    const proxyUrl = `/api/library-files/${encodeURIComponent(actualFilename)}`;
-
-    const { FieldValue } = await import('firebase-admin/firestore');
-    const docRef = await db.collection('library_assets').add({
-      ownerType: 'admin',
-      assetType,
-      mediaType: 'image',
-      name: safeName.replace(/\.[^/.]+$/, ''),
-      fileName: actualFilename,
-      originalName: safeName,
-      mimeType: mimeType || 'image/png',
-      sizeBytes: buffer.length,
-      storageUrl: fullPath,
-      publicUrl: proxyUrl,
-      isActive: true,
-      createdAt: FieldValue.serverTimestamp(),
-      ...(sourceAssetId ? { sourceAssetId } : {}),
-    });
-
-    if (assetType === 'cropped' && sourceAssetId) {
-      try {
-        await db.collection('library_assets').doc(sourceAssetId).update({ assetType: 'background' });
-        console.log(`[BackgroundAssets] Source ${sourceAssetId} moved to background after crop`);
-      } catch (moveErr: any) {
-        console.error('[BackgroundAssets] Failed to move source to background:', moveErr.message);
-      }
-    }
-
-    const doc = await docRef.get();
-    res.json({ id: doc.id, ...doc.data(), proxyUrl });
-  } catch (error: any) {
-    console.error('[BackgroundAssets][POST] Error:', error);
-    res.status(500).json({ error: error.message });
-  }
+app.post('/admin/background-assets', requireAdmin, (_req: Request, res: Response): void => {
+  res.status(410).json({ error: 'Removed. Use POST /admin/graphics/save-grf' });
 });
-
-app.post('/admin/background-assets/sync', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const folder = 'library/backgrounds/raw';
-    const [files] = await storage.bucket().getFiles({ prefix: folder });
-
-    const existingSnap = await db.collection('library_assets')
-      .where('isActive', '==', true)
-      .where('assetType', '==', 'background')
-      .get();
-    const existingPaths = new Set(existingSnap.docs.map((d: any) => d.data().storageUrl));
-
-    const { FieldValue } = await import('firebase-admin/firestore');
-    const created: any[] = [];
-    for (const file of files) {
-      if (existingPaths.has(file.name)) continue;
-      const [meta] = await file.getMetadata();
-      const contentType: string = meta.contentType || '';
-      if (!contentType.startsWith('image/')) continue;
-      const filename = file.name.split('/').pop() || file.name;
-      const proxyUrl = `/api/library-files/${encodeURIComponent(filename)}`;
-      const docRef = await db.collection('library_assets').add({
-        ownerType: 'admin', assetType: 'background', mediaType: 'image',
-        name: filename.replace(/\.[^/.]+$/, ''), fileName: filename,
-        originalName: filename, mimeType: contentType,
-        sizeBytes: Number(meta.size) || 0,
-        storageUrl: file.name, publicUrl: proxyUrl, isActive: true,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-      created.push({ id: docRef.id, proxyUrl });
-    }
-    res.json({ scanned: files.length, existing: existingSnap.size, created: created.length });
-  } catch (error: any) {
-    console.error('[BackgroundAssets][SYNC] Error:', error);
-    res.status(500).json({ error: error.message });
-  }
+app.post('/admin/background-assets/sync', requireAdmin, (_req: Request, res: Response): void => {
+  res.status(410).json({ error: 'Removed.' });
 });
-
-app.delete('/admin/background-assets/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('library_assets').doc(req.params.id).update({ isActive: false });
-    res.json({ success: true });
-  } catch (error: any) {
-    console.error('[BackgroundAssets][DELETE] Error:', error);
-    res.status(500).json({ error: error.message });
-  }
+app.delete('/admin/background-assets/:id', requireAdmin, (_req: Request, res: Response): void => {
+  res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
 });
 app.get('/admin/library/admin', requireAdmin, (_req: Request, res: Response): void => {
   res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=2&channel=3&purpose=3' });
@@ -473,89 +342,6 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
     res.json({ success: true, grfId, asset: docToObject(doc) });
   } catch (error: any) {
     console.error('[GRF] Error saving graphic:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Crop-mint: upload cropped image + mint two GRF IDs (cropped + background)
-app.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name } = req.body;
-
-    if (!croppedImageData || !croppedMimeType || !originalPublicUrl || !originalMimeType || !name) {
-      res.status(400).json({ error: 'Missing required fields: croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name' });
-      return;
-    }
-
-    const { FieldValue } = await import('firebase-admin/firestore');
-    const now = FieldValue.serverTimestamp();
-
-    function mimeToFormatDigit(mimeType: string): string {
-      const normalized = mimeType.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mimeType.toLowerCase();
-      for (const [digit, entry] of Object.entries(GRF_FORMATS['1'] as Record<string, { label: string; mime: string }>)) {
-        if (entry.mime === normalized) return digit;
-      }
-      return '2';
-    }
-
-    async function mintSeq(): Promise<number> {
-      const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
-      let seq = 0;
-      await db.runTransaction(async (tx: any) => {
-        const doc = await tx.get(counterRef);
-        seq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
-        tx.set(counterRef, { count: seq, updatedAt: FieldValue.serverTimestamp() });
-      });
-      return seq;
-    }
-
-    // ── 1. Mint cropped GRF ID (D4=2) ──────────────────────────────────────
-    const croppedSeq    = await mintSeq();
-    const croppedFormat = mimeToFormatDigit(croppedMimeType);
-    const croppedGrfId  = buildGrfId({ assetClass: '1', mediaType: '1', channel: '4', purpose: '2', format: croppedFormat, sequence: croppedSeq });
-    const croppedParsed = parseGrfId(croppedGrfId);
-    const croppedExt    = croppedMimeType.includes('png') ? 'png' : 'jpg';
-    const croppedPath   = `grf/${croppedGrfId}/cropped.${croppedExt}`;
-
-    const croppedBuffer = Buffer.from(croppedImageData, 'base64');
-    await storage.bucket().file(croppedPath).save(croppedBuffer, { metadata: { contentType: croppedMimeType } });
-
-    const croppedPublicUrl = `/api/grf-files/${croppedGrfId}/cropped.${croppedExt}`;
-
-    await db.collection('grf_assets').doc(croppedGrfId).set({
-      grfId: croppedGrfId,
-      assetClass: croppedParsed.assetClass, mediaType: croppedParsed.mediaType,
-      channel: croppedParsed.channel, purpose: croppedParsed.purpose,
-      format: croppedParsed.format, sequence: croppedParsed.sequence,
-      assetClassName: croppedParsed.assetClassName, mediaTypeName: croppedParsed.mediaTypeName,
-      channelName: croppedParsed.channelName, purposeName: croppedParsed.purposeName,
-      formatName: croppedParsed.formatName, mimeType: croppedMimeType,
-      name: `cropped_${name}`, storagePath: croppedPath, publicUrl: croppedPublicUrl,
-      sourceGrfId: null, createdAt: now, createdBy: 'admin', isActive: true,
-    });
-
-    // ── 2. Mint background GRF ID (D4=3) ───────────────────────────────────
-    const backgroundSeq    = await mintSeq();
-    const backgroundFormat = mimeToFormatDigit(originalMimeType);
-    const backgroundGrfId  = buildGrfId({ assetClass: '1', mediaType: '1', channel: '4', purpose: '3', format: backgroundFormat, sequence: backgroundSeq });
-    const backgroundParsed = parseGrfId(backgroundGrfId);
-
-    await db.collection('grf_assets').doc(backgroundGrfId).set({
-      grfId: backgroundGrfId,
-      assetClass: backgroundParsed.assetClass, mediaType: backgroundParsed.mediaType,
-      channel: backgroundParsed.channel, purpose: backgroundParsed.purpose,
-      format: backgroundParsed.format, sequence: backgroundParsed.sequence,
-      assetClassName: backgroundParsed.assetClassName, mediaTypeName: backgroundParsed.mediaTypeName,
-      channelName: backgroundParsed.channelName, purposeName: backgroundParsed.purposeName,
-      formatName: backgroundParsed.formatName, mimeType: originalMimeType,
-      name: `background_${name}`, storagePath: null, publicUrl: originalPublicUrl,
-      sourceGrfId: null, createdAt: now, createdBy: 'admin', isActive: true,
-    });
-
-    console.log(`[CropMint] Minted ${croppedGrfId} (cropped) + ${backgroundGrfId} (background) for "${name}"`);
-    res.json({ success: true, croppedGrfId, backgroundGrfId });
-  } catch (error: any) {
-    console.error('[CropMint] Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

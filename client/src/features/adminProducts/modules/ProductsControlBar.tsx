@@ -39,11 +39,12 @@ export function ProductsControlBar() {
   }, []);
 
   const rebuildMasterProducts = useCallback(async () => {
-    toast({
-      title: "Use Cloud Functions sync to rebuild the master catalog",
-      description: "The dev-server rebuild route has been removed. Trigger a sync from the Sync module in the admin panel instead.",
-    });
-  }, [toast]);
+    try {
+      await adminFetch("/sync-master-products", { method: "POST" });
+    } catch (e) {
+      console.error("[rebuildMasterProducts] Failed:", e);
+    }
+  }, []);
 
   const pollSyncStatus = useCallback(
     async (syncId?: string) => {

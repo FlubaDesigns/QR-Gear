@@ -4,6 +4,7 @@ import { registerStoreProductLinksRoutes } from "./misc/store-product-links.rout
 import { registerHostingTiersRoutes } from "./misc/hosting-tiers.routes";
 import { registerQrTemplatesRoutes } from "./misc/qr-templates.routes";
 import { registerPartnerStoresEmailRoutes } from "./misc/partner-stores-email.routes";
+import { registerBackgroundAssetsRoutes } from "./misc/background-assets.routes";
 import { registerFontsAndTestRoutes } from "./misc/fonts-and-test.routes";
 
 export function registerMiscRoutes(app: Express): void {
@@ -12,5 +13,6 @@ export function registerMiscRoutes(app: Express): void {
   registerHostingTiersRoutes(app);
   registerQrTemplatesRoutes(app);
   registerPartnerStoresEmailRoutes(app);
+  registerBackgroundAssetsRoutes(app);
   registerFontsAndTestRoutes(app);
 }

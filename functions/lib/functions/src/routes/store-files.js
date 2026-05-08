@@ -164,7 +164,7 @@ function register(app) {
                     qrProductType: d.qrProductType || 'qr-basics',
                     price: price !== null ? Math.round(price * 100) / 100 : null,
                     availableSizes: bSizes,
-                    selectedColors: bColors,
+                    availableColors: bColors,
                     availablePlacements: [],
                     defaultColor: packetDefaultColor,
                     mockupsByColor: packetMockupsByColor,
@@ -287,7 +287,7 @@ function register(app) {
                     qrProductType: link.qrProductState || 'qr-basics',
                     price: price !== null ? Math.round(price * 100) / 100 : null,
                     availableSizes,
-                    selectedColors: availableColors,
+                    availableColors,
                     availablePlacements,
                     defaultColor: link.defaultColor || null,
                     mockupsByColor: packetMockupsByColorA,
@@ -475,7 +475,6 @@ function register(app) {
                     let pktMockupsByColor1 = null;
                     let pktMockupImages1 = [];
                     let pktDefaultColor1 = null;
-                    let pktQrCodeUrl1 = null;
                     if (d.currentPacketId) {
                         try {
                             const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
@@ -486,7 +485,6 @@ function register(app) {
                                 pktMockupImages1 = extracted.mockupImages;
                                 pktDefaultColor1 = extracted.defaultColor;
                                 packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-                                pktQrCodeUrl1 = pkt.qrOnlyUrl || null;
                                 if (price === null && pkt.pricing?.customerPrice)
                                     price = pkt.pricing.customerPrice;
                             }
@@ -521,8 +519,8 @@ function register(app) {
                         isFeatured: false,
                         isSeasonalPromo: false,
                         templateVariant: null,
-                        qrProductType: d.qrProductType || 'qr-basics',
-                        qrCodeUrl: pktQrCodeUrl1,
+                        qrProductType: 'qr-basics',
+                        qrCodeUrl: null,
                         selectedColors: l1Colors,
                         availableSizes: l1Sizes,
                         defaultColor: pktDefaultColor1,
@@ -616,7 +614,6 @@ function register(app) {
                     let pktMockupsByColor2 = null;
                     let pktMockupImages2 = [];
                     let pktDefaultColor2 = null;
-                    let pktQrCodeUrl2 = null;
                     if (d.currentPacketId) {
                         try {
                             const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
@@ -627,7 +624,6 @@ function register(app) {
                                 pktMockupImages2 = extracted.mockupImages;
                                 pktDefaultColor2 = extracted.defaultColor;
                                 packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-                                pktQrCodeUrl2 = pkt.qrOnlyUrl || null;
                                 if (price === null && pkt.pricing?.customerPrice)
                                     price = pkt.pricing.customerPrice;
                             }
@@ -658,8 +654,8 @@ function register(app) {
                         isFeatured: false,
                         isSeasonalPromo: false,
                         templateVariant: null,
-                        qrProductType: d.qrProductType || 'qr-basics',
-                        qrCodeUrl: pktQrCodeUrl2,
+                        qrProductType: 'qr-basics',
+                        qrCodeUrl: null,
                         selectedColors: l2Colors,
                         availableSizes: l2Sizes,
                         defaultColor: pktDefaultColor2,
@@ -713,7 +709,6 @@ function register(app) {
                 let pktMockupsByColor3 = null;
                 let pktMockupImages3 = [];
                 let pktDefaultColor3 = null;
-                let pktQrCodeUrl3 = null;
                 if (d.currentPacketId) {
                     try {
                         const pDoc = await core_1.db.collection('productPackets').doc(d.currentPacketId).get();
@@ -724,7 +719,6 @@ function register(app) {
                             pktMockupImages3 = extracted.mockupImages;
                             pktDefaultColor3 = extracted.defaultColor;
                             packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-                            pktQrCodeUrl3 = pkt.qrOnlyUrl || null;
                             if (price === null && pkt.pricing?.customerPrice)
                                 price = pkt.pricing.customerPrice;
                         }
@@ -755,8 +749,8 @@ function register(app) {
                     isFeatured: false,
                     isSeasonalPromo: false,
                     templateVariant: null,
-                    qrProductType: d.qrProductType || 'qr-basics',
-                    qrCodeUrl: pktQrCodeUrl3,
+                    qrProductType: 'qr-basics',
+                    qrCodeUrl: null,
                     selectedColors: l3Colors,
                     availableSizes: l3Sizes,
                     defaultColor: pktDefaultColor3,

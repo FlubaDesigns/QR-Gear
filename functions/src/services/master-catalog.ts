@@ -4,7 +4,6 @@ import { mergeImagesByUrl, ImageRecord } from './instance-resolver';
 import { printifyClient } from './printify';
 import { printfulClient, getPrintfulApiKeyAsync } from './printful';
 import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
-import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(raw: string | null | undefined): string | null {
@@ -85,7 +84,7 @@ const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 
 // ── QRG Top-Level Category Definitions ───────────────────────────────────────
-// Source of truth: docs/QRG.md
+// Source of truth: REPLIT.md — QRG Numbering System section
 // Each top-level gets a X000 code. Subcategories get X100–X900.
 // Each subcategory holds up to 99 products (X101–X199, etc.).
 export const QRG_TOP_LEVEL_CATEGORIES = [
@@ -357,10 +356,6 @@ async function commitBatch(writes: Array<{ ref: FirebaseFirestore.DocumentRefere
     const chunk = writes.slice(i, i + CHUNK);
     const batch = db.batch();
     for (const w of chunk) {
-      if (!isValidMasterCatalogDocId(w.ref.id)) {
-        console.warn(`[MasterCatalog] SKIPPED non-QRG doc ID "${w.ref.id}" — only qrg_STNNN format is allowed in master_catalog`);
-        continue;
-      }
       if (w.merge) {
         batch.set(w.ref, w.data, { merge: true });
       } else {

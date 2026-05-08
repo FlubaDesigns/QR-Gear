@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Box, Save, Loader2, Search, Filter, Flag, Globe, Layers, Check, X, Trash2,
-  Plus, Pencil, BookOpen, ArrowRight, Link2, Unlink, Copy, Star, ArrowRightLeft, ArrowLeftRight, AlertTriangle
+  Plus, Pencil, BookOpen, ArrowRight, Link2, Unlink, Copy, Star, ArrowRightLeft, ArrowLeftRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -467,9 +467,6 @@ export default function AdminBlanks() {
           ? 'bg-sky-600 text-white'
           : 'bg-orange-600 text-white';
 
-      const hasQRGIdentity = !!(product?.docId && product.docId.startsWith("qrg_"));
-      const addDisabled = !!validSelectedCatalogId && !inTarget && !hasQRGIdentity;
-
       const handleSelect = () => {
         if (validSelectedCatalogId) {
           if (!inTarget) onAddToCatalog(blankKey, product);
@@ -496,20 +493,9 @@ export default function AdminBlanks() {
             selectLabel={validSelectedCatalogId ? `Add to ${targetName}` : undefined}
             selectedLabel={validSelectedCatalogId ? `In ${targetName}` : undefined}
             disableWhenSelected={!!validSelectedCatalogId}
-            selectDisabled={addDisabled}
-            selectDisabledTitle="Not yet synced to master catalog — run a master catalog sync first"
           />
-          {/* Badge cluster — provider, mapping, and sync-state badges */}
-          <div className="absolute top-2 right-2 z-10 flex flex-wrap justify-end gap-1">
-            {!hasQRGIdentity && (
-              <Badge
-                className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 gap-0.5"
-                data-testid={`badge-needs-sync-${scrollItem.id}`}
-              >
-                <AlertTriangle className="h-3 w-3" />
-                Needs sync
-              </Badge>
-            )}
+          {/* Provider badge — shows which fulfillment provider(s) carry this blank */}
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
             {hasMappingBadge && (
               <Badge className="bg-violet-600 text-white text-[10px] px-1.5 py-0.5 gap-0.5">
                 <ArrowLeftRight className="h-3 w-3" />

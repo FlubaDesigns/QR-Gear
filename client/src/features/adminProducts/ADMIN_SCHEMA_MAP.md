@@ -120,40 +120,41 @@ No QRG fields. No GRF fields. Layout only.
 
 **Question answered:** What file is this asset?
 
-**Format:** `GRF-[D1][D2][D3][D4][D5][D6]-[NNNNNN]`
+**Format:** `GRF-TT-K-NNNNNN`
 
-Three-character brand prefix, six single-digit descriptor positions, and a 6-digit global sequence. Example: `GRF-111611-000007`
+| Segment | Meaning | Example |
+|---------|---------|---------|
+| TT | Type code (01–07) | 04 = QR graphic |
+| K | Role code (1–5) | 3 = Renderable |
+| NNNNNN | Sequence (000001–999999) | 000001 |
 
-| Position | Meaning | Values |
-|----------|---------|--------|
-| D1 | Asset class | `1`=input_build · `2`=output_artifact |
-| D2 | Media type | `1`=image · `2`=video · `3`=document |
-| D3 | Channel | `1`=print · `2`=store · `3`=url |
-| D4 | Purpose | `1`=qr_composite · `2`=qr_standalone · `3`=url_graphic · `4`=glamor_shot · `5`=source_upload · `6`=background · `7`=template |
-| D5 | Format | image: `1`=PNG `2`=JPEG `3`=WebP `4`=SVG · video: `1`=MP4 `2`=WebM · doc: `1`=PDF |
-| D6 | Sub-context | print: `1`=front `2`=back `3`=sleeve · store: `1`–`5`=display position · url: `1`=internal `2`=external |
-| NNNNNN | Sequence | 000001–999999 — global atomic counter |
+**Valid TT → K pairings:**
 
-Any invalid digit combination → hard error, reject, do not save.
+| TT | Label | Valid K |
+|----|-------|---------|
+| 01 | upload_source | 1 |
+| 02 | cropped_derivative | 2 |
+| 03 | background | 3 |
+| 04 | qr_graphic | 3 |
+| 05 | canvas_design | 3, 4 |
+| 06 | url_artifact_asset | 3 |
+| 07 | template_graphic | 5 |
+
+Any undefined TT/K pairing → hard error, reject, do not save.
 
 **Firestore collections:**
-- `grf_assets/{grfId}` — asset file records. Doc ID = full GRF code
-- `grf_counters/global` — single global atomic counter. Field: `count`
+- `grf_assets/{grfId}` — asset file records
+- `grf_counters` — atomic sequence counters. Doc ID = `{TT}_{K}`
 
 **Key fields on a grf_assets doc:**
 
 | Field | Type | Purpose |
 |-------|------|---------|
 | `grfId` | string | Document ID = the GRF code |
-| `assetClass` | string | D1 digit |
-| `mediaType` | string | D2 digit |
-| `channel` | string | D3 digit |
-| `purpose` | string | D4 digit |
-| `format` | string | D5 digit |
-| `subContext` | string | D6 digit |
-| `sequence` | number | Numeric sequence value |
-| `purposeName` | string | Human label (e.g. `background`, `qr_standalone`) |
-| `mimeType` | string | Derived from D2 + D5 |
+| `typeCode` | string | TT value |
+| `roleCode` | string | K value |
+| `typeName` | string | Human label from GRF_TYPE_MAP |
+| `mimeType` | string | Must be compatible with typeCode |
 | `storagePath` | string | GCS path |
 | `publicUrl` | string | Accessible URL |
 | `isActive` | boolean | false = archived |
@@ -167,7 +168,7 @@ Any invalid digit combination → hard error, reject, do not save.
 - QRG identity (that is QRG)
 
 **Shared code:** `shared/graphicCodes.ts`
-Functions: `isValidGrfId()`, `assertValidGrfId()`, `parseGrfId()`, `buildGrfId()`, `grfStoragePath()`, `GRF_COUNTER_KEY`, `GRF_PACKET_SLOTS`
+Functions: `isValidGraphicId()`, `assertValidGraphicId()`, `parseGraphicId()`, `buildGraphicId()`, `grfCounterKey()`, `GRF_VALID_PAIRINGS`
 
 ---
 
@@ -191,7 +192,7 @@ Functions: `isValidGrfId()`, `assertValidGrfId()`, `parseGrfId()`, `buildGrfId()
 
 **Mapping entry — asset slot (img, qrc):**
 ```ts
-{ seq: "01", type: "img", grfId: "GRF-111611-000007" }
+{ seq: "01", type: "img", grfId: "GRF-03-3-000007" }
 ```
 
 **Mapping entry — text slot (txt, act):**
@@ -201,11 +202,11 @@ Functions: `isValidGrfId()`, `assertValidGrfId()`, `parseGrfId()`, `buildGrfId()
 
 **GRF type compatibility per BLD vehicle:**
 
-| BLD vehicle | Compatible GRF purposes (D4) |
-|-------------|------------------------------|
-| `img` (background) | `6` background |
-| `img` (overlay / template) | `5` source_upload · `7` template · `1` qr_composite |
-| `qrc` | `2` qr_standalone (assetClass `2` required) |
+| BLD vehicle | Compatible GRF TT |
+|-------------|-------------------|
+| `img` (background) | 03 |
+| `img` (overlay) | 02, 05 |
+| `qrc` | 04 |
 
 **Assembly rules:**
 - Every Assembly must have exactly one valid `qrgId` — no Assembly without QRG anchor

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import Home from "@/pages/home";
+import Store from "@/pages/store";
 import Gallery from "@/pages/gallery";
 import Cart from "@/pages/cart";
 import Widget from "@/pages/widget";
@@ -31,7 +32,6 @@ import GiftShop from "@/pages/gift-shop";
 import GiftRedeem from "@/pages/gift-redeem";
 import AdminGifts from "@/pages/admin-gifts";
 import AdminRun from "@/pages/admin-run";
-import StorePlanner from "@/pages/store";
 import AdminCoupons from "@/pages/admin-coupons";
 import AdminHealth from "@/pages/admin-health";
 import AdminCustomers from "@/pages/admin-customers";
@@ -119,7 +119,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/build" component={BuildPage} />
-      <Route path="/store">{() => <Redirect to="/shop/retail/qr-gear" />}</Route>
+      <Route path="/store">{() => <AdminRoute><Store /></AdminRoute>}</Route>
       <Route path="/gallery" component={Gallery} />
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
@@ -127,7 +127,6 @@ function Router() {
       <Route path="/members" component={Members} />
       <Route path="/members/library">{() => <ProtectedRoute requireAdmin={false}><MemberLibrary /></ProtectedRoute>}</Route>
       <Route path="/member">{() => <ProtectedRoute requireAdmin={false}><Member /></ProtectedRoute>}</Route>
-      <Route path="/admin/store-planner">{() => <AdminRoute><StorePlanner /></AdminRoute>}</Route>
       <Route path="/admin">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
       <Route path="/admin/run">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/dashboard">{() => <Redirect to="/admin" />}</Route>

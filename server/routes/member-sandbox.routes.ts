@@ -649,7 +649,7 @@ export function registerMemberSandboxRoutes(app: Express): void {
       }
 
       const printfulCache = new Map<string, any>();
-      const allPrintful = await fsGetAll("printful_products");
+      const allPrintful = await fsGetAll("printfulProducts");
       for (const pf of allPrintful) {
         printfulCache.set(String(pf.id), pf);
       }

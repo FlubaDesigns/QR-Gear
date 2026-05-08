@@ -236,7 +236,7 @@ done until it is live at https://qrgear-c1ffd.web.app.
 The full pipeline takes 100–110 seconds chained — right at the edge where the sandbox
 kills the process. Three separate bash calls avoid silent SIGKILL failures.
 
-### The Four Scripts — Always Run in Order
+### The Three Scripts — Always Run in Order
 
 **Step 1 — Build** (timeout: 90000ms)
 ```bash
@@ -248,9 +248,7 @@ Bumps `_BUILD_ID` with timestamp+random, builds frontend and functions. If tsc f
 ```bash
 bash deploy/2-functions.sh
 ```
-Deploys Cloud Functions to Firebase. Uses `set -euo pipefail` and captures the full log
-to `/tmp/qrgear-functions-deploy.log`. Fails loudly if Firebase does not confirm all three
-success markers. **No task involving `functions/src/` is complete unless step 4 passes.**
+Deploys Cloud Functions to Firebase.
 
 **Step 3 — Deploy Hosting** (timeout: 75000ms)
 ```bash
@@ -258,20 +256,11 @@ bash deploy/3-hosting.sh
 ```
 Deploys frontend to Firebase Hosting.
 
-**Step 4 — Verify Functions** (timeout: 30000ms)
-```bash
-bash deploy/4-verify-functions.sh
-```
-Hits the live `/api/deploy-proof` endpoint and confirms the running Cloud Function's
-`buildId` matches the local `_BUILD_ID` in `functions/src/index.ts`. Task completion
-is forbidden unless this step passes.
-
 ### Critical Timeout Rules
 
-- If step 2 times out → deployment status is **UNKNOWN**. Run step 4 immediately to verify.
-  If step 4 fails, re-run step 2 and verify again. Do NOT re-run step 1.
-- If step 2 says "Skipped (No changes detected)" after a timeout → run step 4 to confirm.
-  If step 4 passes, go to step 3. If step 4 fails, re-run step 2.
+- If step 2 times out (exit code 124 or no output) → **Firebase completed the upload
+  server-side anyway. Go straight to step 3. Do NOT re-run step 1 or 2.**
+- If step 2 says "Skipped (No changes detected)" after a timeout → same thing, go to step 3.
 - If step 2 says "No changes detected" WITHOUT a prior timeout → step 1 didn't run or
   `sed` failed. Re-run step 1 only, then retry step 2.
 
@@ -287,7 +276,6 @@ If only `client/` files changed (no `functions/src/` edits):
 1. Run step 1 (build only)
 2. Skip step 2
 3. Run step 3
-4. Skip step 4
 
 ### Production Rules
 

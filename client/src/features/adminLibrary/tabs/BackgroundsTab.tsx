@@ -14,6 +14,7 @@ import { getImageUrl } from "../shared/imageUtils";
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
+// Fix 1: error boundary so crashes are recoverable
 class BackgroundsBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }
@@ -66,7 +67,7 @@ function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
 // ── Inner tab ─────────────────────────────────────────────────────────────────
 
 function BackgroundsTabInner() {
-  const { legacyApi: api } = useLibraryContext();
+  const { api } = useLibraryContext();
   const { toast } = useToast();
 
   const [selectedItem,   setSelectedItem]   = useState<GridViewItem | null>(null);
@@ -74,6 +75,7 @@ function BackgroundsTabInner() {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
+  // Fix 2: destructure error so backend failures are shown
   const { data: assets = [], isLoading, error: queryError } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("background"),
     queryFn:  () => api.fetchAssets("background"),
@@ -111,12 +113,15 @@ function BackgroundsTabInner() {
       setSingleViewOpen(false);
       setCropDialogOpen(true);
     } else {
+      // Fix 6: fail loudly if asset not found
       console.error("[BackgroundsTab] Asset not found for crop:", id);
     }
   };
 
+  // Fix 4 + Fix 5: error handling and loud bailout
   const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) {
+      // Fix 5: fail loudly instead of silent return
       console.error("[BackgroundsTab] handleSaveCrop called without sourceAsset");
       return;
     }
@@ -144,13 +149,14 @@ function BackgroundsTabInner() {
 
   return (
     <>
+      {/* Fix 7: GRF context note */}
       <div
         className="flex items-start gap-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 mb-4"
         data-testid="info-grf-backgrounds"
       >
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
         <p className="text-xs text-blue-800 dark:text-blue-300">
-          Archived originals from the crop pipeline. Mint GRF assets from the Graphics tab once ready.
+          Archived originals from the crop pipeline. Mint GRF-03-3-NNNNNN (background) assets from the Graphics tab.
         </p>
       </div>
 
@@ -163,6 +169,7 @@ function BackgroundsTabInner() {
         </div>
       </div>
 
+      {/* Fix 2: query error panel */}
       {queryError && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-backgrounds">
           <p className="text-sm font-medium">Failed to load background images</p>
@@ -189,6 +196,7 @@ function BackgroundsTabInner() {
               onClick={() => handleSelect(item)}
               data-testid={`card-grid-item-${item.id}`}
             >
+              {/* Fix 3: broken image placeholder */}
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt="" className="w-full h-auto" />
               ) : (

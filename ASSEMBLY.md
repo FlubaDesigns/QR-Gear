@@ -74,7 +74,7 @@ An Assembly is created when a build session resolves into a committed set of ass
     {
       seq:   "01",                    // matches bld_definitions slot sequence
       type:  "img",                   // matches BLD slot vehicle type
-      grfId: "GRF-111611-000007"      // background image asset
+      grfId: "GRF-03-3-000007"       // background image asset
     },
     {
       seq:   "02",
@@ -85,7 +85,7 @@ An Assembly is created when a build session resolves into a committed set of ass
     {
       seq:   "03",
       type:  "qrc",
-      grfId: "GRF-211211-000001"      // QR code graphic asset
+      grfId: "GRF-04-3-000001"       // QR code graphic asset
     },
     {
       seq:   "04",
@@ -116,7 +116,7 @@ An Assembly is created when a build session resolves into a committed set of ass
 {
   seq:   "01",          // must match a slot seq in the referenced BLD
   type:  "img",         // must match the vehicle type defined for that slot in BLD
-  grfId: "GRF-111611-000007"  // must be a valid GRF ID — format: GRF-DDDDDD-NNNNNN
+  grfId: "GRF-03-3-000007"  // must be a valid GRF ID — format: GRF-TT-K-NNNNNN
 }
 ```
 
@@ -124,11 +124,11 @@ An Assembly is created when a build session resolves into a committed set of ass
 - `value` is not present in asset slots
 - The GRF type code must be compatible with the slot vehicle:
 
-| BLD vehicle | Compatible GRF purposes (D4) |
-|-------------|------------------------------|
-| `img` (background) | `6` background |
-| `img` (overlay / template) | `5` source_upload · `7` template · `1` qr_composite |
-| `qrc` | `2` qr_standalone — must also be assetClass `2` (output artifact) |
+| BLD vehicle | Compatible GRF type codes |
+|-------------|--------------------------|
+| `img` (background) | `03` (Background) |
+| `img` (foreground/overlay) | `02` (Cropped Derivative), `05` (Canvas Design) |
+| `qrc` | `04` (QR Graphic) |
 | `vid` | *(GRF asset or external URL — external URL stored as `value`)* |
 | `doc` | *(GRF asset or external URL — external URL stored as `value`)* |
 
@@ -184,8 +184,8 @@ Violation:
 
 Each Assembly slot must match the vehicle type defined for that slot in BLD.
 
-If BLD slot defines `img` → Assembly must supply a GRF asset with a compatible purpose (D4).
-If BLD slot defines `qrc` → Assembly must supply a GRF asset with purpose `2` (qr_standalone) and assetClass `2` (output artifact).
+If BLD slot defines `img` → Assembly must supply a GRF asset with a compatible typeCode.
+If BLD slot defines `qrc` → Assembly must supply a GRF asset with typeCode `04`.
 If BLD slot defines `txt` or `act` → Assembly must supply a `value` string, not a GRF ID.
 
 Mismatch:
@@ -310,9 +310,9 @@ assemblyId: "ASM-000001"
 qrgId:      "11101"           → QRG blank: Apparel / T-Shirt #101
 bldId:      "BLD-SZ9-001"     → Structure: Zone, 9 slots
 mappings:
-  01 · img   · GRF-111611-000007   (background: flag image)
+  01 · img   · GRF-03-3-000007   (background: flag image)
   02 · txt   · "UNITED STATES ARMED FORCES"   color: #FFFFFF
-  03 · qrc   · GRF-211211-000001   (QR code graphic)
+  03 · qrc   · GRF-04-3-000001   (QR code graphic)
   04 · txt   · "Honor. Duty. Country."         color: #FFFFFF
   05 · act   · "Visit QRGear.com"             color: #FFFFFF
   06 · txt   · "EST. 1776"                    color: #FFD700

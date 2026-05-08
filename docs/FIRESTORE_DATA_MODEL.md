@@ -20,8 +20,8 @@ The authoritative data model documentation lives in:
 | `master_catalog` | `qrg_STNNN` | Canonical blank product records |
 | `bld_definitions` | `BLD-SZ9-001` | Build/layout definitions |
 | `bld_counters` | `SZ`, `SP`, etc. | Atomic BLD sequence counters |
-| `grf_assets` | `GRF-DDDDDD-NNNNNN` | Graphic/asset file records |
-| `grf_counters` | `global` | Single global atomic GRF sequence counter |
+| `grf_assets` | `GRF-TT-K-NNNNNN` | Graphic/asset file records |
+| `grf_counters` | `{TT}_{K}` | Atomic GRF sequence counters |
 | `assemblies` | `ASM-NNNNNN` | QRG + BLD + GRF join records |
 | `catalogs` | auto-id | Admin curated blank catalogs |
 | `admin_catalog_instances` | auto-id | Committed product instances |

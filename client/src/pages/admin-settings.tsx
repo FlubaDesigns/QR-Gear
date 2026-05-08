@@ -21,9 +21,6 @@ import {
   Users,
   BookOpen,
   Heart,
-  DatabaseZap,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -69,39 +66,10 @@ function StatusBadge({ status }: { status: "valid" | "invalid" | "unknown" }) {
   );
 }
 
-interface MigrationConflict {
-  map: string;
-  canonicalId: string;
-  keptKey: string;
-  droppedLegacyKeys: string[];
-}
-
-interface MigrationReport {
-  catalogId: string;
-  catalogName: string;
-  migrated: { from: string; to: string }[];
-  unresolvable: string[];
-  conflicts: MigrationConflict[];
-  skipped: number;
-  changed: boolean;
-}
-
-interface MigrationResult {
-  success: boolean;
-  catalogsScanned: number;
-  catalogsChanged: number;
-  totalMigrated: number;
-  totalUnresolvable: number;
-  totalConflicts: number;
-  report: MigrationReport[];
-}
-
 export default function AdminSettings() {
   const { toast } = useToast();
   const [newPrintfulKey, setNewPrintfulKey] = useState("");
   const [showKey, setShowKey] = useState(false);
-  const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
-  const [expandedCatalogs, setExpandedCatalogs] = useState<Set<string>>(new Set());
 
   const { data: keyStatus, isLoading } = useQuery<ApiKeyStatus>({
     queryKey: ["/api/admin/api-keys"],
@@ -149,46 +117,6 @@ export default function AdminSettings() {
       toast({ title: "Test failed", description: error.message, variant: "destructive" });
     },
   });
-
-  const migrateLegacyIdsMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/catalogs/migrate-legacy-ids", {});
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Migration failed");
-      }
-      return res.json() as Promise<MigrationResult>;
-    },
-    onSuccess: (data) => {
-      setMigrationResult(data);
-      if (data.totalMigrated === 0 && data.totalUnresolvable === 0) {
-        toast({ title: "All catalog IDs are already canonical", description: "No migration needed." });
-      } else if (data.totalUnresolvable > 0) {
-        toast({
-          title: `Migration complete — ${data.totalUnresolvable} ID(s) need manual review`,
-          description: `${data.totalMigrated} ID(s) migrated across ${data.catalogsChanged} catalog(s).`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Migration complete",
-          description: `${data.totalMigrated} ID(s) migrated across ${data.catalogsChanged} catalog(s).`,
-        });
-      }
-    },
-    onError: (error: any) => {
-      toast({ title: "Migration failed", description: error.message, variant: "destructive" });
-    },
-  });
-
-  function toggleCatalogExpanded(catalogId: string) {
-    setExpandedCatalogs((prev) => {
-      const next = new Set(prev);
-      if (next.has(catalogId)) next.delete(catalogId);
-      else next.add(catalogId);
-      return next;
-    });
-  }
 
   return (
     <AdminShell
@@ -323,186 +251,6 @@ export default function AdminSettings() {
             <p className="text-xs text-muted-foreground mt-2">
               The Printify key is managed through environment variables. Contact support to update.
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <DatabaseZap className="w-4 h-4" />
-              Catalog ID Migration
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Scans all catalog documents and migrates any legacy blank IDs (provider keys like{" "}
-              <code className="bg-muted px-1 rounded text-xs">py_123</code>,{" "}
-              <code className="bg-muted px-1 rounded text-xs">pf_456</code>, plain numerics) to
-              their canonical <code className="bg-muted px-1 rounded text-xs">qrg_STNNN</code>{" "}
-              form. Overlay map keys are re-keyed in the same pass. IDs that cannot be resolved are
-              flagged for manual review and never silently dropped.
-            </p>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => migrateLegacyIdsMutation.mutate()}
-              disabled={migrateLegacyIdsMutation.isPending}
-              data-testid="button-migrate-legacy-ids"
-            >
-              {migrateLegacyIdsMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-1" />
-              ) : (
-                <DatabaseZap className="w-4 h-4 mr-1" />
-              )}
-              {migrateLegacyIdsMutation.isPending ? "Migrating…" : "Run Migration"}
-            </Button>
-
-            {migrationResult && (
-              <div className="space-y-3 pt-2 border-t" data-testid="section-migration-result">
-                <div className="flex flex-wrap gap-3 text-sm">
-                  <span className="text-muted-foreground">
-                    Catalogs scanned:{" "}
-                    <strong data-testid="text-migration-scanned">{migrationResult.catalogsScanned}</strong>
-                  </span>
-                  <span className="text-muted-foreground">
-                    Updated:{" "}
-                    <strong data-testid="text-migration-changed">{migrationResult.catalogsChanged}</strong>
-                  </span>
-                  <span className="text-muted-foreground">
-                    IDs migrated:{" "}
-                    <strong data-testid="text-migration-migrated">{migrationResult.totalMigrated}</strong>
-                  </span>
-                  {migrationResult.totalUnresolvable > 0 && (
-                    <span className="text-destructive font-medium">
-                      Unresolvable (manual review):{" "}
-                      <strong data-testid="text-migration-unresolvable">{migrationResult.totalUnresolvable}</strong>
-                    </span>
-                  )}
-                  {migrationResult.totalConflicts > 0 && (
-                    <span className="text-yellow-400 font-medium">
-                      Conflicts resolved (canonical kept):{" "}
-                      <strong data-testid="text-migration-conflicts">{migrationResult.totalConflicts}</strong>
-                    </span>
-                  )}
-                </div>
-
-                {migrationResult.report.filter((r) => r.changed || r.unresolvable.length > 0 || r.conflicts.length > 0).length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Per-catalog details
-                    </p>
-                    {migrationResult.report
-                      .filter((r) => r.changed || r.unresolvable.length > 0 || r.conflicts.length > 0)
-                      .map((r) => {
-                        const isExpanded = expandedCatalogs.has(r.catalogId);
-                        return (
-                          <div
-                            key={r.catalogId}
-                            className="rounded-md border bg-muted/30 overflow-hidden"
-                            data-testid={`section-catalog-migration-${r.catalogId}`}
-                          >
-                            <button
-                              className="w-full flex items-center justify-between px-3 py-2 text-sm text-left"
-                              onClick={() => toggleCatalogExpanded(r.catalogId)}
-                              data-testid={`button-expand-catalog-${r.catalogId}`}
-                            >
-                              <span className="font-medium">{r.catalogName}</span>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {r.migrated.length > 0 && (
-                                  <Badge className="bg-green-600/20 text-green-400 text-xs">
-                                    {r.migrated.length} migrated
-                                  </Badge>
-                                )}
-                                {r.unresolvable.length > 0 && (
-                                  <Badge className="bg-red-600/20 text-red-400 text-xs">
-                                    {r.unresolvable.length} unresolvable
-                                  </Badge>
-                                )}
-                                {r.conflicts.length > 0 && (
-                                  <Badge className="bg-yellow-600/20 text-yellow-400 text-xs">
-                                    {r.conflicts.length} conflict{r.conflicts.length !== 1 ? "s" : ""}
-                                  </Badge>
-                                )}
-                                {isExpanded ? (
-                                  <ChevronUp className="w-3 h-3 text-muted-foreground" />
-                                ) : (
-                                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                                )}
-                              </div>
-                            </button>
-
-                            {isExpanded && (
-                              <div className="px-3 pb-3 space-y-2 border-t">
-                                {r.migrated.length > 0 && (
-                                  <div className="space-y-1 pt-2">
-                                    <p className="text-xs font-medium text-green-400">Migrated</p>
-                                    {r.migrated.map((m, i) => (
-                                      <div
-                                        key={i}
-                                        className="text-xs font-mono text-muted-foreground flex items-center gap-2"
-                                        data-testid={`text-migrated-${r.catalogId}-${i}`}
-                                      >
-                                        <code className="bg-muted px-1 rounded">{m.from}</code>
-                                        <span>&rarr;</span>
-                                        <code className="bg-muted px-1 rounded">{m.to}</code>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {r.conflicts.length > 0 && (
-                                  <div className="space-y-1 pt-2">
-                                    <p className="text-xs font-medium text-yellow-400">
-                                      Overlay conflicts — canonical entry kept, legacy dropped
-                                    </p>
-                                    {r.conflicts.map((c, i) => (
-                                      <div
-                                        key={i}
-                                        className="text-xs font-mono text-muted-foreground"
-                                        data-testid={`text-conflict-${r.catalogId}-${i}`}
-                                      >
-                                        <span className="text-muted-foreground/60">[{c.map}]</span>{" "}
-                                        <code className="bg-muted px-1 rounded">{c.canonicalId}</code>
-                                        {" — dropped: "}
-                                        {c.droppedLegacyKeys.map((k) => (
-                                          <code key={k} className="bg-muted px-1 rounded mr-1">{k}</code>
-                                        ))}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {r.unresolvable.length > 0 && (
-                                  <div className="space-y-1 pt-2">
-                                    <p className="text-xs font-medium text-destructive">
-                                      Unresolvable — requires manual review
-                                    </p>
-                                    {r.unresolvable.map((id, i) => (
-                                      <code
-                                        key={i}
-                                        className="block text-xs font-mono bg-muted px-1 rounded text-destructive"
-                                        data-testid={`text-unresolvable-${r.catalogId}-${i}`}
-                                      >
-                                        {id}
-                                      </code>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-
-                {migrationResult.totalMigrated === 0 && migrationResult.totalUnresolvable === 0 && migrationResult.totalConflicts === 0 && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                    All catalog blank IDs are already in canonical format.
-                  </p>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

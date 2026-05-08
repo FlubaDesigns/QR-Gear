@@ -514,7 +514,7 @@ function register(app) {
                 return;
             }
             const boundProduct = packetData?.boundProduct || {};
-            const providerDesc = boundProduct.providerDescription || boundProduct.originalDescription || '';
+            const providerDesc = boundProduct.providerDescription || '';
             const adminDesc = boundProduct.adminCatalogDescription || '';
             const effectiveDescription = memberPacketDescription || adminDesc || providerDesc || '';
             await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).update({

@@ -366,7 +366,7 @@ app.patch('/members/:memberId/packets/:packetId/description', async (req: Reques
     const packetData = packetDoc.data();
     if (packetData?.memberId !== memberId) { res.status(403).json({ error: 'Not your packet' }); return; }
     const boundProduct = packetData?.boundProduct || {};
-    const providerDesc = boundProduct.providerDescription || boundProduct.originalDescription || '';
+    const providerDesc = boundProduct.providerDescription || '';
     const adminDesc = boundProduct.adminCatalogDescription || '';
     const effectiveDescription = memberPacketDescription || adminDesc || providerDesc || '';
     await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({

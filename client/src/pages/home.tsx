@@ -150,7 +150,7 @@ function FeaturedStores() {
             </p>
           </div>
 
-          <Link href="/shop/retail/qr-gear" className="text-sm text-primary hover:underline inline-flex items-center gap-2" data-testid="link-browse-all-products">
+          <Link href="/store" className="text-sm text-primary hover:underline inline-flex items-center gap-2" data-testid="link-browse-all-products">
             Browse all products
             <ArrowRight className="w-4 h-4" />
           </Link>
@@ -217,7 +217,7 @@ function NoProductsYet() {
                   </Button>
                 </Link>
 
-                <Link href="/shop/retail/qr-gear">
+                <Link href="/store">
                   <Button variant="secondary" className="w-full sm:w-auto" data-testid="button-home-store">
                     Browse Store
                     <Store className="w-4 h-4 ml-2" />

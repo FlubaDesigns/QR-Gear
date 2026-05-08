@@ -13,6 +13,7 @@ import { getImageUrl } from "../shared/imageUtils";
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
+// Fix 1: error boundary so crashes are recoverable
 class CroppedImagesBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }
@@ -65,12 +66,13 @@ function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
 // ── Inner tab ─────────────────────────────────────────────────────────────────
 
 function CroppedImagesTabInner() {
-  const { legacyApi: api } = useLibraryContext();
+  const { api } = useLibraryContext();
   const { toast } = useToast();
 
   const [selectedItem,   setSelectedItem]   = useState<GridViewItem | null>(null);
   const [singleViewOpen, setSingleViewOpen] = useState(false);
 
+  // Fix 2: destructure error so backend failures are shown
   const { data: assets = [], isLoading, error: queryError } = useQuery<LibraryAssetWithProxy[]>({
     queryKey: api.getQueryKey("cropped"),
     queryFn:  () => api.fetchAssets("cropped"),
@@ -103,13 +105,14 @@ function CroppedImagesTabInner() {
 
   return (
     <>
+      {/* Fix 4: GRF context note */}
       <div
         className="flex items-start gap-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 mb-4"
         data-testid="info-grf-cropped"
       >
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
         <p className="text-xs text-blue-800 dark:text-blue-300">
-          9:16 crops derived from source images. Mint GRF assets from the Graphics tab once ready.
+          9:16 crops derived from source images. Mint GRF-02-2-NNNNNN (cropped_derivative) assets from the Graphics tab.
         </p>
       </div>
 
@@ -122,6 +125,7 @@ function CroppedImagesTabInner() {
         </div>
       </div>
 
+      {/* Fix 2: query error panel */}
       {queryError && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-cropped">
           <p className="text-sm font-medium">Failed to load cropped images</p>
@@ -148,6 +152,7 @@ function CroppedImagesTabInner() {
               onClick={() => handleSelect(item)}
               data-testid={`card-grid-item-${item.id}`}
             >
+              {/* Fix 3: broken image placeholder */}
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt="" className="w-full h-auto" />
               ) : (

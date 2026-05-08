@@ -220,7 +220,6 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
         title: bp.title,
         description: effectiveDescription,
         providerDescription,
-        originalDescription: providerDescription,
         adminCatalogDescription: adminCatalogDescription || null,
         effectiveDescription,
         brand: bp.brand,

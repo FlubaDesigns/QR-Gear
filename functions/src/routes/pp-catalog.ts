@@ -267,7 +267,7 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
         const products = catData.result || [];
         console.log(`[Printful Sync CF] Found ${products.length} products`);
 
-        const existingSnap = await db.collection('printful_products').get();
+        const existingSnap = await db.collection('printfulCatalog').get();
         const existingMap = new Map<number, any>();
         existingSnap.forEach(doc => existingMap.set(parseInt(doc.id), doc.data()));
 
@@ -309,7 +309,7 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
 
             const changed = !existing || existing.title !== product.title || existing.brand !== (product.brand || null) || existing.variantCount !== (product.variant_count || 0) || !existing.minPrice;
             if (changed) {
-              await db.collection('printful_products').doc(String(pid)).set(productData, { merge: true });
+              await db.collection('printfulCatalog').doc(String(pid)).set(productData, { merge: true });
               if (existing) { updated++; } else { added++; }
             } else { skipped++; }
             await new Promise(r => setTimeout(r, 30));
@@ -336,7 +336,7 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
 app.get('/admin/catalog/printful', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const search = (req.query.search as string || '').toLowerCase();
-    const snapshot = await db.collection('printful_products').get();
+    const snapshot = await db.collection('printfulCatalog').get();
     let products: any[] = [];
     snapshot.forEach(doc => products.push({ docId: doc.id, ...doc.data() }));
     if (search) {

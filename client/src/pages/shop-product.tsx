@@ -77,7 +77,7 @@ interface StoreProduct {
   qrProductType: string;
   price: number | null;
   availableSizes: string[];
-  selectedColors: string[];
+  availableColors: string[];
   availablePlacements: string[];
   defaultColor: string | null;
   mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[] }> | null;
@@ -214,7 +214,7 @@ export default function ShopProductPage() {
     if (!product || !product.price) return false;
 
     // ── Inline validation ──────────────────────────────────────────────────
-    const needsColor = (product.selectedColors?.length ?? 0) > 0;
+    const needsColor = (product.availableColors?.length ?? 0) > 0;
     const needsSize  = (product.availableSizes?.length ?? 0) > 0;
     let blocked = false;
     if (needsColor && !selectedColor) {
@@ -328,12 +328,12 @@ export default function ShopProductPage() {
 
   // Build fallback options from raw arrays when structured options[] are absent
   const colorOption = product.options?.find(o => o.name === 'color') ??
-    (product.selectedColors?.length
+    (product.availableColors?.length
       ? {
           name: 'color',
           displayType: 'swatches' as const,
           isPrimary: true,
-          values: product.selectedColors.map(c => ({ label: c, available: true, hex: undefined })),
+          values: product.availableColors.map(c => ({ label: c, available: true, hex: undefined })),
         }
       : null);
 

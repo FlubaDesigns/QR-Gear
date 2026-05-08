@@ -307,7 +307,7 @@ function register(app) {
                     const catData = await catResp.json();
                     const products = catData.result || [];
                     console.log(`[Printful Sync CF] Found ${products.length} products`);
-                    const existingSnap = await core_1.db.collection('printful_products').get();
+                    const existingSnap = await core_1.db.collection('printfulCatalog').get();
                     const existingMap = new Map();
                     existingSnap.forEach(doc => existingMap.set(parseInt(doc.id), doc.data()));
                     let added = 0, updated = 0, skipped = 0;
@@ -349,7 +349,7 @@ function register(app) {
                             }
                             const changed = !existing || existing.title !== product.title || existing.brand !== (product.brand || null) || existing.variantCount !== (product.variant_count || 0) || !existing.minPrice;
                             if (changed) {
-                                await core_1.db.collection('printful_products').doc(String(pid)).set(productData, { merge: true });
+                                await core_1.db.collection('printfulCatalog').doc(String(pid)).set(productData, { merge: true });
                                 if (existing) {
                                     updated++;
                                 }
@@ -387,7 +387,7 @@ function register(app) {
     app.get('/admin/catalog/printful', middleware_1.requireAdmin, async (req, res) => {
         try {
             const search = (req.query.search || '').toLowerCase();
-            const snapshot = await core_1.db.collection('printful_products').get();
+            const snapshot = await core_1.db.collection('printfulCatalog').get();
             let products = [];
             snapshot.forEach(doc => products.push({ docId: doc.id, ...doc.data() }));
             if (search) {

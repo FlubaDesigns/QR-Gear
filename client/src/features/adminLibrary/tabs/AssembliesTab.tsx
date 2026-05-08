@@ -10,8 +10,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
 import { isValidGraphicId } from "@shared/graphicCodes";
-import { isValidAssemblyId } from "@shared/assemblyCodes";
-import type { AssemblyMapping } from "@shared/assemblyCodes";
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
@@ -55,11 +53,15 @@ class AssembliesBoundary extends Component<
 
 // ── Regex constants (from canonical schemas) ─────────────────────────────────
 
-const QRG_BLANK_REGEX = /^[1-6][1-9][0-9]{3}$/;
-const BLD_ID_REGEX    = /^BLD-(S[ZP]|U[IVD])\d+-\d{3}$/;
+const QRG_BLANK_REGEX   = /^[1-6][1-9][0-9]{3}$/;
+const BLD_ID_REGEX      = /^BLD-[SU][A-Z]\d-\d{3}$/;
+const GRF_ID_REGEX      = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
+const ASM_ID_REGEX      = /^ASM-\d{6}$/;
 
-function isValidQrgId(id: string): boolean { return QRG_BLANK_REGEX.test(id); }
-function isValidBldId(id: string): boolean { return BLD_ID_REGEX.test(id); }
+function isValidQrgId(id: string): boolean  { return QRG_BLANK_REGEX.test(id); }
+function isValidBldId(id: string): boolean  { return BLD_ID_REGEX.test(id); }
+function isValidGrfId(id: string): boolean  { return isValidGraphicId(id); }
+function isValidAsmId(id: string): boolean  { return ASM_ID_REGEX.test(id); }
 
 // Asset slots that require a grfId (not a text value)
 function isAssetSlot(type: string): boolean { return type === "img" || type === "qrc"; }
@@ -107,6 +109,14 @@ function FieldError({ text }: { text: string }) {
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
+interface AssemblyMapping {
+  seq:      string;
+  type:     string;
+  grfId?:   string;
+  value?:   string;
+  color?:   string;
+}
+
 interface Assembly {
   id:          string;
   assemblyId:  string;
@@ -152,7 +162,7 @@ function MappingFormRow({
   const eitherOrGrf   = mapping.type === "vid" || mapping.type === "doc";
 
   const grfFilled     = mapping.grfId.trim().length > 0;
-  const grfInvalid    = grfFilled && !isValidGraphicId(mapping.grfId.trim());
+  const grfInvalid    = grfFilled && !isValidGrfId(mapping.grfId.trim());
 
   return (
     <div className="rounded-md border bg-muted/30 p-2 space-y-2" data-testid={`row-mapping-${index}`}>
@@ -193,12 +203,12 @@ function MappingFormRow({
           <Input
             value={mapping.grfId}
             onChange={(e) => onChange(index, "grfId", e.target.value)}
-            placeholder="GRF ID (e.g. 211111-000001)"
+            placeholder="GRF ID (e.g. GRF-03-3-000007)"
             className={`h-7 text-xs font-mono ${grfInvalid ? "border-red-500 dark:border-red-600" : ""}`}
             data-testid={`input-mapping-grfid-${index}`}
           />
           {grfInvalid && (
-            <FieldError text="Invalid GRF ID — must match DDDDDD-NNNNNN (e.g. 211111-000001)" />
+            <FieldError text="Invalid GRF ID — must match GRF-TT-K-NNNNNN (e.g. GRF-03-3-000007)" />
           )}
         </div>
       )}
@@ -240,7 +250,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
 
   const anyGrfInvalid = mappings.some((m) => {
     const filled = m.grfId.trim().length > 0;
-    return filled && !isValidGraphicId(m.grfId.trim());
+    return filled && !isValidGrfId(m.grfId.trim());
   });
 
   const mutation = useMutation({
@@ -261,6 +271,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   function handleSubmit() {
+    // Fix 10 — format guards before any mutation
     if (!qrgId.trim()) {
       toast({ title: "QRG ID is required", variant: "destructive" });
       return;
@@ -508,8 +519,11 @@ function AssemblyCard({
   const mappings  = asm.mappings  ?? [];
   const packetIds = asm.packetIds ?? [];
 
-  const asmIdValid = isValidAssemblyId(asm.assemblyId);
+  // Fix 4 — ASM ID format check
+  const asmIdValid = isValidAsmId(asm.assemblyId);
+  // Fix 5 — QRG ID format check
   const qrgIdValid = isValidQrgId(asm.qrgId);
+  // Fix 6 — BLD ID format check
   const bldIdValid = isValidBldId(asm.bldId);
 
   return (
@@ -595,9 +609,12 @@ function AssemblyCard({
           ) : (
             <div className="space-y-1.5">
               {mappings.map((m) => {
-                const grfPresent      = !!m.grfId;
-                const grfValid        = grfPresent && isValidGraphicId(m.grfId!);
-                const grfInvalid      = grfPresent && !grfValid;
+                // Fix 7 — validate GRF ID on each slot
+                const grfPresent  = !!m.grfId;
+                const grfValid    = grfPresent && isValidGrfId(m.grfId!);
+                const grfInvalid  = grfPresent && !grfValid;
+
+                // Fix 8/9 — asset slots with no grfId are MISSING (not "pending" or imageUrl fallback)
                 const assetMissingGrf = isAssetSlot(m.type) && !grfPresent;
 
                 return (
@@ -611,6 +628,7 @@ function AssemblyCard({
                       {m.type}
                     </span>
                     <div className="min-w-0 flex-1 space-y-0.5">
+                      {/* GRF ID display — Fix 7 */}
                       {grfPresent && (
                         <span className={`font-mono truncate block ${grfInvalid ? "text-destructive" : "text-foreground"}`}>
                           {m.grfId}
@@ -620,14 +638,17 @@ function AssemblyCard({
                         </span>
                       )}
 
+                      {/* Fix 8/9 — asset slot missing GRF ID */}
                       {assetMissingGrf && (
                         <MissingBadge text="MISSING GRF ID" />
                       )}
 
+                      {/* Text value */}
                       {m.value && (
                         <span className="text-foreground break-words block">{m.value}</span>
                       )}
 
+                      {/* Fix 8 — no GRF, no value, non-asset slot */}
                       {!grfPresent && !m.value && !isAssetSlot(m.type) && (
                         <MissingBadge text="MISSING" />
                       )}

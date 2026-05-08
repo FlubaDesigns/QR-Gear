@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearch } from "wouter";
-import { QrCode, Layers, ImageIcon, LayoutTemplate, Link2, Upload, Crop, Image } from "lucide-react";
+import { QrCode, Layers, ImageIcon, LayoutTemplate, Link2 } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
 import { LibraryProvider } from "./LibraryContext";
@@ -10,27 +10,21 @@ import TemplatesTab from "./tabs/TemplatesTab";
 import ImagesTab from "./tabs/ImagesTab";
 import BldDefinitionsTab from "./tabs/BldDefinitionsTab";
 import AssembliesTab from "./tabs/AssembliesTab";
-import SourceImagesTab from "./tabs/SourceImagesTab";
-import BackgroundsTab from "./tabs/BackgroundsTab";
-import CroppedImagesTab from "./tabs/CroppedImagesTab";
 
-type TabType = "graphics" | "templates" | "images" | "bld" | "asm" | "source" | "backgrounds" | "cropped";
+type TabType = "graphics" | "templates" | "images" | "bld" | "asm";
 
 const TABS = [
-  { id: "source"      as const, label: "Source",      icon: Upload },
-  { id: "backgrounds" as const, label: "Backgrounds", icon: Image },
-  { id: "cropped"     as const, label: "Cropped",     icon: Crop },
-  { id: "graphics"    as const, label: "Graphics",    icon: QrCode },
-  { id: "templates"   as const, label: "Templates",   icon: Layers },
-  { id: "images"      as const, label: "Images",      icon: ImageIcon },
-  { id: "bld"         as const, label: "BLD Defs",    icon: LayoutTemplate },
-  { id: "asm"         as const, label: "Assemblies",  icon: Link2 },
+  { id: "graphics" as const, label: "Graphics", icon: QrCode },
+  { id: "templates" as const, label: "Templates", icon: Layers },
+  { id: "images" as const, label: "Images", icon: ImageIcon },
+  { id: "bld" as const, label: "BLD Defs", icon: LayoutTemplate },
+  { id: "asm" as const, label: "Assemblies", icon: Link2 },
 ];
 
 export default function LibraryPage() {
   const searchString = useSearch();
   const params = new URLSearchParams(searchString);
-  const initialTab = (params.get("tab") as TabType) || "source";
+  const initialTab = (params.get("tab") as TabType) || "graphics";
   const [tab, setTab] = useState<TabType>(initialTab);
 
   useEffect(() => {
@@ -45,7 +39,7 @@ export default function LibraryPage() {
     <LibraryProvider>
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
-          <div className="glass-card">
+<div className="glass-card">
             <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
               <Layers className="h-5 w-5 text-blue-400" />
               Asset Library
@@ -72,14 +66,11 @@ export default function LibraryPage() {
           </div>
 
           <div className="glass-card">
-            {tab === "source"      && <SourceImagesTab />}
-            {tab === "backgrounds" && <BackgroundsTab />}
-            {tab === "cropped"     && <CroppedImagesTab />}
-            {tab === "graphics"    && <GraphicsTab />}
-            {tab === "templates"   && <TemplatesTab />}
-            {tab === "images"      && <ImagesTab />}
-            {tab === "bld"         && <BldDefinitionsTab />}
-            {tab === "asm"         && <AssembliesTab />}
+            {tab === "graphics" && <GraphicsTab />}
+            {tab === "templates" && <TemplatesTab />}
+            {tab === "images" && <ImagesTab />}
+            {tab === "bld" && <BldDefinitionsTab />}
+            {tab === "asm" && <AssembliesTab />}
           </div>
         </div>
       </div>

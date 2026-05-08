@@ -23,12 +23,11 @@ import { registerDesignRoutes } from "./routes/designs.routes";
 import { registerGiftRoutes } from "./routes/gifts.routes";
 import { registerPricingRoutes } from "./routes/pricing.routes";
 import { registerMiscRoutes } from "./routes/misc.routes";
+import { registerBackgroundAssetsRoutes } from "./routes/background-assets.routes";
 import { registerBrainRoutes } from "./routes/brain.routes";
 import { registerAdminCatalogInstanceRoutes } from "./routes/admin-catalog-instances.routes";
 import { registerMemberCatalogInstanceRoutes } from "./routes/member-catalog-instances.routes";
 import { registerAdminBuildSessionRoutes } from "./routes/admin-build-sessions.routes";
-import { registerBackgroundAssetsRoutes } from "./routes/background-assets.routes";
-import { registerLibraryCropRoutes } from "./routes/library-crop.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -41,6 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerCartCheckoutRoutes(app);
   registerAdminRoutes(app);
   registerAdminLibraryRoutes(app);
+  registerBackgroundAssetsRoutes(app);
   registerMockupRoutes(app);
   registerMemberRoutes(app);
   registerDynamicPagesRoutes(app);
@@ -57,8 +57,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminCatalogInstanceRoutes(app);
   registerMemberCatalogInstanceRoutes(app);
   registerAdminBuildSessionRoutes(app);
-  registerBackgroundAssetsRoutes(app);
-  registerLibraryCropRoutes(app);
 
   startCronJobs();
 
