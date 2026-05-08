@@ -377,13 +377,14 @@ export default function AdminSchemaKeys() {
         {/* ── VVSS ─────────────────────────────────────────────────────────── */}
         <Section
           title="VVSS — Viewer / View / Skin / Shape"
-          subtitle="Four-layer UI architecture for all repeating admin data surfaces. The three-digit code encodes Viewer · View · Shape; Skin is the named card component within that surface."
+          subtitle="Four-layer UI architecture for all repeating admin data surfaces. The four-digit code encodes Viewer · View · Skin · Shape."
         >
           <FormatBar
-            label="Three-digit surface code"
+            label="Four-digit surface code"
             parts={[
               { seg: "[Viewer]", desc: "Pane structure", mono: true },
               { seg: "[View]", desc: "Scroll / layout", mono: true },
+              { seg: "[Skin]", desc: "Card component", mono: true },
               { seg: "[Shape]", desc: "Popup layer", mono: true },
             ]}
           />
@@ -391,8 +392,8 @@ export default function AdminSchemaKeys() {
           <div className="space-y-1">
             <Label>Example</Label>
             <div className="flex flex-wrap gap-2 items-center">
-              <CodePill>1·1·1</CodePill>
-              <span className="text-xs text-muted-foreground">= Single pane · grid scroll · popup modal</span>
+              <CodePill>1·1·1·1</CodePill>
+              <span className="text-xs text-muted-foreground">= Single pane · grid scroll · CardSkin · popup modal</span>
             </div>
           </div>
 
@@ -434,7 +435,7 @@ export default function AdminSchemaKeys() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Viewer — digit 1</Label>
               <KeyTable
@@ -458,7 +459,17 @@ export default function AdminSchemaKeys() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Shape — digit 3</Label>
+              <Label>Skin — digit 3</Label>
+              <KeyTable
+                cols={["Code", "Pattern"]}
+                rows={[
+                  ["1", "[Type]CardSkin"],
+                  ["2", "[Type]RowSkin"],
+                ]}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Shape — digit 4</Label>
               <KeyTable
                 cols={["Code", "Container"]}
                 rows={[
@@ -474,10 +485,10 @@ export default function AdminSchemaKeys() {
             <KeyTable
               cols={["Code", "Surface", "Skin", "Shape"]}
               rows={[
-                ["1·1·1", "Source Images tab", "SourceCardSkin", "ModalView + SourceDetailShape"],
-                ["1·1·0", "Backgrounds tab", "BackgroundCardSkin", "Flat — none"],
-                ["2·1·0", "Product builder", "ProductCardSkin", "Flat — none"],
-                ["1·2·1", "Graphics tab", "GraphicCardSkin", "AdminGraphicShape"],
+                ["1·1·1·1", "Source Images tab", "SourceCardSkin", "ModalView + SourceDetailShape"],
+                ["1·1·1·0", "Backgrounds tab", "BackgroundCardSkin", "Flat — none"],
+                ["2·1·1·0", "Product builder", "ProductCardSkin", "Flat — none"],
+                ["1·2·1·1", "Graphics tab", "GraphicCardSkin", "AdminGraphicShape"],
               ]}
             />
           </div>

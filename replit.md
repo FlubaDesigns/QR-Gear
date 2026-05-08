@@ -60,7 +60,7 @@ skins/     — card content ([DataType]CardSkin)
 shapes/    — popup layer (ModalView container + [DataType]Shape content)
 ```
 
-VVSS three-digit code: `[Viewer][View][Shape]` — e.g. `1·1·1` = single pane + grid + popup.
+VVSS four-digit code: `[Viewer][View][Skin][Shape]` — e.g. `1·1·1·1` = single pane + grid + CardSkin + popup.
 Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a Skin is selected.
 
 ## Architecture decisions
