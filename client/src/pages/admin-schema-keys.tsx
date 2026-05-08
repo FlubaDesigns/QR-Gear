@@ -574,6 +574,26 @@ export default function AdminSchemaKeys() {
           </div>
 
           <div className="space-y-2">
+            <Label>Source Images — GRF asset strings</Label>
+            <p className="text-xs text-muted-foreground">
+              Every crop produces three GRF records. Format digit (D5) on the background always matches the source — not the cropped output.
+              Cropped output is always JPEG regardless of source format.
+            </p>
+            <KeyTable
+              cols={["Asset", "GRF-D1D2D3D4D5-NNNNNN", "D4", "D5", "Note"]}
+              rows={[
+                ["Source (PNG upload)",    "GRF-11411-NNNNNN", "1 = original",   "1 = PNG",  "Raw upload, filename preserved"],
+                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Crop always outputs JPEG"],
+                ["Background (PNG→PNG)",   "GRF-11431-NNNNNN", "3 = background", "1 = PNG",  "Inherits source format"],
+                ["—", "—", "—", "—", "—"],
+                ["Source (JPEG upload)",   "GRF-11412-NNNNNN", "1 = original",   "2 = JPEG", "Raw upload, filename preserved"],
+                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Same as PNG case"],
+                ["Background (JPEG→JPEG)", "GRF-11432-NNNNNN", "3 = background", "2 = JPEG", "Inherits source format"],
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label>SkinItem contract</Label>
             <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
               <div className="bg-muted rounded-md p-3 sm:p-4 font-mono text-xs leading-relaxed min-w-[340px]">
