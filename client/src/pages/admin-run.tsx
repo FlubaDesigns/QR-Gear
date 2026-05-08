@@ -24,6 +24,7 @@ import {
   AlertCircle,
   CheckCircle,
   Trash2,
+  FileText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -407,7 +408,7 @@ export default function AdminRun() {
             <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference</h2>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <button
               onClick={() => navigate("/admin/manual")}
               className="flex items-center gap-2 p-3 rounded-md text-left border border-border hover-elevate transition-colors bg-card"
@@ -423,6 +424,14 @@ export default function AdminRun() {
             >
               <Activity className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="text-sm font-medium">Health</span>
+            </button>
+            <button
+              onClick={() => navigate("/admin/schema-keys")}
+              className="flex items-center gap-2 p-3 rounded-md text-left border border-border hover-elevate transition-colors bg-card"
+              data-testid="run-link-schema-keys"
+            >
+              <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm font-medium">Schema Keys</span>
             </button>
           </div>
         </section>
