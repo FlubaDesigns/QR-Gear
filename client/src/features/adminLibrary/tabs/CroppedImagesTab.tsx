@@ -2,17 +2,16 @@ import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Crop as CropIcon } from "lucide-react";
+import { Crop as CropIcon } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
-import { ItemModalView } from "@/features/shared/components/views/ModalView";
-import type { GridViewItem } from "@/features/shared/components/views/index";
-import { DeleteSkin } from "@/features/shared/components/skins/DeleteSkin";
+import { CroppedCardSkin, CroppedDetailSkin } from "@/features/shared/components/skins/CroppedImageSkin";
+import type { SkinItem } from "@/features/shared/components/skins/types";
 import { GRF_FILTER_CROPPED } from "../shared/GRF_engine";
 import { CROPPED_QK } from "../shared/grfQueryKeys";
 
-// ── GRF asset shape ───────────────────────────────────────────────────────────
+// ── GRF asset shape from API ──────────────────────────────────────────────────
 
 interface GrfAsset {
   id: string;
@@ -27,6 +26,22 @@ interface GrfAsset {
   isActive: boolean;
 }
 
+// ── SkinItem mapper ───────────────────────────────────────────────────────────
+
+function assetToSkinItem(asset: GrfAsset): SkinItem {
+  return {
+    id:           asset.grfId || asset.id,
+    name:         asset.name || asset.originalFilename || "Untitled",
+    primaryImage: asset.publicUrl || "",
+    metadata: {
+      raw:          asset,
+      grfId:        asset.grfId || asset.id,
+      mimeType:     asset.mimeType,
+      sourceGrfId:  asset.sourceGrfId ?? undefined,
+    },
+  };
+}
+
 // ── Error boundary ────────────────────────────────────────────────────────────
 
 class CroppedImagesBoundary extends Component<
@@ -34,16 +49,11 @@ class CroppedImagesBoundary extends Component<
   { hasError: boolean; error: Error | null }
 > {
   state = { hasError: false, error: null as Error | null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[CroppedImagesTab] CRASH:", error.message, error.stack);
     console.error("[CroppedImagesTab] Component stack:", info.componentStack);
   }
-
   render() {
     if (this.state.hasError) {
       return (
@@ -67,22 +77,12 @@ class CroppedImagesBoundary extends Component<
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function assetToGridItem(asset: GrfAsset): GridViewItem {
-  return {
-    id:       asset.id,
-    name:     asset.name,
-    imageUrl: asset.publicUrl || "",
-  };
-}
-
 // ── Inner tab ─────────────────────────────────────────────────────────────────
 
 function CroppedImagesTabInner() {
   const { toast } = useToast();
-  const [selectedItem,   setSelectedItem]   = useState<GridViewItem | null>(null);
-  const [singleViewOpen, setSingleViewOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<SkinItem | null>(null);
+  const [detailOpen,   setDetailOpen]   = useState(false);
 
   const { data: assets = [], isLoading, error: queryError } = useQuery<GrfAsset[]>({
     queryKey: CROPPED_QK,
@@ -92,41 +92,39 @@ function CroppedImagesTabInner() {
       ),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) =>
-      adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
+  const archiveMutation = useMutation({
+    mutationFn: (grfId: string) => {
+      const raw = assets.find(a => (a.grfId || a.id) === grfId);
+      const id  = raw?.id ?? grfId;
+      return adminFetch(`/graphics/${id}/archive`, { method: "PATCH" });
+    },
     onSuccess: () => {
       toast({ title: "Image archived" });
       queryClient.invalidateQueries({ queryKey: CROPPED_QK });
-      setSingleViewOpen(false);
+      setDetailOpen(false);
       setSelectedItem(null);
     },
     onError: (error: Error) => {
-      console.error("[CroppedImagesTab] Archive error:", error);
+      console.error("[CroppedImagesTab] Archive error:", error.message);
       toast({ title: "Archive failed", description: error.message, variant: "destructive" });
     },
   });
 
-  const gridItems = useMemo(() => assets.map(assetToGridItem), [assets]);
+  const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
 
-  const handleSelect = (item: GridViewItem) => {
+  const handleSelect = (item: SkinItem) => {
     setSelectedItem(item);
-    setSingleViewOpen(true);
+    setDetailOpen(true);
   };
 
-  const handleDelete = (id: string) => deleteMutation.mutate(id);
+  const handleArchive = (id: string) => archiveMutation.mutate(id);
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold" data-testid="text-cropped-count">
-            {assets.length} Cropped Images
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            9:16 cropped derivatives — GRF channel 4, purpose 2
-          </p>
-        </div>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide" data-testid="text-cropped-count">
+          {assets.length} Cropped Images
+        </h3>
       </div>
 
       {queryError && (
@@ -137,58 +135,54 @@ function CroppedImagesTabInner() {
       )}
 
       {assets.length === 0 && !isLoading && !queryError ? (
-        <div className="text-center py-12 bg-muted/30 rounded-lg">
+        <div className="text-center py-12 bg-muted/30 rounded-lg" data-testid="empty-cropped">
           <CropIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground" data-testid="text-no-cropped">
-            No cropped images yet.
-          </p>
+          <p className="text-muted-foreground">No cropped images yet.</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Crop a source image to create cropped derivatives here.
+            Crop a source image from the Source tab to create derivatives here.
           </p>
         </div>
       ) : (
         <ScrollGridView
-          items={gridItems}
-          renderItem={(item) => (
-            <div
-              className="relative rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
-              onClick={() => handleSelect(item)}
-              data-testid={`card-grid-item-${item.id}`}
-            >
-              {item.imageUrl ? (
-                <img src={item.imageUrl} alt="" className="w-full h-auto" />
-              ) : (
-                <div className="flex flex-col items-center justify-center bg-muted h-32 gap-1" data-testid={`placeholder-no-url-${item.id}`}>
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <span className="text-xs text-destructive font-mono">No URL</span>
-                </div>
-              )}
-            </div>
-          )}
+          items={skinItems}
           isLoading={isLoading}
           emptyMessage="No cropped images yet."
-          columns="grid-cols-2 sm:grid-cols-3"
+          emptyIcon={<CropIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+          columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
           height="auto"
           footer={null}
+          renderItem={(item) => (
+            <CroppedCardSkin
+              item={item}
+              onClick={() => handleSelect(item)}
+              actions={{ onDelete: handleArchive }}
+              isActionPending={archiveMutation.isPending}
+            />
+          )}
         />
       )}
 
-      <ItemModalView
-        item={selectedItem ? {
-          id:       selectedItem.id,
-          name:     selectedItem.name,
-          imageUrl: selectedItem.imageUrl,
-        } : null}
-        open={singleViewOpen}
-        onOpenChange={setSingleViewOpen}
-      >
-        <DeleteSkin
-          itemId={selectedItem?.id || ""}
-          onDelete={handleDelete}
-          onClose={() => setSingleViewOpen(false)}
-          isDeleting={deleteMutation.isPending}
-        />
-      </ItemModalView>
+      {/* Detail popup */}
+      {selectedItem && detailOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setDetailOpen(false)}
+          data-testid="overlay-cropped-detail"
+        >
+          <div
+            className="bg-background rounded-lg p-6 w-full max-w-xs mx-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="modal-cropped-detail"
+          >
+            <CroppedDetailSkin
+              item={selectedItem}
+              actions={{ onDelete: handleArchive }}
+              onClose={() => setDetailOpen(false)}
+              isActionPending={archiveMutation.isPending}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }
