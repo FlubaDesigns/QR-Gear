@@ -505,7 +505,7 @@ export default function AdminSchemaKeys() {
                       view: "VScrollView",
                       skin: "SourceCardSkin",
                       shape: "SourceDetailShape",
-                      note: "⚠ Shape uses custom overlay — not ModalView",
+                      note: "",
                     },
                     {
                       surface: "Library › Backgrounds",
