@@ -42,7 +42,6 @@ export function SourceCardSkin({ item, actions, isActionPending }: CardSkinProps
         onClick={() => setOpen(true)}
         data-testid={`card-source-${item.id}`}
       >
-        {/* Clipping on inner container, not on Card */}
         <div className="relative aspect-square bg-muted rounded-t-md overflow-hidden">
           {item.primaryImage ? (
             <img

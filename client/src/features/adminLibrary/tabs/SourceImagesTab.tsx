@@ -9,7 +9,7 @@ import { ImageUploader, type UploadParams } from "@/features/shared/components/u
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
-import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
+import { SourceCardSkin } from "@/features/shared/components/skins/SourceImageSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { originalGrfParams, GRF_FILTER_ORIGINALS, normalizeMimeType } from "@shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";

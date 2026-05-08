@@ -591,7 +591,7 @@ export default function AdminSchemaKeys() {
                   rows={[
                     ["1", "Viewer", "1", "SinglePaneViewer",              "viewers/SinglePaneViewer.tsx",           "—",                                                              "Full-width structural wrapper — no scroll, no data"],
                     ["2", "View",   "1", "VScrollView (ScrollGridView)",  "views/ScrollGridView.tsx",               "ui/scroll-area · lucide-react",                                  "Vertical scroll grid — lays out Skin cards, handles loading/empty"],
-                    ["3", "Skin",   "1", "SourceCardSkin",                "skins/SourceSkin.tsx",                   "ui/card · ui/button · ui/badge · lucide-react · skins/types.ts · shapes/ModalView · shapes/SourceShape", "Card tile + owns popup open/close state + renders Shape internally"],
+                    ["3", "Skin",   "1", "SourceCardSkin",                "skins/SourceImageSkin.tsx",                   "ui/card · ui/button · ui/badge · lucide-react · skins/types.ts · shapes/ModalView · shapes/SourceShape", "Card tile + owns popup open/close state + renders Shape internally"],
                     ["4", "Shape",  "1", "SourceDetailShape + ModalView", "shapes/SourceShape.tsx + ModalView.tsx", "ui/button · ui/badge · lucide-react · skins/types.ts",           "Detail content (image, metadata, actions) — no chrome, no state"],
                   ]}
                 />
