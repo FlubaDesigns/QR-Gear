@@ -4,6 +4,16 @@ Last updated: May 8, 2026 (GRF schema migration — new 5-digit format `GRF-[D1]
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
+## Required Reading
+
+Before making any changes to this project, read these files in full:
+
+| File | Purpose |
+|------|---------|
+| `replit.md` | Project overview, stack, architecture decisions, gotchas, and user preferences — the top-level source of truth |
+| `VVSS.md` | VVSS four-digit code system — naming conventions, folder structure, and canon component set for all UI surfaces |
+| `ARCHITECTURE_VIEWER.md` | Binding law for the five-layer UI architecture (Domain → Controller → Viewer → View → Skin/Shape) — no exceptions |
+
 ---
 
 ## ADMIN AUTHORITY MAP
