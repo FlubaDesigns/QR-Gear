@@ -374,13 +374,13 @@ export default function AdminSchemaKeys() {
           </div>
         </Section>
 
-        {/* ── VVS ──────────────────────────────────────────────────────────── */}
+        {/* ── VVSS ─────────────────────────────────────────────────────────── */}
         <Section
-          title="VVS — Viewer / View / Shape / Skin"
-          subtitle="Three-digit UI architecture code. All repeating admin data surfaces must follow VVS."
+          title="VVSS — Viewer / View / Skin / Shape"
+          subtitle="Four-layer UI architecture for all repeating admin data surfaces. The three-digit code encodes Viewer · View · Shape; Skin is the named card component within that surface."
         >
           <FormatBar
-            label="Three-digit code"
+            label="Three-digit surface code"
             parts={[
               { seg: "[Viewer]", desc: "Pane structure", mono: true },
               { seg: "[View]", desc: "Scroll / layout", mono: true },
@@ -392,7 +392,45 @@ export default function AdminSchemaKeys() {
             <Label>Example</Label>
             <div className="flex flex-wrap gap-2 items-center">
               <CodePill>1·1·1</CodePill>
-              <span className="text-xs text-muted-foreground">= Single pane · vertical scroll · popup modal</span>
+              <span className="text-xs text-muted-foreground">= Single pane · grid scroll · popup modal</span>
+            </div>
+          </div>
+
+          {/* Four-layer summary table */}
+          <div className="space-y-2">
+            <Label>The four layers</Label>
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 rounded-md border border-border">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {["Viewer", "View", "Skin", "Shape"].map((h) => (
+                      <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap w-1/4">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-border">
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">The outer container — defines how many panes the surface has.</td>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">The layout inside the pane — how items scroll or arrange.</td>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">The card component rendered for each item inside the View.</td>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">The popup/modal that opens when a Skin is selected.</td>
+                  </tr>
+                  <tr className="border-b border-border">
+                    <td className="py-2 px-3 align-top font-mono text-xs text-foreground">1 = SinglePaneViewer<br/>2 = TwoPaneViewer</td>
+                    <td className="py-2 px-3 align-top font-mono text-xs text-foreground">0 = SingleView<br/>1 = ScrollGridView<br/>2 = ScrollHorizontalView</td>
+                    <td className="py-2 px-3 align-top font-mono text-xs text-foreground">[Type]CardSkin<br/><span className="text-muted-foreground not-italic font-sans">e.g. SourceCardSkin,<br/>GraphicCardSkin</span></td>
+                    <td className="py-2 px-3 align-top font-mono text-xs text-foreground">0 = none (flat)<br/>1 = ModalView<br/><span className="text-muted-foreground not-italic font-sans">content = [Type]Shape</span></td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">viewers/</td>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">views/</td>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">skins/</td>
+                    <td className="py-2 px-3 align-top text-xs text-muted-foreground">shapes/</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -434,12 +472,12 @@ export default function AdminSchemaKeys() {
           <div className="space-y-2">
             <Label>Real examples</Label>
             <KeyTable
-              cols={["Code", "Surface", "Shape"]}
+              cols={["Code", "Surface", "Skin", "Shape"]}
               rows={[
-                ["1·1·1", "Source Images tab", "ModalView + SourceDetailShape"],
-                ["1·1·0", "Backgrounds tab", "Flat — none"],
-                ["2·1·0", "Product builder", "Flat — none"],
-                ["1·2·1", "Graphics tab", "AdminGraphicShape"],
+                ["1·1·1", "Source Images tab", "SourceCardSkin", "ModalView + SourceDetailShape"],
+                ["1·1·0", "Backgrounds tab", "BackgroundCardSkin", "Flat — none"],
+                ["2·1·0", "Product builder", "ProductCardSkin", "Flat — none"],
+                ["1·2·1", "Graphics tab", "GraphicCardSkin", "AdminGraphicShape"],
               ]}
             />
           </div>

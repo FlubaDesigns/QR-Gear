@@ -48,19 +48,20 @@ shared/                # Code shared across all layers
 
 Key source-of-truth files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `docs/QRG.md`, `ADMIN_README.md`
 
-## UI Architecture — VVS
+## UI Architecture — VVSS
 
-All repeating data surfaces follow the VVS (Viewer / View / Shape / Skin) methodology.
+All repeating data surfaces follow the VVSS (Viewer / View / Skin / Shape) methodology.
 Full spec: `docs/VVS.md`. Binding law: `ARCHITECTURE_VIEWER.md`.
 
 ```
 viewers/   — pane structure (1 = single, 2 = two-pane)
 views/     — scroll/layout (0 = none, 1 = vertical, 2 = horizontal)
-shapes/    — popup layer (ModalView container + [DataType]Shape content)
 skins/     — card content ([DataType]CardSkin)
+shapes/    — popup layer (ModalView container + [DataType]Shape content)
 ```
 
-VVS three-digit code: `[Viewer][View][Shape]` — e.g. `1·1·1` = single pane + grid + popup.
+VVSS three-digit code: `[Viewer][View][Shape]` — e.g. `1·1·1` = single pane + grid + popup.
+Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a Skin is selected.
 
 ## Architecture decisions
 
