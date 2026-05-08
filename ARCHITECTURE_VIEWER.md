@@ -155,23 +155,31 @@ Every repeating UI surface gets a four-digit VVSS code. See `VVSS.md` for full r
 
 ## Canon View Set  *(VVSS digit 2)*
 
-There are exactly four canon Views. Do not invent additional View types unless the interaction model is fundamentally different.
+There are exactly six canon Views. Do not invent additional View types unless the interaction model is fundamentally different.
 
-### ScrollGridView
-- A grid of items/cards that scrolls vertically
-- Column count is a layout property, not a separate view type
-
-### ScrollVerticalView
-- A vertically stacked list of items/cards
-- Used when items should be scanned downward
-
-### ScrollHorizontalView
-- A horizontal strip/rail of items/cards
-- Used when items should be swiped sideways
-
-### SingleView
-- One focused content surface or one focused item
+### `SingleView` *(code 0)*
+- One focused content surface or one focused item — no scroll
 - Used for single-workspace experiences
+
+### `VScrollView` *(code 1)*
+- Items flow downward and scroll vertically
+- Grid or list layout is a prop (`layout="grid"` / `layout="list"`), not a separate view type
+
+### `HScrollView` *(code 2)*
+- Items flow sideways along a horizontal rail or strip
+- Used for catalog strips, featured rails, quick selectors
+
+### `SlideView` *(code 3)*
+- One item fills the pane at a time — advance forward/back
+- Nothing is partially visible; used for wizard steps, onboarding, carousels
+
+### `TableView` *(code 4)*
+- Data rows with labeled columns
+- Used for orders, fulfillment queues, structured inventory lists
+
+### `FocusView` *(code 5)*
+- One dominant item occupies the primary area with supporting context around it
+- Used for builder workspaces, canvas + tool tray, detail-centric layouts
 
 **ModalView is NOT a View.** It is a Shape (popup container). It lives in `shapes/`, not `views/`.
 

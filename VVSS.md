@@ -39,10 +39,12 @@ The View controls scroll and layout behavior. Nothing else.
 
 | Code | Component | Description |
 |---|---|---|
-| 0 | `SingleView` | No scroll — static or single item |
-| 1 | `ScrollGridView` / `ScrollVerticalView` | Vertical scroll |
-| 2 | `ScrollHorizontalView` | Horizontal scroll |
-| 3 | — | Paginated (reserved, not yet built) |
+| 0 | `SingleView` | No scroll — one focused item or workspace |
+| 1 | `VScrollView` | Vertical scroll — grid or list (layout prop) |
+| 2 | `HScrollView` | Horizontal scroll — rail or strip |
+| 3 | `SlideView` | Paginated — one item at a time, step forward/back |
+| 4 | `TableView` | Data rows with columns |
+| 5 | `FocusView` | One dominant item + supporting context around it |
 
 Folder: `client/src/features/shared/components/views/`
 

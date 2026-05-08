@@ -452,9 +452,11 @@ export default function AdminSchemaKeys() {
                 cols={["Code", "Component"]}
                 rows={[
                   ["0", "SingleView"],
-                  ["1", "ScrollGridView"],
-                  ["2", "ScrollHorizontalView"],
-                  ["3", "— (reserved)"],
+                  ["1", "VScrollView"],
+                  ["2", "HScrollView"],
+                  ["3", "SlideView"],
+                  ["4", "TableView"],
+                  ["5", "FocusView"],
                 ]}
               />
             </div>
@@ -481,16 +483,80 @@ export default function AdminSchemaKeys() {
           </div>
 
           <div className="space-y-2">
-            <Label>Real examples</Label>
-            <KeyTable
-              cols={["Code", "Surface", "Skin", "Shape"]}
-              rows={[
-                ["1·1·1·1", "Source Images tab", "SourceCardSkin", "ModalView + SourceDetailShape"],
-                ["1·1·1·0", "Backgrounds tab", "BackgroundCardSkin", "Flat — none"],
-                ["2·1·1·0", "Product builder", "ProductCardSkin", "Flat — none"],
-                ["1·2·1·1", "Graphics tab", "GraphicCardSkin", "AdminGraphicShape"],
-              ]}
-            />
+            <Label>Surface registry</Label>
+            <p className="text-xs text-muted-foreground">Live record of every page/tab and its four VVSS components. Updated as each surface is built or audited.</p>
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 rounded-md border border-border">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    {["Surface", "Code", "Viewer", "View", "Skin", "Shape", "Notes"].map((h) => (
+                      <th key={h} className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {[
+                    {
+                      surface: "Library › Source Images",
+                      code: "1·1·1·1",
+                      viewer: "SinglePaneViewer",
+                      view: "VScrollView",
+                      skin: "SourceCardSkin",
+                      shape: "SourceDetailShape",
+                      note: "⚠ Shape uses custom overlay — not ModalView",
+                    },
+                    {
+                      surface: "Library › Backgrounds",
+                      code: "1·1·1·1",
+                      viewer: "SinglePaneViewer",
+                      view: "VScrollView",
+                      skin: "BackgroundCardSkin",
+                      shape: "BackgroundShape",
+                      note: "",
+                    },
+                    {
+                      surface: "Library › Cropped Images",
+                      code: "1·1·1·1",
+                      viewer: "SinglePaneViewer",
+                      view: "VScrollView",
+                      skin: "CroppedCardSkin",
+                      shape: "CroppedShape",
+                      note: "",
+                    },
+                    {
+                      surface: "Library › Templates",
+                      code: "1·1·1·1",
+                      viewer: "SinglePaneViewer",
+                      view: "VScrollView",
+                      skin: "TemplateCardSkin",
+                      shape: "ModalView + TemplateDetailSkin",
+                      note: "",
+                    },
+                    {
+                      surface: "Library › Images",
+                      code: "1·1·?·1",
+                      viewer: "SinglePaneViewer",
+                      view: "VScrollView",
+                      skin: "— (inline, no named Skin)",
+                      shape: "ItemModalView",
+                      note: "⚠ Non-conformant — no CardSkin",
+                    },
+                  ].map((row) => (
+                    <tr key={row.surface} className={row.note ? "bg-amber-500/5" : ""}>
+                      <td className="py-2 px-3 text-xs font-medium text-foreground whitespace-nowrap">{row.surface}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-foreground whitespace-nowrap">{row.code}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-muted-foreground whitespace-nowrap">{row.viewer}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-muted-foreground whitespace-nowrap">{row.view}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-muted-foreground whitespace-nowrap">{row.skin}</td>
+                      <td className="py-2 px-3 font-mono text-xs text-muted-foreground whitespace-nowrap">{row.shape}</td>
+                      <td className="py-2 px-3 text-xs text-amber-600 dark:text-amber-400 whitespace-nowrap">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -525,10 +591,10 @@ export default function AdminSchemaKeys() {
             <KeyTable
               cols={["Layer", "Pattern", "Example"]}
               rows={[
-                ["Viewer", "[Name]Viewer.tsx", "SkinHorizontalViewer.tsx"],
-                ["View", "Scroll*View.tsx", "ScrollGridView.tsx"],
-                ["Shape", "[Type]Shape.tsx in shapes/", "AdminGraphicShape.tsx"],
-                ["Skin", "[Type]Skin.tsx in skins/", "AdminGraphicCardSkin.tsx"],
+                ["Viewer", "[Name]Viewer.tsx in viewers/", "SinglePaneViewer.tsx"],
+                ["View", "[Name]View.tsx in views/", "VScrollView.tsx"],
+                ["Skin", "[Type]CardSkin or [Type]RowSkin in skins/", "SourceCardSkin.tsx"],
+                ["Shape", "[Type]Shape.tsx in shapes/", "SourceDetailShape.tsx"],
               ]}
             />
           </div>

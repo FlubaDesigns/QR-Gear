@@ -55,7 +55,7 @@ Full spec: `VVSS.md`. Binding law: `ARCHITECTURE_VIEWER.md`.
 
 ```
 viewers/   — pane structure (1 = single, 2 = two-pane)
-views/     — scroll/layout (0 = none, 1 = vertical, 2 = horizontal)
+views/     — scroll/layout (0 = SingleView, 1 = VScrollView, 2 = HScrollView, 3 = SlideView, 4 = TableView, 5 = FocusView)
 skins/     — card content ([DataType]CardSkin)
 shapes/    — popup layer (ModalView container + [DataType]Shape content)
 ```
