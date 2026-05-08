@@ -1,4 +1,5 @@
 import AdminShell from "@/components/AdminShell";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { SIZE_TYPES, LENGTH_TYPES, COLOR_CODE_MAP, PARENT_CATEGORY_LABELS } from "@shared/qrgCodes";
 import {
   GRF_ASSET_CLASSES,
@@ -578,19 +579,25 @@ export default function AdminSchemaKeys() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Source Images — layer breakdown</Label>
-            <p className="text-xs text-muted-foreground">What sits at each VVSS digit for <code className="font-mono">Library › Source Images</code>.</p>
-            <KeyTable
-              cols={["Digit", "Layer", "Code", "Component", "File", "Calls", "Responsibility"]}
-              rows={[
-                ["1", "Viewer", "1", "SinglePaneViewer",              "viewers/SinglePaneViewer.tsx",           "—",                                                              "Full-width structural wrapper — no scroll, no data"],
-                ["2", "View",   "1", "VScrollView (ScrollGridView)",  "views/ScrollGridView.tsx",               "ui/scroll-area · lucide-react",                                  "Vertical scroll grid — lays out Skin cards, handles loading/empty"],
-                ["3", "Skin",   "1", "SourceCardSkin",                "skins/SourceSkin.tsx",                   "ui/card · ui/button · ui/badge · lucide-react · skins/types.ts", "Card tile + owns popup open/close state + renders Shape internally"],
-                ["4", "Shape",  "1", "SourceDetailShape + ModalView", "shapes/SourceShape.tsx + ModalView.tsx", "ui/button · ui/badge · lucide-react · skins/types.ts",           "Detail content (image, metadata, actions) — no chrome, no state"],
-              ]}
-            />
-          </div>
+          <Accordion type="single" collapsible className="border border-border rounded-md">
+            <AccordionItem value="source-breakdown" className="border-0">
+              <AccordionTrigger className="px-4 py-3 text-sm font-medium hover:no-underline">
+                Source Images — layer breakdown
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 space-y-2">
+                <p className="text-xs text-muted-foreground">What sits at each VVSS digit for <code className="font-mono">Library › Source Images</code>.</p>
+                <KeyTable
+                  cols={["Digit", "Layer", "Code", "Component", "File", "Calls", "Responsibility"]}
+                  rows={[
+                    ["1", "Viewer", "1", "SinglePaneViewer",              "viewers/SinglePaneViewer.tsx",           "—",                                                              "Full-width structural wrapper — no scroll, no data"],
+                    ["2", "View",   "1", "VScrollView (ScrollGridView)",  "views/ScrollGridView.tsx",               "ui/scroll-area · lucide-react",                                  "Vertical scroll grid — lays out Skin cards, handles loading/empty"],
+                    ["3", "Skin",   "1", "SourceCardSkin",                "skins/SourceSkin.tsx",                   "ui/card · ui/button · ui/badge · lucide-react · skins/types.ts", "Card tile + owns popup open/close state + renders Shape internally"],
+                    ["4", "Shape",  "1", "SourceDetailShape + ModalView", "shapes/SourceShape.tsx + ModalView.tsx", "ui/button · ui/badge · lucide-react · skins/types.ts",           "Detail content (image, metadata, actions) — no chrome, no state"],
+                  ]}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           <div className="space-y-2">
             <Label>SkinItem contract</Label>
