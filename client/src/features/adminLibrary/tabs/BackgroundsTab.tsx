@@ -7,7 +7,8 @@ import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
-import { BackgroundCardSkin, BackgroundDetailSkin } from "@/features/shared/components/skins/BackgroundSkin";
+import { BackgroundCardSkin } from "@/features/shared/components/skins/BackgroundSkin";
+import { BackgroundShape } from "@/features/shared/components/shapes/BackgroundShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "../shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
@@ -232,30 +233,16 @@ function BackgroundsTabInner() {
         />
       )}
 
-      {/* Detail popup */}
-      {selectedItem && detailOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setDetailOpen(false)}
-          data-testid="overlay-background-detail"
-        >
-          <div
-            className="bg-background rounded-lg p-6 w-full max-w-xs mx-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="modal-background-detail"
-          >
-            <BackgroundDetailSkin
-              item={selectedItem}
-              actions={{
-                onCrop:   handleStartCrop,
-                onDelete: handleArchive,
-              }}
-              onClose={() => setDetailOpen(false)}
-              isActionPending={archiveMutation.isPending}
-            />
-          </div>
-        </div>
-      )}
+      <BackgroundShape
+        open={detailOpen}
+        item={selectedItem}
+        actions={{
+          onCrop:   handleStartCrop,
+          onDelete: handleArchive,
+        }}
+        onClose={() => setDetailOpen(false)}
+        isActionPending={archiveMutation.isPending}
+      />
 
       <CropUtility
         asset={assetToCrop}

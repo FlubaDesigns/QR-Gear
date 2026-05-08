@@ -6,7 +6,8 @@ import { Crop as CropIcon } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
-import { CroppedCardSkin, CroppedDetailSkin } from "@/features/shared/components/skins/CroppedImageSkin";
+import { CroppedCardSkin } from "@/features/shared/components/skins/CroppedImageSkin";
+import { CroppedShape } from "@/features/shared/components/shapes/CroppedShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { GRF_FILTER_CROPPED } from "../shared/GRF_engine";
 import { CROPPED_QK } from "../shared/grfQueryKeys";
@@ -162,27 +163,13 @@ function CroppedImagesTabInner() {
         />
       )}
 
-      {/* Detail popup */}
-      {selectedItem && detailOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setDetailOpen(false)}
-          data-testid="overlay-cropped-detail"
-        >
-          <div
-            className="bg-background rounded-lg p-6 w-full max-w-xs mx-4 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-            data-testid="modal-cropped-detail"
-          >
-            <CroppedDetailSkin
-              item={selectedItem}
-              actions={{ onDelete: handleArchive }}
-              onClose={() => setDetailOpen(false)}
-              isActionPending={archiveMutation.isPending}
-            />
-          </div>
-        </div>
-      )}
+      <CroppedShape
+        open={detailOpen}
+        item={selectedItem}
+        actions={{ onDelete: handleArchive }}
+        onClose={() => setDetailOpen(false)}
+        isActionPending={archiveMutation.isPending}
+      />
     </>
   );
 }
