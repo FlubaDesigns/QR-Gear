@@ -1,4 +1,4 @@
-# VVS — Viewer / View / Skin
+# VVS — Viewer / View / Shape / Skin
 
 Design and rendering methodology for the QR Gear admin platform.
 All repeating UI surfaces must be built using VVS layers.
@@ -7,12 +7,13 @@ All repeating UI surfaces must be built using VVS layers.
 
 ## Overview
 
-VVS is three layers with a three-digit code:
+VVS is four layers with a three-digit code:
 
 ```
-Viewer  (first digit)   — the pane
-  └── View  (second digit) — the behavior
-        └── Skin            — the content (named, not coded)
+Viewer  (first digit)    — the pane
+  └── View  (second digit)  — the scroll/layout behavior
+        └── Shape  (third digit) — the popup layer (if any)
+              └── Skin             — the content (named, not coded)
 ```
 
 Each layer has exactly one job.
@@ -38,18 +39,14 @@ Example:  1·1·1
 
 **The pane.**
 
-The Viewer is the structural container. It owns the page or panel layout.
+Owns the page or panel layout. Answers: how many panels, where do they live?
 
-It answers:
-- How many panels are visible?
-- Where do they live on screen?
+Does NOT know how items scroll, what they look like, or what buttons exist.
 
-The Viewer does NOT know how items scroll, what they look like, or what buttons exist.
-
-| Code | Name | Description |
-|---|---|---|
-| 1 | Single pane | One full-width pane |
-| 2 | Two pane | Side by side — list left, detail right |
+| Code | Name | Component | Description |
+|---|---|---|---|
+| 1 | Single pane | `SinglePaneViewer` | One full-width pane |
+| 2 | Two pane | `TwoPaneViewer` | Side by side — list left, detail right |
 
 More Viewer types added as they appear in the codebase.
 
@@ -57,23 +54,19 @@ More Viewer types added as they appear in the codebase.
 
 ## View — Second Digit
 
-**The behavior.**
+**The scroll/layout behavior.**
 
-The View lives inside the Viewer. It controls how items move and arrange.
+Lives inside the Viewer. Controls how items move and arrange.
+Answers: does it scroll, which direction, grid or list, paginated?
 
-It answers:
-- Does it scroll, and which direction?
-- Is it paginated?
-- Is there no movement at all?
+Does NOT know what the Viewer looks like, what items look like, or what buttons exist.
 
-The View does NOT know what the Viewer looks like, what items look like, or what buttons exist.
-
-| Code | Name | Description |
-|---|---|---|
-| 0 | None | No scroll, no pagination — static or single item |
-| 1 | Vertical | Vertical scroll (grid or list) |
-| 2 | Horizontal | Horizontal scroll, row of cards |
-| 3 | Paginated | Page-by-page navigation |
+| Code | Name | Component | Description |
+|---|---|---|---|
+| 0 | None | `SingleView` | No scroll, no pagination — static or single item |
+| 1 | Vertical | `ScrollGridView`, `ScrollVerticalView` | Vertical scroll |
+| 2 | Horizontal | `ScrollHorizontalView` | Horizontal scroll, row of cards |
+| 3 | Paginated | — | Page-by-page navigation |
 
 More View types added as they appear in the codebase.
 
@@ -81,17 +74,35 @@ More View types added as they appear in the codebase.
 
 ## Shape — Third Digit
 
-**The popup.**
+**The popup layer.**
 
-The Shape digit answers one question: does the Viewer contain a modal or popup layer?
+Answers: does the Viewer open a popup on top of the View? If so, what does it contain?
 
-It does NOT describe card styles, buttons, or images.
-It only describes whether a secondary layer opens on top of the primary View.
+The Shape layer has two parts:
+- **Container** — `ModalView` wraps the popup shell (dialog, overlay)
+- **Content** — a named Shape component renders inside the popup
 
-| Code | Name | Description |
+Shape content components live in `shapes/` alongside `ModalView`.
+They are NOT Skins. They serve the popup context, not the grid context.
+
+Does NOT describe card styles or grid behavior.
+
+| Code | Name | Container | Description |
+|---|---|---|---|
+| 0 | Flat | — | No popup, no modal |
+| 1 | Popup | `ModalView` | A modal/dialog opens inside the Viewer |
+
+### Shape naming convention
+
+```
+[DataType]Shape.tsx
+
+DataType = what data it displays   (Source, Product, Template...)
+```
+
+| Component | Data type | File |
 |---|---|---|
-| 0 | Flat | No popup, no modal — actions happen inline or not at all |
-| 1 | Popup | A modal or dialog opens inside the Viewer |
+| `SourceDetailShape` | GRF source original | `shapes/SourceShape.tsx` |
 
 More Shape types added as they appear in the codebase.
 
@@ -99,47 +110,34 @@ More Shape types added as they appear in the codebase.
 
 ## Skin — Named, Not Coded
 
-**The content.**
+**The card content.**
 
-The Skin is where the image lives. Where the buttons live. Where the text lives.
-Everything the user sees and taps.
+Lives inside the View grid/list. Everything the user sees and taps on a card.
+Answers: what does each card look like, what image, text, and buttons does it show?
 
-It answers:
-- What does each item look like?
-- What image is shown?
-- What text is displayed?
-- What buttons or actions are available?
+Does NOT know what Viewer, View, or Shape contains it.
+Does NOT render popup/detail content — that belongs in Shape.
 
-The Skin does NOT know what Viewer or View contains it.
-
-### Naming convention
+### Skin naming convention
 
 ```
-[DataType][Variant]Skin
+[DataType]Skin.tsx
 
-DataType = what it displays   (SourceImage, Product, Template...)
-Variant  = Card or Detail
+DataType = what it displays   (Source, Product, Template...)
 ```
 
-| Variant | When used |
-|---|---|
-| Card | Compact — rendered inside the View grid/list |
-| Detail | Expanded — rendered inside a popup/modal |
-
-### Examples
-
-| Skin name | Data type | Variant |
+| Component | Data type | File |
 |---|---|---|
-| `SourceImageCardSkin` | GRF source original | Card |
-| `SourceImageDetailSkin` | GRF source original | Detail |
-| `ProductCardSkin` | Product | Card |
+| `SourceCardSkin` | GRF source original | `skins/SourceSkin.tsx` |
+
+More Skin types added as they appear in the codebase.
 
 ---
 
 ## SkinItem — the shared data contract
 
 All Views accept items in the `SkinItem` shape.
-All Skins receive a `SkinItem`.
+All Skins and Shape content components receive a `SkinItem`.
 
 ```ts
 interface SkinItem {
@@ -162,30 +160,33 @@ interface SkinItem {
 
 **Key rule:** `metadata.raw` holds the full original API response object.
 
-Skin action handlers read `metadata.raw` to access fields like `grfId`, `mimeType`,
-and `originalFilename` — without the Viewer or View needing to know those fields exist.
+Action handlers in both Skins and Shapes read `metadata.raw` to access
+fields like `grfId`, `mimeType`, and `originalFilename` — without the
+Viewer or View layer needing to know those fields exist.
 
 ---
 
 ## Composition rule
 
-Every repeating data surface must follow:
-
 ```
-[Viewer]
-  [View]
-    [Skin per item]
+[Viewer]            — pane structure
+  [View]            — scroll/layout
+    [Skin]          — card per item
+  [Shape]           — popup (if Shape code = 1)
+    [ModalView]     — popup container
+    [XxxShape]      — popup content
 ```
 
 ### What violates VVS
 
 | Violation | Description |
 |---|---|
-| Skin violation | Rendering raw `<div><img /></div>` cards inside a tab instead of a Skin |
-| View violation | Putting scroll or grid logic inside a Skin |
+| Skin violation | Rendering raw `<div><img /></div>` cards in a tab instead of a Skin |
+| Shape violation | Putting popup/detail content inside a Skin file |
+| View violation | Putting scroll or grid logic inside a Skin or Shape |
 | Viewer violation | Putting pane/panel layout inside a View |
 | Contract violation | Passing raw API objects into a View instead of mapping to SkinItem |
-| Contract violation | Accessing `grfId` or `mimeType` from View layer instead of `metadata.raw` |
+| Contract violation | Reading `grfId` or `mimeType` from View layer instead of `metadata.raw` |
 | Style violation | `hover-elevate` on an element with `overflow-hidden` |
 | Style violation | Setting `hover:*` colors on a Button or Badge |
 | Style violation | Setting `h-*` manually on a Button |
@@ -196,9 +197,9 @@ Every repeating data surface must follow:
 
 | Code | Surface | Viewer | View | Shape |
 |---|---|---|---|---|
-| 1·1·1 | Source Images tab | Single pane | Vertical scroll grid | Detail popup |
-| 1·1·0 | Backgrounds tab | Single pane | Vertical scroll grid | Flat |
-| 2·1·0 | Product builder | Two pane | Vertical scroll left | Flat |
+| 1·1·1 | Source Images tab | `SinglePaneViewer` | `ScrollGridView` | `ModalView` + `SourceDetailShape` |
+| 1·1·0 | Backgrounds tab | `SinglePaneViewer` | `ScrollGridView` | Flat — none |
+| 2·1·0 | Product builder | `TwoPaneViewer` | `ScrollGridView` | Flat — none |
 
 ---
 
@@ -207,25 +208,25 @@ Every repeating data surface must follow:
 ```
 client/src/features/shared/components/
 
-  viewers/                     # Viewer components (first digit)
-    SinglePaneViewer.tsx       # Viewer code 1 — one full-width pane
-    TwoPaneViewer.tsx          # Viewer code 2 — side by side
+  viewers/                       # Viewer components — first digit
+    SinglePaneViewer.tsx         # Code 1 — one full-width pane
+    TwoPaneViewer.tsx            # Code 2 — side by side
 
-  views/                       # View components (second digit)
-    ScrollGridView.tsx         # View code 1 — vertical scroll, grid
-    ScrollHorizontalView.tsx   # View code 2 — horizontal scroll
-    ScrollVerticalView.tsx     # View code 1 — vertical scroll, list
-    SingleView.tsx             # View code 0 — no scroll
+  views/                         # View components — second digit
+    ScrollGridView.tsx           # Code 1 — vertical scroll, grid columns
+    ScrollVerticalView.tsx       # Code 1 — vertical scroll, single column
+    ScrollHorizontalView.tsx     # Code 2 — horizontal scroll
+    SingleView.tsx               # Code 0 — no scroll
 
-  shapes/                      # Shape components (third digit)
-    ModalView.tsx              # Shape code 1 — popup/modal container
-    SourceShape.tsx            # SourceDetailShape — popup content for source images
+  shapes/                        # Shape components — third digit
+    ModalView.tsx                # Popup container (Shape code 1)
+    SourceShape.tsx              # SourceDetailShape — popup content for source images
 
-  skins/                       # Skin components (named)
-    SourceSkin.tsx             # SourceCardSkin — card in the grid
+  skins/                         # Skin components — named
+    SourceSkin.tsx               # SourceCardSkin — card in the grid
 
 client/src/features/adminLibrary/tabs/
-  SourceImagesTab.tsx          # VVS 1·1·1 — source GRF originals
-  CroppedImagesTab.tsx         # VVS 1·1·0 — cropped GRF derivatives
-  BackgroundsTab.tsx           # VVS 1·1·0 — promoted background assets
+  SourceImagesTab.tsx            # VVS 1·1·1 — source GRF originals
+  CroppedImagesTab.tsx           # VVS 1·1·0 — cropped GRF derivatives
+  BackgroundsTab.tsx             # VVS 1·1·0 — promoted background assets
 ```
