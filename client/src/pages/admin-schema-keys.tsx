@@ -326,6 +326,25 @@ export default function AdminSchemaKeys() {
           </div>
 
           <div className="space-y-2">
+            <Label>Library asset strings — Source Images crop operation</Label>
+            <p className="text-xs text-muted-foreground">
+              Every crop produces three GRF records. D5 on the background always matches the source — not the cropped output. Cropped output is always JPEG.
+            </p>
+            <KeyTable
+              cols={["Asset", "GRF string", "D4", "D5", "Note"]}
+              rows={[
+                ["Source (PNG upload)",    "GRF-11411-NNNNNN", "1 = original",   "1 = PNG",  "Raw upload, filename preserved"],
+                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Crop always outputs JPEG"],
+                ["Background (PNG→PNG)",   "GRF-11431-NNNNNN", "3 = background", "1 = PNG",  "Inherits source format"],
+                ["—", "—", "—", "—", "—"],
+                ["Source (JPEG upload)",   "GRF-11412-NNNNNN", "1 = original",   "2 = JPEG", "Raw upload, filename preserved"],
+                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Same as PNG case"],
+                ["Background (JPEG→JPEG)", "GRF-11432-NNNNNN", "3 = background", "2 = JPEG", "Inherits source format"],
+              ]}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label>Storage path</Label>
             <CodePill>grf/{"<GRF-ID>"}{"/<filename>.<ext>"}</CodePill>
             <p className="text-xs text-muted-foreground">
@@ -569,26 +588,6 @@ export default function AdminSchemaKeys() {
                 ["2", "View",   "1", "VScrollView (ScrollGridView)", "Vertical scroll grid — lays out Skin cards, handles loading/empty"],
                 ["3", "Skin",   "1", "SourceCardSkin", "Card tile + owns popup open/close state + renders Shape internally"],
                 ["4", "Shape",  "1", "SourceDetailShape inside ModalView", "Detail content (image, metadata, actions) — no chrome, no state"],
-              ]}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Source Images — GRF asset strings</Label>
-            <p className="text-xs text-muted-foreground">
-              Every crop produces three GRF records. Format digit (D5) on the background always matches the source — not the cropped output.
-              Cropped output is always JPEG regardless of source format.
-            </p>
-            <KeyTable
-              cols={["Asset", "GRF-D1D2D3D4D5-NNNNNN", "D4", "D5", "Note"]}
-              rows={[
-                ["Source (PNG upload)",    "GRF-11411-NNNNNN", "1 = original",   "1 = PNG",  "Raw upload, filename preserved"],
-                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Crop always outputs JPEG"],
-                ["Background (PNG→PNG)",   "GRF-11431-NNNNNN", "3 = background", "1 = PNG",  "Inherits source format"],
-                ["—", "—", "—", "—", "—"],
-                ["Source (JPEG upload)",   "GRF-11412-NNNNNN", "1 = original",   "2 = JPEG", "Raw upload, filename preserved"],
-                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Same as PNG case"],
-                ["Background (JPEG→JPEG)", "GRF-11432-NNNNNN", "3 = background", "2 = JPEG", "Inherits source format"],
               ]}
             />
           </div>
