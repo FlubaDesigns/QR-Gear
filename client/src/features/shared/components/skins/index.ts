@@ -3,7 +3,6 @@ export * from "./GraphicsSkin";
 export * from "./TemplateSkin";
 export * from "./BackgroundSkin";
 export * from "./SourceSkin";
-export * from "./SourceImageSkin";
 export * from "./CroppedImageSkin";
 export * from "./TextPreviewView";
 export * from "./LandingPageView";
