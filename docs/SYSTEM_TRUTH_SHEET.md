@@ -105,6 +105,7 @@ Store → Channel → Collection → Artifact
 | Document                              | Purpose                                    |
 |---------------------------------------|--------------------------------------------|
 | `docs/CANON_COLLECTION_MOSAIC.md`     | Permanent rule: Collection = grouping, Mosaic = stitching |
+| `docs/VVS.md`                         | UI rendering methodology: Viewer / View / Shape / Skin |
 
 ---
 
@@ -123,5 +124,6 @@ Store → Channel → Collection → Artifact
 | `shared/blankKeys.ts`             | Canonical blank key derivation             |
 | `shared/descriptionLayers.ts`     | Description cascade resolution             |
 | `shared/wizardProduct.ts`         | Wizard product normalization               |
-| `ARCHITECTURE_VIEWER.md`          | UI architecture canon                      |
+| `ARCHITECTURE_VIEWER.md`          | UI architecture canon — five layers + VVS  |
 | `ARCHITECTURE_IDENTITY.md`        | Product identity canon                     |
+| `docs/VVS.md`                     | VVS three-digit codes, folder rules, naming conventions |

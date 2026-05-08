@@ -1,10 +1,22 @@
 # Official Viewer Architecture — LAW
 
-This document is the authoritative, binding architecture for all viewer/UI component systems in QR Gear. No exceptions. No alternate systems. No forks. One system.
+This document is the authoritative, binding architecture for all viewer/UI component systems in QR Gear.
+No exceptions. No alternate systems. No forks. One system.
+
+See `docs/VVS.md` for the VVS code system (three-digit codes, folder conventions, naming rules).
 
 ---
 
 ## The Five Layers
+
+```
+DOMAIN      — business truth
+CONTROLLER  — authority + data prep
+VIEWER      — mount point  (VVS first digit)
+  VIEW      — scroll/layout  (VVS second digit)
+  SHAPE     — popup layer  (VVS third digit)
+    SKIN    — card content  (VVS named)
+```
 
 ### 1. DOMAIN — Truth
 The domain layer controls truth. Business rules live here.
@@ -33,27 +45,25 @@ The controller layer enforces truth and prepares UI inputs.
 
 The controller owns action authority. Not visual layout. Not painting.
 
-### 3. VIEWER — Dumb Mount Point
-SharedViewer is dumb. This is locked.
+### 3. VIEWER — Dumb Mount Point  *(VVS first digit)*
+The Viewer is a structural container. It owns the page or panel layout.
 
-SharedViewer ONLY:
+Answers: how many panels are visible? Where do they live on screen?
+
+VVS codes:
+| Code | Component | Description |
+|---|---|---|
+| 1 | `SinglePaneViewer` | One full-width pane |
+| 2 | `TwoPaneViewer` | Side by side — list left, detail right |
+
+The Viewer ONLY:
 - Receives prepared items
 - Receives a view type
 - Receives a skin
-- Receives explicit props
-- Receives explicit actions
+- Receives explicit props and actions
 - Mounts the view and skin together
 
-SharedViewer may support size variants when needed, but size affects presentation only and never meaning.
-
-The viewer is allowed to know:
-- Which view to mount
-- Which skin to mount
-- Which size variant to use
-- Which prepared items to receive
-- Which explicit props/actions to pass through
-
-SharedViewer does NOT:
+The Viewer does NOT:
 - Invent business truth
 - Infer provider identity
 - Rewrite item shape
@@ -62,162 +72,186 @@ SharedViewer does NOT:
 - Decide role meaning
 - Derive product keys from active tabs
 - Interpret domain rules
-- Know provider identity meaning
-- Know permission meaning
-- Know description-layer meaning
-- Know packet-vs-catalog meaning
-- Know what the content means in domain terms
 
-SharedViewer is a socket. It mounts. It does not think.
+The Viewer is a socket. It mounts. It does not think.
 
-### 4. VIEW — Layout Only
-A view controls layout behavior only.
+### 4. VIEW — Layout Only  *(VVS second digit)*
+A View controls scroll and layout behavior. Nothing else.
 
-A view may control:
-- Single-item framing
+VVS codes:
+| Code | Component | Description |
+|---|---|---|
+| 0 | `SingleView` | No scroll, static or single item |
+| 1 | `ScrollGridView`, `ScrollVerticalView` | Vertical scroll |
+| 2 | `ScrollHorizontalView` | Horizontal scroll |
+| 3 | — | Paginated (not yet built) |
+
+A View may control:
 - Grid arrangement
-- Vertical list arrangement
-- Horizontal strip arrangement
-- Modal/lightbox framing
-- Spacing
-- Scrolling behavior
-- Density props like columns where applicable
+- Vertical / horizontal / paginated scroll
+- Spacing and density
+- Column count where applicable
 
-A view may NOT control:
-- Business truth
-- Role authority
-- Save targets
-- Provider identity
-- Permission meaning
-- Description-layer meaning
-- Packet-vs-catalog logic
+A View may NOT control:
+- Business truth, role authority, save targets
+- Provider identity, permission meaning
+- Description-layer meaning, packet-vs-catalog logic
 - Action meaning
 
-If the layout is a scroll layout, its name should begin with Scroll.
+### 5. SHAPE — Popup Layer  *(VVS third digit)*
+The Shape layer answers one question: does this Viewer contain a popup on top of the View?
 
-### 5. SKIN — Visible Controls + Interaction Surface
-The skin renders buttons, edit actions, badges, title, image, price, colors, sizes, previews, and role-specific controls.
+Shape is NOT a sub-type of View. It is its own layer. Shape components live in `shapes/`, not `views/`.
 
-The skin may launch detail modals, edit flows, remove actions.
+VVS codes:
+| Code | Description |
+|---|---|
+| 0 | Flat — no popup |
+| 1 | Popup — `ModalView` container + a named Shape content component |
 
-The skin does NOT define business truth. Does NOT decide where save goes. Does NOT decide whether edit means global vs packet. It only receives declared handlers and visible state from the controller.
+The Shape layer has two parts:
+- **Container** — `ModalView` in `shapes/` wraps the popup shell (dialog, overlay)
+- **Content** — a named `[DataType]Shape` component renders inside the popup
 
-The skin controls interface.
-The controller controls authority.
-The domain controls truth.
+Shape content components follow the naming convention `[DataType]Shape.tsx` and live in `shapes/`.
+They are NOT Skins. They are NOT Views.
+
+### 6. SKIN — Visible Controls  *(VVS named)*
+The Skin renders card content: image, buttons, text, badges, actions.
+Everything the user sees and taps on a card in the grid.
+
+The Skin does NOT:
+- Define business truth
+- Decide where save goes
+- Render popup/detail content (that belongs in Shape)
+- Know what Viewer, View, or Shape contains it
+
+Naming convention: `[DataType]CardSkin` in `skins/[DataType]Skin.tsx`.
 
 ---
 
-## Canon View Set
+## VVS Three-Digit Code
 
-There are exactly five core canon views. Do not invent additional core view types unless the interaction model is fundamentally different.
+Every repeating UI surface gets a three-digit VVS code. See `docs/VVS.md` for full reference.
 
-### 1. SingleView
-- One focused content surface or one focused item
-- Used for single-workspace experiences
-- May still have a skin layered on top of it
+```
+[Viewer][View][Shape]
 
-### 2. ScrollGridView
+1·1·1 = SinglePaneViewer + ScrollGridView + ModalView popup
+1·1·0 = SinglePaneViewer + ScrollGridView + flat (no popup)
+2·1·0 = TwoPaneViewer   + ScrollGridView + flat
+```
+
+---
+
+## Canon View Set  *(VVS second digit)*
+
+There are exactly four canon Views. Do not invent additional View types unless the interaction model is fundamentally different.
+
+### ScrollGridView
 - A grid of items/cards that scrolls vertically
 - Column count is a layout property, not a separate view type
-- Example property: columns = 2 | 3 | 4 | auto
 
-### 3. ScrollVerticalView
+### ScrollVerticalView
 - A vertically stacked list of items/cards
-- Used when items should be scanned downward in a list
+- Used when items should be scanned downward
 
-### 4. ScrollHorizontalView
+### ScrollHorizontalView
 - A horizontal strip/rail of items/cards
 - Used when items should be swiped sideways
 
-### 5. ModalView
-- Overlay/lightbox/fullscreen detail or editing workspace
-- Used for inspect/edit/detail flows launched from other views
+### SingleView
+- One focused content surface or one focused item
+- Used for single-workspace experiences
 
-That is the full core canon.
+**ModalView is NOT a View.** It is a Shape (popup container). It lives in `shapes/`, not `views/`.
+
+---
+
+## Canon Shape Set  *(VVS third digit)*
+
+There is one canon popup container and one shape component per data type.
+
+### ModalView  *(container)*
+- The popup/dialog shell
+- File: `shapes/ModalView.tsx`
+- Used for: inspect, detail, editing flows launched from grid Views
+
+### [DataType]Shape  *(content)*
+- The content that renders inside the popup
+- File: `shapes/[DataType]Shape.tsx`
+- One Shape file per data type that has a popup
+
+Current Shape components:
+| Component | Data type | File |
+|---|---|---|
+| `SourceDetailShape` | GRF source original | `shapes/SourceShape.tsx` |
 
 ---
 
 ## Page Layouts Are NOT Canon View Types
 
-A page may compose multiple viewers. Page structure is composition, not a new core view.
+A page may compose multiple Viewers. Page structure is composition, not a new core View.
 
 Example: admin-blanks is NOT a special "TopBottomView". It is a page that composes:
-- ScrollHorizontalView for the top catalog pane
-- ScrollGridView for the bottom source pane
-- ModalView for detail/editing
+- `ScrollHorizontalView` for the top catalog pane
+- `ScrollGridView` for the bottom source pane
+- `ModalView` (Shape) for detail/editing
 
 ---
 
-## Site-Wide Application Summary
+## Site-Wide View Usage Guide
 
 **Use ScrollGridView for:**
-- Products browsing
-- Store browsing
-- Library tabs
-- Templates
-- Graphics
-- Backgrounds
-- Members library
-- Store library
+- Products browsing, store browsing, library tabs
+- Templates, graphics, backgrounds
+- Members library, store library
 
 **Use ScrollVerticalView for:**
-- Wizard tier lists
-- Wizard product lists
-- Narrow phone pickers
-- Stacked list selection surfaces
+- Wizard tier lists, wizard product lists
+- Narrow phone pickers, stacked list selection surfaces
 
 **Use ScrollHorizontalView for:**
 - Top catalog strip on admin-blanks
-- Featured rails
-- Quick selectors
-- Compact selected-item shelves
+- Featured rails, quick selectors, compact shelves
 
-**Use ModalView for:**
+**Use ModalView (Shape) for:**
 - Admin blank detail editor
-- Product detail popup
-- Wizard product detail popup
+- Product detail popup, wizard product detail popup
 - Library item preview
 - Image/template/background preview
 - Lightbox workflows
 
 **Use SingleView for:**
-- Focused single-item or single-workspace screens where one main content surface is shown
+- Focused single-item or single-workspace screens
 
 ---
 
 ## One Viewer System Only
 
-There is NOT two different viewer systems. Any alternate viewer family must be folded into the same official viewer/view/skin architecture.
+There is NOT two different viewer systems. Any alternate viewer family must be folded into the same official architecture.
 
-All UI experiences use this same system:
-- Admin blanks
-- Product pickers
-- Store product displays
-- Graphics/template pickers
-- Library pickers
+All UI experiences use this system:
+- Admin blanks, product pickers, store product displays
+- Graphics/template pickers, library pickers
 - Other card/grid/modal selectors
 
-Differences between pages are handled by different controllers, different views, different skins — NOT by inventing a second viewer system.
-
-## Site Fit Rule
-
-The entire site fits into this one viewer system and these five canon views.
-
-Do NOT create:
-- Separate product viewer systems
-- Separate library viewer systems
-- Separate wizard viewer systems
-- Separate asset viewer systems
-
-Differences across the site are handled by different controllers, different views, different skins, different size/density props — NOT by creating additional viewer engines.
+Differences between pages are handled by different controllers, different views, different shapes, different skins — NOT by inventing a second viewer system.
 
 ---
 
 ## Shared Components Rule
 
-`shared/components` = where the viewer/view/skin infrastructure is built (the factory).
-Pages and modules = where it is used.
+```
+client/src/features/shared/components/
+
+  viewers/     ← Viewer components (first digit)
+  views/       ← View components (second digit)
+  shapes/      ← Shape components (third digit) — popups and their content
+  skins/       ← Skin components (named) — card content
+```
+
+Pages and modules use these. They do not reimplement them.
 
 ---
 
@@ -227,8 +261,7 @@ All viewer usage must be designed phone-first:
 - Narrow screens are the default assumption
 - Thumb-friendly controls are mandatory
 - No dependence on wide desktop-only layouts
-- Cards should not hold too much text or too many micro-controls
-- Long editing happens in a modal/detail pane, not inside a tiny card
+- Long editing happens in a modal Shape, not inside a tiny card
 - Desktop can be an enhancement, not the baseline
 
 ---
@@ -236,9 +269,9 @@ All viewer usage must be designed phone-first:
 ## Description Cascade Model
 
 Three description layers (full system):
-1. **providerDescription** — Exact source description from Printify or Printful. Preserve the real long description when available.
+1. **providerDescription** — Exact source description from Printify or Printful.
 2. **adminCatalogDescription** — Global lasting admin override. Saved at catalog level in `catalog.blankDescriptions[canonicalBlankKey]`.
-3. **memberPacketDescription** — Member-only override for that packet/item instance. Only applies inside the member workflow. Never writes back to admin/global.
+3. **memberPacketDescription** — Member-only override for that packet/item instance. Never writes back to admin/global.
 
 Effective description: `adminCatalogDescription ?? providerDescription ?? fallback`
 
@@ -247,22 +280,23 @@ Effective description: `adminCatalogDescription ?? providerDescription ?? fallba
 ## Admin-Blanks Specific Rules
 
 ### Layout: Phone-First Top/Bottom
-- TOP = Catalog pane (active working set, ScrollHorizontalView)
-- BOTTOM = Source pane (browsing supply shelf, ScrollGridView, scrollable)
-- Detail editing happens in ModalView, NOT inline in tiny cards
+- TOP = Catalog pane (active working set, `ScrollHorizontalView`)
+- BOTTOM = Source pane (browsing supply shelf, `ScrollGridView`, scrollable)
+- Detail editing happens in `ModalView` (Shape), NOT inline in tiny cards
 
 ### Three Skins for Admin-Blanks
 
-1. **AdminCatalogBlankSkin** — Top pane. Compact working-set card. Launch detail editor. Quick remove. Does NOT hold full editing UI inline.
-2. **AdminSourceBlankSkin** — Bottom pane. Source browser card. Add-to-catalog launcher. Browse provider blanks.
-3. **AdminBlankDetailSkin** — Lightbox/modal. Full detail display. Full long-description reader. Global admin description editor with save.
+1. **AdminCatalogBlankSkin** — Top pane. Compact working-set card. Launch detail editor. Quick remove.
+2. **AdminSourceBlankSkin** — Bottom pane. Source browser card. Add-to-catalog launcher.
+3. **AdminBlankDetailSkin** — Shape content. Full detail display. Global admin description editor with save.
 
 ### Global Authority Rule
-Admin changes the global and lasting catalog description. Save goes to `catalog.blankDescriptions[canonicalBlankKey]` only. Does NOT save to Printify, packet, or user/customer state.
+Admin changes the global catalog description. Save goes to `catalog.blankDescriptions[canonicalBlankKey]` only.
+Does NOT save to Printify, packet, or user/customer state.
 
 ---
 
-## What Must NOT Live in Viewer/View/Skin
+## What Must NOT Live in Viewer / View / Shape / Skin
 
 - Canonical blank key truth
 - Printify vs Printful identity truth
@@ -277,39 +311,58 @@ Those belong in domain + controller layers only.
 
 ---
 
+## File Locations
+
+```
+client/src/features/shared/components/
+
+  viewers/
+    SinglePaneViewer.tsx         # Code 1 — one full-width pane
+    TwoPaneViewer.tsx            # Code 2 — side by side
+
+  views/
+    ScrollGridView.tsx           # Code 1 — vertical scroll, grid
+    ScrollVerticalView.tsx       # Code 1 — vertical scroll, list
+    ScrollHorizontalView.tsx     # Code 2 — horizontal scroll
+    SingleView.tsx               # Code 0 — no scroll
+
+  shapes/
+    ModalView.tsx                # Popup container (Shape code 1)
+    SourceShape.tsx              # SourceDetailShape — source GRF popup content
+
+  skins/
+    SourceSkin.tsx               # SourceCardSkin — source GRF card
+```
+
 ---
 
-## Implementation Status — COMPLETE
+## Implementation Status — CURRENT
 
-All legacy views have been removed. The five canon views are built and deployed.
+### Canon View Files (`views/`)
+- `SingleView.tsx`
+- `ScrollGridView.tsx`
+- `ScrollVerticalView.tsx`
+- `ScrollHorizontalView.tsx`
 
-### Canon View Files (client/src/features/shared/components/views/)
-- `SingleView.tsx` — Single focused content surface with background/overlay support
-- `ScrollGridView.tsx` — Generic grid layout with renderItem, configurable columns, scrollable
-- `ScrollVerticalView.tsx` — Vertical list layout with renderItem, max-width centering
-- `ScrollHorizontalView.tsx` — Horizontal strip with renderItem, snap support
-- `ModalView.tsx` — Dialog shell (ModalView), image lightbox (ImageModalView), item preview (ItemModalView)
-- `index.ts` — Barrel export + shared types (ScrollViewItem, GridViewItem, GalleryImage)
-- `QRDynamicsScanLightbox.tsx` — Specialized modal (kept; uses ModalView pattern)
+### Canon Shape Files (`shapes/`)
+- `ModalView.tsx` — popup container
+- `SourceShape.tsx` — `SourceDetailShape`
+
+### Canon Skin Files (`skins/`)
+- `SourceSkin.tsx` — `SourceCardSkin`
+
+### Canon Viewer Files (`viewers/`)
+- `SinglePaneViewer.tsx`
+- `TwoPaneViewer.tsx`
 
 ### Removed Legacy Files
-- `ScrollView.tsx` → replaced by ScrollGridView + ScrollVerticalView + ScrollHorizontalView via SharedViewer
-- `ContentView.tsx` → replaced by SingleView
-- `GridView.tsx` → replaced by ScrollGridView with renderItem
-- `GridScrollView.tsx` → replaced by ScrollGridView with renderItem
-- `GalleryView.tsx` → replaced by ModalView
-- `ImageLightbox.tsx` → replaced by ImageModalView
-- `SkinGridViewer.tsx` → folded into ScrollGridView + ModalView composition in each consumer
-
-### SharedViewer Modes
-SharedViewer supports both new canon modes and legacy backward-compatible modes:
-- `"scrollGrid"` — Canon: ScrollGridView
-- `"scrollVertical"` — Canon: ScrollVerticalView
-- `"scrollHorizontal"` — Canon: ScrollHorizontalView
-- `"single"` — Canon: SingleView
-- `"scroll"` — Legacy compat: routes to canon views based on layout prop
-- `"content"` — Legacy compat: routes to SingleView
-- `"grid"` — Passthrough: renders children
+- `ScrollView.tsx` → replaced by `ScrollGridView` + `ScrollVerticalView` + `ScrollHorizontalView`
+- `ContentView.tsx` → replaced by `SingleView`
+- `GridView.tsx` → replaced by `ScrollGridView` with `renderItem`
+- `GridScrollView.tsx` → replaced by `ScrollGridView` with `renderItem`
+- `GalleryView.tsx` → replaced by `ModalView` (now in `shapes/`)
+- `ImageLightbox.tsx` → replaced by `ModalView` pattern
+- `SkinGridViewer.tsx` → folded into `ScrollGridView` + `ModalView` composition
 
 ---
 
