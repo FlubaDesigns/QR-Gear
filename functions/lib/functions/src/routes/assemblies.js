@@ -18,7 +18,7 @@ exports.registerAssemblies = registerAssemblies;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const qrgCodes_1 = require("../../../shared/qrgCodes");
-const graphicCodes_1 = require("../../../shared/graphicCodes");
+const GRF_engine_1 = require("../../../shared/GRF_engine");
 const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASM_COUNTER_DOC = 'global';
 const ASSEMBLIES_COLLECTION = 'assemblies';
@@ -89,10 +89,10 @@ function validateMappings(mappings) {
             return `mapping seq ${m.seq} type "${m.type}" requires either grfId or value (URL)`;
         }
         if (m.grfId) {
-            if (!(0, graphicCodes_1.isValidGrfId)(String(m.grfId))) {
+            if (!(0, GRF_engine_1.isValidGrfId)(String(m.grfId))) {
                 return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-DDDDD-NNNNNN)`;
             }
-            const parsed = (0, graphicCodes_1.parseGrfId)(String(m.grfId));
+            const parsed = (0, GRF_engine_1.parseGrfId)(String(m.grfId));
             const chPurpose = `${parsed.channel}:${parsed.purpose}`;
             if (m.type === 'img') {
                 if (!IMG_ALLOWED_CH_PURPOSE.has(chPurpose)) {

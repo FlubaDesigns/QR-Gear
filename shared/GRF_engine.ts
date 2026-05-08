@@ -162,6 +162,6 @@ export const GRF_FILTER_CROPPED     = { channel: LIBRARY_CHANNEL, purpose: PURPO
 export const GRF_FILTER_BACKGROUNDS = { channel: LIBRARY_CHANNEL, purpose: PURPOSE_BACKGROUND  };
 export const GRF_FILTER_TEMPLATES   = { channel: LIBRARY_CHANNEL, purpose: PURPOSE_TEMPLATE    };
 
-// ── Re-exports ────────────────────────────────────────────────────────────────
+// ── Re-exports — graphicCodes is an implementation detail; import from here ──
 
-export { isValidGrfId, parseGrfId };
+export * from './graphicCodes';

@@ -1,9 +1,8 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
 import { getFirestoreDb, getStorageBucket, getStorageBucketName } from "../lib/firebase-admin";
-import { buildGrfId, parseGrfId, GRF_COUNTER_KEY } from "@shared/graphicCodes";
-import type { GrfAssetClass, GrfChannel, GrfMediaType } from "@shared/graphicCodes";
-import { buildCropTransition } from "@shared/GRF_engine";
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, buildCropTransition } from "@shared/GRF_engine";
+import type { GrfAssetClass, GrfChannel, GrfMediaType } from "@shared/GRF_engine";
 
 async function mintGrfSequence(db: FirebaseFirestore.Firestore): Promise<number> {
   const { FieldValue } = await import("firebase-admin/firestore");

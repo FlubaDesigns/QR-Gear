@@ -13,8 +13,8 @@
  *   registerPacketGrfsDev — registers all packet GRF assets
  */
 
-import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../shared/graphicCodes';
-import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../shared/GRF_engine';
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../shared/GRF_engine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // QRG instance allocation

@@ -7,7 +7,7 @@ import {
   GRF_CHANNELS,
   GRF_PURPOSES_BY_CHANNEL,
   GRF_FORMATS,
-} from "@shared/graphicCodes";
+} from "@shared/GRF_engine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

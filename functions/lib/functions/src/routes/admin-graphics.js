@@ -14,7 +14,7 @@ exports.registerAdminGraphics = registerAdminGraphics;
 const express_1 = require("express");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
-const graphicCodes_1 = require("../../../shared/graphicCodes");
+const GRF_engine_1 = require("../../../shared/GRF_engine");
 const router = (0, express_1.Router)();
 // ── GET /admin/graphics ────────────────────────────────────────────────────────
 // List active GRF assets, optionally filtered by assetClass/mediaType/channel/purpose/format.
@@ -57,7 +57,7 @@ router.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, r
             res.status(400).json({ error: 'Missing required fields: assetClass, mediaType, channel, purpose, format, imageUrl' });
             return;
         }
-        const counterRef = core_1.db.collection('grf_counters').doc(graphicCodes_1.GRF_COUNTER_KEY);
+        const counterRef = core_1.db.collection('grf_counters').doc(GRF_engine_1.GRF_COUNTER_KEY);
         let newSeq = 0;
         await core_1.db.runTransaction(async (tx) => {
             const doc = await tx.get(counterRef);
@@ -66,7 +66,7 @@ router.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, r
         });
         let grfId;
         try {
-            grfId = (0, graphicCodes_1.buildGrfId)({
+            grfId = (0, GRF_engine_1.buildGrfId)({
                 assetClass: assetClass,
                 mediaType: mediaType,
                 channel: channel,
@@ -79,15 +79,15 @@ router.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, r
             res.status(400).json({ error: `Invalid GRF params: ${e.message}` });
             return;
         }
-        const parsed = (0, graphicCodes_1.parseGrfId)(grfId);
+        const parsed = (0, GRF_engine_1.parseGrfId)(grfId);
         const existingAsset = await core_1.db.collection('grf_assets').doc(grfId).get();
         if (existingAsset.exists) {
             console.error(`[GRF] Counter integrity violation — ${grfId} already exists.`);
-            res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${graphicCodes_1.GRF_COUNTER_KEY}.` });
+            res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${GRF_engine_1.GRF_COUNTER_KEY}.` });
             return;
         }
         const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-        const canonicalStoragePath = storagePath || (0, graphicCodes_1.grfStoragePath)(grfId, originalFilename || undefined);
+        const canonicalStoragePath = storagePath || (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined);
         // If imageUrl is a base64 data URI, upload to Firebase Storage and use the public GCS URL
         let publicUrl = imageUrl;
         if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
@@ -146,7 +146,7 @@ router.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, r
 router.patch('/admin/graphics/:grfId/archive', middleware_1.requireAdmin, async (req, res) => {
     try {
         const { grfId } = req.params;
-        if (!(0, graphicCodes_1.isValidGraphicId)(grfId)) {
+        if (!(0, GRF_engine_1.isValidGraphicId)(grfId)) {
             res.status(400).json({ error: `Invalid GRF ID format: ${grfId}` });
             return;
         }

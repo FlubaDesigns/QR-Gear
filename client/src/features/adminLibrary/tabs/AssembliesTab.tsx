@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
-import { isValidGraphicId } from "@shared/graphicCodes";
+import { isValidGraphicId } from "@shared/GRF_engine";
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 

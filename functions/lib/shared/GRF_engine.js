@@ -16,8 +16,22 @@
  *
  * See docs/GRF.md for the full schema.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseGrfId = exports.isValidGrfId = exports.GRF_FILTER_TEMPLATES = exports.GRF_FILTER_BACKGROUNDS = exports.GRF_FILTER_CROPPED = exports.GRF_FILTER_ORIGINALS = exports.PURPOSE_TEMPLATE = exports.PURPOSE_BACKGROUND = exports.PURPOSE_CROPPED = exports.PURPOSE_ORIGINAL = exports.LIBRARY_CHANNEL = exports.LIBRARY_MEDIA_TYPE = exports.LIBRARY_ASSET_CLASS = void 0;
+exports.GRF_FILTER_TEMPLATES = exports.GRF_FILTER_BACKGROUNDS = exports.GRF_FILTER_CROPPED = exports.GRF_FILTER_ORIGINALS = exports.PURPOSE_TEMPLATE = exports.PURPOSE_BACKGROUND = exports.PURPOSE_CROPPED = exports.PURPOSE_ORIGINAL = exports.LIBRARY_CHANNEL = exports.LIBRARY_MEDIA_TYPE = exports.LIBRARY_ASSET_CLASS = void 0;
 exports.mimeToGrfFormat = mimeToGrfFormat;
 exports.originalGrfParams = originalGrfParams;
 exports.croppedGrfParams = croppedGrfParams;
@@ -26,8 +40,6 @@ exports.templateGrfParams = templateGrfParams;
 exports.buildCropTransition = buildCropTransition;
 exports.purposeLabel = purposeLabel;
 const graphicCodes_1 = require("./graphicCodes");
-Object.defineProperty(exports, "isValidGrfId", { enumerable: true, get: function () { return graphicCodes_1.isValidGrfId; } });
-Object.defineProperty(exports, "parseGrfId", { enumerable: true, get: function () { return graphicCodes_1.parseGrfId; } });
 // ── Fixed digits — verified against the GRF scheme at module load ─────────────
 exports.LIBRARY_ASSET_CLASS = '1'; // input_build
 exports.LIBRARY_MEDIA_TYPE = '1'; // image
@@ -117,4 +129,6 @@ exports.GRF_FILTER_ORIGINALS = { channel: exports.LIBRARY_CHANNEL, purpose: expo
 exports.GRF_FILTER_CROPPED = { channel: exports.LIBRARY_CHANNEL, purpose: exports.PURPOSE_CROPPED };
 exports.GRF_FILTER_BACKGROUNDS = { channel: exports.LIBRARY_CHANNEL, purpose: exports.PURPOSE_BACKGROUND };
 exports.GRF_FILTER_TEMPLATES = { channel: exports.LIBRARY_CHANNEL, purpose: exports.PURPOSE_TEMPLATE };
+// ── Re-exports — graphicCodes is an implementation detail; import from here ──
+__exportStar(require("./graphicCodes"), exports);
 //# sourceMappingURL=GRF_engine.js.map

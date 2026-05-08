@@ -8,8 +8,8 @@ import { SkinHorizontalViewer } from "@/features/shared/components/SkinHorizonta
 import { AdminGraphicCardSkin, grfAssetToSkinItem } from "@/features/shared/components/skins/AdminGraphicSkins";
 import { AdminGraphicShape } from "@/features/shared/components/shapes/AdminGraphicShape";
 import { adminFetch } from "@/lib/adminFetch";
-import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL } from "@shared/graphicCodes";
-import type { GrfChannel } from "@shared/graphicCodes";
+import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL } from "@shared/GRF_engine";
+import type { GrfChannel } from "@shared/GRF_engine";
 import type { GrfAsset } from "@/features/shared/components/skins/AdminGraphicSkins";
 
 // ── Error boundary ────────────────────────────────────────────────────────────

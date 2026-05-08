@@ -1,8 +1,8 @@
 import { AlertTriangle, Tag, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL, isValidGrfId } from "@shared/graphicCodes";
-import type { GrfChannel } from "@shared/graphicCodes";
+import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL, isValidGrfId } from "@shared/GRF_engine";
+import type { GrfChannel } from "@shared/GRF_engine";
 import type { CardSkinProps, DetailSkinProps } from "./types";
 
 // VVS Skin layer — AdminGraphic data type.

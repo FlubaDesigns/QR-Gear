@@ -7,7 +7,7 @@ import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";
-import { GRF_PACKET_SLOTS } from "@shared/graphicCodes";
+import { GRF_PACKET_SLOTS } from "@shared/GRF_engine";
 import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PacketResultDisplay } from "./PacketResultDisplay";

@@ -15,8 +15,8 @@
  */
 
 import { db, admin } from '../core';
-import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../../shared/graphicCodes';
-import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, GRF_PACKET_SLOTS } from '../../../shared/GRF_engine';
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/GRF_engine';
 
 const GRF_ASSETS_COLLECTION   = 'grf_assets';
 const GRF_COUNTERS_COLLECTION  = 'grf_counters';

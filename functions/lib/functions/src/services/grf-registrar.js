@@ -18,7 +18,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerGrfAsset = registerGrfAsset;
 exports.registerPacketGrfAssets = registerPacketGrfAssets;
 const core_1 = require("../core");
-const graphicCodes_1 = require("../../../shared/graphicCodes");
+const GRF_engine_1 = require("../../../shared/GRF_engine");
 const GRF_ASSETS_COLLECTION = 'grf_assets';
 const GRF_COUNTERS_COLLECTION = 'grf_counters';
 /**
@@ -53,7 +53,7 @@ async function registerGrfAsset(opts) {
         return { grfId: existingGrfId, sourceUrl, sequence: existing.docs[0].data().sequence };
     }
     // ─────────────────────────────────────────────────────────────────────────
-    const counterRef = core_1.db.collection(GRF_COUNTERS_COLLECTION).doc(graphicCodes_1.GRF_COUNTER_KEY);
+    const counterRef = core_1.db.collection(GRF_COUNTERS_COLLECTION).doc(GRF_engine_1.GRF_COUNTER_KEY);
     let sequence = 0;
     await core_1.db.runTransaction(async (tx) => {
         const snap = await tx.get(counterRef);
@@ -72,8 +72,8 @@ async function registerGrfAsset(opts) {
             });
         }
     });
-    const grfId = (0, graphicCodes_1.buildGrfId)({ assetClass, mediaType, channel, purpose, format, sequence });
-    const parsed = (0, graphicCodes_1.parseGrfId)(grfId);
+    const grfId = (0, GRF_engine_1.buildGrfId)({ assetClass, mediaType, channel, purpose, format, sequence });
+    const parsed = (0, GRF_engine_1.parseGrfId)(grfId);
     const now = core_1.admin.firestore.FieldValue.serverTimestamp();
     const assetData = {
         grfId,
@@ -122,22 +122,22 @@ async function registerPacketGrfAssets(packetData, sourceSessionId, packetId) {
     };
     const bgUrl = packetData.backgroundUrl || packetData.landingPageBackgroundUrl || null;
     if (isStorageUrl(bgUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: bgUrl, mimeType: 'image/png', sourceSessionId, packetId, ...graphicCodes_1.GRF_PACKET_SLOTS.background });
+        const r = await registerGrfAsset({ sourceUrl: bgUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.background });
         result.backgroundGrfId = r.grfId;
     }
     const qrUrl = packetData.qrOnlyUrl || null;
     if (isStorageUrl(qrUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: qrUrl, mimeType: 'image/png', sourceSessionId, packetId, ...graphicCodes_1.GRF_PACKET_SLOTS.qrStandalone });
+        const r = await registerGrfAsset({ sourceUrl: qrUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.qrStandalone });
         result.qrGrfId = r.grfId;
     }
     const compositeUrl = packetData.compositeUrl || packetData.productGraphicUrl || null;
     if (isStorageUrl(compositeUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: compositeUrl, mimeType: 'image/png', sourceSessionId, packetId, ...graphicCodes_1.GRF_PACKET_SLOTS.qrComposite });
+        const r = await registerGrfAsset({ sourceUrl: compositeUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.qrComposite });
         result.compositeGrfId = r.grfId;
     }
     const snapshotUrl = packetData.landingPageSnapshotUrl || null;
     if (isStorageUrl(snapshotUrl)) {
-        const r = await registerGrfAsset({ sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId, ...graphicCodes_1.GRF_PACKET_SLOTS.urlSnapshot });
+        const r = await registerGrfAsset({ sourceUrl: snapshotUrl, mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.urlSnapshot });
         result.landingSnapshotGrfId = r.grfId;
     }
     return result;

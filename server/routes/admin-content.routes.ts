@@ -8,8 +8,8 @@ import { registerAdminCatalogsShelfRoutes } from "./admin-catalogs-shelf.routes"
 import {
   isValidGrfId, isValidGraphicId, buildGrfId, parseGrfId, grfStoragePath,
   GRF_COUNTER_KEY,
-} from "../../shared/graphicCodes";
-import type { GrfAssetClass, GrfMediaType, GrfChannel } from "../../shared/graphicCodes";
+} from "../../shared/GRF_engine";
+import type { GrfAssetClass, GrfMediaType, GrfChannel } from "../../shared/GRF_engine";
 
 export function registerAdminContentRoutes(app: Express): void {
   registerAdminCatalogsShelfRoutes(app);

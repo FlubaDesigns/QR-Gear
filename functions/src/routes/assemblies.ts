@@ -17,7 +17,7 @@ import express, { Request, Response } from 'express';
 import { db, admin } from '../core';
 import { requireAdmin } from '../middleware';
 import { isValidQrgBlankId } from '../../../shared/qrgCodes';
-import { isValidGrfId, parseGrfId } from '../../../shared/graphicCodes';
+import { isValidGrfId, parseGrfId } from '../../../shared/GRF_engine';
 
 const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASM_COUNTER_DOC         = 'global';

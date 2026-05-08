@@ -13,11 +13,10 @@ exports.registerAdminLibraryCrop = registerAdminLibraryCrop;
 const express_1 = require("express");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
-const graphicCodes_1 = require("../../../shared/graphicCodes");
 const GRF_engine_1 = require("../../../shared/GRF_engine");
 const router = (0, express_1.Router)();
 async function mintGrfSequence() {
-    const counterRef = core_1.db.collection('grf_counters').doc(graphicCodes_1.GRF_COUNTER_KEY);
+    const counterRef = core_1.db.collection('grf_counters').doc(GRF_engine_1.GRF_COUNTER_KEY);
     let seq = 0;
     await core_1.db.runTransaction(async (tx) => {
         const doc = await tx.get(counterRef);
@@ -40,8 +39,8 @@ router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, r
         const bucket = core_1.admin.storage().bucket();
         // ── 1. Cropped record ─────────────────────────────────────────────────────
         const croppedSeq = await mintGrfSequence();
-        const croppedGrfId = (0, graphicCodes_1.buildGrfId)({ ...croppedGrfParams, sequence: croppedSeq });
-        const croppedParsed = (0, graphicCodes_1.parseGrfId)(croppedGrfId);
+        const croppedGrfId = (0, GRF_engine_1.buildGrfId)({ ...croppedGrfParams, sequence: croppedSeq });
+        const croppedParsed = (0, GRF_engine_1.parseGrfId)(croppedGrfId);
         const croppedExt = croppedMimeType.includes('png') ? 'png' : 'jpg';
         const croppedPath = `grf/${croppedGrfId}/cropped.${croppedExt}`;
         const croppedBuffer = Buffer.from(croppedImageData, 'base64');
@@ -74,8 +73,8 @@ router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, r
         });
         // ── 2. Background record ──────────────────────────────────────────────────
         const backgroundSeq = await mintGrfSequence();
-        const backgroundGrfId = (0, graphicCodes_1.buildGrfId)({ ...backgroundGrfParams, sequence: backgroundSeq });
-        const backgroundParsed = (0, graphicCodes_1.parseGrfId)(backgroundGrfId);
+        const backgroundGrfId = (0, GRF_engine_1.buildGrfId)({ ...backgroundGrfParams, sequence: backgroundSeq });
+        const backgroundParsed = (0, GRF_engine_1.parseGrfId)(backgroundGrfId);
         await core_1.db.collection('grf_assets').doc(backgroundGrfId).set({
             grfId: backgroundGrfId,
             assetClass: backgroundParsed.assetClass,
