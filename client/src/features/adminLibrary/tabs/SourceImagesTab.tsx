@@ -44,7 +44,7 @@ function assetToSkinItem(asset: GrfAsset): SkinItem {
   }
   return {
     id:           asset.grfId || asset.id,
-    name:         asset.originalFilename || asset.name || "Untitled",
+    name:         asset.grfId || asset.name || "Untitled",
     primaryImage: asset.publicUrl || "",
     metadata: {
       raw:              asset,
