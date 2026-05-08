@@ -78,6 +78,29 @@ More View types will be added as they appear in the codebase.
 
 ---
 
+## Shape — Layer 3
+
+**The popup.**
+
+The Shape digit answers one question: does the Viewer contain a modal or popup layer?
+
+It does NOT describe the visual style of individual cards.
+It does NOT describe buttons or images.
+It only describes whether a secondary layer opens on top of the primary View.
+
+### Shape type codes
+
+The third digit of any VVS code identifies the Shape.
+
+| Code | Name | Description |
+|---|---|---|
+| 0 | Flat | No popup, no modal — actions happen inline or not at all |
+| 1 | Popup | A modal or dialog opens inside the Viewer (e.g. detail view, crop dialog) |
+
+More Shape types will be added as they appear in the codebase.
+
+---
+
 ## S — Skin
 
 **The content.**
@@ -93,25 +116,16 @@ It answers:
 The Skin does NOT know:
 - What Viewer it lives in
 - What View arranged it
+- What Shape (popup or flat) wraps it
 - How many siblings it has
-
-### Skin types (examples)
-
-| Name | Description |
-|---|---|
-| CardSkin | Thumbnail + name + action buttons |
-| DetailSkin | Large image + full metadata + actions |
-| ListRowSkin | Compact row with icon, name, actions |
-| BadgeSkin | Small inline chip, label only |
-| HeroSkin | Full-bleed image with overlay text |
 
 ### Skin variants
 
 A Skin can have two variants:
 - **Card** — compact, shown inside the View grid/list
-- **Detail** — expanded, shown inside a modal or detail panel
+- **Detail** — expanded, shown inside a popup/modal
 
-Example: `SourceImageCardSkin` and `SourceImageDetailSkin` are both Skins for the same data type, just different display contexts.
+Example: `SourceImageCardSkin` and `SourceImageDetailSkin` are both Skins for the same data type, just different Shape contexts.
 
 ---
 
