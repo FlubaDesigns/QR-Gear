@@ -7,47 +7,55 @@ All repeating UI surfaces must be built using VVS layers.
 
 ## Overview
 
-VVS is three layers:
+VVS is three layers with a three-digit code:
 
 ```
-Viewer
-  └── View
-        └── Skin
+Viewer  (first digit)   — the pane
+  └── View  (second digit) — the behavior
+        └── Skin            — the content (named, not coded)
 ```
 
 Each layer has exactly one job.
 
 ---
 
-## Viewer — Layer 1
+## VVS Code
+
+Every UI surface gets a three-digit VVS code.
+
+```
+[Viewer][View][Shape]
+
+Example:  1·1·1
+          │ │ └─ Shape: has a popup/modal
+          │ └─── View: vertical scroll
+          └───── Viewer: single pane
+```
+
+---
+
+## Viewer — First Digit
 
 **The pane.**
 
-The Viewer is the structural container. It owns the overall page or panel layout.
+The Viewer is the structural container. It owns the page or panel layout.
 
 It answers:
 - How many panels are visible?
 - Where do they live on screen?
 
-The Viewer does NOT know:
-- How items scroll or arrange
-- What individual items look like
-- What buttons exist
-
-### Viewer type codes
-
-The first digit of any VVS code identifies the Viewer type.
+The Viewer does NOT know how items scroll, what they look like, or what buttons exist.
 
 | Code | Name | Description |
 |---|---|---|
 | 1 | Single pane | One full-width pane |
 | 2 | Two pane | Side by side — list left, detail right |
 
-More Viewer types will be added as they appear in the codebase.
+More Viewer types added as they appear in the codebase.
 
 ---
 
-## View — Layer 2
+## View — Second Digit
 
 **The behavior.**
 
@@ -58,14 +66,7 @@ It answers:
 - Is it paginated?
 - Is there no movement at all?
 
-The View does NOT know:
-- What the Viewer looks like structurally
-- What individual items look like
-- What buttons exist
-
-### View type codes
-
-The second digit of any VVS code identifies the View type.
+The View does NOT know what the Viewer looks like, what items look like, or what buttons exist.
 
 | Code | Name | Description |
 |---|---|---|
@@ -74,38 +75,34 @@ The second digit of any VVS code identifies the View type.
 | 2 | Horizontal | Horizontal scroll, row of cards |
 | 3 | Paginated | Page-by-page navigation |
 
-More View types will be added as they appear in the codebase.
+More View types added as they appear in the codebase.
 
 ---
 
-## Shape — Layer 3
+## Shape — Third Digit
 
 **The popup.**
 
 The Shape digit answers one question: does the Viewer contain a modal or popup layer?
 
-It does NOT describe the visual style of individual cards.
-It does NOT describe buttons or images.
+It does NOT describe card styles, buttons, or images.
 It only describes whether a secondary layer opens on top of the primary View.
-
-### Shape type codes
-
-The third digit of any VVS code identifies the Shape.
 
 | Code | Name | Description |
 |---|---|---|
 | 0 | Flat | No popup, no modal — actions happen inline or not at all |
-| 1 | Popup | A modal or dialog opens inside the Viewer (e.g. detail view, crop dialog) |
+| 1 | Popup | A modal or dialog opens inside the Viewer |
 
-More Shape types will be added as they appear in the codebase.
+More Shape types added as they appear in the codebase.
 
 ---
 
-## S — Skin
+## Skin — Named, Not Coded
 
 **The content.**
 
-The Skin is where the image lives. Where the buttons live. Where the text lives. Everything the user sees and taps.
+The Skin is where the image lives. Where the buttons live. Where the text lives.
+Everything the user sees and taps.
 
 It answers:
 - What does each item look like?
@@ -113,36 +110,29 @@ It answers:
 - What text is displayed?
 - What buttons or actions are available?
 
-The Skin does NOT know:
-- What Viewer it lives in
-- What View arranged it
-- What Shape (popup or flat) wraps it
-- How many siblings it has
+The Skin does NOT know what Viewer or View contains it.
 
-### Skin variants
-
-A Skin can have two variants:
-- **Card** — compact, shown inside the View grid/list
-- **Detail** — expanded, shown inside a popup/modal
-
-Example: `SourceImageCardSkin` and `SourceImageDetailSkin` are both Skins for the same data type, just different Shape contexts.
-
----
-
-## Composition rule
-
-Every repeating data surface in the admin must be built as:
+### Naming convention
 
 ```
-[Viewer]
-  [View]
-    [Skin per item]
+[DataType][Variant]Skin
+
+DataType = what it displays   (SourceImage, Product, Template...)
+Variant  = Card or Detail
 ```
 
-No hand-rendering of item cards inside a tab directly.
-No raw `<div><img /></div>` blocks in place of a Skin.
-No View logic (scrolling, columns) inside a Skin.
-No layout structure (panes, drawers) inside a View.
+| Variant | When used |
+|---|---|
+| Card | Compact — rendered inside the View grid/list |
+| Detail | Expanded — rendered inside a popup/modal |
+
+### Examples
+
+| Skin name | Data type | Variant |
+|---|---|---|
+| `SourceImageCardSkin` | GRF source original | Card |
+| `SourceImageDetailSkin` | GRF source original | Detail |
+| `ProductCardSkin` | Product | Card |
 
 ---
 
@@ -155,11 +145,10 @@ All Skins receive a `SkinItem`.
 interface SkinItem {
   id: string;
   name: string;
-  primaryImage: string;       // main display image URL
-  imageUrl?: string;          // alias for primaryImage (optional)
-  dimensions?: string;        // e.g. "1080x1920"
+  primaryImage?: string | null;     // main display image URL
+  dimensions?: string | null;       // e.g. "1080x1920"
   metadata?: {
-    raw?: unknown;            // original API asset, for actions that need full fields
+    raw?: unknown;                  // full original API asset
     grfId?: string;
     mimeType?: string;
     originalFilename?: string;
@@ -171,20 +160,45 @@ interface SkinItem {
 }
 ```
 
-Key rule: `metadata.raw` holds the original API response object.
-This allows Skin action handlers to access fields like `grfId`, `mimeType`, and `originalFilename` without the Viewer or View needing to know about them.
+**Key rule:** `metadata.raw` holds the full original API response object.
+
+Skin action handlers read `metadata.raw` to access fields like `grfId`, `mimeType`,
+and `originalFilename` — without the Viewer or View needing to know those fields exist.
 
 ---
 
-## Numbering convention
+## Composition rule
 
-Components follow the VVS type in their name:
+Every repeating data surface must follow:
 
-| Layer | Suffix or prefix | Example |
-|---|---|---|
-| Viewer | Tab or Page | `SourceImagesTab` |
-| View | View | `ScrollGridView` |
-| Skin | CardSkin / DetailSkin | `SourceImageCardSkin` |
+```
+[Viewer]
+  [View]
+    [Skin per item]
+```
+
+### What violates VVS
+
+| Violation | Description |
+|---|---|
+| Skin violation | Rendering raw `<div><img /></div>` cards inside a tab instead of a Skin |
+| View violation | Putting scroll or grid logic inside a Skin |
+| Viewer violation | Putting pane/panel layout inside a View |
+| Contract violation | Passing raw API objects into a View instead of mapping to SkinItem |
+| Contract violation | Accessing `grfId` or `mimeType` from View layer instead of `metadata.raw` |
+| Style violation | `hover-elevate` on an element with `overflow-hidden` |
+| Style violation | Setting `hover:*` colors on a Button or Badge |
+| Style violation | Setting `h-*` manually on a Button |
+
+---
+
+## Real examples
+
+| Code | Surface | Viewer | View | Shape |
+|---|---|---|---|---|
+| 1·1·1 | Source Images tab | Single pane | Vertical scroll grid | Detail popup |
+| 1·1·0 | Backgrounds tab | Single pane | Vertical scroll grid | Flat |
+| 2·1·0 | Product builder | Two pane | Vertical scroll left | Flat |
 
 ---
 
@@ -192,22 +206,23 @@ Components follow the VVS type in their name:
 
 ```
 client/src/features/shared/components/
-  views/           # All View components
-  skins/           # All Skin components
-  viewers/         # Viewer wrappers (if shared)
+
+  viewers/                     # Viewer components (first digit)
+    SinglePaneViewer.tsx       # Viewer code 1 — one full-width pane
+    TwoPaneViewer.tsx          # Viewer code 2 — side by side
+
+  views/                       # View components (second digit)
+    ScrollGridView.tsx         # View code 1 — vertical scroll, grid
+    ScrollHorizontalView.tsx   # View code 2 — horizontal scroll
+    ScrollVerticalView.tsx     # View code 1 — vertical scroll, list
+    SingleView.tsx             # View code 0 — no scroll
+    ModalView.tsx              # Shape code 1 — popup/modal
+
+  skins/                       # Skin components (named)
+    SourceImageSkin.tsx        # SourceImageCardSkin + SourceImageDetailSkin
 
 client/src/features/adminLibrary/tabs/
-  SourceImagesTab.tsx     # Viewer for source GRF originals
-  CroppedImagesTab.tsx    # Viewer for cropped GRF derivatives
-  BackgroundsTab.tsx      # Viewer for promoted background assets
+  SourceImagesTab.tsx          # VVS 1·1·1 — source GRF originals
+  CroppedImagesTab.tsx         # VVS 1·1·0 — cropped GRF derivatives
+  BackgroundsTab.tsx           # VVS 1·1·0 — promoted background assets
 ```
-
----
-
-## What violates VVS
-
-- Rendering item cards with raw HTML inside a tab file — **Skin violation**
-- Putting scroll/grid logic inside a Skin — **View violation**
-- Putting pane/panel layout inside a View — **Viewer violation**
-- Passing raw API objects directly into a View instead of mapping to SkinItem — **contract violation**
-- Accessing `grfId` or `mimeType` from the View layer instead of `metadata.raw` — **contract violation**
