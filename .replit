@@ -70,7 +70,6 @@ PRINTFUL-API-TOKEN = "KnKgzeCB7Y3X6S1Wh7cVH1TAwWQPHCii0e4TuvHZ"
 [userenv.development]
 PRINTFUL_API_KEY = "2O4DwAZeuDDrzW1sJqQDbT7wHCBe6ECFgo4zoam8"
 ADMIN_BYPASS = "true"
-VITE_ADMIN_BYPASS = "true"
 
 [userenv.production]
 PRINTFUL_API_KEY = "tHcnUzAhXlK3oqwQBLv1hEFM4iua9laLPIon3pIt"
