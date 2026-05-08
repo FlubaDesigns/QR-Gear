@@ -2,18 +2,33 @@ import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Crop as CropIcon, Info } from "lucide-react";
-import { useLibraryContext } from "../LibraryContext";
+import { AlertTriangle, Crop as CropIcon } from "lucide-react";
+import { adminFetch } from "@/lib/adminFetch";
+import { queryClient } from "@/lib/queryClient";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
 import { DeleteSkin } from "@/features/shared/components/skins/DeleteSkin";
-import type { LibraryAssetWithProxy } from "../shared/types";
-import { getImageUrl } from "../shared/imageUtils";
+import { GRF_FILTER_CROPPED } from "../shared/GRF_engine";
+import { CROPPED_QK } from "./SourceImagesTab";
+
+// ── GRF asset shape ───────────────────────────────────────────────────────────
+
+interface GrfAsset {
+  id: string;
+  grfId: string;
+  name: string;
+  publicUrl: string;
+  mimeType: string;
+  originalFilename?: string | null;
+  sourceGrfId?: string | null;
+  channel: string;
+  purpose: string;
+  isActive: boolean;
+}
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
-// Fix 1: error boundary so crashes are recoverable
 class CroppedImagesBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }
@@ -54,41 +69,41 @@ class CroppedImagesBoundary extends Component<
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
+function assetToGridItem(asset: GrfAsset): GridViewItem {
   return {
-    id:         asset.id,
-    name:       asset.name,
-    imageUrl:   getImageUrl(asset),
-    dimensions: asset.width && asset.height ? `${asset.width}x${asset.height}` : undefined,
+    id:       asset.id,
+    name:     asset.name,
+    imageUrl: asset.publicUrl || "",
   };
 }
 
 // ── Inner tab ─────────────────────────────────────────────────────────────────
 
 function CroppedImagesTabInner() {
-  const { api } = useLibraryContext();
   const { toast } = useToast();
-
   const [selectedItem,   setSelectedItem]   = useState<GridViewItem | null>(null);
   const [singleViewOpen, setSingleViewOpen] = useState(false);
 
-  // Fix 2: destructure error so backend failures are shown
-  const { data: assets = [], isLoading, error: queryError } = useQuery<LibraryAssetWithProxy[]>({
-    queryKey: api.getQueryKey("cropped"),
-    queryFn:  () => api.fetchAssets("cropped"),
+  const { data: assets = [], isLoading, error: queryError } = useQuery<GrfAsset[]>({
+    queryKey: CROPPED_QK,
+    queryFn:  () =>
+      adminFetch<GrfAsset[]>(
+        `/graphics?channel=${GRF_FILTER_CROPPED.channel}&purpose=${GRF_FILTER_CROPPED.purpose}`
+      ),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteAsset(id),
+    mutationFn: (id: string) =>
+      adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
     onSuccess: () => {
-      toast({ title: "Image deleted" });
-      api.invalidateAssets("cropped");
+      toast({ title: "Image archived" });
+      queryClient.invalidateQueries({ queryKey: CROPPED_QK });
       setSingleViewOpen(false);
       setSelectedItem(null);
     },
     onError: (error: Error) => {
-      console.error("[CroppedImagesTab] Delete error:", error);
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+      console.error("[CroppedImagesTab] Archive error:", error);
+      toast({ title: "Archive failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -99,33 +114,21 @@ function CroppedImagesTabInner() {
     setSingleViewOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
+  const handleDelete = (id: string) => deleteMutation.mutate(id);
 
   return (
     <>
-      {/* Fix 4: GRF context note */}
-      <div
-        className="flex items-start gap-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 mb-4"
-        data-testid="info-grf-cropped"
-      >
-        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-blue-800 dark:text-blue-300">
-          9:16 crops derived from source images. Mint GRF-02-2-NNNNNN (cropped_derivative) assets from the Graphics tab.
-        </p>
-      </div>
-
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold" data-testid="text-cropped-count">
             {assets.length} Cropped Images
           </h3>
-          <p className="text-sm text-muted-foreground">9:16 cropped images ready for product design</p>
+          <p className="text-sm text-muted-foreground">
+            9:16 cropped derivatives — GRF channel 4, purpose 2
+          </p>
         </div>
       </div>
 
-      {/* Fix 2: query error panel */}
       {queryError && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-cropped">
           <p className="text-sm font-medium">Failed to load cropped images</p>
@@ -140,7 +143,7 @@ function CroppedImagesTabInner() {
             No cropped images yet.
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Cropped images appear here after you crop source images.
+            Crop a source image to create cropped derivatives here.
           </p>
         </div>
       ) : (
@@ -152,7 +155,6 @@ function CroppedImagesTabInner() {
               onClick={() => handleSelect(item)}
               data-testid={`card-grid-item-${item.id}`}
             >
-              {/* Fix 3: broken image placeholder */}
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt="" className="w-full h-auto" />
               ) : (

@@ -2,19 +2,34 @@ import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Image as ImageIcon, Info } from "lucide-react";
-import { useLibraryContext } from "../LibraryContext";
+import { AlertTriangle, Image as ImageIcon } from "lucide-react";
+import { adminFetch } from "@/lib/adminFetch";
+import { queryClient } from "@/lib/queryClient";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
-import type { LibraryAssetWithProxy } from "../shared/types";
-import { getImageUrl } from "../shared/imageUtils";
+import { GRF_FILTER_BACKGROUNDS } from "../shared/GRF_engine";
+import { BACKGROUNDS_QK, CROPPED_QK } from "./SourceImagesTab";
+
+// ── GRF asset shape ───────────────────────────────────────────────────────────
+
+interface GrfAsset {
+  id: string;
+  grfId: string;
+  name: string;
+  publicUrl: string;
+  mimeType: string;
+  originalFilename?: string | null;
+  sourceGrfId?: string | null;
+  channel: string;
+  purpose: string;
+  isActive: boolean;
+}
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
-// Fix 1: error boundary so crashes are recoverable
 class BackgroundsBoundary extends Component<
   { children: ReactNode },
   { hasError: boolean; error: Error | null }
@@ -55,43 +70,50 @@ class BackgroundsBoundary extends Component<
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function assetToGridItem(asset: LibraryAssetWithProxy): GridViewItem {
+function assetToGridItem(asset: GrfAsset): GridViewItem {
   return {
-    id:         asset.id,
-    name:       asset.name,
-    imageUrl:   getImageUrl(asset),
-    dimensions: asset.width && asset.height ? `${asset.width}x${asset.height}` : undefined,
+    id:       asset.id,
+    name:     asset.name,
+    imageUrl: asset.publicUrl || "",
   };
+}
+
+async function fetchImageBlob(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
 }
 
 // ── Inner tab ─────────────────────────────────────────────────────────────────
 
 function BackgroundsTabInner() {
-  const { api } = useLibraryContext();
   const { toast } = useToast();
-
   const [selectedItem,   setSelectedItem]   = useState<GridViewItem | null>(null);
   const [singleViewOpen, setSingleViewOpen] = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
-  // Fix 2: destructure error so backend failures are shown
-  const { data: assets = [], isLoading, error: queryError } = useQuery<LibraryAssetWithProxy[]>({
-    queryKey: api.getQueryKey("background"),
-    queryFn:  () => api.fetchAssets("background"),
+  const { data: assets = [], isLoading, error: queryError } = useQuery<GrfAsset[]>({
+    queryKey: BACKGROUNDS_QK,
+    queryFn:  () =>
+      adminFetch<GrfAsset[]>(
+        `/graphics?channel=${GRF_FILTER_BACKGROUNDS.channel}&purpose=${GRF_FILTER_BACKGROUNDS.purpose}`
+      ),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteAsset(id),
+    mutationFn: (id: string) =>
+      adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
     onSuccess: () => {
-      toast({ title: "Image deleted" });
-      api.invalidateAssets("background");
+      toast({ title: "Image archived" });
+      queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
       setSingleViewOpen(false);
       setSelectedItem(null);
     },
     onError: (error: Error) => {
-      console.error("[BackgroundsTab] Delete error:", error);
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+      console.error("[BackgroundsTab] Archive error:", error);
+      toast({ title: "Archive failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -104,38 +126,45 @@ function BackgroundsTabInner() {
 
   const handleCrop = (id: string) => {
     const asset = assets.find(a => a.id === id);
-    if (asset) {
-      setAssetToCrop({
-        id:       asset.id,
-        name:     asset.name,
-        imageUrl: getImageUrl(asset),
-      });
-      setSingleViewOpen(false);
-      setCropDialogOpen(true);
-    } else {
-      // Fix 6: fail loudly if asset not found
+    if (!asset) {
       console.error("[BackgroundsTab] Asset not found for crop:", id);
+      return;
     }
+    setAssetToCrop({ id: asset.id, name: asset.name, imageUrl: asset.publicUrl || "" });
+    setSingleViewOpen(false);
+    setCropDialogOpen(true);
   };
 
-  // Fix 4 + Fix 5: error handling and loud bailout
-  const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
+  const handleSaveCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) {
-      // Fix 5: fail loudly instead of silent return
       console.error("[BackgroundsTab] handleSaveCrop called without sourceAsset");
       return;
     }
+    const originalAsset = assets.find(a => a.id === sourceAsset.id);
+    if (!originalAsset) {
+      console.error("[BackgroundsTab] Original asset not found:", sourceAsset.id);
+      toast({ title: "Crop failed", description: "Original asset not found.", variant: "destructive" });
+      return;
+    }
     try {
-      await api.uploadAsset({
-        name:          `cropped_${sourceAsset.name}`,
-        assetType:     "cropped",
-        imageData,
-        mimeType:      "image/jpeg",
-        sourceAssetId: sourceAsset.id,
+      await adminFetch("/graphics/save-grf", {
+        method: "POST",
+        json: {
+          assetClass: "1",
+          mediaType:  "1",
+          channel:    "4",
+          purpose:    "2",
+          format:     "1",
+          imageUrl:         croppedDataUrl,
+          name:             `cropped_${originalAsset.name}`,
+          mimeType:         "image/jpeg",
+          sourceGrfId:      originalAsset.grfId || originalAsset.id,
+          originalFilename: `cropped_${originalAsset.originalFilename || originalAsset.name}.jpg`,
+        },
       });
       toast({ title: "Crop saved" });
-      api.invalidateAssets("cropped");
-      api.invalidateAssets("background");
+      queryClient.invalidateQueries({ queryKey: CROPPED_QK });
+      queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
     } catch (err: unknown) {
       const error = err as Error;
       console.error("[BackgroundsTab] Crop save error:", error.message);
@@ -143,33 +172,21 @@ function BackgroundsTabInner() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
+  const handleDelete = (id: string) => deleteMutation.mutate(id);
 
   return (
     <>
-      {/* Fix 7: GRF context note */}
-      <div
-        className="flex items-start gap-2 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 mb-4"
-        data-testid="info-grf-backgrounds"
-      >
-        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-blue-800 dark:text-blue-300">
-          Archived originals from the crop pipeline. Mint GRF-03-3-NNNNNN (background) assets from the Graphics tab.
-        </p>
-      </div>
-
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold" data-testid="text-backgrounds-count">
             {assets.length} Background Images
           </h3>
-          <p className="text-sm text-muted-foreground">Archived originals from cropped source images</p>
+          <p className="text-sm text-muted-foreground">
+            Promoted originals from the crop pipeline — GRF channel 4, purpose 3
+          </p>
         </div>
       </div>
 
-      {/* Fix 2: query error panel */}
       {queryError && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-backgrounds">
           <p className="text-sm font-medium">Failed to load background images</p>
@@ -184,7 +201,7 @@ function BackgroundsTabInner() {
             No background images yet.
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Original images move here after cropping.
+            Crop a source image to promote its original here as a background asset.
           </p>
         </div>
       ) : (
@@ -196,7 +213,6 @@ function BackgroundsTabInner() {
               onClick={() => handleSelect(item)}
               data-testid={`card-grid-item-${item.id}`}
             >
-              {/* Fix 3: broken image placeholder */}
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt="" className="w-full h-auto" />
               ) : (
@@ -241,9 +257,9 @@ function BackgroundsTabInner() {
           if (!open) setAssetToCrop(null);
         }}
         onSave={handleSaveCrop}
-        fetchImageBlob={api.fetchImageBlob}
+        fetchImageBlob={fetchImageBlob}
         aspectRatio={9 / 16}
-        title="Crop Image"
+        title="Crop Background"
       />
     </>
   );

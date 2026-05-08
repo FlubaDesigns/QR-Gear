@@ -2,43 +2,89 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
-import { useLibraryContext } from "../LibraryContext";
+import { adminFetch } from "@/lib/adminFetch";
+import { queryClient } from "@/lib/queryClient";
 import { ImageUploader } from "@/features/shared/components/utilities/ImageUploader";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
 import { SourceImageCardSkin, SourceImageDetailSkin } from "@/features/shared/components/skins";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import type { LibraryAssetWithProxy } from "../shared/types";
-import { getImageUrl } from "../shared/imageUtils";
+import {
+  originalGrfParams,
+  buildCropTransition,
+  GRF_FILTER_ORIGINALS,
+  GRF_FILTER_CROPPED,
+  GRF_FILTER_BACKGROUNDS,
+} from "../shared/GRF_engine";
 
-function assetToSkinItem(asset: LibraryAssetWithProxy): SkinItem {
+// ── GRF asset shape returned by GET /api/admin/graphics ──────────────────────
+
+interface GrfAsset {
+  id: string;
+  grfId: string;
+  name: string;
+  publicUrl: string;
+  mimeType: string;
+  originalFilename?: string | null;
+  sourceGrfId?: string | null;
+  channel: string;
+  purpose: string;
+  isActive: boolean;
+}
+
+// ── Stable query keys ─────────────────────────────────────────────────────────
+
+export const ORIGINALS_QK    = ["admin-graphics", "channel", GRF_FILTER_ORIGINALS.channel,    "purpose", GRF_FILTER_ORIGINALS.purpose];
+export const CROPPED_QK      = ["admin-graphics", "channel", GRF_FILTER_CROPPED.channel,      "purpose", GRF_FILTER_CROPPED.purpose];
+export const BACKGROUNDS_QK  = ["admin-graphics", "channel", GRF_FILTER_BACKGROUNDS.channel,  "purpose", GRF_FILTER_BACKGROUNDS.purpose];
+
+function invalidateGrfQueries() {
+  queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
+  queryClient.invalidateQueries({ queryKey: CROPPED_QK });
+  queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function assetToSkinItem(asset: GrfAsset): SkinItem {
   return {
-    id: asset.id,
-    name: asset.name,
-    primaryImage: getImageUrl(asset),
-    dimensions: asset.width && asset.height ? `${asset.width}x${asset.height}` : undefined,
+    id:           asset.id,
+    name:         asset.name,
+    primaryImage: asset.publicUrl || "",
   };
 }
 
+async function fetchImageBlob(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Image fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function SourceImagesTab() {
-  const { api } = useLibraryContext();
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop, setAssetToCrop] = useState<CropAsset | null>(null);
 
-  const { data: assets = [], isLoading } = useQuery<LibraryAssetWithProxy[]>({
-    queryKey: api.getQueryKey("source"),
-    queryFn: () => api.fetchAssets("source"),
+  const { data: assets = [], isLoading } = useQuery<GrfAsset[]>({
+    queryKey: ORIGINALS_QK,
+    queryFn: () =>
+      adminFetch<GrfAsset[]>(
+        `/graphics?channel=${GRF_FILTER_ORIGINALS.channel}&purpose=${GRF_FILTER_ORIGINALS.purpose}`
+      ),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteAsset(id),
+    mutationFn: (id: string) =>
+      adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
     onSuccess: () => {
-      toast({ title: "Image deleted" });
-      api.invalidateAssets("source");
+      toast({ title: "Image archived" });
+      queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
     },
     onError: (error: Error) => {
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
+      toast({ title: "Archive failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -46,53 +92,90 @@ export default function SourceImagesTab() {
 
   const handleCrop = (id: string) => {
     const asset = assets.find(a => a.id === id);
-    if (asset) {
-      setAssetToCrop({
-        id: asset.id,
-        name: asset.name,
-        imageUrl: getImageUrl(asset),
+    if (!asset) {
+      console.error("[SourceImagesTab] Asset not found for crop:", id);
+      return;
+    }
+    setAssetToCrop({ id: asset.id, name: asset.name, imageUrl: asset.publicUrl || "" });
+    setCropDialogOpen(true);
+  };
+
+  const handleSaveCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
+    if (!sourceAsset) {
+      console.error("[SourceImagesTab] handleSaveCrop called without sourceAsset");
+      toast({ title: "Crop failed", description: "No source asset provided.", variant: "destructive" });
+      return;
+    }
+
+    const originalAsset = assets.find(a => a.id === sourceAsset.id);
+    if (!originalAsset) {
+      console.error("[SourceImagesTab] Original asset not found in assets:", sourceAsset.id);
+      toast({ title: "Crop failed", description: "Original asset not found.", variant: "destructive" });
+      return;
+    }
+
+    const transition = buildCropTransition(originalAsset.mimeType || "image/jpeg", "image/jpeg");
+
+    try {
+      // 1. Cropped derivative — purpose 2
+      await adminFetch("/graphics/save-grf", {
+        method: "POST",
+        json: {
+          ...transition.cropped,
+          imageUrl:         croppedDataUrl,
+          name:             `cropped_${originalAsset.name}`,
+          mimeType:         "image/jpeg",
+          sourceGrfId:      originalAsset.grfId || originalAsset.id,
+          originalFilename: `cropped_${originalAsset.originalFilename || originalAsset.name}.jpg`,
+        },
       });
-      setCropDialogOpen(true);
+
+      // 2. Promoted background — purpose 3
+      await adminFetch("/graphics/save-grf", {
+        method: "POST",
+        json: {
+          ...transition.background,
+          imageUrl:         originalAsset.publicUrl,
+          name:             originalAsset.name,
+          mimeType:         originalAsset.mimeType || "image/jpeg",
+          sourceGrfId:      originalAsset.grfId || originalAsset.id,
+          originalFilename: originalAsset.originalFilename || originalAsset.name,
+        },
+      });
+
+      toast({ title: "Crop saved", description: "Created cropped derivative and background asset." });
+      invalidateGrfQueries();
+      setCropDialogOpen(false);
+      setAssetToCrop(null);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("[SourceImagesTab] Crop save error:", error.message);
+      toast({ title: "Crop save failed", description: error.message, variant: "destructive" });
     }
   };
 
-  const handleSaveCrop = async (imageData: string, sourceAsset?: CropAsset) => {
-    if (!sourceAsset) return;
-    await api.uploadAsset({
-      name: `cropped_${sourceAsset.name}`,
-      assetType: "cropped",
-      imageData,
-      mimeType: "image/jpeg",
-      sourceAssetId: sourceAsset.id,
-    });
-    api.invalidateAssets("source");
-    api.invalidateAssets("cropped");
-    api.invalidateAssets("background");
-  };
-
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
-  };
+  const handleDelete = (id: string) => deleteMutation.mutate(id);
 
   const handleUploadSingle = async (params: { name: string; imageData: string; mimeType: string }) => {
-    await api.uploadAsset({
-      name: params.name,
-      assetType: "source",
-      imageData: params.imageData,
-      mimeType: params.mimeType,
-    });
-    api.invalidateAssets("source");
-  };
-
-  const handleUploadZip = async (params: { name: string; imageData: string; mimeType: string }) => {
-    const result = await api.uploadZip({
-      name: params.name,
-      assetType: "source",
-      imageData: params.imageData,
-      mimeType: params.mimeType,
-    });
-    api.invalidateAssets("source");
-    return result;
+    try {
+      await adminFetch("/graphics/save-grf", {
+        method: "POST",
+        json: {
+          ...originalGrfParams(params.mimeType),
+          imageUrl:         `data:${params.mimeType};base64,${params.imageData}`,
+          name:             params.name,
+          mimeType:         params.mimeType,
+          originalFilename: params.name,
+        },
+      });
+      toast({ title: "Image uploaded" });
+      queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("[SourceImagesTab] Upload error:", error.message);
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+      throw error;
+    }
   };
 
   if (isLoading) {
@@ -107,9 +190,8 @@ export default function SourceImagesTab() {
     <>
       <ImageUploader
         onUploadSingle={handleUploadSingle}
-        onUploadZip={handleUploadZip}
         title="Upload Source Images"
-        description="ZIP files are extracted server-side. Original ZIP saved to archive."
+        description="Source images are original GRF library intake assets. Cropping automatically creates a cropped derivative and a background asset."
       />
 
       <div className="flex items-center justify-between mb-4">
@@ -123,7 +205,7 @@ export default function SourceImagesTab() {
             No source images uploaded yet.
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Upload a ZIP file or select images above.
+            Upload images above to add them to the GRF library.
           </p>
         </div>
       ) : (
@@ -132,14 +214,14 @@ export default function SourceImagesTab() {
           CardSkin={SourceImageCardSkin}
           DetailSkin={SourceImageDetailSkin}
           actions={{
-            onCrop: handleCrop,
+            onCrop:   handleCrop,
             onDelete: handleDelete,
           }}
           isActionPending={deleteMutation.isPending}
           confirmAction={{
-            type: "delete",
-            title: "Delete this image?",
-            description: "This will permanently delete this source image. This action cannot be undone.",
+            type:        "delete",
+            title:       "Archive this image?",
+            description: "This will archive the source image. It will no longer appear in this tab.",
           }}
         />
       )}
@@ -152,7 +234,7 @@ export default function SourceImagesTab() {
           if (!open) setAssetToCrop(null);
         }}
         onSave={handleSaveCrop}
-        fetchImageBlob={api.fetchImageBlob}
+        fetchImageBlob={fetchImageBlob}
         aspectRatio={9 / 16}
         title="Crop Image"
       />
