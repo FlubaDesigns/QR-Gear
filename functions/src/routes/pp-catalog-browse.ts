@@ -33,10 +33,10 @@ function buildColorSizeFromDoc(p: any): {
   const sizeCodesSeen = new Map<string, { label: string; providerLabels: Set<string> }>();
 
   for (const [vc, variant] of Object.entries(qrgVariants)) {
-    if (typeof vc !== 'string' || vc.length < 4) continue;
+    if (typeof vc !== 'string' || vc.length < 7) continue;
     const v = variant as any;
-    const sc = vc.slice(0, 2);
-    const cc = vc.slice(2, 4);
+    const sc = vc.slice(0, 3); // TSS
+    const cc = vc.slice(5, 7); // CC
     if (cc) {
       if (!colorCodesSeen.has(cc)) {
         colorCodesSeen.set(cc, { label: v.colorLabel || COLOR_LABELS[cc] || cc, providerLabels: new Set() });

@@ -19,15 +19,23 @@ var qrgCodes_1 = require("./qrgCodes");
 Object.defineProperty(exports, "SIZE_CODE_MAP", { enumerable: true, get: function () { return qrgCodes_1.SIZE_CODE_MAP; } });
 Object.defineProperty(exports, "COLOR_CODE_MAP", { enumerable: true, get: function () { return qrgCodes_1.COLOR_CODE_MAP; } });
 // ── Label maps (code → canonical label) ──────────────────────────────────────
-exports.SIZE_LABELS = {
-    '00': 'One Size',
-    '01': 'XXS', '02': 'XS', '03': 'S', '04': 'M', '05': 'L',
-    '06': 'XL', '07': '2XL', '08': '3XL', '09': '4XL', '10': '5XL',
-};
+// SIZE_LABELS keyed by 3-char TSS code (e.g. '105' → 'L').
 const qrgCodes_2 = require("./qrgCodes");
+exports.SIZE_LABELS = (() => {
+    const labels = { '000': 'One Size' };
+    for (const [t, type] of Object.entries(qrgCodes_2.SIZE_TYPES)) {
+        if (t === '0')
+            continue;
+        for (const [ss, label] of Object.entries(type.codes)) {
+            labels[`${t}${ss}`] = label;
+        }
+    }
+    return labels;
+})();
+const qrgCodes_3 = require("./qrgCodes");
 exports.COLOR_LABELS = (() => {
     const labels = {};
-    for (const [name, code] of Object.entries(qrgCodes_2.COLOR_CODE_MAP)) {
+    for (const [name, code] of Object.entries(qrgCodes_3.COLOR_CODE_MAP)) {
         if (!labels[code])
             labels[code] = name;
     }
@@ -41,25 +49,25 @@ function normalizeProviderColor(text) {
     return (text || '').trim().replace(/[\s_-]+/g, ' ');
 }
 // ── Code lookups — return null for unmapped values ────────────────────────────
-const qrgCodes_3 = require("./qrgCodes");
+const qrgCodes_4 = require("./qrgCodes");
 /**
- * Returns QRG size code ("01"–"10" / "00") or null if unmapped.
+ * Returns QRG size code (3-char TSS, e.g. "105") or null if unmapped.
  */
 function getQrgSizeCode(sizeText) {
     if (!sizeText)
         return null;
     const normalized = normalizeProviderSize(sizeText);
-    if (qrgCodes_3.SIZE_CODE_MAP[normalized] !== undefined)
-        return qrgCodes_3.SIZE_CODE_MAP[normalized];
+    if (qrgCodes_4.SIZE_CODE_MAP[normalized] !== undefined)
+        return qrgCodes_4.SIZE_CODE_MAP[normalized];
     const upper = normalized.toUpperCase();
-    for (const [key, code] of Object.entries(qrgCodes_3.SIZE_CODE_MAP)) {
+    for (const [key, code] of Object.entries(qrgCodes_4.SIZE_CODE_MAP)) {
         if (key.toUpperCase() === upper)
             return code;
     }
     const stripped = normalized.replace(/^(size|us|uk)\s+/i, '').trim();
-    if (stripped && qrgCodes_3.SIZE_CODE_MAP[stripped] !== undefined)
-        return qrgCodes_3.SIZE_CODE_MAP[stripped];
-    for (const [key, code] of Object.entries(qrgCodes_3.SIZE_CODE_MAP)) {
+    if (stripped && qrgCodes_4.SIZE_CODE_MAP[stripped] !== undefined)
+        return qrgCodes_4.SIZE_CODE_MAP[stripped];
+    for (const [key, code] of Object.entries(qrgCodes_4.SIZE_CODE_MAP)) {
         if (key.toUpperCase() === stripped.toUpperCase())
             return code;
     }
@@ -72,14 +80,14 @@ function getQrgColorCode(colorText) {
     if (!colorText)
         return null;
     const normalized = normalizeProviderColor(colorText);
-    if (qrgCodes_2.COLOR_CODE_MAP[normalized] !== undefined)
-        return qrgCodes_2.COLOR_CODE_MAP[normalized];
+    if (qrgCodes_3.COLOR_CODE_MAP[normalized] !== undefined)
+        return qrgCodes_3.COLOR_CODE_MAP[normalized];
     const lower = normalized.toLowerCase();
-    for (const [key, code] of Object.entries(qrgCodes_2.COLOR_CODE_MAP)) {
+    for (const [key, code] of Object.entries(qrgCodes_3.COLOR_CODE_MAP)) {
         if (key.toLowerCase() === lower)
             return code;
     }
-    for (const [key, code] of Object.entries(qrgCodes_2.COLOR_CODE_MAP)) {
+    for (const [key, code] of Object.entries(qrgCodes_3.COLOR_CODE_MAP)) {
         if (key.length >= 4 && lower.length >= 4) {
             if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower))
                 return code;
@@ -88,16 +96,19 @@ function getQrgColorCode(colorText) {
     return null;
 }
 // ── Variant code builders ─────────────────────────────────────────────────────
-function buildVariantCode(sizeCode, colorCode) {
-    return `${sizeCode}${colorCode}`;
+/** Build the 7-char TSSLLCC variant code. */
+function buildVariantCode(sizeCode, lengthCode, colorCode) {
+    return `${sizeCode}${lengthCode}${colorCode}`;
 }
-function parseVariantCode(sscc) {
-    if (!/^\d{4}$/.test(sscc))
+function parseVariantCode(tssllcc) {
+    if (!/^\d{7}$/.test(tssllcc))
         return null;
-    const sizeCode = sscc.slice(0, 2);
-    const colorCode = sscc.slice(2, 4);
+    const sizeCode = tssllcc.slice(0, 3); // TSS
+    const lengthCode = tssllcc.slice(3, 5); // LL
+    const colorCode = tssllcc.slice(5, 7); // CC
     return {
         sizeCode,
+        lengthCode,
         colorCode,
         sizeLabel: exports.SIZE_LABELS[sizeCode] ?? sizeCode,
         colorLabel: exports.COLOR_LABELS[colorCode] ?? colorCode,

@@ -109,9 +109,10 @@ export async function allocateQrgInstance(
   let qrgFullCode: string | null = null;
 
   if (sizeLabel || colorLabel) {
-    const ss = getSizeCode(sizeLabel ?? '');
-    const cc = getColorCode(colorLabel ?? '');
-    variantCode = `${ss}${cc}`;
+    const tss = getSizeCode(sizeLabel ?? '');
+    const ll  = '00'; // length not known at allocation time
+    const cc  = getColorCode(colorLabel ?? '');
+    variantCode = `${tss}${ll}${cc}`;
     qrgFullCode = `${qrgBaseCode}-${variantCode}`;
   }
 

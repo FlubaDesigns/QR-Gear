@@ -70,9 +70,10 @@ async function allocateQrgInstance(opts) {
     let variantCode = null;
     let qrgFullCode = null;
     if (sizeLabel || colorLabel) {
-        const ss = (0, qrgCodes_1.getSizeCode)(sizeLabel ?? '');
+        const tss = (0, qrgCodes_1.getSizeCode)(sizeLabel ?? '');
+        const ll = '00'; // length not known at allocation time
         const cc = (0, qrgCodes_1.getColorCode)(colorLabel ?? '');
-        variantCode = `${ss}${cc}`;
+        variantCode = `${tss}${ll}${cc}`;
         qrgFullCode = `${qrgBaseCode}-${variantCode}`;
     }
     return { qrgBlankId, qrgContext: context, instanceNumber, qrgBaseCode, variantCode, qrgFullCode };

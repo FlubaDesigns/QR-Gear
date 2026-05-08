@@ -677,8 +677,8 @@ export function register(app: express.Express): void {
 
       for (const [vc, variant] of Object.entries(qrgVariants)) {
         const v = variant as any;
-        const sc = vc.slice(0, 2);
-        const cc = vc.slice(2, 4);
+        const sc = vc.slice(0, 3); // TSS
+        const cc = vc.slice(5, 7); // CC
         sizeCodesInVariants.add(sc);
         colorCodesInVariants.add(cc);
         if (v.sizeLabel) {

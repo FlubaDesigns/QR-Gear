@@ -243,7 +243,7 @@ export default function ShopProductPage() {
       }
       const resolved = await addToCartRes.json();
 
-      const variantSuffix = buildVariantSuffix(selectedSize, selectedColor);
+      const variantSuffix = buildVariantSuffix(selectedSize, null, selectedColor);
 
       const cartData = {
         productId: resolved.productId,

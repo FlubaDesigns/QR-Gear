@@ -1,5 +1,5 @@
 import AdminShell from "@/components/AdminShell";
-import { SIZE_TYPES, COLOR_CODE_MAP, PARENT_CATEGORY_LABELS } from "@shared/qrgCodes";
+import { SIZE_TYPES, LENGTH_TYPES, COLOR_CODE_MAP, PARENT_CATEGORY_LABELS } from "@shared/qrgCodes";
 import {
   GRF_ASSET_CLASSES,
   GRF_MEDIA_TYPES,
@@ -118,15 +118,18 @@ export default function AdminSchemaKeys() {
               { seg: "STNNN", desc: "Blank ID (super · type · item)", mono: true },
               { seg: "C", desc: "Context letter", mono: true },
               { seg: "NNNNNN", desc: "Instance number", mono: true },
-              { seg: "SSCC", desc: "Size + Color", mono: true },
+              { seg: "T", desc: "Size type", mono: true },
+              { seg: "SS", desc: "Size within type", mono: true },
+              { seg: "LL", desc: "Length (00 if none)", mono: true },
+              { seg: "CC", desc: "Color", mono: true },
             ]}
           />
 
           <div className="space-y-1">
             <Label>Example</Label>
-            <CodePill>QRG-11101-I-000001-0501</CodePill>
+            <CodePill>QRG-11101-I-000001-1050001</CodePill>
             <p className="text-xs text-muted-foreground mt-1">
-              Blank 11101 · Internal · instance #1 · Size L (05) · Black (01)
+              Blank 11101 · Internal · instance #1 · Adult Alpha (T=1) · L (SS=05) · No length (LL=00) · Black (CC=01)
             </p>
           </div>
 
@@ -167,17 +170,65 @@ export default function AdminSchemaKeys() {
 
         {/* ── Size codes ───────────────────────────────────────────────────── */}
         <Section
-          title="QRG Size Codes (SS)"
-          subtitle="Two-digit codes in the SSCC suffix. Global and fixed — never renumber."
+          title="QRG Size Codes (T + SS)"
+          subtitle="T is a single type digit; SS is the 2-digit position within that type. Together they form the first 3 digits of TSSLLCC. Global and fixed — never renumber."
         >
-          <KeyTable cols={["Code", "Size"]} rows={SIZE_ROWS} />
-          <p className="text-xs text-muted-foreground">00 = One Size / unknown. Not all products support all sizes.</p>
+          <div className="space-y-2">
+            <Label>T — Size type digit</Label>
+            <KeyTable
+              cols={["T", "Type", "Description"]}
+              rows={Object.entries(SIZE_TYPES).map(([t, v]) => [t, v.label, v.description])}
+            />
+          </div>
+
+          {Object.entries(SIZE_TYPES).filter(([t]) => t !== '0').map(([t, type]) => (
+            <div key={t} className="space-y-2">
+              <Label>T={t} — {type.label} (SS codes)</Label>
+              <KeyTable
+                cols={["SS", "Size"]}
+                rows={Object.entries(type.codes).map(([ss, label]) => [ss, label])}
+              />
+            </div>
+          ))}
+
+          <p className="text-xs text-muted-foreground">
+            T=0 SS=00 → One Size / unknown. Use "Youth S" / "Kids S" etc. to disambiguate children alpha from adult alpha.
+            Not all products support all sizes.
+          </p>
+        </Section>
+
+        {/* ── Length codes ─────────────────────────────────────────────────── */}
+        <Section
+          title="QRG Length Codes (LL)"
+          subtitle="Two-digit length code — only populated when T=2 (Adult Numeric / waist). All other size types use LL=00."
+        >
+          <div className="space-y-2">
+            <Label>First L — Length type digit</Label>
+            <KeyTable
+              cols={["L1", "Type", "Description"]}
+              rows={Object.entries(LENGTH_TYPES).map(([l, v]) => [l, v.label, v.description])}
+            />
+          </div>
+
+          {Object.entries(LENGTH_TYPES).filter(([l]) => l !== '0').map(([l, type]) => (
+            <div key={l} className="space-y-2">
+              <Label>L1={l} — {type.label} (LL codes)</Label>
+              <KeyTable
+                cols={["LL", "Length"]}
+                rows={Object.entries(type.codes).map(([ll, label]) => [ll, label])}
+              />
+            </div>
+          ))}
+
+          <p className="text-xs text-muted-foreground">
+            LL=00 = no length (default for all non-waist sizes). Length codes are only valid for T=2 (Adult Numeric / waist).
+          </p>
         </Section>
 
         {/* ── Color codes ──────────────────────────────────────────────────── */}
         <Section
           title="QRG Color Codes (CC)"
-          subtitle='Two-digit codes in the SSCC suffix. Aliases (e.g. "Gray" / "Grey") share the same code.'
+          subtitle='Two-digit color code — last 2 digits of TSSLLCC. Aliases (e.g. "Gray" / "Grey") share the same code.'
         >
           <KeyTable cols={["Code", "Canonical color"]} rows={COLOR_ROWS} />
           <p className="text-xs text-muted-foreground">00 = unknown. Codes 54–98 reserved for future colors.</p>

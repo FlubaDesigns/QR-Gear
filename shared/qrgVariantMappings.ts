@@ -10,11 +10,19 @@
 export { SIZE_CODE_MAP, COLOR_CODE_MAP } from './qrgCodes';
 
 // ── Label maps (code → canonical label) ──────────────────────────────────────
-export const SIZE_LABELS: Record<string, string> = {
-  '00': 'One Size',
-  '01': 'XXS', '02': 'XS', '03': 'S', '04': 'M', '05': 'L',
-  '06': 'XL', '07': '2XL', '08': '3XL', '09': '4XL', '10': '5XL',
-};
+// SIZE_LABELS keyed by 3-char TSS code (e.g. '105' → 'L').
+import { SIZE_TYPES } from './qrgCodes';
+
+export const SIZE_LABELS: Record<string, string> = (() => {
+  const labels: Record<string, string> = { '000': 'One Size' };
+  for (const [t, type] of Object.entries(SIZE_TYPES)) {
+    if (t === '0') continue;
+    for (const [ss, label] of Object.entries(type.codes)) {
+      labels[`${t}${ss}`] = label;
+    }
+  }
+  return labels;
+})();
 
 import { COLOR_CODE_MAP } from './qrgCodes';
 
@@ -40,7 +48,7 @@ export function normalizeProviderColor(text: string): string {
 import { SIZE_CODE_MAP } from './qrgCodes';
 
 /**
- * Returns QRG size code ("01"–"10" / "00") or null if unmapped.
+ * Returns QRG size code (3-char TSS, e.g. "105") or null if unmapped.
  */
 export function getQrgSizeCode(sizeText: string): string | null {
   if (!sizeText) return null;
@@ -79,21 +87,25 @@ export function getQrgColorCode(colorText: string): string | null {
 
 // ── Variant code builders ─────────────────────────────────────────────────────
 
-export function buildVariantCode(sizeCode: string, colorCode: string): string {
-  return `${sizeCode}${colorCode}`;
+/** Build the 7-char TSSLLCC variant code. */
+export function buildVariantCode(sizeCode: string, lengthCode: string, colorCode: string): string {
+  return `${sizeCode}${lengthCode}${colorCode}`;
 }
 
-export function parseVariantCode(sscc: string): {
+export function parseVariantCode(tssllcc: string): {
   sizeCode: string;
+  lengthCode: string;
   colorCode: string;
   sizeLabel: string;
   colorLabel: string;
 } | null {
-  if (!/^\d{4}$/.test(sscc)) return null;
-  const sizeCode = sscc.slice(0, 2);
-  const colorCode = sscc.slice(2, 4);
+  if (!/^\d{7}$/.test(tssllcc)) return null;
+  const sizeCode   = tssllcc.slice(0, 3); // TSS
+  const lengthCode = tssllcc.slice(3, 5); // LL
+  const colorCode  = tssllcc.slice(5, 7); // CC
   return {
     sizeCode,
+    lengthCode,
     colorCode,
     sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode,
     colorLabel: COLOR_LABELS[colorCode] ?? colorCode,

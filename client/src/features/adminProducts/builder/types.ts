@@ -161,7 +161,7 @@ export interface CatalogProduct {
   // Per-carrier sub-objects — single source of truth
   printify?: CarrierSubData;
   printful?: CarrierSubData;
-  /** QRG variant map keyed by SSCC (sizeCode+colorCode) */
+  /** QRG variant map keyed by TSSLLCC (size type + size + length + color, 7 digits) */
   qrgVariants?: Record<string, any>;
   /** Provider mapping object { printify: {...}, printful: {...} } */
   providerMappings?: Record<string, any>;

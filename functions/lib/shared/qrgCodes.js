@@ -4,27 +4,48 @@
  *
  * QRG variant suffix tables — physical item identification.
  *
- * Variant suffix format: [SS][CC]  (4 digits, barcode/tracking only)
- *   SS = 2-digit size code  (01=XXS … 10=5XL)
- *   CC = 2-digit color code (01=Black, 02=White, 03=Navy, …)
+ * Variant suffix format: [TSS][LL][CC]  (7 digits, barcode/tracking only)
+ *   T   = 1-digit size type  (0=One Size, 1=Adult Alpha, 2=Adult Numeric/waist, …)
+ *   SS  = 2-digit size within type  (01–10; "00" only for One Size / T=0)
+ *   LL  = 2-digit length code  (00=no length; first digit=length type, second=position)
+ *         LL is only populated when T=2 (Adult Numeric/waist); all other types use 00.
+ *   CC  = 2-digit color code  (01=Black, 02=White, 03=Navy, …)
+ *
+ * T — size type digit:
+ *   0 = One Size / unknown
+ *   1 = Adult Alpha      (XXS–5XL)
+ *   2 = Adult Numeric    (waist 28"–46")
+ *   3 = Children Alpha   (Youth XS–XXL)
+ *   4 = Children Numeric (sizes 6–20)
+ *   5 = Toddler Alpha    (NB, 3M–24M infant months)
+ *   6 = Toddler Numeric  (2T–6T)
+ *
+ * LL — length type digit (first L):
+ *   0 = No length (default for all non-waist sizes)
+ *   1 = Alpha length  (Short / Regular / Long / Extra Long)
+ *   2 = Numeric inseam  (28"–36")
  *
  * These codes are barcode-only — never in URLs or packet names.
- * Full QRG code format: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
- * Example: QRG-11101-I-000001-0501  (L=05, Black=01)
+ * Full QRG code format: QRG-[STNNN]-[C]-[NNNNNN]-[TSSLLCC]
+ * Example: QRG-11101-I-000001-1050001  (Adult Alpha L=05, No Length, Black=01)
  *
  * Context letter [C]: I=Internal, M=Member, E=External, O=Owner
  * Providers (Printify/Printful) are suppliers only — NEVER in [C].
  *
  * Rules:
  *   - Codes are GLOBAL and FIXED — never renumber once assigned
- *   - Aliases (e.g. "Gray" / "Grey") share the same code
- *   - Unknown sizes → "00", unknown colors → "00"
+ *   - Aliases (e.g. "Gray" / "Grey") share the same color code
+ *   - Unknown sizes → "000", unknown lengths → "00", unknown colors → "00"
+ *   - For children/toddler alpha sizes prefix with "Youth " / "Kids " to disambiguate from adult alpha
  *   - Not all products support all sizes/colors
  *   - Do not use letters (S, M, L, XL) in IDs — always numeric
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PARENT_CATEGORY_LABELS = exports.getSizeDigit = exports.COLOR_CODE_MAP = exports.SIZE_CODE_MAP = void 0;
+exports.PARENT_CATEGORY_LABELS = exports.getSizeDigit = exports.COLOR_CODE_MAP = exports.LENGTH_CODE_MAP = exports.LENGTH_TYPES = exports.SIZE_CODE_MAP = exports.SIZE_TYPES = void 0;
 exports.getSizeCode = getSizeCode;
+exports.getSizeType = getSizeType;
+exports.getSizeTypeEntry = getSizeTypeEntry;
+exports.getLengthCode = getLengthCode;
 exports.getColorCode = getColorCode;
 exports.buildVariantSuffix = buildVariantSuffix;
 exports.isValidQrgBlankId = isValidQrgBlankId;
@@ -42,25 +63,169 @@ exports.isValidQrgFull = isValidQrgFull;
 exports.isValidQrgCode = isValidQrgCode;
 exports.assertValidQrgCode = assertValidQrgCode;
 exports.getQrgContext = getQrgContext;
-// ── Size codes (2 digits, 01–10) ─────────────────────────────────────────────
+// ── Size type table (T digit) ─────────────────────────────────────────────────
+// T = first digit of the TSSLLCC suffix.
+// codes = { SS: label } where SS is the 2-digit position within that type.
+exports.SIZE_TYPES = {
+    '0': {
+        label: 'One Size',
+        description: 'One size fits all / no size applicable',
+        codes: { '00': 'One Size' },
+    },
+    '1': {
+        label: 'Adult Alpha',
+        description: 'Standard adult letter sizing (XXS–5XL)',
+        codes: {
+            '01': 'XXS', '02': 'XS', '03': 'S', '04': 'M', '05': 'L',
+            '06': 'XL', '07': '2XL', '08': '3XL', '09': '4XL', '10': '5XL',
+        },
+    },
+    '2': {
+        label: 'Adult Numeric',
+        description: 'Waist sizing for adults (28"–46"). LL length codes apply only to this type.',
+        codes: {
+            '01': '28"', '02': '30"', '03': '32"', '04': '34"', '05': '36"',
+            '06': '38"', '07': '40"', '08': '42"', '09': '44"', '10': '46"',
+        },
+    },
+    '3': {
+        label: 'Children Alpha',
+        description: 'Youth / kids letter sizing (XS–XXL)',
+        codes: {
+            '01': 'Youth XS', '02': 'Youth S', '03': 'Youth M',
+            '04': 'Youth L', '05': 'Youth XL', '06': 'Youth XXL',
+        },
+    },
+    '4': {
+        label: 'Children Numeric',
+        description: 'Numeric sizing for children (6–20)',
+        codes: {
+            '01': '6', '02': '8', '03': '10', '04': '12',
+            '05': '14', '06': '16', '07': '18', '08': '20',
+        },
+    },
+    '5': {
+        label: 'Toddler Alpha',
+        description: 'Infant month-based sizing (NB, 3M–24M)',
+        codes: {
+            '01': 'NB', '02': '3M', '03': '6M', '04': '9M',
+            '05': '12M', '06': '18M', '07': '24M',
+        },
+    },
+    '6': {
+        label: 'Toddler Numeric',
+        description: 'T-sizing for toddlers (2T–6T)',
+        codes: {
+            '01': '2T', '02': '3T', '03': '4T', '04': '5T', '05': '6T',
+        },
+    },
+};
+// ── Size codes (3 chars: TSS) ─────────────────────────────────────────────────
 // GLOBAL FIXED — never change these assignments.
+// T = size type digit (0–6), SS = 2-digit position within that type.
+// Returns "000" for unknown / one-size.
 exports.SIZE_CODE_MAP = {
-    "XXS": "01", "Extra Extra Small": "01",
-    "XS": "02", "Extra Small": "02",
-    "S": "03", "Small": "03",
-    "M": "04", "Medium": "04",
-    "L": "05", "Large": "05",
-    "XL": "06", "Extra Large": "06", "Extra-Large": "06",
-    "2XL": "07", "XXL": "07", "2X": "07",
-    "3XL": "08", "XXXL": "08", "3X": "08",
-    "4XL": "09", "XXXXL": "09", "4X": "09",
-    "5XL": "10", "XXXXXL": "10", "5X": "10",
-    // One Size
-    "One Size": "00", "OSFA": "00", "OS": "00",
-    // Numeric youth/apparel sizes mapped to nearest standard
-    "4": "01", "6": "01",
-    "8": "02",
-    "10": "03", "12": "04", "14": "05", "16": "06",
+    // ── One Size (T=0, SS=00 → "000") ─────────────────────────────────────────
+    "One Size": "000", "OSFA": "000", "OS": "000", "One Size Fits All": "000",
+    // ── Adult Alpha (T=1, SS=01–10) ────────────────────────────────────────────
+    "XXS": "101", "Extra Extra Small": "101",
+    "XS": "102", "Extra Small": "102",
+    "S": "103", "Small": "103",
+    "M": "104", "Medium": "104",
+    "L": "105", "Large": "105",
+    "XL": "106", "Extra Large": "106", "Extra-Large": "106",
+    "2XL": "107", "XXL": "107", "2X": "107",
+    "3XL": "108", "XXXL": "108", "3X": "108",
+    "4XL": "109", "XXXXL": "109", "4X": "109",
+    "5XL": "110", "XXXXXL": "110", "5X": "110",
+    // ── Adult Numeric / Waist (T=2, SS=01–10) ──────────────────────────────────
+    // Prefix with waist number or "W" suffix; length (LL) applies to this type only.
+    '28': "201", '28W': "201", '28"': "201",
+    '30': "202", '30W': "202", '30"': "202",
+    '32': "203", '32W': "203", '32"': "203",
+    '34': "204", '34W': "204", '34"': "204",
+    '36': "205", '36W': "205", '36"': "205",
+    '38': "206", '38W': "206", '38"': "206",
+    '40': "207", '40W': "207", '40"': "207",
+    '42': "208", '42W': "208", '42"': "208",
+    '44': "209", '44W': "209", '44"': "209",
+    '46': "210", '46W': "210", '46"': "210",
+    // ── Children Alpha (T=3, SS=01–06) ─────────────────────────────────────────
+    // Prefix with "Youth " or "Kids " to disambiguate from adult alpha.
+    "Youth XS": "301", "Kids XS": "301",
+    "Youth S": "302", "Kids S": "302",
+    "Youth M": "303", "Kids M": "303",
+    "Youth L": "304", "Kids L": "304",
+    "Youth XL": "305", "Kids XL": "305",
+    "Youth XXL": "306", "Kids XXL": "306",
+    // ── Children Numeric (T=4, SS=01–08) ───────────────────────────────────────
+    "Size 6": "401", "6": "401",
+    "Size 8": "402", "8": "402",
+    "Size 10": "403", "10": "403",
+    "Size 12": "404", "12": "404",
+    "Size 14": "405", "14": "405",
+    "Size 16": "406", "16": "406",
+    "Size 18": "407", "18": "407",
+    "Size 20": "408", "20": "408",
+    // ── Toddler Alpha (T=5, SS=01–07) ──────────────────────────────────────────
+    "NB": "501", "Newborn": "501",
+    "3M": "502", "3 Months": "502",
+    "6M": "503", "6 Months": "503",
+    "9M": "504", "9 Months": "504",
+    "12M": "505", "12 Months": "505",
+    "18M": "506", "18 Months": "506",
+    "24M": "507", "24 Months": "507",
+    // ── Toddler Numeric (T=6, SS=01–05) ────────────────────────────────────────
+    "2T": "601",
+    "3T": "602",
+    "4T": "603",
+    "5T": "604",
+    "6T": "605",
+};
+// ── Length type table (first L digit) ────────────────────────────────────────
+// LL is only populated when T=2 (Adult Numeric/waist). All other types use "00".
+// codes = { LL: label } where LL is the full 2-digit length code.
+exports.LENGTH_TYPES = {
+    '0': {
+        label: 'No Length',
+        description: 'No length dimension (default for all non-waist sizes)',
+        codes: { '00': 'N/A' },
+    },
+    '1': {
+        label: 'Alpha Length',
+        description: 'Letter-based length (Short / Regular / Long / Extra Long)',
+        codes: {
+            '11': 'Short', '12': 'Regular', '13': 'Long', '14': 'Extra Long',
+        },
+    },
+    '2': {
+        label: 'Numeric Inseam',
+        description: 'Inseam length in inches (28"–36")',
+        codes: {
+            '21': '28"', '22': '30"', '23': '32"', '24': '34"', '25': '36"',
+        },
+    },
+};
+// ── Length codes (2 chars: LL) ────────────────────────────────────────────────
+// GLOBAL FIXED — never change these assignments.
+// First L = length type, second L = position within type.
+// "00" = no length (default — use for all non-waist size types).
+exports.LENGTH_CODE_MAP = {
+    // ── No length ──────────────────────────────────────────────────────────────
+    "": "00",
+    "None": "00",
+    "N/A": "00",
+    // ── Alpha length (first L = 1) ─────────────────────────────────────────────
+    "Short": "11", "S": "11",
+    "Regular": "12", "R": "12",
+    "Long": "13", "L": "13",
+    "Extra Long": "14", "XL": "14",
+    // ── Numeric inseam (first L = 2) ──────────────────────────────────────────
+    '28in': "21", '28"': "21", "Inseam 28": "21",
+    '30in': "22", '30"': "22", "Inseam 30": "22",
+    '32in': "23", '32"': "23", "Inseam 32": "23",
+    '34in': "24", '34"': "24", "Inseam 34": "24",
+    '36in': "25", '36"': "25", "Inseam 36": "25",
 };
 // ── Color codes (2 digits, 01–99) ─────────────────────────────────────────────
 // GLOBAL FIXED — never change these assignments.
@@ -141,10 +306,14 @@ exports.COLOR_CODE_MAP = {
     // 99 = Reserved
 };
 // ── Lookup helpers ─────────────────────────────────────────────────────────────
-/** Returns the 2-digit size code (01–10), or "00" for unknown/one-size. */
+/**
+ * Returns the 3-char TSS size code (e.g. "105" = Adult Alpha L), or "000" for unknown/one-size.
+ * T = size type digit, SS = 2-digit position within that type.
+ * Use "Youth S" / "Kids S" etc. for children alpha to disambiguate from adult alpha.
+ */
 function getSizeCode(size) {
     if (!size)
-        return "00";
+        return "000";
     const trimmed = size.trim();
     const direct = exports.SIZE_CODE_MAP[trimmed];
     if (direct !== undefined)
@@ -153,9 +322,41 @@ function getSizeCode(size) {
         if (key.toUpperCase() === trimmed.toUpperCase())
             return val;
     }
+    return "000";
+}
+/** Returns the T digit (size type) from a 3-char TSS code, or null if invalid. */
+function getSizeType(tssCode) {
+    if (tssCode === '000')
+        return '0';
+    if (/^\d{3}$/.test(tssCode))
+        return tssCode[0];
+    return null;
+}
+/** Returns the SIZE_TYPES entry for a given TSS code, or null if unrecognised. */
+function getSizeTypeEntry(tssCode) {
+    const typeDigit = getSizeType(tssCode);
+    if (!typeDigit)
+        return null;
+    return exports.SIZE_TYPES[typeDigit] ?? null;
+}
+/**
+ * Returns the 2-char LL length code (e.g. "12" = Regular), or "00" for no length.
+ * LL should only be non-00 when T=2 (Adult Numeric / waist).
+ */
+function getLengthCode(length) {
+    if (!length)
+        return "00";
+    const trimmed = length.trim();
+    const direct = exports.LENGTH_CODE_MAP[trimmed];
+    if (direct !== undefined)
+        return direct;
+    for (const [key, val] of Object.entries(exports.LENGTH_CODE_MAP)) {
+        if (key.toUpperCase() === trimmed.toUpperCase())
+            return val;
+    }
     return "00";
 }
-/** @deprecated Use getSizeCode — now returns 2-digit string */
+/** @deprecated Use getSizeCode */
 exports.getSizeDigit = getSizeCode;
 /** Returns the 2-digit color code (01–99), or "00" for unknown colors. */
 function getColorCode(color) {
@@ -172,28 +373,30 @@ function getColorCode(color) {
     return "00";
 }
 /**
- * Build the 4-character variant suffix [SS][CC].
- * Returns null only if both inputs are empty/null.
- * Example: buildVariantSuffix("L", "Black") → "0501"
- *          buildVariantSuffix("M", "Navy")  → "0403"
+ * Build the 7-character variant suffix [TSS][LL][CC].
+ * Returns null only if all inputs are empty/null.
+ * LL should only be non-"00" when size type T=2 (Adult Numeric/waist).
+ * Example: buildVariantSuffix("L", null, "Black")     → "1050001"
+ *          buildVariantSuffix("34W", "Regular", "Navy") → "2041201"
  */
-function buildVariantSuffix(size, color) {
-    if (!size && !color)
+function buildVariantSuffix(size, length, color) {
+    if (!size && !length && !color)
         return null;
-    const ss = getSizeCode(size ?? "");
+    const tss = getSizeCode(size ?? "");
+    const ll = getLengthCode(length ?? "");
     const cc = getColorCode(color ?? "");
-    return `${ss}${cc}`;
+    return `${tss}${ll}${cc}`;
 }
 // ── QRG Identity Helpers ──────────────────────────────────────────────────────
 // Format: STNNN where S=1-6 (super-category), T=1-9 (type), NNN=001-999 (item)
 // docId format: qrg_STNNN  e.g. qrg_11101
-// Full QRG code: QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]
+// Full QRG code: QRG-[STNNN]-[C]-[NNNNNN]-[TSSLLCC]
 // Context [C]: I=Internal (admin), M=Member (user), E=External (API/partner), O=Owner (post-purchase)
 // Providers (Printify/Printful) are suppliers only — never in [C].
 // Design/build data is NOT embedded in the QRG code — stored as a separate field or linked asset.
 const QRG_BLANK_ID_RE = /^[1-6][1-9][0-9]{3}$/;
 const QRG_DOC_ID_RE = /^qrg_[1-6][1-9][0-9]{3}$/;
-const QRG_FULL_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})-(\d{4})$/;
+const QRG_FULL_CODE_RE = /^QRG-([1-6][1-9][0-9]{3})-([IMEO])-(\d{6})-(\d{7})$/;
 exports.PARENT_CATEGORY_LABELS = {
     "1": "Apparel",
     "2": "Houseware",
@@ -246,15 +449,15 @@ function normalizeQrgBlankId(value) {
     const s = String(value ?? "").trim();
     return isValidQrgBlankId(s) ? s : null;
 }
-/** Build the full QRG-[STNNN]-[C]-[NNNNNN]-[SSCC] string */
+/** Build the full QRG-[STNNN]-[C]-[NNNNNN]-[TSSLLCC] string */
 function buildFullQrgCode(parts) {
-    const { qrgBlankId, contextCode, instanceNumber, sizeCode, colorCode } = parts;
+    const { qrgBlankId, contextCode, instanceNumber, sizeCode, lengthCode, colorCode } = parts;
     if (!isValidQrgBlankId(qrgBlankId))
         throw new Error(`Invalid qrgBlankId: ${qrgBlankId}`);
     if (!/^[IMEO]$/.test(contextCode))
         throw new Error(`Invalid contextCode: ${contextCode}. Must be I, M, E, or O.`);
     const iiiiii = String(instanceNumber).padStart(6, "0");
-    return `QRG-${qrgBlankId}-${contextCode}-${iiiiii}-${sizeCode}${colorCode}`;
+    return `QRG-${qrgBlankId}-${contextCode}-${iiiiii}-${sizeCode}${lengthCode}${colorCode}`;
 }
 /** Parse a full QRG code, returns null if format is invalid */
 function parseFullQrgCode(code) {
@@ -265,8 +468,9 @@ function parseFullQrgCode(code) {
         qrgBlankId: m[1],
         contextCode: m[2],
         instanceNumber: m[3],
-        sizeCode: m[4].slice(0, 2),
-        colorCode: m[4].slice(2, 4),
+        sizeCode: m[4].slice(0, 3), // TSS
+        lengthCode: m[4].slice(3, 5), // LL
+        colorCode: m[4].slice(5, 7), // CC
     };
 }
 // ── QRG Code Validation Helpers ───────────────────────────────────────────────

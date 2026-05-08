@@ -18,11 +18,11 @@ function buildColorSizeFromDoc(p) {
     const colorCodesSeen = new Map();
     const sizeCodesSeen = new Map();
     for (const [vc, variant] of Object.entries(qrgVariants)) {
-        if (typeof vc !== 'string' || vc.length < 4)
+        if (typeof vc !== 'string' || vc.length < 7)
             continue;
         const v = variant;
-        const sc = vc.slice(0, 2);
-        const cc = vc.slice(2, 4);
+        const sc = vc.slice(0, 3); // TSS
+        const cc = vc.slice(5, 7); // CC
         if (cc) {
             if (!colorCodesSeen.has(cc)) {
                 colorCodesSeen.set(cc, { label: v.colorLabel || qrgVariantMappings_1.COLOR_LABELS[cc] || cc, providerLabels: new Set() });

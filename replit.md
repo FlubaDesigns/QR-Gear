@@ -66,6 +66,7 @@ VVS three-digit code: `[Viewer][View][Shape]` — e.g. `1·1·1` = single pane +
 
 - Dev server (`server/`) and Cloud Functions (`functions/src/`) both implement the API — always make matching changes to both when adding routes.
 - `master_catalog` Firestore collection uses `qrg_STNNN` doc IDs as the canonical blank identity. Provider IDs (`py_`, `pf_`, `pf:`) are lookup/reference only and must never be persisted in `catalog.blankIds` or overlay maps.
+- QRG variant suffix is **TSSLLCC** (7 digits): T=size type (1 digit), SS=size within type (2 digits), LL=length (2 digits, `00`=none; only non-00 for T=2 Adult Numeric/waist), CC=color (2 digits). Full code: `QRG-[STNNN]-[C]-[NNNNNN]-[TSSLLCC]`. Key helpers: `getSizeCode()` → 3-char TSS, `getLengthCode()` → 2-char LL, `buildVariantSuffix(size, length, color)` → 7-char.
 - `resolveCatalogBlankId()` in `server/routes/admin-catalogs-shelf.routes.ts` is the single resolution path from any provider key → `qrg_STNNN`. Always use it before any catalog write.
 - `expandBlankIdSet()` in the frontend controller reads legacy Firestore data — keep it; do not remove.
 - Frontend uses `allProductMap` with multi-key indexing for display lookup only — these keys are never persisted.

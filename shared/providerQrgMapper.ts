@@ -70,7 +70,7 @@ export function mapProviderVariantToQrgVariant(
 
   return {
     isUnmapped: false,
-    variantCode: buildVariantCode(sizeCode, colorCode),
+    variantCode: buildVariantCode(sizeCode, '00', colorCode),
     sizeCode,
     colorCode,
     sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode,

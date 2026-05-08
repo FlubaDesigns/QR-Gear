@@ -993,8 +993,8 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
       const colorCodesInVariants = new Set<string>();
 
       for (const vc of Object.keys(qrgVariants)) {
-        sizeCodesInVariants.add(vc.slice(0, 2));
-        colorCodesInVariants.add(vc.slice(2, 4));
+        sizeCodesInVariants.add(vc.slice(0, 3)); // TSS
+        colorCodesInVariants.add(vc.slice(5, 7)); // CC
       }
 
       const sizeCodes = sizeCodesInVariants.size > 0
