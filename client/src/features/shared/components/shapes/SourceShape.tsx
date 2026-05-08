@@ -43,25 +43,7 @@ export function SourceDetailShape({ item, actions, onClose }: DetailSkinProps) {
 
       {/* Metadata */}
       <div className="space-y-1">
-        <p className="font-semibold text-sm leading-tight" data-testid="text-source-detail-name">
-          {item.name}
-        </p>
-        {originalFilename && originalFilename !== item.name && (
-          <p className="text-xs text-muted-foreground" data-testid="text-source-detail-filename">
-            {originalFilename}
-          </p>
-        )}
         <div className="flex flex-wrap gap-1 pt-1">
-          {mimeType && (
-            <Badge variant="secondary" className="text-xs" data-testid="badge-source-mimetype">
-              {mimeType}
-            </Badge>
-          )}
-          {item.dimensions && (
-            <Badge variant="secondary" className="text-xs" data-testid="badge-source-dimensions">
-              {item.dimensions}
-            </Badge>
-          )}
           {grfId && (
             <Badge variant="outline" className="text-xs font-mono" data-testid="badge-source-grfid">
               {grfId}
