@@ -4,7 +4,6 @@ exports.processQueueInBackground = processQueueInBackground;
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
-const graphicCodes_1 = require("../../../shared/graphicCodes");
 const mockup_generator_1 = require("../services/mockup-generator");
 async function processQueueInBackground() {
     const processLimit = 10;
@@ -223,88 +222,8 @@ function register(app) {
     app.delete('/admin/library/:id', middleware_1.requireAdmin, (_req, res) => {
         res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
     });
-    // Admin: Mint a GRF code and save a graphic asset to grf_assets
-    app.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { assetClass, mediaType, channel, purpose, format, imageUrl, name, description, mimeType, storagePath, sourceGrfId, relatedPacketId, tags, originalFilename, } = req.body;
-            if (!assetClass || !mediaType || !channel || !purpose || !format || !imageUrl) {
-                res.status(400).json({ error: 'Missing required fields: assetClass, mediaType, channel, purpose, format, imageUrl' });
-                return;
-            }
-            // Atomically mint the next sequence number from the single global counter
-            const counterRef = core_1.db.collection('grf_counters').doc(graphicCodes_1.GRF_COUNTER_KEY);
-            let newSeq = 0;
-            await core_1.db.runTransaction(async (transaction) => {
-                const doc = await transaction.get(counterRef);
-                newSeq = (doc.exists ? doc.data().count : 0) + 1;
-                transaction.set(counterRef, {
-                    count: newSeq,
-                    updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-                });
-            });
-            let grfId;
-            try {
-                grfId = (0, graphicCodes_1.buildGrfId)({
-                    assetClass: assetClass,
-                    mediaType: mediaType,
-                    channel: channel,
-                    purpose,
-                    format,
-                    sequence: newSeq,
-                });
-            }
-            catch (e) {
-                res.status(400).json({ error: `Invalid GRF params: ${e.message}` });
-                return;
-            }
-            const parsed = (0, graphicCodes_1.parseGrfId)(grfId);
-            const existingAsset = await core_1.db.collection('grf_assets').doc(grfId).get();
-            if (existingAsset.exists) {
-                console.error(`[GRF] Counter integrity violation — ${grfId} already exists in grf_assets.`);
-                res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned. Do not retry — contact admin to inspect grf_counters/${graphicCodes_1.GRF_COUNTER_KEY}.` });
-                return;
-            }
-            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            const canonicalStoragePath = storagePath || (0, graphicCodes_1.grfStoragePath)(grfId, originalFilename || undefined);
-            const assetData = {
-                grfId,
-                assetClass: parsed.assetClass,
-                mediaType: parsed.mediaType,
-                channel: parsed.channel,
-                purpose: parsed.purpose,
-                format: parsed.format,
-                sequence: parsed.sequence,
-                assetClassName: parsed.assetClassName,
-                mediaTypeName: parsed.mediaTypeName,
-                channelName: parsed.channelName,
-                purposeName: parsed.purposeName,
-                formatName: parsed.formatName,
-                mimeType: mimeType || parsed.mimeType,
-                name: name || `${parsed.purposeName} ${grfId}`,
-                description: description || null,
-                storagePath: canonicalStoragePath,
-                publicUrl: imageUrl,
-                sourceGrfId: sourceGrfId || null,
-                relatedPacketId: relatedPacketId || null,
-                tags: tags || null,
-                createdAt: now,
-                createdBy: 'admin',
-                isActive: true,
-            };
-            // Preserve original filename for assets-channel originals (D3=4, D4=1)
-            if (parsed.channel === '4' && parsed.purpose === '1') {
-                assetData.originalFilename = originalFilename || null;
-            }
-            await core_1.db.collection('grf_assets').doc(grfId).set(assetData);
-            const doc = await core_1.db.collection('grf_assets').doc(grfId).get();
-            console.log(`[GRF] Minted ${grfId} → grf_assets/${grfId}`);
-            res.json({ success: true, grfId, asset: (0, core_1.docToObject)(doc) });
-        }
-        catch (error) {
-            console.error('[GRF] Error saving graphic:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
+    // POST /admin/graphics/save-grf is handled by admin-graphics.ts (registered after this file).
+    // That version correctly uploads base64 data URIs to Firebase Storage before writing to Firestore.
     // Admin: Get GRF assets, optionally filtered by any descriptor digit.
     // Filtered in memory to avoid requiring composite Firestore indexes.
     app.get('/admin/graphics', middleware_1.requireAdmin, async (req, res) => {
