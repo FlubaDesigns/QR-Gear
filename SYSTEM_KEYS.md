@@ -179,70 +179,100 @@ T / I / A / Q
 SECTION 3 — GRF KEY (FILE IDENTITY)
 
 FORMAT:
-GRF-TT-K-NNNNNN
+GRF-[D1][D2][D3][D4][D5][D6]-[NNNNNN]
+
+Three-character brand prefix, six single-digit descriptor positions, and a 6-digit zero-padded global sequence.
+Example: GRF-111611-000007
 
 Regex:
-^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$
+^GRF-\d{6}-\d{6}$
 
 ---
 
-TT — TYPE CODE
+D1 — ASSET CLASS
 
-01 = upload_source      (raw uploaded source image — unmodified)
-02 = cropped_derivative (cropped or derived from a source image)
-03 = background         (background image for canvas compositions)
-04 = qr_graphic         (QR code image file — no surrounding design)
-05 = canvas_design      (full canvas composite — QR + overlays + background)
-06 = url_artifact_asset (rendered external or linked artifact image)
-07 = template_graphic   (reusable template file)
+1 = input_build     (source uploads, backgrounds, templates — inputs to the build)
+2 = output_artifact (QR composites, glamor shots, URL graphics — outputs of the build)
 
 ---
 
-K — ROLE CODE
+D2 — MEDIA TYPE
 
-1 = Source      (original, unmodified — raw input)
-2 = Derivative  (processed or transformed from a source)
-3 = Renderable  (ready to display, embed, or print)
-4 = Final       (approved and locked — immutable)
-5 = Template    (reusable pattern — not a one-off instance)
+1 = image
+2 = video
+3 = document
 
 ---
 
-VALID TT / K PAIRINGS
+D3 — CHANNEL
 
-01 → 1
-02 → 2
-03 → 3
-04 → 3
-05 → 3, 4
-06 → 3
-07 → 5
+1 = print (goes to physical product / print provider)
+2 = store (displayed in customer-facing storefront)
+3 = url   (lives on landing page / digital artifact)
 
-Any other pairing: INVALID — throw error, reject save
+---
+
+D4 — PURPOSE
+
+1 = qr_composite   (QR merged with zone/palette graphic — print face)
+2 = qr_standalone  (QR code with QRG logo on white box)
+3 = url_graphic    (image created for landing page / digital artifact)
+4 = glamor_shot    (lifestyle/mockup render — store-facing)
+5 = source_upload  (raw asset uploaded before any processing)
+6 = background     (background image used in builder composition)
+7 = template       (reusable graphic applied across products)
+
+---
+
+D5 — FORMAT (depends on D2)
+
+Image (D2=1): 1=PNG  2=JPEG  3=WebP  4=SVG
+Video (D2=2): 1=MP4  2=WebM
+Document (D2=3): 1=PDF
+
+---
+
+D6 — SUB-CONTEXT (depends on D3)
+
+Print (D3=1): 1=Front  2=Back  3=Sleeve
+Store (D3=2): 1=First  2=Second  3=Third  4=Fourth  5=Fifth
+URL   (D3=3): 1=Internal  2=External
 
 ---
 
 NNNNNN — COUNTER
 
-6-digit zero-padded incremental ID per (TT + K) pairing
+6-digit zero-padded global sequence number.
 Range: 000001–999999
-Counter stored in Firestore: grf_counters/{TT}_{K}
+Counter stored in Firestore: grf_counters/global  { count: N }
+Single global counter — never per type or per pairing.
+
+---
+
+EXAMPLES
+
+GRF-111611-000007   input · image · print · background · png · front  (#7)
+GRF-211211-000001   output · image · print · qr_standalone · png · front  (#1)
+GRF-211111-000001   output · image · print · qr_composite · png · front  (#1)
+GRF-213311-000001   output · image · url · url_graphic · webp · internal  (#1)
 
 ---
 
 RULES
 
 - Must match regex exactly
-- TT/K pairing must be in the valid pairings table
-- mimeType must be compatible with TT (all current types → image/*)
-- Final (K=4) is immutable — no overwrite, no replace, no metadata change
-- No invalid combinations allowed — hard error on violation
+- All six descriptor digits must be valid per their respective tables
+- Format (D5) must be compatible with media type (D2)
+- Sub-context (D6) must be compatible with channel (D3)
+- Hard error on any invalid combination — reject, do not save
+- Global counter only — never per type
 
 ---
 
 STORAGE FIELDS (REFERENCE — from grf_assets/{grfId})
 
-grfId, typeCode, roleCode, typeName, name, description,
+grfId, assetClass, mediaType, channel, purpose, format, subContext, sequence,
+assetClassName, mediaTypeName, channelName, purposeName, formatName, subContextName,
 mimeType, storagePath, publicUrl, sourceGrfId,
 relatedPacketId, tags, isActive, archivedAt,
 createdAt, createdBy

@@ -963,64 +963,94 @@ Every graphic asset in the platform is identified by a single unified GRF code. 
 ### ID Format
 
 ```
-GRF - [TT] - [K] - [NNNNNN]
-       ↑       ↑       ↑
-     type    role   sequence
+GRF - [D1][D2][D3][D4][D5][D6] - [NNNNNN]
+         ↑   ↑   ↑   ↑   ↑   ↑       ↑
+        cls med chn pur fmt sub   sequence
 ```
 
-| Segment | Width | Description |
-|---------|-------|-------------|
-| `GRF` | 3 | Brand prefix — always present |
-| `[TT]` | 2 digits | Asset type code |
-| `[K]` | 1 digit | Role code — production lifecycle stage |
-| `[NNNNNN]` | 6 digits | Atomic sequence, zero-padded (000001–999999) |
+| Position | Width | Description |
+|----------|-------|-------------|
+| `GRF` | 3 chars | Brand prefix — always present |
+| `D1` | 1 digit | Asset class |
+| `D2` | 1 digit | Media type |
+| `D3` | 1 digit | Channel |
+| `D4` | 1 digit | Purpose |
+| `D5` | 1 digit | Format (conditional on D2) |
+| `D6` | 1 digit | Sub-context (conditional on D3) |
+| `NNNNNN` | 6 digits | Global sequence, zero-padded (000001–999999) |
 
-### Type Codes `[TT]`
+### D1 — Asset Class
 
-| Code | Name | Valid Roles |
-|------|------|-------------|
-| `01` | upload_source | 1 |
-| `02` | cropped_derivative | 2 |
-| `03` | background | 3 |
-| `04` | qr_graphic | 3 |
-| `05` | canvas_design | 3, 4 |
-| `06` | url_artifact_asset | 3 |
-| `07` | template_graphic | 5 |
+| Value | Name |
+|-------|------|
+| `1` | input_build — source uploads, backgrounds, templates |
+| `2` | output_artifact — QR composites, glamor shots, URL graphics |
 
-### Role Codes `[K]`
+### D2 — Media Type
 
-| Code | Name |
-|------|------|
-| `1` | Source |
-| `2` | Derivative |
-| `3` | Renderable |
-| `4` | Final |
-| `5` | Template |
+| Value | Name |
+|-------|------|
+| `1` | image |
+| `2` | video |
+| `3` | document |
+
+### D3 — Channel
+
+| Value | Name |
+|-------|------|
+| `1` | print |
+| `2` | store |
+| `3` | url |
+
+### D4 — Purpose
+
+| Value | Name |
+|-------|------|
+| `1` | qr_composite |
+| `2` | qr_standalone |
+| `3` | url_graphic |
+| `4` | glamor_shot |
+| `5` | source_upload |
+| `6` | background |
+| `7` | template |
+
+### D5 — Format
+
+Image (D2=`1`): `1`=PNG · `2`=JPEG · `3`=WebP · `4`=SVG  
+Video (D2=`2`): `1`=MP4 · `2`=WebM  
+Document (D2=`3`): `1`=PDF
+
+### D6 — Sub-context
+
+Print (D3=`1`): `1`=Front · `2`=Back · `3`=Sleeve  
+Store (D3=`2`): `1`=First · `2`=Second · `3`=Third · `4`=Fourth · `5`=Fifth  
+URL (D3=`3`): `1`=Internal · `2`=External
 
 ### Regex
 
 ```
-^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$
+^GRF-\d{6}-\d{6}$
 ```
 
 ### Examples
 
 ```
-GRF-04-3-000001   QR Graphic · Renderable · #1
-GRF-05-4-000003   Canvas Design · Final · #3
-GRF-03-3-000007   Background · Renderable · #7
+GRF-111611-000007   input · image · print · background · png · front  (#7)
+GRF-211211-000001   output · image · print · qr_standalone · png · front  (#1)
+GRF-211111-000001   output · image · print · qr_composite · png · front  (#1)
+GRF-213311-000001   output · image · url · url_graphic · webp · internal  (#1)
 ```
 
 ### Authority File
 
-`shared/graphicCodes.ts` — canonical implementation: `buildGraphicId()`, `parseGraphicId()`, `isValidGraphicId()`, `assertValidGraphicId()`, `GRF_TYPE_MAP`, `GRF_VALID_PAIRINGS`, `grfCounterKey()`.
+`shared/graphicCodes.ts` — canonical implementation: `buildGrfId()`, `parseGrfId()`, `isValidGrfId()`, `assertValidGrfId()`, `GRF_ASSET_CLASSES`, `GRF_PURPOSES`, `GRF_COUNTER_KEY`, `GRF_PACKET_SLOTS`.
 
 ### Firestore
 
 | Collection | Purpose |
 |------------|---------|
-| `grf_counters` | Atomic sequence counters. Doc ID = `{typeCode}_{roleCode}` (e.g. `04_3`). Field: `count` (integer). |
-| `grf_assets` | GRF asset records. Doc ID = grfId. Fields: grfId, typeCode, roleCode, typeName, name, description, mimeType, storagePath, publicUrl, sourceGrfId, relatedPacketId, tags, isActive, archivedAt, createdAt, createdBy. |
+| `grf_counters` | Single global counter. Doc ID = `global`. Field: `count` (integer). Atomically incremented per new GRF — never per type. |
+| `grf_assets` | GRF asset records. Doc ID = grfId. Fields: grfId, assetClass, mediaType, channel, purpose, format, subContext, sequence, assetClassName, mediaTypeName, channelName, purposeName, formatName, subContextName, mimeType, storagePath, publicUrl, sourceGrfId, relatedPacketId, tags, isActive, archivedAt, createdAt, createdBy. |
 
 ### Relationship to QRG
 
@@ -1172,7 +1202,7 @@ Render order is declared by sequence number in both strategies. `01` paints firs
 | Schema | Identifies | Example |
 |--------|-----------|---------|
 | QRG | Products and instances | `QRG-11111-I-000001` |
-| GRF | Graphic assets | `GRF-05-4-000003` |
+| GRF | Graphic assets | `GRF-212421-000001` |
 | BLD | Build configurations | `BLD-SZ9-001` |
 
 The three schemas are independent and never mixed. QRG, BLD, and GRF are only linked together through Assembly. None of these identifiers are embedded in each other.
@@ -1239,7 +1269,7 @@ QR Gear product builds are defined by four schemas that each answer a single que
 |--------|---------|-----------|
 | **QRG** | What product blank is this? | `11101` (T-Shirt #101) |
 | **BLD** | How is this composition structured? | `BLD-SZ9-001` |
-| **GRF** | What file is this asset? | `GRF-04-3-000001` |
+| **GRF** | What file is this asset? | `GRF-211211-000001` |
 | **Assembly** | What assets fill which slots, for which blank? | `ASM-000001` |
 
 The Packet wraps everything:
@@ -1265,9 +1295,9 @@ Packet  (top-level published offer)
                         ├── qrgId ──→ QRG  (master_catalog blank)
                         ├── bldId ──→ BLD  (bld_definitions layout)
                         └── mappings[]
-                              ├── { seq: "01", type: "img", grfId: "GRF-03-3-000007" }
+                              ├── { seq: "01", type: "img", grfId: "GRF-111611-000007" }
                               ├── { seq: "02", type: "txt", value: "ARMED FORCES", color: "#FFF" }
-                              ├── { seq: "03", type: "qrc", grfId: "GRF-04-3-000001" }
+                              ├── { seq: "03", type: "qrc", grfId: "GRF-211211-000001" }
                               └── ...
                                       └── GRF  (grf_assets file metadata)
 ```

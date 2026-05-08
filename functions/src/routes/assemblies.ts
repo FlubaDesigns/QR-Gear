@@ -17,7 +17,7 @@ import express, { Request, Response } from 'express';
 import { db, admin } from '../core';
 import { requireAdmin } from '../middleware';
 import { isValidQrgBlankId } from '../../../shared/qrgCodes';
-import { isValidGraphicId, parseGraphicId } from '../../../shared/graphicCodes';
+import { isValidGrfId, parseGrfId } from '../../../shared/graphicCodes';
 
 const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASM_COUNTER_DOC         = 'global';
@@ -44,13 +44,13 @@ async function mintAsmId(): Promise<{ assemblyId: string; sequence: number }> {
   return { assemblyId: formatAsmId(next), sequence: next };
 }
 
-// Fix 9: GRF type codes allowed per slot vehicle type.
-// img slots accept background (03), cropped derivative (02), and canvas design (05).
-// qrc slots must be strictly QR graphic (04).
-// vid/doc grfId is optional; when present any renderable GRF type is accepted.
-const GRF_TYPES_FOR_SLOT: Record<string, string[]> = {
-  img: ['02', '03', '05'],
-  qrc: ['04'],
+// GRF purpose codes (D4) allowed per slot vehicle type.
+// img slots accept: background (6), source_upload (5), template (7), qr_composite (1).
+// qrc slots must be strictly qr_standalone (2) with output artifact assetClass (2).
+// vid/doc grfId is optional; when present any valid GRF purpose is accepted.
+const GRF_PURPOSES_FOR_SLOT: Record<string, string[]> = {
+  img: ['1', '5', '6', '7'],
+  qrc: ['2'],
 };
 
 /**
@@ -81,17 +81,23 @@ function validateMappings(mappings: any[]): string | null {
     }
 
     if (m.grfId) {
-      if (!isValidGraphicId(String(m.grfId))) {
-        return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-TT-K-NNNNNN)`;
+      if (!isValidGrfId(String(m.grfId))) {
+        return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-DDDDDD-NNNNNN)`;
       }
-      const allowedTypes = GRF_TYPES_FOR_SLOT[m.type];
-      if (allowedTypes) {
-        const parsed = parseGraphicId(String(m.grfId));
-        if (!allowedTypes.includes(parsed.typeCode)) {
+      const allowedPurposes = GRF_PURPOSES_FOR_SLOT[m.type];
+      if (allowedPurposes) {
+        const parsed = parseGrfId(String(m.grfId));
+        if (!allowedPurposes.includes(parsed.purpose)) {
           return (
-            `mapping seq ${m.seq}: grfId "${m.grfId}" has GRF type "${parsed.typeCode}" (${parsed.typeName}) ` +
+            `mapping seq ${m.seq}: grfId "${m.grfId}" has purpose "${parsed.purpose}" (${parsed.purposeName}) ` +
             `which is not compatible with slot type "${m.type}". ` +
-            `Allowed GRF type codes for "${m.type}": ${allowedTypes.join(', ')}`
+            `Allowed GRF purposes for "${m.type}": ${allowedPurposes.join(', ')}`
+          );
+        }
+        if (m.type === 'qrc' && parsed.assetClass !== '2') {
+          return (
+            `mapping seq ${m.seq}: grfId "${m.grfId}" has assetClass "${parsed.assetClass}" ` +
+            `but qrc slots require output artifacts (assetClass "2")`
           );
         }
       }

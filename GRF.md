@@ -9,12 +9,12 @@ The GRF system is the canonical identity and storage schema for all graphic asse
 ## ID Format
 
 ```
-[D1][D2][D3][D4][D5][D6]-[NNNNNN]
+GRF-[D1][D2][D3][D4][D5][D6]-[NNNNNN]
 ```
 
-Six single-digit descriptor positions followed by a hyphen and a 6-digit zero-padded global sequence number.
+Three-character brand prefix (`GRF`), six single-digit descriptor positions, and a 6-digit zero-padded global sequence number.
 
-**Example:** `212421-000001`
+**Example:** `GRF-212421-000001`
 → Output artifact · Image · Store · Glamor Shot · JPEG · First to show · Sequence 1
 
 ---
@@ -139,13 +139,13 @@ Six-digit zero-padded global sequence number. Minted atomically from `grf_counte
 
 | GRF ID | Reads as |
 |---|---|
-| `211111-000001` | Output · Image · Print · QR Composite · PNG · Front |
-| `211211-000001` | Output · Image · Print · QR Standalone · PNG · Front |
-| `212421-000001` | Output · Image · Store · Glamor Shot · JPEG · First shown |
-| `213311-000001` | Output · Image · URL · URL Graphic · WebP · Internal file |
-| `111611-000001` | Input · Image · Print · Background · PNG · Front |
-| `111511-000001` | Input · Image · Print · Source Upload · PNG · Front |
-| `111711-000001` | Input · Image · Print · Template · PNG · Front |
+| `GRF-211111-000001` | Output · Image · Print · QR Composite · PNG · Front |
+| `GRF-211211-000001` | Output · Image · Print · QR Standalone · PNG · Front |
+| `GRF-212421-000001` | Output · Image · Store · Glamor Shot · JPEG · First shown |
+| `GRF-213311-000001` | Output · Image · URL · URL Graphic · WebP · Internal file |
+| `GRF-111611-000001` | Input · Image · Print · Background · PNG · Front |
+| `GRF-111511-000001` | Input · Image · Print · Source Upload · PNG · Front |
+| `GRF-111711-000001` | Input · Image · Print · Template · PNG · Front |
 
 ---
 
@@ -165,7 +165,7 @@ grf/{grfId}/{filename}
 | `6` Background | `background.{ext}` |
 | `7` Template | `template.{ext}` |
 
-**Example:** `grf/212421-000001/glamor.jpg`
+**Example:** `grf/GRF-212421-000001/glamor.jpg`
 
 ---
 
@@ -173,7 +173,7 @@ grf/{grfId}/{filename}
 
 ```json
 {
-  "grfId":          "212421-000001",
+  "grfId":          "GRF-212421-000001",
   "assetClass":     "2",
   "mediaType":      "1",
   "channel":        "2",
@@ -188,7 +188,7 @@ grf/{grfId}/{filename}
   "formatName":     "jpeg",
   "subContextName": "first",
   "mimeType":       "image/jpeg",
-  "storagePath":    "grf/212421-000001/glamor.jpg",
+  "storagePath":    "grf/GRF-212421-000001/glamor.jpg",
   "publicUrl":      "https://...",
   "packetId":       "abc123",
   "sourceSessionId":"session456",

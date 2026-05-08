@@ -222,13 +222,13 @@ app.post('/upload', async (req: Request, res: Response): Promise<void> => {
 
 // ============ LEGACY library_assets ENDPOINTS — REMOVED ============
 // All routes below return 410 Gone. Clients must use grf_assets endpoints instead:
-//   Backgrounds : GET /admin/graphics?typeCode=03
-//   Videos      : GET /admin/graphics?typeCode=06
+//   Backgrounds : GET /admin/graphics?assetClass=1&purpose=6
+//   URL/landing : GET /admin/graphics?assetClass=2&channel=3&purpose=3
 //   Upload/mint : POST /admin/graphics/save-grf
 //   Archive     : PATCH /admin/graphics/:grfId/archive
 
 app.get('/admin/background-assets', requireAdmin, (_req: Request, res: Response): void => {
-  res.status(410).json({ error: 'Removed. Use GET /admin/graphics?typeCode=03' });
+  res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=1&purpose=6' });
 });
 app.post('/admin/background-assets', requireAdmin, (_req: Request, res: Response): void => {
   res.status(410).json({ error: 'Removed. Use POST /admin/graphics/save-grf' });
@@ -240,7 +240,7 @@ app.delete('/admin/background-assets/:id', requireAdmin, (_req: Request, res: Re
   res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
 });
 app.get('/admin/library/admin', requireAdmin, (_req: Request, res: Response): void => {
-  res.status(410).json({ error: 'Removed. Use GET /admin/graphics?typeCode=06' });
+  res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=2&channel=3&purpose=3' });
 });
 app.get('/admin/library/templates', requireAdmin, (_req: Request, res: Response): void => {
   res.status(410).json({ error: 'Removed. Use GET /admin/templates' });

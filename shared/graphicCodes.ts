@@ -3,7 +3,7 @@
  *
  * GRF (Graphic Reference Format) identity system.
  *
- * Format:  [D1][D2][D3][D4][D5][D6]-[NNNNNN]
+ * Format:  GRF-[D1][D2][D3][D4][D5][D6]-[NNNNNN]
  *
  *   D1  = Asset class     (1=input build, 2=output artifact)
  *   D2  = Media type      (1=image, 2=video, 3=document)
@@ -13,9 +13,9 @@
  *   D6  = Sub-context     (conditional on D3)
  *   NNNNNN = 6-digit zero-padded global sequence number
  *
- * Example: 212421-000001  (output artifact · image · store · glamor_shot · jpeg · first shown)
- * Example: 211111-000003  (output artifact · image · print · qr_composite · png · front · #3)
- * Example: 111611-000001  (input build · image · print · background · png · front)
+ * Example: GRF-212421-000001  (output artifact · image · store · glamor_shot · jpeg · first shown)
+ * Example: GRF-211111-000003  (output artifact · image · print · qr_composite · png · front · #3)
+ * Example: GRF-111611-000001  (input build · image · print · background · png · front)
  *
  * Counter: grf_counters/global  { count: N }  — single global atomic counter.
  * Codes are GLOBAL and FIXED — never renumber once assigned.
@@ -108,7 +108,7 @@ export const GRF_SUBCONTEXTS: Record<GrfChannel, Record<string, string>> = {
 
 // ── Regex ──────────────────────────────────────────────────────────────────
 
-const GRF_REGEX = /^\d{6}-(\d{6})$/;
+const GRF_REGEX = /^GRF-(\d{6})-(\d{6})$/;
 
 // ── Parsed representation ──────────────────────────────────────────────────
 
@@ -133,8 +133,8 @@ export interface ParsedGrfId {
 
 export function isValidGrfId(id: string): boolean {
   if (!GRF_REGEX.test(id)) return false;
-  const [desc] = id.split('-');
-  const [d1, d2, d3, d4, d5, d6] = desc.split('') as [GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose, string, string];
+  const parts = id.split('-');      // ['GRF', 'DDDDDD', 'NNNNNN']
+  const [d1, d2, d3, d4, d5, d6] = parts[1].split('') as [GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose, string, string];
   if (!GRF_ASSET_CLASSES[d1])        return false;
   if (!GRF_MEDIA_TYPES[d2])          return false;
   if (!GRF_CHANNELS[d3])             return false;
@@ -154,8 +154,8 @@ export function assertValidGrfId(id: string): void {
 
 export function parseGrfId(id: string): ParsedGrfId {
   if (!GRF_REGEX.test(id)) throw new Error(`Invalid GRF ID: "${id}"`);
-  const [desc, seqStr] = id.split('-');
-  const [d1, d2, d3, d4, d5, d6] = desc.split('') as [GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose, string, string];
+  const parts = id.split('-');      // ['GRF', 'DDDDDD', 'NNNNNN']
+  const [d1, d2, d3, d4, d5, d6] = parts[1].split('') as [GrfAssetClass, GrfMediaType, GrfChannel, GrfPurpose, string, string];
 
   const classEntry  = GRF_ASSET_CLASSES[d1];
   const mediaEntry  = GRF_MEDIA_TYPES[d2];
@@ -178,7 +178,7 @@ export function parseGrfId(id: string): ParsedGrfId {
     purpose:        d4 as GrfPurpose,
     format:         d5,
     subContext:     d6,
-    sequence:       parseInt(seqStr, 10),
+    sequence:       parseInt(parts[2], 10),
     assetClassName: classEntry.label,
     mediaTypeName:  mediaEntry,
     channelName:    chanEntry.label,
@@ -220,7 +220,7 @@ export function buildGrfId(params: GrfIdParams): string {
     throw new Error(`GRF sequence must be 1–999999, got ${sequence}`);
 
   const seq = String(sequence).padStart(6, '0');
-  return `${assetClass}${mediaType}${channel}${purpose}${format}${subContext}-${seq}`;
+  return `GRF-${assetClass}${mediaType}${channel}${purpose}${format}${subContext}-${seq}`;
 }
 
 // ── Storage path helper ────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ const PURPOSE_FILENAMES: Record<GrfPurpose, string> = {
 
 /**
  * Returns the canonical Firebase Storage path for a GRF asset.
- * Example: grfStoragePath('212421-000001') → 'grf/212421-000001/glamor.jpg'
+ * Example: grfStoragePath('GRF-212421-000001') → 'grf/GRF-212421-000001/glamor.jpg'
  */
 export function grfStoragePath(grfId: string): string {
   const parsed   = parseGrfId(grfId);
