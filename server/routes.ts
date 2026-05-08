@@ -28,6 +28,7 @@ import { registerAdminCatalogInstanceRoutes } from "./routes/admin-catalog-insta
 import { registerMemberCatalogInstanceRoutes } from "./routes/member-catalog-instances.routes";
 import { registerAdminBuildSessionRoutes } from "./routes/admin-build-sessions.routes";
 import { registerBackgroundAssetsRoutes } from "./routes/background-assets.routes";
+import { registerLibraryCropRoutes } from "./routes/library-crop.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -57,6 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerMemberCatalogInstanceRoutes(app);
   registerAdminBuildSessionRoutes(app);
   registerBackgroundAssetsRoutes(app);
+  registerLibraryCropRoutes(app);
 
   startCronJobs();
 

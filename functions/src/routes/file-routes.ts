@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { buildGrfId, parseGrfId, isValidGrfId, GRF_COUNTER_KEY, grfStoragePath } from '../../../shared/graphicCodes';
+import { buildGrfId, parseGrfId, isValidGrfId, GRF_COUNTER_KEY, grfStoragePath, GRF_FORMATS } from '../../../shared/graphicCodes';
 import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/graphicCodes';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -473,6 +473,89 @@ app.post('/admin/graphics/save-grf', requireAdmin, async (req: Request, res: Res
     res.json({ success: true, grfId, asset: docToObject(doc) });
   } catch (error: any) {
     console.error('[GRF] Error saving graphic:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Crop-mint: upload cropped image + mint two GRF IDs (cropped + background)
+app.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name } = req.body;
+
+    if (!croppedImageData || !croppedMimeType || !originalPublicUrl || !originalMimeType || !name) {
+      res.status(400).json({ error: 'Missing required fields: croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name' });
+      return;
+    }
+
+    const { FieldValue } = await import('firebase-admin/firestore');
+    const now = FieldValue.serverTimestamp();
+
+    function mimeToFormatDigit(mimeType: string): string {
+      const normalized = mimeType.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mimeType.toLowerCase();
+      for (const [digit, entry] of Object.entries(GRF_FORMATS['1'] as Record<string, { label: string; mime: string }>)) {
+        if (entry.mime === normalized) return digit;
+      }
+      return '2';
+    }
+
+    async function mintSeq(): Promise<number> {
+      const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
+      let seq = 0;
+      await db.runTransaction(async (tx: any) => {
+        const doc = await tx.get(counterRef);
+        seq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
+        tx.set(counterRef, { count: seq, updatedAt: FieldValue.serverTimestamp() });
+      });
+      return seq;
+    }
+
+    // ── 1. Mint cropped GRF ID (D4=2) ──────────────────────────────────────
+    const croppedSeq    = await mintSeq();
+    const croppedFormat = mimeToFormatDigit(croppedMimeType);
+    const croppedGrfId  = buildGrfId({ assetClass: '1', mediaType: '1', channel: '4', purpose: '2', format: croppedFormat, sequence: croppedSeq });
+    const croppedParsed = parseGrfId(croppedGrfId);
+    const croppedExt    = croppedMimeType.includes('png') ? 'png' : 'jpg';
+    const croppedPath   = `grf/${croppedGrfId}/cropped.${croppedExt}`;
+
+    const croppedBuffer = Buffer.from(croppedImageData, 'base64');
+    await storage.bucket().file(croppedPath).save(croppedBuffer, { metadata: { contentType: croppedMimeType } });
+
+    const croppedPublicUrl = `/api/grf-files/${croppedGrfId}/cropped.${croppedExt}`;
+
+    await db.collection('grf_assets').doc(croppedGrfId).set({
+      grfId: croppedGrfId,
+      assetClass: croppedParsed.assetClass, mediaType: croppedParsed.mediaType,
+      channel: croppedParsed.channel, purpose: croppedParsed.purpose,
+      format: croppedParsed.format, sequence: croppedParsed.sequence,
+      assetClassName: croppedParsed.assetClassName, mediaTypeName: croppedParsed.mediaTypeName,
+      channelName: croppedParsed.channelName, purposeName: croppedParsed.purposeName,
+      formatName: croppedParsed.formatName, mimeType: croppedMimeType,
+      name: `cropped_${name}`, storagePath: croppedPath, publicUrl: croppedPublicUrl,
+      sourceGrfId: null, createdAt: now, createdBy: 'admin', isActive: true,
+    });
+
+    // ── 2. Mint background GRF ID (D4=3) ───────────────────────────────────
+    const backgroundSeq    = await mintSeq();
+    const backgroundFormat = mimeToFormatDigit(originalMimeType);
+    const backgroundGrfId  = buildGrfId({ assetClass: '1', mediaType: '1', channel: '4', purpose: '3', format: backgroundFormat, sequence: backgroundSeq });
+    const backgroundParsed = parseGrfId(backgroundGrfId);
+
+    await db.collection('grf_assets').doc(backgroundGrfId).set({
+      grfId: backgroundGrfId,
+      assetClass: backgroundParsed.assetClass, mediaType: backgroundParsed.mediaType,
+      channel: backgroundParsed.channel, purpose: backgroundParsed.purpose,
+      format: backgroundParsed.format, sequence: backgroundParsed.sequence,
+      assetClassName: backgroundParsed.assetClassName, mediaTypeName: backgroundParsed.mediaTypeName,
+      channelName: backgroundParsed.channelName, purposeName: backgroundParsed.purposeName,
+      formatName: backgroundParsed.formatName, mimeType: originalMimeType,
+      name: `background_${name}`, storagePath: null, publicUrl: originalPublicUrl,
+      sourceGrfId: null, createdAt: now, createdBy: 'admin', isActive: true,
+    });
+
+    console.log(`[CropMint] Minted ${croppedGrfId} (cropped) + ${backgroundGrfId} (background) for "${name}"`);
+    res.json({ success: true, croppedGrfId, backgroundGrfId });
+  } catch (error: any) {
+    console.error('[CropMint] Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

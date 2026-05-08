@@ -463,6 +463,79 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // Crop-mint: upload cropped image + mint two GRF IDs (cropped + background)
+    app.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name } = req.body;
+            if (!croppedImageData || !croppedMimeType || !originalPublicUrl || !originalMimeType || !name) {
+                res.status(400).json({ error: 'Missing required fields: croppedImageData, croppedMimeType, originalPublicUrl, originalMimeType, name' });
+                return;
+            }
+            const { FieldValue } = await Promise.resolve().then(() => __importStar(require('firebase-admin/firestore')));
+            const now = FieldValue.serverTimestamp();
+            function mimeToFormatDigit(mimeType) {
+                const normalized = mimeType.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mimeType.toLowerCase();
+                for (const [digit, entry] of Object.entries(graphicCodes_1.GRF_FORMATS['1'])) {
+                    if (entry.mime === normalized)
+                        return digit;
+                }
+                return '2';
+            }
+            async function mintSeq() {
+                const counterRef = core_1.db.collection('grf_counters').doc(graphicCodes_1.GRF_COUNTER_KEY);
+                let seq = 0;
+                await core_1.db.runTransaction(async (tx) => {
+                    const doc = await tx.get(counterRef);
+                    seq = (doc.exists ? doc.data().count : 0) + 1;
+                    tx.set(counterRef, { count: seq, updatedAt: FieldValue.serverTimestamp() });
+                });
+                return seq;
+            }
+            // ── 1. Mint cropped GRF ID (D4=2) ──────────────────────────────────────
+            const croppedSeq = await mintSeq();
+            const croppedFormat = mimeToFormatDigit(croppedMimeType);
+            const croppedGrfId = (0, graphicCodes_1.buildGrfId)({ assetClass: '1', mediaType: '1', channel: '4', purpose: '2', format: croppedFormat, sequence: croppedSeq });
+            const croppedParsed = (0, graphicCodes_1.parseGrfId)(croppedGrfId);
+            const croppedExt = croppedMimeType.includes('png') ? 'png' : 'jpg';
+            const croppedPath = `grf/${croppedGrfId}/cropped.${croppedExt}`;
+            const croppedBuffer = Buffer.from(croppedImageData, 'base64');
+            await core_1.storage.bucket().file(croppedPath).save(croppedBuffer, { metadata: { contentType: croppedMimeType } });
+            const croppedPublicUrl = `/api/grf-files/${croppedGrfId}/cropped.${croppedExt}`;
+            await core_1.db.collection('grf_assets').doc(croppedGrfId).set({
+                grfId: croppedGrfId,
+                assetClass: croppedParsed.assetClass, mediaType: croppedParsed.mediaType,
+                channel: croppedParsed.channel, purpose: croppedParsed.purpose,
+                format: croppedParsed.format, sequence: croppedParsed.sequence,
+                assetClassName: croppedParsed.assetClassName, mediaTypeName: croppedParsed.mediaTypeName,
+                channelName: croppedParsed.channelName, purposeName: croppedParsed.purposeName,
+                formatName: croppedParsed.formatName, mimeType: croppedMimeType,
+                name: `cropped_${name}`, storagePath: croppedPath, publicUrl: croppedPublicUrl,
+                sourceGrfId: null, createdAt: now, createdBy: 'admin', isActive: true,
+            });
+            // ── 2. Mint background GRF ID (D4=3) ───────────────────────────────────
+            const backgroundSeq = await mintSeq();
+            const backgroundFormat = mimeToFormatDigit(originalMimeType);
+            const backgroundGrfId = (0, graphicCodes_1.buildGrfId)({ assetClass: '1', mediaType: '1', channel: '4', purpose: '3', format: backgroundFormat, sequence: backgroundSeq });
+            const backgroundParsed = (0, graphicCodes_1.parseGrfId)(backgroundGrfId);
+            await core_1.db.collection('grf_assets').doc(backgroundGrfId).set({
+                grfId: backgroundGrfId,
+                assetClass: backgroundParsed.assetClass, mediaType: backgroundParsed.mediaType,
+                channel: backgroundParsed.channel, purpose: backgroundParsed.purpose,
+                format: backgroundParsed.format, sequence: backgroundParsed.sequence,
+                assetClassName: backgroundParsed.assetClassName, mediaTypeName: backgroundParsed.mediaTypeName,
+                channelName: backgroundParsed.channelName, purposeName: backgroundParsed.purposeName,
+                formatName: backgroundParsed.formatName, mimeType: originalMimeType,
+                name: `background_${name}`, storagePath: null, publicUrl: originalPublicUrl,
+                sourceGrfId: null, createdAt: now, createdBy: 'admin', isActive: true,
+            });
+            console.log(`[CropMint] Minted ${croppedGrfId} (cropped) + ${backgroundGrfId} (background) for "${name}"`);
+            res.json({ success: true, croppedGrfId, backgroundGrfId });
+        }
+        catch (error) {
+            console.error('[CropMint] Error:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
     // Admin: Get GRF assets, optionally filtered by any descriptor digit.
     // Filtered in memory to avoid requiring composite Firestore indexes.
     app.get('/admin/graphics', middleware_1.requireAdmin, async (req, res) => {

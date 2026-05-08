@@ -89,6 +89,22 @@ export function registerLibraryFileRoutes(app: Express): void {
     }
   });
 
+  /* ── GRF asset serve ────────────────────────────────────
+     /api/grf-files/:grfId/:filename
+     Serves files stored under grf/{grfId}/{filename} in Storage.
+     ────────────────────────────────────────────────────── */
+
+  app.get("/api/grf-files/:grfId/:filename", async (req: any, res) => {
+    try {
+      const { grfId, filename } = req.params;
+      const storagePath = `grf/${grfId}/${filename}`;
+      await streamFromStorage(req, res, storagePath);
+    } catch (err: any) {
+      console.error("[GrfFiles] Serve error:", err);
+      if (!res.headersSent) res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/library-files/:storeType/:mediaType/:filename", async (req: any, res) => {
     try {
       const { storeType, mediaType, filename } = req.params;

@@ -132,53 +132,47 @@ function SourceImagesTabInner() {
       console.error("[SourceImages] handleCropComplete called but no assetToCrop");
       return;
     }
-    const sourceAsset  = assetToCrop;
-    const sourceId     = sourceAsset.id;
-    const originalAsset = assets.find(a => a.id === sourceId);
+    const sourceAsset   = assetToCrop;
+    const originalAsset = assets.find(a => a.id === sourceAsset.id);
     setCropDialogOpen(false);
     setAssetToCrop(null);
 
-    if (originalAsset) {
-      try {
-        const blobUrl = await api.fetchImageBlob(getImageUrl(originalAsset));
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        const ext = originalAsset.mimeType?.includes("png") ? ".png" : ".jpg";
-        a.download = `${originalAsset.name || "original"}${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      } catch (dlErr) {
-        console.error("[SourceImages] Failed to download original:", dlErr);
-        toast({
-          title: "Could not download original",
-          description: "Crop will still be saved",
-          variant: "destructive",
-        });
-      }
-    }
-
-    const imageData = croppedDataUrl.includes(",")
+    const croppedImageData = croppedDataUrl.includes(",")
       ? croppedDataUrl.split(",")[1]
       : croppedDataUrl;
 
-    toast({ title: "Saving cropped image…" });
+    const originalPublicUrl = originalAsset ? getImageUrl(originalAsset) : sourceAsset.imageUrl;
+    const originalMimeType  = originalAsset?.mimeType || "image/jpeg";
+
+    toast({ title: "Minting GRF IDs…" });
     try {
-      await api.uploadAsset({
-        name:          `cropped_${sourceAsset.name}`,
-        assetType:     "cropped",
-        imageData,
-        mimeType:      "image/jpeg",
-        sourceAssetId: sourceId,
+      const result = await fetch("/api/admin/library/crop-mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          croppedImageData,
+          croppedMimeType:  "image/jpeg",
+          originalPublicUrl,
+          originalMimeType,
+          name: sourceAsset.name,
+        }),
       });
-      toast({ title: "Cropped image saved" });
+
+      if (!result.ok) {
+        const err = await result.json().catch(() => ({ error: result.statusText }));
+        throw new Error(err.error || "crop-mint failed");
+      }
+
+      const { croppedGrfId, backgroundGrfId } = await result.json();
+      console.log(`[SourceImages] Minted cropped=${croppedGrfId} background=${backgroundGrfId}`);
+      toast({
+        title: "GRF IDs minted",
+        description: `${croppedGrfId} · ${backgroundGrfId}`,
+      });
       api.invalidateAssets("source");
-      api.invalidateAssets("cropped");
-      api.invalidateAssets("background");
     } catch (err: unknown) {
       const error = err as Error;
-      console.error("[SourceImages] Crop save error:", error.message, error.stack);
+      console.error("[SourceImages] Crop-mint error:", error.message, error.stack);
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     }
   }, [assetToCrop, assets, api, toast]);
