@@ -71,6 +71,7 @@ TIER 2 — CONTROL LAYER
 - SKILLS.md
 - NAMING_STANDARDS.md
 - METHODOLOGY.md
+- VVSS.md         → UI Architecture (Viewer / View / Skin / Shape)
 
 TIER 3+ — NON-CANONICAL
 

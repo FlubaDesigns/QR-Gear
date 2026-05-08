@@ -3,7 +3,7 @@
 This document is the authoritative, binding architecture for all viewer/UI component systems in QR Gear.
 No exceptions. No alternate systems. No forks. One system.
 
-See `docs/VVS.md` for the VVS code system (three-digit codes, folder conventions, naming rules).
+See `VVSS.md` for the VVSS code system (four-digit codes, folder conventions, naming rules).
 
 ---
 
@@ -12,10 +12,10 @@ See `docs/VVS.md` for the VVS code system (three-digit codes, folder conventions
 ```
 DOMAIN      — business truth
 CONTROLLER  — authority + data prep
-VIEWER      — mount point  (VVS first digit)
-  VIEW      — scroll/layout  (VVS second digit)
-  SHAPE     — popup layer  (VVS third digit)
-    SKIN    — card content  (VVS named)
+VIEWER      — mount point  (VVSS digit 1)
+  VIEW      — scroll/layout  (VVSS digit 2)
+    SKIN    — card content  (VVSS digit 3)
+  SHAPE     — popup layer  (VVSS digit 4)
 ```
 
 ### 1. DOMAIN — Truth
@@ -45,12 +45,12 @@ The controller layer enforces truth and prepares UI inputs.
 
 The controller owns action authority. Not visual layout. Not painting.
 
-### 3. VIEWER — Dumb Mount Point  *(VVS first digit)*
+### 3. VIEWER — Dumb Mount Point  *(VVSS digit 1)*
 The Viewer is a structural container. It owns the page or panel layout.
 
 Answers: how many panels are visible? Where do they live on screen?
 
-VVS codes:
+VVSS codes:
 | Code | Component | Description |
 |---|---|---|
 | 1 | `SinglePaneViewer` | One full-width pane |
@@ -75,10 +75,10 @@ The Viewer does NOT:
 
 The Viewer is a socket. It mounts. It does not think.
 
-### 4. VIEW — Layout Only  *(VVS second digit)*
+### 4. VIEW — Layout Only  *(VVSS digit 2)*
 A View controls scroll and layout behavior. Nothing else.
 
-VVS codes:
+VVSS codes:
 | Code | Component | Description |
 |---|---|---|
 | 0 | `SingleView` | No scroll, static or single item |
@@ -98,12 +98,32 @@ A View may NOT control:
 - Description-layer meaning, packet-vs-catalog logic
 - Action meaning
 
-### 5. SHAPE — Popup Layer  *(VVS third digit)*
+### 5. SKIN — Visible Controls  *(VVSS digit 3)*
+The Skin renders card content: image, buttons, text, badges, actions.
+Everything the user sees and taps on a card in the grid.
+
+VVSS codes:
+| Code | Pattern | Description |
+|---|---|---|
+| 1 | `[DataType]CardSkin` | Standard card — image, name, metadata |
+| 2 | `[DataType]RowSkin` | Compact horizontal row — text-focused |
+
+The Skin does NOT:
+- Define business truth
+- Decide where save goes
+- Render popup/detail content (that belongs in Shape)
+- Know what Viewer, View, or Shape contains it
+
+Naming convention: `[DataType]CardSkin` or `[DataType]RowSkin` in `skins/[DataType]Skin.tsx`.
+
+---
+
+### 6. SHAPE — Popup Layer  *(VVSS digit 4)*
 The Shape layer answers one question: does this Viewer contain a popup on top of the View?
 
 Shape is NOT a sub-type of View. It is its own layer. Shape components live in `shapes/`, not `views/`.
 
-VVS codes:
+VVSS codes:
 | Code | Description |
 |---|---|
 | 0 | Flat — no popup |
@@ -116,35 +136,24 @@ The Shape layer has two parts:
 Shape content components follow the naming convention `[DataType]Shape.tsx` and live in `shapes/`.
 They are NOT Skins. They are NOT Views.
 
-### 6. SKIN — Visible Controls  *(VVS named)*
-The Skin renders card content: image, buttons, text, badges, actions.
-Everything the user sees and taps on a card in the grid.
-
-The Skin does NOT:
-- Define business truth
-- Decide where save goes
-- Render popup/detail content (that belongs in Shape)
-- Know what Viewer, View, or Shape contains it
-
-Naming convention: `[DataType]CardSkin` in `skins/[DataType]Skin.tsx`.
-
 ---
 
-## VVS Three-Digit Code
+## VVSS Four-Digit Code
 
-Every repeating UI surface gets a three-digit VVS code. See `docs/VVS.md` for full reference.
+Every repeating UI surface gets a four-digit VVSS code. See `VVSS.md` for full reference.
 
 ```
-[Viewer][View][Shape]
+[Viewer][View][Skin][Shape]
 
-1·1·1 = SinglePaneViewer + ScrollGridView + ModalView popup
-1·1·0 = SinglePaneViewer + ScrollGridView + flat (no popup)
-2·1·0 = TwoPaneViewer   + ScrollGridView + flat
+1·1·1·1 = SinglePaneViewer + ScrollGridView + CardSkin + ModalView popup
+1·1·1·0 = SinglePaneViewer + ScrollGridView + CardSkin + flat (no popup)
+2·1·1·0 = TwoPaneViewer   + ScrollGridView + CardSkin + flat
+1·2·1·1 = SinglePaneViewer + ScrollHorizontalView + CardSkin + ModalView popup
 ```
 
 ---
 
-## Canon View Set  *(VVS second digit)*
+## Canon View Set  *(VVSS digit 2)*
 
 There are exactly four canon Views. Do not invent additional View types unless the interaction model is fundamentally different.
 
@@ -168,7 +177,7 @@ There are exactly four canon Views. Do not invent additional View types unless t
 
 ---
 
-## Canon Shape Set  *(VVS third digit)*
+## Canon Shape Set  *(VVSS digit 4)*
 
 There is one canon popup container and one shape component per data type.
 
@@ -245,10 +254,10 @@ Differences between pages are handled by different controllers, different views,
 ```
 client/src/features/shared/components/
 
-  viewers/     ← Viewer components (first digit)
-  views/       ← View components (second digit)
-  shapes/      ← Shape components (third digit) — popups and their content
-  skins/       ← Skin components (named) — card content
+  viewers/     ← Viewer components (digit 1)
+  views/       ← View components (digit 2)
+  skins/       ← Skin components (digit 3) — card content
+  shapes/      ← Shape components (digit 4) — popups and their content
 ```
 
 Pages and modules use these. They do not reimplement them.
@@ -296,7 +305,7 @@ Does NOT save to Printify, packet, or user/customer state.
 
 ---
 
-## What Must NOT Live in Viewer / View / Shape / Skin
+## What Must NOT Live in Viewer / View / Skin / Shape
 
 - Canonical blank key truth
 - Printify vs Printful identity truth

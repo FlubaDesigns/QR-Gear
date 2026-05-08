@@ -51,7 +51,7 @@ Key source-of-truth files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `docs/QR
 ## UI Architecture — VVSS
 
 All repeating data surfaces follow the VVSS (Viewer / View / Skin / Shape) methodology.
-Full spec: `docs/VVS.md`. Binding law: `ARCHITECTURE_VIEWER.md`.
+Full spec: `VVSS.md`. Binding law: `ARCHITECTURE_VIEWER.md`.
 
 ```
 viewers/   — pane structure (1 = single, 2 = two-pane)
