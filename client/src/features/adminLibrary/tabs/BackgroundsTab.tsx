@@ -10,7 +10,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { ItemModalView } from "@/features/shared/components/views/ModalView";
 import type { GridViewItem } from "@/features/shared/components/views/index";
 import { CropDeleteSkin } from "@/features/shared/components/skins/CropDeleteSkin";
-import { GRF_FILTER_BACKGROUNDS } from "../shared/GRF_engine";
+import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "../shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape ───────────────────────────────────────────────────────────
@@ -147,24 +147,34 @@ function BackgroundsTabInner() {
       return;
     }
     try {
-      await adminFetch("/graphics/save-grf", {
+      const originalMimeType = originalAsset.mimeType || "image/jpeg";
+      const croppedMimeType  = "image/jpeg";
+
+      const { cropped: croppedGrfParams, background: backgroundGrfParams } =
+        buildCropTransition(originalMimeType, croppedMimeType);
+
+      const croppedImageData = croppedDataUrl.startsWith("data:")
+        ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
+        : croppedDataUrl;
+
+      await adminFetch("/library/crop-mint", {
         method: "POST",
         json: {
-          assetClass: "1",
-          mediaType:  "1",
-          channel:    "4",
-          purpose:    "2",
-          format:     "1",
-          imageUrl:         croppedDataUrl,
-          name:             `cropped_${originalAsset.name}`,
-          mimeType:         "image/jpeg",
-          sourceGrfId:      originalAsset.grfId || originalAsset.id,
-          originalFilename: `cropped_${originalAsset.originalFilename || originalAsset.name}.jpg`,
+          croppedImageData,
+          croppedMimeType,
+          croppedGrfParams,
+          backgroundGrfParams,
+          originalPublicUrl: originalAsset.publicUrl,
+          name:              originalAsset.originalFilename || originalAsset.name,
+          sourceGrfId:       originalAsset.sourceGrfId || originalAsset.grfId || originalAsset.id,
         },
       });
-      toast({ title: "Crop saved" });
+
+      toast({ title: "Crop saved", description: "Cropped derivative and background asset created." });
       queryClient.invalidateQueries({ queryKey: CROPPED_QK });
       queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
+      setCropDialogOpen(false);
+      setAssetToCrop(null);
     } catch (err: unknown) {
       const error = err as Error;
       console.error("[BackgroundsTab] Crop save error:", error.message);
