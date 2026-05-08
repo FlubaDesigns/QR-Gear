@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
 import { getFirestoreDb, getStorageBucket, getStorageBucketName } from "../lib/firebase-admin";
-import { buildGrfId, parseGrfId, GRF_COUNTER_KEY, buildCropTransition, normalizeMimeType } from "@shared/GRF_engine";
+import { buildGrfId, parseGrfId, grfStoragePath, GRF_COUNTER_KEY, buildCropTransition, normalizeMimeType } from "@shared/GRF_engine";
 
 async function mintGrfSequence(db: FirebaseFirestore.Firestore): Promise<number> {
   const { FieldValue } = await import("firebase-admin/firestore");
@@ -65,8 +65,7 @@ export function registerLibraryCropRoutes(app: Express): void {
       const croppedSeq   = await mintGrfSequence(db);
       const croppedGrfId = buildGrfId({ ...croppedGrfParams, sequence: croppedSeq });
       const croppedParsed = parseGrfId(croppedGrfId);
-      const croppedExt   = croppedMimeType.includes('png') ? 'png' : 'jpg';
-      const croppedPath  = `grf/${croppedGrfId}/cropped.${croppedExt}`;
+      const croppedPath  = grfStoragePath(croppedGrfId);
 
       const croppedBuffer = Buffer.from(croppedImageData, 'base64');
       const croppedFile   = bucket.file(croppedPath);

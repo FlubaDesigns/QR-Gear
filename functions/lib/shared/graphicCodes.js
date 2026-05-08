@@ -176,15 +176,10 @@ const CHANNEL_PURPOSE_FILENAMES = {
  *
  * Example: grfStoragePath('GRF-21211-000001') → 'grf/GRF-21211-000001/glamor.png'
  */
-function grfStoragePath(grfId, originalFilename) {
+function grfStoragePath(grfId) {
     const parsed = parseGrfId(grfId);
     const ext = parsed.formatName === 'jpeg' ? 'jpg' : parsed.formatName;
-    let base = CHANNEL_PURPOSE_FILENAMES[parsed.channel]?.[parsed.purpose] ?? 'asset';
-    if (parsed.channel === '4' && parsed.purpose === '1' && originalFilename) {
-        const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '');
-        base = nameWithoutExt.replace(/[^a-zA-Z0-9._-]/g, '_') || 'original';
-    }
-    return `grf/${grfId}/${base}.${ext}`;
+    return `grf/${grfId}/${grfId}.${ext}`;
 }
 // ── MIME lookup ───────────────────────────────────────────────────────────────
 function grfMimeType(grfId) {

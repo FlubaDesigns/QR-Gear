@@ -14,6 +14,7 @@ import { requireAdmin } from '../middleware';
 import {
   buildGrfId,
   parseGrfId,
+  grfStoragePath,
   GRF_COUNTER_KEY,
   buildCropTransition,
   normalizeMimeType,
@@ -63,8 +64,7 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
     const croppedSeq    = await mintGrfSequence();
     const croppedGrfId  = buildGrfId({ ...croppedGrfParams, sequence: croppedSeq });
     const croppedParsed = parseGrfId(croppedGrfId);
-    const croppedExt    = croppedMimeType.includes('png') ? 'png' : 'jpg';
-    const croppedPath   = `grf/${croppedGrfId}/cropped.${croppedExt}`;
+    const croppedPath   = grfStoragePath(croppedGrfId);
 
     const croppedBuffer = Buffer.from(croppedImageData, 'base64');
     const croppedFile   = bucket.file(croppedPath);

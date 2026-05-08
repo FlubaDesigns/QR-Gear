@@ -99,7 +99,7 @@ async function registerGrfAsset(opts) {
     if (imageData) {
         const ext = (mimeType || '').includes('png') ? 'png' : 'jpg';
         const canonicalPath = storagePathOverride
-            || (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined)
+            || (0, GRF_engine_1.grfStoragePath)(grfId)
             || `grf/${grfId}/original.${ext}`;
         const bucket = core_1.admin.storage().bucket();
         const buffer = Buffer.from(imageData, 'base64');

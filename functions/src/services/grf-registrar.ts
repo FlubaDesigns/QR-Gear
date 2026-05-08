@@ -159,7 +159,7 @@ export async function registerGrfAsset(
   if (imageData) {
     const ext         = (mimeType || '').includes('png') ? 'png' : 'jpg';
     const canonicalPath = storagePathOverride
-      || grfStoragePath(grfId, originalFilename || undefined)
+      || grfStoragePath(grfId)
       || `grf/${grfId}/original.${ext}`;
 
     const bucket     = admin.storage().bucket();

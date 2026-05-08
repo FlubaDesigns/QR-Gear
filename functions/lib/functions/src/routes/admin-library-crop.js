@@ -43,8 +43,7 @@ router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, r
         const croppedSeq = await mintGrfSequence();
         const croppedGrfId = (0, GRF_engine_1.buildGrfId)({ ...croppedGrfParams, sequence: croppedSeq });
         const croppedParsed = (0, GRF_engine_1.parseGrfId)(croppedGrfId);
-        const croppedExt = croppedMimeType.includes('png') ? 'png' : 'jpg';
-        const croppedPath = `grf/${croppedGrfId}/cropped.${croppedExt}`;
+        const croppedPath = (0, GRF_engine_1.grfStoragePath)(croppedGrfId);
         const croppedBuffer = Buffer.from(croppedImageData, 'base64');
         const croppedFile = bucket.file(croppedPath);
         await croppedFile.save(croppedBuffer, { metadata: { contentType: croppedMimeType } });

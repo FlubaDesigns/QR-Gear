@@ -87,7 +87,7 @@ router.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, r
             return;
         }
         const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-        const canonicalStoragePath = storagePath || (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined);
+        const canonicalStoragePath = storagePath || (0, GRF_engine_1.grfStoragePath)(grfId);
         // If imageUrl is a base64 data URI, upload to Firebase Storage and use the public GCS URL
         let publicUrl = imageUrl;
         if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
