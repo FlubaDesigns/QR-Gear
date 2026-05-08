@@ -372,7 +372,7 @@ export function registerAdminContentRoutes(app: Express): void {
         purposeName:    parsed.purposeName,
         formatName:     parsed.formatName,
         mimeType:       mimeType || parsed.mimeType,
-        name:           name || `${parsed.purposeName} ${grfId}`,
+        name:           grfId,
         description:    description || null,
         storagePath:    canonicalStoragePath,
         publicUrl,

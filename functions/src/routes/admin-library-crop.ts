@@ -4,8 +4,9 @@
  * Mirrors server/routes/library-crop.routes.ts for production Cloud Functions.
  *
  * POST /admin/library/crop-mint
- *   GRF params are pre-computed by the frontend using GRF_engine.buildCropTransition()
- *   — same pattern as save-grf. The server just mints sequences and builds IDs.
+ *   Source, cropped, and background are the SAME object — they share the same
+ *   sequence number. Only the source mints a new sequence (via save-grf).
+ *   Crop-mint derives the sequence from sourceGrfId and reuses it.
  */
 
 import { Router, Request, Response } from 'express';
@@ -15,23 +16,11 @@ import {
   buildGrfId,
   parseGrfId,
   grfStoragePath,
-  GRF_COUNTER_KEY,
   buildCropTransition,
   normalizeMimeType,
 } from '../../../shared/GRF_engine';
 
 const router = Router();
-
-async function mintGrfSequence(): Promise<number> {
-  const counterRef = db.collection('grf_counters').doc(GRF_COUNTER_KEY);
-  let seq = 0;
-  await db.runTransaction(async (tx: any) => {
-    const doc = await tx.get(counterRef);
-    seq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
-    tx.set(counterRef, { count: seq, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-  });
-  return seq;
-}
 
 router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -40,14 +29,19 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
       croppedMimeType,
       originalMimeType,
       originalPublicUrl,
-      name,
       sourceGrfId,
     } = req.body;
 
-    if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !name) {
+    if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !sourceGrfId) {
       res.status(400).json({
-        error: 'Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name',
+        error: 'Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, sourceGrfId',
       });
+      return;
+    }
+
+    const sourceParsed = parseGrfId(sourceGrfId);
+    if (!sourceParsed.sequence) {
+      res.status(400).json({ error: `Cannot parse sequence from sourceGrfId: ${sourceGrfId}` });
       return;
     }
 
@@ -57,15 +51,19 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
     const { cropped: croppedGrfParams, background: backgroundGrfParams } =
       buildCropTransition(safeOriginalMime, safeCroppedMime);
 
-    const now = admin.firestore.FieldValue.serverTimestamp();
+    // All three records share the same sequence — same object, different purposes
+    const sharedSeq = sourceParsed.sequence;
+
+    const croppedGrfId    = buildGrfId({ ...croppedGrfParams,    sequence: sharedSeq });
+    const backgroundGrfId = buildGrfId({ ...backgroundGrfParams, sequence: sharedSeq });
+    const croppedParsed    = parseGrfId(croppedGrfId);
+    const backgroundParsed = parseGrfId(backgroundGrfId);
+
+    const now    = admin.firestore.FieldValue.serverTimestamp();
     const bucket = admin.storage().bucket();
 
-    // ── 1. Cropped record ─────────────────────────────────────────────────────
-    const croppedSeq    = await mintGrfSequence();
-    const croppedGrfId  = buildGrfId({ ...croppedGrfParams, sequence: croppedSeq });
-    const croppedParsed = parseGrfId(croppedGrfId);
+    // ── 1. Upload + record cropped ─────────────────────────────────────────────
     const croppedPath   = grfStoragePath(croppedGrfId);
-
     const croppedBuffer = Buffer.from(croppedImageData, 'base64');
     const croppedFile   = bucket.file(croppedPath);
     await croppedFile.save(croppedBuffer, { metadata: { contentType: croppedMimeType } });
@@ -87,20 +85,16 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
       purposeName:    croppedParsed.purposeName,
       formatName:     croppedParsed.formatName,
       mimeType:       croppedMimeType,
-      name:           `cropped_${name}`,
+      name:           croppedGrfId,
       storagePath:    croppedPath,
       publicUrl:      croppedPublicUrl,
-      sourceGrfId:    sourceGrfId || null,
+      sourceGrfId:    sourceGrfId,
       createdAt:      now,
       createdBy:      'admin',
       isActive:       true,
     });
 
-    // ── 2. Background record ──────────────────────────────────────────────────
-    const backgroundSeq    = await mintGrfSequence();
-    const backgroundGrfId  = buildGrfId({ ...backgroundGrfParams, sequence: backgroundSeq });
-    const backgroundParsed = parseGrfId(backgroundGrfId);
-
+    // ── 2. Record background (metadata only — file is the original) ────────────
     await db.collection('grf_assets').doc(backgroundGrfId).set({
       grfId:          backgroundGrfId,
       assetClass:     backgroundParsed.assetClass,
@@ -115,16 +109,16 @@ router.post('/admin/library/crop-mint', requireAdmin, async (req: Request, res: 
       purposeName:    backgroundParsed.purposeName,
       formatName:     backgroundParsed.formatName,
       mimeType:       backgroundParsed.mimeType,
-      name:           `background_${name}`,
+      name:           backgroundGrfId,
       storagePath:    null,
       publicUrl:      originalPublicUrl,
-      sourceGrfId:    sourceGrfId || null,
+      sourceGrfId:    sourceGrfId,
       createdAt:      now,
       createdBy:      'admin',
       isActive:       true,
     });
 
-    console.log(`[CropMint] Minted ${croppedGrfId} (cropped) + ${backgroundGrfId} (background) for "${name}"`);
+    console.log(`[CropMint] seq=${sharedSeq} → source=${sourceGrfId} cropped=${croppedGrfId} background=${backgroundGrfId}`);
 
     res.json({ success: true, croppedGrfId, backgroundGrfId });
   } catch (error: any) {

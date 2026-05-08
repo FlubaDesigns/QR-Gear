@@ -150,7 +150,6 @@ function SourceImagesTabInner() {
         method: "POST",
         json: {
           ...originalGrfParams(mimeType),
-          name:             params.name,
           originalFilename: params.originalFilename || params.name,
           mimeType,
           imageUrl: `data:${mimeType};base64,${params.imageData}`,
@@ -194,7 +193,6 @@ function SourceImagesTabInner() {
           croppedMimeType,
           originalMimeType:  origMime,
           originalPublicUrl: origUrl,
-          name:              origName,
           sourceGrfId:       grfId,
         },
       });

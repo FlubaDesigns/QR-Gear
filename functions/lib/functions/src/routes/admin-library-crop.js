@@ -5,8 +5,9 @@
  * Mirrors server/routes/library-crop.routes.ts for production Cloud Functions.
  *
  * POST /admin/library/crop-mint
- *   GRF params are pre-computed by the frontend using GRF_engine.buildCropTransition()
- *   — same pattern as save-grf. The server just mints sequences and builds IDs.
+ *   Source, cropped, and background are the SAME object — they share the same
+ *   sequence number. Only the source mints a new sequence (via save-grf).
+ *   Crop-mint derives the sequence from sourceGrfId and reuses it.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerAdminLibraryCrop = registerAdminLibraryCrop;
@@ -15,34 +16,32 @@ const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const GRF_engine_1 = require("../../../shared/GRF_engine");
 const router = (0, express_1.Router)();
-async function mintGrfSequence() {
-    const counterRef = core_1.db.collection('grf_counters').doc(GRF_engine_1.GRF_COUNTER_KEY);
-    let seq = 0;
-    await core_1.db.runTransaction(async (tx) => {
-        const doc = await tx.get(counterRef);
-        seq = (doc.exists ? doc.data().count : 0) + 1;
-        tx.set(counterRef, { count: seq, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
-    });
-    return seq;
-}
 router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, res) => {
     try {
-        const { croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name, sourceGrfId, } = req.body;
-        if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !name) {
+        const { croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, sourceGrfId, } = req.body;
+        if (!croppedImageData || !croppedMimeType || !originalMimeType || !originalPublicUrl || !sourceGrfId) {
             res.status(400).json({
-                error: 'Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, name',
+                error: 'Missing required fields: croppedImageData, croppedMimeType, originalMimeType, originalPublicUrl, sourceGrfId',
             });
+            return;
+        }
+        const sourceParsed = (0, GRF_engine_1.parseGrfId)(sourceGrfId);
+        if (!sourceParsed.sequence) {
+            res.status(400).json({ error: `Cannot parse sequence from sourceGrfId: ${sourceGrfId}` });
             return;
         }
         const safeOriginalMime = (0, GRF_engine_1.normalizeMimeType)(originalMimeType);
         const safeCroppedMime = (0, GRF_engine_1.normalizeMimeType)(croppedMimeType);
         const { cropped: croppedGrfParams, background: backgroundGrfParams } = (0, GRF_engine_1.buildCropTransition)(safeOriginalMime, safeCroppedMime);
+        // All three records share the same sequence — same object, different purposes
+        const sharedSeq = sourceParsed.sequence;
+        const croppedGrfId = (0, GRF_engine_1.buildGrfId)({ ...croppedGrfParams, sequence: sharedSeq });
+        const backgroundGrfId = (0, GRF_engine_1.buildGrfId)({ ...backgroundGrfParams, sequence: sharedSeq });
+        const croppedParsed = (0, GRF_engine_1.parseGrfId)(croppedGrfId);
+        const backgroundParsed = (0, GRF_engine_1.parseGrfId)(backgroundGrfId);
         const now = core_1.admin.firestore.FieldValue.serverTimestamp();
         const bucket = core_1.admin.storage().bucket();
-        // ── 1. Cropped record ─────────────────────────────────────────────────────
-        const croppedSeq = await mintGrfSequence();
-        const croppedGrfId = (0, GRF_engine_1.buildGrfId)({ ...croppedGrfParams, sequence: croppedSeq });
-        const croppedParsed = (0, GRF_engine_1.parseGrfId)(croppedGrfId);
+        // ── 1. Upload + record cropped ─────────────────────────────────────────────
         const croppedPath = (0, GRF_engine_1.grfStoragePath)(croppedGrfId);
         const croppedBuffer = Buffer.from(croppedImageData, 'base64');
         const croppedFile = bucket.file(croppedPath);
@@ -64,18 +63,15 @@ router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, r
             purposeName: croppedParsed.purposeName,
             formatName: croppedParsed.formatName,
             mimeType: croppedMimeType,
-            name: `cropped_${name}`,
+            name: croppedGrfId,
             storagePath: croppedPath,
             publicUrl: croppedPublicUrl,
-            sourceGrfId: sourceGrfId || null,
+            sourceGrfId: sourceGrfId,
             createdAt: now,
             createdBy: 'admin',
             isActive: true,
         });
-        // ── 2. Background record ──────────────────────────────────────────────────
-        const backgroundSeq = await mintGrfSequence();
-        const backgroundGrfId = (0, GRF_engine_1.buildGrfId)({ ...backgroundGrfParams, sequence: backgroundSeq });
-        const backgroundParsed = (0, GRF_engine_1.parseGrfId)(backgroundGrfId);
+        // ── 2. Record background (metadata only — file is the original) ────────────
         await core_1.db.collection('grf_assets').doc(backgroundGrfId).set({
             grfId: backgroundGrfId,
             assetClass: backgroundParsed.assetClass,
@@ -90,15 +86,15 @@ router.post('/admin/library/crop-mint', middleware_1.requireAdmin, async (req, r
             purposeName: backgroundParsed.purposeName,
             formatName: backgroundParsed.formatName,
             mimeType: backgroundParsed.mimeType,
-            name: `background_${name}`,
+            name: backgroundGrfId,
             storagePath: null,
             publicUrl: originalPublicUrl,
-            sourceGrfId: sourceGrfId || null,
+            sourceGrfId: sourceGrfId,
             createdAt: now,
             createdBy: 'admin',
             isActive: true,
         });
-        console.log(`[CropMint] Minted ${croppedGrfId} (cropped) + ${backgroundGrfId} (background) for "${name}"`);
+        console.log(`[CropMint] seq=${sharedSeq} → source=${sourceGrfId} cropped=${croppedGrfId} background=${backgroundGrfId}`);
         res.json({ success: true, croppedGrfId, backgroundGrfId });
     }
     catch (error) {

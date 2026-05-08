@@ -115,7 +115,7 @@ router.post('/admin/graphics/save-grf', middleware_1.requireAdmin, async (req, r
             purposeName: parsed.purposeName,
             formatName: parsed.formatName,
             mimeType: mimeType || parsed.mimeType,
-            name: name || `${parsed.purposeName} ${grfId}`,
+            name: grfId,
             description: description || null,
             storagePath: canonicalStoragePath,
             publicUrl,
