@@ -11,7 +11,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { originalGrfParams, GRF_FILTER_ORIGINALS } from "@shared/GRF_engine";
+import { originalGrfParams, GRF_FILTER_ORIGINALS, normalizeMimeType } from "@shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
 async function fetchImageBlob(url: string): Promise<string> {
@@ -44,7 +44,7 @@ function assetToSkinItem(asset: GrfAsset): SkinItem {
   }
   return {
     id:           asset.grfId || asset.id,
-    name:         asset.name || asset.originalFilename || "Untitled",
+    name:         asset.originalFilename || asset.name || "Untitled",
     primaryImage: asset.publicUrl || "",
     metadata: {
       raw:              asset,
@@ -143,7 +143,8 @@ function SourceImagesTabInner() {
   const handleDelete = (id: string) => archiveMutation.mutate(id);
 
   const handleUploadSingle = async (params: UploadParams) => {
-    const mimeType = params.mimeType || "image/jpeg";
+    const rawMime  = params.mimeType || "image/jpeg";
+    const mimeType = normalizeMimeType(rawMime);
     try {
       await adminFetch("/graphics/save-grf", {
         method: "POST",
@@ -221,6 +222,7 @@ function SourceImagesTabInner() {
         title="Upload Source Images"
         description="Upload original images to the GRF library. Cropping creates a cropped derivative and promotes the original as a background asset."
         showZipUpload={false}
+        acceptTypes="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,image/gif,image/bmp,image/tiff,image/avif"
       />
 
       {queryError && (

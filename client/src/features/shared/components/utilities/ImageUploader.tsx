@@ -294,7 +294,7 @@ export function ImageUploader({
           )}
         </div>
         <p className="text-sm text-muted-foreground">
-          Max {maxSizeMB}MB per image. Supported: JPG, PNG, WebP, HEIC
+          Max {maxSizeMB}MB per image. Supported: JPG, PNG, WebP, SVG
         </p>
         {uploading && (
           <div className="flex items-center gap-2 p-3 bg-muted rounded-md">

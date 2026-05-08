@@ -77,6 +77,32 @@ export function mimeToGrfFormat(mimeType: string): GrfFormat {
   return digit;
 }
 
+// ── MIME normalization — browser → GRF-compatible MIME ───────────────────────
+// Some browsers (especially mobile/iOS) report MIME types that are not in
+// GRF_FORMATS. Map them to the nearest supported type before calling
+// mimeToGrfFormat. All callers must go through here — never define this map
+// locally in a component or route file.
+
+const _MIME_NORMALIZE: Record<string, string> = {
+  'image/jpg':  'image/jpeg',
+  'image/heic': 'image/jpeg',
+  'image/heif': 'image/jpeg',
+  'image/avif': 'image/jpeg',
+  'image/gif':  'image/png',
+  'image/bmp':  'image/png',
+  'image/tiff': 'image/png',
+};
+
+export function normalizeMimeType(raw: string): string {
+  const lower = (raw || '').toLowerCase();
+  const mapped = _MIME_NORMALIZE[lower];
+  if (mapped) {
+    console.warn(`GRF_engine: normalizeMimeType mapped "${raw}" → "${mapped}"`);
+    return mapped;
+  }
+  return lower || 'image/jpeg';
+}
+
 // ── GRF param shape ───────────────────────────────────────────────────────────
 
 export interface LibraryGrfParams {
