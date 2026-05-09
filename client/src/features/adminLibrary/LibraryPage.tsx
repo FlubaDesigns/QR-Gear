@@ -3,8 +3,6 @@ import { useSearch } from "wouter";
 import { QrCode, Layers, ImageIcon, LayoutTemplate, Link2, Upload, Crop, Image } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
-import { LibraryProvider } from "./LibraryContext";
-
 import GraphicsTab from "./tabs/GraphicsTab";
 import TemplatesTab from "./tabs/TemplatesTab";
 import ImagesTab from "./tabs/ImagesTab";
@@ -93,7 +91,6 @@ export default function LibraryPage() {
           </div>
         </div>
       </div>
-    </LibraryProvider>
     </AdminAuthProvider>
   );
 }
