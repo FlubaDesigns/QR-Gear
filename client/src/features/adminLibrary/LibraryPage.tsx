@@ -40,7 +40,6 @@ export default function LibraryPage() {
 
   return (
     <AdminAuthProvider apiBase="/api/admin">
-    <LibraryProvider>
       <div className="page-wrap">
         <div className="container mobile-compact mobile-compact-stack">
           <div className="glass-card">
