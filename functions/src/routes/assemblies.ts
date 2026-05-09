@@ -172,8 +172,8 @@ async function validateGrfIdsExist(mappings: any[]): Promise<string | null> {
 }
 
 /**
- * Fix 10: Fetch the referenced BLD and verify that every required slot has a corresponding mapping.
- * Handles both builder-generated BLDs (instances sub-collection) and admin-created BLDs (flat array).
+ * Fetch the referenced BLD and verify that every required slot has a corresponding mapping.
+ * All BLDs store instances as a flat array in the root doc — single storage shape.
  * Returns a human-readable error string, or null if coverage is complete.
  */
 async function validateBldSlotCoverage(bldId: string, mappings: any[]): Promise<string | null> {
@@ -184,28 +184,13 @@ async function validateBldSlotCoverage(bldId: string, mappings: any[]): Promise<
 
   const bldData = bldDoc.data() as any;
 
-  // Resolve instances from sub-collection (builder) or flat array (admin-created)
-  let slots: Array<{ seq: string; type: string; required?: boolean }> = [];
-
-  const flatInstances: any[] = Array.isArray(bldData.instances) ? bldData.instances : [];
-  if (flatInstances.length > 0) {
-    slots = flatInstances.map((inst: any) => ({
-      seq:      String(inst.seq).padStart(2, '0'),
-      type:     inst.type,
-      required: inst.required !== false,
-    }));
-  } else {
-    // Builder-generated: fetch sub-collection
-    const subSnap = await db.collection('bld_definitions').doc(bldId).collection('instances').get();
-    slots = subSnap.docs.map((d) => {
-      const inst = d.data();
-      return {
-        seq:      String(inst.seq).padStart(2, '0'),
-        type:     inst.type,
-        required: inst.required !== false,
-      };
-    });
-  }
+  // All BLDs embed instances as a flat array in the root doc
+  const rawInstances: any[] = Array.isArray(bldData.instances) ? bldData.instances : [];
+  const slots: Array<{ seq: string; type: string; required?: boolean }> = rawInstances.map((inst: any) => ({
+    seq:      String(inst.seq).padStart(2, '0'),
+    type:     inst.type,
+    required: inst.required !== false,
+  }));
 
   if (slots.length === 0) return null; // No slots defined — nothing to cross-validate
 

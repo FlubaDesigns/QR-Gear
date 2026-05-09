@@ -3,26 +3,27 @@
  *
  * BLD (Build Definition Schema) — admin-only API routes.
  *
+ * All BLDs use a single storage shape: instances[] embedded as a flat array
+ * in the root bld_definitions doc. No sub-collections. No dual strategies.
+ *
  * POST /admin/bld
- *   Write a BLD definition + instances sub-collection from a builder
- *   working-state snapshot. Called by the commit flow in admin-build-sessions.ts
- *   after a QRG instance is allocated.
+ *   Write a BLD definition from a builder working-state snapshot.
+ *   Called by the commit flow in admin-build-sessions.ts.
  *
  * POST /admin/bld/create
  *   Admin direct-create: accepts { context, layout, name, instances[] }.
- *   Writes a flat bld_definitions doc (instances embedded in the doc, not a sub-collection).
  *
  * GET /admin/bld
- *   List all BLD definitions (both builder-generated and admin-created).
+ *   List all BLD definitions.
  *
  * GET /admin/bld/:bldId
- *   Fetch a BLD header document.
+ *   Fetch a BLD root document (includes instances[]).
  *
  * GET /admin/bld/:bldId/instances
- *   Fetch all ordered instance documents for a BLD (sub-collection — builder-generated only).
+ *   Fetch the ordered instances array for a BLD (reads from root doc).
  *
  * PATCH /admin/bld/:bldId
- *   Update name and/or flat instances array on an admin-created BLD.
+ *   Update name and/or instances array on a BLD.
  *
  * DELETE /admin/bld/:bldId
  *   Permanently delete a BLD definition.
@@ -96,13 +97,11 @@ export function registerBld(app: express.Express): void {
         return {
           id: doc.id,
           ...converted,
-          // Normalise: builder docs use `layoutMode`, admin-direct docs use `layout`
           layout: converted.layout ?? converted.layoutMode ?? null,
-          // Normalise instance count
           instanceCount: typeof converted.instanceCount === 'number'
             ? converted.instanceCount
             : (Array.isArray(converted.instances) ? converted.instances.length : 0),
-          source: converted.graphicLayoutMode !== undefined ? 'builder' : 'admin',
+          source: converted.source ?? 'unknown',
         };
       });
       if (context) defs = defs.filter(d => d.context === context);
@@ -271,17 +270,19 @@ export function registerBld(app: express.Express): void {
   });
 
   // ── GET /admin/bld/:bldId/instances ───────────────────────────────────────
+  // Reads instances[] from the root doc — no sub-collection query needed.
   app.get('/admin/bld/:bldId/instances', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { bldId } = req.params;
-      const snap = await db
-        .collection(BLD_DEFINITIONS_COLLECTION)
-        .doc(bldId)
-        .collection('instances')
-        .orderBy('seq', 'asc')
-        .get();
-      const instances = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      res.json({ success: true, bldId, instances, count: instances.length });
+      const doc = await db.collection(BLD_DEFINITIONS_COLLECTION).doc(bldId).get();
+      if (!doc.exists) {
+        res.status(404).json({ error: `BLD not found: ${bldId}` });
+        return;
+      }
+      const data = doc.data() as any;
+      const instances: any[] = Array.isArray(data.instances) ? data.instances : [];
+      const sorted = [...instances].sort((a, b) => String(a.seq).localeCompare(String(b.seq)));
+      res.json({ success: true, bldId, instances: sorted, count: sorted.length });
     } catch (err: any) {
       console.error('[BLD] GET /admin/bld/:bldId/instances error:', err.message);
       res.status(500).json({ error: err.message });
@@ -347,8 +348,8 @@ export function registerBld(app: express.Express): void {
 
   // ── DELETE /admin/bld/:bldId ──────────────────────────────────────────────
   // Permanently delete a BLD definition document.
-  // Blocks if any Assembly references this bldId (Fix 7).
-  // Cascades to sub-collection instances before deleting header (Fix 6).
+  // Blocks if any Assembly references this bldId.
+  // No sub-collection cascade needed — instances are embedded in the root doc.
   app.delete('/admin/bld/:bldId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { bldId } = req.params;
@@ -359,7 +360,7 @@ export function registerBld(app: express.Express): void {
         return;
       }
 
-      // Fix 7: Block delete if any Assembly references this bldId
+      // Block delete if any Assembly references this bldId
       const asmSnap = await db.collection('assemblies').where('bldId', '==', bldId).limit(10).get();
       if (!asmSnap.empty) {
         const referencingIds = asmSnap.docs.map(d => d.id);
@@ -370,19 +371,9 @@ export function registerBld(app: express.Express): void {
         return;
       }
 
-      // Fix 6: Delete sub-collection instances before deleting the header doc.
-      // Firestore does not auto-delete sub-collections.
-      const instancesSnap = await docRef.collection('instances').get();
-      if (!instancesSnap.empty) {
-        const batch = db.batch();
-        instancesSnap.docs.forEach(d => batch.delete(d.ref));
-        await batch.commit();
-        console.log(`[BLD] Deleted ${instancesSnap.size} sub-collection instances for ${bldId}`);
-      }
-
       await docRef.delete();
       console.log(`[BLD] Deleted ${bldId}`);
-      res.json({ success: true, bldId, instancesDeleted: instancesSnap.size });
+      res.json({ success: true, bldId });
     } catch (err: any) {
       console.error('[BLD] DELETE /admin/bld/:bldId error:', err.message);
       res.status(500).json({ error: err.message });

@@ -164,8 +164,8 @@ async function incrementBldCounter(key: string): Promise<number> {
  *
  * Example: BLD-SZ9-001, BLD-SP3-001
  *
- * (We keep the ID short but readable; the sub-collection instances
- *  carry all the sequenced payload details.)
+ * (We keep the ID short but readable; the instances array in the root doc
+ *  carries all the sequenced payload details.)
  */
 function formatBldId(
   context: BldContext,
@@ -354,16 +354,16 @@ export interface WriteBldResult {
 }
 
 /**
- * Generate a BLD definition record + sub-collection instances for a
- * builder working-state snapshot.
+ * Generate a BLD definition record for a builder working-state snapshot.
+ * Instances are embedded as a flat array in the root doc — same shape as
+ * admin-created BLDs (POST /admin/bld/create). No sub-collection is written.
  *
  * Steps:
  *   1. Extract instances from working state.
  *   2. Derive counter key (e.g. "SZ" or "SP").
  *   3. Atomically allocate buildSequence.
  *   4. Format BLD ID.
- *   5. Write bld_definitions/{bldId} header.
- *   6. Write bld_definitions/{bldId}/instances/{seq} for each instance.
+ *   5. Write bld_definitions/{bldId} with instances[] embedded in root doc.
  */
 export async function writeBldDefinition(opts: WriteBldOptions): Promise<WriteBldResult> {
   const { working, sourceSessionId, sourceInstanceId, qrgBlankId, qrgBaseCode, packetId } = opts;
@@ -417,25 +417,19 @@ export async function writeBldDefinition(opts: WriteBldOptions): Promise<WriteBl
     updatedAt: now,
   };
 
-  // Use a Firestore batch for atomic header + all instances
-  const batch = db.batch();
-
-  const defRef = db.collection(BLD_DEFINITIONS_COLLECTION).doc(bldId);
-  batch.set(defRef, header);
-
-  for (const inst of instances) {
-    // Strip undefined values so Firestore doesn't choke
+  // Strip undefined values from each instance so Firestore doesn't choke
+  const cleanInstances = instances.map((inst) => {
     const clean: Record<string, any> = {};
     for (const [k, v] of Object.entries(inst)) {
-      if (v !== undefined && v !== null && v !== '') {
-        clean[k] = v;
-      }
+      if (v !== undefined && v !== null && v !== '') clean[k] = v;
     }
-    const instRef = defRef.collection('instances').doc(inst.seq);
-    batch.set(instRef, clean);
-  }
+    return clean;
+  });
 
-  await batch.commit();
+  // Write a single root doc with instances embedded as a flat array.
+  // Same storage shape as admin-created BLDs — no sub-collection.
+  const defRef = db.collection(BLD_DEFINITIONS_COLLECTION).doc(bldId);
+  await defRef.set({ ...header, instances: cleanInstances, source: 'builder' });
 
   console.log(`[BLD] Wrote ${bldId} with ${instanceCount} instances (session=${sourceSessionId}, instance=${sourceInstanceId})`);
 
