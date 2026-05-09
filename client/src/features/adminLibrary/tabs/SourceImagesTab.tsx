@@ -99,6 +99,7 @@ function SourceImagesTabInner() {
   const { toast } = useToast();
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
+  const [uploadError,    setUploadError]    = useState<string | null>(null);
 
   // ── Query ──────────────────────────────────────────────────────────────────
 
@@ -144,22 +145,28 @@ function SourceImagesTabInner() {
 
   const handleUploadSingle = async (params: UploadParams) => {
     const mimeType = params.mimeType || "image/jpeg";
+    const filename = params.originalFilename || params.name;
+    setUploadError(null);
+    console.log("[SourceImagesTab] Upload start →", { filename, mimeType, imageDataLength: params.imageData?.length });
     try {
-      await adminFetch("/library/upload-source", {
+      const result = await adminFetch("/library/upload-source", {
         method: "POST",
         json: {
           imageUrl:         `data:${mimeType};base64,${params.imageData}`,
           mimeType,
-          name:             params.originalFilename || params.name,
-          originalFilename: params.originalFilename || params.name,
+          name:             filename,
+          originalFilename: filename,
         },
       });
-      toast({ title: "Image uploaded" });
+      console.log("[SourceImagesTab] Upload success →", result);
+      toast({ title: "Image uploaded", description: filename });
       queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
     } catch (err: unknown) {
       const error = err as Error;
-      console.error("[SourceImagesTab] Upload error:", error.message);
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+      const msg = error.message || "Unknown error";
+      console.error("[SourceImagesTab] Upload FAILED →", msg);
+      setUploadError(`Upload failed for "${filename}": ${msg}`);
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
       throw error;
     }
   };
@@ -221,6 +228,24 @@ function SourceImagesTabInner() {
         showZipUpload={false}
         acceptTypes="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,image/gif,image/bmp,image/tiff,image/avif"
       />
+
+      {uploadError && (
+        <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-upload">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">Upload Error</p>
+              <p className="text-xs mt-1 font-mono break-all">{uploadError}</p>
+            </div>
+            <button
+              onClick={() => setUploadError(null)}
+              className="text-xs text-muted-foreground hover:text-foreground shrink-0"
+              data-testid="button-dismiss-upload-error"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {queryError && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-4" data-testid="error-source">
