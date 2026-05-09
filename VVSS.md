@@ -146,7 +146,8 @@ client/src/features/shared/components/
 | Code | Surface | Skin | Shape |
 |---|---|---|---|
 | `1·1·1·1` | Source Images tab | `SourceCardSkin` | `ModalView` + `SourceDetailShape` |
-| `1·1·1·0` | Backgrounds tab | `BackgroundCardSkin` | Flat — none |
+| `1·1·1·0` | Backgrounds tab | `BackgroundCardSkin` | Flat — crop + archive on card |
+| `1·1·1·0` | Cropped tab | `CroppedCardSkin` | Flat — archive on card |
 | `2·1·1·0` | Product builder | `ProductCardSkin` | Flat — none |
 | `1·2·1·1` | Graphics tab | `GraphicCardSkin` | `AdminGraphicShape` |
 

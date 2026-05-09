@@ -79,7 +79,7 @@ class CroppedImagesBoundary extends Component<
 }
 
 // ── Inner tab ─────────────────────────────────────────────────────────────────
-// VVSS: 1·1·1·1 — SinglePaneViewer · ScrollGridView · CroppedCardSkin · ModalView + CroppedDetailShape
+// VVSS: 1·1·1·0 — SinglePaneViewer · ScrollGridView · CroppedCardSkin · flat (no popup)
 
 function CroppedImagesTabInner() {
   const { toast } = useToast();

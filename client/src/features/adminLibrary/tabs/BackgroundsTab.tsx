@@ -8,7 +8,6 @@ import { queryClient } from "@/lib/queryClient";
 import { CropUtility, type CropAsset } from "@/features/shared/components/utilities/CropUtility";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { BackgroundCardSkin } from "@/features/shared/components/skins/BackgroundSkin";
-import { BackgroundShape } from "@/features/shared/components/shapes/BackgroundShape";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "@shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
@@ -87,11 +86,10 @@ class BackgroundsBoundary extends Component<
 }
 
 // ── Inner tab ─────────────────────────────────────────────────────────────────
+// VVSS: 1·1·1·0 — SinglePaneViewer · ScrollGridView · BackgroundCardSkin · flat (no popup)
 
 function BackgroundsTabInner() {
   const { toast } = useToast();
-  const [selectedItem,   setSelectedItem]   = useState<SkinItem | null>(null);
-  const [detailOpen,     setDetailOpen]     = useState(false);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
@@ -112,8 +110,6 @@ function BackgroundsTabInner() {
     onSuccess: () => {
       toast({ title: "Image archived" });
       queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
-      setDetailOpen(false);
-      setSelectedItem(null);
     },
     onError: (error: Error) => {
       console.error("[BackgroundsTab] Archive error:", error.message);
@@ -123,11 +119,6 @@ function BackgroundsTabInner() {
 
   const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
 
-  const handleSelect = (item: SkinItem) => {
-    setSelectedItem(item);
-    setDetailOpen(true);
-  };
-
   const handleStartCrop = (skinId: string) => {
     const raw = assets.find(a => (a.grfId || a.id) === skinId);
     if (!raw) {
@@ -135,7 +126,6 @@ function BackgroundsTabInner() {
       return;
     }
     setAssetToCrop({ id: raw.id, name: raw.name, imageUrl: raw.publicUrl || "" });
-    setDetailOpen(false);
     setCropDialogOpen(true);
   };
 
@@ -222,7 +212,6 @@ function BackgroundsTabInner() {
           renderItem={(item) => (
             <BackgroundCardSkin
               item={item}
-              onClick={() => handleSelect(item)}
               actions={{
                 onCrop:   handleStartCrop,
                 onDelete: handleArchive,
@@ -232,17 +221,6 @@ function BackgroundsTabInner() {
           )}
         />
       )}
-
-      <BackgroundShape
-        open={detailOpen}
-        item={selectedItem}
-        actions={{
-          onCrop:   handleStartCrop,
-          onDelete: handleArchive,
-        }}
-        onClose={() => setDetailOpen(false)}
-        isActionPending={archiveMutation.isPending}
-      />
 
       <CropUtility
         asset={assetToCrop}
