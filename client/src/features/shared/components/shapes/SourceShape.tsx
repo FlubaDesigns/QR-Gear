@@ -26,7 +26,7 @@ export function SourceDetailShape({ item, actions, onClose }: DetailSkinProps) {
     <div className="space-y-4 w-full">
 
       {/* Large image preview */}
-      <div className="relative w-full aspect-square bg-muted rounded-md overflow-hidden">
+      <div className="relative w-full max-h-52 aspect-square bg-muted rounded-md overflow-hidden">
         {item.primaryImage ? (
           <img
             src={item.primaryImage}

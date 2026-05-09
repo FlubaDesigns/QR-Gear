@@ -22,7 +22,7 @@ export function CroppedDetailShape({ item, actions, onClose }: DetailSkinProps) 
     <div className="space-y-4 w-full">
 
       {/* Large image preview */}
-      <div className="relative w-full aspect-[9/16] bg-muted rounded-md overflow-hidden">
+      <div className="relative w-full max-h-52 aspect-[9/16] bg-muted rounded-md overflow-hidden">
         {item.primaryImage ? (
           <img
             src={item.primaryImage}

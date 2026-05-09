@@ -31,7 +31,8 @@ export function CroppedCardSkin({ item, actions, isActionPending }: CardSkinProp
         onClick={() => setOpen(true)}
         data-testid={`card-cropped-${item.id}`}
       >
-        <div className="relative aspect-[9/16] bg-muted rounded-t-md overflow-hidden">
+        <div className="bg-muted rounded-t-md p-2">
+          <div className="relative aspect-[9/16] overflow-hidden rounded-sm">
           {item.primaryImage ? (
             <img
               src={item.primaryImage}
@@ -44,6 +45,7 @@ export function CroppedCardSkin({ item, actions, isActionPending }: CardSkinProp
               <Image className="h-10 w-10" />
             </div>
           )}
+          </div>
         </div>
 
         <CardContent className="p-2 space-y-2">

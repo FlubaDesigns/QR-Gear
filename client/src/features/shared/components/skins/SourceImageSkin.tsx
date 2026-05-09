@@ -42,7 +42,8 @@ export function SourceCardSkin({ item, actions, isActionPending }: CardSkinProps
         onClick={() => setOpen(true)}
         data-testid={`card-source-${item.id}`}
       >
-        <div className="relative aspect-square bg-muted rounded-t-md overflow-hidden">
+        <div className="bg-muted rounded-t-md p-2">
+          <div className="relative aspect-square overflow-hidden rounded-sm">
           {item.primaryImage ? (
             <img
               src={item.primaryImage}
@@ -55,6 +56,7 @@ export function SourceCardSkin({ item, actions, isActionPending }: CardSkinProps
               <Image className="h-10 w-10" />
             </div>
           )}
+          </div>
           {item.dimensions && (
             <Badge variant="secondary" className="absolute top-1 right-1 text-xs">
               {item.dimensions}
