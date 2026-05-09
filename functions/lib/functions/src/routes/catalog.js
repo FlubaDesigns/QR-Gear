@@ -162,6 +162,15 @@ function register(app) {
                 name: name.trim(),
                 description: (description || '').trim(),
                 blankIds: [],
+                blankTiers: {},
+                tierConfig: {},
+                blankDescriptions: {},
+                blankTitles: {},
+                blankMakers: {},
+                blankModels: {},
+                blankProviders: {},
+                blankImages: {},
+                blankPrimaryImages: {},
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             });
@@ -514,6 +523,117 @@ function register(app) {
             await docRef.update({ blankImages, updatedAt: new Date().toISOString() });
             console.log(`[Catalogs] Updated images for blank ${canonicalId} in catalog ${catalogId}: ${images.length} images`);
             res.json({ success: true, blankId: canonicalId, imageCount: images.length });
+        }
+        catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
+                return;
+            }
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.put('/admin/catalogs/:catalogId/blank-tier', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { catalogId } = req.params;
+            const { blankId, tier } = req.body;
+            if (!blankId) {
+                res.status(400).json({ error: 'blankId is required' });
+                return;
+            }
+            const docRef = core_1.db.collection('catalogs').doc(catalogId);
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                res.status(404).json({ error: 'Catalog not found' });
+                return;
+            }
+            const canonicalId = await resolveCatalogBlankId(String(blankId));
+            if (canonicalId === null) {
+                res.status(400).json({ error: `Blank "${blankId}" is pending classification and cannot be tier-assigned yet` });
+                return;
+            }
+            const blankTiers = { ...(doc.data()?.blankTiers || {}) };
+            if (tier) {
+                blankTiers[canonicalId] = tier;
+            }
+            else {
+                delete blankTiers[canonicalId];
+            }
+            await docRef.update({ blankTiers, updatedAt: new Date().toISOString() });
+            res.json({ success: true, blankTiers });
+        }
+        catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
+                return;
+            }
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.put('/admin/catalogs/:catalogId/blank-description', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { catalogId } = req.params;
+            const { blankId, description } = req.body;
+            if (!blankId) {
+                res.status(400).json({ error: 'blankId is required' });
+                return;
+            }
+            const docRef = core_1.db.collection('catalogs').doc(catalogId);
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                res.status(404).json({ error: 'Catalog not found' });
+                return;
+            }
+            const canonicalId = await resolveCatalogBlankId(String(blankId));
+            if (canonicalId === null) {
+                res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
+                return;
+            }
+            const blankDescriptions = { ...(doc.data()?.blankDescriptions || {}) };
+            if (description) {
+                blankDescriptions[canonicalId] = description;
+            }
+            else {
+                delete blankDescriptions[canonicalId];
+            }
+            await docRef.update({ blankDescriptions, updatedAt: new Date().toISOString() });
+            res.json({ success: true, blankDescriptions });
+        }
+        catch (error) {
+            if (error instanceof CatalogBlankResolverError) {
+                res.status(400).json({ error: error.message, failedBlankId: error.failedBlankId });
+                return;
+            }
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.put('/admin/catalogs/:catalogId/blank-title', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { catalogId } = req.params;
+            const { blankId, title } = req.body;
+            if (!blankId) {
+                res.status(400).json({ error: 'blankId is required' });
+                return;
+            }
+            const docRef = core_1.db.collection('catalogs').doc(catalogId);
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                res.status(404).json({ error: 'Catalog not found' });
+                return;
+            }
+            const canonicalId = await resolveCatalogBlankId(String(blankId));
+            if (canonicalId === null) {
+                res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
+                return;
+            }
+            const blankTitles = { ...(doc.data()?.blankTitles || {}) };
+            if (title) {
+                blankTitles[canonicalId] = title;
+            }
+            else {
+                delete blankTitles[canonicalId];
+            }
+            await docRef.update({ blankTitles, updatedAt: new Date().toISOString() });
+            res.json({ success: true, blankTitles });
         }
         catch (error) {
             if (error instanceof CatalogBlankResolverError) {
