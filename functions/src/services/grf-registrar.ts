@@ -226,6 +226,8 @@ export interface PacketGrfIds {
   qrGrfId:              string | null;
   compositeGrfId:       string | null;
   landingSnapshotGrfId: string | null;
+  glamorShotGrfId:      string | null;
+  storeFrontGrfId:      string | null;
 }
 
 /**
@@ -242,6 +244,8 @@ export async function registerPacketGrfAssets(
     qrGrfId:              null,
     compositeGrfId:       null,
     landingSnapshotGrfId: null,
+    glamorShotGrfId:      null,
+    storeFrontGrfId:      null,
   };
 
   const isStorageUrl = (url: string | null | undefined): url is string => {
@@ -285,6 +289,46 @@ export async function registerPacketGrfAssets(
       ...GRF_PACKET_SLOTS.urlSnapshot,
     });
     result.landingSnapshotGrfId = r.grfId;
+  }
+
+  return result;
+}
+
+// ── Mockup registration (post-commit) ─────────────────────────────────────────
+
+export interface MockupGrfIds {
+  glamorShotGrfId: string | null;
+  storeFrontGrfId: string | null;
+}
+
+/**
+ * Register lifestyle and priority mockup URLs as GRF assets.
+ * Called from the packet PATCH route when mockup URLs arrive (after commit).
+ */
+export async function registerMockupGrfAssets(
+  packetId:           string,
+  lifestyleMockupUrl: string | null,
+  priorityMockupUrl:  string | null,
+): Promise<MockupGrfIds> {
+  const result: MockupGrfIds = { glamorShotGrfId: null, storeFrontGrfId: null };
+
+  const isMockupUrl = (url: string | null | undefined): url is string =>
+    !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('data:');
+
+  if (isMockupUrl(lifestyleMockupUrl)) {
+    const r = await registerGrfAsset({
+      sourceUrl: lifestyleMockupUrl, mimeType: 'image/jpeg', packetId,
+      ...GRF_PACKET_SLOTS.glamorShot,
+    });
+    result.glamorShotGrfId = r.grfId;
+  }
+
+  if (isMockupUrl(priorityMockupUrl)) {
+    const r = await registerGrfAsset({
+      sourceUrl: priorityMockupUrl, mimeType: 'image/jpeg', packetId,
+      ...GRF_PACKET_SLOTS.storeFront,
+    });
+    result.storeFrontGrfId = r.grfId;
   }
 
   return result;

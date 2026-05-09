@@ -80,6 +80,8 @@ export interface DevGrfIds {
   qrGrfId:              string | null;
   compositeGrfId:       string | null;
   landingSnapshotGrfId: string | null;
+  glamorShotGrfId:      string | null;
+  storeFrontGrfId:      string | null;
 }
 
 async function getDb(): Promise<FirebaseFirestore.Firestore> {
@@ -87,7 +89,7 @@ async function getDb(): Promise<FirebaseFirestore.Firestore> {
   return getFirestoreDb();
 }
 
-async function registerGrfDev(opts: {
+export async function registerGrfDev(opts: {
   db:               FirebaseFirestore.Firestore;
   sourceUrl:        string;
   assetClass:       GrfAssetClass;
@@ -175,6 +177,7 @@ export async function registerPacketGrfsDev(
   const db = await getDb();
   const result: DevGrfIds = {
     backgroundGrfId: null, qrGrfId: null, compositeGrfId: null, landingSnapshotGrfId: null,
+    glamorShotGrfId: null, storeFrontGrfId: null,
   };
 
   const isStorageUrl = (u: string | null | undefined): u is string =>
@@ -195,6 +198,30 @@ export async function registerPacketGrfsDev(
   const snapshotUrl = packetData.landingPageSnapshotUrl || null;
   if (isStorageUrl(snapshotUrl))
     result.landingSnapshotGrfId = await registerGrfDev({ db, sourceUrl: snapshotUrl, ...GRF_PACKET_SLOTS.urlSnapshot, sourceSessionId, packetId });
+
+  return result;
+}
+
+/**
+ * Register lifestyle and priority mockup URLs as GRF assets (dev parity).
+ * Called from the dev-server PATCH handler when mockup URLs arrive post-commit.
+ */
+export async function registerMockupGrfsDev(
+  packetId:           string,
+  lifestyleMockupUrl: string | null,
+  priorityMockupUrl:  string | null,
+): Promise<{ glamorShotGrfId: string | null; storeFrontGrfId: string | null }> {
+  const db = await getDb();
+  const result = { glamorShotGrfId: null as string | null, storeFrontGrfId: null as string | null };
+
+  const isMockupUrl = (url: string | null | undefined): url is string =>
+    !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('data:');
+
+  if (isMockupUrl(lifestyleMockupUrl))
+    result.glamorShotGrfId = await registerGrfDev({ db, sourceUrl: lifestyleMockupUrl, mimeType: 'image/jpeg', packetId, ...GRF_PACKET_SLOTS.glamorShot });
+
+  if (isMockupUrl(priorityMockupUrl))
+    result.storeFrontGrfId = await registerGrfDev({ db, sourceUrl: priorityMockupUrl, mimeType: 'image/jpeg', packetId, ...GRF_PACKET_SLOTS.storeFront });
 
   return result;
 }

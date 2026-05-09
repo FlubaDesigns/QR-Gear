@@ -218,6 +218,16 @@ exports.GRF_PACKET_SLOTS = {
         assetClass: '2', mediaType: '1',
         channel: '3', purpose: '1', format: '1',
     },
+    /** Lifestyle / glamor shot — output_artifact · image · store · glamor_shot · jpeg */
+    glamorShot: {
+        assetClass: '2', mediaType: '1',
+        channel: '2', purpose: '1', format: '2',
+    },
+    /** Priority front mockup — output_artifact · image · store · front · jpeg */
+    storeFront: {
+        assetClass: '2', mediaType: '1',
+        channel: '2', purpose: '2', format: '2',
+    },
 };
 // ── Direct aliases ────────────────────────────────────────────────────────────
 exports.isValidGraphicId = isValidGrfId;

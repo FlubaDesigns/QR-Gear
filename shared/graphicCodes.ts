@@ -284,6 +284,16 @@ export const GRF_PACKET_SLOTS = {
     assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
     channel: '3' as GrfChannel, purpose: '1', format: '1',
   },
+  /** Lifestyle / glamor shot — output_artifact · image · store · glamor_shot · jpeg */
+  glamorShot: {
+    assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '2' as GrfChannel, purpose: '1', format: '2',
+  },
+  /** Priority front mockup — output_artifact · image · store · front · jpeg */
+  storeFront: {
+    assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '2' as GrfChannel, purpose: '2', format: '2',
+  },
 } satisfies Record<string, GrfSlotParams>;
 
 // ── Direct aliases ────────────────────────────────────────────────────────────

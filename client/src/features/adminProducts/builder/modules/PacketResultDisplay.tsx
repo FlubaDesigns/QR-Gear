@@ -18,6 +18,7 @@ interface PacketResult {
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
+  lifestyleMockupUrl?: string | null;
   compositeUrl?: string | null;
   assemblyId?: string | null;
   printifyProductId?: string | null;
@@ -418,6 +419,41 @@ export function PacketResultDisplay({
 
       <p className="text-base font-bold mb-3">Generated Thumbnails</p>
       <div className="grid grid-cols-2 gap-3">
+        {/* Lifestyle Shot — first in array (GRF: store · glamor_shot) */}
+        <Card className="overflow-hidden col-span-2">
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Shirt className="h-4 w-4" />
+              Lifestyle Shot
+            </p>
+            {packetResult.priorityMockupLoading ? (
+              <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : packetResult.lifestyleMockupUrl ? (
+              <button
+                type="button"
+                className="w-full bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px] cursor-pointer hover-elevate"
+                onClick={() => onThumbnailLightbox(packetResult.lifestyleMockupUrl!)}
+                data-testid="btn-lifestyle-mockup"
+              >
+                <img
+                  src={packetResult.lifestyleMockupUrl}
+                  alt="Lifestyle Shot"
+                  className="w-full max-w-[200px] h-auto object-contain"
+                  data-testid="img-packet-lifestyle"
+                />
+              </button>
+            ) : (
+              <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
+                <span className="text-xs text-gray-400">
+                  {packetResult.priorityMockupError ? 'Not available' : 'Generating...'}
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {!isPlayMode && !isBasicsOrPlusMode && (
           <Card className="overflow-hidden">
             <CardContent className="p-3">

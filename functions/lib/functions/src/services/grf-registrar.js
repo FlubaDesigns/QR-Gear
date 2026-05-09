@@ -24,6 +24,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerGrfAsset = registerGrfAsset;
 exports.registerPacketGrfAssets = registerPacketGrfAssets;
+exports.registerMockupGrfAssets = registerMockupGrfAssets;
 const core_1 = require("../core");
 const GRF_engine_1 = require("../../../shared/GRF_engine");
 const GRF_ASSETS_COLLECTION = 'grf_assets';
@@ -162,6 +163,8 @@ async function registerPacketGrfAssets(packetData, sourceSessionId, packetId) {
         qrGrfId: null,
         compositeGrfId: null,
         landingSnapshotGrfId: null,
+        glamorShotGrfId: null,
+        storeFrontGrfId: null,
     };
     const isStorageUrl = (url) => {
         if (!url || typeof url !== 'string' || url.trim() === '')
@@ -203,6 +206,29 @@ async function registerPacketGrfAssets(packetData, sourceSessionId, packetId) {
             ...GRF_engine_1.GRF_PACKET_SLOTS.urlSnapshot,
         });
         result.landingSnapshotGrfId = r.grfId;
+    }
+    return result;
+}
+/**
+ * Register lifestyle and priority mockup URLs as GRF assets.
+ * Called from the packet PATCH route when mockup URLs arrive (after commit).
+ */
+async function registerMockupGrfAssets(packetId, lifestyleMockupUrl, priorityMockupUrl) {
+    const result = { glamorShotGrfId: null, storeFrontGrfId: null };
+    const isMockupUrl = (url) => !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('data:');
+    if (isMockupUrl(lifestyleMockupUrl)) {
+        const r = await registerGrfAsset({
+            sourceUrl: lifestyleMockupUrl, mimeType: 'image/jpeg', packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS.glamorShot,
+        });
+        result.glamorShotGrfId = r.grfId;
+    }
+    if (isMockupUrl(priorityMockupUrl)) {
+        const r = await registerGrfAsset({
+            sourceUrl: priorityMockupUrl, mimeType: 'image/jpeg', packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS.storeFront,
+        });
+        result.storeFrontGrfId = r.grfId;
     }
     return result;
 }

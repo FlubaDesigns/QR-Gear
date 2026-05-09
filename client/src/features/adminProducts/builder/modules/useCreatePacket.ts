@@ -571,6 +571,7 @@ export function useCreatePacket({
         setPacketResult(prev => prev ? {
           ...prev,
           priorityMockupUrl: primaryMockupUrl,
+          lifestyleMockupUrl: lifestyleMockupUrl,
           priorityMockupLoading: false,
         } : prev);
         toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });

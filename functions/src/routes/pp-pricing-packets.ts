@@ -392,6 +392,20 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     // ── end assemblyId sync ────────────────────────────────────────────────
 
     await docRef.update({ ...cleanUpdates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+
+    // ── GRF registration for mockup URLs ────────────────────────────────────
+    const incomingLifestyle = cleanUpdates.lifestyleMockupUrl || null;
+    const incomingPriority  = cleanUpdates.priorityMockupUrl  || null;
+    if (incomingLifestyle || incomingPriority) {
+      try {
+        const { registerMockupGrfAssets } = await import('../services/grf-registrar');
+        await registerMockupGrfAssets(packetId, incomingLifestyle, incomingPriority);
+      } catch (grfErr: any) {
+        console.error(`[Packets PATCH] GRF mockup registration failed (non-fatal):`, grfErr.message);
+      }
+    }
+    // ── end GRF registration ─────────────────────────────────────────────────
+
     console.log(`[Packets PATCH] Updated packet ${packetId}:`, Object.keys(updates));
     res.json({ success: true, packetId, message: "Packet updated" });
   } catch (error: any) {

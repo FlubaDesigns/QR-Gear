@@ -37,6 +37,7 @@ export interface PacketResult {
   priorityMockupUrl?: string | null;
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
+  lifestyleMockupUrl?: string | null;
   compositeUrl?: string | null;
   assemblyId?: string | null;
   printifyProductId?: string | null;
