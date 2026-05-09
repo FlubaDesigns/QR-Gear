@@ -175,10 +175,20 @@ const CHANNEL_PURPOSE_FILENAMES = {
  * preserve the uploaded filename. Without it, falls back to "original.{ext}".
  *
  * Example: grfStoragePath('GRF-21211-000001') → 'grf/GRF-21211-000001/glamor.png'
+ * Example: grfStoragePath('GRF-11412-000001', 'my-photo.jpg') → 'grf/GRF-11412-000001/my-photo.jpg'
  */
-function grfStoragePath(grfId) {
+function grfStoragePath(grfId, originalFilename) {
     const parsed = parseGrfId(grfId);
     const ext = parsed.formatName === 'jpeg' ? 'jpg' : parsed.formatName;
+    // Originals preserve the uploaded filename as-is
+    if (parsed.channel === '4' && parsed.purpose === '1' && originalFilename) {
+        return `grf/${grfId}/${originalFilename}`;
+    }
+    // All other purposes use the canonical filename from the table
+    const canonical = CHANNEL_PURPOSE_FILENAMES[parsed.channel]?.[parsed.purpose];
+    if (canonical) {
+        return `grf/${grfId}/${canonical}.${ext}`;
+    }
     return `grf/${grfId}/${grfId}.${ext}`;
 }
 // ── MIME lookup ───────────────────────────────────────────────────────────────

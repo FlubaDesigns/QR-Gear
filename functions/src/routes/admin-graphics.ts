@@ -103,7 +103,7 @@ export function registerAdminGraphics(app: any): void {
       }
 
       const now = admin.firestore.FieldValue.serverTimestamp();
-      const canonicalStoragePath = storagePath || grfStoragePath(grfId);
+      const canonicalStoragePath = storagePath || grfStoragePath(grfId, originalFilename || undefined);
 
       let publicUrl = imageUrl;
       if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {

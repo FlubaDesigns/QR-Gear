@@ -340,7 +340,7 @@ export function registerAdminContentRoutes(app: Express): void {
       }
 
       const now = FieldValue.serverTimestamp();
-      const canonicalStoragePath = storagePath || grfStoragePath(grfId);
+      const canonicalStoragePath = storagePath || grfStoragePath(grfId, originalFilename || undefined);
 
       // If imageUrl is a base64 data URI, upload to Firebase Storage and use the public GCS URL
       let publicUrl = imageUrl;

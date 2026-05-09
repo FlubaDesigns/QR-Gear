@@ -84,7 +84,7 @@ function registerAdminGraphics(app) {
                 return;
             }
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            const canonicalStoragePath = storagePath || (0, GRF_engine_1.grfStoragePath)(grfId);
+            const canonicalStoragePath = storagePath || (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined);
             let publicUrl = imageUrl;
             if (typeof imageUrl === 'string' && imageUrl.startsWith('data:')) {
                 const bucket = (0, core_1.getStorageBucket)();
