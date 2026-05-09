@@ -54,10 +54,6 @@ export function CreateGraphicsModule() {
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
-  const [isSavingQr, setIsSavingQr] = useState(false);
-  const [isSavingCanvas, setIsSavingCanvas] = useState(false);
-  const [qrSaved, setQrSaved] = useState(false);
-  const [canvasSaved, setCanvasSaved] = useState(false);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
@@ -100,63 +96,12 @@ export function CreateGraphicsModule() {
     loadGraphic, resetBuilder, pricingSettings,
   });
 
-  // Reset save state whenever a new packet is created
+  // Reset packet tracking whenever a new packet is created
   useEffect(() => {
     if (packetResult?.packetId) {
       setActivePacketId(packetResult.packetId);
-      setQrSaved(false);
-      setCanvasSaved(false);
     }
   }, [packetResult?.packetId]);
-
-  const graphicName = (() => {
-    const parts = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean);
-    return parts.length > 0 ? parts.join(' / ') : (state.content?.title || null);
-  })();
-
-  const handleSaveQrGraphic = async () => {
-    if (isSavingQr || !packetResult?.qrOnlyUrl) return;
-    setIsSavingQr(true);
-    try {
-      await adminFetch('/graphics/save-grf', {
-        method: 'POST',
-        json: {
-          ...GRF_PACKET_SLOTS.qrStandalone,
-          imageUrl: packetResult.qrOnlyUrl,
-          name: graphicName ? `${graphicName} — QR Standalone` : 'QR Standalone',
-          relatedPacketId: packetResult.packetId || null,
-        },
-      });
-      setQrSaved(true);
-      toast({ title: 'QR Graphic saved to library' });
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err.message || 'Please try again.', variant: 'destructive' });
-    } finally {
-      setIsSavingQr(false);
-    }
-  };
-
-  const handleSaveCanvasDesign = async () => {
-    if (isSavingCanvas || !packetResult?.compositeUrl) return;
-    setIsSavingCanvas(true);
-    try {
-      await adminFetch('/graphics/save-grf', {
-        method: 'POST',
-        json: {
-          ...GRF_PACKET_SLOTS.qrComposite,
-          imageUrl: packetResult.compositeUrl,
-          name: graphicName ? `${graphicName} — QR Composite` : 'QR Composite',
-          relatedPacketId: packetResult.packetId || null,
-        },
-      });
-      setCanvasSaved(true);
-      toast({ title: 'Canvas Design saved to library' });
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err.message || 'Please try again.', variant: 'destructive' });
-    } finally {
-      setIsSavingCanvas(false);
-    }
-  };
 
   // When re-selecting a product whose session already has a packet, restore
   // the PacketResultDisplay automatically instead of showing "Create Packet".

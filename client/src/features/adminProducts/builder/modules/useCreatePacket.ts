@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { GRF_PACKET_SLOTS } from "@shared/graphicCodes";
 import type { PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
 import { useBuilderContext } from "../BuilderContext";
@@ -431,10 +432,6 @@ export function useCreatePacket({
         ? availableColors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color || '#000000' }))
         : [{ name: state.selectedColor?.name || 'Black', hex: state.selectedColor?.hex || '#000000' }];
 
-      // Template auto-save is intentionally removed from the commit flow.
-      // Templates are a separate concern and must not be part of schema-chain commits.
-      // Call /templates/full-save independently if template persistence is needed.
-
       // Legacy storeProductLinks creation removed — admin_catalog_instances
       // (created by the build session commit below) is now the sole source of truth.
 
@@ -477,6 +474,77 @@ export function useCreatePacket({
           setArtifactError(`Session could not be saved (${sessionErr.message}). Your packet data may not persist.`);
         }
       }
+
+      // ── Fire-and-forget: auto-populate GRF graphics + template library ──────
+      const grfName = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
+        .filter(Boolean).join(' / ') || product?.title || 'Product';
+
+      if (qrUrl) {
+        adminFetch('/graphics/save-grf', {
+          method: 'POST',
+          json: {
+            ...GRF_PACKET_SLOTS.qrStandalone,
+            imageUrl: qrUrl,
+            name: `${grfName} — QR Standalone`,
+            relatedPacketId: packetId,
+          },
+        }).catch((e: any) => console.warn('[CreatePacket] GRF qrStandalone auto-save failed:', e.message));
+      }
+
+      if (productGraphicUrl) {
+        adminFetch('/graphics/save-grf', {
+          method: 'POST',
+          json: {
+            ...GRF_PACKET_SLOTS.qrComposite,
+            imageUrl: productGraphicUrl,
+            name: `${grfName} — QR Composite`,
+            relatedPacketId: packetId,
+          },
+        }).catch((e: any) => console.warn('[CreatePacket] GRF qrComposite auto-save failed:', e.message));
+      }
+
+      const templateColors = productColors.length > 0 ? productColors : [{ name: 'Black', hex: '#000000' }];
+      adminFetch('/templates/full-save', {
+        method: 'POST',
+        json: {
+          name: grfName,
+          blueprintId: product?.blueprintId || 0,
+          printProviderId: product?.printProviderId || null,
+          fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
+          colors: templateColors,
+          placements: state.selectedPlacements?.length > 0 ? state.selectedPlacements : ['front'],
+          placementMethods: state.placementConfig || {},
+          artworkUrl: productGraphicUrl || '',
+          thumbnailUrl: productGraphicUrl || '',
+          packetId,
+          productName: product?.title || product?.name || null,
+          qrContent: finalQrContent || '',
+          pricing,
+          headerText: state.content?.headerStyle?.enabled ? state.content.headerStyle.text : null,
+          footerText: state.content?.footerStyle?.enabled ? state.content.footerStyle.text : null,
+          headerStyle: state.content?.headerStyle?.enabled ? state.content.headerStyle : null,
+          footerStyle: state.content?.footerStyle?.enabled ? state.content.footerStyle : null,
+          subBottomEnabled: state.content?.subBottomStyle?.enabled || false,
+          subBottomText: state.content?.subBottomStyle?.text || '',
+          subBottomFontFamily: state.content?.subBottomStyle?.fontFamily || 'Arial',
+          subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
+          subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
+          subBottomColor: state.content?.subBottomStyle?.color || '#666666',
+          backgroundUrl: state.loadedBackground?.url || null,
+          qrProductState: state.qrProductState || 'qr_canvas',
+          areaImageUrl: state.content?.areaImageUrl || null,
+          areaImageMode: state.content?.areaImageMode || 'behind-qr',
+          areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
+          areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
+          areaImageScale: state.content?.areaImageScale ?? 100,
+          graphicLayoutMode: state.content?.graphicLayoutMode || 'zone',
+          qrSizePercent: state.content?.qrSizePercent ?? 75,
+          qrPositionX: state.content?.qrPositionX ?? 50,
+          qrPositionY: state.content?.qrPositionY ?? 50,
+          storeId: selectedStore?.id || null,
+          channelId: selectedChannel?.id || null,
+        },
+      }).catch((e: any) => console.warn('[CreatePacket] Template auto-save failed:', e.message));
 
       loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl });
 
