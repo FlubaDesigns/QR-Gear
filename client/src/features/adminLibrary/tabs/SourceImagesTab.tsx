@@ -150,6 +150,7 @@ function SourceImagesTabInner() {
         method: "POST",
         json: {
           ...originalGrfParams(mimeType),
+          name: params.originalFilename || params.name,
           originalFilename: params.originalFilename || params.name,
           mimeType,
           imageUrl: `data:${mimeType};base64,${params.imageData}`,
