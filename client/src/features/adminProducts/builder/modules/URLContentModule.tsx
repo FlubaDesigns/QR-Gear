@@ -2,7 +2,7 @@ import { FileText, Plus, Trash2 } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
-import { LibraryBackgroundPicker, type SelectedBackground } from "@/features/shared/components/LibraryBackgroundPicker";
+import { GRFImagePicker, type SelectedBackground } from "@/features/shared/components/GRFImagePicker";
 import { TextStyleEditor, type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { LandingPageViewer } from "@/features/shared/components/LandingPageViewer";
 
@@ -74,7 +74,7 @@ export function URLContentModule() {
             Configure the landing page background and text blocks
           </p>
 
-          <LibraryBackgroundPicker
+          <GRFImagePicker
             selectedId={state.loadedBackground?.id}
             onSelect={handleSelectBackground}
             onClear={handleClearBackground}
