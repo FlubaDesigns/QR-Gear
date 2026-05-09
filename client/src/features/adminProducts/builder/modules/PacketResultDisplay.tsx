@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ImageModalView } from "@/features/shared/components/views/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
+import PhoneMockupCard from "@/components/PhoneMockupCard";
 import type { PricingBreakdown } from "../types";
 
 interface PacketResult {
@@ -629,6 +630,18 @@ export function PacketResultDisplay({
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* ── QR → Landing Page preview — "Scan It" card ── */}
+        {(packetResult.qrOnlyUrl || packetResult.landingPageSnapshotUrl) && (
+          <div className="col-span-2">
+            <PhoneMockupCard
+              qrCodeUrl={packetResult.qrOnlyUrl || null}
+              landingPageSnapshotUrl={packetResult.landingPageSnapshotUrl || null}
+              qrProductType="qr-basics"
+              productName={undefined}
+            />
+          </div>
         )}
       </div>
 
