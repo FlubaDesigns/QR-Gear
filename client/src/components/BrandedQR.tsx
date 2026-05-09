@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
-import qLogoSrc from "@assets/file_000000002248722f8de433ffa27b321e~2_1775452887346.png";
+import qLogoSrc from "@assets/qr_gear_logo_transparent_1778357953260.png";
 
 export function generateBrandedQRDataUrl(content: string, size: number = 200, qrColor: "black" | "white" = "black"): Promise<string> {
   return new Promise((resolve) => {
