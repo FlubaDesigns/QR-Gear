@@ -101,19 +101,19 @@ function BackgroundsTabInner() {
       ),
   });
 
-  const archiveMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (skinId: string) => {
       const raw = assets.find(a => (a.grfId || a.id) === skinId);
-      const id  = raw?.id ?? skinId;
-      return adminFetch(`/graphics/${id}/archive`, { method: "PATCH" });
+      const grfId = raw?.grfId || raw?.id || skinId;
+      return adminFetch(`/graphics/${grfId}`, { method: "DELETE" });
     },
     onSuccess: () => {
-      toast({ title: "Image archived" });
+      toast({ title: "Image deleted" });
       queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
     },
     onError: (error: Error) => {
-      console.error("[BackgroundsTab] Archive error:", error.message);
-      toast({ title: "Archive failed", description: error.message, variant: "destructive" });
+      console.error("[BackgroundsTab] Delete error:", error.message);
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -129,7 +129,7 @@ function BackgroundsTabInner() {
     setCropDialogOpen(true);
   };
 
-  const handleArchive = (skinId: string) => archiveMutation.mutate(skinId);
+  const handleArchive = (skinId: string) => deleteMutation.mutate(skinId);
 
   const handleSaveCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset) {
@@ -216,7 +216,7 @@ function BackgroundsTabInner() {
                 onCrop:   handleStartCrop,
                 onDelete: handleArchive,
               }}
-              isActionPending={archiveMutation.isPending}
+              isActionPending={deleteMutation.isPending}
             />
           )}
         />

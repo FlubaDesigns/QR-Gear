@@ -30,13 +30,26 @@ function registerAdminLibrarySource(app) {
                 newSeq = (doc.exists ? doc.data().count : 0) + 1;
                 tx.set(counterRef, { count: newSeq, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
             });
-            const grfId = (0, GRF_engine_1.buildGrfId)({ ...grfParams, sequence: newSeq });
-            const parsed = (0, GRF_engine_1.parseGrfId)(grfId);
-            const existingAsset = await core_1.db.collection('grf_assets').doc(grfId).get();
-            if (existingAsset.exists) {
-                console.error(`[UploadSource] Counter integrity violation — ${grfId} already exists.`);
-                res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned.` });
-                return;
+            let grfId = (0, GRF_engine_1.buildGrfId)({ ...grfParams, sequence: newSeq });
+            let parsed = (0, GRF_engine_1.parseGrfId)(grfId);
+            // Advance past any legacy docs that already occupy this sequence slot.
+            const MAX_RETRIES = 10;
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                const existing = await core_1.db.collection('grf_assets').doc(grfId).get();
+                if (!existing.exists)
+                    break;
+                console.warn(`[UploadSource] Sequence collision at ${grfId} (attempt ${attempt + 1}) — advancing counter`);
+                if (attempt === MAX_RETRIES - 1) {
+                    res.status(500).json({ error: `GRF counter exhausted: could not find free slot after ${MAX_RETRIES} attempts.` });
+                    return;
+                }
+                await core_1.db.runTransaction(async (tx) => {
+                    const doc = await tx.get(counterRef);
+                    newSeq = (doc.exists ? doc.data().count : 0) + 1;
+                    tx.set(counterRef, { count: newSeq, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
+                });
+                grfId = (0, GRF_engine_1.buildGrfId)({ ...grfParams, sequence: newSeq });
+                parsed = (0, GRF_engine_1.parseGrfId)(grfId);
             }
             const storagePath = (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined);
             const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, '');
@@ -48,7 +61,6 @@ function registerAdminLibrarySource(app) {
             const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
             const publicUrl = `https://storage.googleapis.com/${core_1.STORAGE_BUCKET_NAME}/${encodedPath}`;
             const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            const displayName = name || originalFilename || grfId;
             await core_1.db.collection('grf_assets').doc(grfId).set({
                 grfId,
                 assetClass: parsed.assetClass,
@@ -63,8 +75,8 @@ function registerAdminLibrarySource(app) {
                 purposeName: parsed.purposeName,
                 formatName: parsed.formatName,
                 mimeType,
-                name: displayName,
-                originalFilename: originalFilename || null,
+                name: grfId,
+                originalFilename: originalFilename || name || null,
                 storagePath,
                 publicUrl,
                 sourceGrfId: null,
@@ -72,7 +84,7 @@ function registerAdminLibrarySource(app) {
                 createdBy: 'admin',
                 isActive: true,
             });
-            console.log(`[UploadSource] Minted ${grfId} — name="${displayName}"`);
+            console.log(`[UploadSource] Minted ${grfId} (originalFilename="${originalFilename || name || null}")`);
             const doc = await core_1.db.collection('grf_assets').doc(grfId).get();
             const saved = doc.data();
             res.json({ success: true, grfId, asset: saved });

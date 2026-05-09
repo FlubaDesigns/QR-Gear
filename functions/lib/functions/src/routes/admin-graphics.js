@@ -162,5 +162,39 @@ function registerAdminGraphics(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // ── DELETE /admin/graphics/:grfId ─────────────────────────────────────────────
+    app.delete('/admin/graphics/:grfId', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { grfId } = req.params;
+            if (!(0, GRF_engine_1.isValidGraphicId)(grfId)) {
+                res.status(400).json({ error: `Invalid GRF ID format: ${grfId}` });
+                return;
+            }
+            const docRef = core_1.db.collection('grf_assets').doc(grfId);
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                res.status(404).json({ error: `GRF asset not found: ${grfId}` });
+                return;
+            }
+            const storagePath = doc.data()?.storagePath;
+            if (storagePath) {
+                try {
+                    const bucket = (0, core_1.getStorageBucket)();
+                    await bucket.file(storagePath).delete();
+                    console.log(`[GRF] Deleted Storage file: ${storagePath}`);
+                }
+                catch (storageErr) {
+                    console.warn(`[GRF] Storage file not found or already deleted (${storagePath}): ${storageErr.message}`);
+                }
+            }
+            await docRef.delete();
+            console.log(`[GRF] Permanently deleted ${grfId}`);
+            res.json({ success: true, grfId });
+        }
+        catch (error) {
+            console.error('[GRF] Error deleting graphic:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
 }
 //# sourceMappingURL=admin-graphics.js.map

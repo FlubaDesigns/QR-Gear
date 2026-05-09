@@ -92,16 +92,16 @@ function CroppedImagesTabInner() {
       ),
   });
 
-  const archiveMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (grfId: string) =>
-      adminFetch(`/graphics/${grfId}/archive`, { method: "PATCH" }),
+      adminFetch(`/graphics/${grfId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast({ title: "Image archived" });
+      toast({ title: "Image deleted" });
       queryClient.invalidateQueries({ queryKey: CROPPED_QK });
     },
     onError: (error: Error) => {
-      console.error("[CroppedImagesTab] Archive error:", error.message);
-      toast({ title: "Archive failed", description: error.message, variant: "destructive" });
+      console.error("[CroppedImagesTab] Delete error:", error.message);
+      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -133,8 +133,8 @@ function CroppedImagesTabInner() {
         renderItem={(item) => (
           <CroppedCardSkin
             item={item}
-            actions={{ onDelete: (id) => archiveMutation.mutate(id) }}
-            isActionPending={archiveMutation.isPending}
+            actions={{ onDelete: (id) => deleteMutation.mutate(id) }}
+            isActionPending={deleteMutation.isPending}
           />
         )}
       />

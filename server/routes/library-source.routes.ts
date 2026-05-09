@@ -47,13 +47,25 @@ export function registerLibrarySourceRoutes(app: Express): void {
         tx.set(counterRef, { count: newSeq, updatedAt: FieldValue.serverTimestamp() });
       });
 
-      const grfId  = buildGrfId({ ...grfParams, sequence: newSeq });
-      const parsed = parseGrfId(grfId);
+      let grfId  = buildGrfId({ ...grfParams, sequence: newSeq });
+      let parsed = parseGrfId(grfId);
 
-      const existingAsset = await db.collection("grf_assets").doc(grfId).get();
-      if (existingAsset.exists) {
-        console.error(`[UploadSource] Counter integrity violation — ${grfId} already exists.`);
-        return res.status(500).json({ error: `GRF counter integrity error: ${grfId} was already assigned.` });
+      // Advance past any legacy docs that already occupy this sequence slot.
+      const MAX_RETRIES = 10;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const existing = await db.collection("grf_assets").doc(grfId).get();
+        if (!existing.exists) break;
+        console.warn(`[UploadSource] Sequence collision at ${grfId} (attempt ${attempt + 1}) — advancing counter`);
+        if (attempt === MAX_RETRIES - 1) {
+          return res.status(500).json({ error: `GRF counter exhausted: could not find free slot after ${MAX_RETRIES} attempts.` });
+        }
+        await db.runTransaction(async (tx: any) => {
+          const doc = await tx.get(counterRef);
+          newSeq = (doc.exists ? (doc.data()!.count as number) : 0) + 1;
+          tx.set(counterRef, { count: newSeq, updatedAt: FieldValue.serverTimestamp() });
+        });
+        grfId  = buildGrfId({ ...grfParams, sequence: newSeq });
+        parsed = parseGrfId(grfId);
       }
 
       const storagePath   = grfStoragePath(grfId, originalFilename || undefined);
@@ -66,8 +78,6 @@ export function registerLibrarySourceRoutes(app: Express): void {
       const publicUrl     = `https://storage.googleapis.com/${bucketName}/${encodedPath}`;
 
       const now = FieldValue.serverTimestamp();
-      const displayName = name || originalFilename || grfId;
-
       await db.collection("grf_assets").doc(grfId).set({
         grfId,
         assetClass:     parsed.assetClass,
@@ -82,8 +92,8 @@ export function registerLibrarySourceRoutes(app: Express): void {
         purposeName:    parsed.purposeName,
         formatName:     parsed.formatName,
         mimeType,
-        name:           displayName,
-        originalFilename: originalFilename || null,
+        name:             grfId,
+        originalFilename: originalFilename || name || null,
         storagePath,
         publicUrl,
         sourceGrfId:    null,
@@ -92,7 +102,7 @@ export function registerLibrarySourceRoutes(app: Express): void {
         isActive:       true,
       });
 
-      console.log(`[UploadSource] Minted ${grfId} — name="${displayName}"`);
+      console.log(`[UploadSource] Minted ${grfId} (originalFilename="${originalFilename || name || null}")`);
 
       const doc   = await db.collection("grf_assets").doc(grfId).get();
       const saved = doc.data();

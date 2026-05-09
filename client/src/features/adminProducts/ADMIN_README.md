@@ -302,6 +302,35 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 
 ## Recent Changes Log
 
+### May 9, 2026 — Source Upload: Counter Collision Retry + GRF ID as Display Name
+
+Two fixes to `POST /library/upload-source`:
+1. **Counter collision retry** — if the minted GRF ID already exists in `grf_assets` (legacy doc occupying that slot), the endpoint now advances the counter and retries up to 10 times instead of returning a 500.
+2. **Name stored as GRF ID** — `name` field in the new doc is now always `grfId`; original filename is preserved in `originalFilename` for reference. Frontend `assetToSkinItem` mapper updated to prefer `asset.grfId` over `asset.name`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `server/routes/library-source.routes.ts` | Retry loop (up to 10 attempts) past collision slots; `name: grfId` |
+| `functions/src/routes/admin-library-source.ts` | Matching changes |
+| `client/src/features/adminLibrary/tabs/SourceImagesTab.tsx` | `assetToSkinItem` mapper: `asset.grfId \|\| asset.name` |
+
+---
+
+### May 9, 2026 — Permanent Delete for Background and Cropped Images
+
+Trash icon on Background and Cropped cards now permanently deletes (Firestore doc + Storage file) instead of archiving. New `DELETE /admin/graphics/:grfId` endpoint added to both dev server and Cloud Functions. Storage delete is best-effort — warns and continues if the file is already gone. Frontend `archiveMutation` renamed to `deleteMutation` in both tabs; toast updated to "Image deleted".
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/admin-graphics.ts` | Added `DELETE /admin/graphics/:grfId` — deletes Firestore doc + Storage file |
+| `server/routes/admin-content.routes.ts` | Matching `DELETE /api/admin/graphics/:grfId` for dev server |
+| `client/src/features/adminLibrary/tabs/BackgroundsTab.tsx` | `archiveMutation` → `deleteMutation`, calls `DELETE /graphics/:grfId` |
+| `client/src/features/adminLibrary/tabs/CroppedImagesTab.tsx` | Same rename and endpoint change |
+
+---
+
 ### May 9, 2026 — VVSS Alignment: Backgrounds and Cropped Tabs Go Flat (1·1·1·0)
 
 Corrected the VVSS code for both the Backgrounds and Cropped tabs from `1·1·1·1` to `1·1·1·0` (flat — no Shape popup). Both tabs now place all actions (crop, archive/delete) directly on the card tile inside the Skin. No popup state anywhere. `BackgroundsTab.tsx` had `selectedItem`, `detailOpen`, `handleSelect`, and a `<BackgroundShape>` JSX block — all removed. `CroppedImageSkin.tsx` had an internal `useState`, `ModalView`, and `CroppedDetailShape` popup block — all stripped. `VVSS.md` real examples table updated for both entries.
