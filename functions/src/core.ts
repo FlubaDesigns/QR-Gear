@@ -8,6 +8,11 @@ export { admin };
 export const db = admin.firestore();
 export const storage = admin.storage();
 
+export const STORAGE_BUCKET_NAME = 'qrgear-c1ffd.firebasestorage.app';
+export function getStorageBucket() {
+  return admin.storage().bucket(STORAGE_BUCKET_NAME);
+}
+
 export type FulfillmentProvider = 'printify' | 'printful';
 export type PrintMethod = 'dtg' | 'dtf';
 

@@ -33,7 +33,8 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PARTNER_API_KEY = exports.WIDGET_API_KEY = exports.WIDGET_JWT_SECRET = exports.LABEL_PLACEMENTS_PRINTFUL = exports.QR_GEAR_BRANDED_TAG_URL = exports.INTERNAL_TO_PRINTFUL_DTF = exports.INTERNAL_TO_PRINTFUL = exports.PRINTFUL_TO_INTERNAL = exports.PRINTIFY_TO_INTERNAL = exports.storage = exports.db = exports.admin = void 0;
+exports.PARTNER_API_KEY = exports.WIDGET_API_KEY = exports.WIDGET_JWT_SECRET = exports.LABEL_PLACEMENTS_PRINTFUL = exports.QR_GEAR_BRANDED_TAG_URL = exports.INTERNAL_TO_PRINTFUL_DTF = exports.INTERNAL_TO_PRINTFUL = exports.PRINTFUL_TO_INTERNAL = exports.PRINTIFY_TO_INTERNAL = exports.STORAGE_BUCKET_NAME = exports.storage = exports.db = exports.admin = void 0;
+exports.getStorageBucket = getStorageBucket;
 exports.normalizePlacement = normalizePlacement;
 exports.normalizePlacements = normalizePlacements;
 exports.toProviderPlacement = toProviderPlacement;
@@ -60,6 +61,10 @@ if (!admin.apps.length) {
 }
 exports.db = admin.firestore();
 exports.storage = admin.storage();
+exports.STORAGE_BUCKET_NAME = 'qrgear-c1ffd.firebasestorage.app';
+function getStorageBucket() {
+    return admin.storage().bucket(exports.STORAGE_BUCKET_NAME);
+}
 exports.PRINTIFY_TO_INTERNAL = {
     'front': 'front', 'back': 'back', 'pocket': 'pocket',
     'sleeve_left': 'left_sleeve', 'sleeve_right': 'right_sleeve',
