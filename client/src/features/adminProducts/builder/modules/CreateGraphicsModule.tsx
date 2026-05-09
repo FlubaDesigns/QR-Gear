@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, Loader2, Check, BookmarkCheck, CheckCircle2, Copy, Pencil, QrCode, Layers } from "lucide-react";
+import { Package, Loader2, Check, CheckCircle2, Copy, Pencil, QrCode, Layers } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -93,8 +93,8 @@ export function CreateGraphicsModule() {
 
   const {
     isCreating, packetResult, error, isDeleting,
-    isCommitting, artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
-    handleCommitSession, setPacketResult,
+    artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    setPacketResult,
   } = useCreatePacket({
     state, selectedRole, selectedStore, selectedChannel, selectedCollection,
     loadGraphic, resetBuilder, pricingSettings,
@@ -242,7 +242,7 @@ export function CreateGraphicsModule() {
 
   return (
     <CollapsibleModule
-      title="Create Packet"
+      title="Finalize"
       icon={<Package className="h-4 w-4" />}
       className="bg-muted/30"
       defaultOpen
@@ -371,33 +371,6 @@ export function CreateGraphicsModule() {
           </div>
         )}
 
-        {/* Build session commit — only shown when session artifact is ready */}
-        {packetResult && hasActiveSession && sessionStatus === 'artifact_ready' && (
-          <div className="pt-2 border-t space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Packet is ready. Save this as a permanent admin catalog instance.
-            </p>
-            <Button
-              type="button"
-              className="w-full"
-              onClick={handleCommitSession}
-              disabled={isCommitting}
-              data-testid="button-commit-session"
-            >
-              {isCommitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Saving…
-                </>
-              ) : (
-                <>
-                  <BookmarkCheck className="h-4 w-4 mr-2" />
-                  Save as Admin Instance
-                </>
-              )}
-            </Button>
-          </div>
-        )}
 
         {/* Committed confirmation + Phase 2 actions */}
         {packetResult && hasActiveSession && sessionStatus === 'committed' && (
