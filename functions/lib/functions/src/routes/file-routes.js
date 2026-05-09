@@ -192,89 +192,10 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // ============ LEGACY library_assets ENDPOINTS — REMOVED ============
-    // All routes below return 410 Gone. Clients must use grf_assets endpoints instead:
-    //   Backgrounds : GET /admin/graphics?assetClass=1&purpose=6
-    //   URL/landing : GET /admin/graphics?assetClass=2&channel=3&purpose=3
-    //   Upload/mint : POST /admin/graphics/save-grf
-    //   Archive     : PATCH /admin/graphics/:grfId/archive
-    app.get('/admin/background-assets', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=1&purpose=6' });
-    });
-    app.post('/admin/background-assets', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use POST /admin/graphics/save-grf' });
-    });
-    app.post('/admin/background-assets/sync', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed.' });
-    });
-    app.delete('/admin/background-assets/:id', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
-    });
-    app.get('/admin/library/admin', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use GET /admin/graphics?assetClass=2&channel=3&purpose=3' });
-    });
-    app.get('/admin/library/templates', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use GET /admin/templates' });
-    });
-    app.put('/admin/library/:id', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
-    });
-    app.delete('/admin/library/:id', middleware_1.requireAdmin, (_req, res) => {
-        res.status(410).json({ error: 'Removed. Use PATCH /admin/graphics/:grfId/archive' });
-    });
-    // POST /admin/graphics/save-grf is handled by admin-graphics.ts (registered after this file).
-    // That version correctly uploads base64 data URIs to Firebase Storage before writing to Firestore.
-    // Admin: Get GRF assets, optionally filtered by any descriptor digit.
-    // Filtered in memory to avoid requiring composite Firestore indexes.
-    app.get('/admin/graphics', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { assetClass, mediaType, channel, purpose, format } = req.query;
-            const snapshot = await core_1.db.collection('grf_assets').where('isActive', '==', true).get();
-            const getTime = (val) => {
-                if (!val)
-                    return 0;
-                if (typeof val === 'string')
-                    return new Date(val).getTime() || 0;
-                if (val.toDate)
-                    return val.toDate().getTime();
-                if (val._seconds)
-                    return val._seconds * 1000;
-                return 0;
-            };
-            const assets = snapshot.docs
-                .map((doc) => (0, core_1.docToObject)(doc))
-                .filter((a) => (!assetClass || a.assetClass === assetClass) &&
-                (!mediaType || a.mediaType === mediaType) &&
-                (!channel || a.channel === channel) &&
-                (!purpose || a.purpose === purpose) &&
-                (!format || a.format === format))
-                .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
-            res.json(assets);
-        }
-        catch (error) {
-            console.error('[GRF] Error fetching graphics:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Admin: Archive (soft-delete) a GRF asset
-    app.patch('/admin/graphics/:grfId/archive', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { grfId } = req.params;
-            const docRef = core_1.db.collection('grf_assets').doc(grfId);
-            const doc = await docRef.get();
-            if (!doc.exists) {
-                res.status(404).json({ error: `GRF asset not found: ${grfId}` });
-                return;
-            }
-            await docRef.update({ isActive: false, archivedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
-            console.log(`[GRF] Archived ${grfId}`);
-            res.json({ success: true, grfId });
-        }
-        catch (error) {
-            console.error('[GRF] Error archiving graphic:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
+    // GRF asset routes live exclusively in admin-graphics.ts (registered after this file).
+    // admin-graphics.ts is the single source of truth — imports from GRF_engine,
+    // handles GET /admin/graphics, POST /admin/graphics/save-grf,
+    // and PATCH /admin/graphics/:grfId/archive.
     // Admin: Get mockups for a template
     app.get('/admin/templates/:templateId/mockups', middleware_1.requireAdmin, async (req, res) => {
         try {
