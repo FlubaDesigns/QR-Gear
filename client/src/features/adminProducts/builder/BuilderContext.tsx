@@ -434,6 +434,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       return;
     }
 
+    // Don't attempt to PATCH a finalized session — the server will reject it with 409.
+    if (state.sessionStatus === 'committed' || state.sessionStatus === 'abandoned') {
+      flushSaveRef.current = null;
+      return;
+    }
+
     // Build snapshot immediately so flushSaveRef always has the latest data,
     // even if the 1.5-second debounce timer hasn't fired yet when the user navigates away.
     const snapshot = buildWorkingSnapshot(state, { selectedRole, selectedStore, selectedChannel, selectedCollection });
