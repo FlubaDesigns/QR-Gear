@@ -1,10 +1,11 @@
 // VVSS 1·3·1·0 — SlideView (folder tabs) / flat card skins / no popup Shape
 // Three folders driven by GRF engine constants: Source, Cropped, Background.
 // Background folder adds an optional crop step before selection.
+// Source folder adds a crop-mint step so uploads can be cropped into derivatives.
 
 import { useState, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw, Upload, ImageIcon, Check } from "lucide-react";
+import { Loader2, RefreshCw, Upload, ImageIcon, Check, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminFetch } from "@/lib/adminFetch";
 import { ScrollGridView } from "./views/ScrollGridView";
@@ -32,6 +33,7 @@ interface GrfAsset {
   mimeType: string;
   isActive: boolean;
   originalFilename?: string;
+  sourceGrfId?: string | null;
 }
 
 export interface SelectedBackground {
@@ -49,6 +51,7 @@ export interface GRFImagePickerProps {
 }
 
 type Tab = "source" | "cropped" | "background";
+type CropMode = "source" | "background";
 
 const TABS: Tab[] = ["source", "cropped", "background"];
 
@@ -91,8 +94,10 @@ export function GRFImagePicker({
 
   const [activeTab, setActiveTab] = useState<Tab>("background");
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [cropAsset, setCropAsset] = useState<CropAsset | null>(null);
+  const [cropMode, setCropMode] = useState<CropMode>("background");
   const [pendingBg, setPendingBg] = useState<GrfAsset | null>(null);
 
   // ── Queries — all three load eagerly so tab switching is instant ───────────
@@ -172,22 +177,77 @@ export function GRFImagePicker({
     [toast, queryClient]
   );
 
-  // ── Selection handlers ─────────────────────────────────────────────────────
+  // ── Source crop (crop-mint → creates cropped derivative + background) ──────
+
+  const handleStartSourceCrop = (asset: GrfAsset) => {
+    setCropMode("source");
+    setCropAsset({ id: asset.grfId, name: asset.name, imageUrl: asset.publicUrl });
+    setCropOpen(true);
+    console.log("[GRFImagePicker] Starting source crop for:", asset.grfId);
+  };
+
+  const handleSaveSourceCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
+    if (!sourceAsset) {
+      console.error("[GRFImagePicker] handleSaveSourceCrop: no sourceAsset");
+      return;
+    }
+
+    const raw = sourceAssets.find((a) => a.grfId === sourceAsset.id);
+    const grfId = raw?.grfId || sourceAsset.id;
+    const origMime = raw?.mimeType || "image/jpeg";
+    const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
+    const origUrl = raw?.publicUrl || sourceAsset.imageUrl;
+
+    const croppedImageData = croppedDataUrl.startsWith("data:")
+      ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
+      : croppedDataUrl;
+
+    setSaving(true);
+    try {
+      await adminFetch("/library/crop-mint", {
+        method: "POST",
+        json: {
+          croppedImageData,
+          croppedMimeType: "image/jpeg",
+          originalMimeType: origMime,
+          originalPublicUrl: origUrl,
+          sourceGrfId: grfId,
+        },
+      });
+
+      toast({ title: "Crop saved", description: `Cropped derivative and background created from "${origName}".` });
+      queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
+      queryClient.invalidateQueries({ queryKey: CROPPED_QK });
+      queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
+      setCropOpen(false);
+      setCropAsset(null);
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error("[GRFImagePicker] Crop-mint failed:", error.message);
+      toast({ title: "Crop failed", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Background selection handlers ──────────────────────────────────────────
 
   const handleSelectDirect = (asset: GrfAsset) => {
     onSelect({ id: asset.grfId, name: asset.name, url: asset.publicUrl });
   };
 
   const handleSelectBackground = (asset: GrfAsset) => {
+    setCropMode("background");
     setPendingBg(asset);
     setCropAsset({ id: asset.grfId, name: asset.name, imageUrl: asset.publicUrl });
     setCropOpen(true);
   };
 
   const handleCropComplete = (resultUrl: string) => {
-    if (!pendingBg) return;
-    onSelect({ id: pendingBg.grfId, name: pendingBg.name, url: resultUrl });
-    setPendingBg(null);
+    if (cropMode === "background" && pendingBg) {
+      onSelect({ id: pendingBg.grfId, name: pendingBg.name, url: resultUrl });
+      setPendingBg(null);
+    }
   };
 
   const handleCropClose = (open: boolean) => {
@@ -245,6 +305,20 @@ export function GRFImagePicker({
                       </div>
                     </div>
                   )}
+                  {tab === "source" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartSourceCrop(item._raw);
+                      }}
+                      className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded p-1 transition-colors"
+                      title="Crop this image"
+                      data-testid={`button-crop-source-${item.id}`}
+                    >
+                      <Crop className="h-3 w-3" />
+                    </button>
+                  )}
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
                     {item.name}
                   </div>
@@ -290,30 +364,35 @@ export function GRFImagePicker({
       <div>
         {activeTab === "source" && (
           <div className="space-y-2">
-            <div className="flex justify-end">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-                data-testid="input-picker-upload"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                data-testid="button-picker-upload"
-              >
-                {uploading ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <Upload className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                Upload
-              </Button>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Click the crop icon on any image to crop it into a background.
+              </p>
+              <div className="flex-shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  data-testid="input-picker-upload"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  data-testid="button-picker-upload"
+                >
+                  {uploading ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  Upload
+                </Button>
+              </div>
             </div>
             {renderGrid(sourceAssets, loadingSource, "source")}
           </div>
@@ -362,15 +441,17 @@ export function GRFImagePicker({
         </div>
       )}
 
-      {/* Crop dialog — Background folder only */}
+      {/* Unified crop dialog — used for both source crop-mint and background adjust */}
       <CropUtility
         asset={cropAsset}
         open={cropOpen}
         onOpenChange={handleCropClose}
-        onCropComplete={handleCropComplete}
+        onSave={cropMode === "source" ? handleSaveSourceCrop : undefined}
+        onCropComplete={cropMode === "background" ? handleCropComplete : undefined}
+        isSaving={saving}
         allowCropToggle
         aspectRatio={9 / 16}
-        title="Adjust Background"
+        title={cropMode === "source" ? "Crop Source Image" : "Adjust Background"}
       />
     </div>
   );
