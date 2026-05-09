@@ -503,6 +503,18 @@ export function useCreatePacket({
         }).catch((e: any) => console.warn('[CreatePacket] GRF qrComposite auto-save failed:', e.message));
       }
 
+      if (landingPageSnapshotUrl) {
+        adminFetch('/graphics/save-grf', {
+          method: 'POST',
+          json: {
+            ...GRF_PACKET_SLOTS.urlSnapshot,
+            imageUrl: landingPageSnapshotUrl,
+            name: `${grfName} — URL Snapshot`,
+            relatedPacketId: packetId,
+          },
+        }).catch((e: any) => console.warn('[CreatePacket] GRF urlSnapshot auto-save failed:', e.message));
+      }
+
       const templateColors = productColors.length > 0 ? productColors : [{ name: 'Black', hex: '#000000' }];
       adminFetch('/templates/full-save', {
         method: 'POST',
