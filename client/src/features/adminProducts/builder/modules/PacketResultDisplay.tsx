@@ -19,6 +19,7 @@ interface PacketResult {
   priorityMockupLoading?: boolean;
   priorityMockupError?: string | null;
   lifestyleMockupUrl?: string | null;
+  placementMockupUrls?: Record<string, string> | null;
   compositeUrl?: string | null;
   assemblyId?: string | null;
   printifyProductId?: string | null;
@@ -284,6 +285,13 @@ function PrintifySection({
   );
 }
 
+function formatPlacementLabel(placement: string): string {
+  return placement
+    .split(/[_\s]+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 export function PacketResultDisplay({
   packetResult,
   selectedColor,
@@ -537,20 +545,66 @@ export function PacketResultDisplay({
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden col-span-2">
-          <CardContent className="p-4">
-            <p className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Shirt className="h-4 w-4" />
-              Mockup Preview
-            </p>
-            {packetResult.priorityMockupLoading ? (
-              <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
+        {/* ── Placement mockup cards — one per position Printify returned ── */}
+        {packetResult.priorityMockupLoading ? (
+          <Card className="overflow-hidden col-span-2">
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Shirt className="h-4 w-4" />
+                Placement Mockups
+              </p>
+              <div className="bg-muted rounded p-2 flex items-center justify-center min-h-[120px]">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : packetResult.priorityMockupUrl ? (
-              <button 
+            </CardContent>
+          </Card>
+        ) : packetResult.priorityMockupError ? (
+          <Card className="overflow-hidden col-span-2">
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Shirt className="h-4 w-4" />
+                Placement Mockups
+              </p>
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 min-h-[120px]">
+                <p className="text-sm font-semibold text-red-700 dark:text-red-300 mb-1">Mockup Failed</p>
+                <p className="text-xs text-red-600 dark:text-red-400">{packetResult.priorityMockupError}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : Object.keys(packetResult.placementMockupUrls ?? {}).length > 0 ? (
+          Object.entries(packetResult.placementMockupUrls!).map(([placement, url]) => (
+            <Card key={placement} className="overflow-hidden">
+              <CardContent className="p-3">
+                <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <Shirt className="h-4 w-4" />
+                  {formatPlacementLabel(placement)}
+                </p>
+                <button
+                  type="button"
+                  className="w-full bg-muted rounded p-2 flex items-center justify-center min-h-[120px] cursor-pointer hover-elevate"
+                  onClick={() => onThumbnailLightbox(url)}
+                  data-testid={`btn-mockup-${placement}`}
+                >
+                  <img
+                    src={url}
+                    alt={`${formatPlacementLabel(placement)} Mockup`}
+                    className="w-full max-w-[160px] h-auto object-contain"
+                    data-testid={`img-packet-mockup-${placement}`}
+                  />
+                </button>
+              </CardContent>
+            </Card>
+          ))
+        ) : packetResult.priorityMockupUrl ? (
+          <Card className="overflow-hidden col-span-2">
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Shirt className="h-4 w-4" />
+                Front Mockup
+              </p>
+              <button
                 type="button"
-                className="w-full bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px] cursor-pointer hover-elevate"
+                className="w-full bg-muted rounded p-2 flex items-center justify-center min-h-[120px] cursor-pointer hover-elevate"
                 onClick={() => onThumbnailLightbox(packetResult.priorityMockupUrl!)}
                 data-testid="btn-mockup"
               >
@@ -561,18 +615,21 @@ export function PacketResultDisplay({
                   data-testid="img-packet-mockup"
                 />
               </button>
-            ) : packetResult.priorityMockupError ? (
-              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-3 min-h-[120px]">
-                <p className="text-sm font-semibold text-red-700 dark:text-red-300 mb-1">Mockup Failed</p>
-                <p className="text-xs text-red-600 dark:text-red-400">{packetResult.priorityMockupError}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="overflow-hidden col-span-2">
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Shirt className="h-4 w-4" />
+                Placement Mockups
+              </p>
+              <div className="bg-muted rounded p-2 flex items-center justify-center min-h-[120px]">
+                <span className="text-xs text-muted-foreground">Generating...</span>
               </div>
-            ) : (
-              <div className="bg-gray-100 dark:bg-gray-800 rounded p-2 flex items-center justify-center min-h-[120px]">
-                <span className="text-xs text-gray-400">Generating...</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {pricingSettings && (

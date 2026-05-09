@@ -424,11 +424,11 @@ function register(app) {
             await docRef.update({ ...cleanUpdates, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
             // ── GRF registration for mockup URLs ────────────────────────────────────
             const incomingLifestyle = cleanUpdates.lifestyleMockupUrl || null;
-            const incomingPriority = cleanUpdates.priorityMockupUrl || null;
-            if (incomingLifestyle || incomingPriority) {
+            const incomingPlacementUrls = cleanUpdates.placementMockupUrls || null;
+            if (incomingLifestyle || incomingPlacementUrls) {
                 try {
                     const { registerMockupGrfAssets } = await Promise.resolve().then(() => __importStar(require('../services/grf-registrar')));
-                    await registerMockupGrfAssets(packetId, incomingLifestyle, incomingPriority);
+                    await registerMockupGrfAssets(packetId, incomingLifestyle, incomingPlacementUrls);
                 }
                 catch (grfErr) {
                     console.error(`[Packets PATCH] GRF mockup registration failed (non-fatal):`, grfErr.message);

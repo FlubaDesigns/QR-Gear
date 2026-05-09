@@ -572,6 +572,7 @@ export function useCreatePacket({
           ...prev,
           priorityMockupUrl: primaryMockupUrl,
           lifestyleMockupUrl: lifestyleMockupUrl,
+          placementMockupUrls: Object.keys(placementMockupUrls).length > 0 ? placementMockupUrls : null,
           priorityMockupLoading: false,
         } : prev);
         toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });

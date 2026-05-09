@@ -209,12 +209,19 @@ async function registerPacketGrfAssets(packetData, sourceSessionId, packetId) {
     }
     return result;
 }
+/** Maps canonical placement names to their GRF slot. Unrecognised placements are logged only. */
+const PLACEMENT_TO_GRF_SLOT = {
+    front: 'storeFront',
+    front_large: 'storeFront',
+    front_small: 'storeFront',
+    back: 'storeBack',
+};
 /**
- * Register lifestyle and priority mockup URLs as GRF assets.
+ * Register lifestyle and placement mockup URLs as GRF assets.
  * Called from the packet PATCH route when mockup URLs arrive (after commit).
  */
-async function registerMockupGrfAssets(packetId, lifestyleMockupUrl, priorityMockupUrl) {
-    const result = { glamorShotGrfId: null, storeFrontGrfId: null };
+async function registerMockupGrfAssets(packetId, lifestyleMockupUrl, placementMockupUrls) {
+    const result = { glamorShotGrfId: null, storeFrontGrfId: null, storeBackGrfId: null };
     const isMockupUrl = (url) => !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('data:');
     if (isMockupUrl(lifestyleMockupUrl)) {
         const r = await registerGrfAsset({
@@ -223,12 +230,22 @@ async function registerMockupGrfAssets(packetId, lifestyleMockupUrl, priorityMoc
         });
         result.glamorShotGrfId = r.grfId;
     }
-    if (isMockupUrl(priorityMockupUrl)) {
+    for (const [placement, url] of Object.entries(placementMockupUrls || {})) {
+        if (!isMockupUrl(url))
+            continue;
+        const slotKey = PLACEMENT_TO_GRF_SLOT[placement.toLowerCase()];
+        if (!slotKey) {
+            console.log(`[GRFRegistrar] No GRF slot for placement "${placement}" — skipping registration`);
+            continue;
+        }
         const r = await registerGrfAsset({
-            sourceUrl: priorityMockupUrl, mimeType: 'image/jpeg', packetId,
-            ...GRF_engine_1.GRF_PACKET_SLOTS.storeFront,
+            sourceUrl: url, mimeType: 'image/jpeg', packetId,
+            ...GRF_engine_1.GRF_PACKET_SLOTS[slotKey],
         });
-        result.storeFrontGrfId = r.grfId;
+        if (slotKey === 'storeFront')
+            result.storeFrontGrfId = r.grfId;
+        if (slotKey === 'storeBack')
+            result.storeBackGrfId = r.grfId;
     }
     return result;
 }

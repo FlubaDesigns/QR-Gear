@@ -576,12 +576,12 @@ export function registerPacketRoutes(app: Express): void {
       });
 
       // ── GRF registration for mockup URLs (dev parity) ───────────────────
-      const incomingLifestyle = safeUpdates.lifestyleMockupUrl || null;
-      const incomingPriority  = safeUpdates.priorityMockupUrl  || null;
-      if (incomingLifestyle || incomingPriority) {
+      const incomingLifestyle     = safeUpdates.lifestyleMockupUrl  || null;
+      const incomingPlacementUrls = safeUpdates.placementMockupUrls || null;
+      if (incomingLifestyle || incomingPlacementUrls) {
         try {
           const { registerMockupGrfsDev } = await import('../lib/schema-commit');
-          await registerMockupGrfsDev(packetId, incomingLifestyle, incomingPriority);
+          await registerMockupGrfsDev(packetId, incomingLifestyle, incomingPlacementUrls);
         } catch (grfErr: any) {
           console.error(`[Packets PATCH] GRF mockup registration failed (non-fatal):`, grfErr.message);
         }

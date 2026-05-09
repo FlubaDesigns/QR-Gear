@@ -299,18 +299,27 @@ export async function registerPacketGrfAssets(
 export interface MockupGrfIds {
   glamorShotGrfId: string | null;
   storeFrontGrfId: string | null;
+  storeBackGrfId:  string | null;
 }
 
+/** Maps canonical placement names to their GRF slot. Unrecognised placements are logged only. */
+const PLACEMENT_TO_GRF_SLOT: Record<string, keyof typeof GRF_PACKET_SLOTS> = {
+  front:        'storeFront',
+  front_large:  'storeFront',
+  front_small:  'storeFront',
+  back:         'storeBack',
+};
+
 /**
- * Register lifestyle and priority mockup URLs as GRF assets.
+ * Register lifestyle and placement mockup URLs as GRF assets.
  * Called from the packet PATCH route when mockup URLs arrive (after commit).
  */
 export async function registerMockupGrfAssets(
-  packetId:           string,
-  lifestyleMockupUrl: string | null,
-  priorityMockupUrl:  string | null,
+  packetId:            string,
+  lifestyleMockupUrl:  string | null,
+  placementMockupUrls: Record<string, string> | null,
 ): Promise<MockupGrfIds> {
-  const result: MockupGrfIds = { glamorShotGrfId: null, storeFrontGrfId: null };
+  const result: MockupGrfIds = { glamorShotGrfId: null, storeFrontGrfId: null, storeBackGrfId: null };
 
   const isMockupUrl = (url: string | null | undefined): url is string =>
     !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('data:');
@@ -323,12 +332,19 @@ export async function registerMockupGrfAssets(
     result.glamorShotGrfId = r.grfId;
   }
 
-  if (isMockupUrl(priorityMockupUrl)) {
+  for (const [placement, url] of Object.entries(placementMockupUrls || {})) {
+    if (!isMockupUrl(url)) continue;
+    const slotKey = PLACEMENT_TO_GRF_SLOT[placement.toLowerCase()];
+    if (!slotKey) {
+      console.log(`[GRFRegistrar] No GRF slot for placement "${placement}" — skipping registration`);
+      continue;
+    }
     const r = await registerGrfAsset({
-      sourceUrl: priorityMockupUrl, mimeType: 'image/jpeg', packetId,
-      ...GRF_PACKET_SLOTS.storeFront,
+      sourceUrl: url, mimeType: 'image/jpeg', packetId,
+      ...GRF_PACKET_SLOTS[slotKey],
     });
-    result.storeFrontGrfId = r.grfId;
+    if (slotKey === 'storeFront') result.storeFrontGrfId = r.grfId;
+    if (slotKey === 'storeBack')  result.storeBackGrfId  = r.grfId;
   }
 
   return result;

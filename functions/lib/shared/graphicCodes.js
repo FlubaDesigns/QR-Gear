@@ -228,6 +228,11 @@ exports.GRF_PACKET_SLOTS = {
         assetClass: '2', mediaType: '1',
         channel: '2', purpose: '2', format: '2',
     },
+    /** Back placement mockup — output_artifact · image · store · back · jpeg */
+    storeBack: {
+        assetClass: '2', mediaType: '1',
+        channel: '2', purpose: '3', format: '2',
+    },
 };
 // ── Direct aliases ────────────────────────────────────────────────────────────
 exports.isValidGraphicId = isValidGrfId;

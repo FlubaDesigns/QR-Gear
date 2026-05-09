@@ -206,13 +206,24 @@ export async function registerPacketGrfsDev(
  * Register lifestyle and priority mockup URLs as GRF assets (dev parity).
  * Called from the dev-server PATCH handler when mockup URLs arrive post-commit.
  */
+const PLACEMENT_TO_GRF_SLOT_DEV: Record<string, keyof typeof GRF_PACKET_SLOTS> = {
+  front:       'storeFront',
+  front_large: 'storeFront',
+  front_small: 'storeFront',
+  back:        'storeBack',
+};
+
 export async function registerMockupGrfsDev(
-  packetId:           string,
-  lifestyleMockupUrl: string | null,
-  priorityMockupUrl:  string | null,
-): Promise<{ glamorShotGrfId: string | null; storeFrontGrfId: string | null }> {
+  packetId:            string,
+  lifestyleMockupUrl:  string | null,
+  placementMockupUrls: Record<string, string> | null,
+): Promise<{ glamorShotGrfId: string | null; storeFrontGrfId: string | null; storeBackGrfId: string | null }> {
   const db = await getDb();
-  const result = { glamorShotGrfId: null as string | null, storeFrontGrfId: null as string | null };
+  const result = {
+    glamorShotGrfId: null as string | null,
+    storeFrontGrfId: null as string | null,
+    storeBackGrfId:  null as string | null,
+  };
 
   const isMockupUrl = (url: string | null | undefined): url is string =>
     !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('data:');
@@ -220,8 +231,17 @@ export async function registerMockupGrfsDev(
   if (isMockupUrl(lifestyleMockupUrl))
     result.glamorShotGrfId = await registerGrfDev({ db, sourceUrl: lifestyleMockupUrl, mimeType: 'image/jpeg', packetId, ...GRF_PACKET_SLOTS.glamorShot });
 
-  if (isMockupUrl(priorityMockupUrl))
-    result.storeFrontGrfId = await registerGrfDev({ db, sourceUrl: priorityMockupUrl, mimeType: 'image/jpeg', packetId, ...GRF_PACKET_SLOTS.storeFront });
+  for (const [placement, url] of Object.entries(placementMockupUrls || {})) {
+    if (!isMockupUrl(url)) continue;
+    const slotKey = PLACEMENT_TO_GRF_SLOT_DEV[placement.toLowerCase()];
+    if (!slotKey) {
+      console.log(`[GRFRegistrar-dev] No GRF slot for placement "${placement}" — skipping`);
+      continue;
+    }
+    const grfId = await registerGrfDev({ db, sourceUrl: url, mimeType: 'image/jpeg', packetId, ...GRF_PACKET_SLOTS[slotKey] });
+    if (slotKey === 'storeFront') result.storeFrontGrfId = grfId;
+    if (slotKey === 'storeBack')  result.storeBackGrfId  = grfId;
+  }
 
   return result;
 }

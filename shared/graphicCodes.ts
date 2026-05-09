@@ -294,6 +294,11 @@ export const GRF_PACKET_SLOTS = {
     assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
     channel: '2' as GrfChannel, purpose: '2', format: '2',
   },
+  /** Back placement mockup — output_artifact · image · store · back · jpeg */
+  storeBack: {
+    assetClass: '2' as GrfAssetClass, mediaType: '1' as GrfMediaType,
+    channel: '2' as GrfChannel, purpose: '3', format: '2',
+  },
 } satisfies Record<string, GrfSlotParams>;
 
 // ── Direct aliases ────────────────────────────────────────────────────────────
