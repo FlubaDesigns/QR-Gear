@@ -11,7 +11,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { originalGrfParams, GRF_FILTER_ORIGINALS, normalizeMimeType } from "@shared/GRF_engine";
+import { GRF_FILTER_ORIGINALS } from "@shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
 async function fetchImageBlob(url: string): Promise<string> {
@@ -44,7 +44,7 @@ function assetToSkinItem(asset: GrfAsset): SkinItem {
   }
   return {
     id:           asset.grfId || asset.id,
-    name:         asset.grfId || asset.name || "Untitled",
+    name:         asset.originalFilename || asset.name || asset.grfId || "Untitled",
     primaryImage: asset.publicUrl || "",
     metadata: {
       raw:              asset,
@@ -143,17 +143,15 @@ function SourceImagesTabInner() {
   const handleDelete = (id: string) => archiveMutation.mutate(id);
 
   const handleUploadSingle = async (params: UploadParams) => {
-    const rawMime  = params.mimeType || "image/jpeg";
-    const mimeType = normalizeMimeType(rawMime);
+    const mimeType = params.mimeType || "image/jpeg";
     try {
-      await adminFetch("/graphics/save-grf", {
+      await adminFetch("/library/upload-source", {
         method: "POST",
         json: {
-          ...originalGrfParams(mimeType),
-          name: params.originalFilename || params.name,
-          originalFilename: params.originalFilename || params.name,
+          imageUrl:         `data:${mimeType};base64,${params.imageData}`,
           mimeType,
-          imageUrl: `data:${mimeType};base64,${params.imageData}`,
+          name:             params.originalFilename || params.name,
+          originalFilename: params.originalFilename || params.name,
         },
       });
       toast({ title: "Image uploaded" });

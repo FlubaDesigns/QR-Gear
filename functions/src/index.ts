@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260509-034741-21669';
+const _BUILD_ID = '20260509-040131-21080';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
@@ -64,6 +64,7 @@ import { register as registerConnect } from './routes/connect';
 import { register as registerDeployProof } from './routes/deploy-proof';
 import { registerAdminGraphics } from './routes/admin-graphics';
 import { registerAdminLibraryCrop } from './routes/admin-library-crop';
+import { registerAdminLibrarySource } from './routes/admin-library-source';
 
 const app = express();
 
@@ -131,6 +132,7 @@ registerConnect(app);
 registerDeployProof(app);
 registerAdminGraphics(app);
 registerAdminLibraryCrop(app);
+registerAdminLibrarySource(app);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('Unhandled error:', err);

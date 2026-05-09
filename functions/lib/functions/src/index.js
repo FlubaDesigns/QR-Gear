@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BUILD_TAG = exports.api = void 0;
-const _BUILD_ID = '20260509-034741-21669';
+const _BUILD_ID = '20260509-040131-21080';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
@@ -69,6 +69,7 @@ const connect_1 = require("./routes/connect");
 const deploy_proof_1 = require("./routes/deploy-proof");
 const admin_graphics_1 = require("./routes/admin-graphics");
 const admin_library_crop_1 = require("./routes/admin-library-crop");
+const admin_library_source_1 = require("./routes/admin-library-source");
 const app = (0, express_1.default)();
 app.use(middleware_1.corsMiddleware);
 app.use(express_1.default.json({ limit: '50mb' }));
@@ -133,6 +134,7 @@ app.use(middleware_1.apiPrefixMiddleware);
 (0, deploy_proof_1.register)(app);
 (0, admin_graphics_1.registerAdminGraphics)(app);
 (0, admin_library_crop_1.registerAdminLibraryCrop)(app);
+(0, admin_library_source_1.registerAdminLibrarySource)(app);
 app.use((err, _req, res, _next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
