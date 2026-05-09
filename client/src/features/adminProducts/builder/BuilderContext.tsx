@@ -405,6 +405,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
   const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || 'printify');
 
+  // Eagerly prime the auth token cache on mount so the flush-on-unmount
+  // keepalive fetch always has headers ready — even before the first session is created.
+  useEffect(() => {
+    auth.currentUser?.getIdToken(false).then(token => {
+      if (token) cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
     setState(prev => {
@@ -459,7 +467,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           json: { working: snapshot },
         });
         setAutoSaveFailed(false);
-        console.log(`[BuilderContext] Auto-saved to session ${sessionId}`);
+        console.log(
+          `[BuilderContext] Auto-saved to session ${sessionId}` +
+          ` | channel: ${snapshot.metadata?.selectedChannel?.name ?? "null"}` +
+          ` | store: ${snapshot.metadata?.selectedStore?.name ?? "null"}` +
+          ` | graphics: ${snapshot.graphics ? `content-keys:${Object.keys(snapshot.graphics.content || {}).length} bg:${snapshot.graphics.loadedBackground ? "yes" : "no"} tpl:${snapshot.graphics.loadedTemplate ? "yes" : "no"} gfx:${snapshot.graphics.loadedGraphic ? "yes" : "no"}` : "null"}` +
+          ` | qrConfig: ${snapshot.qrConfig ? `state:${snapshot.qrConfig.qrProductState}` : "null"}` +
+          ` | placements: ${JSON.stringify(snapshot.layoutConfig?.selectedPlacements ?? [])}`,
+        );
 
         // Secondary: if a packet already exists, keep its builderSnapshot in sync too
         if (state.activePacketId) {
@@ -515,6 +530,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   // completes even after the component is gone.
   useEffect(() => {
     return () => {
+      const hasFlush = !!flushSaveRef.current;
+      const hasHeaders = !!cachedAuthHeadersRef.current;
+      console.log(`[BuilderContext] unmount flush | hasFlush: ${hasFlush} | hasHeaders: ${hasHeaders}`);
       if (flushSaveRef.current) {
         flushSaveRef.current();
       }
@@ -946,6 +964,15 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     const { playMediaFile: _pmf, playMediaPreview: _pmp, ...cleanContent } = (graphics.content || {}) as any;
 
     // Restore role → store → channel → collection in dependency order
+    console.log(
+      `[BuilderContext] loadFromWorkingState` +
+      ` | channel: ${metadata.selectedChannel?.name ?? "null"}` +
+      ` | store: ${metadata.selectedStore?.name ?? "null"}` +
+      ` | graphics: ${working.graphics ? `content-keys:${Object.keys(graphics.content || {}).length} bg:${graphics.loadedBackground ? "yes" : "no"} tpl:${graphics.loadedTemplate ? "yes" : "no"} gfx:${graphics.loadedGraphic ? "yes" : "no"}` : "null"}` +
+      ` | qrConfig: ${working.qrConfig ? `state:${qrConfig.qrProductState}` : "null"}` +
+      ` | placements: ${JSON.stringify(layoutConfig.selectedPlacements ?? [])}` +
+      ` | product: ${resolvedProduct?.title ?? "null"}`,
+    );
     if (metadata.selectedRole) setSelectedRole(metadata.selectedRole as RoleType);
     if (metadata.selectedStore) setSelectedStore(metadata.selectedStore as Store);
     if (metadata.selectedChannel) setSelectedChannel(metadata.selectedChannel as Channel);

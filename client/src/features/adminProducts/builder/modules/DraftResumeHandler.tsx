@@ -202,7 +202,14 @@ export function DraftResumeHandler() {
           console.log("[DraftResumeHandler] Calling loadFromPacketData");
           loadFromPacketData(packetData!, resolvedProduct);
         } else {
-          console.log("[DraftResumeHandler] Calling loadFromWorkingState");
+          const w = session.working || {};
+          console.log(
+            `[DraftResumeHandler] Calling loadFromWorkingState` +
+            ` | graphics: ${w.graphics ? `content-keys:${Object.keys((w.graphics.content) || {}).length} bg:${w.graphics.loadedBackground ? "yes" : "no"} tpl:${w.graphics.loadedTemplate ? "yes" : "no"} gfx:${w.graphics.loadedGraphic ? "yes" : "no"}` : "null"}` +
+            ` | qrConfig: ${w.qrConfig ? `state:${w.qrConfig.qrProductState}` : "null"}` +
+            ` | placements: ${JSON.stringify(w.layoutConfig?.selectedPlacements ?? [])}` +
+            ` | metadata.channel: ${w.metadata?.selectedChannel?.name ?? "null"}`,
+          );
           loadFromWorkingState(session.working, resolvedProduct);
         }
 

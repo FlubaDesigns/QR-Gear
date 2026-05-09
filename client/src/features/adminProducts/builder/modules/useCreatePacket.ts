@@ -449,10 +449,21 @@ export function useCreatePacket({
           ).catch((e) => { console.error("[CreatePacket] generate-artifact failed:", e.message); return null; });
 
           if (artifactData) {
-            console.log(`[CreatePacket] Session ${state.activeSessionId} → artifact_ready (packet ${packetId}), committing…`);
+            console.log(`[CreatePacket] Session ${state.activeSessionId} → artifact_ready (packet ${packetId}), committing… | channel: ${selectedChannel?.name ?? "null"}`);
             const commitData = await adminFetch<any>(
               `/build-sessions/${state.activeSessionId}/commit`,
-              { method: "POST", json: { pricing } },
+              {
+                method: "POST",
+                json: {
+                  pricing,
+                  // Fallback channel/store/collection for when autosave hasn't written metadata yet
+                  channelId: selectedChannel?.id || null,
+                  channelName: selectedChannel?.name || null,
+                  storeId: selectedStore?.id || null,
+                  storeName: selectedStore?.name || null,
+                  collectionName: selectedCollection?.name || null,
+                },
+              },
             ).catch((e) => {
               console.error("[CreatePacket] auto-commit failed:", e.message);
               setActiveSession(state.activeSessionId, 'artifact_ready', null);

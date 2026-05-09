@@ -429,7 +429,15 @@ export function registerAdminBuildSessions(app: express.Express): void {
   app.post('/admin/build-sessions/:id/commit', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { catalogId, pricing: bodyPricing } = req.body;
+      const {
+        catalogId,
+        pricing: bodyPricing,
+        channelId: bodyChannelId,
+        channelName: bodyChannelName,
+        storeId: bodyStoreId,
+        storeName: bodyStoreName,
+        collectionName: bodyCollectionName,
+      } = req.body;
 
       const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
       const doc = await ref.get();
@@ -555,9 +563,11 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const newPacketId = session.generated?.packetId || null;
 
       const meta = w.metadata || {};
-      const selectedStore = meta.selectedStore || null;
-      const selectedChannel = meta.selectedChannel || null;
-      const selectedCollection = meta.selectedCollection || null;
+      // Use metadata from autosave; fall back to values passed in request body
+      const selectedStore = meta.selectedStore || (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null);
+      const selectedChannel = meta.selectedChannel || (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null);
+      const selectedCollection = meta.selectedCollection || (bodyCollectionName ? { name: bodyCollectionName } : null);
+      console.log(`[BuildSessions] commit ${id} | channel: ${selectedChannel?.name ?? 'null'} (meta: ${meta.selectedChannel?.name ?? 'null'}, body: ${bodyChannelName ?? 'null'})`);
       const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(' / ') || null;
 

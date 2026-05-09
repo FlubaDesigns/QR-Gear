@@ -452,7 +452,15 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
   app.post("/api/admin/build-sessions/:id/commit", isAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { catalogId, pricing: bodyPricing } = req.body;
+      const {
+        catalogId,
+        pricing: bodyPricing,
+        channelId: bodyChannelId,
+        channelName: bodyChannelName,
+        storeId: bodyStoreId,
+        storeName: bodyStoreName,
+        collectionName: bodyCollectionName,
+      } = req.body;
 
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const { FieldValue } = await import("firebase-admin/firestore");
@@ -561,9 +569,11 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
 
       const resolved = resolveFields(baseSnapshot, overrides);
       const meta = w.metadata || {};
-      const selectedStore = meta.selectedStore || null;
-      const selectedChannel = meta.selectedChannel || null;
-      const selectedCollection = meta.selectedCollection || null;
+      // Use metadata from autosave; fall back to values passed in request body
+      const selectedStore = meta.selectedStore || (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null);
+      const selectedChannel = meta.selectedChannel || (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null);
+      const selectedCollection = meta.selectedCollection || (bodyCollectionName ? { name: bodyCollectionName } : null);
+      console.log(`[BuildSessions] commit ${id} | channel: ${selectedChannel?.name ?? "null"} (meta: ${meta.selectedChannel?.name ?? "null"}, body: ${bodyChannelName ?? "null"})`);
       const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(" / ") || null;
 
