@@ -1,16 +1,34 @@
 import { Component, useState } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Layers, AlertTriangle } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SkinHorizontalViewer } from "@/features/shared/components/SkinHorizontalViewer";
 import { AdminGraphicCardSkin, grfAssetToSkinItem } from "@/features/shared/components/skins/AdminGraphicSkins";
 import { AdminGraphicShape } from "@/features/shared/components/shapes/AdminGraphicShape";
 import { adminFetch } from "@/lib/adminFetch";
-import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL } from "@shared/GRF_engine";
-import type { GrfChannel } from "@shared/GRF_engine";
 import type { GrfAsset } from "@/features/shared/components/skins/AdminGraphicSkins";
+
+// ── The three reusable graphic types shown in this tab ────────────────────────
+// These are the only GRF asset types that are surface-agnostic and can be
+// reused across any product. Store mockups and url snapshots are packet-specific
+// and are intentionally excluded.
+
+const REUSABLE_GRAPHIC_TYPES = [
+  { channel: '1', purpose: '1', label: 'QR Composite' },
+  { channel: '1', purpose: '2', label: 'QR Code' },
+  { channel: '3', purpose: '2', label: 'URL Graphic' },
+] as const;
+
+type GraphicTypeFilter = 'all' | '1-1' | '1-2' | '3-2';
+
+function isReusableGraphic(a: GrfAsset): boolean {
+  return REUSABLE_GRAPHIC_TYPES.some(t => t.channel === a.channel && t.purpose === a.purpose);
+}
+
+function getLabelForAsset(a: GrfAsset): string {
+  return REUSABLE_GRAPHIC_TYPES.find(t => t.channel === a.channel && t.purpose === a.purpose)?.label ?? '';
+}
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
@@ -58,8 +76,7 @@ function GraphicsTabInner() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [filterChannel, setFilterChannel] = useState<string>("all");
-  const [filterPurpose, setFilterPurpose] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<GraphicTypeFilter>("all");
 
   const { data: assets = [], isLoading, isError, error } = useQuery<GrfAsset[]>({
     queryKey: ["library", "/api/admin", "assets", "grf"],
@@ -78,20 +95,14 @@ function GraphicsTabInner() {
     },
   });
 
-  const handleChannelChange = (ch: string) => {
-    setFilterChannel(ch);
-    setFilterPurpose("all");
-  };
+  // Only the three surface-agnostic types are shown
+  const reusable = assets.filter(isReusableGraphic);
 
-  const filtered = assets.filter((a) => {
-    if (filterChannel !== "all" && a.channel !== filterChannel) return false;
-    if (filterPurpose !== "all" && a.purpose !== filterPurpose)  return false;
-    return true;
+  const filtered = reusable.filter((a) => {
+    if (typeFilter === "all") return true;
+    const [ch, pu] = typeFilter.split('-');
+    return a.channel === ch && a.purpose === pu;
   });
-
-  const availablePurposes = filterChannel !== "all"
-    ? Object.entries(GRF_PURPOSES_BY_CHANNEL[filterChannel as GrfChannel] ?? {})
-    : [];
 
   const skinItems = filtered.map(grfAssetToSkinItem);
 
@@ -106,40 +117,40 @@ function GraphicsTabInner() {
 
   const filterHeader = (
     <div className="flex items-center gap-2 flex-wrap">
-      <Select value={filterChannel} onValueChange={handleChannelChange}>
-        <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-channel">
-          <SelectValue placeholder="Channel" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all" className="text-xs">All channels</SelectItem>
-          {(Object.entries(GRF_CHANNELS) as Array<[GrfChannel, typeof GRF_CHANNELS[GrfChannel]]>).map(([code, entry]) => (
-            <SelectItem key={code} value={code} className="text-xs font-mono">
-              {code} — {entry.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <Select
-        value={filterPurpose}
-        onValueChange={setFilterPurpose}
-        disabled={filterChannel === "all"}
+      <button
+        onClick={() => setTypeFilter("all")}
+        data-testid="tab-type-all"
+        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+          typeFilter === "all"
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted text-muted-foreground hover:text-foreground"
+        }`}
       >
-        <SelectTrigger className="h-8 text-xs w-44" data-testid="select-filter-purpose">
-          <SelectValue placeholder={filterChannel === "all" ? "Select channel first" : "Purpose"} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all" className="text-xs">All purposes</SelectItem>
-          {availablePurposes.map(([code, entry]) => (
-            <SelectItem key={code} value={code} className="text-xs font-mono">
-              {code} — {entry.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
+        All
+      </button>
+      {REUSABLE_GRAPHIC_TYPES.map((t) => {
+        const key = `${t.channel}-${t.purpose}` as GraphicTypeFilter;
+        const count = reusable.filter(a => a.channel === t.channel && a.purpose === t.purpose).length;
+        return (
+          <button
+            key={key}
+            onClick={() => setTypeFilter(key)}
+            data-testid={`tab-type-${key}`}
+            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+              typeFilter === key
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+            {count > 0 && (
+              <span className="ml-1 opacity-60">({count})</span>
+            )}
+          </button>
+        );
+      })}
       <span className="text-xs text-muted-foreground ml-auto" data-testid="text-graphics-count">
-        {filtered.length} / {assets.length}
+        {filtered.length} / {reusable.length}
       </span>
     </div>
   );
@@ -153,9 +164,9 @@ function GraphicsTabInner() {
       isActionPending={archiveMutation.isPending}
       cardWidth="160px"
       isLoading={isLoading}
-      emptyMessage={assets.length === 0
+      emptyMessage={reusable.length === 0
         ? 'No graphics saved yet. Use "Save to Library" in the Products Builder.'
-        : "No graphics match the current filters."}
+        : "No graphics match the selected type."}
       emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
       confirmAction={{
         type: "archive",
