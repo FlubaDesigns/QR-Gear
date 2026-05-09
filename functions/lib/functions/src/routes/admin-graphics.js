@@ -111,7 +111,7 @@ function registerAdminGraphics(app) {
                 purposeName: parsed.purposeName,
                 formatName: parsed.formatName,
                 mimeType: mimeType || parsed.mimeType,
-                name: grfId,
+                name: name || originalFilename || grfId,
                 description: description || null,
                 storagePath: canonicalStoragePath,
                 publicUrl,
