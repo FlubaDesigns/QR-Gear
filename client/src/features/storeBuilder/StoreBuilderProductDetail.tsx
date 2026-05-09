@@ -3,46 +3,44 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { getColorHex, type ProductPackage, type ProductConfiguration } from "./store-builder-types";
-import { CollapsibleSection } from "./StoreBuilderComponents";
+import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
+import { getColorHex } from "./store-builder-types";
+import { useStoreBuilder } from "./StoreBuilderContext";
 
-interface StoreBuilderProductDetailProps {
-  productPackage: ProductPackage;
-  configuration: ProductConfiguration;
-  previewImageUrl: string | undefined;
-  packetThumbnails: Array<{ url: string; useColorBg?: boolean }>;
-  defaultColorHex: string;
-  isEditMode: boolean;
-  selectedStoreId: string | null;
-  selectedChannel: string | null;
-  onLightboxOpen: () => void;
-  onThumbnailClick: (url: string) => void;
-  onGraphicSizeChange: (size: string) => void;
-  onToggleSize: (size: string) => void;
-  onToggleColor: (colorName: string) => void;
-}
+export function StoreBuilderProductDetail() {
+  const {
+    productPackage,
+    configuration,
+    previewImageUrl,
+    packetThumbnails,
+    defaultColorHex,
+    isEditMode,
+    selectedStoreId,
+    selectedChannel,
+    setLightboxOpen,
+    setThumbnailLightbox,
+    setGraphicSize,
+    toggleSize,
+    toggleColor,
+  } = useStoreBuilder();
 
-export function StoreBuilderProductDetail({
-  productPackage, configuration, previewImageUrl, packetThumbnails,
-  defaultColorHex, isEditMode, selectedStoreId, selectedChannel,
-  onLightboxOpen, onThumbnailClick, onGraphicSizeChange,
-  onToggleSize, onToggleColor,
-}: StoreBuilderProductDetailProps) {
+  if (!productPackage) return null;
+
   return (
     <>
       {isEditMode && (
-        <div className="bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-          <p className="text-sm text-amber-800 dark:text-amber-200" data-testid="text-edit-mode-warning">
-            <strong>Edit Mode:</strong> Saving will create a new version. Original will remain unchanged.
+        <div className="border border-border rounded-md p-3 bg-muted/30">
+          <p className="text-sm text-muted-foreground" data-testid="text-edit-mode-warning">
+            <strong className="text-foreground">Edit Mode:</strong> Saving will create a new version. Original will remain unchanged.
           </p>
         </div>
       )}
 
       {productPackage.destinationStoreName && productPackage.destinationChannelName && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-          <p className="text-sm text-blue-800 dark:text-blue-200" data-testid="text-built-for">
+        <div className="border border-border rounded-md p-3 bg-muted/30">
+          <p className="text-sm text-muted-foreground" data-testid="text-built-for">
             <Store className="h-4 w-4 inline mr-1" />
-            <strong>Built for:</strong> {productPackage.destinationStoreName} / {productPackage.destinationChannelName}
+            <strong className="text-foreground">Built for:</strong> {productPackage.destinationStoreName} / {productPackage.destinationChannelName}
             {selectedStoreId === productPackage.destinationStoreId &&
              selectedChannel === productPackage.destinationChannelName && (
               <Badge variant="secondary" className="ml-2 text-xs">
@@ -59,7 +57,7 @@ export function StoreBuilderProductDetail({
           <div className="space-y-2">
             <button
               type="button"
-              onClick={onLightboxOpen}
+              onClick={() => setLightboxOpen(true)}
               className="w-full aspect-square bg-muted rounded-lg overflow-hidden hover-elevate relative group"
               data-testid="button-open-lightbox"
             >
@@ -82,8 +80,8 @@ export function StoreBuilderProductDetail({
                     type="button"
                     key={idx}
                     className="flex-1 aspect-square rounded overflow-hidden border hover-elevate cursor-pointer"
-                    style={{ backgroundColor: thumb.useColorBg ? defaultColorHex : '#f5f5f5' }}
-                    onClick={() => onThumbnailClick(thumb.url)}
+                    style={{ backgroundColor: thumb.useColorBg ? defaultColorHex : "#f5f5f5" }}
+                    onClick={() => setThumbnailLightbox(thumb.url)}
                     data-testid={`thumb-${idx}`}
                   >
                     <img src={thumb.url} alt="" className="w-full h-full object-contain" />
@@ -98,13 +96,13 @@ export function StoreBuilderProductDetail({
               {productPackage.productName || "Untitled Product"}
             </h2>
             <div className="space-y-1 text-sm text-muted-foreground">
-              <p><span className="font-medium">Brand:</span> {productPackage.manufacturer || "Unknown"}</p>
-              <p><span className="font-medium">Fulfillment:</span> {productPackage.printProviderId ? "Printify" : "TBD"}</p>
-              <p><span className="font-medium">Made in:</span> {productPackage.madeIn || "USA"}</p>
+              <p><span className="font-medium text-foreground">Brand:</span> {productPackage.manufacturer || "Unknown"}</p>
+              <p><span className="font-medium text-foreground">Fulfillment:</span> {productPackage.printProviderId ? "Printify" : "TBD"}</p>
+              <p><span className="font-medium text-foreground">Made in:</span> {productPackage.madeIn || "USA"}</p>
             </div>
             {productPackage.qrProductState && (
               <Badge variant="secondary" className="text-xs">
-                {productPackage.qrProductState.replace('qr_', '').toUpperCase()}
+                {productPackage.qrProductState.replace("qr_", "").toUpperCase()}
               </Badge>
             )}
           </div>
@@ -113,10 +111,10 @@ export function StoreBuilderProductDetail({
 
       <Card className="p-3 space-y-2">
         {productPackage.qrContent && (
-          <div className="flex items-start gap-2 p-2 bg-blue-50 dark:bg-blue-950/50 rounded-md">
-            <LinkIcon className="h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5" />
+          <div className="flex items-start gap-2 p-2 bg-muted/40 rounded-md">
+            <LinkIcon className="h-4 w-4 flex-shrink-0 text-muted-foreground mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">URL</p>
+              <p className="text-xs font-medium text-muted-foreground">URL</p>
               <p className="text-sm font-mono break-all" data-testid="text-url">{productPackage.qrContent}</p>
             </div>
           </div>
@@ -189,7 +187,7 @@ export function StoreBuilderProductDetail({
         </Card>
       )}
 
-      <CollapsibleSection
+      <CollapsibleModule
         title="Graphic Size"
         icon={<Maximize2 className="h-4 w-4" />}
         defaultOpen={false}
@@ -201,16 +199,16 @@ export function StoreBuilderProductDetail({
               variant={configuration.selectedGraphicSize === size ? "default" : "outline"}
               size="sm"
               className="flex-1 capitalize"
-              onClick={() => onGraphicSizeChange(size)}
+              onClick={() => setGraphicSize(size)}
               data-testid={`graphic-size-${size}`}
             >
               {size}
             </Button>
           ))}
         </div>
-      </CollapsibleSection>
+      </CollapsibleModule>
 
-      <CollapsibleSection
+      <CollapsibleModule
         title="Item Sizes"
         icon={<Ruler className="h-4 w-4" />}
         defaultOpen={false}
@@ -221,15 +219,15 @@ export function StoreBuilderProductDetail({
               <span className="font-medium text-sm">{size}</span>
               <Switch
                 checked={configuration.enabledSizes.has(size)}
-                onCheckedChange={() => onToggleSize(size)}
+                onCheckedChange={() => toggleSize(size)}
                 data-testid={`toggle-size-${size}`}
               />
             </div>
           ))}
         </div>
-      </CollapsibleSection>
+      </CollapsibleModule>
 
-      <CollapsibleSection
+      <CollapsibleModule
         title="Colors"
         icon={<Palette className="h-4 w-4" />}
         defaultOpen={false}
@@ -243,13 +241,13 @@ export function StoreBuilderProductDetail({
               </div>
               <Switch
                 checked={configuration.enabledColors.has(color.name)}
-                onCheckedChange={() => onToggleColor(color.name)}
+                onCheckedChange={() => toggleColor(color.name)}
                 data-testid={`toggle-color-${color.name}`}
               />
             </div>
           ))}
         </div>
-      </CollapsibleSection>
+      </CollapsibleModule>
     </>
   );
 }
