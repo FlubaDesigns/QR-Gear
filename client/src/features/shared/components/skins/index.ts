@@ -2,7 +2,7 @@ export * from "./types";
 export * from "./GraphicsSkin";
 export * from "./TemplateSkin";
 export * from "./BackgroundSkin";
-export * from "./SourceImageSkin";
+export * from "./SourceSkin";
 export * from "./CroppedImageSkin";
 export * from "./TextPreviewView";
 export * from "./LandingPageView";
