@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BUILD_TAG = exports.api = void 0;
-const _BUILD_ID = '20260509-023208-5959';
+const _BUILD_ID = '20260509-025423-7780';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 const https_1 = require("firebase-functions/v2/https");
@@ -139,7 +139,7 @@ app.use((err, _req, res, _next) => {
 });
 exports.api = (0, https_1.onRequest)({
     timeoutSeconds: 3600,
-    memory: '256MiB',
+    memory: '1GiB',
     cors: true,
     labels: { 'build-id': '20260503-timeout-fix-retry' },
 }, app);

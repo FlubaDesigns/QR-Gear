@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260509-023208-5959';
+const _BUILD_ID = '20260509-025423-7780';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';
@@ -140,7 +140,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
 export const api = onRequest(
   {
     timeoutSeconds: 3600,
-    memory: '256MiB',
+    memory: '1GiB',
     cors: true,
     labels: { 'build-id': '20260503-timeout-fix-retry' },
   },
