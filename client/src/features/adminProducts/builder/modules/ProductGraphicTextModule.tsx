@@ -241,7 +241,10 @@ function ImageLibraryDialog({
                 className="w-full"
                 size="lg"
                 onClick={() => {
-                  const url = selectedImage.proxyUrl || selectedImage.publicUrl || selectedImage.storageUrl;
+                  // Prefer the public GCS URL so the canvas renderer (new Image()) can
+                  // load it without auth headers. proxyUrl is auth-gated and only works
+                  // for <img> tags in the admin session — not for canvas drawImage().
+                  const url = selectedImage.publicUrl || selectedImage.proxyUrl || selectedImage.storageUrl;
                   onSelect(url);
                   setSelectedImage(null);
                   onClose();
