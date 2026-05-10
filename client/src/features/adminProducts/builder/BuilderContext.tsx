@@ -498,10 +498,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           });
         }
       } catch (e: any) {
-        const msg = e?.message || String(e) || "Unknown error";
-        console.warn("[BuilderContext] Auto-save failed:", msg);
+        const rawMsg = e?.message || String(e) || "Unknown error";
+        // Extract just the HTTP status + server detail for display — the full URL prefix is noise.
+        // adminFetch format: "[adminFetch] PATCH /api/admin/... → 409 Conflict — detail"
+        const arrowMatch = rawMsg.match(/→ (.+)$/);
+        const displayMsg = arrowMatch ? arrowMatch[1] : rawMsg;
+        console.warn("[BuilderContext] Auto-save failed:", rawMsg);
         setAutoSaveFailed(true);
-        setAutoSaveError(msg);
+        setAutoSaveError(displayMsg);
       }
     }, 1500);
 

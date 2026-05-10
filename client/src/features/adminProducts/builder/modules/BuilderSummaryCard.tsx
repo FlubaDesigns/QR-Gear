@@ -74,7 +74,7 @@ export function BuilderSummaryCard() {
             <AlertTriangle className="h-3 w-3" /> Save failed
           </span>
           {autoSaveError && (
-            <span className="text-[9px] text-red-500 dark:text-red-400 max-w-[180px] truncate" title={autoSaveError}>
+            <span className="text-[9px] text-red-500 dark:text-red-400 max-w-[220px] break-words text-right" title={autoSaveError}>
               {autoSaveError}
             </span>
           )}
