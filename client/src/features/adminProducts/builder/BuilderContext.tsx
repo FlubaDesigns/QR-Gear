@@ -437,6 +437,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     // Don't attempt to PATCH a finalized session — the server will reject it with 409.
     if (state.sessionStatus === 'committed' || state.sessionStatus === 'abandoned') {
       flushSaveRef.current = null;
+      setAutoSaveFailed(false);
       return;
     }
 
@@ -523,6 +524,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.adminCatalogTitle,
     state.adminCatalogDescription,
     state.activeSessionId,
+    state.sessionStatus,
     state.activePacketId,
     state.selectedCatalogId,
     selectedRole,
