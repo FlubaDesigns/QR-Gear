@@ -9,6 +9,7 @@ import { defaultTextStyle } from "./types";
 interface BuilderContextValue {
   state: BuilderState;
   autoSaveFailed: boolean;
+  autoSaveError: string | null;
   activeProviders: string[];
   selectedRole: RoleType | null;
   selectedStore: Store | null;
@@ -400,6 +401,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const [state, setState] = useState<BuilderState>(initialState);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
+  const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
   const cachedAuthHeadersRef = useRef<Record<string, string> | null>(null);
   const flushSaveRef = useRef<(() => void) | null>(null);
   // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
@@ -438,6 +440,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     if (state.sessionStatus === 'committed' || state.sessionStatus === 'abandoned') {
       flushSaveRef.current = null;
       setAutoSaveFailed(false);
+      setAutoSaveError(null);
       return;
     }
 
@@ -474,6 +477,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           json: { working: snapshot },
         });
         setAutoSaveFailed(false);
+        setAutoSaveError(null);
         console.log(
           `[BuilderContext] Auto-saved to session ${sessionId}` +
           ` | channel: ${snapshot.metadata?.selectedChannel?.name ?? "null"}` +
@@ -493,9 +497,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             console.warn(`[BuilderContext] Packet sync failed:`, e.message);
           });
         }
-      } catch (e) {
-        console.warn("[BuilderContext] Auto-save failed:", e);
+      } catch (e: any) {
+        const msg = e?.message || String(e) || "Unknown error";
+        console.warn("[BuilderContext] Auto-save failed:", msg);
         setAutoSaveFailed(true);
+        setAutoSaveError(msg);
       }
     }, 1500);
 
@@ -1239,6 +1245,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const value = useMemo<BuilderContextValue>(() => ({
     state,
     autoSaveFailed,
+    autoSaveError,
     activeProviders: selectedProviders,
     selectedRole,
     selectedStore,
@@ -1272,7 +1279,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, autoSaveFailed, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

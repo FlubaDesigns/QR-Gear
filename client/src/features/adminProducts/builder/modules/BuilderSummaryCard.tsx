@@ -60,7 +60,7 @@ function StatusDot({ label, status }: StatusDotProps) {
 }
 
 export function BuilderSummaryCard() {
-  const { state, autoSaveFailed, selectedStore, selectedChannel, selectedCollection } =
+  const { state, autoSaveFailed, autoSaveError, selectedStore, selectedChannel, selectedCollection } =
     useBuilderContext();
 
   const statuses = getSectionStatuses(state);
@@ -68,7 +68,18 @@ export function BuilderSummaryCard() {
 
   const sessionBadge = (() => {
     if (autoSaveFailed)
-      return <span className="inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400"><AlertTriangle className="h-3 w-3" /> Save failed</span>;
+      return (
+        <span className="inline-flex flex-col items-end gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[10px] text-red-600 dark:text-red-400">
+            <AlertTriangle className="h-3 w-3" /> Save failed
+          </span>
+          {autoSaveError && (
+            <span className="text-[9px] text-red-500 dark:text-red-400 max-w-[180px] truncate" title={autoSaveError}>
+              {autoSaveError}
+            </span>
+          )}
+        </span>
+      );
     if (!state.activeSessionId && state.selectedProduct)
       return <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Starting…</span>;
     if (sessionStatus === "working")
