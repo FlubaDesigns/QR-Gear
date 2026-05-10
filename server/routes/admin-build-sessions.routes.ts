@@ -36,46 +36,20 @@ function resolveFields(base: Record<string, any>, overrides: Record<string, any>
 }
 
 /**
- * Deep-merge source into target for plain JSON objects.
- * - Nested plain objects are merged (existing keys preserved when not in source).
- * - Arrays are replaced wholesale (never merged).
- * - Primitives and null are replaced.
+ * Sanitize an arbitrary value for safe Firestore writes.
+ * JSON round-trip guarantees: no undefined, no NaN/Infinity, no class instances,
+ * no Symbols — only plain JSON-compatible values survive.
  */
-function deepMerge(target: any, source: any): any {
-  if (source === null || source === undefined) return target ?? null;
-  if (target === null || target === undefined) return source;
-  if (Array.isArray(source)) return source;
-  if (typeof source !== "object" || typeof target !== "object") return source;
-  const result: Record<string, any> = { ...target };
-  for (const [key, val] of Object.entries(source)) {
-    const existing = (target as Record<string, any>)[key];
-    if (
-      val !== null && typeof val === "object" && !Array.isArray(val) &&
-      existing !== null && typeof existing === "object" && !Array.isArray(existing)
-    ) {
-      result[key] = deepMerge(existing, val);
-    } else {
-      result[key] = val;
-    }
+function sanitizeForFirestore(obj: any): any {
+  try {
+    return JSON.parse(JSON.stringify(obj, (_k, v) => {
+      if (v === undefined) return null;
+      if (typeof v === "number" && !isFinite(v)) return null;
+      return v;
+    }));
+  } catch (e: any) {
+    throw new Error(`sanitizeForFirestore: value is not serializable — ${e.message}`);
   }
-  return result;
-}
-
-/**
- * Recursively remove undefined values and convert NaN/Infinity → null.
- * Firestore Admin SDK rejects undefined values with INVALID_ARGUMENT.
- */
-function deepCleanForFirestore(obj: any): any {
-  if (obj === null || obj === undefined) return null;
-  if (Array.isArray(obj)) return obj.map(deepCleanForFirestore);
-  if (typeof obj === "number") return (isNaN(obj) || !isFinite(obj)) ? null : obj;
-  if (typeof obj !== "object") return obj;
-  const result: Record<string, any> = {};
-  for (const [key, val] of Object.entries(obj)) {
-    if (val === undefined) continue;
-    result[key] = deepCleanForFirestore(val);
-  }
-  return result;
 }
 
 export function registerAdminBuildSessionRoutes(app: Express): void {
@@ -347,8 +321,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       };
 
       if (working && typeof working === "object") {
-        const merged = deepMerge(existing.working || {}, working);
-        updatePayload.working = deepCleanForFirestore(merged);
+        updatePayload.working = sanitizeForFirestore(working);
         console.log(`[BuildSessions] patch ${id} | working keys: ${Object.keys(updatePayload.working).join(",")}`);
       }
 
