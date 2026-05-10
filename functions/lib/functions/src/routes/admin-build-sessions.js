@@ -69,6 +69,55 @@ function resolveFields(base, overrides) {
     }
     return resolved;
 }
+/**
+ * Deep-merge source into target for plain JSON objects.
+ * - Nested plain objects are merged (existing keys preserved when not in source).
+ * - Arrays are replaced wholesale (never merged).
+ * - Primitives and null are replaced.
+ */
+function deepMerge(target, source) {
+    if (source === null || source === undefined)
+        return target ?? null;
+    if (target === null || target === undefined)
+        return source;
+    if (Array.isArray(source))
+        return source;
+    if (typeof source !== 'object' || typeof target !== 'object')
+        return source;
+    const result = { ...target };
+    for (const [key, val] of Object.entries(source)) {
+        const existing = target[key];
+        if (val !== null && typeof val === 'object' && !Array.isArray(val) &&
+            existing !== null && typeof existing === 'object' && !Array.isArray(existing)) {
+            result[key] = deepMerge(existing, val);
+        }
+        else {
+            result[key] = val;
+        }
+    }
+    return result;
+}
+/**
+ * Recursively remove undefined values and convert NaN/Infinity → null.
+ * Firestore Admin SDK rejects undefined values with INVALID_ARGUMENT.
+ */
+function deepCleanForFirestore(obj) {
+    if (obj === null || obj === undefined)
+        return null;
+    if (Array.isArray(obj))
+        return obj.map(deepCleanForFirestore);
+    if (typeof obj === 'number')
+        return (isNaN(obj) || !isFinite(obj)) ? null : obj;
+    if (typeof obj !== 'object')
+        return obj;
+    const result = {};
+    for (const [key, val] of Object.entries(obj)) {
+        if (val === undefined)
+            continue;
+        result[key] = deepCleanForFirestore(val);
+    }
+    return result;
+}
 function registerAdminBuildSessions(app) {
     // ── List build sessions for admin ─────────────────────────────────────────
     app.get('/admin/build-sessions', middleware_1.requireAdmin, async (req, res) => {
@@ -335,7 +384,9 @@ function registerAdminBuildSessions(app) {
                 lastActiveAt: firestore_1.FieldValue.serverTimestamp(),
             };
             if (working && typeof working === 'object') {
-                updatePayload.working = { ...existing.working, ...working };
+                const merged = deepMerge(existing.working || {}, working);
+                updatePayload.working = deepCleanForFirestore(merged);
+                console.log(`[BuildSessions] patch ${id} | working keys: ${Object.keys(updatePayload.working).join(',')}`);
             }
             if (draftName !== undefined) {
                 updatePayload.draftName = draftName;

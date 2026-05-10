@@ -335,6 +335,19 @@ function buildBldDraft(state: BuilderState): Record<string, any> {
   };
 }
 
+/**
+ * Sanitize a snapshot for safe transmission to the server.
+ * JSON.stringify drops undefined values; the replacer also converts
+ * NaN/Infinity → null so the server never receives non-finite numbers.
+ */
+function sanitizeSnapshot(obj: any): any {
+  return JSON.parse(JSON.stringify(obj, (_, v) => {
+    if (v === undefined) return null;
+    if (typeof v === 'number' && !isFinite(v)) return null;
+    return v;
+  }));
+}
+
 function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
   const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
   // PROGRESSIVE TRUTH — WRITE STRICT PACKET VALUES ONLY.
@@ -447,6 +460,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     // Build snapshot immediately so flushSaveRef always has the latest data,
     // even if the 1.5-second debounce timer hasn't fired yet when the user navigates away.
     const snapshot = buildWorkingSnapshot(state, { selectedRole, selectedStore, selectedChannel, selectedCollection });
+    const cleanSnapshot = sanitizeSnapshot(snapshot);
     const sessionId = state.activeSessionId;
 
     flushSaveRef.current = () => {
@@ -455,7 +469,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       fetch(`/api/admin/build-sessions/${sessionId}`, {
         method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ working: snapshot }),
+        body: JSON.stringify({ working: cleanSnapshot }),
         keepalive: true,
       }).catch(() => {});
     };
@@ -472,27 +486,28 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         }
 
         // Primary: save full working state into the build session
+        console.log(
+          `[BuilderContext] Auto-saving to session ${sessionId}` +
+          ` | keys: ${Object.keys(cleanSnapshot).join(',')}` +
+          ` | bg: ${cleanSnapshot.graphics?.loadedBackground ? 'yes' : 'no'}` +
+          ` | tpl: ${cleanSnapshot.graphics?.loadedTemplate ? 'yes' : 'no'}` +
+          ` | gfx: ${cleanSnapshot.graphics?.loadedGraphic ? 'yes' : 'no'}` +
+          ` | placements: ${JSON.stringify(cleanSnapshot.layoutConfig?.selectedPlacements ?? [])}`,
+        );
         await adminFetch(`/build-sessions/${sessionId}`, {
           method: "PATCH",
-          json: { working: snapshot },
+          json: { working: cleanSnapshot },
         });
         setAutoSaveFailed(false);
         setAutoSaveError(null);
-        console.log(
-          `[BuilderContext] Auto-saved to session ${sessionId}` +
-          ` | channel: ${snapshot.metadata?.selectedChannel?.name ?? "null"}` +
-          ` | store: ${snapshot.metadata?.selectedStore?.name ?? "null"}` +
-          ` | graphics: ${snapshot.graphics ? `content-keys:${Object.keys(snapshot.graphics.content || {}).length} bg:${snapshot.graphics.loadedBackground ? "yes" : "no"} tpl:${snapshot.graphics.loadedTemplate ? "yes" : "no"} gfx:${snapshot.graphics.loadedGraphic ? "yes" : "no"}` : "null"}` +
-          ` | qrConfig: ${snapshot.qrConfig ? `state:${snapshot.qrConfig.qrProductState}` : "null"}` +
-          ` | placements: ${JSON.stringify(snapshot.layoutConfig?.selectedPlacements ?? [])}`,
-        );
+        console.log(`[BuilderContext] Auto-save OK — session ${sessionId}`);
 
-        // Secondary: if a packet already exists, keep its builderSnapshot in sync too
+        // Secondary: if a packet already exists, keep its builderSnapshot in sync too.
+        // Use the same complete, sanitized snapshot so packet restore has full fidelity.
         if (state.activePacketId) {
-          const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
           await adminFetch(`/packets/${state.activePacketId}`, {
             method: "PATCH",
-            json: { builderSnapshot: { content: serializableContent, loadedBackground: state.loadedBackground } },
+            json: { builderSnapshot: cleanSnapshot },
           }).catch((e) => {
             console.warn(`[BuilderContext] Packet sync failed:`, e.message);
           });
