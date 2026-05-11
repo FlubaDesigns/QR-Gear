@@ -713,6 +713,74 @@ function ChannelTree({
   );
 }
 
+function UnplacedItems() {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery<{ instances: AdminInstance[] }>({
+    queryKey: ["admin-instances-unplaced"],
+    queryFn: async () => {
+      const d = await adminFetch<any>("/catalog-instances");
+      const all: AdminInstance[] = d.instances ?? [];
+      return { instances: all.filter(i => !i.storeId && i.status !== "deleted") };
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  const unplaced = data?.instances ?? [];
+
+  return (
+    <div className="glass-card p-4">
+      <button
+        className="w-full flex items-center justify-between"
+        onClick={() => setOpen(v => !v)}
+        data-testid="button-toggle-unplaced"
+      >
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-amber-400/70" />
+          <span className="glass-body text-sm font-medium">Unplaced Items</span>
+          <span className="text-xs text-white/30">(packets not yet assigned to a store)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isLoading && open && (
+            <span className="text-xs text-white/40">{unplaced.length} item{unplaced.length !== 1 ? "s" : ""}</span>
+          )}
+          <ChevronDown className={`h-4 w-4 text-white/40 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+            </div>
+          ) : unplaced.length === 0 ? (
+            <p className="text-sm text-white/30 italic text-center py-6">All packets are assigned to a store.</p>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              {unplaced.map(inst => (
+                <InstanceCard
+                  key={inst.id}
+                  instance={inst}
+                  onDeleted={() => {
+                    queryClient.invalidateQueries({ queryKey: ["admin-instances-unplaced"] });
+                  }}
+                  onMoved={() => {
+                    queryClient.invalidateQueries({ queryKey: ["admin-instances-unplaced"] });
+                    refetch();
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -902,6 +970,9 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
 
   return (
     <div className="space-y-4">
+      {/* Unplaced items — always visible so committed packets can be found and moved */}
+      <UnplacedItems />
+
       {/* Role + Store selectors */}
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-3">
