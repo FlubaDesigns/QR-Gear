@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Hash, Layers, ChevronRight, ChevronDown,
@@ -293,10 +293,12 @@ function InstanceCard({
   instance,
   onDeleted,
   onMoved,
+  highlighted,
 }: {
   instance: AdminInstance;
   onDeleted: () => void;
   onMoved: () => void;
+  highlighted?: boolean;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -349,7 +351,10 @@ function InstanceCard({
   const customerPrice = instance.resolved?.pricing?.customerPrice;
 
   return (
-    <div className="glass-card p-4" data-testid={`card-instance-${instance.id}`}>
+    <div
+      className={`glass-card p-4 transition-all duration-300${highlighted ? " ring-2 ring-white/50" : ""}`}
+      data-testid={`card-instance-${instance.id}`}
+    >
       {/* Header row: image + title */}
       <div className="flex gap-3 mb-1">
         <button
@@ -704,7 +709,7 @@ function ChannelTree({
   );
 }
 
-export function StoreManagerTab() {
+export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -713,6 +718,17 @@ export function StoreManagerTab() {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
   const [deleteStoreOpen, setDeleteStoreOpen] = useState(false);
+
+  // Auto-select state — populated by the by-packet lookup when initialPacketId is set
+  const [autoSelect, setAutoSelect] = useState<{
+    roleType: string;
+    storeId: string;
+    storeName: string;
+    channelId: string | null;
+    instanceId: string;
+  } | null>(null);
+  const [highlightedInstanceId, setHighlightedInstanceId] = useState<string | null>(null);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const [deleteStoreError, setDeleteStoreError] = useState<string | null>(null);
   const deleteStoreMutation = useMutation({
@@ -734,6 +750,38 @@ export function StoreManagerTab() {
       setDeleteStoreError(err?.message || "Could not delete store. Please try again.");
     },
   });
+
+  // ── Fetch instance by packetId on mount ─────────────────────────────────────
+  useEffect(() => {
+    if (!initialPacketId) return;
+    adminFetch<any>(`/catalog-instances/by-packet/${initialPacketId}`)
+      .then((data) => {
+        const inst = data.instance;
+        if (!inst || !data.storeRoleType || !inst.storeId) {
+          console.warn("[StoreManagerTab] by-packet lookup: missing instance/store info", data);
+          return;
+        }
+        setAutoSelect({
+          roleType: data.storeRoleType,
+          storeId: inst.storeId,
+          storeName: inst.storeName ?? inst.storeId,
+          channelId: inst.channelId ?? null,
+          instanceId: inst.id,
+        });
+        setHighlightedInstanceId(inst.id);
+        // Kick off the role selection so the stores query fires
+        setSelectedRole(data.storeRoleType as RoleType);
+      })
+      .catch((err) => {
+        console.error("[StoreManagerTab] by-packet lookup failed:", err);
+        toast({
+          title: "Could not locate product",
+          description: "The committed product could not be found. Navigate manually.",
+          variant: "destructive",
+        });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPacketId]);
 
   const { data: stores = [], isLoading: loadingStores } = useQuery<StoreType[]>({
     queryKey: ["stores", selectedRole],
@@ -768,6 +816,35 @@ export function StoreManagerTab() {
     },
     enabled: !!selectedStore,
   });
+
+  // ── Auto-set store once the stores list loads ────────────────────────────────
+  useEffect(() => {
+    if (!autoSelect || !stores.length || loadingStores) return;
+    const store = stores.find(s => s.id === autoSelect.storeId);
+    if (store && selectedStore?.id !== store.id) {
+      setSelectedStore(store);
+      setSelectedChannelId(null);
+      setSelectedCollectionName(null);
+    }
+  }, [autoSelect, stores, loadingStores]);
+
+  // ── Auto-set channel once the channels list loads ────────────────────────────
+  useEffect(() => {
+    if (!autoSelect || !channels.length || loadingChannels) return;
+    if (autoSelect.channelId && selectedChannelId !== autoSelect.channelId) {
+      setSelectedChannelId(autoSelect.channelId);
+      setSelectedCollectionName(null);
+    }
+  }, [autoSelect, channels, loadingChannels]);
+
+  // ── Scroll to highlighted instance once it appears ───────────────────────────
+  useEffect(() => {
+    if (!highlightedInstanceId) return;
+    const timer = setTimeout(() => {
+      highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [highlightedInstanceId, instancesData]);
 
   const instances = instancesData?.instances ?? [];
 
@@ -953,14 +1030,22 @@ export function StoreManagerTab() {
 
                   {/* Cards: single col on mobile, 2-col on xl */}
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-                    {instances.map(inst => (
-                      <InstanceCard
-                        key={inst.id}
-                        instance={inst}
-                        onDeleted={refreshInstances}
-                        onMoved={refreshInstances}
-                      />
-                    ))}
+                    {instances.map(inst => {
+                      const isHighlighted = inst.id === highlightedInstanceId;
+                      return (
+                        <div
+                          key={inst.id}
+                          ref={isHighlighted ? (el) => { highlightRef.current = el; } : undefined}
+                        >
+                          <InstanceCard
+                            instance={inst}
+                            onDeleted={refreshInstances}
+                            onMoved={refreshInstances}
+                            highlighted={isHighlighted}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

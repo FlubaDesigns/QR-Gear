@@ -133,6 +133,36 @@ export function register(app: express.Express): void {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // ── GET /admin/catalog-instances/by-packet/:packetId ────────────────────────
+  // Look up the single instance whose currentPacketId matches, plus the store's
+  // roleType so the frontend can auto-select Role → Store → Channel.
+  app.get('/admin/catalog-instances/by-packet/:packetId', requireAdmin, async (req: any, res: any): Promise<void> => {
+    try {
+      const { packetId } = req.params;
+      const snap = await db.collection(ADMIN_INSTANCES)
+        .where('currentPacketId', '==', packetId)
+        .limit(1).get();
+
+      if (snap.empty) {
+        res.status(404).json({ error: `No instance found for packetId ${packetId}` });
+        return;
+      }
+
+      const instance = toSerializable(snap.docs[0]);
+
+      // Fetch the store doc to get roleType
+      let storeRoleType: string | null = null;
+      if (instance.storeId) {
+        const storeDoc = await db.collection('stores').doc(instance.storeId).get();
+        if (storeDoc.exists) {
+          storeRoleType = (storeDoc.data() as any)?.roleType ?? null;
+        }
+      }
+
+      res.json({ success: true, instance, storeRoleType });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ── GET /admin/catalog-instances/:id ────────────────────────────────────────
   app.get('/admin/catalog-instances/:id', requireAdmin, async (req: any, res: any): Promise<void> => {
     try {

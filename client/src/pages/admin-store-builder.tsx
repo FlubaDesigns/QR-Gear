@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Store, Users, Package, LayoutGrid, Hash, Globe } from "lucide-react";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
 import { StoreManager } from "@/features/storeBuilder/StoreManager";
@@ -20,6 +21,12 @@ const storeTabs: AdminTab[] = [
 
 export default function AdminStoreBuilderPage() {
   const [activeTab, setActiveTab] = useState("catalog");
+  const [location] = useLocation();
+
+  const params = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : ""
+  );
+  const packetId = params.get("packetId") ?? undefined;
 
   return (
     <AdminShell
@@ -31,7 +38,7 @@ export default function AdminStoreBuilderPage() {
       sectionNav={<AdminSectionSubNav items={PLACE_SUBNAV} />}
     >
       {activeTab === "catalog" && (
-        <StoreManagerTab />
+        <StoreManagerTab initialPacketId={packetId} />
       )}
 
       {activeTab === "channels" && (

@@ -115,6 +115,34 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
+    // ── GET /admin/catalog-instances/by-packet/:packetId ────────────────────────
+    // Look up the single instance whose currentPacketId matches, plus the store's
+    // roleType so the frontend can auto-select Role → Store → Channel.
+    app.get('/admin/catalog-instances/by-packet/:packetId', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const { packetId } = req.params;
+            const snap = await core_1.db.collection(ADMIN_INSTANCES)
+                .where('currentPacketId', '==', packetId)
+                .limit(1).get();
+            if (snap.empty) {
+                res.status(404).json({ error: `No instance found for packetId ${packetId}` });
+                return;
+            }
+            const instance = toSerializable(snap.docs[0]);
+            // Fetch the store doc to get roleType
+            let storeRoleType = null;
+            if (instance.storeId) {
+                const storeDoc = await core_1.db.collection('stores').doc(instance.storeId).get();
+                if (storeDoc.exists) {
+                    storeRoleType = storeDoc.data()?.roleType ?? null;
+                }
+            }
+            res.json({ success: true, instance, storeRoleType });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
     // ── GET /admin/catalog-instances/:id ────────────────────────────────────────
     app.get('/admin/catalog-instances/:id', middleware_1.requireAdmin, async (req, res) => {
         try {

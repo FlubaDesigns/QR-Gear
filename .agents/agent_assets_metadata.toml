@@ -245,3 +245,9 @@ id = "pEk3T009qKO4WCnJE-Tyl"
 uri = "file://downloads/qrgear-website-full.zip"
 type = "unspecified"
 title = "QR Gear Website Full Zip"
+
+[[outputs]]
+id = "5Hi-MziVn0NkIXnSleZL0"
+uri = "file://downloads/store-builder-packetId-wiring.zip"
+type = "unspecified"
+title = "Store Builder packetId Wiring (4 files)"

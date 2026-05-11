@@ -93,6 +93,47 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
     }
   });
 
+  // ── Look up instance by packetId (for auto-select after commit) ─────────────
+  // Must be registered BEFORE /:id so Express doesn't swallow "by-packet".
+  app.get("/api/admin/catalog-instances/by-packet/:packetId", isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const db = getFirestoreDb();
+
+      const { packetId } = req.params;
+      const snap = await db.collection(ADMIN_INSTANCES_COLLECTION)
+        .where("currentPacketId", "==", packetId)
+        .limit(1).get();
+
+      if (snap.empty) {
+        return res.status(404).json({ error: `No instance found for packetId ${packetId}` });
+      }
+
+      const doc = snap.docs[0];
+      const d = doc.data();
+      const instance = {
+        id: doc.id,
+        ...d,
+        createdAt: d.createdAt?.toDate?.() || null,
+        updatedAt: d.updatedAt?.toDate?.() || null,
+      };
+
+      // Fetch store to get roleType
+      let storeRoleType: string | null = null;
+      if (instance.storeId) {
+        const storeDoc = await db.collection("stores").doc(instance.storeId).get();
+        if (storeDoc.exists) {
+          storeRoleType = (storeDoc.data() as any)?.roleType ?? null;
+        }
+      }
+
+      res.json({ success: true, instance, storeRoleType });
+    } catch (err: any) {
+      console.error("[AdminInstances] by-packet error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Get single admin instance ────────────────────────────────────────────
   app.get("/api/admin/catalog-instances/:id", isAdmin, async (req: any, res) => {
     try {
