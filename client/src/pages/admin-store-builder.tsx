@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { Store, Users, Package, LayoutGrid, Hash, Globe } from "lucide-react";
 import { StoreBuilderHarness } from "@/features/storeBuilder/StoreBuilderHarness";
 import { StoreManager } from "@/features/storeBuilder/StoreManager";
@@ -11,6 +10,8 @@ import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 
+const VALID_TABS = ["catalog", "channels", "stores", "partners", "library"];
+
 const storeTabs: AdminTab[] = [
   { id: "catalog", label: "Catalog", icon: LayoutGrid },
   { id: "channels", label: "Channels", icon: Hash },
@@ -19,14 +20,20 @@ const storeTabs: AdminTab[] = [
   { id: "library", label: "Library", icon: Package },
 ];
 
-export default function AdminStoreBuilderPage() {
-  const [activeTab, setActiveTab] = useState("catalog");
-  const [location] = useLocation();
+function getInitialTab(): string {
+  if (typeof window === "undefined") return "catalog";
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab") ?? "";
+  return VALID_TABS.includes(tab) ? tab : "catalog";
+}
 
-  const params = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
-  const packetId = params.get("packetId") ?? undefined;
+export default function AdminStoreBuilderPage() {
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+
+  const packetId =
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("packetId") ?? undefined)
+      : undefined;
 
   return (
     <AdminShell

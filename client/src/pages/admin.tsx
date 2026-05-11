@@ -402,6 +402,7 @@ const ADMIN_SECTIONS = [
   { title: "Gifts", description: "Gift packages and codes", icon: Gift, href: "/admin/gifts" },
   { title: "Templates", description: "Product category templates", icon: Tag, href: "/admin/categories" },
   { title: "Store Builder", description: "Manage stores, channels, and collections", icon: Store, href: "/admin/store-builder" },
+  { title: "Store Administrator", description: "Create and configure stores", icon: Store, href: "/admin/store-builder?tab=stores" },
   { title: "Partners", description: "Partner stores and product lines", icon: Store, href: "/admin/partners" },
   { title: "Marketplaces", description: "Etsy, eBay, Amazon surfaces", icon: Globe, href: "/admin/marketplaces" },
   { title: "External Sites", description: "Embedded stores and affiliate payouts", icon: Globe, href: "/admin/external-sites" },
