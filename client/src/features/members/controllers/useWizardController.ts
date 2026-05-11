@@ -73,8 +73,8 @@ export function useWizardController(mode: WizardMode) {
       effectiveDescription: resolveProductDescription(product),
       fulfillmentProvider: product.fulfillmentProvider || "printify",
       providerProductId: product.providerProductId || String(product.id || ""),
-      availableColors: product.availableColors || product.colorsAvailable || [],
-      availableSizes: product.availableSizes || product.sizesAvailable || [],
+      availableColors: product.availableColors || [],
+      availableSizes: product.availableSizes || [],
       tier: product.tier,
     };
   }, [resolveProductDescription]);

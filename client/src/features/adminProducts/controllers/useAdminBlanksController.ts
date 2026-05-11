@@ -92,8 +92,8 @@ export interface NormalizedSourceBlank {
   providerDescription: string | null;
   adminCatalogDescription: string | null;
   providerDescriptionRaw: string | null;
-  colorsAvailable: Array<{ name: string; hex?: string }>;
-  sizesAvailable: string[];
+  availableColors: Array<{ name: string; hex?: string }>;
+  availableSizes: string[];
   defaultColor: string | null;
   qrgBlankId?: string | null;
 }
@@ -144,8 +144,8 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     providerDescription: providerDesc,
     adminCatalogDescription: adminCatalogDesc || null,
     providerDescriptionRaw: providerDesc,
-    colorsAvailable: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
-    sizesAvailable: p.availableSizes || [],
+    availableColors: (p.availableColors || []).map(c => ({ name: c.name, hex: c.hex })),
+    availableSizes: p.availableSizes || [],
     defaultColor: (p.availableColors || []).length > 0 ? p.availableColors![0].name : null,
     qrgBlankId: p.qrgBlankId ?? null,
   };

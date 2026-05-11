@@ -29,7 +29,7 @@ import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getLookupBlankKey } from "@shared/blankKeys";
-import { getColorHexByName } from "@shared/colorUtils";
+import { normalizeProductColors, normalizeProductSizes } from "@shared/adapters/catalog.adapter";
 import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
@@ -118,40 +118,16 @@ function catalogToSelectItem(
     description: effectiveDescription,
     providerDescription,
     adminCatalogDescription: normalizedAdminDesc,
-    colorsAvailable: (() => {
-      // Prefer normalized colorMap from CF (canonical QRG schema)
-      const colorMap = raw.colorMap || p.colorMap;
-      if (Array.isArray(colorMap) && colorMap.length > 0) {
-        return colorMap.map((c: any) => ({
-          name: c.colorName || c.name || '',
-          hex: c.hex || getColorHexByName(c.colorName || c.name || '') || '#CCCCCC',
-        }));
-      }
-      // Fall back to availableColors with proper name/hex resolution
-      return (p.availableColors || raw.colors || []).map((c: any) => {
-        const name = typeof c === 'string' ? c : (c.name || c.colorName || c.label || '');
-        const hex = (typeof c === 'object' && c.hex) ? c.hex : (getColorHexByName(name) || '#CCCCCC');
-        return { name, hex };
-      });
-    })(),
-    sizesAvailable: (() => {
-      // Prefer normalized sizeMap from CF (canonical QRG schema)
-      const sizeMap = raw.sizeMap || p.sizeMap;
-      if (Array.isArray(sizeMap) && sizeMap.length > 0) {
-        return sizeMap.map((s: any) => s.sizeLabel || s.label || s.qrgSizeCode || s);
-      }
-      return (p.availableSizes || raw.sizes || []).map((s: any) =>
-        typeof s === 'string' ? s : (s.sizeLabel || s.label || '')
-      );
-    })(),
+    availableColors: normalizeProductColors(raw),
+    availableSizes: normalizeProductSizes(raw),
     defaultColor: (() => {
-      const colorMap = raw.colorMap || p.colorMap;
+      const colorMap = raw.colorMap;
       if (Array.isArray(colorMap) && colorMap.length > 0) {
-        return colorMap[0].colorName || colorMap[0].name || null;
+        return (colorMap[0] as any).colorName || colorMap[0].name || null;
       }
       const first = (p.availableColors || raw.colors || [])[0];
       if (!first) return null;
-      return typeof first === 'string' ? first : (first.name || first.colorName || null);
+      return typeof first === 'string' ? first : (first.name || (first as any).colorName || null);
     })(),
   };
 }
@@ -626,7 +602,7 @@ export function ProductsModule() {
         description: entry.selectItem.description ?? entry.catalog.description,
         images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
         imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
-        availableColors: entry.selectItem.colorsAvailable.map(c => ({ name: c.name, hex: c.hex || '#CCCCCC' })),
+        availableColors: entry.selectItem.availableColors,
       } as typeof entry.catalog;
       selectProduct(curatedProduct);
     }
@@ -656,7 +632,7 @@ export function ProductsModule() {
         description: entry.selectItem.description ?? entry.catalog.description,
         images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
         imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
-        availableColors: entry.selectItem.colorsAvailable.map(c => ({ name: c.name, hex: c.hex || '#CCCCCC' })),
+        availableColors: entry.selectItem.availableColors,
       } as typeof entry.catalog;
       selectProduct(curatedProduct);
     }
@@ -865,15 +841,13 @@ export function ProductsModule() {
     }
 
     // Build curated product — prefer admin-overridden title/description/images over master.
-    // availableColors: use the already-normalized {name,hex} objects from selectItem rather
-    // than the raw Firestore field which stores QRG color codes (e.g. "01","02","03").
     const curatedProduct = {
       ...entry.catalog,
       title: entry.selectItem.name || entry.catalog.title,
       description: entry.selectItem.description ?? entry.catalog.description,
       images: entry.selectItem.images?.length ? entry.selectItem.images : (catalogProduct.images || []),
       imageUrl: entry.selectItem.primaryImageUrl || catalogProduct.imageUrl,
-      availableColors: entry.selectItem.colorsAvailable.map(c => ({ name: c.name, hex: c.hex || '#CCCCCC' })),
+      availableColors: entry.selectItem.availableColors,
     } as typeof entry.catalog;
     selectProduct(curatedProduct);
 

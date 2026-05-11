@@ -73,8 +73,8 @@ function productToSelectItem(product: Product): ProductSelectItem {
     madeInUSA,
     primaryImageUrl: imageUrl || null,
     description: product.description || (metadata.description as string) || null,
-    colorsAvailable: colors,
-    sizesAvailable: sizes,
+    availableColors: colors,
+    availableSizes: sizes,
     defaultColor: colors.length > 0 ? colors[0].name : null,
   };
 }
@@ -87,9 +87,9 @@ function selectItemToScrollViewItem(item: ProductSelectItem): ScrollViewItem {
     subtitle: item.manufacturer || undefined,
     minPrice: item.price != null ? item.price.toFixed(2) : null,
     madeInUSA: item.madeInUSA,
-    sizes: item.sizesAvailable,
+    sizes: item.availableSizes,
     description: item.description || undefined,
-    colorCount: item.colorsAvailable.length,
+    colorCount: item.availableColors.length,
   };
 }
 

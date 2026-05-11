@@ -69,8 +69,8 @@ function scrollItemToSelectItem(item: ScrollViewItem): ProductSelectItem {
     madeInUSA: item.madeInUSA || false,
     primaryImageUrl: item.imageUrl || null,
     description: meta.description || null,
-    colorsAvailable: colors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color })),
-    sizesAvailable: sizes,
+    availableColors: colors.map((c: any) => ({ name: c.name || c, hex: c.hex || c.color })),
+    availableSizes: sizes,
     defaultColor: colors[0]?.name || null,
   };
 }

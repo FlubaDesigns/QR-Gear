@@ -44,8 +44,8 @@ export interface ProductSelectItem {
   providerDescription?: string | null;
   adminCatalogDescription?: string | null;
   providerDescriptionRaw?: string | null;
-  colorsAvailable: Array<{ name: string; hex?: string }>;
-  sizesAvailable: string[];
+  availableColors: Array<{ name: string; hex?: string }>;
+  availableSizes: string[];
   defaultColor: string | null;
   qrgBlankId?: string | null;
 }
@@ -777,16 +777,16 @@ function PreviewModal({
                 )}
               </div>
 
-              {(item.colorsAvailable.length > 0 || item.sizesAvailable.length > 0) && (
+              {(item.availableColors.length > 0 || item.availableSizes.length > 0) && (
                 <div className="space-y-3">
-                  {item.colorsAvailable.length > 0 && (
+                  {item.availableColors.length > 0 && (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Palette className="w-3.5 h-3.5" />
-                        <span>{item.colorsAvailable.length} colors</span>
+                        <span>{item.availableColors.length} colors</span>
                       </div>
                       <div className={`flex flex-wrap gap-1.5 ${isMobile ? "max-h-[52px] overflow-hidden" : ""}`}>
-                        {item.colorsAvailable.map((c, i) => (
+                        {item.availableColors.map((c, i) => (
                           <div
                             key={i}
                             className="w-5 h-5 rounded-full border border-border flex-shrink-0"
@@ -799,14 +799,14 @@ function PreviewModal({
                     </div>
                   )}
 
-                  {item.sizesAvailable.length > 0 && (
+                  {item.availableSizes.length > 0 && (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Ruler className="w-3.5 h-3.5" />
-                        <span>{item.sizesAvailable.length} sizes</span>
+                        <span>{item.availableSizes.length} sizes</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {item.sizesAvailable.map((s, i) => (
+                        {item.availableSizes.map((s, i) => (
                           <Badge key={i} variant="outline" className="text-xs">
                             {s}
                           </Badge>
@@ -918,13 +918,13 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
   const defaultColorEntry = useMemo(() => {
     if (item.defaultColor) {
       return (
-        item.colorsAvailable.find(
+        item.availableColors.find(
           (c) => c.name.toLowerCase() === item.defaultColor!.toLowerCase()
         ) || null
       );
     }
-    return item.colorsAvailable[0] || null;
-  }, [item.colorsAvailable, item.defaultColor]);
+    return item.availableColors[0] || null;
+  }, [item.availableColors, item.defaultColor]);
 
   return (
     <>
