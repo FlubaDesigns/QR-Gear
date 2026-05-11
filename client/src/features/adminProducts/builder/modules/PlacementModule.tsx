@@ -23,7 +23,7 @@ const METHOD_DESCRIPTIONS: Record<string, string> = {
   dtf: "Direct-to-Film (heat transfer, more vibrant)",
 };
 
-function ColorSection({
+export function ColorSection({
   availableColors,
   selectedColor,
   onSelect,
@@ -135,24 +135,11 @@ export function PlacementModule() {
   const availableColors: ProductColor[] = state.selectedProduct?.availableColors || [];
   const selectedColor = state.selectedColor;
 
-  const badge = (
-    <div className="flex items-center gap-1.5">
-      {selectedCount > 0 && (
-        <Badge variant="secondary" className="text-xs">
-          {selectedCount} placement{selectedCount !== 1 ? "s" : ""}
-        </Badge>
-      )}
-      {selectedColor && (
-        <span className="flex items-center gap-1 flex-shrink-0">
-          <span
-            className="inline-block w-3.5 h-3.5 rounded-sm border border-border"
-            style={{ backgroundColor: selectedColor.hex }}
-          />
-          <span className="text-xs text-muted-foreground hidden sm:inline">{selectedColor.name}</span>
-        </span>
-      )}
-    </div>
-  );
+  const badge = selectedCount > 0 ? (
+    <Badge variant="secondary" className="text-xs">
+      {selectedCount} placement{selectedCount !== 1 ? "s" : ""}
+    </Badge>
+  ) : null;
 
   return (
     <CollapsibleModule
@@ -163,12 +150,6 @@ export function PlacementModule() {
       defaultOpen={!isMobile}
     >
       <div className="space-y-4">
-        <ColorSection
-          availableColors={availableColors}
-          selectedColor={selectedColor}
-          onSelect={setSelectedColor}
-        />
-
         <p className="text-sm text-muted-foreground">
           {showPlacementTypeToggle
             ? "Select placement locations, choose Graphic or QR, and pick the size for each spot."

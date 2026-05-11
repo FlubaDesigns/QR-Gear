@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import type { BuilderState } from "./types";
 import { StateModule } from "./modules/StateModule";
-import { PlacementModule } from "./modules/PlacementModule";
+import { PlacementModule, ColorSection } from "./modules/PlacementModule";
+import type { ProductColor } from "./types";
 import { ProductGraphicTextModule } from "./modules/ProductGraphicTextModule";
 import { URLContentModule } from "./modules/URLContentModule";
 import { PlayContentModule } from "./modules/PlayContentModule";
@@ -206,6 +207,21 @@ function AccordionSection({
   );
 }
 
+function DesignColorPicker() {
+  const { state, setSelectedColor } = useBuilderContext();
+  const availableColors: ProductColor[] = state.selectedProduct?.availableColors || [];
+  if (!state.selectedProduct || availableColors.length === 0) return null;
+  return (
+    <div className="px-4 pt-3 pb-1">
+      <ColorSection
+        availableColors={availableColors}
+        selectedColor={state.selectedColor}
+        onSelect={setSelectedColor}
+      />
+    </div>
+  );
+}
+
 function BuilderModules() {
   const { state } = useBuilderContext();
 
@@ -302,9 +318,14 @@ function BuilderModules() {
               )}
 
               {section.key === "design" && (
-                <InlineDebugBoundary label="ProductGraphicTextModule">
-                  <ProductGraphicTextModule />
-                </InlineDebugBoundary>
+                <>
+                  <InlineDebugBoundary label="DesignColorPicker">
+                    <DesignColorPicker />
+                  </InlineDebugBoundary>
+                  <InlineDebugBoundary label="ProductGraphicTextModule">
+                    <ProductGraphicTextModule />
+                  </InlineDebugBoundary>
+                </>
               )}
 
               {section.key === "qr" && (
