@@ -898,8 +898,13 @@ export function registerAdminBuildSessions(app: express.Express): void {
         strokeWidth: fs.strokeWidth || 0,
       } : null;
 
+      // All available graphic placements — exclude label/tag placements (inside labels are not graphic areas)
+      const LABEL_PLACEMENTS = new Set(['label', 'inside_label', 'neck_label', 'outside_label']);
+      const allGraphicPlacements: string[] = (packet.placements || ['front'])
+        .filter((p: string) => !LABEL_PLACEMENTS.has(p));
+
       // ── 1. Front composite (with header/footer) ───────────────────────────
-      const frontPlacement = (packet.placements?.[0]) || 'front';
+      const frontPlacement = allGraphicPlacements[0] || 'front';
       const frontDataUrl = await cfGeneratePrintifyComposite(
         qrContent, topText, bottomText,
         1200, 1800, 'black', frontPlacement, graphicLayoutMode, qrSizePercent
@@ -909,7 +914,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       // ── 2. Sleeve composites (QR code only — no header/footer) ───────────
       const SLEEVE_PLACEMENTS = ['left_sleeve', 'right_sleeve'];
-      const packetPlacements: string[] = packet.placements || [];
+      const packetPlacements: string[] = allGraphicPlacements;
       const sleevePlacements = packetPlacements.filter((p: string) => SLEEVE_PLACEMENTS.includes(p));
 
       const sleeveUrls: Record<string, string> = {};
@@ -1080,7 +1085,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
         back:         'backCompositeUrl',
       };
 
-      const placements: string[] = packet.placements || ['front'];
+      // All available graphic placements — exclude label/tag placements
+      const PUBLISH_LABEL_PLACEMENTS = new Set(['label', 'inside_label', 'neck_label', 'outside_label']);
+      const placements: string[] = (packet.placements?.length > 0 ? packet.placements : ['front'])
+        .filter((p: string) => !PUBLISH_LABEL_PLACEMENTS.has(p));
 
       const placeholders: Array<{
         position: string;

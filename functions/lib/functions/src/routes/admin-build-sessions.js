@@ -872,14 +872,18 @@ function registerAdminBuildSessions(app) {
                 strokeColor: fs.strokeColor || '',
                 strokeWidth: fs.strokeWidth || 0,
             } : null;
+            // All available graphic placements — exclude label/tag placements (inside labels are not graphic areas)
+            const LABEL_PLACEMENTS = new Set(['label', 'inside_label', 'neck_label', 'outside_label']);
+            const allGraphicPlacements = (packet.placements || ['front'])
+                .filter((p) => !LABEL_PLACEMENTS.has(p));
             // ── 1. Front composite (with header/footer) ───────────────────────────
-            const frontPlacement = (packet.placements?.[0]) || 'front';
+            const frontPlacement = allGraphicPlacements[0] || 'front';
             const frontDataUrl = await (0, composite_image_1.cfGeneratePrintifyComposite)(qrContent, topText, bottomText, 1200, 1800, 'black', frontPlacement, graphicLayoutMode, qrSizePercent);
             const frontBuf = Buffer.from(frontDataUrl.replace(/^data:image\/png;base64,/, ''), 'base64');
             const { publicUrl: compositeUrl } = await (0, composite_image_1.cfUploadBufferToStorage)(frontBuf, 'image/png', folder);
             // ── 2. Sleeve composites (QR code only — no header/footer) ───────────
             const SLEEVE_PLACEMENTS = ['left_sleeve', 'right_sleeve'];
-            const packetPlacements = packet.placements || [];
+            const packetPlacements = allGraphicPlacements;
             const sleevePlacements = packetPlacements.filter((p) => SLEEVE_PLACEMENTS.includes(p));
             const sleeveUrls = {};
             for (const slv of sleevePlacements) {
@@ -1028,7 +1032,10 @@ function registerAdminBuildSessions(app) {
                 right_sleeve: 'rightSleeveCompositeUrl',
                 back: 'backCompositeUrl',
             };
-            const placements = packet.placements || ['front'];
+            // All available graphic placements — exclude label/tag placements
+            const PUBLISH_LABEL_PLACEMENTS = new Set(['label', 'inside_label', 'neck_label', 'outside_label']);
+            const placements = (packet.placements?.length > 0 ? packet.placements : ['front'])
+                .filter((p) => !PUBLISH_LABEL_PLACEMENTS.has(p));
             const placeholders = [];
             for (const placement of placements) {
                 const urlField = PLACEMENT_URL_MAP[placement];

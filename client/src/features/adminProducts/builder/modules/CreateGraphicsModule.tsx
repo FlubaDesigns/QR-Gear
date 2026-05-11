@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, Loader2, Check, CheckCircle2, Copy, Pencil, QrCode, Layers } from "lucide-react";
-import { auth } from "@/lib/firebase";
+import { Package, Loader2, Check, CheckCircle2, Copy, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -55,10 +54,6 @@ export function CreateGraphicsModule() {
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
-  const [isSavingQr, setIsSavingQr] = useState(false);
-  const [qrSaved, setQrSaved] = useState(false);
-  const [isSavingCanvas, setIsSavingCanvas] = useState(false);
-  const [canvasSaved, setCanvasSaved] = useState(false);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
@@ -101,12 +96,10 @@ export function CreateGraphicsModule() {
     loadGraphic, resetBuilder, pricingSettings,
   });
 
-  // Reset packet tracking whenever a new packet is created
+  // Sync active packet ID whenever a new packet is created
   useEffect(() => {
     if (packetResult?.packetId) {
       setActivePacketId(packetResult.packetId);
-      setQrSaved(false);
-      setCanvasSaved(false);
     }
   }, [packetResult?.packetId]);
 
@@ -188,61 +181,6 @@ export function CreateGraphicsModule() {
     }
   };
 
-  // Shared helper: fetch a Firebase Storage URL via the admin proxy and return a base64 data URL
-  const fetchAsDataUrl = async (url: string): Promise<{ dataUrl: string; mimeType: string }> => {
-    const token = await auth.currentUser?.getIdToken();
-    const proxyUrl = `/api/admin/proxy-image?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) throw new Error(`Failed to fetch graphic: ${res.status}`);
-    const blob = await res.blob();
-    const mimeType = blob.type || "image/png";
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType });
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  const handleSaveQrGraphic = async () => {
-    if (!packetResult?.qrOnlyUrl || isSavingQr || qrSaved) return;
-    setIsSavingQr(true);
-    try {
-      const { dataUrl, mimeType } = await fetchAsDataUrl(packetResult.qrOnlyUrl);
-      const name = `qr-graphic-${packetResult.packetId?.slice(0, 8) ?? Date.now()}.png`;
-      await adminFetch("/library/upload-source", {
-        method: "POST",
-        json: { imageUrl: dataUrl, mimeType, name, originalFilename: name },
-      });
-      setQrSaved(true);
-      toast({ title: "QR graphic saved", description: "Added to your source library." });
-    } catch (err: any) {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSavingQr(false);
-    }
-  };
-
-  const handleSaveCanvasDesign = async () => {
-    if (!packetResult?.compositeUrl || isSavingCanvas || canvasSaved) return;
-    setIsSavingCanvas(true);
-    try {
-      const { dataUrl, mimeType } = await fetchAsDataUrl(packetResult.compositeUrl);
-      const name = `canvas-design-${packetResult.packetId?.slice(0, 8) ?? Date.now()}.png`;
-      await adminFetch("/library/upload-source", {
-        method: "POST",
-        json: { imageUrl: dataUrl, mimeType, name, originalFilename: name },
-      });
-      setCanvasSaved(true);
-      toast({ title: "Canvas design saved", description: "Added to your source library." });
-    } catch (err: any) {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
-    } finally {
-      setIsSavingCanvas(false);
-    }
-  };
 
   if (!state.selectedProduct || !state.qrProductState || !state.content) {
     return null;
@@ -332,51 +270,6 @@ export function CreateGraphicsModule() {
               } : prev);
             }}
           />
-        )}
-
-        {/* Save to Library — shown whenever a packet has saveable graphic URLs */}
-        {packetResult && (packetResult.qrOnlyUrl || packetResult.compositeUrl) && (
-          <div className="pt-2 border-t space-y-2">
-            <p className="text-xs text-muted-foreground font-medium">Save graphics to library</p>
-            <div className="flex flex-wrap gap-2">
-              {packetResult.qrOnlyUrl && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveQrGraphic}
-                  disabled={isSavingQr || qrSaved}
-                  data-testid="button-save-qr-graphic"
-                >
-                  {isSavingQr ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                  ) : qrSaved ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-                  ) : (
-                    <QrCode className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  {qrSaved ? 'QR Saved' : 'Save QR Graphic'}
-                </Button>
-              )}
-              {packetResult.compositeUrl && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveCanvasDesign}
-                  disabled={isSavingCanvas || canvasSaved}
-                  data-testid="button-save-canvas-design"
-                >
-                  {isSavingCanvas ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                  ) : canvasSaved ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-                  ) : (
-                    <Layers className="h-3.5 w-3.5 mr-1.5" />
-                  )}
-                  {canvasSaved ? 'Canvas Saved' : 'Save Canvas Design'}
-                </Button>
-              )}
-            </div>
-          </div>
         )}
 
 
