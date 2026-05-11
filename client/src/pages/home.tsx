@@ -131,7 +131,7 @@ function FeaturedStores() {
       title: "USA 250",
       tagline: "Wear the story of American history.",
       collections: "Monuments · Armed Forces · Founding Fathers",
-      href: "/shop/internal/qrgear/usa250",
+      href: "/shop/internal/qrgear/usa-250",
       badge: "Now Available",
       icon: <Flag className="w-5 h-5" />,
       heroImage: usa250HeroImg,

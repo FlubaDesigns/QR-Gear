@@ -2,7 +2,7 @@
  * ChannelHubView — renders a channel landing page (e.g. USA 250 hub).
  *
  * Route: /shop/:storeType/:storeName/:channel
- *        e.g. /shop/internal/qrgear/usa250
+ *        e.g. /shop/internal/qrgear/usa-250
  *
  * Responsibilities:
  *  - Channel header with hero image

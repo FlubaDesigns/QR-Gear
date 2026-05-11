@@ -16,7 +16,7 @@
  * It does NOT hard-code any USA 250 or collection-specific logic.
  *
  * Hierarchy (locked):
- *   internal → qrgear → usa250 → monuments / armed-forces / founding-fathers
+ *   internal → qrgear → usa-250 → monuments / armed-forces / founding-fathers
  */
 
 import { useQuery } from "@tanstack/react-query";

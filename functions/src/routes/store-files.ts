@@ -614,7 +614,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
     }
     if (!matchedStore) { res.status(404).json({ error: "Store not found" }); return; }
 
-    // ---- Channel-scoped query: /api/store/internal/qr-gear?channel=usa250[&collection=monuments] ----
+    // ---- Channel-scoped query: /api/store/internal/qr-gear?channel=usa-250[&collection=monuments] ----
     if (channel) {
       const channelDoc = await db.collection('storeChannels').doc(channel).get();
       if (!channelDoc.exists || (channelDoc.data() || {}).storeId !== matchedStore.id) {

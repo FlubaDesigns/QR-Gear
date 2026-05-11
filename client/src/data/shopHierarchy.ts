@@ -6,7 +6,7 @@
  * Hierarchy:
  *   internal
  *   └── qrgear
- *       └── usa250
+ *       └── usa-250
  *           ├── monuments
  *           ├── armed-forces
  *           └── founding-fathers
@@ -14,7 +14,7 @@
  * Rules:
  *   storeType  = "internal"
  *   storeName  = URL slug (e.g. "qrgear")
- *   channel    = URL channel slug (e.g. "usa250")
+ *   channel    = URL channel slug (e.g. "usa-250")
  *   collection = URL collection slug (e.g. "armed-forces")
  *   segment    = legacy Firestore field value (e.g. "Armed Forces")
  *                — only used in the resolver bridge below, not in page logic.
@@ -30,7 +30,7 @@ export interface CollectionConfig {
 }
 
 export interface ChannelConfig {
-  slug: string;        // URL channel slug, e.g. "usa250"
+  slug: string;        // URL channel slug, e.g. "usa-250"
   label: string;       // e.g. "USA 250"
   intro: string;       // One-line tagline shown on the hub page
   description: string; // Longer description
@@ -57,7 +57,7 @@ export const QR_GEAR: StoreConfig = {
     "QR Gear is America's home for QR-powered apparel — wearable products embedded with scannable QR codes that connect to digital experiences.",
   channels: [
     {
-      slug: "usa250",
+      slug: "usa-250",
       label: "USA 250",
       intro: "A tribute to the people, places, and principles that shaped America.",
       description:

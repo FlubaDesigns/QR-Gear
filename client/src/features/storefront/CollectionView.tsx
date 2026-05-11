@@ -2,7 +2,7 @@
  * CollectionView — renders a specific collection page under a channel.
  *
  * Route: /shop/:storeType/:storeName/:channel/:collection
- *        e.g. /shop/internal/qrgear/usa250/armed-forces
+ *        e.g. /shop/internal/qrgear/usa-250/armed-forces
  *
  * Responsibilities:
  *  - Breadcrumb context: QR Gear › Channel › Collection

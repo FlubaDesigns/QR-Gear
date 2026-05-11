@@ -4,7 +4,7 @@ const routeLabels: Record<string, string> = {
   "store": "Shop",
   "gallery": "Shop",
   "qrgear": "QR Gear",
-  "usa250": "USA 250",
+  "usa-250": "USA 250",
   "monuments": "Monuments",
   "armed-forces": "Armed Forces",
   "founding-fathers": "Founding Fathers",
