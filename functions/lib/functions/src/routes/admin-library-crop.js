@@ -92,7 +92,7 @@ function registerAdminLibraryCrop(app) {
                 isActive: true,
             });
             console.log(`[CropMint] seq=${sharedSeq} → source=${sourceGrfId} cropped=${croppedGrfId} background=${backgroundGrfId}`);
-            res.json({ success: true, croppedGrfId, backgroundGrfId });
+            res.json({ success: true, croppedGrfId, backgroundGrfId, croppedPublicUrl });
         }
         catch (error) {
             console.error('[CropMint] Error:', error);

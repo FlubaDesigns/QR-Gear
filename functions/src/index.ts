@@ -1,4 +1,4 @@
-const _BUILD_ID = '20260511-114633-16450';
+const _BUILD_ID = '20260511-122237-8492';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { onRequest } from 'firebase-functions/v2/https';

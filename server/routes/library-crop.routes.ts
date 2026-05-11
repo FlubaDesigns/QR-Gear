@@ -117,7 +117,7 @@ export function registerLibraryCropRoutes(app: Express): void {
 
       console.log(`[CropMint] seq=${sharedSeq} → source=${sourceGrfId} cropped=${croppedGrfId} background=${backgroundGrfId}`);
 
-      res.json({ success: true, croppedGrfId, backgroundGrfId });
+      res.json({ success: true, croppedGrfId, backgroundGrfId, croppedPublicUrl });
     } catch (error: any) {
       console.error("[CropMint] Error:", error);
       res.status(500).json({ error: error.message });

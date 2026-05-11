@@ -77,6 +77,47 @@ export function useCreatePacket({
     };
   }, [pricingSettings, state.selectedProduct, state.selectedPlacements, state.content]);
 
+  /**
+   * If the background URL is a raw base64 data URI, upload it to Firebase Storage
+   * and return the resulting Storage URL. This prevents the Firestore 1 MiB doc
+   * limit from being hit by giant inline base64 strings. Returns the URL unchanged
+   * if it is already a Storage URL (or null/undefined).
+   */
+  const resolveBackgroundUrl = async (rawUrl: string | null | undefined): Promise<string | null> => {
+    if (!rawUrl) return null;
+    if (!rawUrl.startsWith("data:")) return rawUrl;
+
+    console.warn("[CreatePacket] landingPageBackgroundUrl is a base64 data URI — uploading to Storage first");
+    try {
+      const mimeMatch = rawUrl.match(/^data:([^;]+);base64,/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const base64Data = rawUrl.replace(/^data:[^;]+;base64,/, "");
+      const ext = mimeType.split("/")[1] || "jpg";
+      const uploadResult = await adminFetch<{ storageUrl: string }>("/background-assets", {
+        method: "POST",
+        json: {
+          name: `bg-${Date.now()}.${ext}`,
+          assetType: "source",
+          imageData: base64Data,
+          mimeType,
+        },
+      });
+      if (!uploadResult.storageUrl) {
+        throw new Error("Background upload succeeded but returned no storageUrl");
+      }
+      console.log("[CreatePacket] Background uploaded to Storage:", uploadResult.storageUrl);
+      return uploadResult.storageUrl;
+    } catch (err: any) {
+      console.error("[CreatePacket] Background upload failed — stripping base64 to prevent Firestore overflow:", err.message);
+      toast({
+        title: "Background image could not be saved",
+        description: err.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const handleCreatePacket = async () => {
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
@@ -111,6 +152,9 @@ export function useCreatePacket({
       const landingPageSlug = generateSlug(state.content?.title || 'product') + '-' + Date.now().toString(36);
       const isPlayMode = state.qrProductState === "qr_play";
 
+      // Upload any base64 background to Storage before it touches any Firestore write.
+      const resolvedBgUrl = await resolveBackgroundUrl(state.loadedBackground?.url);
+
       const packetPayload: Record<string, any> = {
         qrOnlyUrl: "",
         compositeUrl: "",
@@ -119,7 +163,7 @@ export function useCreatePacket({
         footerText: state.content?.footerStyle?.enabled ? state.content.footerStyle.text : null,
         headerStyle: state.content?.headerStyle?.enabled ? state.content.headerStyle : null,
         footerStyle: state.content?.footerStyle?.enabled ? state.content.footerStyle : null,
-        backgroundUrl: state.loadedBackground?.url || null,
+        backgroundUrl: resolvedBgUrl,
         pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
@@ -168,7 +212,7 @@ export function useCreatePacket({
         mockupsByColor: product?.mockupsByColor || null,
         landingPageTitle: state.content?.title || null,
         landingPageDescription: state.content?.description || null,
-        landingPageBackgroundUrl: state.loadedBackground?.url || null,
+        landingPageBackgroundUrl: resolvedBgUrl,
         landingTextBlocks: state.content?.landingTextBlocks || [],
         landingPageSlug,
         sourceMasterId: product?.docId || null,
@@ -307,7 +351,7 @@ export function useCreatePacket({
 
       const qrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000);
 
-      const backgroundUrl = state.loadedBackground?.url || null;
+      const backgroundUrl = resolvedBgUrl;
       const headerStyle = state.content?.headerStyle as SharedTextStyle | null;
       const footerStyle = state.content?.footerStyle as SharedTextStyle | null;
       const titleStyle = state.content?.titleStyle as SharedTextStyle | null;
@@ -553,7 +597,7 @@ export function useCreatePacket({
           subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
           subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
           subBottomColor: state.content?.subBottomStyle?.color || '#666666',
-          backgroundUrl: state.loadedBackground?.url || null,
+          backgroundUrl: resolvedBgUrl,
           qrProductState: state.qrProductState || 'qr_canvas',
           areaImageUrl: state.content?.areaImageUrl || null,
           areaImageMode: state.content?.areaImageMode || 'behind-qr',

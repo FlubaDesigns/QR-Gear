@@ -257,10 +257,41 @@ export function GRFImagePicker({
     setCropOpen(true);
   };
 
-  const handleCropComplete = (resultUrl: string) => {
+  const handleCropComplete = async (resultUrl: string) => {
     if (cropMode === "background" && pendingBg) {
-      onSelect({ id: pendingBg.grfId, name: pendingBg.name, url: resultUrl });
+      const bg = pendingBg;
       setPendingBg(null);
+      setSaving(true);
+      try {
+        const croppedImageData = resultUrl.startsWith("data:")
+          ? resultUrl.replace(/^data:[^;]+;base64,/, "")
+          : resultUrl;
+        const result = await adminFetch<{ croppedPublicUrl: string; croppedGrfId: string }>("/library/crop-mint", {
+          method: "POST",
+          json: {
+            croppedImageData,
+            croppedMimeType: "image/jpeg",
+            originalMimeType: bg.mimeType || "image/jpeg",
+            originalPublicUrl: bg.publicUrl,
+            sourceGrfId: bg.grfId,
+          },
+        });
+        queryClient.invalidateQueries({ queryKey: CROPPED_QK });
+        queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
+        onSelect({ id: result.croppedGrfId, name: bg.name, url: result.croppedPublicUrl });
+      } catch (err: unknown) {
+        const error = err as Error;
+        console.error("[GRFImagePicker] Background crop-mint failed:", error.message);
+        toast({
+          title: "Background crop failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setSaving(false);
+        setCropOpen(false);
+        setCropAsset(null);
+      }
     }
   };
 
