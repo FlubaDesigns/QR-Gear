@@ -101,4 +101,17 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 - Admin guide: `client/src/features/adminProducts/ADMIN_README.md`
 - QRG identity: `docs/QRG.md`, `shared/qrgCodes.ts`
 - Blank key helpers: `shared/blankKeys.ts`, `shared/__tests__/blankKeys.test.ts`
+- Canonical Field Authority (CFA): `shared/adapters/catalog.adapter.ts` — the one approved translation boundary for catalog→UI fields
 - Skills: `.agents/skills/always-deploy`, `.agents/skills/ask-before-starting`, `.agents/skills/fail-loudly`
+
+## Canonical Field Authority (CFA)
+
+Provider/Firestore fields are NOT UI fields. All raw data must pass through `shared/adapters/catalog.adapter.ts` before components consume it.
+
+Canonical UI field names (non-negotiable):
+- `availableColors` — never `colorsAvailable`, `colorOptions`, `colors` (catalog context)
+- `availableSizes` — never `sizesAvailable`, `sizeOptions`, `sizes` (catalog context)
+
+Rule: if a field name is wrong in a component, fix the adapter — not the component. Components must never alias, fall back to, or guess provider field names.
+
+Full spec: `ADMIN_README.md` → "CANONICAL FIELD AUTHORITY" section

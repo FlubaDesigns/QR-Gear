@@ -489,3 +489,60 @@ The real fix requires:
 - `functions/src/services/grf-registrar.ts` — prod GRF registration (has dedup)
 - `server/routes/library-crop.routes.ts` — crop-mint route (uses engine)
 - `functions/src/routes/admin-library-crop.ts` — prod crop-mint (uses engine)
+
+---
+
+## CANONICAL FIELD AUTHORITY (CFA)
+
+> Added: May 2026. Extends the same philosophy as QRG/BLD/GRF authority to UI field names.
+
+### Core rule
+
+Provider fields are NOT UI fields. All raw Firestore/provider/packet data must pass through the shared adapter layer before components may consume it.
+
+```
+Provider / Firestore / API
+         ↓
+shared/adapters/catalog.adapter.ts   ← ONLY approved translation boundary
+         ↓
+Canonical view-model (CanonicalProductSelectItem)
+         ↓
+UI Components
+```
+
+Components may NOT:
+- alias field names (`item.colorsAvailable || item.availableColors`)
+- support multiple field name variants
+- fall back to raw provider field names (`|| product.sizes`, `|| item.colors`)
+- translate provider data locally
+
+**ONE FIELD. ONE NAME. ONE AUTHORITY.**
+
+### Canonical UI field names
+
+| Canonical name | Forbidden aliases |
+|---|---|
+| `availableColors` | `colorsAvailable`, `colorOptions`, `blankColors`, `colors` (when sourced from catalog) |
+| `availableSizes` | `sizesAvailable`, `sizeOptions`, `sizes` (when sourced from catalog) |
+
+**Note on packet/store fields:** `ProductPacket` has its own `colors` and `sizes` fields — these are canonical within the packet domain. CFA governs the catalog→component translation boundary only.
+
+### Adapter location
+
+`shared/adapters/catalog.adapter.ts` — exports:
+- `CanonicalProductSelectItem` — the interface all product display types must conform to
+- `normalizeProductColors(raw)` — reads `colorMap` → `providerMappings` → `availableColors` in priority order
+- `normalizeProductSizes(raw)` — reads `sizeMap` → `availableSizes` in priority order
+- `assertCanonicalProduct(item, context)` — dev-time assertion; call at adapter boundaries
+
+### If a field is wrong in a component
+
+**Fix the adapter. Not the component.**
+
+```typescript
+// BAD — component doing field guessing
+const colors = item.availableColors || item.colorsAvailable || item.colors || [];
+
+// GOOD — adapter normalized it; component reads one field
+const colors = item.availableColors;
+```

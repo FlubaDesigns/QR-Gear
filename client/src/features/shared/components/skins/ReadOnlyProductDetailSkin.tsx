@@ -13,7 +13,7 @@ export function ReadOnlyProductDetailSkin({ product, onSelect, onClose }: ReadOn
   const description = product.effectiveDescription || product.adminCatalogDescription || product.providerDescription || product.description || "No description available";
 
   const colorList = product.availableColors || [];
-  const sizeList = product.availableSizes || product.sizes || [];
+  const sizeList = product.availableSizes || [];
 
   return (
     <div

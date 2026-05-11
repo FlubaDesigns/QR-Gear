@@ -87,6 +87,24 @@ export function normalizeProductColors(raw: Record<string, any>): ProductColor[]
  * Normalize raw sizes into a canonical string array.
  * sizeMap (CF-injected) is preferred; falls back to availableSizes / sizes.
  */
+/**
+ * Dev-time assertion: verify that a ProductSelectItem has canonical fields populated.
+ * Call this at adapter boundaries to catch normalization gaps early.
+ */
+export function assertCanonicalProduct(
+  item: Partial<CanonicalProductSelectItem>,
+  context: string,
+): void {
+  if (process.env.NODE_ENV !== "production") {
+    if (!Array.isArray(item.availableColors)) {
+      console.warn(`[CFA] ${context}: availableColors missing or not an array`, item);
+    }
+    if (!Array.isArray(item.availableSizes)) {
+      console.warn(`[CFA] ${context}: availableSizes missing or not an array`, item);
+    }
+  }
+}
+
 export function normalizeProductSizes(raw: Record<string, any>): string[] {
   const sizeMap = raw.sizeMap;
   if (Array.isArray(sizeMap) && sizeMap.length > 0) {

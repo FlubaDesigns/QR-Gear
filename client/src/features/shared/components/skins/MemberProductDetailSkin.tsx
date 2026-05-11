@@ -25,7 +25,7 @@ export function MemberProductDetailSkin({ product, onSelect, onClose, onDescript
     || "";
 
   const colorList = localProduct.availableColors || [];
-  const sizeList = localProduct.availableSizes || localProduct.sizes || [];
+  const sizeList = localProduct.availableSizes || [];
 
   const handleSave = async () => {
     const updated = {
