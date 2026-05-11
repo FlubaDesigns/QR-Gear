@@ -1078,6 +1078,7 @@ function registerAdminBuildSessions(app) {
                 variantCount: variantObjs.length,
                 printifyVariantMap,
                 enabledColors,
+                printifyPublishedAt: new Date().toISOString(),
             });
         }
         catch (err) {

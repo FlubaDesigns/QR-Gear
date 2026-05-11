@@ -1139,6 +1139,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         variantCount: variantObjs.length,
         printifyVariantMap,
         enabledColors,
+        printifyPublishedAt: new Date().toISOString(),
       });
     } catch (err: any) {
       console.error('[PublishToPrintify] error:', err.message);

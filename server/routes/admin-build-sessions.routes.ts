@@ -282,6 +282,54 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
     }
   });
 
+  // ── Clone a session into a fresh working draft ────────────────────────────
+  app.post("/api/admin/build-sessions/clone", isAdmin, async (req: any, res) => {
+    try {
+      const { sourceSessionId } = req.body;
+      if (!sourceSessionId) {
+        return res.status(400).json({ error: "sourceSessionId is required" });
+      }
+
+      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { FieldValue, Timestamp } = await import("firebase-admin/firestore");
+      const db = getFirestoreDb();
+
+      const sourceDoc = await db.collection(BUILD_SESSIONS_COLLECTION).doc(sourceSessionId).get();
+      if (!sourceDoc.exists) {
+        return res.status(404).json({ error: "Source session not found" });
+      }
+
+      const source = sourceDoc.data()!;
+      const uid = req.user?.uid || null;
+      const now = FieldValue.serverTimestamp();
+      const expiresAt = Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+
+      const newSession = {
+        sessionType: "admin_build",
+        sourceMasterId: source.sourceMasterId,
+        catalogId: source.catalogId || null,
+        ownerAdminId: uid,
+        working: source.working || {},
+        draftName: source.draftName ? `${source.draftName} (copy)` : null,
+        generated: { packetId: null, templateId: null, graphicSetId: null, artifactReady: false },
+        status: "working",
+        clonedFromSessionId: sourceSessionId,
+        createdAt: now,
+        updatedAt: now,
+        lastActiveAt: now,
+        expiresAt,
+        committedInstanceId: null,
+      };
+
+      const ref = await db.collection(BUILD_SESSIONS_COLLECTION).add(newSession);
+      console.log(`[BuildSessions] Cloned ${sourceSessionId} → ${ref.id}`);
+      res.json({ success: true, sessionId: ref.id, clonedFrom: sourceSessionId });
+    } catch (err: any) {
+      console.error("[BuildSessions] clone error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Update working state / draftName — no permanent instance created ──────
   app.patch("/api/admin/build-sessions/:id", isAdmin, async (req: any, res) => {
     try {
