@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, Upload, ImageIcon, Check, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { adminFetch } from "@/lib/adminFetch";
+import { auth } from "@/lib/firebase";
 import { ScrollGridView } from "./views/ScrollGridView";
 import { CropUtility, type CropAsset } from "./utilities/CropUtility";
 import { useToast } from "@/hooks/use-toast";
@@ -99,6 +100,19 @@ export function GRFImagePicker({
   const [cropAsset, setCropAsset] = useState<CropAsset | null>(null);
   const [cropMode, setCropMode] = useState<CropMode>("background");
   const [pendingBg, setPendingBg] = useState<GrfAsset | null>(null);
+
+  // Proxy Firebase Storage images through our server so the canvas can read
+  // pixel data without hitting a CORS taint security error.
+  const fetchImageBlob = useCallback(async (url: string): Promise<string> => {
+    const token = await auth.currentUser?.getIdToken();
+    const proxyUrl = `/api/admin/proxy-image?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`proxy-image ${res.status}`);
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  }, []);
 
   // ── Queries — all three load eagerly so tab switching is instant ───────────
 
@@ -452,6 +466,7 @@ export function GRFImagePicker({
         allowCropToggle
         aspectRatio={9 / 16}
         title={cropMode === "source" ? "Crop Source Image" : "Adjust Background"}
+        fetchImageBlob={fetchImageBlob}
       />
     </div>
   );

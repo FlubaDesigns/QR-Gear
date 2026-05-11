@@ -328,9 +328,9 @@ export function CropUtility({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-auto max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{title} ({aspectLabel} ratio locked)</DialogTitle>
-          <DialogDescription>Use the buttons below the image to resize and move the crop area</DialogDescription>
+        <DialogHeader className="flex-shrink-0 pb-1">
+          <DialogTitle className="text-base leading-tight">{title} ({aspectLabel} ratio locked)</DialogTitle>
+          <DialogDescription className="text-xs leading-tight sr-only sm:not-sr-only">Use the buttons below the image to resize and move the crop area</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto flex flex-col items-center min-h-0">
@@ -395,8 +395,8 @@ export function CropUtility({
                     crop={crop}
                     onChange={(_, percentCrop) => setCrop(percentCrop)}
                     aspect={aspectRatio}
-                    className="max-h-[50vh]"
-                    style={{ maxHeight: '50vh' }}
+                    className="max-h-[38vh]"
+                    style={{ maxHeight: '38vh' }}
                   >
                     <img
                       ref={imgRef}
@@ -404,7 +404,7 @@ export function CropUtility({
                       alt="Crop preview"
                       onLoad={onImageLoad}
                       onError={(e) => console.error("[CropUtility] Image failed to load:", e)}
-                      className="max-w-full max-h-[50vh] mx-auto block"
+                      className="max-w-full max-h-[38vh] mx-auto block"
                       style={{ objectFit: 'contain' }}
                       data-testid="img-crop-preview"
                     />
@@ -415,7 +415,7 @@ export function CropUtility({
                     src={imageSrc}
                     alt="Full preview"
                     onLoad={onImageLoad}
-                    className="max-w-full max-h-[50vh] mx-auto"
+                    className="max-w-full max-h-[38vh] mx-auto"
                     style={{ objectFit: 'contain' }}
                     data-testid="img-full-preview"
                   />

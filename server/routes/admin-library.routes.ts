@@ -633,4 +633,33 @@ export function registerAdminLibraryRoutes(app: Express): void {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ── GET /api/admin/proxy-image?url=... ───────────────────────────────────
+  // Fetches a Firebase Storage image server-side and returns it as same-origin
+  // so the browser canvas crop can read pixel data without CORS taint.
+  app.get("/api/admin/proxy-image", isAdmin, async (req: any, res) => {
+    try {
+      const url = req.query.url as string;
+      if (!url) {
+        return res.status(400).json({ error: "url query param required" });
+      }
+      if (
+        !url.startsWith("https://firebasestorage.googleapis.com/") &&
+        !url.startsWith("https://storage.googleapis.com/")
+      ) {
+        return res.status(400).json({ error: "Only Firebase Storage URLs are supported" });
+      }
+      const upstream = await fetch(url);
+      if (!upstream.ok) {
+        return res.status(502).json({ error: `Upstream ${upstream.status}` });
+      }
+      const contentType = upstream.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const buf = Buffer.from(await upstream.arrayBuffer());
+      res.send(buf);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }

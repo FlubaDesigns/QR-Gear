@@ -196,5 +196,36 @@ function registerAdminGraphics(app) {
             res.status(500).json({ error: error.message });
         }
     });
+    // ── GET /admin/proxy-image?url=... ────────────────────────────────────────
+    // Fetches a Firebase Storage image server-side (no CORS restrictions) and
+    // returns it as a same-origin response so the canvas crop can read pixel data.
+    app.get('/admin/proxy-image', middleware_1.requireAdmin, async (req, res) => {
+        try {
+            const url = req.query.url;
+            if (!url) {
+                res.status(400).json({ error: 'url query param required' });
+                return;
+            }
+            if (!url.startsWith('https://firebasestorage.googleapis.com/') &&
+                !url.startsWith('https://storage.googleapis.com/')) {
+                res.status(400).json({ error: 'Only Firebase Storage URLs are supported' });
+                return;
+            }
+            const upstream = await fetch(url);
+            if (!upstream.ok) {
+                res.status(502).json({ error: `Upstream ${upstream.status}` });
+                return;
+            }
+            const contentType = upstream.headers.get('content-type') || 'image/jpeg';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            const buf = Buffer.from(await upstream.arrayBuffer());
+            res.send(buf);
+        }
+        catch (err) {
+            console.error('[GRF] proxy-image error:', err.message);
+            res.status(500).json({ error: err.message });
+        }
+    });
 }
 //# sourceMappingURL=admin-graphics.js.map
