@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Package, Loader2, Check, CheckCircle2, Copy, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -89,12 +89,31 @@ export function CreateGraphicsModule() {
 
   const {
     isCreating, packetResult, error, isDeleting,
+    isCommitting, commitResult,
     artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    handleCommitSession,
     setPacketResult,
   } = useCreatePacket({
     state, selectedRole, selectedStore, selectedChannel, selectedCollection,
     loadGraphic, resetBuilder, pricingSettings,
   });
+
+  // Auto-retry commit once on mount if this session was already artifact_ready
+  // (i.e. a resumed session whose previous auto-commit failed or was interrupted).
+  // We use a ref so this only fires once per mount, never on subsequent renders.
+  const autoRetryFiredRef = useRef(false);
+  useEffect(() => {
+    if (
+      !autoRetryFiredRef.current &&
+      sessionStatus === 'artifact_ready' &&
+      !isCommitting &&
+      !commitResult
+    ) {
+      autoRetryFiredRef.current = true;
+      handleCommitSession();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync active packet ID whenever a new packet is created
   useEffect(() => {
@@ -272,6 +291,16 @@ export function CreateGraphicsModule() {
           />
         )}
 
+
+        {/* Auto-commit in progress indicator */}
+        {packetResult && hasActiveSession && sessionStatus === 'artifact_ready' && isCommitting && (
+          <div className="pt-2 border-t">
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+              Saving to catalog…
+            </p>
+          </div>
+        )}
 
         {/* Committed confirmation + Phase 2 actions */}
         {packetResult && hasActiveSession && sessionStatus === 'committed' && (
