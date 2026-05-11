@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Package, Loader2, Check, CheckCircle2, Copy, Pencil, QrCode, Layers } from "lucide-react";
+import { auth } from "@/lib/firebase";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -54,6 +55,10 @@ export function CreateGraphicsModule() {
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
+  const [isSavingQr, setIsSavingQr] = useState(false);
+  const [qrSaved, setQrSaved] = useState(false);
+  const [isSavingCanvas, setIsSavingCanvas] = useState(false);
+  const [canvasSaved, setCanvasSaved] = useState(false);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
@@ -178,6 +183,62 @@ export function CreateGraphicsModule() {
     } catch (err: any) {
       toast({ title: 'Could not save as new', description: err.message || 'Please try again.', variant: 'destructive' });
       setIsCloningSession(false);
+    }
+  };
+
+  // Shared helper: fetch a Firebase Storage URL via the admin proxy and return a base64 data URL
+  const fetchAsDataUrl = async (url: string): Promise<{ dataUrl: string; mimeType: string }> => {
+    const token = await auth.currentUser?.getIdToken();
+    const proxyUrl = `/api/admin/proxy-image?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxyUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`Failed to fetch graphic: ${res.status}`);
+    const blob = await res.blob();
+    const mimeType = blob.type || "image/png";
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ dataUrl: reader.result as string, mimeType });
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleSaveQrGraphic = async () => {
+    if (!packetResult?.qrOnlyUrl || isSavingQr || qrSaved) return;
+    setIsSavingQr(true);
+    try {
+      const { dataUrl, mimeType } = await fetchAsDataUrl(packetResult.qrOnlyUrl);
+      const name = `qr-graphic-${packetResult.packetId?.slice(0, 8) ?? Date.now()}.png`;
+      await adminFetch("/library/upload-source", {
+        method: "POST",
+        json: { imageUrl: dataUrl, mimeType, name, originalFilename: name },
+      });
+      setQrSaved(true);
+      toast({ title: "QR graphic saved", description: "Added to your source library." });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSavingQr(false);
+    }
+  };
+
+  const handleSaveCanvasDesign = async () => {
+    if (!packetResult?.compositeUrl || isSavingCanvas || canvasSaved) return;
+    setIsSavingCanvas(true);
+    try {
+      const { dataUrl, mimeType } = await fetchAsDataUrl(packetResult.compositeUrl);
+      const name = `canvas-design-${packetResult.packetId?.slice(0, 8) ?? Date.now()}.png`;
+      await adminFetch("/library/upload-source", {
+        method: "POST",
+        json: { imageUrl: dataUrl, mimeType, name, originalFilename: name },
+      });
+      setCanvasSaved(true);
+      toast({ title: "Canvas design saved", description: "Added to your source library." });
+    } catch (err: any) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSavingCanvas(false);
     }
   };
 
