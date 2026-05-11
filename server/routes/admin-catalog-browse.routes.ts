@@ -1005,7 +1005,16 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         : (Array.isArray(product.availableColors) ? product.availableColors : []);
 
       const availableSizes = sizeCodes.map((code: string) => ({ code, label: code, providerValues: [] }));
-      const availableColors = colorCodes.map((code: string) => ({ code, label: code, providerValues: [] }));
+
+      // Build {name, hex}[] colors — priority: providerMappings real colors > QRG code stubs
+      const pmData = product.providerMappings || {};
+      const isPmObj = pmData && typeof pmData === 'object' && !Array.isArray(pmData);
+      const providerColorArr: any[] = isPmObj
+        ? (pmData[requestedProvider]?.colors || pmData.printful?.colors || pmData.printify?.colors || [])
+        : [];
+      const availableColors: Array<{ name: string; hex: string }> = providerColorArr.length > 0
+        ? providerColorArr.map((c: any) => ({ name: c.name || String(c), hex: c.hex || '#CCCCCC' }))
+        : colorCodes.map((code: string) => ({ name: String(code), hex: '#CCCCCC' }));
 
       return res.json({
         docId,
@@ -1021,6 +1030,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         category: product.qrgCategory || product.category || null,
         availableSizes,
         availableColors,
+        providerMappings: isPmObj ? pmData : null,
         printLocations,
         provider: {
           name: requestedProvider,

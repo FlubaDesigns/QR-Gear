@@ -790,6 +790,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             layoutSource: pl.layoutSource || null,
           }));
 
+          // Prefer real {name,hex} colors from options — the /options endpoint now builds
+          // these from providerMappings. Fall back to whatever was set at selection time.
+          const optionsColors: Array<{ name: string; hex: string }> = options.availableColors || [];
+          const hasRealColors = optionsColors.length > 0 && typeof optionsColors[0]?.hex === 'string';
+
           const merged: CatalogProduct = {
             ...prev.selectedProduct!,
             placements: printLocations.length > 0 ? printLocations : (prev.selectedProduct!.placements || []),
@@ -797,6 +802,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             qrgBlankId: options.qrgBlankId || prev.selectedProduct!.qrgBlankId,
             qrgVariants: options.qrgVariants || {},
             providerMappings: options.providerMappings || prev.selectedProduct!.providerMappings,
+            availableColors: hasRealColors ? optionsColors : (prev.selectedProduct!.availableColors || []),
             // Schema-first fields resolved from QRG STNNN digits — identify product type
             // before any provider query. Persisted into providerLayout on placement select.
             schemaFamily: options.schemaFamily || null,

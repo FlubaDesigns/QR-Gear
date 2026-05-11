@@ -704,11 +704,13 @@ export function register(app: express.Express): void {
         providerValues: sizeProviderValues[code] ? Array.from(sizeProviderValues[code]) : [],
       }));
 
-      const availableColors = colorCodes.map((code: string) => ({
-        code,
-        label: COLOR_LABELS[code] ?? code,
-        providerValues: colorProviderValues[code] ? Array.from(colorProviderValues[code]) : [],
-      }));
+      // Build {name, hex}[] colors — priority: providerMappings real colors > QRG code stubs
+      const providerColorArr: any[] = isProviderObj
+        ? (pm[requestedProvider]?.colors || pm.printful?.colors || pm.printify?.colors || [])
+        : [];
+      const availableColors: Array<{ name: string; hex: string }> = providerColorArr.length > 0
+        ? providerColorArr.map((c: any) => ({ name: c.name || String(c), hex: c.hex || '#CCCCCC' }))
+        : colorCodes.map((code: string) => ({ name: String(code), hex: '#CCCCCC' }));
 
       // 6. Resolve print locations — filter by selected provider via print_placements crosswalk
       // Rule: showPlacement = print_placements[internalName].providers[requestedProvider] exists
@@ -1010,6 +1012,7 @@ export function register(app: express.Express): void {
         category: product.qrgCategory || product.category || null,
         availableSizes,
         availableColors,
+        providerMappings: isProviderObj ? pm : null,
         printLocations,
         provider: {
           name: requestedProvider,
