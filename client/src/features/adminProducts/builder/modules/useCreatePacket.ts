@@ -769,7 +769,14 @@ export function useCreatePacket({
     try {
       const data = await adminFetch<any>(`/build-sessions/${state.activeSessionId}/commit`, {
         method: "POST",
-        json: {},
+        json: {
+          storeId: selectedStore?.id || null,
+          storeName: selectedStore?.name || null,
+          channelId: selectedChannel?.id || null,
+          channelName: selectedChannel?.name || null,
+          collectionId: selectedCollection?.id || null,
+          collectionName: selectedCollection?.name || null,
+        },
       });
 
       const result: CommitResult = {

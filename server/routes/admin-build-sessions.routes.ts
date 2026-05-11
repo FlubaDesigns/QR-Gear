@@ -636,12 +636,35 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const resolved = resolveFields(baseSnapshot, overrides);
       const meta = w.metadata || {};
       // Use metadata from autosave; fall back to values passed in request body
-      const selectedStore = meta.selectedStore || (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null);
-      const selectedChannel = meta.selectedChannel || (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null);
-      const selectedCollection = meta.selectedCollection || (bodyCollectionName ? { name: bodyCollectionName } : null);
-      console.log(`[BuildSessions] commit ${id} | channel: ${selectedChannel?.name ?? "null"} (meta: ${meta.selectedChannel?.name ?? "null"}, body: ${bodyChannelName ?? "null"})`);
+      // Body values take precedence over stale autosaved metadata so that the
+      // manual/retry commit path (which now always sends store/channel in body)
+      // is never blocked by a debounce race.
+      const selectedStore = (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null)
+        || meta.selectedStore || null;
+      const selectedChannel = (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null)
+        || meta.selectedChannel || null;
+      const selectedCollection = (bodyCollectionName ? { name: bodyCollectionName } : null)
+        || meta.selectedCollection || null;
+      console.log(`[BuildSessions] commit ${id} | store: ${selectedStore?.id ?? "null"} channel: ${selectedChannel?.id ?? "null"} (meta: ${meta.selectedChannel?.id ?? "null"}, body: ${bodyChannelId ?? "null"})`);
       const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(" / ") || null;
+
+      // ── Gate 0.5: Verify selected channel exists in storeChannels ──────────
+      if (selectedChannel?.id) {
+        const chanDoc = await db.collection("storeChannels").doc(selectedChannel.id).get();
+        if (!chanDoc.exists) {
+          return res.status(400).json({
+            error: `Channel "${selectedChannel.id}" does not exist in storeChannels. ` +
+                   `Create it via the Store Builder before committing, or check for an ID mismatch (e.g. "usa-250" vs "usa250").`,
+          });
+        }
+        const chanData = chanDoc.data() as any;
+        if (selectedStore?.id && chanData.storeId && chanData.storeId !== selectedStore.id) {
+          return res.status(400).json({
+            error: `Channel "${selectedChannel.id}" belongs to store "${chanData.storeId}", not "${selectedStore.id}".`,
+          });
+        }
+      }
 
       // ── Gate 1: Validate QRG blank identity ─────────────────────────────────
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
@@ -748,7 +771,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         channelId: selectedChannel?.id || null, channelName: selectedChannel?.name || null,
         collectionId: selectedCollection?.id || null, collectionName: selectedCollection?.name || null,
         folderPath,
-        status: "draft", createdAt: now, updatedAt: now,
+        status: "active", isVisible: true, createdAt: now, updatedAt: now,
       });
       const instanceId = instanceRef.id;
 

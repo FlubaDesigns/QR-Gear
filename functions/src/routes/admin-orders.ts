@@ -564,7 +564,7 @@ app.get('/widget/stores/:slug', async (req: Request, res: Response): Promise<voi
     const snap = await db.collection('partner_stores').where('slug', '==', req.params.slug).where('isActive', '==', true).limit(1).get();
     if (snap.empty) { res.status(404).json({ error: "Store not found" }); return; }
     const store = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-    const channels = await db.collection('store_channels').where('storeId', '==', store.id).get();
+    const channels = await db.collection('storeChannels').where('storeId', '==', store.id).get();
     res.json({ ...store, channels: channels.docs.map(d => ({ id: d.id, ...d.data() })) });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });

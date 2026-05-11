@@ -559,7 +559,7 @@ function register(app) {
                 return;
             }
             const store = { id: snap.docs[0].id, ...snap.docs[0].data() };
-            const channels = await core_1.db.collection('store_channels').where('storeId', '==', store.id).get();
+            const channels = await core_1.db.collection('storeChannels').where('storeId', '==', store.id).get();
             res.json({ ...store, channels: channels.docs.map(d => ({ id: d.id, ...d.data() })) });
         }
         catch (e) {
