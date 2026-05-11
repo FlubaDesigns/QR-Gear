@@ -2,7 +2,26 @@ import { useEffect, useRef } from "react";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
-import type { CatalogProduct } from "../types";
+import type { CatalogProduct, ProductColor } from "../types";
+
+/**
+ * Resolve a raw catalog product's availableColors into proper {name, hex} objects.
+ * Firestore stores availableColors as QRG color codes (e.g. "01","02","03"), not hex values.
+ * The resolved colors come from providerMappings which carries the actual hex data.
+ */
+function normalizeProductColors(product: CatalogProduct): ProductColor[] {
+  const raw = product as any;
+  const pm = raw.providerMappings || {};
+  const mapped: Array<{ name: string; hex: string }> = (
+    pm.printful?.colors || pm.printify?.colors || []
+  ).map((c: any) => ({ name: c.name || '', hex: c.hex || '#CCCCCC' }));
+  if (mapped.length > 0) return mapped;
+  // Fall back: convert whatever is stored (may be objects or raw strings)
+  return (product.availableColors || []).map((c: any) => ({
+    name: typeof c === 'string' ? c : (c.name || c.colorName || c.label || ''),
+    hex: typeof c === 'object' && c.hex ? c.hex : '#CCCCCC',
+  }));
+}
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -208,6 +227,15 @@ export function DraftResumeHandler() {
             ? `[DraftResumeHandler] Product resolved via ${resolutionKey}: "${resolvedProduct.title}"`
             : `[DraftResumeHandler] Product NOT resolved (tried: ${resolutionKey})`,
         );
+
+        // Normalize availableColors — Firestore stores QRG codes ("01","02","03"), not {name,hex}.
+        // providerMappings carries the actual hex values needed by DesignColorPicker.
+        if (resolvedProduct) {
+          resolvedProduct = {
+            ...resolvedProduct,
+            availableColors: normalizeProductColors(resolvedProduct),
+          };
+        }
 
         // ── 6. Restore builder state ─────────────────────────────────────
         if (isPacketBacked) {

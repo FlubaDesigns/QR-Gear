@@ -626,6 +626,7 @@ export function ProductsModule() {
         description: entry.selectItem.description ?? entry.catalog.description,
         images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
         imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
+        availableColors: entry.selectItem.colorsAvailable.map(c => ({ name: c.name, hex: c.hex || '#CCCCCC' })),
       } as typeof entry.catalog;
       selectProduct(curatedProduct);
     }
@@ -655,6 +656,7 @@ export function ProductsModule() {
         description: entry.selectItem.description ?? entry.catalog.description,
         images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
         imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
+        availableColors: entry.selectItem.colorsAvailable.map(c => ({ name: c.name, hex: c.hex || '#CCCCCC' })),
       } as typeof entry.catalog;
       selectProduct(curatedProduct);
     }
@@ -862,13 +864,16 @@ export function ProductsModule() {
       setSelectedProviders([catalogProduct.fulfillmentProvider]);
     }
 
-    // Build curated product — prefer admin-overridden title/description/images over master
+    // Build curated product — prefer admin-overridden title/description/images over master.
+    // availableColors: use the already-normalized {name,hex} objects from selectItem rather
+    // than the raw Firestore field which stores QRG color codes (e.g. "01","02","03").
     const curatedProduct = {
       ...entry.catalog,
       title: entry.selectItem.name || entry.catalog.title,
       description: entry.selectItem.description ?? entry.catalog.description,
       images: entry.selectItem.images?.length ? entry.selectItem.images : (catalogProduct.images || []),
       imageUrl: entry.selectItem.primaryImageUrl || catalogProduct.imageUrl,
+      availableColors: entry.selectItem.colorsAvailable.map(c => ({ name: c.name, hex: c.hex || '#CCCCCC' })),
     } as typeof entry.catalog;
     selectProduct(curatedProduct);
 
