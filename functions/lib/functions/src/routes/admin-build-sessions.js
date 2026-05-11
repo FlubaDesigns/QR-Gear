@@ -170,12 +170,16 @@ function registerAdminBuildSessions(app) {
                 res.status(401).json({ error: 'Admin UID required' });
                 return;
             }
-            // P6: validate catalog scope — reject if shelfItem doesn't belong to the stated catalog
+            // P6: catalog-scope check — non-blocking warning only.
+            // A stale catalogId on the shelf doc (e.g. after a catalog rebuild) must not
+            // permanently lock the admin out of a product. Log for investigation, then continue.
             if (shelfItemId && catalogId) {
                 const shelfDoc = await core_1.db.collection("admin_build_shelf").doc(shelfItemId).get();
-                if (!shelfDoc.exists || shelfDoc.data()?.catalogId !== catalogId) {
-                    res.status(403).json({ error: 'Product does not belong to the selected catalog' });
-                    return;
+                if (!shelfDoc.exists) {
+                    console.warn(`[from-master] P6 warning: shelfItem ${shelfItemId} not found in admin_build_shelf — continuing without catalog-scope validation`);
+                }
+                else if (shelfDoc.data()?.catalogId !== catalogId) {
+                    console.warn(`[from-master] P6 warning: shelfItem ${shelfItemId} has catalogId="${shelfDoc.data()?.catalogId}" but request sent catalogId="${catalogId}" — mismatch, continuing anyway`);
                 }
             }
             // Filter status in-memory to avoid requiring a composite Firestore index.

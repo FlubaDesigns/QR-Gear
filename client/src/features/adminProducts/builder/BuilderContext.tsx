@@ -420,12 +420,22 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
   const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || 'printify');
 
-  // Eagerly prime the auth token cache on mount so the flush-on-unmount
-  // keepalive fetch always has headers ready — even before the first session is created.
+  // Subscribe to auth state so the keepalive cache is primed the moment Firebase
+  // resolves the user — even on first load when auth.currentUser is still null.
+  // Also refreshes whenever the session is renewed (e.g. after a token rotation).
   useEffect(() => {
-    auth.currentUser?.getIdToken(false).then(token => {
-      if (token) cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
-    }).catch(() => {});
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        user.getIdToken(false).then(token => {
+          if (token) cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
+        }).catch((err) => {
+          console.warn('[BuilderContext] onAuthStateChanged: getIdToken failed —', err?.message || err);
+        });
+      } else {
+        cachedAuthHeadersRef.current = null;
+      }
+    });
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -480,9 +490,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
-        const token = await auth.currentUser?.getIdToken(true);
-        if (token) {
-          cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          console.warn('[BuilderContext] Auto-save: auth.currentUser is null — keepalive cache not refreshed. Session save will still proceed via adminFetch.');
+        } else {
+          const token = await currentUser.getIdToken(true);
+          if (token) {
+            cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
+          }
         }
 
         // Primary: save full working state into the build session
@@ -577,9 +592,34 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   // user navigates away before the first 1.5-second autosave timer fires.
   useEffect(() => {
     if (!state.activeSessionId) return;
-    auth.currentUser?.getIdToken(true).then(token => {
+    if (!auth.currentUser) {
+      console.warn('[BuilderContext] Session active but auth.currentUser is null — onAuthStateChanged will prime the cache once auth resolves.');
+      return;
+    }
+    auth.currentUser.getIdToken(true).then(token => {
       if (token) cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
-    }).catch(() => {});
+    }).catch((err) => {
+      console.warn('[BuilderContext] Session-activation token refresh failed —', err?.message || err);
+    });
+  }, [state.activeSessionId]);
+
+  // Periodic token refresh while a session is active — tokens expire after 1 hour.
+  // Refreshing every 45 minutes ensures the keepalive flush-on-unmount always
+  // sends a valid bearer token even if the user leaves the builder tab open for a long time.
+  useEffect(() => {
+    if (!state.activeSessionId) return;
+    const REFRESH_MS = 45 * 60 * 1000;
+    const intervalId = setInterval(() => {
+      auth.currentUser?.getIdToken(true).then(token => {
+        if (token) {
+          cachedAuthHeadersRef.current = { Authorization: `Bearer ${token}` };
+          console.log('[BuilderContext] Periodic token refresh — keepalive cache updated.');
+        }
+      }).catch((err) => {
+        console.warn('[BuilderContext] Periodic token refresh failed —', err?.message || err);
+      });
+    }, REFRESH_MS);
+    return () => clearInterval(intervalId);
   }, [state.activeSessionId]);
 
   // Flush on tab-close / full-page reload. keepalive:true allows the browser

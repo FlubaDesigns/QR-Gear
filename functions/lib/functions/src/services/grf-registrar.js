@@ -73,20 +73,31 @@ async function registerGrfAsset(opts) {
             const doc = existing.docs[0];
             const data = doc.data();
             const existingId = data.grfId;
-            if (packetId || sourceSessionId) {
-                await doc.ref.update({
-                    ...(packetId ? { packetId } : {}),
-                    ...(sourceSessionId ? { sourceSessionId } : {}),
-                    updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-                });
+            // Guard: legacy grf_assets docs may have numeric document IDs (e.g. "1000050493")
+            // stored in their grfId field instead of the canonical GRF-DDDDD-NNNNNN format.
+            // Returning a bad ID here would corrupt any Assembly record that references it.
+            // Skip reuse and fall through to mint a fresh canonical ID instead.
+            if (!(0, GRF_engine_1.isValidGrfId)(existingId)) {
+                console.warn(`[GRFRegistrar] URL-dedup found legacy/non-canonical grfId "${existingId}" ` +
+                    `for url=${sourceUrl.slice(0, 80)}… — skipping reuse, minting fresh canonical ID.`);
+                // Fall through to allocateSequence below
             }
-            console.log(`[GRFRegistrar] reused grfId=${existingId} for url=${sourceUrl.slice(0, 80)}…`);
-            return {
-                grfId: existingId,
-                publicUrl: data.publicUrl || sourceUrl,
-                storagePath: data.storagePath || null,
-                sequence: data.sequence || 0,
-            };
+            else {
+                if (packetId || sourceSessionId) {
+                    await doc.ref.update({
+                        ...(packetId ? { packetId } : {}),
+                        ...(sourceSessionId ? { sourceSessionId } : {}),
+                        updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                }
+                console.log(`[GRFRegistrar] reused grfId=${existingId} for url=${sourceUrl.slice(0, 80)}…`);
+                return {
+                    grfId: existingId,
+                    publicUrl: data.publicUrl || sourceUrl,
+                    storagePath: data.storagePath || null,
+                    sequence: data.sequence || 0,
+                };
+            }
         }
     }
     // ── Allocate sequence + build GRF ID ─────────────────────────────────────

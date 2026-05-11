@@ -251,3 +251,9 @@ id = "5Hi-MziVn0NkIXnSleZL0"
 uri = "file://downloads/store-builder-packetId-wiring.zip"
 type = "unspecified"
 title = "Store Builder packetId Wiring (4 files)"
+
+[[outputs]]
+id = "q2hQ2iSs2C4FaQYefe0id"
+uri = "file://downloads/changed_files.zip"
+type = "unspecified"
+title = "Changed files — P6 gate + autosave auth + GRF dedup guard"
