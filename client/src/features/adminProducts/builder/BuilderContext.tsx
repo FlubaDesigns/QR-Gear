@@ -291,9 +291,7 @@ function buildBldLayoutZones(state: BuilderState): Record<string, any> {
         bottom:    bottomZone,
       },
     },
-    // Persisted so the renderer/export reads provider-correct dimensions from BLD
-    // rather than falling back to hardcoded FALLBACK_PLACEMENT_DIMENSIONS.
-    providerLayout: state.providerLayout ?? null,
+    // providerLayout is NOT a BLD field — it lives at working.providerLayout (see buildWorkingSnapshot).
   };
 }
 
@@ -302,10 +300,13 @@ function buildBldLayoutZones(state: BuilderState): Record<string, any> {
  * Mirrors the server-side extractBldInstances logic (bld-builder.ts) but
  * produces a lightweight preview — no IDs, no Firestore writes.
  * Used in autosave so the server can validate the draft shape without a commit.
+ *
+ * BLD.md rule: structural params ONLY — no content (no text, no GRF IDs, no QRG refs).
+ * Layer entries carry seq, type, and role only.
  */
 function buildBldDraft(state: BuilderState): Record<string, any> {
   const content = state.content || {};
-  const layers: Array<{ seq: string; type: string; role?: string; text?: string }> = [];
+  const layers: Array<{ seq: string; type: string; role?: string }> = [];
   let seq = 1;
   const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -317,15 +318,15 @@ function buildBldDraft(state: BuilderState): Record<string, any> {
   layers.push({ seq: pad(seq++), type: 'qrc' });
 
   if (content.headerStyle?.enabled && content.headerStyle?.text)
-    layers.push({ seq: pad(seq++), type: 'txt', role: 'header', text: content.headerStyle.text });
+    layers.push({ seq: pad(seq++), type: 'txt', role: 'header' });
   if (content.footerStyle?.enabled && content.footerStyle?.text)
-    layers.push({ seq: pad(seq++), type: 'txt', role: 'footer', text: content.footerStyle.text });
+    layers.push({ seq: pad(seq++), type: 'txt', role: 'footer' });
   if (content.subBottomStyle?.enabled && content.subBottomStyle?.text)
-    layers.push({ seq: pad(seq++), type: 'txt', role: 'sub_bottom', text: content.subBottomStyle.text });
+    layers.push({ seq: pad(seq++), type: 'txt', role: 'sub_bottom' });
   for (const block of (Array.isArray(content.landingTextBlocks) ? content.landingTextBlocks : [])) {
     const b = block as any;
     if (b.enabled && b.text)
-      layers.push({ seq: pad(seq++), type: 'txt', role: b.role || 'landing_text', text: b.text });
+      layers.push({ seq: pad(seq++), type: 'txt', role: b.role || 'landing_text' });
   }
 
   return {
@@ -405,7 +406,11 @@ function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext):
     // Stored at working.bld.layout.zones; read by bld-builder at commit time
     bld: buildBldLayoutZones(state),
     // BLD draft — lightweight layer preview for server-side validation without a commit
+    // structural only: seq, type, role — no text, no GRF IDs, no QRG refs (BLD.md)
     bldDraft: buildBldDraft(state),
+    // Provider layout — renderer/export dimensions. NOT a BLD field; stored here (not in
+    // working.bld) per BLD.md separation of concerns. Read back by loadFromWorkingState.
+    providerLayout: state.providerLayout ?? null,
   };
 }
 
@@ -1086,8 +1091,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       originFilter: (metadata.originFilter as OriginFilter) ?? prev.originFilter,
       genderFilter: (metadata.genderFilter as GenderFilter) ?? prev.genderFilter,
       sourceType: (metadata.sourceType as SourceType) ?? prev.sourceType,
-      // Restore persisted provider layout so renderer uses correct dims on session reload
-      providerLayout: (working.bld?.providerLayout as ProviderLayout) ?? null,
+      // Restore persisted provider layout so renderer uses correct dims on session reload.
+      // Primary path: working.providerLayout (BLD-conformant location, written since this fix).
+      // Fallback: working.bld?.providerLayout (legacy sessions written before the fix).
+      providerLayout: (working.providerLayout ?? working.bld?.providerLayout ?? null) as ProviderLayout | null,
     }));
 
     if (needsOptionsFetch && product) {
