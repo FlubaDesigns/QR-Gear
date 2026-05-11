@@ -1,0 +1,368 @@
+Claude — implement and enforce CANONICAL FIELD AUTHORITY across the QR Gear codebase.
+
+This is NOT a local bug fix.
+This is a system-level architecture correction.
+
+============================================================
+CORE PROBLEM
+============================================================
+
+We are experiencing field-name drift across:
+- admin/products
+- catalog transforms
+- design builders
+- autosave
+- packets
+- renderers
+- picker components
+
+Example failure:
+- catalogToSelectItem writes:
+  `colorsAvailable`
+- DesignColorPicker reads:
+  `availableColors`
+
+This causes:
+- silent UI failures
+- autosave corruption
+- packet inconsistencies
+- renderer mismatch
+- component desync
+- schema drift
+
+The root problem is:
+components are inventing/adapting field names locally.
+
+That is forbidden going forward.
+
+============================================================
+CANONICAL FIELD AUTHORITY
+============================================================
+
+Provider/raw/schema fields are NOT UI fields.
+
+ALL transformations MUST happen through:
+- adapters
+- mappers
+- normalizers
+
+UI/view-model fields are canonical.
+
+Components may ONLY consume canonical fields.
+
+============================================================
+NEW RULES (MANDATORY)
+============================================================
+
+1. NO COMPONENT FIELD TRANSLATION
+------------------------------------------------------------
+
+Forbidden:
+- aliasing fields inside components
+- supporting multiple field names
+- fallback field guessing
+- local renaming
+- conditional field probing
+
+BAD:
+------------------------------------------------------------
+item.availableColors || item.colorsAvailable || []
+------------------------------------------------------------
+
+GOOD:
+------------------------------------------------------------
+item.availableColors
+------------------------------------------------------------
+
+If the field is wrong:
+FIX THE ADAPTER.
+NOT THE COMPONENT.
+
+============================================================
+2. CREATE SHARED CANONICAL ADAPTER LAYER
+============================================================
+
+Create or consolidate a shared authority layer.
+
+Preferred locations:
+------------------------------------------------------------
+/shared/adapters/
+/shared/mappers/
+/shared/normalizers/
+------------------------------------------------------------
+
+Possible filenames:
+------------------------------------------------------------
+catalog.adapter.ts
+catalog.normalizer.ts
+canonicalFields.ts
+product.mapper.ts
+------------------------------------------------------------
+
+This becomes the ONLY approved translation boundary.
+
+============================================================
+3. DEFINE CANONICAL UI FIELD NAMES
+============================================================
+
+Choose ONE canonical UI field name for each concept.
+
+Example:
+------------------------------------------------------------
+availableColors
+------------------------------------------------------------
+
+NOT:
+------------------------------------------------------------
+colorsAvailable
+colorOptions
+blankColors
+colors
+available_colors
+------------------------------------------------------------
+
+The canonical field is the ONLY field UI components may use.
+
+============================================================
+4. IMPLEMENT ADAPTER MAPPING
+============================================================
+
+Example:
+------------------------------------------------------------
+export function catalogToSelectItem(
+  item: ProviderCatalogItem
+): DesignSelectItem {
+  return {
+    id: item.id,
+    title: item.title,
+    imageUrl: item.imageUrl,
+
+    // canonical UI field
+    availableColors: item.colorsAvailable ?? [],
+  };
+}
+------------------------------------------------------------
+
+The translation happens ONCE.
+
+Now ALL UI uses:
+------------------------------------------------------------
+item.availableColors
+------------------------------------------------------------
+
+ONLY.
+
+============================================================
+5. SEARCH AND REMOVE FIELD DRIFT
+============================================================
+
+Perform repo-wide audit for aliases:
+------------------------------------------------------------
+colorsAvailable
+availableColors
+blankColors
+colorOptions
+colors
+------------------------------------------------------------
+
+Normalize them through the adapter layer.
+
+DO NOT:
+- patch components individually
+- support dual fields
+- create compatibility chains
+
+We want:
+------------------------------------------------------------
+ONE FIELD
+ONE NAME
+ONE AUTHORITY
+------------------------------------------------------------
+
+============================================================
+6. ADD TYPESCRIPT ENFORCEMENT
+============================================================
+
+Add strict shared interfaces.
+
+Example:
+------------------------------------------------------------
+export interface DesignSelectItem {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  availableColors: string[];
+}
+------------------------------------------------------------
+
+Then enforce adapter returns:
+------------------------------------------------------------
+catalogToSelectItem(): DesignSelectItem
+------------------------------------------------------------
+
+This forces conformity at compile time.
+
+============================================================
+7. FORBID RAW PROVIDER ACCESS IN UI
+============================================================
+
+Components should NEVER directly consume:
+- Firestore snapshots
+- provider payloads
+- Printify payloads
+- Printful payloads
+- raw packets
+
+Everything MUST pass through normalization first.
+
+Required flow:
+------------------------------------------------------------
+Provider/API/Firestore
+        ↓
+Shared Adapter / Mapper
+        ↓
+Canonical View Model
+        ↓
+UI Components
+------------------------------------------------------------
+
+Forbidden flow:
+------------------------------------------------------------
+Provider
+   ↓
+Random Component Logic
+   ↓
+Local alias guessing
+------------------------------------------------------------
+
+============================================================
+8. IMPLEMENT DEV-TIME ASSERTIONS
+============================================================
+
+Add lightweight assertions.
+
+Example:
+------------------------------------------------------------
+if (!Array.isArray(item.availableColors)) {
+  console.warn(
+    "[FIELD AUTHORITY] availableColors missing or invalid",
+    item
+  );
+}
+------------------------------------------------------------
+
+Optional:
+create shared validators.
+
+============================================================
+9. DOCUMENTATION UPDATE
+============================================================
+
+Update canonical docs.
+
+Preferred:
+------------------------------------------------------------
+ASSEMBLY.md
+METHODOLOGY.md
+README.md
+------------------------------------------------------------
+
+Add new section:
+
+============================================================
+CANONICAL FIELD AUTHORITY
+============================================================
+
+Required wording concept:
+------------------------------------------------------------
+
+Provider fields are NOT UI fields.
+
+All raw/provider/schema data must pass through:
+- adapters
+- normalizers
+- mappers
+
+Canonical UI/view-model fields are the ONLY fields
+components may consume.
+
+Components may NOT:
+- alias fields
+- rename fields
+- support multiple variants
+- infer field names
+- translate provider fields locally
+
+All translation must occur in shared adapter layers.
+
+ONE FIELD
+ONE NAME
+ONE AUTHORITY
+------------------------------------------------------------
+
+============================================================
+10. ADD OPTIONAL ENFORCEMENT UTILITIES
+============================================================
+
+Optional but recommended:
+------------------------------------------------------------
+canonicalFields.ts
+------------------------------------------------------------
+
+Example:
+------------------------------------------------------------
+export const CANONICAL_FIELDS = {
+  AVAILABLE_COLORS: "availableColors",
+  PRIMARY_IMAGE: "primaryImage",
+  QRG_CODE: "qrgCode",
+} as const;
+------------------------------------------------------------
+
+This reduces typo drift.
+
+============================================================
+11. IMPORTANT GOVERNANCE RULE
+============================================================
+
+This architecture aligns with:
+- QRG authority
+- BLD authority
+- GRF authority
+- schema-first design
+- single source of truth
+- canonical identity
+
+We are extending the SAME philosophy to:
+------------------------------------------------------------
+FIELD AUTHORITY
+------------------------------------------------------------
+
+The goal is NOT to help developers remember.
+
+The goal is to make architectural drift impossible.
+
+============================================================
+12. DELIVERABLES REQUIRED
+============================================================
+
+1. Shared adapter/normalizer layer
+2. Canonical field normalization
+3. Repo-wide alias cleanup
+4. TS interface enforcement
+5. Component cleanup
+6. Documentation update
+7. Dev assertions
+8. Summary of normalized fields
+9. List of removed aliases
+10. Any components still bypassing normalization
+
+============================================================
+FINAL RULE
+============================================================
+
+Do NOT implement “support both” logic.
+
+That creates permanent drift.
+
+Normalize ONCE at the boundary.
+Then enforce canonical usage everywhere else.
