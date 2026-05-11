@@ -290,8 +290,36 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
       const doc = await ref.get();
       if (!doc.exists) return res.status(404).json({ error: "Instance not found" });
 
-      await ref.delete();
-      console.log(`[AdminInstances] Deleted instance ${id}`);
+      const { FieldValue } = await import("firebase-admin/firestore");
+      const now = FieldValue.serverTimestamp();
+      const instance = doc.data() as any;
+
+      await ref.update({
+        isVisible: false,
+        status: "deleted",
+        deletedAt: now,
+        deletedBy: (req as any).user?.uid ?? "system",
+        updatedAt: now,
+        updatedBy: (req as any).user?.uid ?? "system",
+      });
+
+      // Best-effort: clean up matching legacy storeProductLinks
+      try {
+        const toDelete: any[] = [];
+        const byInstanceId = await db.collection("storeProductLinks").where("instanceId", "==", id).get();
+        byInstanceId.docs.forEach((d: any) => toDelete.push(d.ref));
+        if (instance?.currentPacketId) {
+          const byPacketId = await db.collection("storeProductLinks").where("packetId", "==", instance.currentPacketId).get();
+          byPacketId.docs.forEach((d: any) => { if (!toDelete.find((r: any) => r.id === d.id)) toDelete.push(d.ref); });
+        }
+        if (toDelete.length > 0) {
+          const batch = db.batch();
+          toDelete.forEach((r: any) => batch.delete(r));
+          await batch.commit();
+        }
+      } catch (_) { /* non-fatal */ }
+
+      console.log(`[AdminInstances] Soft-deleted instance ${id}`);
       res.json({ success: true, instanceId: id });
     } catch (err: any) {
       console.error("[AdminInstances] delete error:", err);

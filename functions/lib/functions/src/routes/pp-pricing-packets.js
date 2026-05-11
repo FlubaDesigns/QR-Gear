@@ -456,12 +456,20 @@ function register(app) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
             }
-            const cascadeResults = { templates: 0, storeProductLinks: 0 };
+            const cascadeResults = { graphics: 0, templates: 0, storeProductLinks: 0 };
+            // Cascade: productGraphics
+            const graphicsSnap = await core_1.db.collection("productGraphics").where("packetId", "==", packetId).get();
+            for (const gDoc of graphicsSnap.docs) {
+                await gDoc.ref.delete();
+                cascadeResults.graphics++;
+            }
+            // Cascade: productTemplates
             const templatesSnap = await core_1.db.collection("productTemplates").where("packetId", "==", packetId).get();
             for (const templateDoc of templatesSnap.docs) {
                 await templateDoc.ref.delete();
                 cascadeResults.templates++;
             }
+            // Cascade: storeProductLinks
             const linksSnap = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).where("packetId", "==", packetId).get();
             for (const linkDoc of linksSnap.docs) {
                 await linkDoc.ref.delete();
@@ -469,7 +477,7 @@ function register(app) {
             }
             await docRef.delete();
             console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);
-            res.json({ success: true, packetId, cascade: { graphics: 0, ...cascadeResults }, message: "Packet and related data deleted" });
+            res.json({ success: true, packetId, cascade: cascadeResults, message: "Packet and related data deleted" });
         }
         catch (error) {
             console.error("[Packets DELETE] Error:", error);

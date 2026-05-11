@@ -111,11 +111,26 @@ export function registerStoreRoutes(app: Express): void {
 
   app.delete("/api/admin/stores/:storeId/channels/:channelId", isAdmin, async (req: any, res) => {
     try {
-      const { channelId } = req.params;
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
+      const { storeId, channelId } = req.params;
+      const { getFirestoreDb, getFirebaseAdmin } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
-      await fsDb.collection('storeChannels').doc(channelId).delete();
-      res.json({ success: true });
+      const adminSdk = getFirebaseAdmin();
+      const now = adminSdk.firestore.FieldValue.serverTimestamp();
+
+      // Soft-delete every catalog instance in this channel (matches CF behaviour)
+      const instancesSnap = await fsDb.collection('admin_catalog_instances')
+        .where('storeId', '==', storeId)
+        .where('channelId', '==', channelId)
+        .get();
+
+      const batch = fsDb.batch();
+      instancesSnap.docs.forEach((doc: any) => {
+        batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
+      });
+      batch.delete(fsDb.collection('storeChannels').doc(channelId));
+      await batch.commit();
+
+      res.json({ success: true, archivedInstances: instancesSnap.size });
     } catch (error: any) {
       console.error('[Channels] DELETE error:', error);
       res.status(500).json({ error: error.message });
