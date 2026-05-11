@@ -248,7 +248,18 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
           layoutConfig: null,
           // bld.layout.zones is populated on first autosave per BLD.md canonical schema
           bld: null,
-          metadata: null,
+          // Seed product identity into metadata so DraftResumeHandler can resolve
+          // the source product even if autosave never fires (e.g. user navigates
+          // away before the 1.5-second debounce elapses or before flush-on-unmount
+          // captures auth headers).
+          metadata: {
+            selectedProductDocId: masterDoc.id,
+            selectedProductBlueprintId: master.printifyBlueprintId ?? master.blueprintId ?? null,
+            fulfillmentProvider: master.fulfillmentProvider ?? (
+              master.printifyBlueprintId ? 'printify' :
+              master.printfulProductId ? 'printful' : 'printify'
+            ),
+          },
         },
 
         // Artifact refs — only populated after generate-artifact

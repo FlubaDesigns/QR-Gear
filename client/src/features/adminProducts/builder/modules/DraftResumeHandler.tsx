@@ -166,6 +166,18 @@ export function DraftResumeHandler() {
             resolutionKey = `sourceMasterId:${sourceMasterId}`;
           }
 
+          // If sourceMasterId is a legacy numeric blueprint ID (e.g. "12") that
+          // didn't match any docId, try it as a blueprint ID before moving to
+          // the working-state fallbacks.
+          if (!resolvedProduct && sourceMasterId) {
+            const numericMasterId = Number(sourceMasterId);
+            if (!isNaN(numericMasterId) && numericMasterId > 0) {
+              console.log("[DraftResumeHandler] [PREPACKET] DocId miss — trying sourceMasterId as blueprintId:", numericMasterId);
+              resolvedProduct = await resolveByBlueprintId(numericMasterId, provider, catalog);
+              if (resolvedProduct) resolutionKey = `sourceMasterId(numeric):${numericMasterId}`;
+            }
+          }
+
           if (!resolvedProduct && snapshotDocId) {
             console.log("[DraftResumeHandler] [PREPACKET] sourceMasterId miss — trying snapshotDocId:", snapshotDocId);
             resolvedProduct = await resolveByDocId(snapshotDocId, catalog);

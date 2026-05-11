@@ -243,7 +243,6 @@ function MetricsSection() {
 }
 
 function InProgressSection() {
-  const [, navigate] = useLocation();
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -343,7 +342,7 @@ function InProgressSection() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigate(`/admin/products?resume=${session.id}`)}
+                    onClick={() => { window.location.href = `/admin/products?resume=${session.id}`; }}
                     data-testid={`run-draft-resume-${session.id}`}
                     className="gap-1.5"
                   >

@@ -236,7 +236,18 @@ export function registerAdminBuildSessions(app: express.Express): void {
           layoutConfig: null,
           // bld.layout.zones is populated on first autosave per BLD.md canonical schema
           bld: null,
-          metadata: null,
+          // Seed product identity into metadata so DraftResumeHandler can resolve
+          // the source product even if autosave never fires (e.g. user navigates
+          // away before the 1.5-second debounce elapses or before flush-on-unmount
+          // captures auth headers).
+          metadata: {
+            selectedProductDocId: masterDoc.id,
+            selectedProductBlueprintId: (master as any).printifyBlueprintId ?? (master as any).blueprintId ?? null,
+            fulfillmentProvider: (master as any).fulfillmentProvider ?? (
+              (master as any).printifyBlueprintId ? 'printify' :
+              (master as any).printfulProductId ? 'printful' : 'printify'
+            ),
+          },
         },
         generated: {
           packetId: null,
