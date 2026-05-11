@@ -194,10 +194,7 @@ function MoveDialog({
 
   const storeOptions = stores.map(s => ({ value: s.id, label: s.name, icon: <Store className="h-4 w-4" /> }));
   const channelOptions = channels.map(c => ({ value: c.id, label: c.name, icon: <Hash className="h-4 w-4" /> }));
-  const collectionOptions = [
-    { value: "__none__", label: "No collection", icon: <Layers className="h-4 w-4" /> },
-    ...collections.map(c => ({ value: c.name, label: c.name, icon: <Layers className="h-4 w-4" /> })),
-  ];
+  const existingCollectionNames = collections.map(c => c.name);
 
   const canMove = !!destStore && !!destChannel;
 
@@ -208,14 +205,21 @@ function MoveDialog({
         <CustomDropdown value={role} onChange={v => { setRole(v as RoleType); setDestStore(null); setDestChannel(null); }} options={ROLES.map(r => ({ value: r.value, label: r.label }))} placeholder="Role..." />
         <CustomDropdown value={destStore?.id ?? ""} onChange={v => { const s = stores.find(x => x.id === v); setDestStore(s ?? null); setDestChannel(null); }} options={storeOptions} placeholder="Store..." loading={loadingStores} disabled={!role} />
         <CustomDropdown value={destChannel?.id ?? ""} onChange={v => { const c = channels.find(x => x.id === v); setDestChannel(c ?? null); setDestCollection(null); }} options={channelOptions} placeholder="Channel..." loading={loadingChannels} disabled={!destStore} />
-        <CustomDropdown
-          value={destCollection?.name ?? "__none__"}
-          onChange={v => setDestCollection(v === "__none__" ? null : { name: v })}
-          options={collectionOptions}
-          placeholder="Collection..."
-          loading={loadingCollections}
-          disabled={!destChannel}
-        />
+        {/* Collection: free-text with autocomplete so new names (e.g. "Armed Forces") can be entered */}
+        <div className="relative">
+          <datalist id="move-collection-list">
+            {existingCollectionNames.map(n => <option key={n} value={n} />)}
+          </datalist>
+          <input
+            list="move-collection-list"
+            value={destCollection?.name ?? ""}
+            onChange={e => setDestCollection(e.target.value.trim() ? { name: e.target.value } : null)}
+            placeholder={loadingCollections ? "Loading…" : "Collection (optional)…"}
+            disabled={!destChannel || loadingCollections}
+            className="w-full min-h-12 text-base px-4 py-3 rounded-lg border border-white/20 bg-white/10 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-ice-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="input-collection-name"
+          />
+        </div>
       </div>
       <div className="flex gap-2">
         <button
