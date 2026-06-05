@@ -93,6 +93,7 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 
 - NEVER edit `package.json` scripts or `drizzle.config.ts`
 - NEVER modify `server/vite.ts` or `vite.config.ts`
+- NEVER touch `server/routes/` — the dev server is irrelevant; all backend work goes in `functions/src/` only
 - The QRG STNNN format is 5 digits: `qrg_11001`. Legacy 4-digit (`qrg_1101`) and 3-digit (`qrg_101`) are invalid.
 - Catalog overlay maps (`blankTiers`, `blankDescriptions`, etc.) must always use the same keys as `blankIds`
 - Deploy: `deploy/1-build.sh` (90s) then `deploy/3-hosting.sh` (75s) — never chain them directly

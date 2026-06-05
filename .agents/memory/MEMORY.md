@@ -1,1 +1,2 @@
 - [Server Set iteration](server-set-iteration.md) — server tsconfig has no downlevelIteration; always use `Array.from(new Set(...))` not `[...new Set(...)]`
+- [No dev server edits](no-dev-server.md) — NEVER touch server/routes/; all backend work goes in functions/src/ only, user's system is Firebase only
