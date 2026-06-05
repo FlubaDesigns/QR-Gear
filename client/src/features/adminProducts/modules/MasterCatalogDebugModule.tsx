@@ -44,7 +44,7 @@ export function MasterCatalogDebugModule() {
 
   const scanMutation = useMutation({
     mutationFn: () =>
-      adminFetch("/master-catalog/repair-provider-qrg-mapping", {
+      adminFetch<RepairResult>("/master-catalog/repair-provider-qrg-mapping", {
         method: "POST",
         json: { dryRun: true },
       }),
@@ -57,7 +57,7 @@ export function MasterCatalogDebugModule() {
 
   const repairMutation = useMutation({
     mutationFn: () =>
-      adminFetch("/master-catalog/repair-provider-qrg-mapping", {
+      adminFetch<RepairResult>("/master-catalog/repair-provider-qrg-mapping", {
         method: "POST",
         json: { dryRun: false },
       }),

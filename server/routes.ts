@@ -30,6 +30,7 @@ import { registerBrainRoutes } from "./routes/brain.routes";
 import { registerAdminCatalogInstanceRoutes } from "./routes/admin-catalog-instances.routes";
 import { registerMemberCatalogInstanceRoutes } from "./routes/member-catalog-instances.routes";
 import { registerAdminBuildSessionRoutes } from "./routes/admin-build-sessions.routes";
+import { registerProductsCanonicalRoutes } from "./routes/products-canonical.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -61,6 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminCatalogInstanceRoutes(app);
   registerMemberCatalogInstanceRoutes(app);
   registerAdminBuildSessionRoutes(app);
+  registerProductsCanonicalRoutes(app);
 
   startCronJobs();
 

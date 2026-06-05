@@ -394,7 +394,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       // Augment each shelf item's catalog with the full images[] from master_catalog.
       // admin_build_shelf only stores a single imageUrl; the authoritative image list
       // lives in master_catalog.images (written during catalog import / sync).
-      const shelfKeys = [...new Set(items.map((i: any) => i.shelfKey).filter(Boolean))] as string[];
+      const shelfKeys = Array.from(new Set(items.map((i: any) => i.shelfKey).filter(Boolean))) as string[];
       if (shelfKeys.length > 0) {
         const { getFirestoreDb } = await import("../lib/firebase-admin");
         const fsDb = getFirestoreDb();
@@ -644,7 +644,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       const existing = new Set(catalog.blankIds || []);
       const newIds = resolvedIds.filter((id) => !existing.has(id));
       // Deduplicate the full merged array — also heals any pre-existing duplicates in Firestore
-      const merged = [...new Set([...(catalog.blankIds || []), ...newIds])];
+      const merged = Array.from(new Set([...(catalog.blankIds || []), ...newIds]));
       await fsUpdate("catalogs", req.params.id, { blankIds: merged });
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {
@@ -733,7 +733,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       const existing = new Set(target.blankIds || []);
       const newIds = resolvedIds.filter((id) => !existing.has(id));
       // Deduplicate the full merged array — also heals any pre-existing duplicates in Firestore
-      const merged = [...new Set([...(target.blankIds || []), ...newIds])];
+      const merged = Array.from(new Set([...(target.blankIds || []), ...newIds]));
       await fsUpdate("catalogs", targetCatalogId, { blankIds: merged });
       res.json({ success: true, added: newIds.length, total: merged.length });
     } catch (error: any) {
@@ -950,7 +950,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
 
         // Build a remapping table: raw key → canonical key (or null = unresolvable/pending)
         const remapTable = new Map<string, string | null>();
-        for (const rawId of allRawIds) {
+        for (const rawId of Array.from(allRawIds)) {
           if (QRG_DOC_RE.test(rawId)) {
             // Already canonical — verify it exists; mark null only if missing (don't remap)
             const doc = await fsDb.collection("master_catalog").doc(rawId).get();
@@ -1051,7 +1051,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
           }
 
           // Record conflicts for this map
-          for (const [canonicalId, droppedLegacyKeys] of legacyDropped.entries()) {
+          for (const [canonicalId, droppedLegacyKeys] of Array.from(legacyDropped.entries())) {
             catalogConflicts.push({
               map: mapKey,
               canonicalId,
@@ -1229,7 +1229,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
           }
         }
 
-        const newBlankIds = [...new Set(resolvedIds)];
+        const newBlankIds = Array.from(new Set(resolvedIds));
 
         const updates: any = { blankIds: newBlankIds, updatedAt: new Date().toISOString() };
         for (const mapField of OVERLAY_MAPS) {

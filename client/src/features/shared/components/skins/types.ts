@@ -15,6 +15,7 @@ export interface ProductPacket {
   upcharges?: Record<string, number> | null;  // Size upcharges
   packetCreatedAt?: string;
   packetUpdatedAt?: string;
+  raw?: Record<string, any>; // Raw asset metadata (grfId, sourceGrfId, mimeType, etc.)
 }
 
 export interface SkinItem {

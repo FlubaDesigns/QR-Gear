@@ -700,7 +700,8 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
 
       // ── Gate 3: Register GRF assets from packet (BLOCKING) ───────────────────
       let grfIds = { backgroundGrfId: null as string|null, qrGrfId: null as string|null,
-                     compositeGrfId: null as string|null, landingSnapshotGrfId: null as string|null };
+                     compositeGrfId: null as string|null, landingSnapshotGrfId: null as string|null,
+                     glamorShotGrfId: null as string|null, storeFrontGrfId: null as string|null };
       if (packetId && packetData) {
         try {
           grfIds = await registerPacketGrfsDev(packetData, id, packetId);

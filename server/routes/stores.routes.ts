@@ -143,9 +143,9 @@ export function registerStoreRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
       const snapshot = await fsDb.collection('storeChannels').get();
-      const storeIds = [...new Set(
+      const storeIds = Array.from(new Set(
         snapshot.docs.map((d: any) => d.data().storeId).filter(Boolean)
-      )] as string[];
+      )) as string[];
       const storeMap: Record<string, string> = {};
       for (const id of storeIds) {
         const doc = await fsDb.collection('stores').doc(id).get();

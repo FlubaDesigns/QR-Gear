@@ -444,15 +444,13 @@ function register(app) {
                 res.status(403).json({ error: 'Not authorized' });
                 return;
             }
-            const productsSnap = await core_1.db.collection('memberProducts').where('channelId', '==', channelId).get();
             const packetsSnap = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).where('channelId', '==', channelId).where('memberId', '==', memberId).get();
             const batch = core_1.db.batch();
-            productsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
             packetsSnap.docs.forEach(doc => batch.update(doc.ref, { channelId: null }));
             batch.delete(core_1.db.collection('channels').doc(channelId));
             await batch.commit();
-            console.log(`[CF] Deleted channel ${channelId}, unlinked ${productsSnap.size} products and ${packetsSnap.size} packets`);
-            res.json({ success: true, unlinkedProducts: productsSnap.size, unlinkedPackets: packetsSnap.size });
+            console.log(`[CF] Deleted channel ${channelId}, unlinked ${packetsSnap.size} packets`);
+            res.json({ success: true, unlinkedPackets: packetsSnap.size });
         }
         catch (error) {
             res.status(500).json({ error: error.message });
@@ -462,13 +460,16 @@ function register(app) {
         try {
             const { memberId, channelId } = req.params;
             const { itemId, itemType } = req.body;
+            if (itemType !== 'packet') {
+                res.status(400).json({ error: 'Only packet items are supported' });
+                return;
+            }
             const auth = await verifyMemberAuthCF(req, memberId);
             if (!auth.authorized) {
                 res.status(401).json({ error: auth.error });
                 return;
             }
-            const collection = itemType === 'packet' ? constants_1.MEMBER_PACKETS_COLLECTION : 'memberProducts';
-            const doc = await core_1.db.collection(collection).doc(itemId).get();
+            const doc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(itemId).get();
             if (!doc.exists) {
                 res.status(404).json({ error: 'Item not found' });
                 return;
@@ -482,8 +483,8 @@ function register(app) {
                 res.status(400).json({ error: 'Item not in this channel' });
                 return;
             }
-            await core_1.db.collection(collection).doc(itemId).update({ channelId: null });
-            console.log(`[CF] Removed ${itemType} ${itemId} from channel ${channelId}`);
+            await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(itemId).update({ channelId: null });
+            console.log(`[CF] Removed packet ${itemId} from channel ${channelId}`);
             res.json({ success: true });
         }
         catch (error) {
@@ -530,52 +531,11 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    app.delete('/members/:memberId/products/:productId', async (req, res) => {
-        try {
-            const { memberId, productId } = req.params;
-            const auth = await verifyMemberAuthCF(req, memberId);
-            if (!auth.authorized) {
-                res.status(401).json({ error: auth.error });
-                return;
-            }
-            const doc = await core_1.db.collection('memberProducts').doc(productId).get();
-            if (!doc.exists) {
-                res.status(404).json({ error: 'Product not found' });
-                return;
-            }
-            if (doc.data()?.memberId !== memberId) {
-                res.status(403).json({ error: 'Not authorized' });
-                return;
-            }
-            const packetId = doc.data()?.packetId;
-            if (packetId) {
-                const packetDoc = await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).get();
-                if (packetDoc.exists && packetDoc.data()?.memberId === memberId) {
-                    await core_1.db.collection(constants_1.MEMBER_PACKETS_COLLECTION).doc(packetId).delete();
-                }
-            }
-            await core_1.db.collection('memberProducts').doc(productId).delete();
-            res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.delete('/members/:memberId/products/:productId', async (_req, res) => {
+        res.status(410).json({ error: 'This endpoint is deprecated. Use /members/:memberId/packets/:packetId instead.' });
     });
-    app.get('/members/:memberId/products', async (req, res) => {
-        try {
-            const { memberId } = req.params;
-            const auth = await verifyMemberAuthCF(req, memberId);
-            if (!auth.authorized) {
-                res.status(401).json({ error: auth.error });
-                return;
-            }
-            const snapshot = await core_1.db.collection("memberProducts").where("memberId", "==", memberId).orderBy("createdAt", "desc").get();
-            const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            res.json(products);
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/members/:memberId/products', async (_req, res) => {
+        res.status(410).json({ error: 'This endpoint is deprecated. Use /members/:memberId/packets instead.' });
     });
     app.post('/members/:memberId/products', async (req, res) => {
         try {
@@ -675,13 +635,7 @@ function register(app) {
                 res.json(packetData);
                 return;
             }
-            if (!printfulProductId) {
-                res.status(400).json({ error: "printfulProductId is required for product creation" });
-                return;
-            }
-            const productData = { memberId, printfulProductId, variantId, graphicUrl, qrType: qrType || 'play', qrDestination, channelId, name: name || 'My Product', price: price || 0, textLines: textLines || 0, textUpcharge: textUpcharge || 0, placementUpcharge: placementUpcharge || 0, memberEarnings: memberEarnings || 0, status: 'draft', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-            const docRef = await core_1.db.collection("memberProducts").add(productData);
-            res.json({ id: docRef.id, ...productData });
+            res.status(400).json({ error: "Direct product creation is deprecated. Submit a packet via packetType field instead." });
         }
         catch (error) {
             res.status(500).json({ error: error.message });

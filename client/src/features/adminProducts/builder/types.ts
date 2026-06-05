@@ -369,7 +369,7 @@ export interface BuilderState {
   templateBaseline: string | null;
   templateProductHint: TemplateProductHint | null;
   activeSessionId: string | null;
-  sessionStatus: 'working' | 'artifact_ready' | 'committed' | null;
+  sessionStatus: 'working' | 'artifact_ready' | 'committed' | 'abandoned' | null;
   committedInstanceId: string | null;
   selectedCatalogId: string;
   /** Provider layout for the primary selected placement — drives renderer canvas size. */

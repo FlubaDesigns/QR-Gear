@@ -111,7 +111,7 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
 
       const doc = snap.docs[0];
       const d = doc.data();
-      const instance = {
+      const instance: Record<string, any> = {
         id: doc.id,
         ...d,
         createdAt: d.createdAt?.toDate?.() || null,

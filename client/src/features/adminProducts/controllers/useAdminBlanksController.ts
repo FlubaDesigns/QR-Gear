@@ -28,13 +28,14 @@ interface CatalogProduct {
   minPrice?: string;
   maxPrice?: string;
   colorCount?: number;
+  images?: string[];
+  printifyImages?: string[];
+  printfulImages?: string[];
   availableColors?: Array<{ name: string; hex?: string }>;
   availableSizes?: string[];
   fulfillmentProvider?: string;
   availableVia?: string[];
   providers?: string[];
-  printifyImages?: string[];
-  printfulImages?: string[];
 }
 
 interface CatalogCategory {

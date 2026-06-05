@@ -33,7 +33,7 @@ export function StoreModule() {
 
   const createStoreMutation = useMutation({
     mutationFn: (name: string) =>
-      adminFetch("/stores", { method: "POST", json: { name, roleType: selectedRole } }),
+      adminFetch<StoreType>("/stores", { method: "POST", json: { name, roleType: selectedRole } }),
     onSuccess: (newStore: StoreType) => {
       queryClient.invalidateQueries({ queryKey: ["stores", selectedRole] });
       setSelectedStore(newStore);

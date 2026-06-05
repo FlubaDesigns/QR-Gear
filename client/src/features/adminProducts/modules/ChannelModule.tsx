@@ -31,7 +31,7 @@ export function ChannelModule() {
 
   const createChannelMutation = useMutation({
     mutationFn: (name: string) =>
-      adminFetch(`/stores/${selectedStore!.id}/channels`, { method: "POST", json: { name } }),
+      adminFetch<Channel>(`/stores/${selectedStore!.id}/channels`, { method: "POST", json: { name } }),
     onSuccess: (newChannel: Channel) => {
       queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
       setSelectedChannel(newChannel);

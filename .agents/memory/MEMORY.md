@@ -1,0 +1,1 @@
+- [Server Set iteration](server-set-iteration.md) — server tsconfig has no downlevelIteration; always use `Array.from(new Set(...))` not `[...new Set(...)]`

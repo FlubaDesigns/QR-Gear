@@ -754,7 +754,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     // time and is immediately available, making it the correct race-condition-free source.
     const rawProvider = fulfillmentProviderRef.current;
     const productProvider =
-      product.fulfillmentProvider && product.fulfillmentProvider !== 'both'
+      product.fulfillmentProvider
         ? product.fulfillmentProvider
         : null;
     const provider =
@@ -957,8 +957,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
               || { widthPx: primaryPlacement.dimensions.widthPx, heightPx: primaryPlacement.dimensions.heightPx },
             safeArea: primaryPlacement.safeArea || null,
             dpi: primaryPlacement.dpi || primaryPlacement.dimensions?.dpi || 300,
-            layoutSource: primaryPlacement.layoutSource || prev.selectedProduct?.layoutSource || null,
-            sourceTable: primaryPlacement.sourceTable || null,
+            layoutSource: primaryPlacement.layoutSource || prev.selectedProduct?.layoutSource || undefined,
+            sourceTable: primaryPlacement.sourceTable || undefined,
           }
         : prev.providerLayout;
 

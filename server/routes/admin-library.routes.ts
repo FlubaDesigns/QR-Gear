@@ -2,6 +2,9 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin, isAuthenticated } from "../firebaseAuth";
 import { buildStructuredOptions, deriveCardMode } from "../../shared/storefrontTypes";
+import QRCode from 'qrcode';
+import { uploadImageFromBuffer } from '../lib/firebase-storage-service';
+import { generatePrintifyComposite } from '../lib/composite-image-generator';
 
 export function registerAdminLibraryRoutes(app: Express): void {
   // ============ TEMPLATE CATEGORY ENDPOINTS ============

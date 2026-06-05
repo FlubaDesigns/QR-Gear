@@ -76,6 +76,7 @@ export function ImageUploader({
     try {
       const result = await onUploadZip({
         name: fileName,
+        originalFilename: fileName,
         imageData: base64,
         mimeType: "application/zip",
         assetType,
