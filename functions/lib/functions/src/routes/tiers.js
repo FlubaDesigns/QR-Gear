@@ -170,11 +170,49 @@ function register(app) {
                 res.json({ hasTiers: false, catalogId, catalogName: catData.name, tiers: {}, tierConfig });
                 return;
             }
-            const printifyBlanks = (catData.blankIds || []).filter((id) => !String(id).startsWith('pf:'));
-            const printfulBlanks = (catData.blankIds || []).filter((id) => String(id).startsWith('pf:'));
-            const printfulNumericIds = printfulBlanks.map((id) => parseInt(String(id).replace('pf:', '')));
+            // Pre-fetch master_catalog docs for QRG-format IDs (qrg_STNNN / pending_*)
+            const masterCatalogCache = new Map();
+            const qrgBlankIds = (catData.blankIds || []).filter((id) => {
+                const s = String(id ?? '');
+                return s.startsWith('qrg_') || s.startsWith('pending_');
+            });
+            if (qrgBlankIds.length > 0) {
+                const CHUNK = 30;
+                for (let i = 0; i < qrgBlankIds.length; i += CHUNK) {
+                    const chunk = qrgBlankIds.slice(i, i + CHUNK);
+                    const snaps = await Promise.all(chunk.map((id) => core_1.db.collection('master_catalog').doc(id).get()));
+                    for (const snap of snaps) {
+                        if (snap.exists)
+                            masterCatalogCache.set(snap.id, snap.data());
+                    }
+                }
+            }
+            // Determine effective provider IDs for all blanks (resolving QRG → numeric)
+            // so we know which collections to fetch
+            const hasAnyPrintify = (catData.blankIds || []).some((id) => {
+                const s = String(id ?? '');
+                if (s.startsWith('pf:'))
+                    return false;
+                if (s.startsWith('qrg_') || s.startsWith('pending_')) {
+                    const mc = masterCatalogCache.get(s);
+                    const mappings = mc?.providerMappings ?? [];
+                    return mappings.some((m) => m.provider === 'Printify');
+                }
+                return true; // legacy numeric = printify
+            });
+            const hasAnyPrintful = (catData.blankIds || []).some((id) => {
+                const s = String(id ?? '');
+                if (s.startsWith('pf:'))
+                    return true;
+                if (s.startsWith('qrg_') || s.startsWith('pending_')) {
+                    const mc = masterCatalogCache.get(s);
+                    const mappings = mc?.providerMappings ?? [];
+                    return mappings.some((m) => m.provider === 'Printful');
+                }
+                return false;
+            });
             const productLookup = new Map();
-            if (printifyBlanks.length > 0) {
+            if (hasAnyPrintify) {
                 const bpSnapshot = await core_1.db.collection("printify_blueprints").get();
                 bpSnapshot.docs.forEach(doc => {
                     const d = doc.data();
@@ -183,7 +221,7 @@ function register(app) {
                         productLookup.set(String(bpId), { ...d, _source: 'printify' });
                 });
             }
-            if (printfulBlanks.length > 0) {
+            if (hasAnyPrintful) {
                 const pfSnapshot = await core_1.db.collection("printful_products").get();
                 pfSnapshot.docs.forEach(doc => {
                     const d = doc.data();
@@ -202,7 +240,7 @@ function register(app) {
                 });
             }
             let providersByBlueprint = new Map();
-            if (printifyBlanks.length > 0) {
+            if (hasAnyPrintify) {
                 const ppSnapshot = await core_1.db.collection("printifyPrintProviders").get();
                 ppSnapshot.docs.forEach(doc => {
                     const d = doc.data();
@@ -217,13 +255,31 @@ function register(app) {
             const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
             const markupPercent = pricingSettings?.markupPercent ?? 25;
             const markupFixed = pricingSettings?.markupFixed ?? 0;
+            const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
             const categoryTierMap = {};
             for (const blankId of (catData.blankIds || [])) {
-                const blankKey = String(blankId);
-                const tier = blankTiers[blankKey];
+                const canonicalKey = String(blankId ?? '');
+                const tier = blankTiers[canonicalKey];
                 if (!tier || !['good', 'better', 'best'].includes(tier))
                     continue;
-                const bp = productLookup.get(blankKey);
+                // Resolve canonical key to a provider lookup key
+                let lookupKey = canonicalKey;
+                let isPrintful = canonicalKey.startsWith('pf:');
+                if (canonicalKey.startsWith('qrg_') || canonicalKey.startsWith('pending_')) {
+                    const mc = masterCatalogCache.get(canonicalKey);
+                    if (!mc)
+                        continue; // not yet in master_catalog — skip
+                    const mappings = mc.providerMappings ?? [];
+                    const pfMapping = mappings.find((m) => m.provider === 'Printful');
+                    const pyMapping = mappings.find((m) => m.provider === 'Printify');
+                    const mapping = pfMapping ?? pyMapping;
+                    if (!mapping)
+                        continue;
+                    isPrintful = mapping.provider === 'Printful';
+                    const resolvedId = String(isPrintful ? (mapping.productId ?? mapping.blueprintId) : mapping.blueprintId);
+                    lookupKey = isPrintful ? `pf:${resolvedId}` : resolvedId;
+                }
+                const bp = productLookup.get(lookupKey);
                 if (!bp)
                     continue;
                 const category = (0, core_1.cfCategorizeProduct)(bp.title);
@@ -233,7 +289,7 @@ function register(app) {
                     categoryTierMap[category][tier] = [];
                 let cost = 0;
                 if (bp._source === 'printify') {
-                    const numId = parseInt(blankKey);
+                    const numId = parseInt(lookupKey);
                     const prov = providersByBlueprint.get(numId);
                     cost = prov?.minCost ? prov.minCost / 100 : 0;
                 }
@@ -241,24 +297,25 @@ function register(app) {
                     cost = bp.minPrice || 0;
                 }
                 const retailPrice = Math.ceil((cost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
-                const memberEarnings = Math.round((retailPrice - cost) * 25) / 100;
-                const numericId = blankKey.startsWith('pf:') ? parseInt(blankKey.replace('pf:', '')) : parseInt(blankKey);
+                const profit = retailPrice - cost;
+                const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
+                const numericId = lookupKey.startsWith('pf:') ? parseInt(lookupKey.replace('pf:', '')) : parseInt(lookupKey);
                 let availableColors = [];
                 let availableSizes = [];
                 if (bp._source === 'printify') {
-                    const numId = parseInt(blankKey);
+                    const numId = parseInt(lookupKey);
                     const prov = providersByBlueprint.get(numId);
                     availableColors = (prov?.availableColors || []).map((c) => ({ name: c.name || c, hex: c.hex || '' }));
                     availableSizes = (prov?.availableSizes || []).map((s) => typeof s === 'string' ? s : s.title || String(s));
                 }
                 const rawRichDesc = bp.richDescription || bp.description || '';
                 const providerDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-                const adminCatalogDescription = blankDescriptions[blankKey] || '';
+                const adminCatalogDescription = blankDescriptions[canonicalKey] || '';
                 const effectiveDescription = adminCatalogDescription || providerDescription || `${bp.title}${bp.brand ? ' by ' + bp.brand : ''}. Premium quality print-on-demand ${category.toLowerCase()}.`;
                 const provider = bp._source === 'printful' ? 'printful' : 'printify';
                 categoryTierMap[category][tier].push({
                     blueprintId: numericId,
-                    canonicalBlankKey: blankKey,
+                    canonicalBlankKey: canonicalKey,
                     provider,
                     title: bp.title,
                     description: effectiveDescription,
