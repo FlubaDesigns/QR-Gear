@@ -87,6 +87,7 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 - Ask clarifying questions before starting any task (see `ask-before-starting` skill)
 - Fail loudly — never let errors happen silently (see `fail-loudly` skill)
 - Present changed files as downloadable assets after each task (see `present-changed-files` skill)
+- Never show canvas exploration suggestions in chat
 
 ## Gotchas
 
