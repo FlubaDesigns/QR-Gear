@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: May 8, 2026 (GRF schema migration — new 5-digit format `GRF-[D1][D2][D3][D4][D5]-[NNNNNN]`. D4 is now channel-relative. No D6/subContext. Full purge of legacy fields across all layers.)
+Last updated: June 5, 2026 (blankColors catalog overlay — admin now curates which colors appear in the member wizard color picker; replaces hardcoded SHIRT_COLORS fallback.)
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -219,7 +219,7 @@ Selected blank is NOT inside the BLD draft. They are stored at different levels 
 **Rules:**
 - 4-digit (`qrg_1101`) and 3-digit (`qrg_101`) formats are invalid
 - `resolveCatalogBlankId()` in `admin-catalogs-shelf.routes.ts` is the single resolution path: any input → `qrg_STNNN`
-- All nine catalog overlay maps must use `qrg_STNNN` keys: `blankIds`, `blankTiers`, `blankDescriptions`, `blankTitles`, `blankMakers`, `blankModels`, `blankProviders`, `blankImages`, `blankPrimaryImages`
+- All ten catalog overlay maps must use `qrg_STNNN` keys: `blankIds`, `blankTiers`, `blankDescriptions`, `blankTitles`, `blankMakers`, `blankModels`, `blankProviders`, `blankImages`, `blankPrimaryImages`, `blankColors`
 - `expandBlankIdSet()` in `useAdminBlanksController.ts` handles legacy Firestore data — do not remove
 - Shelf grouping is automatic via `qrgCategory` field — no manual `admin_build_shelf` assignments needed
 
@@ -301,6 +301,21 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### June 5, 2026 — blankColors Catalog Overlay (Admin-Curated Color Picker)
+
+Added a new `blankColors` overlay map to admin catalogs. Admins open any blank's detail modal in admin-blanks, check/uncheck provider colors, and save the selection. The member wizard `ColorPickerStep` now uses those curated colors instead of the hardcoded 6-color `SHIRT_COLORS` fallback. If no `blankColors` entry exists for a blank, the full provider color list is used (Printify) or the existing `SHIRT_COLORS` fallback (Printful). Colors are stored as `Array<{name: string; hex: string}>` under the `qrg_STNNN` key in `catalog.blankColors`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/tiers.ts` | Added `PUT /admin/catalogs/:catalogId/blank-colors`; `tier-products` now reads `blankColors` and overrides provider colors per-blank |
+| `server/routes/admin-catalogs-shelf.routes.ts` | Dev-server mirror of `PUT /api/admin/catalogs/:id/blank-colors` |
+| `client/src/features/adminProducts/controllers/useAdminBlanksController.ts` | Added `blankColors` to `AdminCatalog` interface, `saveColorsMutation`, `onSaveColors` callback; all returned from hook |
+| `client/src/features/shared/components/skins/ProductSelectCardSkin.tsx` | Added `editableColors`, `savedColors`, `onColorsSave`, `colorsSaving` props to `ProductSelectCardSkinProps` and `PreviewModal`; color editor section (checkboxes + Save/Select All buttons) in the detail modal |
+| `client/src/pages/admin-blanks.tsx` | Destructures new color props from controller; passes them to `AdminSourceBlankSkin` |
+| `client/src/features/shared/components/wizardSteps/ProductSteps.tsx` | `ColorPickerStep` accepts `availableColors` prop; uses curated colors when provided, falls back to `SHIRT_COLORS` |
+| `client/src/features/members/SimpleWizardStepContent.tsx` | Passes `selectedProductType?.availableColors` to `ColorPickerStep` |
 
 ### May 9, 2026 — Source Upload: Counter Collision Retry + GRF ID as Display Name
 
@@ -522,7 +537,7 @@ Components may NOT:
 
 | Canonical name | Forbidden aliases |
 |---|---|
-| `availableColors` | `colorsAvailable`, `colorOptions`, `blankColors`, `colors` (when sourced from catalog) |
+| `availableColors` | `colorsAvailable`, `colorOptions`, `colors` (when sourced from catalog) |
 | `availableSizes` | `sizesAvailable`, `sizeOptions`, `sizes` (when sourced from catalog) |
 
 **Note on packet/store fields:** `ProductPacket` has its own `colors` and `sizes` fields — these are canonical within the packet domain. CFA governs the catalog→component translation boundary only.

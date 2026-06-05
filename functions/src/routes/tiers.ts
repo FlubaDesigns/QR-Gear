@@ -108,6 +108,27 @@ app.put('/admin/catalogs/:catalogId/blank-title', requireAdmin, async (req: Requ
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+app.put('/admin/catalogs/:catalogId/blank-colors', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { catalogId } = req.params;
+    const { blankId, colors } = req.body;
+    if (!blankId) { res.status(400).json({ error: 'blankId is required' }); return; }
+    if (!Array.isArray(colors)) { res.status(400).json({ error: 'colors must be an array' }); return; }
+    const docRef = db.collection('catalogs').doc(catalogId);
+    const doc = await docRef.get();
+    if (!doc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
+    const blankColors: Record<string, Array<{name: string; hex: string}>> = doc.data()?.blankColors || {};
+    if (colors.length === 0) {
+      delete blankColors[String(blankId)];
+    } else {
+      blankColors[String(blankId)] = colors.map((c: any) => ({ name: String(c.name || ''), hex: String(c.hex || '') }));
+    }
+    await docRef.update({ blankColors, updatedAt: new Date().toISOString() });
+    console.log(`[Catalogs] Updated colors for blank ${blankId} in catalog ${catalogId}`);
+    res.json({ success: true, blankColors });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 app.get('/members/tier-products', async (req: Request, res: Response): Promise<void> => {
   try {
     const section = (req.query.section as string) || 'member';
@@ -122,6 +143,7 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
     const blankTiers = catData.blankTiers || {};
     const tierConfig = catData.tierConfig || {};
     const blankDescriptions = catData.blankDescriptions || {};
+    const blankColors: Record<string, Array<{name: string; hex: string}>> = catData.blankColors || {};
     const hasTiers = Object.keys(blankTiers).length > 0;
     if (!hasTiers) { res.json({ hasTiers: false, catalogId, catalogName: catData.name, tiers: {}, tierConfig }); return; }
 
@@ -262,8 +284,11 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
       if (bp._source === 'printify') {
         const numId = parseInt(lookupKey);
         const prov = providersByBlueprint.get(numId);
-        availableColors = (prov?.availableColors || []).map((c: any) => ({ name: c.name || c, hex: c.hex || '' }));
+        const providerColors = (prov?.availableColors || []).map((c: any) => ({ name: c.name || c, hex: c.hex || '' }));
+        availableColors = blankColors[canonicalKey]?.length ? blankColors[canonicalKey] : providerColors;
         availableSizes = (prov?.availableSizes || []).map((s: any) => typeof s === 'string' ? s : s.title || String(s));
+      } else if (bp._source === 'printful') {
+        availableColors = blankColors[canonicalKey]?.length ? blankColors[canonicalKey] : [];
       }
       const rawRichDesc = bp.richDescription || bp.description || '';
       const providerDescription = rawRichDesc.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();

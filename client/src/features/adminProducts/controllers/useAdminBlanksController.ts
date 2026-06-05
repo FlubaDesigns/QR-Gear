@@ -61,6 +61,7 @@ interface AdminCatalog {
   blankProviders?: Record<string, string[]>;
   blankImages?: Record<string, string[]>;
   blankPrimaryImages?: Record<string, string>;
+  blankColors?: Record<string, Array<{name: string; hex: string}>>;
   createdAt: string;
   updatedAt?: string;
 }
@@ -250,6 +251,7 @@ export function useAdminBlanksController() {
   const blankModels = activeCatalog?.blankModels || {};
   const blankImages = activeCatalog?.blankImages || {};
   const blankPrimaryImages = activeCatalog?.blankPrimaryImages || {};
+  const blankColors: Record<string, Array<{name: string; hex: string}>> = activeCatalog?.blankColors || {};
   const hasCatalogSelected = !!validSelectedCatalogId;
 
   const mappedPrintifyIds = useMemo(() => {
@@ -450,6 +452,18 @@ export function useAdminBlanksController() {
     onError: (err: any) => toast({ title: "Error saving title", description: err.message, variant: "destructive" }),
   });
 
+  const saveColorsMutation = useMutation({
+    mutationFn: async ({ catalogId, blankId, colors }: { catalogId: string; blankId: string; colors: Array<{name: string; hex: string}> }) => {
+      const res = await apiRequest("PUT", `/api/admin/catalogs/${catalogId}/blank-colors`, { blankId, colors });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Colors saved" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
+    },
+    onError: (err: any) => toast({ title: "Error saving colors", description: err.message, variant: "destructive" }),
+  });
+
   const filtered = useMemo(() => {
     let items = allProducts;
     // Narrow to source catalog items when source is selected
@@ -596,6 +610,15 @@ export function useAdminBlanksController() {
     await saveTitleMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, title });
   }, [validSelectedCatalogId, resolveBlankKey, saveTitleMutation, toast]);
 
+  const onSaveColors = useCallback(async (id: string, colors: Array<{name: string; hex: string}>, canonicalKey?: string) => {
+    if (!validSelectedCatalogId) {
+      toast({ title: "Select a catalog first", variant: "destructive" });
+      return;
+    }
+    const blankKey = canonicalKey || resolveBlankKey(id);
+    await saveColorsMutation.mutateAsync({ catalogId: validSelectedCatalogId, blankId: blankKey, colors });
+  }, [validSelectedCatalogId, resolveBlankKey, saveColorsMutation, toast]);
+
   const onTierChange = useCallback((blankId: string, tier: string | null) => {
     if (!validSelectedCatalogId) return;
     setBlankTierMutation.mutate({ catalogId: validSelectedCatalogId, blankId, tier });
@@ -654,12 +677,14 @@ export function useAdminBlanksController() {
     blankModels,
     blankImages,
     blankPrimaryImages,
+    blankColors,
 
     onAddToCatalog,
     onRemoveFromCatalog,
     onToggleItem,
     onSaveDescription,
     onSaveTitle,
+    onSaveColors,
     onTierChange,
     isItemInCatalog,
     getItemMappingBadge,
@@ -670,6 +695,7 @@ export function useAdminBlanksController() {
     removeBlanksMutation,
     saveDescriptionMutation,
     saveTitleMutation,
+    saveColorsMutation,
     pricing,
 
     totalProductCount,

@@ -78,6 +78,10 @@ export interface ProductSelectCardSkinProps {
   masterCatalogImages?: string[];
   fulfillmentProvider?: string;
   mockupImageUrl?: string | null;
+  editableColors?: boolean;
+  savedColors?: Array<{name: string; hex: string}>;
+  onColorsSave?: (id: string, colors: Array<{name: string; hex: string}>) => Promise<void>;
+  colorsSaving?: boolean;
 }
 
 function PreviewModal({
@@ -100,6 +104,10 @@ function PreviewModal({
   onTierChange,
   showTierControls,
   mockupImageUrl,
+  editableColors,
+  savedColors,
+  onColorsSave,
+  colorsSaving,
 }: {
   item: ProductSelectItem;
   open: boolean;
@@ -120,6 +128,10 @@ function PreviewModal({
   tier?: TierValue;
   onTierChange?: (id: string, tier: TierValue) => void;
   showTierControls?: boolean;
+  editableColors?: boolean;
+  savedColors?: Array<{name: string; hex: string}>;
+  onColorsSave?: (id: string, colors: Array<{name: string; hex: string}>) => Promise<void>;
+  colorsSaving?: boolean;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -128,6 +140,12 @@ function PreviewModal({
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(item.name || "");
   const [confirmResetTitle, setConfirmResetTitle] = useState(false);
+  const [selectedColorNames, setSelectedColorNames] = useState<Set<string>>(
+    () => new Set(savedColors ? savedColors.map(c => c.name) : item.availableColors.map(c => c.name))
+  );
+  useEffect(() => {
+    setSelectedColorNames(new Set(savedColors ? savedColors.map(c => c.name) : item.availableColors.map(c => c.name)));
+  }, [savedColors, item.availableColors]);
 
   const masterImages = useMemo(() => {
     const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
@@ -837,6 +855,60 @@ function PreviewModal({
                 </div>
               )}
 
+              {editableColors && onColorsSave && item.availableColors.length > 0 && (
+                <div className="space-y-2" data-testid={`color-controls-modal-${item.id}`}>
+                  <p className="text-xs text-muted-foreground font-medium">
+                    Curated Colors ({selectedColorNames.size} of {item.availableColors.length} shown in wizard)
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-2 max-h-40 overflow-y-auto pr-1">
+                    {item.availableColors.map((c, i) => (
+                      <label key={i} className="flex items-center gap-1.5 cursor-pointer min-w-[120px]">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={selectedColorNames.has(c.name)}
+                          onChange={e => {
+                            const next = new Set(selectedColorNames);
+                            if (e.target.checked) next.add(c.name); else next.delete(c.name);
+                            setSelectedColorNames(next);
+                          }}
+                          data-testid={`checkbox-color-${item.id}-${i}`}
+                        />
+                        <div
+                          className="w-4 h-4 rounded-full border border-border flex-shrink-0"
+                          style={{ backgroundColor: c.hex || '#888' }}
+                        />
+                        <span className="text-xs truncate">{c.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={colorsSaving}
+                      onClick={() => {
+                        const selected = item.availableColors
+                          .filter(c => selectedColorNames.has(c.name))
+                          .map(c => ({ name: c.name, hex: c.hex || '' }));
+                        onColorsSave(item.id, selected);
+                      }}
+                      data-testid={`button-save-colors-${item.id}`}
+                    >
+                      {colorsSaving ? 'Saving…' : 'Save Color Selection'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setSelectedColorNames(new Set(item.availableColors.map(c => c.name)))}
+                      data-testid={`button-reset-colors-${item.id}`}
+                    >
+                      Select All
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <Button
                 className="w-full min-h-12 text-base"
                 onClick={() => {
@@ -867,7 +939,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cardImageIndex, setCardImageIndex] = useState(0);
@@ -1180,6 +1252,10 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onTierChange={onTierChange}
         showTierControls={showTierControls}
         mockupImageUrl={mockupImageUrl}
+        editableColors={editableColors}
+        savedColors={savedColors}
+        onColorsSave={onColorsSave}
+        colorsSaving={colorsSaving}
       />
     </>
   );

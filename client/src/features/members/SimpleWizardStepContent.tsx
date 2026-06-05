@@ -157,6 +157,7 @@ export function SimpleWizardStepContent({
           selectedColor={selectedColor}
           onSelect={setSelectedColor}
           productName={getProductFriendlyName(selectedProductType?.title)}
+          availableColors={selectedProductType?.availableColors}
         />
       )}
 

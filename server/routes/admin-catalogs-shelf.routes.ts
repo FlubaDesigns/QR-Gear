@@ -812,6 +812,30 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
     }
   });
 
+  app.put("/api/admin/catalogs/:id/blank-colors", isAdmin, async (req: any, res) => {
+    try {
+      const { blankId, colors } = req.body;
+      if (!blankId) return res.status(400).json({ error: "blankId is required" });
+      if (!Array.isArray(colors)) return res.status(400).json({ error: "colors must be an array" });
+      const catalog = await fsGet("catalogs", req.params.id);
+      if (!catalog) return res.status(404).json({ error: "Catalog not found" });
+      const canonicalId = await resolveCatalogBlankId(String(blankId));
+      if (canonicalId === null) return res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
+      const blankColors: Record<string, Array<{name: string; hex: string}>> = { ...(catalog.blankColors || {}) };
+      if (colors.length === 0) {
+        delete blankColors[canonicalId];
+      } else {
+        blankColors[canonicalId] = colors.map((c: any) => ({ name: String(c.name || ''), hex: String(c.hex || '') }));
+      }
+      await fsUpdate("catalogs", req.params.id, { blankColors });
+      res.json({ success: true, blankColors });
+    } catch (error: any) {
+      console.error("[Catalogs] Set blank colors error:", error);
+      if (error instanceof CatalogBlankResolverError) return res.status(400).json({ error: error.message });
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ── Curated image list for a blank within a catalog ──────────────────────
   // An empty array restores the master images (clears the override).
   app.put("/api/admin/catalogs/:id/blank-images", isAdmin, async (req: any, res) => {

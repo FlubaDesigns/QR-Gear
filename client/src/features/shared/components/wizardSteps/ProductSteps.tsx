@@ -252,14 +252,19 @@ export function ColorPickerStep({
   selectedColor,
   onSelect,
   context = 'member',
-  productName
+  productName,
+  availableColors,
 }: {
   selectedColor: string;
   onSelect: (color: string) => void;
   context?: WizardContextType;
   productName?: string;
+  availableColors?: Array<{ name: string; hex: string }>;
 }) {
   const itemName = productName || 'product';
+  const colors = availableColors && availableColors.length > 0
+    ? availableColors.map(c => ({ id: c.name, name: c.name, hex: c.hex }))
+    : SHIRT_COLORS;
   return (
     <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
@@ -267,15 +272,15 @@ export function ColorPickerStep({
         <p className="text-slate-400">What color {itemName} would you like?</p>
       </div>
       
-      <div className="flex justify-center items-center gap-2 max-w-[280px] mx-auto">
-        {SHIRT_COLORS.map((color) => (
+      <div className="flex justify-center items-center flex-wrap gap-2 max-w-[320px] mx-auto">
+        {colors.map((color) => (
           <button
             key={color.id}
             onClick={() => onSelect(color.id)}
-            className={`flex-1 aspect-square max-w-[48px] rounded-full border-3 transition-all ${
+            className={`w-10 h-10 rounded-full transition-all ${
               selectedColor === color.id
-                ? 'border-orange-500 scale-110'
-                : 'border-slate-600 hover:border-slate-400'
+                ? 'border-[3px] border-orange-500 scale-110'
+                : 'border-2 border-slate-600 hover:border-slate-400'
             }`}
             style={{ backgroundColor: color.hex }}
             title={color.name}
@@ -286,7 +291,7 @@ export function ColorPickerStep({
       
       {selectedColor && (
         <p className="text-white font-medium">
-          {SHIRT_COLORS.find(c => c.id === selectedColor)?.name}
+          {colors.find(c => c.id === selectedColor)?.name}
         </p>
       )}
       

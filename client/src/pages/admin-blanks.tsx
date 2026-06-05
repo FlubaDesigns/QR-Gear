@@ -438,10 +438,10 @@ export default function AdminBlanks() {
     providerFilter, setProviderFilter,
     search, setSearch, categoryFilter, setCategoryFilter,
     locationFilter, setLocationFilter, categoryNames,
-    catalogItems, sourceItemMap, scrollItems, blankTiers,
-    onAddToCatalog, onToggleItem, onSaveDescription, onSaveTitle, onTierChange,
+    catalogItems, sourceItemMap, scrollItems, blankTiers, blankColors,
+    onAddToCatalog, onToggleItem, onSaveDescription, onSaveTitle, onSaveColors, onTierChange,
     getItemMappingBadge, resolveBlankKey,
-    allProductMap, catalogBlankSet, removeBlanksMutation, saveDescriptionMutation, saveTitleMutation,
+    allProductMap, catalogBlankSet, removeBlanksMutation, saveDescriptionMutation, saveTitleMutation, saveColorsMutation,
     totalProductCount, filteredCount, categoryCounts,
   } = ctrl;
 
@@ -490,6 +490,10 @@ export default function AdminBlanks() {
             editableTitle={!!validSelectedCatalogId}
             onTitleSave={(id: string, title: string) => onSaveTitle(id, title, blankKey)}
             titleSaving={saveTitleMutation.isPending}
+            editableColors={!!validSelectedCatalogId && inTarget}
+            savedColors={blankColors[blankKey]}
+            onColorsSave={(id: string, colors: Array<{name: string; hex: string}>) => onSaveColors(id, colors, blankKey)}
+            colorsSaving={saveColorsMutation.isPending}
             selectLabel={validSelectedCatalogId ? `Add to ${targetName}` : undefined}
             selectedLabel={validSelectedCatalogId ? `In ${targetName}` : undefined}
             disableWhenSelected={!!validSelectedCatalogId}
