@@ -22,7 +22,13 @@ async function getMemberToken(): Promise<string | null> {
 
   if (!user) {
     await new Promise<void>((resolve) => {
-      const unsub = onAuthStateChanged(auth, (u) => {
+      const timeout = setTimeout(() => {
+        console.warn("[memberFetch] Auth state timeout after 5s");
+        resolve();
+      }, 5000);
+
+      const unsub = onAuthStateChanged(auth, () => {
+        clearTimeout(timeout);
         unsub();
         resolve();
       });
@@ -31,8 +37,8 @@ async function getMemberToken(): Promise<string | null> {
   }
 
   if (!user) {
-    console.error("[memberFetch] No authenticated user found");
-    return null;
+    console.error("[memberFetch] No authenticated user found after timeout");
+    throw new Error("User not authenticated");
   }
 
   return user.getIdToken();

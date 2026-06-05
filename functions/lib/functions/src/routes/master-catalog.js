@@ -669,11 +669,13 @@ function register(app) {
                 label: qrgVariantMappings_1.SIZE_LABELS[code] ?? code,
                 providerValues: sizeProviderValues[code] ? Array.from(sizeProviderValues[code]) : [],
             }));
-            const availableColors = colorCodes.map((code) => ({
-                code,
-                label: qrgVariantMappings_1.COLOR_LABELS[code] ?? code,
-                providerValues: colorProviderValues[code] ? Array.from(colorProviderValues[code]) : [],
-            }));
+            // Build {name, hex}[] colors — priority: providerMappings real colors > QRG code stubs
+            const providerColorArr = isProviderObj
+                ? (pm[requestedProvider]?.colors || pm.printful?.colors || pm.printify?.colors || [])
+                : [];
+            const availableColors = providerColorArr.length > 0
+                ? providerColorArr.map((c) => ({ name: c.name || String(c), hex: c.hex || '#CCCCCC' }))
+                : colorCodes.map((code) => ({ name: String(code), hex: '#CCCCCC' }));
             let printLocations = [];
             // Helper: resolve a canonical print_placements doc + id for a given position name.
             // Tries direct doc-id lookup first, then falls back to scanning provider dtgNames/dtfNames.
@@ -964,6 +966,7 @@ function register(app) {
                 category: product.qrgCategory || product.category || null,
                 availableSizes,
                 availableColors,
+                providerMappings: isProviderObj ? pm : null,
                 printLocations,
                 provider: {
                     name: requestedProvider,
