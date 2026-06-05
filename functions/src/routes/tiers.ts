@@ -149,8 +149,8 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
       if (s.startsWith('pf:')) return false;
       if (s.startsWith('qrg_') || s.startsWith('pending_')) {
         const mc = masterCatalogCache.get(s);
-        const mappings: any[] = mc?.providerMappings ?? [];
-        return mappings.some((m: any) => m.provider === 'Printify');
+        const pm = mc?.providerMappings ?? {};
+        return !!(pm.printify);
       }
       return true; // legacy numeric = printify
     });
@@ -159,8 +159,8 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
       if (s.startsWith('pf:')) return true;
       if (s.startsWith('qrg_') || s.startsWith('pending_')) {
         const mc = masterCatalogCache.get(s);
-        const mappings: any[] = mc?.providerMappings ?? [];
-        return mappings.some((m: any) => m.provider === 'Printful');
+        const pm = mc?.providerMappings ?? {};
+        return !!(pm.printful);
       }
       return false;
     });
@@ -227,13 +227,14 @@ app.get('/members/tier-products', async (req: Request, res: Response): Promise<v
       if (canonicalKey.startsWith('qrg_') || canonicalKey.startsWith('pending_')) {
         const mc = masterCatalogCache.get(canonicalKey);
         if (!mc) continue; // not yet in master_catalog — skip
-        const mappings: any[] = mc.providerMappings ?? [];
-        const pfMapping = mappings.find((m: any) => m.provider === 'Printful');
-        const pyMapping = mappings.find((m: any) => m.provider === 'Printify');
-        const mapping = pfMapping ?? pyMapping;
-        if (!mapping) continue;
-        isPrintful = mapping.provider === 'Printful';
-        const resolvedId = String(isPrintful ? (mapping.productId ?? mapping.blueprintId) : mapping.blueprintId);
+        const pm = mc.providerMappings ?? {};
+        const pfMapping = pm.printful ?? null;
+        const pyMapping = pm.printify ?? null;
+        if (!pfMapping && !pyMapping) continue;
+        isPrintful = !!pfMapping;
+        const resolvedId = String(isPrintful
+          ? (pfMapping.productId ?? pfMapping.blueprintId)
+          : pyMapping.blueprintId);
         lookupKey = isPrintful ? `pf:${resolvedId}` : resolvedId;
       }
 
