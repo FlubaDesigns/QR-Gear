@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, inMemoryPersistence, browserLocalPersistence, setPersistence } from "firebase/auth";
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
@@ -41,6 +41,11 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   return firebaseSignOut(auth);
+}
+
+export async function signInWithAuthorizationEngine(customToken: string) {
+  await setPersistence(auth, inMemoryPersistence);
+  return signInWithCustomToken(auth, customToken);
 }
 
 export default app;

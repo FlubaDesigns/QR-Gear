@@ -105,3 +105,6 @@ export type QrgSource = 'I' | 'M' | 'E' | 'D';
 export const QRG_BLANK_CODES: Record<number, string> = {
   12: '101',
 };
+
+// Private, one-use browser handoffs approved by the existing Authorization Engine.
+export const AUTHORIZATION_ENGINE_SESSIONS_COLLECTION = "authorization_engine_sessions";

@@ -1,3 +1,4 @@
+import { registerAuthorizationEngineAuth } from './authorization-engine-auth';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -14,6 +15,7 @@ import { printfulClient } from '../services/printful';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 
   export function register(app: express.Express): void {
+  registerAuthorizationEngineAuth(app, { db, auth: admin.auth(), ownerIds: ADMIN_USER_IDS, projectId: process.env.GCLOUD_PROJECT, config: process.env.AUTHORIZATION_ENGINE_BROWSER });
   // ============ AUTH ENDPOINTS ============
 
 app.post('/auth/register', async (req: Request, res: Response): Promise<void> => {
