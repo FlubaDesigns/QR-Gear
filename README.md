@@ -270,3 +270,11 @@ This pass is prepared in the draft PR, not deployed. BLD/Assembly slot binding, 
 Production and development share the GRF registrar and Assembly validation services. Commit registers an actual QR PNG and all printed images; the browser no longer independently registers the same output. Generated placement graphics carry their registered IDs into publishing, including back and sleeve locations. Publication verifies the saved snapshot, QRG blank, BLD, Assembly bindings, and active GRF files before calling the provider.
 
 Validation: 32 focused tests exercise snapshot handoffs, HTTP BLD/packet routes, real QR encoding, saved-layout reuse, image/text binding, placement selection, invalid-chain rejection, and output deletion. Firebase/Printify live execution still requires an authenticated environment; local tests use injected storage/database adapters.
+
+### Product selection handoff (2026-10-06)
+
+The existing Products module now selects and highlights by canonical QRG document ID. BuilderContext owns the handoff: choosing another blank clears its predecessor's print selections, draft/packet links, and generated graphic while retaining reusable design inputs. Catalog title/description overrides stay separate from provider text. Editing a different catalog card does not switch the active build.
+
+Options loading uses the selected provider and the existing catalog adapter for colors and sizes. Only the current selection/request can supply options or attach a draft. Reopening a draft reconciles its print selections and dimensions against fresh options. Browsing categories or filters leaves the active build selected.
+
+Seven React integration tests exercise the actual Products module and BuilderContext with controlled API responses. Run `npx vitest run --config vitest.config.ts`. These are local behavioral checks; authenticated production selection and draft persistence still require a live admin session.

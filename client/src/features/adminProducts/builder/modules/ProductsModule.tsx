@@ -28,7 +28,7 @@ import { useBuilderContext } from "../BuilderContext";
 import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
-import { getLookupBlankKey } from "@shared/blankKeys";
+import { getLookupBlankKey, getProductSnapshotKey, isQRGBlankId } from "@shared/blankKeys";
 import { normalizeProductColors, normalizeProductSizes } from "@shared/adapters/catalog.adapter";
 import { BlankPickerModal } from "./BlankPickerModal";
 
@@ -555,7 +555,7 @@ export function ProductsModule() {
     unisex: originFilteredProducts.filter(p => p.gender === "unisex").length,
   }), [originFilteredProducts]);
 
-  const selectedProductId = state.selectedProduct ? String(state.selectedProduct.id) : null;
+  const selectedProductId = state.selectedProduct ? getProductSnapshotKey(state.selectedProduct) : null;
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
@@ -595,19 +595,9 @@ export function ProductsModule() {
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    if (!state.selectedProduct || String(state.selectedProduct.id) !== id) {
-      const curatedProduct = {
-        ...entry.catalog,
-        title: entry.selectItem.name || entry.catalog.title,
-        description: entry.selectItem.description ?? entry.catalog.description,
-        images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
-        imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
-        availableColors: entry.selectItem.availableColors,
-      } as typeof entry.catalog;
-      selectProduct(curatedProduct);
+    if (selectedProductId === id) {
+      setProductDescription(description || null, 'manual');
     }
-    // source='manual' — admin explicitly typed/confirmed this value in the builder
-    setProductDescription(description || null, 'manual');
 
     if (activeCatalog) {
       try {
@@ -620,24 +610,14 @@ export function ProductsModule() {
     } else {
       toast({ title: "Description set for this session" });
     }
-  }, [selectItemMap, state.selectedProduct, selectProduct, setProductDescription, activeCatalog, queryClient, toast]);
+  }, [selectItemMap, selectedProductId, setProductDescription, activeCatalog, queryClient, toast]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    if (!state.selectedProduct || String(state.selectedProduct.id) !== id) {
-      const curatedProduct = {
-        ...entry.catalog,
-        title: entry.selectItem.name || entry.catalog.title,
-        description: entry.selectItem.description ?? entry.catalog.description,
-        images: entry.selectItem.images?.length ? entry.selectItem.images : ((entry.catalog as any).images || []),
-        imageUrl: entry.selectItem.primaryImageUrl || (entry.catalog as any).imageUrl,
-        availableColors: entry.selectItem.availableColors,
-      } as typeof entry.catalog;
-      selectProduct(curatedProduct);
+    if (selectedProductId === id) {
+      setProductTitle(title || null, 'manual');
     }
-    // source='manual' — admin explicitly typed/confirmed this value in the builder
-    setProductTitle(title || null, 'manual');
 
     if (activeCatalog) {
       try {
@@ -650,7 +630,7 @@ export function ProductsModule() {
     } else {
       toast({ title: "Title set for this session" });
     }
-  }, [selectItemMap, state.selectedProduct, selectProduct, setProductTitle, activeCatalog, queryClient, toast]);
+  }, [selectItemMap, selectedProductId, setProductTitle, activeCatalog, queryClient, toast]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!activeCatalog) return;
@@ -834,22 +814,30 @@ export function ProductsModule() {
     const entry = selectItemMap.get(id);
     if (!entry) return;
 
+    const sourceMasterId = entry.catalog.docId;
+    if (!sourceMasterId || !isQRGBlankId(sourceMasterId)) {
+      toast({ title: "Choose a classified blank", description: "Assign this blank its QRG identity in Admin Blanks before building.", variant: "destructive" });
+      return;
+    }
     const catalogProduct = entry.catalog as any;
-    if (catalogProduct.fulfillmentProvider && catalogProduct.fulfillmentProvider !== provider) {
+    const selectedProvider = providerStocksProduct(catalogProduct, provider)
+      ? provider
+      : catalogProduct.fulfillmentProvider || provider;
+    if (selectedProvider !== provider) {
       internalProviderSwitch.current = true;
-      setSelectedProviders([catalogProduct.fulfillmentProvider]);
     }
 
-    // Build curated product — prefer admin-overridden title/description/images over master.
+    // Keep master title/description intact. Catalog copy-forward uses the owned
+    // fields below; card display overrides are not provider truth.
     const curatedProduct = {
       ...entry.catalog,
-      title: entry.selectItem.name || entry.catalog.title,
-      description: entry.selectItem.description ?? entry.catalog.description,
+      fulfillmentProvider: selectedProvider,
       images: entry.selectItem.images?.length ? entry.selectItem.images : (catalogProduct.images || []),
       imageUrl: entry.selectItem.primaryImageUrl || catalogProduct.imageUrl,
       availableColors: entry.selectItem.availableColors,
+      availableSizes: entry.selectItem.availableSizes,
     } as typeof entry.catalog;
-    selectProduct(curatedProduct);
+    const isCurrentSelection = selectProduct(curatedProduct);
 
     // Card selection is the explicit copy-forward action per Progressive Truth.
     // If the catalog has an override for this blank, upgrade the packet-owned fields
@@ -861,10 +849,7 @@ export function ProductsModule() {
     if (adminDesc) setProductDescription(adminDesc, 'catalog');
     if (adminTitle) setProductTitle(adminTitle, 'catalog');
 
-    // Clear any previous session then start/resume a build session for this master product
-    setActiveSession(null, null, null);
-    // Use the Firestore document ID (docId), not the blueprint number (id)
-    const sourceMasterId = entry.catalog.docId ?? String(entry.catalog.id);
+    // Start/resume the existing draft path using the canonical QRG blank ID.
     // P6: resolve shelf item to pass its Firestore ID for catalog-scope validation on the backend
     const shelfItem = shelfItemByCanonicalId.get(id) ?? shelfItemByCanonicalId.get(entry.blankKey) ?? null;
     apiRequest("POST", "/api/admin/build-sessions/from-master", {
@@ -875,6 +860,7 @@ export function ProductsModule() {
     })
       .then(r => r.json())
       .then(data => {
+        if (!isCurrentSelection()) return;
         if (!data.sessionId) {
           console.error("[ProductsModule] from-master returned no sessionId:", data);
           selectProduct(null);
@@ -894,14 +880,15 @@ export function ProductsModule() {
         }
         // Restore the packet ID so CreateGraphicsModule can re-display the packet result
         const existingPacketId: string | null = data.session?.generated?.packetId || null;
+        setActivePacketId(existingPacketId);
         if (existingPacketId) {
-          setActivePacketId(existingPacketId);
           console.log(`[ProductsModule] Restored activePacketId: ${existingPacketId}`);
         }
 
 
       })
       .catch(err => {
+        if (!isCurrentSelection()) return;
         console.error("[ProductsModule] Failed to start build session:", err.message || err);
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
@@ -927,9 +914,9 @@ export function ProductsModule() {
           item={entry.selectItem}
           isSelected={selectedProductId === cardId}
           onSelect={handleCardSelect}
-          editableDescription={true}
+          editableDescription={!!activeCatalog || selectedProductId === cardId}
           onDescriptionSave={handleDescriptionSave}
-          editableTitle={true}
+          editableTitle={!!activeCatalog || selectedProductId === cardId}
           onTitleSave={handleTitleSave}
           onDelete={activeCatalog ? handleDelete : undefined}
           deleting={deletingId === cardId}

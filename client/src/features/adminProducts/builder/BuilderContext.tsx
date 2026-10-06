@@ -1,3 +1,5 @@
+import { isQRGBlankId } from '@shared/blankKeys';
+import { normalizeProductColors, normalizeProductSizes } from '@shared/adapters/catalog.adapter';
 import { applyBuilderBld } from '@shared/bldCodes';
 import { buildWorkingSnapshot, sanitizeSnapshot, requireBuilderSnapshot } from '@shared/builderSnapshot';
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
@@ -26,7 +28,7 @@ interface BuilderContextValue {
   setCategory: (category: string | null) => void;
   setOriginFilter: (filter: Partial<OriginFilter>) => void;
   setGenderFilter: (filter: GenderFilter) => void;
-  selectProduct: (product: CatalogProduct | null) => void;
+  selectProduct: (product: CatalogProduct | null) => () => boolean;
   setQRProductState: (state: QRProductState) => void;
   setContent: (content: Partial<ContentData>) => void;
   togglePlacement: (placementId: string) => void;
@@ -168,6 +170,26 @@ function normalizeLandingTextBlocks(blocks: any[]): any[] {
   }));
 }
 
+function getProviderLayout(product: CatalogProduct | null, placementId?: string): ProviderLayout | null {
+  const placement = product?.placements?.find(p => p.id === placementId);
+  if (!placement?.provider || !placement.dimensions) return null;
+  return {
+    provider: placement.provider,
+    schemaFamily: product?.schemaFamily || '',
+    schemaType: product?.schemaType || '',
+    canonicalProfilePath: product?.canonicalProfilePath || '',
+    canonicalLocationCode: placement.canonicalLocationCode || placement.id,
+    providerPlacementId: placement.providerPlacementId || placement.providerPlacement || placement.id,
+    label: placement.title,
+    dimensions: placement.dimensions,
+    printArea: placement.printArea || { widthPx: placement.dimensions.widthPx, heightPx: placement.dimensions.heightPx },
+    safeArea: placement.safeArea || null,
+    dpi: placement.dpi || placement.dimensions.dpi || 300,
+    layoutSource: placement.layoutSource || product?.layoutSource || undefined,
+    sourceTable: placement.sourceTable || undefined,
+  };
+}
+
 export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
@@ -178,6 +200,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const flushSaveRef = useRef<(() => void) | null>(null);
   // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
   const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || 'printify');
+
+  // Selection ownership is shared by options loading and the session handoff.
+  const selectionVersionRef = useRef(0);
+  const optionsVersionRef = useRef(0);
 
   const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const persistWorking = useCallback((sessionId: string, snapshot: Record<string, any>, draftName?: string) => {
@@ -445,7 +471,6 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setState(prev => ({
       ...prev,
       category: category,
-      selectedProduct: null,
     }));
   }, []);
 
@@ -457,7 +482,6 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setState(prev => ({
       ...prev,
       originFilter: { ...prev.originFilter, ...filter },
-      selectedProduct: null,
     }));
   }, []);
 
@@ -465,7 +489,6 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setState(prev => ({
       ...prev,
       genderFilter: filter,
-      selectedProduct: null,
     }));
   }, []);
 
@@ -492,14 +515,17 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   // Fetch QRG-native options for a product — single source of truth for placements,
   // colors, sizes, and variant mappings. Called by selectProduct, loadFromWorkingState,
-  // and loadFromPacketData. Race-guarded by docId.
+  // and loadFromPacketData. Responses belong to one selection and provider request.
   const fetchOptionsForProduct = useCallback((product: CatalogProduct) => {
     const docId = product.docId;
-    if (!docId || !/^qrg_/.test(docId)) {
+    const selectionVersion = selectionVersionRef.current;
+    const optionsVersion = ++optionsVersionRef.current;
+    const isCurrent = () => selectionVersion === selectionVersionRef.current && optionsVersion === optionsVersionRef.current;
+    if (!docId || !isQRGBlankId(docId)) {
       console.warn('[BuilderContext] Product missing qrg_ docId, skipping options fetch:', docId);
       setState(prev => {
-        if (prev.selectedProduct?.docId !== docId) return prev;
-        return { ...prev, placementsLoading: false, placementsRestoreWarning: null };
+        if (!isCurrent() || prev.selectedProduct?.docId !== docId) return prev;
+        return { ...prev, placementsLoading: false, placementsError: 'Select a classified QRG blank before building.', placementsRestoreWarning: null };
       });
       return;
     }
@@ -524,7 +550,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}`)
       .then(options => {
         setState(prev => {
-          if (prev.selectedProduct?.docId !== docId) return prev;
+          if (!isCurrent() || prev.selectedProduct?.docId !== docId) return prev;
 
           // Map QRG print locations → builder ProductPlacement shape.
           // Preserve the full provider layout data from the print_placements crosswalk
@@ -551,19 +577,15 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             layoutSource: pl.layoutSource || null,
           }));
 
-          // Prefer real {name,hex} colors from options — the /options endpoint now builds
-          // these from providerMappings. Fall back to whatever was set at selection time.
-          const optionsColors: Array<{ name: string; hex: string }> = options.availableColors || [];
-          const hasRealColors = optionsColors.length > 0 && typeof optionsColors[0]?.hex === 'string';
-
           const merged: CatalogProduct = {
             ...prev.selectedProduct!,
-            placements: printLocations.length > 0 ? printLocations : (prev.selectedProduct!.placements || []),
+            placements: printLocations,
             printLocations: options.printLocations || [],
             qrgBlankId: options.qrgBlankId || prev.selectedProduct!.qrgBlankId,
             qrgVariants: options.qrgVariants || {},
             providerMappings: options.providerMappings || prev.selectedProduct!.providerMappings,
-            availableColors: hasRealColors ? optionsColors : (prev.selectedProduct!.availableColors || []),
+            availableColors: normalizeProductColors({ availableColors: options.availableColors || [] }),
+            availableSizes: normalizeProductSizes({ availableSizes: options.availableSizes || [] }),
             // Schema-first fields resolved from QRG STNNN digits — identify product type
             // before any provider query. Persisted into providerLayout on placement select.
             schemaFamily: options.schemaFamily || null,
@@ -592,65 +614,76 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             placementsError: null,
             placementsRestoreWarning: restoreWarning,
             selectedPlacements: validSelected,
+            placementConfig: Object.fromEntries(Object.entries(prev.placementConfig).filter(([id]) => validPlacementIds.has(id))),
+            placementSizes: Object.fromEntries(Object.entries(prev.placementSizes).filter(([id]) => validPlacementIds.has(id))),
+            placementMethods: Object.fromEntries(Object.entries(prev.placementMethods).filter(([id]) => validPlacementIds.has(id))),
+            providerLayout: getProviderLayout(merged, validSelected[0]),
+            selectedColor: merged.availableColors.find(color => color.name === prev.selectedColor?.name) ?? null,
           };
         });
       })
       .catch(err => {
         console.error('[BuilderContext] Failed to fetch product options:', err);
         setState(prev => {
-          if (prev.selectedProduct?.docId !== docId) return prev;
+          if (!isCurrent() || prev.selectedProduct?.docId !== docId) return prev;
           return { ...prev, placementsLoading: false, placementsError: err?.message || 'Failed to load product options', placementsRestoreWarning: null };
         });
       });
   }, []);
 
-  // Re-fetch placements when the fulfillment provider changes while a product is selected.
-  // The ref sync effect runs first (defined earlier), so fulfillmentProviderRef.current is
-  // already updated by the time fetchOptionsForProduct reads it.
+  // A provider change belongs to the same QRG blank but requires new print options.
   useEffect(() => {
     const product = state.selectedProduct;
-    if (!product?.docId || !product.optionsLoaded) return;
-    setState(prev => ({ ...prev, placementsLoading: true, placementsError: null, placementsRestoreWarning: null }));
-    fetchOptionsForProduct(product);
-  }, [state.fulfillmentProvider]); // eslint-disable-line react-hooks/exhaustive-deps
+    const provider = state.fulfillmentProvider;
+    if (!product?.docId || !provider || product.fulfillmentProvider === provider) return;
+    const nextProduct = { ...product, fulfillmentProvider: provider as CatalogProduct['fulfillmentProvider'], optionsLoaded: false, placements: [], printLocations: [], availableColors: [], availableSizes: [] };
+    setState(prev => ({ ...prev, selectedProduct: nextProduct, selectedColor: null,
+      selectedPlacements: [], placementConfig: {}, placementSizes: {}, placementMethods: {},
+      providerLayout: null, activePacketId: null, loadedGraphic: null,
+      placementsLoading: true, placementsError: null, placementsRestoreWarning: null }));
+    fetchOptionsForProduct(nextProduct);
+  }, [state.fulfillmentProvider, state.selectedProduct?.docId, fetchOptionsForProduct]);
 
   const selectProduct = useCallback((product: CatalogProduct | null) => {
-    if (!product) {
-      setState(prev => ({ ...prev, selectedProduct: null, masterTitle: null, adminCatalogTitle: null, masterDescription: null, productDescription: null, adminCatalogDescription: null, placementsLoading: false, placementsError: null, placementsRestoreWarning: null }));
-      return;
-    }
+    const version = ++selectionVersionRef.current;
+    ++optionsVersionRef.current;
+    const isCurrent = () => version === selectionVersionRef.current;
+    const provider = product?.fulfillmentProvider || fulfillmentProviderRef.current;
+    const nextProduct = product ? { ...product, fulfillmentProvider: provider as CatalogProduct['fulfillmentProvider'], optionsLoaded: false, placements: [], printLocations: [] } : null;
+    if (product) setSelectedProviders([provider]);
 
-    const masterTitle = product.title || null;
-    const masterDescription = product.description || null;
-
-    // Immediately seat the product with optionsLoaded=false and start loading.
-    // fetchOptionsForProduct will merge placements/qrgBlankId/qrgVariants once resolved.
-    // selectedProduct holds provider truth — do NOT mutate its title/description via
-    // setProductTitle/setProductDescription; those are packet-layer writes.
+    // Creative inputs/BLD may be reused; blank-specific options and output may not.
     setState(prev => ({
       ...prev,
-      selectedProduct: { ...product, optionsLoaded: false },
-      masterTitle,
+      selectedProduct: nextProduct,
+      fulfillmentProvider: provider,
+      masterTitle: product?.title || null,
+      masterDescription: product?.description || null,
       adminCatalogTitle: null,
-      // Seed titleSource as 'provider' — card selection is the explicit copy-forward
-      // action. If handleCardSelect then applies a catalog override via setProductTitle,
-      // titleSource will be updated to 'catalog'. Either way the packet owns its copy
-      // from this point; changes to upstream after selection do not affect it.
-      titleSource: 'provider' as TextLayerSource,
-      masterDescription,
-      // Seed productDescription from the provider description — this is the one-time
-      // copy that happens when the admin selects a product. If no catalog override
-      // is applied by handleCardSelect, the packet owns this provider-seeded value.
-      productDescription: masterDescription,
       adminCatalogDescription: null,
-      descriptionSource: 'provider' as TextLayerSource,
-      placementsLoading: true,
+      productDescription: product?.description || null,
+      titleSource: product ? 'provider' : null,
+      descriptionSource: product ? 'provider' : null,
+      selectedColor: null,
+      selectedPlacements: [],
+      placementConfig: {},
+      placementSizes: {},
+      placementMethods: {},
+      providerLayout: null,
+      activeSessionId: null,
+      sessionStatus: null,
+      committedInstanceId: null,
+      activePacketId: null,
+      loadedGraphic: null,
+      templateBaseline: null,
+      templateProductHint: null,
+      placementsLoading: !!product,
       placementsError: null,
       placementsRestoreWarning: null,
     }));
-
-    fetchOptionsForProduct(product);
-  }, [fetchOptionsForProduct]);
+    if (nextProduct) fetchOptionsForProduct(nextProduct);
+    return isCurrent;
+  }, [fetchOptionsForProduct, setSelectedProviders]);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {
     setState(prev => ({
@@ -700,34 +733,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         delete newMethods[placementId];
       }
 
-      // Derive providerLayout from the primary (first) selected placement.
-      // Schema-first: schemaFamily/schemaType/canonicalProfilePath come from the
-      // product (set by fetchOptionsForProduct from the /options response).
-      // This ensures the renderer and BLD use provider-correct dimensions, not
-      // hardcoded FALLBACK_PLACEMENT_DIMENSIONS. Only updated when the primary
-      // placement changes — otherwise keep the existing providerLayout.
-      const primaryId = newPlacements[0] || null;
-      const primaryPlacement = primaryId
-        ? prev.selectedProduct?.placements?.find(p => p.id === primaryId)
-        : null;
-      const newProviderLayout: ProviderLayout | null = (primaryPlacement?.provider && primaryPlacement.dimensions)
-        ? {
-            provider: primaryPlacement.provider,
-            schemaFamily: prev.selectedProduct?.schemaFamily || '',
-            schemaType: prev.selectedProduct?.schemaType || '',
-            canonicalProfilePath: prev.selectedProduct?.canonicalProfilePath || '',
-            canonicalLocationCode: primaryPlacement.id,
-            providerPlacementId: primaryPlacement.providerPlacement || primaryPlacement.id,
-            label: primaryPlacement.title,
-            dimensions: primaryPlacement.dimensions,
-            printArea: primaryPlacement.printArea
-              || { widthPx: primaryPlacement.dimensions.widthPx, heightPx: primaryPlacement.dimensions.heightPx },
-            safeArea: primaryPlacement.safeArea || null,
-            dpi: primaryPlacement.dpi || primaryPlacement.dimensions?.dpi || 300,
-            layoutSource: primaryPlacement.layoutSource || prev.selectedProduct?.layoutSource || undefined,
-            sourceTable: primaryPlacement.sourceTable || undefined,
-          }
-        : prev.providerLayout;
+      const newProviderLayout = getProviderLayout(prev.selectedProduct, newPlacements[0]);
 
       return {
         ...prev,
@@ -808,6 +814,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const loadFromWorkingState = useCallback((working: Record<string, any>, resolvedProduct?: CatalogProduct | null) => {
+    ++selectionVersionRef.current;
+    ++optionsVersionRef.current;
     const graphics = (working.graphics || {}) as Record<string, any>;
     const qrConfig = (working.qrConfig || {}) as Record<string, any>;
     const layoutConfig = (working.layoutConfig || {}) as Record<string, any>;
@@ -843,12 +851,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       loadedGraphic: graphics.loadedGraphic ?? null,
       loadedTemplate: graphics.loadedTemplate ?? null,
       qrProductState: (qrConfig.qrProductState as QRProductState) ?? prev.qrProductState,
-      selectedColor: qrConfig.selectedColor ?? prev.selectedColor,
+      selectedColor: qrConfig.selectedColor ?? null,
       templateProductHint: qrConfig.templateProductHint ?? null,
       selectedPlacements: (layoutConfig.selectedPlacements as string[]) ?? [],
       placementConfig: (layoutConfig.placementConfig as PlacementConfig) ?? {},
       placementSizes: (layoutConfig.placementSizes as PlacementSizeConfig) ?? {},
       placementMethods: (layoutConfig.placementMethods as PrintMethodSelection) ?? {},
+      masterTitle: product?.title || null,
+      masterDescription: product?.description || null,
       adminCatalogTitle: working.title ?? null,
       titleSource: (working.titleSource as TextLayerSource) ?? null,
       productDescription: working.description ?? null,
@@ -979,6 +989,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const resetBuilder = useCallback(() => {
+    ++selectionVersionRef.current;
+    ++optionsVersionRef.current;
     setState(initialState);
   }, []);
 

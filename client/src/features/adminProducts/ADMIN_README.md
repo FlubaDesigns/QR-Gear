@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 6, 2026 (shared builder snapshot and Output handoffs).
+Last updated: October 6, 2026 (Product selection handoff).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -151,6 +151,14 @@ Selected blank is NOT inside the BLD draft. They are stored at different levels 
 **State:** `client/src/features/adminProducts/builder/BuilderContext.tsx`
 **Container:** `client/src/features/adminProducts/builder/BuilderHarness.tsx`
 **Modules:** `client/src/features/adminProducts/builder/modules/`
+
+### Product selection
+
+Select a classified `qrg_STNNN` blank. Its card and build session use that same identity, even when two blanks share a provider product ID. Catalog copy is applied to the owned title/description fields; master/provider text remains available separately.
+
+Selecting another blank clears the previous blank's color, placements, provider dimensions, session, packet, and generated graphic. Reusable design content and BLD structure remain available. Category and filter browsing does not discard the current build. Editing another catalog card updates that catalog entry without changing the active product.
+
+The selected provider supplies fresh options through the existing options endpoint and CFA adapter. Older options/session responses cannot replace a later blank selection. Draft restoration reconciles selected placements and color, removes unavailable placement settings, and refreshes provider dimensions.
 
 ### Builder Modules
 
@@ -306,6 +314,19 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — Product selection handoff
+
+Connected canonical card identity, blank-specific builder state, provider options, and draft handoff. Seven React integration tests cover switching blanks with shared provider IDs, out-of-order selection responses, provider changes during loading, draft geometry reconciliation, filter browsing, and catalog editing. Live authenticated persistence is not yet exercised by these tests.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `builder/BuilderContext.tsx` | Own selection lifetime, clear blank-specific output, load canonical sizes/colors, reconcile print geometry |
+| `builder/modules/ProductsModule.tsx` | Canonical selection, guarded draft handoff, separate catalog/provider copy |
+| `builder/__tests__/productSelection.test.ts` | React behavioral coverage for the existing builder and cards |
+| `vitest.config.ts`, `package.json`, `package-lock.json` | Reproducible React test runner configuration and development dependencies |
+| `README.md`, `MANIFEST.json` | Handoff documentation and integrity manifest |
 
 ### October 6, 2026 — Shared builder snapshot and Output handoffs
 
