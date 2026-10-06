@@ -1,3 +1,4 @@
+import { listBldDefinitions, readBldDefinition } from '../../functions/src/services/bld-store';
 import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../../functions/src/services/build-session-state';
 /**
  * Admin Build Sessions
@@ -54,6 +55,20 @@ function sanitizeForFirestore(obj: any): any {
 }
 
 export function registerAdminBuildSessionRoutes(app: Express): void {
+
+  app.get('/api/admin/bld', isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      const definitions = await listBldDefinitions(getFirestoreDb(), req.query.context, req.query.layout);
+      res.json({ success: true, definitions, count: definitions.length });
+    } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+  app.get('/api/admin/bld/:bldId', isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      res.json({ success: true, bld: await readBldDefinition(getFirestoreDb(), req.params.bldId) });
+    } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
+  });
 
   // ── List build sessions for admin ────────────────────────────────────────
   app.get("/api/admin/build-sessions", isAdmin, async (req: any, res) => {
@@ -740,7 +755,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       // ── Gate 4: Write BLD definition (BLOCKING) ──────────────────────────────
       let bldId: string | null = null;
       try {
-        const bldResult = await writeBldDev({ working: session.working || {} });
+        const bldResult = await writeBldDev({ working: session.working || {}, packetId: packetId });
         bldId = bldResult.bldId;
         console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
       } catch (bldErr: any) {

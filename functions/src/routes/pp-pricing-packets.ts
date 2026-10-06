@@ -1,3 +1,4 @@
+import { validatePacketComposition } from '../services/assembly-store';
 import { deleteBuildPacket } from '../services/build-session-state';
 import { packetBuildFields } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
@@ -355,15 +356,9 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     // ── end data-URI guard ────────────────────────────────────────────────────
 
     // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
-    if (cleanUpdates.status === 'published') {
-      const existingAssemblyId = (doc.data() as any)?.assemblyId || null;
-      const incomingAssemblyId = cleanUpdates.assemblyId || null;
-      if (!existingAssemblyId && !incomingAssemblyId) {
-        res.status(400).json({
-          error: 'Cannot publish packet — assemblyId is missing. The three-schema chain (QRG → BLD → GRF) must be complete before a packet can be published.',
-        });
-        return;
-      }
+    if (cleanUpdates.status === 'published' || doc.data()?.status === 'published') {
+      try { await validatePacketComposition(db, packetId, { ...doc.data(), ...cleanUpdates }); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
     }
     // ── end publish guard ──────────────────────────────────────────────────
 

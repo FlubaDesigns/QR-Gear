@@ -1,3 +1,4 @@
+import { useBuilderContext } from '../BuilderContext';
 import { useState, useEffect, useCallback } from "react";
 import { Layers, Loader2, QrCode, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,9 @@ function relativeDate(date: string | null | undefined): string {
 
 interface BldDef {
   id: string;
+  context?: string;
+  isActive?: boolean;
+  validationError?: string | null;
   bldId: string;
   graphicLayoutMode?: string;
   layoutMode?: string;
@@ -128,6 +132,7 @@ export function LoadBldModule({
   hideCard,
 }: LoadBldModuleProps = {}) {
   const { toast } = useToast();
+  const { loadBld, state } = useBuilderContext();
 
   const controlled = externalOpen !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -148,7 +153,7 @@ export function LoadBldModule({
       const data = await adminFetch<{ definitions: BldDef[] }>("/bld");
       const all: BldDef[] = data.definitions || [];
       const builderOnly = all
-        .filter((d) => d.source === "builder")
+        .filter((d) => d.context === "S" && d.isActive !== false && !d.validationError)
         .sort((a, b) => {
           const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -166,10 +171,25 @@ export function LoadBldModule({
     if (open) fetchDefs();
   }, [open, fetchDefs]);
 
-  const handleSelect = useCallback((def: BldDef) => {
+  const handleSelect = useCallback(async (def: { bldId: string }) => {
     setSelecting(true);
-    window.location.href = `/admin/products?bld=${encodeURIComponent(def.bldId)}`;
-  }, []);
+    try {
+      const data = await adminFetch<{ bld: Record<string, any> }>(`/bld/${encodeURIComponent(def.bldId)}`);
+      loadBld(data.bld);
+      setOpen(false);
+      toast({ title: 'Saved layout loaded', description: 'Add your words and images to its slots.' });
+    } catch (e: any) { toast({ title: 'Could not load this BLD', description: e.message, variant: 'destructive' }); }
+    finally { setSelecting(false); }
+  }, [loadBld, toast]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const bldId = url.searchParams.get('bld');
+    if (!bldId) return;
+    url.searchParams.delete('bld');
+    window.history.replaceState({}, '', url.toString());
+    void handleSelect({ bldId });
+  }, [handleSelect]);
 
   return (
     <>
@@ -178,9 +198,9 @@ export function LoadBldModule({
           <div className="flex items-center gap-2 min-w-0">
             <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
-              <p className="text-sm font-medium leading-tight">Start from a saved style</p>
+              <p className="text-sm font-medium leading-tight">Start from a saved style{state.selectedBldId ? ` · ${state.selectedBldId}` : ""}</p>
               <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-                Pick a builder-generated design, then choose any product blank
+                Load a saved layout, then add your text and images
               </p>
             </div>
           </div>

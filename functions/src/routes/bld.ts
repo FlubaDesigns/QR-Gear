@@ -34,7 +34,7 @@ import { db, admin } from '../core';
 import { requireAdmin } from '../middleware';
 import { writeBldDefinition, WriteBldResult } from '../services/bld-builder';
 import { BldValidationError, validateBldStructure } from '../../../shared/bldCodes';
-import { createBldDefinition } from '../services/bld-store';
+import { createBldDefinition, listBldDefinitions, readBldDefinition } from '../services/bld-store';
 import { BLD_DEFINITIONS_COLLECTION } from '../constants';
 
 function convertTimestamps(data: Record<string, any>): Record<string, any> {
@@ -61,22 +61,7 @@ export function registerBld(app: express.Express): void {
   app.get('/admin/bld', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { context, layout } = req.query;
-      const snap = await db.collection(BLD_DEFINITIONS_COLLECTION).orderBy('createdAt', 'desc').get();
-      let defs: Record<string, any>[] = snap.docs.map(doc => {
-        const d = doc.data();
-        const converted = convertTimestamps(d);
-        return {
-          id: doc.id,
-          ...converted,
-          validationError: validateBldStructure(d),
-          instanceCount: typeof converted.instanceCount === 'number'
-            ? converted.instanceCount
-            : (Array.isArray(converted.instances) ? converted.instances.length : 0),
-          source: converted.source ?? 'unknown',
-        };
-      });
-      if (context) defs = defs.filter(d => d.context === context);
-      if (layout)  defs = defs.filter(d => d.layoutMode === layout);
+      const defs = await listBldDefinitions(db, context, layout);
       res.json({ success: true, definitions: defs, count: defs.length });
     } catch (err: any) {
       console.error('[BLD] GET /admin/bld error:', err.message);
@@ -131,23 +116,7 @@ export function registerBld(app: express.Express): void {
   app.get('/admin/bld/:bldId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { bldId } = req.params;
-      const doc = await db.collection(BLD_DEFINITIONS_COLLECTION).doc(bldId).get();
-      if (!doc.exists) {
-        res.status(404).json({ error: `BLD not found: ${bldId}` });
-        return;
-      }
-      const d = doc.data()!;
-      const error = validateBldStructure(d);
-      if (error) throw new BldValidationError(error, 409);
-      res.json({
-        success: true,
-        bld: {
-          id: doc.id,
-          ...d,
-          createdAt: d.createdAt?.toDate?.() || null,
-          updatedAt: d.updatedAt?.toDate?.() || null,
-        },
-      });
+      res.json({ success: true, bld: await readBldDefinition(db, bldId) });
     } catch (err: any) {
       console.error('[BLD] GET /admin/bld/:bldId error:', err.message);
       res.status(err instanceof BldValidationError ? err.status : 500).json({ error: err.message });
@@ -205,6 +174,10 @@ export function registerBld(app: express.Express): void {
 
       const error = validateBldStructure({ ...doc.data(), ...updates });
       if (error) throw new BldValidationError(error);
+      if (instances !== undefined) {
+        const references = await db.collection('assemblies').where('bldId', '==', bldId).limit(1).get();
+        if (!references.empty) throw new BldValidationError('This BLD is used by an Assembly. Create a new definition for structural edits.', 409);
+      }
       await docRef.update(updates);
       const updated = await docRef.get();
       const out = convertTimestamps(updated.data()!);

@@ -54,6 +54,9 @@ export function buildWorkingSnapshot(state: Record<string, any>, ctx: BuilderSna
     },
     layoutConfig: {
       selectedPlacements: state.selectedPlacements,
+      providerLayouts: Object.fromEntries((state.selectedProduct?.placements || [])
+        .filter((p: any) => state.selectedPlacements?.includes(p.id) && p.dimensions)
+        .map((p: any) => [p.id, { dimensions: p.dimensions, providerPlacementId: p.providerPlacement || p.id, provider: p.provider }])),
       placementConfig: state.placementConfig,
       placementSizes: state.placementSizes,
       placementMethods: state.placementMethods,
@@ -67,6 +70,7 @@ export function buildWorkingSnapshot(state: Record<string, any>, ctx: BuilderSna
       selectedProductDocId: state.selectedProduct?.docId ?? null,
       selectedProductBlueprintId: state.selectedProduct?.blueprintId ?? null,
       templateProductHint: state.templateProductHint ?? null,
+      selectedBldId: state.selectedBldId ?? null,
       selectedCatalogId: state.selectedCatalogId ?? "all",
       selectedRole: ctx.selectedRole ?? null,
       selectedStore: ctx.selectedStore ?? null,
@@ -133,12 +137,12 @@ export function packetBuildFields(value: any): Record<string, any> {
 }
 
 /** Rendering consumes the same snapshot persisted on the packet. */
-export function productGraphicOptions(value: any, qrContent: string): Record<string, any> {
+export function productGraphicOptions(value: any, qrContent: string, placement?: string): Record<string, any> {
   const snapshot = requireBuilderSnapshot(value);
   const c = snapshot.graphics.content, sb = c.subBottomStyle || {};
   return {
     qrContent, qrColor: 'black', transparent: true,
-    placement: snapshot.layoutConfig.selectedPlacements[0],
+    placement: placement || snapshot.layoutConfig.selectedPlacements[0],
     headerStyle: c.headerStyle?.enabled ? c.headerStyle : null,
     footerStyle: c.footerStyle?.enabled ? c.footerStyle : null,
     backgroundColor: snapshot.qrConfig.selectedColor?.hex,
@@ -148,6 +152,6 @@ export function productGraphicOptions(value: any, qrContent: string): Record<str
     areaImageOffsetX: c.areaImageOffsetX, areaImageOffsetY: c.areaImageOffsetY, areaImageScale: c.areaImageScale,
     subBottomEnabled: sb.enabled, subBottomText: sb.text, subBottomFontFamily: sb.fontFamily,
     subBottomFontSize: sb.fontSize, subBottomFontWeight: sb.fontWeight, subBottomColor: sb.color,
-    providerLayout: snapshot.providerLayout,
+    providerLayout: snapshot.layoutConfig.providerLayouts?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || snapshot.providerLayout,
   };
 }

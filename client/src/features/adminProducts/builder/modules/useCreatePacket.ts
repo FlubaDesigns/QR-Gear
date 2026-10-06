@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { renderProductGraphic, type RenderOptions } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { GRF_PACKET_SLOTS } from "@shared/graphicCodes";
 import type { PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
 import { useBuilderContext } from "../BuilderContext";
@@ -115,7 +114,7 @@ export function useCreatePacket({
         description: err.message,
         variant: "destructive",
       });
-      return null;
+      throw new Error(`Background upload failed: ${err.message}`);
     }
   };
 
@@ -252,7 +251,7 @@ export function useCreatePacket({
           uploadedPlayMediaType = file.type || content.playMediaMimeType || "video/mp4";
         } catch (uploadErr: any) {
           const errMsg = uploadErr?.message || uploadErr?.toString?.() || JSON.stringify(uploadErr) || "Unknown error";
-          console.error("Play media upload error:", errMsg, uploadErr);
+          throw new Error(`Play media upload failed: ${errMsg}`);
           toast({
             title: "Video Upload Failed",
             description: errMsg.slice(0, 200),
@@ -305,7 +304,7 @@ export function useCreatePacket({
             descriptionStyle: rendererBlocks.length === 0 ? descriptionStyle : null,
           });
         } catch (e) {
-          console.warn('Landing page snapshot generation failed:', e);
+          throw new Error(`Landing page preview failed: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
 
@@ -324,7 +323,7 @@ export function useCreatePacket({
         });
         if (uploadData?.publicUrl) productGraphicUrl = uploadData.publicUrl;
       } catch (uploadErr) {
-        console.warn("Product graphic upload error:", uploadErr);
+        throw new Error(`Product graphic upload failed: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
       }
 
       // Safety: if the upload failed or was skipped, productGraphicUrl is still a
@@ -332,7 +331,7 @@ export function useCreatePacket({
       // so the packet PATCH stays well under the 1 MB document limit.
       if (productGraphicUrl && productGraphicUrl.startsWith('data:')) {
         console.error('[CreatePacket] productGraphicUrl is still a data URI after upload — stripping to prevent Firestore overflow');
-        productGraphicUrl = '';
+        throw new Error('Product graphic upload returned no stored file.');
       }
 
       if (landingPageSnapshotUrl) {
@@ -347,12 +346,24 @@ export function useCreatePacket({
           });
           if (uploadData?.publicUrl) landingPageSnapshotUrl = uploadData.publicUrl;
         } catch (uploadErr) {
-          console.warn("Landing page snapshot upload error:", uploadErr);
+          throw new Error(`Landing page preview upload failed: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
         }
         if (landingPageSnapshotUrl && landingPageSnapshotUrl.startsWith('data:')) {
           console.error('[CreatePacket] landingPageSnapshotUrl is still a data URI after upload — stripping');
-          landingPageSnapshotUrl = '';
+          throw new Error('Landing page preview upload returned no stored file.');
         }
+      }
+
+      const placementGraphicUrls: Record<string, string> = { [primaryPlacement]: productGraphicUrl };
+      for (const placement of snapshot.layoutConfig.selectedPlacements.slice(1)) {
+        if (!snapshot.layoutConfig.providerLayouts?.[placement]?.dimensions) throw new Error(`Print dimensions are missing for ${placement}. Reload the product options.`);
+        const graphic = await renderProductGraphic(productGraphicOptions(snapshot, finalQrContent.trim(), placement) as RenderOptions);
+        const upload = await adminFetch<{ publicUrl: string }>('/content/upload', {
+          method: 'POST', json: { mode, userId: 'admin', packetId, base64Data: graphic,
+            mimeType: 'image/png', fileName: `${packetId}-${placement}.png` },
+        });
+        if (!upload.publicUrl) throw new Error(`Graphic upload failed for ${placement}.`);
+        placementGraphicUrls[placement] = upload.publicUrl;
       }
 
       if (isPlayMode) snapshot.graphics.content.playMediaUrl = uploadedPlayMediaUrl;
@@ -363,6 +374,7 @@ export function useCreatePacket({
           qrOnlyUrl: qrUrl, productGraphicUrl,
           landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
+          placementGraphicUrls,
           qrContent: finalQrContent.trim(),
           playMediaUrl: uploadedPlayMediaUrl || null,
           playMediaType: uploadedPlayMediaType || null,
@@ -430,45 +442,9 @@ export function useCreatePacket({
         }
       }
 
-      // ── Fire-and-forget: auto-populate GRF graphics + template library ──────
+      // GRF registration is owned by the server commit. Save the reusable template.
       const grfName = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(' / ') || product?.title || 'Product';
-
-      if (qrUrl) {
-        adminFetch('/graphics/save-grf', {
-          method: 'POST',
-          json: {
-            ...GRF_PACKET_SLOTS.qrStandalone,
-            imageUrl: qrUrl,
-            name: `${grfName} — QR Standalone`,
-            relatedPacketId: packetId,
-          },
-        }).catch((e: any) => console.warn('[CreatePacket] GRF qrStandalone auto-save failed:', e.message));
-      }
-
-      if (productGraphicUrl) {
-        adminFetch('/graphics/save-grf', {
-          method: 'POST',
-          json: {
-            ...GRF_PACKET_SLOTS.qrComposite,
-            imageUrl: productGraphicUrl,
-            name: `${grfName} — QR Composite`,
-            relatedPacketId: packetId,
-          },
-        }).catch((e: any) => console.warn('[CreatePacket] GRF qrComposite auto-save failed:', e.message));
-      }
-
-      if (landingPageSnapshotUrl) {
-        adminFetch('/graphics/save-grf', {
-          method: 'POST',
-          json: {
-            ...GRF_PACKET_SLOTS.urlSnapshot,
-            imageUrl: landingPageSnapshotUrl,
-            name: `${grfName} — URL Snapshot`,
-            relatedPacketId: packetId,
-          },
-        }).catch((e: any) => console.warn('[CreatePacket] GRF urlSnapshot auto-save failed:', e.message));
-      }
 
       const templateColors = productColors.length > 0 ? productColors : [{ name: 'Black', hex: '#000000' }];
       adminFetch('/templates/full-save', {

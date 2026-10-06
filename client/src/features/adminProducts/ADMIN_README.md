@@ -594,3 +594,13 @@ const colors = item.availableColors || item.colorsAvailable || item.colors || []
 // GOOD — adapter normalized it; component reads one field
 const colors = item.availableColors;
 ```
+
+### Product builder: saved layouts and complete composition
+
+Use **Saved Styles** to load a physical BLD without leaving the product builder. The layout supplies fonts, geometry, and slot types; add your own words and images. The selected BLD survives draft saves and packet reopening. An unchanged structure reuses the existing BLD; a structural change creates a new definition. Layouts the current physical editor cannot represent report an explicit error.
+
+Generation captures one builder snapshot and renders each selected placement using its saved provider dimensions. Failed rendering or uploads stop generation with an error. Commit registers QR, area/header/footer images, composites, and destination previews through the shared backend GRF registrar, then binds every required slot in Assembly. Destination text/backgrounds are excluded from physical BLD layers.
+
+Before Printify publishing, the backend checks actual QRG/BLD/Assembly/GRF records, active file state, matching content and structure, and every chosen print location. Missing graphics are reported instead of silently skipping a location. Printful packets are not submitted to Printify. Deleting a generated packet keeps reusable BLD/GRF records and removes the packet's references.
+
+Checked locally with 32 focused service/route tests and frontend/functions compilation. Live Firebase storage, browser canvas rendering, and provider publishing require the authenticated beta environment and remain a pre-release verification step.

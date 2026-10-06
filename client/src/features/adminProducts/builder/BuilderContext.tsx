@@ -1,3 +1,4 @@
+import { applyBuilderBld } from '@shared/bldCodes';
 import { buildWorkingSnapshot, sanitizeSnapshot, requireBuilderSnapshot } from '@shared/builderSnapshot';
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
@@ -17,6 +18,7 @@ interface BuilderContextValue {
   selectedChannel: Channel | null;
   selectedCollection: Collection | null;
   setSourceType: (type: SourceType) => void;
+  loadBld: (definition: Record<string, any>) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
   loadBackground: (background: LoadedBackground | null) => void;
@@ -137,6 +139,7 @@ const initialState: BuilderState = {
   sessionStatus: null,
   committedInstanceId: null,
   selectedCatalogId: "all",
+  selectedBldId: null,
   providerLayout: null,
 };
 
@@ -329,6 +332,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.sessionStatus,
     state.activePacketId,
     state.selectedCatalogId,
+    state.selectedBldId,
     selectedRole,
     selectedStore,
     selectedChannel,
@@ -660,6 +664,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const loadBld = useCallback((definition: Record<string, any>) => {
+    // Validate before React's updater so the picker can display a useful error.
+    const content = applyBuilderBld(definition, state.content);
+    setState(prev => ({ ...prev, content: content as ContentData, selectedBldId: definition.bldId }));
+  }, [state.content]);
+
   const setContent = useCallback((content: Partial<ContentData>) => {
     setState(prev => ({
       ...prev,
@@ -849,6 +859,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementsError: null,
       placementsRestoreWarning: null,
       activePacketId: null,
+      selectedBldId: metadata.selectedBldId ?? null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
       fulfillmentProvider: (metadata.fulfillmentProvider as string) ?? prev.fulfillmentProvider,
       category: (metadata.category as string) ?? null,
@@ -910,6 +921,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   const loadFromPacketData = useCallback((packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => {
     const working = requireBuilderSnapshot(packetData.builderSnapshot);
+    working.metadata.selectedBldId = packetData.bldId || working.metadata.selectedBldId || null;
     loadFromWorkingState(working, resolvedProduct);
     const content = working.graphics.content;
     setState(prev => ({ ...prev, templateBaseline: buildBaselineSnapshot(
@@ -990,6 +1002,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     selectProduct,
     setQRProductState,
     setContent,
+    loadBld,
     togglePlacement,
     setPlacementType,
     setPlacementSize,
@@ -1008,7 +1021,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, loadBld, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

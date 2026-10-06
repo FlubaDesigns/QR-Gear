@@ -51,9 +51,9 @@ describe('shared BLD contract', () => {
     } } };
     const before = JSON.stringify(working);
     const instances = extractBldInstances(working);
-    expect(instances.map(s => [s.seq, s.type])).toEqual([['01', 'img'], ['02', 'qrc'], ['03', 'txt'], ['04', 'txt'], ['05', 'txt'], ['06', 'txt']]);
-    expect(instances[1]).toMatchObject({ size: 40, positionLR: 25, positionUD: 75 });
-    expect(instances[2]).toMatchObject({ fontFamily: 'Oswald', fontSize: 28 });
+    expect(instances.map(s => [s.seq, s.type])).toEqual([['01', 'qrc'], ['02', 'txt'], ['03', 'txt'], ['04', 'txt']]);
+    expect(instances[0]).toMatchObject({ size: 40, positionLR: 25, positionUD: 75 });
+    expect(instances[1]).toMatchObject({ fontFamily: 'Oswald', fontSize: 28 });
     expect(validateBldStructure({ context: 'S', layoutMode: 'P', instances })).toBeNull();
     for (const slot of instances) for (const field of ['text', 'imageUrl', 'grfId', 'color']) expect(slot).not.toHaveProperty(field);
     expect(JSON.stringify(working)).toBe(before);

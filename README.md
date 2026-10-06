@@ -262,3 +262,11 @@ BLD runtime definitions, validation, and editor extraction are centralized in `s
 `shared/builderSnapshot.ts` owns the existing editor snapshot shape. Autosave and explicit Save use it; packet display fields and rendering inputs are derived from it. Draft edits live in `admin_build_sessions.working`. Generated packets retain their captured `builderSnapshot`; commit reads that captured snapshot rather than a newer autosave. Both backend adapters use `functions/src/services/build-session-state.ts` for this handoff and instance update/deletion behavior. This does not change BLD/GRF/QRG/Assembly ownership.
 
 This pass is prepared in the draft PR, not deployed. BLD/Assembly slot binding, saved BLD loading, duplicate GRF registration, and full publication-chain validation remain open before launch. Old beta packets without the canonical snapshot need regeneration; no test data is migrated or deleted by deployment.
+
+### Product builder composition (2026-10-06)
+
+`/admin/products` now loads saved physical BLD styles directly. One ordered layer extractor supplies both BLD structure and Assembly content; header/footer images are supported, and destination backgrounds/text stay outside the physical BLD. Unchanged loaded layouts reuse their BLD; structural edits create another definition. Referenced BLD structure cannot be edited in place.
+
+Production and development share the GRF registrar and Assembly validation services. Commit registers an actual QR PNG and all printed images; the browser no longer independently registers the same output. Generated placement graphics carry their registered IDs into publishing, including back and sleeve locations. Publication verifies the saved snapshot, QRG blank, BLD, Assembly bindings, and active GRF files before calling the provider.
+
+Validation: 32 focused tests exercise snapshot handoffs, HTTP BLD/packet routes, real QR encoding, saved-layout reuse, image/text binding, placement selection, invalid-chain rejection, and output deletion. Firebase/Printify live execution still requires an authenticated environment; local tests use injected storage/database adapters.

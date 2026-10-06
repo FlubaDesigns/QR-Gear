@@ -125,128 +125,78 @@ export function builderBldLayoutMode(mode: unknown): 'Z' | 'P' | null {
 }
 
 
-/** Extract structure from the existing editor snapshot. Actual content stays in working.graphics for Assembly. */
-export function extractBldInstances(working: Record<string, any>): BldInstance[] {
-  const graphics = (working.graphics || {}) as Record<string, any>;
-  const content  = (graphics.content  || {}) as Record<string, any>;
-
-  const instances: BldInstance[] = [];
-  let seq = 1;
-
-  const pad = (n: number) => String(n).padStart(2, '0');
-
-  // ── 01 Image layer (background or palette area image) ─────────────────────
-  const bgUrl       = graphics.loadedBackground?.url || null;
-  const areaImgUrl  = content.areaImageUrl || null;
-  const imageUrl    = bgUrl || areaImgUrl || null;
-  if (imageUrl) {
-    instances.push({
-      seq:      pad(seq++),
-      type:     'img',
-      role:     bgUrl ? 'background' : 'area_image',
-      size:     content.areaImageScale ?? 100,
-      positionLR: content.areaImageOffsetX ?? 50,
-      positionUD: content.areaImageOffsetY ?? 50,
-    });
-  }
-
-  // ── 02 QR code ─────────────────────────────────────────────────────────────
-  const qrSizePercent = typeof content.qrSizePercent === 'number' ? content.qrSizePercent : 75;
-  const qrPositionX   = typeof content.qrPositionX   === 'number' ? content.qrPositionX   : 50;
-  const qrPositionY   = typeof content.qrPositionY   === 'number' ? content.qrPositionY   : 50;
-  const layoutMode    = content.graphicLayoutMode || 'zone';
-
-  const qrcInstance: BldInstance = {
-    seq:  pad(seq++),
-    type: 'qrc',
-    size: qrSizePercent,
+/** One ordered layer walk supplies both structural slots and content bindings. */
+export interface BuilderLayer { instance: BldInstance; value?: string; color?: string; imageUrl?: string; assetKey?: string }
+export function extractBuilderLayers(working: Record<string, any>): BuilderLayer[] {
+  const c = working.graphics?.content || {};
+  const layers: BuilderLayer[] = [];
+  const add = (instance: Omit<BldInstance, 'seq'>, content: Omit<BuilderLayer, 'instance'> = {}) => {
+    const clean = Object.fromEntries(Object.entries(instance).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+    layers.push({ instance: { ...clean, seq: String(layers.length + 1).padStart(2, '0') } as BldInstance, ...content });
   };
-  if (layoutMode === 'freeform') {
-    qrcInstance.positionLR = qrPositionX;
-    qrcInstance.positionUD = qrPositionY;
+  // loadedBackground and landingTextBlocks belong to the URL destination, not print.
+  if (c.areaImageUrl) add({ type: 'img', role: 'area_image', size: c.areaImageScale ?? 100,
+    positionLR: c.areaImageOffsetX ?? 50, positionUD: c.areaImageOffsetY ?? 50 },
+    { imageUrl: c.areaImageUrl, assetKey: 'backgroundGrfId' });
+  add({ type: 'qrc', size: c.qrSizePercent ?? 75,
+    ...(c.graphicLayoutMode === 'freeform' ? { positionLR: c.qrPositionX ?? 50, positionUD: c.qrPositionY ?? 50 } : {}) },
+    { assetKey: 'qrGrfId' });
+  for (const [key, role] of [['headerStyle', 'header'], ['footerStyle', 'footer'], ['subBottomStyle', 'sub_bottom']]) {
+    const style = c[key] || {};
+    if (!style.enabled) continue;
+    const isImage = key !== 'subBottomStyle' && style.mode === 'image';
+    if (!(isImage ? style.imageUrl : style.text)) continue;
+    const instance: any = { type: isImage ? 'img' : 'txt', role };
+    const fields = isImage ? ['imageScale', 'verticalOffset', 'horizontalOffset'] :
+      ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'strokeWidth', 'strokeColor', 'warpPreset', 'verticalOffset', 'horizontalOffset'];
+    for (const field of fields) if (style[field] !== undefined && style[field] !== null && style[field] !== '') {
+      instance[field] = NUMERIC_FIELDS.includes(field) ? Number(style[field]) : style[field];
+    }
+    add(instance, isImage ? { imageUrl: style.imageUrl, assetKey: `${role}GrfId` } :
+      { value: style.text, ...(style.color ? { color: style.color } : {}) });
   }
-  instances.push(qrcInstance);
+  return layers;
+}
+export function extractBldInstances(working: Record<string, any>): BldInstance[] {
+  return extractBuilderLayers(working).map(layer => layer.instance);
+}
 
-  // ── Header text ────────────────────────────────────────────────────────────
-  const header = content.headerStyle || {};
-  if (header.enabled && header.text) {
-    instances.push({
-      seq:          pad(seq),
-      type:         'txt',
-      role:         'header',
-      fontFamily:   header.fontFamily || '',
-      fontSize:     header.fontSize ? Number(header.fontSize) : undefined,
-      fontWeight:   header.fontWeight,
-      letterSpacing:   header.letterSpacing != null ? Number(header.letterSpacing) : undefined,
-      strokeWidth:     header.strokeWidth   != null ? Number(header.strokeWidth)   : undefined,
-      strokeColor:     header.strokeColor   || '',
-      warpPreset:      header.warpPreset    || '',
-      verticalOffset:  header.verticalOffset   != null ? Number(header.verticalOffset)   : undefined,
-      horizontalOffset: header.horizontalOffset != null ? Number(header.horizontalOffset) : undefined,
-    });
-    seq++;
+export function sameBldStructure(a: any, b: any): boolean {
+  const normalize = (v: any): any => Array.isArray(v) ? v.map(normalize) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.keys(v).sort().map(k => [k, normalize(v[k])])) : v;
+  const structure = (v: any) => ({ context: v.context, layoutMode: v.layoutMode, instances: v.instances });
+  return JSON.stringify(normalize(structure(a))) === JSON.stringify(normalize(structure(b)));
+}
+
+/** Apply only layouts the physical editor can represent, retaining the user's content. */
+export function applyBuilderBld(def: any, current: Record<string, any>): Record<string, any> {
+  const { id, validationError, ...record } = def;
+  const error = validateBldStructure(record);
+  if (error) throw new Error(error);
+  if (def.isActive === false || def.context !== 'S') throw new Error('Choose an active physical-product BLD.');
+  const c = JSON.parse(JSON.stringify(current));
+  c.graphicLayoutMode = def.layoutMode === 'P' ? 'freeform' : 'zone';
+  c.areaImageUrl = '';
+  for (const key of ['headerStyle', 'footerStyle', 'subBottomStyle']) c[key] = { ...c[key], enabled: false };
+  const roles = new Set<string>();
+  let qrCount = 0;
+  for (const slot of def.instances as BldInstance[]) {
+    const { seq, type, role, required, ...style } = slot;
+    if (type === 'qrc') {
+      qrCount++;
+      c.qrSizePercent = slot.size ?? 75; c.qrPositionX = slot.positionLR ?? 50; c.qrPositionY = slot.positionUD ?? 50;
+    } else if (role === 'area_image' && type === 'img') {
+      c.areaImageUrl = current.areaImageUrl || '';
+      c.areaImageScale = slot.size ?? 100; c.areaImageOffsetX = slot.positionLR ?? 50; c.areaImageOffsetY = slot.positionUD ?? 50;
+    } else if (role && ['header', 'footer', 'sub_bottom'].includes(role) && ['txt', 'img'].includes(type) && !(role === 'sub_bottom' && type === 'img')) {
+      const key = role === 'sub_bottom' ? 'subBottomStyle' : `${role}Style`;
+      const previous = current[key] || {};
+      c[key] = { enabled: true, mode: type === 'img' ? 'image' : 'text', text: previous.text || '',
+        imageUrl: previous.imageUrl || '', color: previous.color || '#000000', ...style };
+    } else throw new Error(`BLD slot ${seq} cannot be represented by this product editor.`);
+    if (role && roles.has(role)) throw new Error(`BLD role ${role} is repeated; this editor supports one per role.`);
+    if (role) roles.add(role);
   }
-
-  // ── Footer text ────────────────────────────────────────────────────────────
-  const footer = content.footerStyle || {};
-  if (footer.enabled && footer.text) {
-    instances.push({
-      seq:          pad(seq),
-      type:         'txt',
-      role:         'footer',
-      fontFamily:   footer.fontFamily || '',
-      fontSize:     footer.fontSize ? Number(footer.fontSize) : undefined,
-      fontWeight:   footer.fontWeight,
-      letterSpacing:   footer.letterSpacing != null ? Number(footer.letterSpacing) : undefined,
-      strokeWidth:     footer.strokeWidth   != null ? Number(footer.strokeWidth)   : undefined,
-      strokeColor:     footer.strokeColor   || '',
-      warpPreset:      footer.warpPreset    || '',
-      verticalOffset:  footer.verticalOffset   != null ? Number(footer.verticalOffset)   : undefined,
-      horizontalOffset: footer.horizontalOffset != null ? Number(footer.horizontalOffset) : undefined,
-    });
-    seq++;
-  }
-
-  // ── Sub-bottom text ────────────────────────────────────────────────────────
-  const subBottom = content.subBottomStyle || {};
-  if (subBottom.enabled && subBottom.text) {
-    instances.push({
-      seq:        pad(seq),
-      type:       'txt',
-      role:       'sub_bottom',
-      fontFamily: subBottom.fontFamily || '',
-      fontSize:   subBottom.fontSize ? Number(subBottom.fontSize) : undefined,
-      fontWeight: subBottom.fontWeight,
-      letterSpacing: subBottom.letterSpacing != null ? Number(subBottom.letterSpacing) : undefined,
-      strokeWidth:   subBottom.strokeWidth   != null ? Number(subBottom.strokeWidth)   : undefined,
-      strokeColor:   subBottom.strokeColor   || '',
-    });
-    seq++;
-  }
-
-  // ── Landing text blocks (additional dynamic text layers) ───────────────────
-  const landingBlocks: any[] = Array.isArray(content.landingTextBlocks)
-    ? content.landingTextBlocks
-    : [];
-  for (const block of landingBlocks) {
-    if (!block.enabled || !block.text) continue;
-    instances.push({
-      seq:          pad(seq),
-      type:         'txt',
-      role:         block.role || 'landing_text',
-      fontFamily:   block.fontFamily || '',
-      fontSize:     block.fontSize ? Number(block.fontSize) : undefined,
-      fontWeight:   block.fontWeight,
-      letterSpacing:    block.letterSpacing    != null ? Number(block.letterSpacing)    : undefined,
-      strokeWidth:      block.strokeWidth      != null ? Number(block.strokeWidth)      : undefined,
-      strokeColor:      block.strokeColor      || '',
-      warpPreset:       block.warpPreset       || '',
-      verticalOffset:   block.verticalOffset   != null ? Number(block.verticalOffset)   : undefined,
-      horizontalOffset: block.horizontalOffset != null ? Number(block.horizontalOffset) : undefined,
-      imageScale:  block.imageScale  != null ? Number(block.imageScale) : undefined,
-    });
-    seq++;
-  }
-
-  return instances.map(slot => Object.fromEntries(Object.entries(slot).filter(([, value]) => value !== undefined && value !== null && value !== '')) as unknown as BldInstance);
+  if (qrCount !== 1) throw new Error('This product editor requires exactly one QR slot.');
+  return c;
 }
