@@ -1,3 +1,4 @@
+import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../../functions/src/services/build-session-state';
 /**
  * Admin Build Sessions
  *
@@ -561,6 +562,9 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         return res.json({
           success: true,
           alreadyCommitted: true,
+          packetId: session.generated?.packetId || null,
+          bldId: session.bldId || null,
+          assemblyId: session.assemblyId || null,
           instanceId: session.committedInstanceId,
           sessionId: id,
         });
@@ -575,6 +579,12 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
           error: "Artifact must be generated before committing. Call generate-artifact first.",
         });
       }
+
+      // Render, BLD and Assembly must consume the same captured build inputs.
+      try {
+        session.working = await readGeneratedBuild(db, { ...session, id });
+      } catch (error: any) { res.status(400).json({ error: error.message }); return; }
+      const previousInstance = await existingBuildInstance(db, { ...session, id });
 
       const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(session.sourceMasterId).get();
       if (!masterDoc.exists) {
@@ -694,7 +704,11 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         await import("../lib/schema-commit");
 
       // ── Gate 2: Allocate QRG instance ────────────────────────────────────────
-      const qrgIdentity = await allocateQrgInstanceDev(masterQrgBlankId, 'I');
+      const qrgIdentity = previousInstance ? {
+        qrgBlankId: previousInstance.qrgBlankId, qrgContext: previousInstance.qrgContext,
+        instanceNumber: previousInstance.instanceNumber, qrgBaseCode: previousInstance.qrgBaseCode,
+        variantCode: previousInstance.variantCode ?? null, qrgFullCode: previousInstance.qrgFullCode ?? null,
+      } : await allocateQrgInstanceDev(masterQrgBlankId, 'I');
       const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
       console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
 
@@ -753,7 +767,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       }
 
       // ── Gate 6: Create admin_catalog_instance (all schema records exist) ─────
-      const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
+      const instanceRef = await saveBuildInstance(db, { ...session, id }, {
         instanceType: "admin",
         sourceMasterId: session.sourceMasterId,
         sourceSessionId: id,

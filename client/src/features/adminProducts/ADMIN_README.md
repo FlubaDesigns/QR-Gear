@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 6, 2026 (BLD shared contract and atomic persistence).
+Last updated: October 6, 2026 (shared builder snapshot and Output handoffs).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -183,15 +183,20 @@ Selected blank is NOT inside the BLD draft. They are stored at different levels 
 - In Progress section on `/admin` → lists named drafts
 - Resume → `/admin/products?resume=<sessionId>` → `DraftResumeHandler` restores state
 
-**Two restore modes:**
-- **MODE 1** (packet exists): resolves via `packetData.blueprintId` → calls `loadFromPacketData`
-- **MODE 2** (no packet yet): resolves via `sourceMasterId` → `p.docId` → calls `loadFromWorkingState`
+**One editor snapshot:**
+- `shared/builderSnapshot.ts` owns the `graphics`, `qrConfig`, `layoutConfig`, `metadata`, and structural `bldDraft` shape.
+- Autosave and explicit Save use the same queued working-state writer. Generate awaits the current save before creating a packet.
+- Working drafts resume from `session.working`, including when an older packet exists. Committed output and reusable packet templates restore from `packet.builderSnapshot` through the same state loader.
+- Packet snapshots are captured render inputs. Autosave never rewrites them.
+- Packet layout/display fields are derived through `packetBuildFields`; product render options use `productGraphicOptions`. Freeform mode, image offsets, scale, placements, print methods, and provider dimensions are retained.
+- Commit validates and reads the generated packet snapshot before allocating identities or registering assets.
+- Old beta packets without this snapshot must be regenerated. There is no alternate legacy editor shape.
 
-**Product resolution order (MODE 2):**
-1. `session.sourceMasterId` → `p.docId`
-2. `working.metadata.selectedProductDocId` → `p.docId`
-3. `working.metadata.selectedProductBlueprintId` → `p.blueprintId` (numeric)
-4. `working.qrConfig.templateProductHint` → `p.blueprintId` (last resort)
+**Output controls:**
+- Update Saved Item clears the displayed result, reopens the session, and updates the existing instance while preserving its QRG identity.
+- A failed catalog commit has a visible Retry catalog save button. Successful commit returns its Assembly ID to the result view.
+- Publish uses the existing `/admin/qrg/publish-to-printify/:packetId` route in both backend adapters.
+- Delete Packet detaches session/instance/Assembly references and deletes dependent templates/old display links in one transaction. Reusable BLD/GRF/Assembly records and QRG identity are retained.
 
 **Key files:**
 - `BuilderStickyBar.tsx` — Save Draft button, autosave failure badge
@@ -301,6 +306,14 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — Shared builder snapshot and Output handoffs
+
+Removed the separate flat packet editor snapshot and packet-to-editor field reconstruction. The working draft and captured output now use one shared shape; packet projections are derived. Added focused checks for production packet persistence, exact render inputs, commit snapshot selection, instance identity retention, and deletion reference cleanup. Changes are staged in the draft PR; live Firebase/provider behavior is not verified. Remaining pre-live work includes BLD/Assembly slot binding and saved BLD loading.
+
+Key implementation files: `shared/builderSnapshot.ts`, `BuilderContext.tsx`, `useCreatePacket.ts`, `DraftResumeHandler.tsx`, `CreateGraphicsModule.tsx`, `functions/src/services/build-session-state.ts`, and the matching packet/build-session route adapters.
+
+
 
 ### October 6, 2026 — BLD Single Source of Truth
 

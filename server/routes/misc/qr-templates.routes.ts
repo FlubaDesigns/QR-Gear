@@ -111,6 +111,7 @@ export function registerQrTemplatesRoutes(app: Express): void {
       }).nullable().optional();
 
       const fullSaveSchema = z.object({
+        builderSnapshot: z.record(z.any()).optional(),
         name: z.string().min(1),
         description: z.string().nullable().optional(),
         category: z.string().nullable().optional(),
@@ -162,6 +163,7 @@ export function registerQrTemplatesRoutes(app: Express): void {
       const customerPrice = data.pricing?.customerPrice?.toFixed(2) || "0";
 
       const packetSnapshot = {
+        builderSnapshot: data.builderSnapshot ?? null,
         qrContent: data.qrContent || null,
         productName: data.productName || data.name,
         compositeUrl: data.artworkUrl || data.thumbnailUrl || null,

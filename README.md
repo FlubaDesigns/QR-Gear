@@ -256,3 +256,9 @@ The Canonical Core is the ONLY truth.
 ## BLD Implementation — October 6, 2026
 
 BLD runtime definitions, validation, and editor extraction are centralized in `shared/bldCodes.ts`, implementing `BLD.md`. Admin creation and builder commits share `functions/src/services/bld-store.ts`; the development adapter uses the same writer. The Schema Keys page and BLD library read those shared definitions. BLD records contain structural `instances[]` only. Existing beta records are not migrated or deleted automatically.
+
+## Admin Products Snapshot — October 6, 2026
+
+`shared/builderSnapshot.ts` owns the existing editor snapshot shape. Autosave and explicit Save use it; packet display fields and rendering inputs are derived from it. Draft edits live in `admin_build_sessions.working`. Generated packets retain their captured `builderSnapshot`; commit reads that captured snapshot rather than a newer autosave. Both backend adapters use `functions/src/services/build-session-state.ts` for this handoff and instance update/deletion behavior. This does not change BLD/GRF/QRG/Assembly ownership.
+
+This pass is prepared in the draft PR, not deployed. BLD/Assembly slot binding, saved BLD loading, duplicate GRF registration, and full publication-chain validation remain open before launch. Old beta packets without the canonical snapshot need regeneration; no test data is migrated or deleted by deployment.

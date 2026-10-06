@@ -273,7 +273,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
   try {
     const { colors = [], placements = ['front', 'back'], placementMethods = {}, ...templateFields } = req.body;
 
-    const templateKeys = ['name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
+    const templateKeys = ['builderSnapshot', 'name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
       'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId',
       'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY',
       'productName', 'headerText', 'footerText', 'headerStyle', 'footerStyle',

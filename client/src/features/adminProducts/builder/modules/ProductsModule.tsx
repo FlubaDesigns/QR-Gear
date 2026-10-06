@@ -884,13 +884,6 @@ export function ProductsModule() {
         const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
         setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null);
 
-        // Restore the packet ID so CreateGraphicsModule can re-display the packet result
-        const existingPacketId: string | null = data.session?.generated?.packetId || null;
-        if (existingPacketId) {
-          setActivePacketId(existingPacketId);
-          console.log(`[ProductsModule] Restored activePacketId: ${existingPacketId}`);
-        }
-
         if (data.isExisting && data.session?.working && Object.keys(data.session.working).length > 0) {
           loadFromWorkingState(data.session.working, curatedProduct);
           const draftName = data.session.draftName || curatedProduct.title || "your draft";
@@ -899,6 +892,14 @@ export function ProductsModule() {
         } else {
           console.log(`[ProductsModule] Build session ${data.isExisting ? 'resumed (no working state)' : 'started'}: ${data.sessionId} (${status})`);
         }
+        // Restore the packet ID so CreateGraphicsModule can re-display the packet result
+        const existingPacketId: string | null = data.session?.generated?.packetId || null;
+        if (existingPacketId) {
+          setActivePacketId(existingPacketId);
+          console.log(`[ProductsModule] Restored activePacketId: ${existingPacketId}`);
+        }
+
+
       })
       .catch(err => {
         console.error("[ProductsModule] Failed to start build session:", err.message || err);

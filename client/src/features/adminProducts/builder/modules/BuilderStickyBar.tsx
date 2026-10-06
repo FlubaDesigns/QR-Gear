@@ -3,7 +3,6 @@ import { Play, FolderOpen, Plus, Bookmark, BookmarkCheck, Wand2, Loader2, X } fr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBuilderContext } from "../BuilderContext";
-import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommandButtonProps {
@@ -39,7 +38,7 @@ interface BuilderCommandStripProps {
 }
 
 export function BuilderCommandStrip({ onOpenSaved, onOpenTemplates, onOpenOutput }: BuilderCommandStripProps) {
-  const { state, resetBuilder } = useBuilderContext();
+  const { state, resetBuilder, saveWorking } = useBuilderContext();
   const { toast } = useToast();
   const [draftMode, setDraftMode] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -48,11 +47,11 @@ export function BuilderCommandStrip({ onOpenSaved, onOpenTemplates, onOpenOutput
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { activeSessionId } = state;
-  const canSaveDraft = !!activeSessionId;
+  const canSaveDraft = !!activeSessionId && state.sessionStatus !== 'committed';
 
   const openDraftInput = () => {
     if (!canSaveDraft) {
-      toast({ title: "No active session", description: "Select a product first to enable saving.", variant: "destructive" });
+      toast({ title: "No active session", description: state.sessionStatus === 'committed' ? "Use Update Saved Item to edit this product." : "Select a product first to enable saving.", variant: "destructive" });
       return;
     }
     setDraftName(savedName || "");
@@ -71,10 +70,7 @@ export function BuilderCommandStrip({ onOpenSaved, onOpenTemplates, onOpenOutput
     if (!name) { inputRef.current?.focus(); return; }
     setSaving(true);
     try {
-      await adminFetch(`/build-sessions/${activeSessionId}`, {
-        method: "PATCH",
-        json: { draftName: name },
-      });
+      await saveWorking(name);
       setSavedName(name);
       setDraftMode(false);
       setDraftName("");
