@@ -680,14 +680,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // ── Gate 4: Write BLD definition (BLOCKING — commit fails if BLD write fails) ──
       let bldId: string | null = null;
       try {
-        const bldResult = await writeBldDefinition({
-          working:          session.working || {},
-          sourceSessionId:  id,
-          sourceInstanceId: null,  // back-filled onto instance after creation
-          qrgBlankId:       qrgIdentity.qrgBlankId,
-          qrgBaseCode:      qrgIdentity.qrgBaseCode,
-          packetId:         newPacketId,
-        });
+        const bldResult = await writeBldDefinition({ working: session.working || {} });
         bldId = bldResult.bldId;
         console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
       } catch (bldErr: any) {

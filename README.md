@@ -252,3 +252,7 @@ The Canonical Core is the ONLY truth.
 ---
 
 🔚 END OF README — EXECUTION BEGINS
+
+## BLD Implementation — October 6, 2026
+
+BLD runtime definitions, validation, and editor extraction are centralized in `shared/bldCodes.ts`, implementing `BLD.md`. Admin creation and builder commits share `functions/src/services/bld-store.ts`; the development adapter uses the same writer. The Schema Keys page and BLD library read those shared definitions. BLD records contain structural `instances[]` only. Existing beta records are not migrated or deleted automatically.

@@ -1,3 +1,4 @@
+import { isValidBldId } from '@shared/bldCodes';
 import { useState, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -54,12 +55,10 @@ class AssembliesBoundary extends Component<
 // ── Regex constants (from canonical schemas) ─────────────────────────────────
 
 const QRG_BLANK_REGEX   = /^[1-6][1-9][0-9]{3}$/;
-const BLD_ID_REGEX      = /^BLD-[SU][A-Z]\d-\d{3}$/;
 const GRF_ID_REGEX      = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
 const ASM_ID_REGEX      = /^ASM-\d{6}$/;
 
 function isValidQrgId(id: string): boolean  { return QRG_BLANK_REGEX.test(id); }
-function isValidBldId(id: string): boolean  { return BLD_ID_REGEX.test(id); }
 function isValidGrfId(id: string): boolean  { return isValidGraphicId(id); }
 function isValidAsmId(id: string): boolean  { return ASM_ID_REGEX.test(id); }
 

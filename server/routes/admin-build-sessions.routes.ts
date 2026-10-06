@@ -726,12 +726,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       // ── Gate 4: Write BLD definition (BLOCKING) ──────────────────────────────
       let bldId: string | null = null;
       try {
-        const bldResult = await writeBldDev({
-          working: session.working || {},
-          sourceSessionId: id, sourceInstanceId: null,
-          qrgBlankId: qrgIdentity.qrgBlankId, qrgBaseCode: qrgIdentity.qrgBaseCode,
-          packetId,
-        });
+        const bldResult = await writeBldDev({ working: session.working || {} });
         bldId = bldResult.bldId;
         console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
       } catch (bldErr: any) {

@@ -8,6 +8,7 @@
 
 | Date | Update |
 |------|--------|
+| 2026-10-06 | Shared runtime contract in `shared/bldCodes.ts`; one atomic writer for admin, builder, and dev; flat structural instances only; storage notes reconciled with the structure boundary |
 | 2026-05-05 | Hardening pass — Fix 1: shorthand/vehicle conflict resolved; Fix 2: instanceCount capped at single digit (0–9); Fix 3: Structure Boundary Rule with act/url carve-out; Fix 4: Vehicle Resolution Rule; Fix 5: Build Validation Rule |
 | 2026-05-05 | Architecture clarification — BLD holds structure only, Assembly links BLD to GRF and QRG |
 | 2026-05-05 | Initial BLD schema defined — two-context tree (S/U), full vehicle set (txt/img/qrc/act/vid/doc) |
@@ -180,13 +181,13 @@ Note: Optional in every build. No role field needed — type IS the purpose.
 playback      — "file" | "external"
                   file     = served from storage
                   external = YouTube / Vimeo / stream URL
-source        — file path (if file) | URL (if external)
-type          — "clip" | "loop" | "stream"
 ratio         — "16:9" | "9:16" | "1:1" | "4:3"
 size          — % of canvas
 length        — seconds (max duration)
 sequence      — two digits (01–09)
 ```
+
+> Video file identities and external URLs are bound in Assembly; `type` remains `vid`.
 
 ### TYPE: doc (URL Document)
 
@@ -194,7 +195,6 @@ sequence      — two digits (01–09)
 playback      — "file" | "external"
                   file     = served from storage
                   external = linked URL (Google Doc, Dropbox, etc.)
-source        — file path (if file) | URL (if external)
 format        — "pdf" | "docx" | "pptx"
 pages         — number (e.g. 4)
 layout        — "portrait" | "landscape"
@@ -203,6 +203,8 @@ sequence      — two digits (01–09)
 ```
 
 ---
+
+> Document file identities and external URLs are bound in Assembly; `type` remains `doc`.
 
 ## Decoded Examples
 
@@ -375,7 +377,7 @@ Packet  (top-level published offer — pricing, QR content, checkout)
   └── assemblyId → Assembly
                      ├── qrgId → QRG  (product blank)
                      ├── bldId → BLD  ← BLD lives here (structure + layout + styling schema)
-                     │             └── bld_definitions/{bldId}/instances/{seq}
+                     │             └── bld_definitions/{bldId}.instances[]
                      └── mappings[]
                            ├── seq:  "03"
                            ├── type: "qrc"
@@ -386,46 +388,22 @@ BLD defines the shape. Assembly fills it with actual assets.
 
 ---
 
-## Firestore Collections and Sub-Collections
+## Firestore Storage
 
 | Collection | Purpose |
 |------------|---------|
-| `bld_definitions` | Top-level BLD records. Doc ID = full BLD code (e.g. `BLD-SZ9-001`). Core fields: bldId, context, layoutMode, instanceCount, buildSequence, createdAt. Builder-generated docs also carry: sourceSessionId, sourceInstanceId, qrgBlankId, qrgBaseCode, packetId, graphicLayoutMode, qrProductState, qrSizePercent, qrPositionX, qrPositionY. Admin-created docs also carry: layout, name, instances (array), source="admin". |
-| `bld_definitions/{bldId}/instances` | **Sub-collection — builder-generated BLDs only.** One document per ordered layer instance. Doc ID = two-digit sequence (`01`, `02` … `09`). Holds the full vehicle payload for that layer. |
-| `bld_counters` | Atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`, `UI`). Field: `count` (integer). Shared between builder-generated and admin-created BLDs. Guarantees unique build sequence numbers per branch. |
+| `bld_definitions` | One flat record per BLD: `bldId`, `context`, `layoutMode`, `instanceCount`, `buildSequence`, `instances[]`, `name`, `source`, `isActive`, timestamps. |
+| `bld_counters` | One atomic counter per context/layout branch (`SZ`, `SP`, `UI`, `UV`, `UD`). Sequence range is 001–999; never reset or overflow. |
 
-**Two storage strategies — both coexist in `bld_definitions`:**
+Every creation path uses the same shape. No instance sub-collections, product/packet links, content, or second layout snapshot are written to BLD. Session and product lineage remain on the build session, Assembly, and product instance.
 
-| Strategy | Created by | Instance storage |
-|----------|-----------|-----------------|
-| Builder-generated | Builder commit flow (`POST /admin/bld`) | Sub-collection `instances/{seq}` — full vehicle payload per doc |
-| Admin-created | Admin direct-create (`POST /admin/bld/create`) | Flat `instances` array embedded in the root doc — structural skeleton: `{ seq, type, role, required }` |
+`instances[]` contains structural vehicle records with unique consecutive two-digit sequences (`01`–`09`) in paint order. An action slot has `required: false`. Styling fields used by the existing editor include `warpPreset`, `verticalOffset`, `horizontalOffset`, and `imageScale`; these carry geometry only. Words, image URLs, text color overrides, and asset identities remain outside BLD.
 
-**Sub-collection instance structure (builder-generated):**
+The shared contract is `shared/bldCodes.ts`. It owns types, labels, valid context/layout combinations, ID formatting/parsing, structure validation, and extraction from editor working state. Frontend drafts and server commits call the same extractor.
 
-```
-{
-  seq:          "01",       // two-digit render order — 01 paints first
-  type:         "txt",      // txt | img | qrc | act | vid | doc
-  role:         "header",   // vehicle-specific fields follow...
-  fontFamily:   "Oswald",
-  fontSize:     28,
-  ...
-}
-```
+`functions/src/services/bld-store.ts` atomically allocates the counter and creates the full record. Both direct creation and builder commits use it; the dev server injects its database into that same service.
 
-**Flat array instance structure (admin-created):**
-
-```
-{
-  seq:      "01",    // two-digit render order
-  type:     "txt",   // txt | img | qrc | act | vid | doc
-  role:     "header",
-  required: true
-}
-```
-
-Render order is declared by sequence number in both strategies. `01` paints first (bottom of stack). Highest sequence paints last (top of stack).
+The stored ID must match context, layout, instance count, and sequence. An edit that changes the count requires a new BLD ID. Invalid stored beta records are reported explicitly; they are not silently converted or treated as valid build inputs.
 
 ---
 

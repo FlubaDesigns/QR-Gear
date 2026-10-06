@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: June 5, 2026 (blankColors catalog overlay — admin now curates which colors appear in the member wizard color picker; replaces hardcoded SHIRT_COLORS fallback.)
+Last updated: October 6, 2026 (BLD shared contract and atomic persistence).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -53,7 +53,7 @@ INSTANCE = a committed product in a store/channel
 - Assembly is the ONLY layer that joins QRG + BLD + GRF
 - Commit reads `qrgBlankId` from `master_catalog` via `session.sourceMasterId` — never from the BLD draft
 
-Source files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `shared/assemblyCodes.ts`
+Source files: `shared/bldCodes.ts`, `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `shared/assemblyCodes.ts`
 Full definitions: `BLD.md`, `GRF.md`, `QRG.md`, `ASSEMBLY.md` (Canonical Core — these win over everything)
 
 **GRF ID format:** `GRF-[D1][D2][D3][D4][D5]-[NNNNNN]` — 5 descriptor digits + 6-digit sequence.
@@ -81,7 +81,7 @@ Example: `GRF-21111-000001` = output artifact · image · print · qr_composite 
 
 **Autosave stores separately:**
 - Selected blank identity → `working.metadata.selectedProductDocId`
-- Layout draft → `working.bldDraft` → `{ layoutMode, instanceCount, layers[] }` — layout only
+- Layout draft → `working.bldDraft` → `{ context, layoutMode, instanceCount, instances[] }` — layout only
 - Graphics draft → `working.graphics`
 
 Selected blank is NOT inside the BLD draft. They are stored at different levels of the working snapshot.
@@ -301,6 +301,26 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — BLD Single Source of Truth
+
+Shared types, labels, IDs, validation, and structural extraction now live in `shared/bldCodes.ts`. Builder drafts, backend commits, direct creation, and the BLD library use this contract. The shared atomic writer allocates bounded IDs and stores one structural instances array; QRG/packet links and content remain outside BLD. Schema Keys includes BLD, and the library exposes the existing U-context layouts. Invalid beta records are visibly flagged, not migrated. Rendering and the broader Assembly/GRF integration remain a subsequent pass.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/bldCodes.ts` | Shared BLD contract and extraction |
+| `functions/src/services/bld-store.ts` | Atomic counter + definition writer |
+| `functions/src/services/bld-builder.ts`, `functions/src/routes/bld.ts` | Use shared contract and writer |
+| `functions/src/routes/admin-build-sessions.ts` | Pass working state without embedding product identity in BLD |
+| `server/lib/schema-commit.ts`, `server/routes/admin-build-sessions.routes.ts` | Remove duplicate dev BLD implementation |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | One structural draft extractor |
+| `client/src/features/adminLibrary/tabs/BldDefinitionsTab.tsx`, `AssembliesTab.tsx` | Shared BLD choices/validation |
+| `client/src/pages/admin-schema-keys.tsx` | BLD reference from shared definitions |
+| `functions/src/services/__tests__/bld-*.test.ts` | Structure and transactional persistence regression checks |
+| `BLD.md`, `README.md`, `MANIFEST.json` | Reconcile storage documentation and integrity manifest |
+| `deploy/1-build.sh` | Propagate compiler failure through the output pipe |
+
 
 ### June 5, 2026 — blankColors Catalog Overlay (Admin-Curated Color Picker)
 
