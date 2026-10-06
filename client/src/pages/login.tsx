@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, QrCode, Loader2 } from "lucide-react";
 import { signInWithEmail, signInWithGoogle } from "@/lib/firebase";
+import { AuthorizationEngineSignIn } from "@/components/auth/AuthorizationEngineSignIn";
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -11,6 +12,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  if (new URLSearchParams(window.location.search).get('engine') === '1') {
+    return <AuthorizationEngineSignIn onSignedIn={async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      localStorage.removeItem('login_return_path');
+      setLocation('/admin/products');
+    }} />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
