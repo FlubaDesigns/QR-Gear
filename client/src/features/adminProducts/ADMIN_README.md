@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: June 5, 2026 (blankColors catalog overlay — admin now curates which colors appear in the member wizard color picker; replaces hardcoded SHIRT_COLORS fallback.)
+Last updated: October 6, 2026 (shared builder snapshot and Output handoffs).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -53,7 +53,7 @@ INSTANCE = a committed product in a store/channel
 - Assembly is the ONLY layer that joins QRG + BLD + GRF
 - Commit reads `qrgBlankId` from `master_catalog` via `session.sourceMasterId` — never from the BLD draft
 
-Source files: `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `shared/assemblyCodes.ts`
+Source files: `shared/bldCodes.ts`, `shared/blankKeys.ts`, `shared/qrgCodes.ts`, `shared/graphicCodes.ts`, `shared/assemblyCodes.ts`
 Full definitions: `BLD.md`, `GRF.md`, `QRG.md`, `ASSEMBLY.md` (Canonical Core — these win over everything)
 
 **GRF ID format:** `GRF-[D1][D2][D3][D4][D5]-[NNNNNN]` — 5 descriptor digits + 6-digit sequence.
@@ -81,7 +81,7 @@ Example: `GRF-21111-000001` = output artifact · image · print · qr_composite 
 
 **Autosave stores separately:**
 - Selected blank identity → `working.metadata.selectedProductDocId`
-- Layout draft → `working.bldDraft` → `{ layoutMode, instanceCount, layers[] }` — layout only
+- Layout draft → `working.bldDraft` → `{ context, layoutMode, instanceCount, instances[] }` — layout only
 - Graphics draft → `working.graphics`
 
 Selected blank is NOT inside the BLD draft. They are stored at different levels of the working snapshot.
@@ -183,15 +183,20 @@ Selected blank is NOT inside the BLD draft. They are stored at different levels 
 - In Progress section on `/admin` → lists named drafts
 - Resume → `/admin/products?resume=<sessionId>` → `DraftResumeHandler` restores state
 
-**Two restore modes:**
-- **MODE 1** (packet exists): resolves via `packetData.blueprintId` → calls `loadFromPacketData`
-- **MODE 2** (no packet yet): resolves via `sourceMasterId` → `p.docId` → calls `loadFromWorkingState`
+**One editor snapshot:**
+- `shared/builderSnapshot.ts` owns the `graphics`, `qrConfig`, `layoutConfig`, `metadata`, and structural `bldDraft` shape.
+- Autosave and explicit Save use the same queued working-state writer. Generate awaits the current save before creating a packet.
+- Working drafts resume from `session.working`, including when an older packet exists. Committed output and reusable packet templates restore from `packet.builderSnapshot` through the same state loader.
+- Packet snapshots are captured render inputs. Autosave never rewrites them.
+- Packet layout/display fields are derived through `packetBuildFields`; product render options use `productGraphicOptions`. Freeform mode, image offsets, scale, placements, print methods, and provider dimensions are retained.
+- Commit validates and reads the generated packet snapshot before allocating identities or registering assets.
+- Old beta packets without this snapshot must be regenerated. There is no alternate legacy editor shape.
 
-**Product resolution order (MODE 2):**
-1. `session.sourceMasterId` → `p.docId`
-2. `working.metadata.selectedProductDocId` → `p.docId`
-3. `working.metadata.selectedProductBlueprintId` → `p.blueprintId` (numeric)
-4. `working.qrConfig.templateProductHint` → `p.blueprintId` (last resort)
+**Output controls:**
+- Update Saved Item clears the displayed result, reopens the session, and updates the existing instance while preserving its QRG identity.
+- A failed catalog commit has a visible Retry catalog save button. Successful commit returns its Assembly ID to the result view.
+- Publish uses the existing `/admin/qrg/publish-to-printify/:packetId` route in both backend adapters.
+- Delete Packet detaches session/instance/Assembly references and deletes dependent templates/old display links in one transaction. Reusable BLD/GRF/Assembly records and QRG identity are retained.
 
 **Key files:**
 - `BuilderStickyBar.tsx` — Save Draft button, autosave failure badge
@@ -301,6 +306,34 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — Shared builder snapshot and Output handoffs
+
+Removed the separate flat packet editor snapshot and packet-to-editor field reconstruction. The working draft and captured output now use one shared shape; packet projections are derived. Added focused checks for production packet persistence, exact render inputs, commit snapshot selection, instance identity retention, and deletion reference cleanup. Changes are staged in the draft PR; live Firebase/provider behavior is not verified. Remaining pre-live work includes BLD/Assembly slot binding and saved BLD loading.
+
+Key implementation files: `shared/builderSnapshot.ts`, `BuilderContext.tsx`, `useCreatePacket.ts`, `DraftResumeHandler.tsx`, `CreateGraphicsModule.tsx`, `functions/src/services/build-session-state.ts`, and the matching packet/build-session route adapters.
+
+
+
+### October 6, 2026 — BLD Single Source of Truth
+
+Shared types, labels, IDs, validation, and structural extraction now live in `shared/bldCodes.ts`. Builder drafts, backend commits, direct creation, and the BLD library use this contract. The shared atomic writer allocates bounded IDs and stores one structural instances array; QRG/packet links and content remain outside BLD. Schema Keys includes BLD, and the library exposes the existing U-context layouts. Invalid beta records are visibly flagged, not migrated. Rendering and the broader Assembly/GRF integration remain a subsequent pass.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/bldCodes.ts` | Shared BLD contract and extraction |
+| `functions/src/services/bld-store.ts` | Atomic counter + definition writer |
+| `functions/src/services/bld-builder.ts`, `functions/src/routes/bld.ts` | Use shared contract and writer |
+| `functions/src/routes/admin-build-sessions.ts` | Pass working state without embedding product identity in BLD |
+| `server/lib/schema-commit.ts`, `server/routes/admin-build-sessions.routes.ts` | Remove duplicate dev BLD implementation |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx` | One structural draft extractor |
+| `client/src/features/adminLibrary/tabs/BldDefinitionsTab.tsx`, `AssembliesTab.tsx` | Shared BLD choices/validation |
+| `client/src/pages/admin-schema-keys.tsx` | BLD reference from shared definitions |
+| `functions/src/services/__tests__/bld-*.test.ts` | Structure and transactional persistence regression checks |
+| `BLD.md`, `README.md`, `MANIFEST.json` | Reconcile storage documentation and integrity manifest |
+| `deploy/1-build.sh` | Propagate compiler failure through the output pipe |
+
 
 ### June 5, 2026 — blankColors Catalog Overlay (Admin-Curated Color Picker)
 
@@ -561,3 +594,13 @@ const colors = item.availableColors || item.colorsAvailable || item.colors || []
 // GOOD — adapter normalized it; component reads one field
 const colors = item.availableColors;
 ```
+
+### Product builder: saved layouts and complete composition
+
+Use **Saved Styles** to load a physical BLD without leaving the product builder. The layout supplies fonts, geometry, and slot types; add your own words and images. The selected BLD survives draft saves and packet reopening. An unchanged structure reuses the existing BLD; a structural change creates a new definition. Layouts the current physical editor cannot represent report an explicit error.
+
+Generation captures one builder snapshot and renders each selected placement using its saved provider dimensions. Failed rendering or uploads stop generation with an error. Commit registers QR, area/header/footer images, composites, and destination previews through the shared backend GRF registrar, then binds every required slot in Assembly. Destination text/backgrounds are excluded from physical BLD layers.
+
+Before Printify publishing, the backend checks actual QRG/BLD/Assembly/GRF records, active file state, matching content and structure, and every chosen print location. Missing graphics are reported instead of silently skipping a location. Printful packets are not submitted to Printify. Deleting a generated packet keeps reusable BLD/GRF records and removes the packet's references.
+
+Checked locally with 32 focused service/route tests and frontend/functions compilation. Live Firebase storage, browser canvas rendering, and provider publishing require the authenticated beta environment and remain a pre-release verification step.

@@ -1,3 +1,6 @@
+import { validatePacketComposition } from '../services/assembly-store';
+import { deleteBuildPacket } from '../services/build-session-state';
+import { packetBuildFields } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
@@ -206,6 +209,10 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
       playMediaUrl: playMediaUrl || null, playMediaType: playMediaType || null,
       createdAt: now, updatedAt: now,
     };
+      if (req.body.builderSnapshot) {
+        try { Object.assign(packetData, packetBuildFields(req.body.builderSnapshot)); }
+        catch (error: any) { res.status(400).json({ error: error.message }); return; }
+      }
     const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
     const packetId = packetRef.id;
     console.log(`[Packets CF] Created packet: ${packetId}`);
@@ -349,15 +356,9 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     // ── end data-URI guard ────────────────────────────────────────────────────
 
     // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
-    if (cleanUpdates.status === 'published') {
-      const existingAssemblyId = (doc.data() as any)?.assemblyId || null;
-      const incomingAssemblyId = cleanUpdates.assemblyId || null;
-      if (!existingAssemblyId && !incomingAssemblyId) {
-        res.status(400).json({
-          error: 'Cannot publish packet — assemblyId is missing. The three-schema chain (QRG → BLD → GRF) must be complete before a packet can be published.',
-        });
-        return;
-      }
+    if (cleanUpdates.status === 'published' || doc.data()?.status === 'published') {
+      try { await validatePacketComposition(db, packetId, { ...doc.data(), ...cleanUpdates }); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
     }
     // ── end publish guard ──────────────────────────────────────────────────
 
@@ -421,19 +422,8 @@ app.delete('/admin/packets/:packetId', requireAdmin, async (req: Request, res: R
     const docRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-    const cascadeResults = { graphics: 0, templates: 0, storeProductLinks: 0 };
-    // Cascade: productGraphics
-    const graphicsSnap = await db.collection("productGraphics").where("packetId", "==", packetId).get();
-    for (const gDoc of graphicsSnap.docs) { await gDoc.ref.delete(); cascadeResults.graphics++; }
-    // Cascade: productTemplates
-    const templatesSnap = await db.collection("productTemplates").where("packetId", "==", packetId).get();
-    for (const templateDoc of templatesSnap.docs) { await templateDoc.ref.delete(); cascadeResults.templates++; }
-    // Cascade: storeProductLinks
-    const linksSnap = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("packetId", "==", packetId).get();
-    for (const linkDoc of linksSnap.docs) { await linkDoc.ref.delete(); cascadeResults.storeProductLinks++; }
-    await docRef.delete();
-    console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);
-    res.json({ success: true, packetId, cascade: cascadeResults, message: "Packet and related data deleted" });
+      await deleteBuildPacket(db, packetId, admin.firestore.FieldValue.serverTimestamp());
+      res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
   } catch (error: any) {
     console.error("[Packets DELETE] Error:", error);
     res.status(500).json({ error: error.message });

@@ -1,3 +1,5 @@
+import { BLD_MAX_INSTANCES as MAX_INSTANCES, BLD_CONTEXTS as CONTEXT_LABELS, BLD_LAYOUTS as LAYOUT_LABELS, BLD_LAYOUTS_BY_CONTEXT, BLD_VEHICLES as INSTANCE_TYPE_LABELS, BLD_VEHICLES_BY_CONTEXT, isValidBldId, validateBldStructure } from '@shared/bldCodes';
+import type { BldContext, BldInstance } from '@shared/bldCodes';
 import { useState, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,27 +52,6 @@ class BldBoundary extends Component<
   }
 }
 
-const MAX_INSTANCES = 9;
-
-const CONTEXT_LABELS: Record<string, string> = {
-  S: "Shirt (S)",
-  U: "URL (U)",
-};
-
-const LAYOUT_LABELS: Record<string, string> = {
-  Z: "Zone (Z)",
-  P: "Palette (P)",
-};
-
-const INSTANCE_TYPE_LABELS: Record<string, string> = {
-  txt: "txt — Text",
-  img: "img — Image",
-  qrc: "qrc — QR Code",
-  act: "act — Action / CTA",
-  vid: "vid — Video",
-  doc: "doc — Document",
-};
-
 const TYPE_COLORS: Record<string, string> = {
   txt: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   img: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
@@ -80,24 +61,12 @@ const TYPE_COLORS: Record<string, string> = {
   doc: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
 };
 
-const BLD_ID_REGEX = /^BLD-[SU][A-Z]\d-\d{3}$/;
-
-function isValidBldId(bldId: string): boolean {
-  return BLD_ID_REGEX.test(bldId);
-}
-
-interface BldInstance {
-  seq: string;
-  type: string;
-  role?: string;
-  required?: boolean;
-}
-
 interface BldDefinition {
   id: string;
   bldId: string;
   context: string;
-  layout?: string;
+  layoutMode?: string;
+  validationError?: string | null;
   name?: string;
   instances?: BldInstance[];
   instanceCount?: number;
@@ -109,6 +78,8 @@ interface FormInstance {
   type: string;
   role: string;
   required: boolean;
+  positionLR?: string;
+  positionUD?: string;
 }
 
 const DEFAULT_FORM_INSTANCE: FormInstance = { type: "txt", role: "", required: true };
@@ -129,11 +100,15 @@ function MissingBadge({ text }: { text: string }) {
 function InstanceRow({
   inst,
   index,
+  context,
+  layout,
   onChange,
   onRemove,
 }: {
   inst: FormInstance;
   index: number;
+  context: BldContext;
+  layout: string;
   onChange: (i: number, field: keyof FormInstance, value: string | boolean) => void;
   onRemove: (i: number) => void;
 }) {
@@ -146,8 +121,8 @@ function InstanceRow({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(INSTANCE_TYPE_LABELS).map(([v, label]) => (
-            <SelectItem key={v} value={v} className="text-xs">{label}</SelectItem>
+          {BLD_VEHICLES_BY_CONTEXT[context].map(v => (
+            <SelectItem key={v} value={v} className="text-xs">{INSTANCE_TYPE_LABELS[v]}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -162,6 +137,7 @@ function InstanceRow({
 
       <button
         type="button"
+        disabled={inst.type === 'act'}
         onClick={() => onChange(index, "required", !inst.required)}
         className={`text-xs px-2 py-1 rounded-md border transition-colors ${
           inst.required
@@ -169,10 +145,16 @@ function InstanceRow({
             : "bg-muted border-border text-muted-foreground"
         }`}
         data-testid={`toggle-required-${index}`}
-        title={inst.required ? "Required — click to make optional" : "Optional — click to make required"}
+        title={inst.required !== false ? "Required — click to make optional" : "Optional — click to make required"}
       >
-        {inst.required ? "req" : "opt"}
+        {inst.required !== false ? "req" : "opt"}
       </button>
+      {layout === 'P' && inst.type === 'qrc' && (
+        <div className="col-span-full grid grid-cols-2 gap-2">
+          <label className="text-xs">Horizontal %<Input type="number" value={inst.positionLR ?? '50'} onChange={e => onChange(index, 'positionLR', e.target.value)} /></label>
+          <label className="text-xs">Vertical %<Input type="number" value={inst.positionUD ?? '50'} onChange={e => onChange(index, 'positionUD', e.target.value)} /></label>
+        </div>
+      )}
 
       <button
         type="button"
@@ -199,14 +181,12 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
     { type: "qrc", role: "qr", required: true },
   ]);
 
-  const isUContext = context === "U";
+  const layouts = BLD_LAYOUTS_BY_CONTEXT[context as BldContext];
   const atInstanceCap = formInstances.length >= MAX_INSTANCES;
 
   function handleContextChange(v: string) {
     setContext(v);
-    if (v === "U") {
-      setLayout("Z");
-    }
+    setLayout(BLD_LAYOUTS_BY_CONTEXT[v as BldContext][0]);
   }
 
   const mutation = useMutation({
@@ -223,7 +203,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   });
 
   function handleInstanceChange(i: number, field: keyof FormInstance, value: string | boolean) {
-    setFormInstances(prev => prev.map((inst, idx) => idx === i ? { ...inst, [field]: value } : inst));
+    setFormInstances(prev => prev.map((inst, idx) => idx === i ? { ...inst, [field]: value, ...(field === "type" && value === "act" ? { required: false } : {}) } : inst));
   }
 
   function handleAddInstance() {
@@ -236,25 +216,20 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   function handleSubmit() {
-    if (isUContext) {
-      toast({ title: "U-context not supported", description: "Backend does not yet support U-context BLD creation.", variant: "destructive" });
-      return;
-    }
-    if (formInstances.length === 0) {
-      toast({ title: "No instances", description: "Add at least one instance before creating.", variant: "destructive" });
-      return;
-    }
-    if (formInstances.length > MAX_INSTANCES) {
-      toast({ title: "Too many instances", description: `BLD v1 supports a maximum of ${MAX_INSTANCES} instances. Current: ${formInstances.length}.`, variant: "destructive" });
-      return;
-    }
     const instances = formInstances.map((inst, i) => ({
       seq: formatSeq(i),
       type: inst.type,
       ...(inst.role ? { role: inst.role } : {}),
-      required: inst.required,
+      required: inst.type === "act" ? false : inst.required,
+      ...(layout === "P" && inst.type === "qrc" ? { positionLR: Number(inst.positionLR ?? 50), positionUD: Number(inst.positionUD ?? 50) } : {}),
     }));
-    mutation.mutate({ context, layout, name: name.trim() || undefined, instances });
+    const payload = { context, layoutMode: layout, name: name.trim(), instances };
+    const error = validateBldStructure(payload);
+    if (error) {
+      toast({ title: "Invalid BLD", description: error, variant: "destructive" });
+      return;
+    }
+    mutation.mutate(payload);
   }
 
   return (
@@ -276,27 +251,18 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Layout</label>
-          <Select value={layout} onValueChange={setLayout} disabled={isUContext}>
+          <Select value={layout} onValueChange={setLayout}>
             <SelectTrigger data-testid="select-layout">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(LAYOUT_LABELS).map(([v, label]) => (
-                <SelectItem key={v} value={v}>{label}</SelectItem>
+              {layouts.map((v) => (
+                <SelectItem key={v} value={v}>{LAYOUT_LABELS[v]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
       </div>
-
-      {isUContext && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 px-3 py-2" data-testid="warning-u-context">
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-amber-800 dark:text-amber-300">
-            U-context BLD creation is not yet supported by the backend. Layout modes I, V, D are reserved. Switch to S-context to create a definition.
-          </p>
-        </div>
-      )}
 
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name (optional)</label>
@@ -305,7 +271,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. 3-layer zone shirt"
           data-testid="input-bld-name"
-          disabled={isUContext}
+
         />
       </div>
 
@@ -323,7 +289,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
               size="sm"
               variant="outline"
               onClick={handleAddInstance}
-              disabled={isUContext}
+
               data-testid="button-add-instance"
             >
               <Plus className="h-3.5 w-3.5 mr-1" />
@@ -348,6 +314,8 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
                 key={i}
                 inst={inst}
                 index={i}
+                context={context as BldContext}
+                layout={layout}
                 onChange={handleInstanceChange}
                 onRemove={handleRemoveInstance}
               />
@@ -358,7 +326,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
 
       <Button
         onClick={handleSubmit}
-        disabled={mutation.isPending || formInstances.length === 0 || isUContext}
+        disabled={mutation.isPending || formInstances.length === 0}
         className="w-full"
         data-testid="button-submit-bld"
       >
@@ -381,14 +349,14 @@ function DefinitionCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  const layout = def.layout ?? null;
+  const layout = def.layoutMode ?? null;
   const instances = def.instances ?? [];
   const recordedCount = def.instanceCount;
   const actualCount = instances.length;
 
   const idValid = isValidBldId(def.bldId);
   const layoutMissing = !layout;
-  const countMismatch = recordedCount !== undefined && actualCount > 0 && recordedCount !== actualCount;
+  const countMismatch = recordedCount !== undefined && recordedCount !== actualCount;
 
   return (
     <div className="rounded-md border bg-card" data-testid={`card-bld-${def.id}`}>
@@ -402,6 +370,7 @@ function DefinitionCard({
               {def.bldId}
             </span>
             {!idValid && <MissingBadge text="INVALID ID" />}
+            {def.validationError && <p className="text-xs text-destructive">{def.validationError}</p>}
             <Badge variant="outline" className="text-xs">{def.context ?? "—"}</Badge>
             {layoutMissing
               ? <MissingBadge text="MISSING LAYOUT" />
@@ -455,8 +424,8 @@ function DefinitionCard({
               {inst.role && (
                 <span className="text-xs text-muted-foreground truncate">{inst.role}</span>
               )}
-              <span className={`ml-auto text-xs ${inst.required ? "text-foreground" : "text-muted-foreground"}`}>
-                {inst.required ? "required" : "optional"}
+              <span className={`ml-auto text-xs ${inst.required !== false ? "text-foreground" : "text-muted-foreground"}`}>
+                {inst.required !== false ? "required" : "optional"}
               </span>
             </div>
           ))}
@@ -465,7 +434,7 @@ function DefinitionCard({
 
       {expanded && instances.length === 0 && (
         <div className="border-t px-3 py-2">
-          <p className="text-xs text-muted-foreground">No flat instances on this record (may use sub-collection).</p>
+          <p className="text-xs text-muted-foreground">No instances on this definition.</p>
         </div>
       )}
     </div>

@@ -372,6 +372,7 @@ export interface BuilderState {
   sessionStatus: 'working' | 'artifact_ready' | 'committed' | 'abandoned' | null;
   committedInstanceId: string | null;
   selectedCatalogId: string;
+  selectedBldId: string | null;
   /** Provider layout for the primary selected placement — drives renderer canvas size. */
   providerLayout: ProviderLayout | null;
 }

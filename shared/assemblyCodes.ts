@@ -1,3 +1,4 @@
+import { isValidGrfId, parseGrfId } from './GRF_engine';
 /**
  * Assembly ID utilities — shared between frontend and backend.
  *
@@ -13,7 +14,7 @@ export const ASM_ID_REGEX    = /^ASM-\d{6}$/;
 
 /** Returns true when id matches the canonical ASM-NNNNNN format. */
 export function isValidAssemblyId(id: string): boolean {
-  return ASM_ID_REGEX.test(id);
+  return ASM_ID_REGEX.test(id) && Number(id.slice(4)) > 0;
 }
 
 /** Returns the numeric sequence embedded in an assembly ID, or null if malformed. */
@@ -53,6 +54,8 @@ export function validateAssemblyMappings(
   if (mappings.length === 0)    return 'mappings must contain at least one entry';
 
   for (const m of mappings) {
+    if (!m || typeof m !== 'object') return 'mapping must be an object';
+    for (const key of Object.keys(m)) if (!['seq', 'type', 'value', 'color', 'grfId'].includes(key)) return `mapping field ${key} is not allowed`;
     if (!m.seq || !/^\d{2}$/.test(m.seq)) {
       return `seq must be a 2-digit string (e.g. "01") — got: ${JSON.stringify(m.seq)}`;
     }
@@ -70,13 +73,34 @@ export function validateAssemblyMappings(
     }
   }
 
+  for (const m of mappings) {
+    if (m.grfId) {
+      if (!isValidGrfId(m.grfId)) return `slot ${m.seq}: invalid GRF ID`;
+      const p = parseGrfId(m.grfId);
+      if (['img', 'qrc'].includes(m.type) && p.mediaType !== '1') return `slot ${m.seq} requires an image GRF`;
+      if (m.type === 'qrc' && !(p.assetClass === '2' && p.channel === '1' && p.purpose === '2')) return `slot ${m.seq} requires a standalone QR GRF`;
+      if (m.type === 'img' && !['1:1','2:1','2:2','2:3','3:2','4:1','4:2','4:3','4:4'].includes(`${p.channel}:${p.purpose}`)) return `slot ${m.seq}: incompatible image GRF`;
+      if (m.type === 'vid' && p.mediaType !== '2') return `slot ${m.seq} requires a video GRF`;
+      if (m.type === 'doc' && p.mediaType !== '3') return `slot ${m.seq} requires a document GRF`;
+      if (['txt','act'].includes(m.type)) return `slot ${m.seq}: text cannot bind a GRF`;
+    }
+    if (m.value !== undefined && (typeof m.value !== 'string' || !m.value.trim())) return `slot ${m.seq}: value must be nonempty text`;
+    if (['img','qrc'].includes(m.type) && m.value !== undefined) return `slot ${m.seq}: image content belongs in GRF`;
+    if (['vid','doc'].includes(m.type) && m.value && !/^https:\/\//.test(m.value)) return `slot ${m.seq}: external media requires an HTTPS URL`;
+  }
   const seqs = mappings.map((m) => m.seq);
   if (new Set(seqs).size !== seqs.length) {
     return 'seq values must be unique within an assembly';
   }
 
   // Cross-validate required BLD slots when provided
+  if (seqs.some((s, i) => i > 0 && s <= seqs[i - 1])) return 'mappings must follow BLD sequence order';
   if (bldSlots) {
+    for (const m of mappings) {
+      const slot = bldSlots.find(s => s.seq === m.seq);
+      if (!slot) return `mapping ${m.seq} has no BLD slot`;
+      if (slot.type !== m.type) return `mapping ${m.seq} type does not match BLD slot ${slot.type}`;
+    }
     for (const slot of bldSlots) {
       if (slot.required !== false) {
         const filled = mappings.some((m) => m.seq === slot.seq);

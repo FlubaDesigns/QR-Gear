@@ -1,3 +1,4 @@
+import { validateComposition } from '../services/assembly-store';
 /**
  * Assemblies — CRUD routes
  *
@@ -17,192 +18,10 @@ import express, { Request, Response } from 'express';
 import { db, admin } from '../core';
 import { requireAdmin } from '../middleware';
 import { isValidQrgBlankId } from '../../../shared/qrgCodes';
-import { isValidGrfId, parseGrfId } from '../../../shared/GRF_engine';
 
 const ASM_COUNTERS_COLLECTION = 'asm_counters';
 const ASM_COUNTER_DOC         = 'global';
 const ASSEMBLIES_COLLECTION   = 'assemblies';
-
-const VALID_TYPES = new Set(['txt', 'img', 'qrc', 'act', 'vid', 'doc']);
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatAsmId(seq: number): string {
-  return `ASM-${String(seq).padStart(6, '0')}`;
-}
-
-/** Atomically increment asm_counters/global and return the new sequence number. */
-async function mintAsmId(): Promise<{ assemblyId: string; sequence: number }> {
-  const counterRef = db.collection(ASM_COUNTERS_COLLECTION).doc(ASM_COUNTER_DOC);
-  const next = await db.runTransaction(async (txn) => {
-    const doc = await txn.get(counterRef);
-    const current = doc.exists ? (doc.data()?.count ?? 0) : 0;
-    const n = current + 1;
-    txn.set(counterRef, { count: n }, { merge: true });
-    return n;
-  });
-  return { assemblyId: formatAsmId(next), sequence: next };
-}
-
-// Allowed channel:purpose pairs per Assembly slot vehicle type.
-// D4 is channel-relative (GRF-[D1][D2][D3][D4][D5]-[NNNNNN]), so we check
-// the channel+purpose combination — not purpose alone.
-//
-// img slots accept:
-//   print/qr_composite (1:1), store/glamor_shot (2:1), store/front (2:2),
-//   store/back (2:3), url/graphic (3:2), assets/original (4:1),
-//   assets/cropped (4:2), assets/background (4:3), assets/template (4:4)
-//
-// qrc slots must be strictly print/qr_standalone (1:2) with output artifact (D1=2).
-const IMG_ALLOWED_CH_PURPOSE = new Set([
-  '1:1', // print · qr_composite
-  '2:1', // store · glamor_shot
-  '2:2', // store · front
-  '2:3', // store · back
-  '3:2', // url · graphic
-  '4:1', // assets · original
-  '4:2', // assets · cropped
-  '4:3', // assets · background
-  '4:4', // assets · template
-]);
-const QRC_REQUIRED_CH_PURPOSE = '1:2'; // print · qr_standalone
-
-/**
- * Validate a mappings array.
- * Returns a human-readable error string, or null if valid.
- * Includes GRF format validity and slot-type compatibility checks (Fix 9).
- * Does NOT check Firestore existence — that is done by validateGrfIdsExist (Fix 8).
- */
-function validateMappings(mappings: any[]): string | null {
-  if (!Array.isArray(mappings))    return 'mappings must be an array';
-  if (mappings.length === 0)       return 'mappings must contain at least one entry';
-
-  for (const m of mappings) {
-    if (!m.seq || !/^\d{2}$/.test(m.seq)) {
-      return `mapping seq must be a 2-digit string (e.g. "01") — got: ${JSON.stringify(m.seq)}`;
-    }
-    if (!m.type || !VALID_TYPES.has(m.type)) {
-      return `mapping type must be one of: txt, img, qrc, act, vid, doc — got: ${JSON.stringify(m.type)}`;
-    }
-    if ((m.type === 'txt' || m.type === 'act') && !m.value) {
-      return `mapping seq ${m.seq} type "${m.type}" requires a non-empty value`;
-    }
-    if ((m.type === 'img' || m.type === 'qrc') && !m.grfId) {
-      return `mapping seq ${m.seq} type "${m.type}" requires a valid grfId — pending or placeholder values are not allowed`;
-    }
-    if ((m.type === 'vid' || m.type === 'doc') && !m.grfId && !m.value) {
-      return `mapping seq ${m.seq} type "${m.type}" requires either grfId or value (URL)`;
-    }
-
-    if (m.grfId) {
-      if (!isValidGrfId(String(m.grfId))) {
-        return `mapping seq ${m.seq}: grfId "${m.grfId}" is not a valid GRF ID (format: GRF-DDDDD-NNNNNN)`;
-      }
-      const parsed = parseGrfId(String(m.grfId));
-      const chPurpose = `${parsed.channel}:${parsed.purpose}`;
-
-      if (m.type === 'img') {
-        if (!IMG_ALLOWED_CH_PURPOSE.has(chPurpose)) {
-          return (
-            `mapping seq ${m.seq}: grfId "${m.grfId}" has channel/purpose "${chPurpose}" ` +
-            `(${parsed.channelName}/${parsed.purposeName}) which is not compatible with slot type "img". ` +
-            `Allowed channel:purpose pairs for "img": ${Array.from(IMG_ALLOWED_CH_PURPOSE).join(', ')}`
-          );
-        }
-      }
-
-      if (m.type === 'qrc') {
-        if (chPurpose !== QRC_REQUIRED_CH_PURPOSE) {
-          return (
-            `mapping seq ${m.seq}: grfId "${m.grfId}" has channel/purpose "${chPurpose}" ` +
-            `(${parsed.channelName}/${parsed.purposeName}) but qrc slots require "${QRC_REQUIRED_CH_PURPOSE}" (print/qr_standalone)`
-          );
-        }
-        if (parsed.assetClass !== '2') {
-          return (
-            `mapping seq ${m.seq}: grfId "${m.grfId}" has assetClass "${parsed.assetClass}" ` +
-            `but qrc slots require output artifacts (assetClass "2")`
-          );
-        }
-      }
-    }
-  }
-
-  // Duplicate seq check
-  const seqs = mappings.map((m: any) => m.seq);
-  const unique = new Set(seqs);
-  if (unique.size !== seqs.length) {
-    return 'mapping seq values must be unique within an assembly';
-  }
-
-  return null;
-}
-
-/**
- * Async validator — verifies every grfId in mappings exists in grf_assets and is active.
- * Returns a human-readable error string, or null if all grfIds are valid.
- */
-async function validateGrfIdsExist(mappings: any[]): Promise<string | null> {
-  const grfIdsToCheck = [
-    ...new Set(
-      mappings
-        .filter((m: any) => m.grfId)
-        .map((m: any) => String(m.grfId)),
-    ),
-  ];
-
-  if (grfIdsToCheck.length === 0) return null;
-
-  const results = await Promise.all(
-    grfIdsToCheck.map((grfId) => db.collection('grf_assets').doc(grfId).get()),
-  );
-
-  for (let i = 0; i < results.length; i++) {
-    const doc = results[i];
-    const grfId = grfIdsToCheck[i];
-    if (!doc.exists) {
-      return `grfId "${grfId}" does not exist in the GRF asset library`;
-    }
-    if (doc.data()?.isActive === false) {
-      return `grfId "${grfId}" has been archived and cannot be used in a new mapping`;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Fetch the referenced BLD and verify that every required slot has a corresponding mapping.
- * All BLDs store instances as a flat array in the root doc — single storage shape.
- * Returns a human-readable error string, or null if coverage is complete.
- */
-async function validateBldSlotCoverage(bldId: string, mappings: any[]): Promise<string | null> {
-  const bldDoc = await db.collection('bld_definitions').doc(bldId).get();
-  if (!bldDoc.exists) {
-    return `bldId "${bldId}" does not exist in bld_definitions`;
-  }
-
-  const bldData = bldDoc.data() as any;
-
-  // All BLDs embed instances as a flat array in the root doc
-  const rawInstances: any[] = Array.isArray(bldData.instances) ? bldData.instances : [];
-  const slots: Array<{ seq: string; type: string; required?: boolean }> = rawInstances.map((inst: any) => ({
-    seq:      String(inst.seq).padStart(2, '0'),
-    type:     inst.type,
-    required: inst.required !== false,
-  }));
-
-  if (slots.length === 0) return null; // No slots defined — nothing to cross-validate
-
-  const filledSeqs = new Set(mappings.map((m: any) => m.seq));
-  for (const slot of slots) {
-    if (slot.required !== false && !filledSeqs.has(slot.seq)) {
-      return `required BLD slot ${slot.seq} (type: ${slot.type}) in "${bldId}" has no corresponding mapping`;
-    }
-  }
-
-  return null;
-}
 
 function toSerializable(doc: FirebaseFirestore.DocumentSnapshot): Record<string, any> {
   const data = doc.data() as any;
@@ -231,38 +50,25 @@ export function registerAssemblies(app: express.Express): void {
       if (!bldId)    { res.status(400).json({ error: 'bldId is required' });    return; }
       if (!mappings) { res.status(400).json({ error: 'mappings is required' }); return; }
 
-      const validationError = validateMappings(mappings);
-      if (validationError) { res.status(400).json({ error: validationError }); return; }
-
-      // Fix 8: Verify every grfId in mappings exists in grf_assets and is active
-      const grfExistenceError = await validateGrfIdsExist(mappings);
-      if (grfExistenceError) { res.status(400).json({ error: grfExistenceError }); return; }
-
-      // Fix 10: Cross-validate mappings against required BLD slots
-      const bldSlotError = await validateBldSlotCoverage(bldId, mappings);
-      if (bldSlotError) { res.status(400).json({ error: bldSlotError }); return; }
+      try { await validateComposition(db, { qrgId, bldId, mappings }); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
 
       // Sort mappings by seq before persisting
       const sortedMappings = [...mappings].sort((a: any, b: any) => a.seq.localeCompare(b.seq));
 
-      const { assemblyId, sequence } = await mintAsmId();
-      const now = admin.firestore.FieldValue.serverTimestamp();
-      const uid = (req as any).user?.uid || 'admin';
-
-      const docData: Record<string, any> = {
-        assemblyId,
-        sequence,
-        qrgId:    String(qrgId).trim(),
-        bldId:    String(bldId).trim(),
-        mappings: sortedMappings,
-        createdAt: now,
-        createdBy:  uid,
-        packetIds: [],
-      };
-      if (name) docData.name = String(name).trim();
-
-      await db.collection(ASSEMBLIES_COLLECTION).doc(assemblyId).set(docData);
-
+      const { assemblyId, sequence } = await db.runTransaction(async tx => {
+        const ref = db.collection(ASM_COUNTERS_COLLECTION).doc(ASM_COUNTER_DOC);
+        const count = (await tx.get(ref)).data()?.count ?? 0;
+        if (!Number.isInteger(count) || count < 0 || count >= 999999) throw new Error('Invalid or exhausted Assembly counter.');
+        const sequence = count + 1;
+        const assemblyId = `ASM-${String(sequence).padStart(6, '0')}`;
+        const asmRef = db.collection(ASSEMBLIES_COLLECTION).doc(assemblyId);
+        if ((await tx.get(asmRef)).exists) throw new Error('Assembly counter collision.');
+        tx.set(ref, { count: sequence }, { merge: true });
+        tx.create(asmRef, { assemblyId, sequence, qrgId, bldId, mappings: sortedMappings, packetIds: [],
+          createdAt: admin.firestore.FieldValue.serverTimestamp(), createdBy: (req as any).user?.uid || 'admin', ...(name ? { name: String(name).trim() } : {}) });
+        return { assemblyId, sequence };
+      });
       console.log(`[Assemblies] Created ${assemblyId} — qrgId=${qrgId} bldId=${bldId} mappings=${sortedMappings.length}`);
 
       res.status(201).json({
@@ -364,16 +170,11 @@ export function registerAssemblies(app: express.Express): void {
         updates.bldId = String(req.body.bldId).trim();
       }
       if (req.body.mappings !== undefined) {
-        const validationError = validateMappings(req.body.mappings);
-        if (validationError) { res.status(400).json({ error: validationError }); return; }
-
-        // Fix 8: Verify every grfId in updated mappings exists in grf_assets and is active
-        const grfExistenceError = await validateGrfIdsExist(req.body.mappings);
-        if (grfExistenceError) { res.status(400).json({ error: grfExistenceError }); return; }
-
         updates.mappings = [...req.body.mappings].sort((a: any, b: any) => a.seq.localeCompare(b.seq));
       }
 
+      try { await validateComposition(db, { ...existingData, ...updates }); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
       await docRef.update(updates);
       const updated = await docRef.get();
 

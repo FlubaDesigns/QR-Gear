@@ -1,11 +1,11 @@
+import { packetBuildFields, productGraphicOptions, requireBuilderSnapshot } from '@shared/builderSnapshot';
 import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
-import { renderProductGraphic, type TextStyle as SharedTextStyle } from "@/features/shared/graphics/productGraphicRenderer";
+import { renderProductGraphic, type RenderOptions } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { GRF_PACKET_SLOTS } from "@shared/graphicCodes";
 import type { PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
 import { useBuilderContext } from "../BuilderContext";
@@ -48,7 +48,7 @@ export function useCreatePacket({
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
-  const { setActiveSession } = useBuilderContext();
+  const { setActiveSession, saveWorking, setActivePacketId } = useBuilderContext();
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
@@ -114,7 +114,7 @@ export function useCreatePacket({
         description: err.message,
         variant: "destructive",
       });
-      return null;
+      throw new Error(`Background upload failed: ${err.message}`);
     }
   };
 
@@ -139,6 +139,9 @@ export function useCreatePacket({
     setPacketResult(null);
 
     try {
+      const snapshot = requireBuilderSnapshot(await saveWorking());
+      const content = snapshot.graphics.content;
+      const playMediaFile = state.content?.playMediaFile;
       const pricing = calculatePricing();
       if (!pricing) throw new Error("Could not calculate pricing");
       const availableColors = product?.availableColors || [];
@@ -149,48 +152,29 @@ export function useCreatePacket({
         return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
       };
 
-      const landingPageSlug = generateSlug(state.content?.title || 'product') + '-' + Date.now().toString(36);
+      const landingPageSlug = generateSlug(content.title || 'product') + '-' + Date.now().toString(36);
       const isPlayMode = state.qrProductState === "qr_play";
 
       // Upload any base64 background to Storage before it touches any Firestore write.
-      const resolvedBgUrl = await resolveBackgroundUrl(state.loadedBackground?.url);
+      const resolvedBgUrl = await resolveBackgroundUrl(snapshot.graphics.loadedBackground?.url);
+      if (snapshot.graphics.loadedBackground) snapshot.graphics.loadedBackground.url = resolvedBgUrl;
 
       const packetPayload: Record<string, any> = {
         qrOnlyUrl: "",
         compositeUrl: "",
-        qrContent: isPlayMode ? "" : (state.content?.url || state.content?.title || "").trim(),
-        headerText: state.content?.headerStyle?.enabled ? state.content.headerStyle.text : null,
-        footerText: state.content?.footerStyle?.enabled ? state.content.footerStyle.text : null,
-        headerStyle: state.content?.headerStyle?.enabled ? state.content.headerStyle : null,
-        footerStyle: state.content?.footerStyle?.enabled ? state.content.footerStyle : null,
-        backgroundUrl: resolvedBgUrl,
+        qrContent: isPlayMode ? "" : (content.url || content.title || "").trim(),
         pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
         masterTitle: state.masterTitle ?? null,
-        adminCatalogTitle: state.adminCatalogTitle ?? null,
-        // PROGRESSIVE TRUTH — store only the packet-layer value, never a fallback chain.
-        // NULL means "no explicit packet title/description" — display uses descriptionLayers.ts.
-        effectiveTitle: state.adminCatalogTitle !== null && state.adminCatalogTitle !== undefined
-          ? state.adminCatalogTitle : null,
         masterDescription: state.masterDescription ?? null,
-        adminCatalogDescription: state.adminCatalogDescription ?? null,
-        effectiveDescription: state.productDescription !== undefined ? state.productDescription : null,
-        productDescription: state.productDescription !== undefined ? state.productDescription : null,
         productImageUrl: product?.imageUrl || null,
         blueprintId: product?.blueprintId || null,
         printProviderId: product?.printProviderId || null,
         manufacturer: product?.manufacturer || null,
         madeInUSA: product?.madeInUSA || false,
         category: product?.category || null,
-        defaultColor: state.selectedColor?.name || product?.defaultColor || null,
-        defaultColorHex: state.selectedColor?.hex || null,
         defaultPlacement: product?.defaultPlacement || null,
-        qrProductState: state.qrProductState,
-        selectedPlacements: state.selectedPlacements || [],
-        placements: product?.printLocations || product?.placements || [],
-        placementConfig: state.placementConfig || {},
-        placementSizes: state.placementSizes || {},
         availablePlacements,
         availableSizes,
         availableColors,
@@ -210,77 +194,13 @@ export function useCreatePacket({
         basePrice: product?.basePrice || null,
         customerPrice: product?.customerPrice || null,
         mockupsByColor: product?.mockupsByColor || null,
-        landingPageTitle: state.content?.title || null,
-        landingPageDescription: state.content?.description || null,
-        landingPageBackgroundUrl: resolvedBgUrl,
-        landingTextBlocks: state.content?.landingTextBlocks || [],
         landingPageSlug,
-        sourceMasterId: product?.docId || null,
         qrgBlankId: product?.qrgBlankId || null,
-        roleType: selectedRole || null,
-        storeId: selectedStore?.id || null,
-        storeName: selectedStore?.name || null,
-        channelId: selectedChannel?.id || null,
-        channelName: selectedChannel?.name || null,
-        collectionId: selectedCollection?.id || null,
-        collectionName: selectedCollection?.name || null,
-        folderPath: [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean).join(' / ') || null,
-        fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-        subBottomEnabled: state.content?.subBottomStyle?.enabled || false,
-        subBottomText: state.content?.subBottomStyle?.text || '',
-        subBottomFontFamily: state.content?.subBottomStyle?.fontFamily || 'Arial',
-        subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
-        subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
-        subBottomColor: state.content?.subBottomStyle?.color || '#666666',
-        graphicLayoutMode: state.content?.graphicLayoutMode || 'zone',
-        qrSizePercent: state.content?.qrSizePercent ?? 75,
-        qrPositionX: state.content?.qrPositionX ?? 50,
-        qrPositionY: state.content?.qrPositionY ?? 50,
-        areaImageUrl: state.content?.areaImageUrl || null,
-        areaImageMode: state.content?.areaImageMode || 'behind-qr',
-        areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
-        areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
-        areaImageScale: state.content?.areaImageScale ?? 100,
-        qrBasicInputType: state.content?.qrBasicInputType || 'text',
-        // Provider layout for the primary selected placement — drives renderer canvas size.
-        // Persisted so the renderer and export always use provider-correct dimensions.
-        providerLayout: state.providerLayout || null,
-        // Full builder snapshot so loadFromPacketData can reconstruct the exact input state.
-        // snapshot.content.url is the user's original QR input — never overwritten by the
-        // landing-page URL rewrite that happens to packet.qrContent for canvas/play modes.
-        builderSnapshot: {
-          content: {
-            url: state.content?.url || '',
-            title: state.content?.title || '',
-            description: state.content?.description || '',
-            headerStyle: state.content?.headerStyle ?? null,
-            footerStyle: state.content?.footerStyle ?? null,
-            subBottomStyle: state.content?.subBottomStyle ?? null,
-            qrPositionX: state.content?.qrPositionX ?? 50,
-            qrPositionY: state.content?.qrPositionY ?? 50,
-            qrSizePercent: state.content?.qrSizePercent ?? 75,
-            areaImageUrl: state.content?.areaImageUrl || '',
-            areaImageMode: state.content?.areaImageMode || 'behind-qr',
-            areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
-            areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
-            areaImageScale: state.content?.areaImageScale ?? 100,
-            landingTextBlocks: state.content?.landingTextBlocks || [],
-            graphicLayoutMode: state.content?.graphicLayoutMode || '',
-            qrBasicInputType: state.content?.qrBasicInputType || 'text',
-          },
-          selectedProductId: state.selectedProduct?.id || null,
-          selectedPlacements: state.selectedPlacements || [],
-          placementConfig: state.placementConfig || {},
-          placementSizes: state.placementSizes || {},
-          placementMethods: state.placementMethods || {},
-          selectedColor: state.selectedColor ?? null,
-          qrProductState: state.qrProductState,
-          savedAt: new Date().toISOString(),
-        },
+        ...packetBuildFields(snapshot),
       };
 
-      if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
-        packetPayload.playMediaUrl = state.content.playMediaUrl;
+      if (isPlayMode && content.playMediaSource === "url" && content.playMediaUrl) {
+        packetPayload.playMediaUrl = content.playMediaUrl;
       }
 
       const packetData = await adminFetch<any>("/packets", {
@@ -292,10 +212,10 @@ export function useCreatePacket({
       let uploadedPlayMediaUrl: string | null = null;
       let uploadedPlayMediaType: string | null = null;
 
-      if (isPlayMode && state.content?.playMediaSource === "upload" && state.content?.playMediaFile) {
+      if (isPlayMode && content.playMediaSource === "upload" && playMediaFile) {
         try {
-          const file = state.content.playMediaFile;
-          const fileName = file.name || `media${state.content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
+          const file = playMediaFile;
+          const fileName = file.name || `media${content.playMediaMimeType?.includes("video") ? ".mp4" : ".gif"}`;
 
           if (!file.size || file.size === 0) {
             throw new Error("File is empty (0 bytes). Please select a valid video file.");
@@ -322,24 +242,24 @@ export function useCreatePacket({
               userId: "admin",
               packetId,
               base64Data,
-              mimeType: file.type || state.content.playMediaMimeType || "video/mp4",
+              mimeType: file.type || content.playMediaMimeType || "video/mp4",
               fileName,
             },
           });
 
           uploadedPlayMediaUrl = uploadData.publicUrl;
-          uploadedPlayMediaType = file.type || state.content.playMediaMimeType || "video/mp4";
+          uploadedPlayMediaType = file.type || content.playMediaMimeType || "video/mp4";
         } catch (uploadErr: any) {
           const errMsg = uploadErr?.message || uploadErr?.toString?.() || JSON.stringify(uploadErr) || "Unknown error";
-          console.error("Play media upload error:", errMsg, uploadErr);
+          throw new Error(`Play media upload failed: ${errMsg}`);
           toast({
             title: "Video Upload Failed",
             description: errMsg.slice(0, 200),
             variant: "destructive",
           });
         }
-      } else if (isPlayMode && state.content?.playMediaSource === "url" && state.content?.playMediaUrl) {
-        uploadedPlayMediaUrl = state.content.playMediaUrl;
+      } else if (isPlayMode && content.playMediaSource === "url" && content.playMediaUrl) {
+        uploadedPlayMediaUrl = content.playMediaUrl;
         uploadedPlayMediaType = "video/url";
       }
 
@@ -347,53 +267,28 @@ export function useCreatePacket({
       const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_compose" || state.qrProductState === "qr_plus";
       const finalQrContent = isLandingPageMode
         ? `${baseUrl}/m/${landingPageSlug}`
-        : (state.content?.url || state.content?.title || "");
+        : (content.url || content.title || "");
 
       const qrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000);
 
       const backgroundUrl = resolvedBgUrl;
-      const headerStyle = state.content?.headerStyle as SharedTextStyle | null;
-      const footerStyle = state.content?.footerStyle as SharedTextStyle | null;
-      const titleStyle = state.content?.titleStyle as SharedTextStyle | null;
-      const descriptionStyle = state.content?.descriptionStyle as SharedTextStyle | null;
+      const titleStyle = content.titleStyle;
+      const descriptionStyle = content.descriptionStyle;
       const productColorHex = state.selectedColor?.hex || null;
 
       const primaryPlacement = (state.selectedPlacements || ["front-center"])[0];
 
       let productGraphicUrl: string;
       try {
-        productGraphicUrl = await renderProductGraphic({
-          qrContent: finalQrContent.trim(),
-          qrColor: "black",
-          headerStyle: headerStyle?.enabled ? headerStyle as SharedTextStyle : null,
-          footerStyle: footerStyle?.enabled ? footerStyle as SharedTextStyle : null,
-          backgroundColor: productColorHex || undefined,
-          transparent: true,
-          placement: primaryPlacement,
-          qrPositionX: state.content.qrPositionX,
-          qrPositionY: state.content.qrPositionY,
-          qrSizePercent: state.content.qrSizePercent,
-          areaImageUrl: state.content.areaImageUrl || undefined,
-          areaImageMode: state.content.areaImageMode || "behind-qr",
-          subBottomEnabled: state.content.subBottomStyle?.enabled || false,
-          subBottomText: state.content.subBottomStyle?.text || "",
-          subBottomFontFamily: state.content.subBottomStyle?.fontFamily || 'Arial',
-          subBottomFontSize: state.content.subBottomStyle?.fontSize || '14',
-          subBottomFontWeight: state.content.subBottomStyle?.fontWeight || '400',
-          subBottomColor: state.content.subBottomStyle?.color || '#666666',
-          // Provider layout drives canvas dimensions — must be passed so the rendered
-          // graphic uses provider-correct size instead of hardcoded fallback dimensions.
-          providerLayout: state.providerLayout || null,
-        });
+        productGraphicUrl = await renderProductGraphic(productGraphicOptions(snapshot, finalQrContent.trim()) as RenderOptions);
       } catch (e) {
-        console.warn('Product graphic generation failed:', e);
-        productGraphicUrl = "";
+        throw new Error(`Product graphic generation failed: ${e instanceof Error ? e.message : String(e)}`);
       }
 
       let landingPageSnapshotUrl: string = "";
       if (isLandingPageMode) {
         try {
-          const rawBlocks = (state.content?.landingTextBlocks || []) as any[];
+          const rawBlocks = (content.landingTextBlocks || []) as any[];
           const rendererBlocks = rawBlocks
             .filter((b: any) => b.enabled && b.text)
             .map((b: any) => ({
@@ -409,7 +304,7 @@ export function useCreatePacket({
             descriptionStyle: rendererBlocks.length === 0 ? descriptionStyle : null,
           });
         } catch (e) {
-          console.warn('Landing page snapshot generation failed:', e);
+          throw new Error(`Landing page preview failed: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
 
@@ -428,7 +323,7 @@ export function useCreatePacket({
         });
         if (uploadData?.publicUrl) productGraphicUrl = uploadData.publicUrl;
       } catch (uploadErr) {
-        console.warn("Product graphic upload error:", uploadErr);
+        throw new Error(`Product graphic upload failed: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
       }
 
       // Safety: if the upload failed or was skipped, productGraphicUrl is still a
@@ -436,7 +331,7 @@ export function useCreatePacket({
       // so the packet PATCH stays well under the 1 MB document limit.
       if (productGraphicUrl && productGraphicUrl.startsWith('data:')) {
         console.error('[CreatePacket] productGraphicUrl is still a data URI after upload — stripping to prevent Firestore overflow');
-        productGraphicUrl = '';
+        throw new Error('Product graphic upload returned no stored file.');
       }
 
       if (landingPageSnapshotUrl) {
@@ -451,20 +346,35 @@ export function useCreatePacket({
           });
           if (uploadData?.publicUrl) landingPageSnapshotUrl = uploadData.publicUrl;
         } catch (uploadErr) {
-          console.warn("Landing page snapshot upload error:", uploadErr);
+          throw new Error(`Landing page preview upload failed: ${uploadErr instanceof Error ? uploadErr.message : String(uploadErr)}`);
         }
         if (landingPageSnapshotUrl && landingPageSnapshotUrl.startsWith('data:')) {
           console.error('[CreatePacket] landingPageSnapshotUrl is still a data URI after upload — stripping');
-          landingPageSnapshotUrl = '';
+          throw new Error('Landing page preview upload returned no stored file.');
         }
       }
 
+      const placementGraphicUrls: Record<string, string> = { [primaryPlacement]: productGraphicUrl };
+      for (const placement of snapshot.layoutConfig.selectedPlacements.slice(1)) {
+        if (!snapshot.layoutConfig.providerLayouts?.[placement]?.dimensions) throw new Error(`Print dimensions are missing for ${placement}. Reload the product options.`);
+        const graphic = await renderProductGraphic(productGraphicOptions(snapshot, finalQrContent.trim(), placement) as RenderOptions);
+        const upload = await adminFetch<{ publicUrl: string }>('/content/upload', {
+          method: 'POST', json: { mode, userId: 'admin', packetId, base64Data: graphic,
+            mimeType: 'image/png', fileName: `${packetId}-${placement}.png` },
+        });
+        if (!upload.publicUrl) throw new Error(`Graphic upload failed for ${placement}.`);
+        placementGraphicUrls[placement] = upload.publicUrl;
+      }
+
+      if (isPlayMode) snapshot.graphics.content.playMediaUrl = uploadedPlayMediaUrl;
       await adminFetch(`/packets/${packetId}`, {
         method: "PATCH",
         json: {
+          ...packetBuildFields(snapshot),
           qrOnlyUrl: qrUrl, productGraphicUrl,
           landingPageSnapshotUrl: landingPageSnapshotUrl || null,
           compositeUrl: productGraphicUrl,
+          placementGraphicUrls,
           qrContent: finalQrContent.trim(),
           playMediaUrl: uploadedPlayMediaUrl || null,
           playMediaType: uploadedPlayMediaType || null,
@@ -481,6 +391,7 @@ export function useCreatePacket({
 
       // Track the committed instance so the mockup fire-and-forget can call rebuild-images afterward.
       let committedInstanceId: string | null = null;
+      let committedAssemblyId: string | null = null;
 
       if (state.activeSessionId) {
         try {
@@ -517,6 +428,7 @@ export function useCreatePacket({
 
             if (commitData) {
               committedInstanceId = commitData.instanceId;
+              committedAssemblyId = commitData.assemblyId;
               setActiveSession(state.activeSessionId, 'committed', commitData.instanceId);
               setCommitResult({ instanceId: commitData.instanceId, sessionId: state.activeSessionId, packetId });
               console.log(`[CreatePacket] Auto-committed → instance ${commitData.instanceId}`);
@@ -530,51 +442,16 @@ export function useCreatePacket({
         }
       }
 
-      // ── Fire-and-forget: auto-populate GRF graphics + template library ──────
+      // GRF registration is owned by the server commit. Save the reusable template.
       const grfName = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
         .filter(Boolean).join(' / ') || product?.title || 'Product';
-
-      if (qrUrl) {
-        adminFetch('/graphics/save-grf', {
-          method: 'POST',
-          json: {
-            ...GRF_PACKET_SLOTS.qrStandalone,
-            imageUrl: qrUrl,
-            name: `${grfName} — QR Standalone`,
-            relatedPacketId: packetId,
-          },
-        }).catch((e: any) => console.warn('[CreatePacket] GRF qrStandalone auto-save failed:', e.message));
-      }
-
-      if (productGraphicUrl) {
-        adminFetch('/graphics/save-grf', {
-          method: 'POST',
-          json: {
-            ...GRF_PACKET_SLOTS.qrComposite,
-            imageUrl: productGraphicUrl,
-            name: `${grfName} — QR Composite`,
-            relatedPacketId: packetId,
-          },
-        }).catch((e: any) => console.warn('[CreatePacket] GRF qrComposite auto-save failed:', e.message));
-      }
-
-      if (landingPageSnapshotUrl) {
-        adminFetch('/graphics/save-grf', {
-          method: 'POST',
-          json: {
-            ...GRF_PACKET_SLOTS.urlSnapshot,
-            imageUrl: landingPageSnapshotUrl,
-            name: `${grfName} — URL Snapshot`,
-            relatedPacketId: packetId,
-          },
-        }).catch((e: any) => console.warn('[CreatePacket] GRF urlSnapshot auto-save failed:', e.message));
-      }
 
       const templateColors = productColors.length > 0 ? productColors : [{ name: 'Black', hex: '#000000' }];
       adminFetch('/templates/full-save', {
         method: 'POST',
         json: {
           name: grfName,
+          builderSnapshot: snapshot,
           blueprintId: product?.blueprintId || 0,
           printProviderId: product?.printProviderId || null,
           fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
@@ -587,27 +464,27 @@ export function useCreatePacket({
           productName: product?.title || product?.name || null,
           qrContent: finalQrContent || '',
           pricing,
-          headerText: state.content?.headerStyle?.enabled ? state.content.headerStyle.text : null,
-          footerText: state.content?.footerStyle?.enabled ? state.content.footerStyle.text : null,
-          headerStyle: state.content?.headerStyle?.enabled ? state.content.headerStyle : null,
-          footerStyle: state.content?.footerStyle?.enabled ? state.content.footerStyle : null,
-          subBottomEnabled: state.content?.subBottomStyle?.enabled || false,
-          subBottomText: state.content?.subBottomStyle?.text || '',
-          subBottomFontFamily: state.content?.subBottomStyle?.fontFamily || 'Arial',
-          subBottomFontSize: state.content?.subBottomStyle?.fontSize || '14',
-          subBottomFontWeight: state.content?.subBottomStyle?.fontWeight || '400',
-          subBottomColor: state.content?.subBottomStyle?.color || '#666666',
+          headerText: content.headerStyle?.enabled ? content.headerStyle.text : null,
+          footerText: content.footerStyle?.enabled ? content.footerStyle.text : null,
+          headerStyle: content.headerStyle?.enabled ? content.headerStyle : null,
+          footerStyle: content.footerStyle?.enabled ? content.footerStyle : null,
+          subBottomEnabled: content.subBottomStyle?.enabled || false,
+          subBottomText: content.subBottomStyle?.text || '',
+          subBottomFontFamily: content.subBottomStyle?.fontFamily || 'Arial',
+          subBottomFontSize: content.subBottomStyle?.fontSize || '14',
+          subBottomFontWeight: content.subBottomStyle?.fontWeight || '400',
+          subBottomColor: content.subBottomStyle?.color || '#666666',
           backgroundUrl: resolvedBgUrl,
           qrProductState: state.qrProductState || 'qr_canvas',
-          areaImageUrl: state.content?.areaImageUrl || null,
-          areaImageMode: state.content?.areaImageMode || 'behind-qr',
-          areaImageOffsetX: state.content?.areaImageOffsetX ?? 50,
-          areaImageOffsetY: state.content?.areaImageOffsetY ?? 50,
-          areaImageScale: state.content?.areaImageScale ?? 100,
-          graphicLayoutMode: state.content?.graphicLayoutMode || 'zone',
-          qrSizePercent: state.content?.qrSizePercent ?? 75,
-          qrPositionX: state.content?.qrPositionX ?? 50,
-          qrPositionY: state.content?.qrPositionY ?? 50,
+          areaImageUrl: content.areaImageUrl || null,
+          areaImageMode: content.areaImageMode || 'behind-qr',
+          areaImageOffsetX: content.areaImageOffsetX ?? 50,
+          areaImageOffsetY: content.areaImageOffsetY ?? 50,
+          areaImageScale: content.areaImageScale ?? 100,
+          graphicLayoutMode: content.graphicLayoutMode || 'zone',
+          qrSizePercent: content.qrSizePercent ?? 75,
+          qrPositionX: content.qrPositionX ?? 50,
+          qrPositionY: content.qrPositionY ?? 50,
           storeId: selectedStore?.id || null,
           channelId: selectedChannel?.id || null,
         },
@@ -629,6 +506,7 @@ export function useCreatePacket({
         priorityMockupUrl: null,
         priorityMockupLoading: true,
         compositeUrl: productGraphicUrl,
+        assemblyId: committedAssemblyId,
         printifyProductId: null,
         printifyPublishedAt: null,
         printifyVariantMap: null,
@@ -743,6 +621,10 @@ export function useCreatePacket({
     setIsDeleting(true);
     try {
       await adminFetch(`/packets/${packetResult.packetId}`, { method: "DELETE" });
+      setActivePacketId(null);
+      setActiveSession(state.activeSessionId, 'working', state.committedInstanceId);
+      setCommitResult(null);
+      setArtifactError(null);
       toast({ title: "Packet Deleted", description: "Starting fresh..." });
       setPacketResult(null);
       setError(null);
@@ -786,6 +668,8 @@ export function useCreatePacket({
       };
       setCommitResult(result);
       setActiveSession(state.activeSessionId, 'committed', data.instanceId);
+      setPacketResult(prev => prev ? { ...prev, assemblyId: data.assemblyId } : prev);
+      setArtifactError(null);
       console.log(`[CreatePacket] Committed session ${state.activeSessionId} → instance ${data.instanceId}`);
       toast({
         title: "Saved as Admin Instance",
@@ -808,6 +692,6 @@ export function useCreatePacket({
     isCommitting, commitResult, artifactError,
     calculatePricing, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
-    setPacketResult, setError,
+    setPacketResult, setError, setCommitResult, setArtifactError,
   };
 }

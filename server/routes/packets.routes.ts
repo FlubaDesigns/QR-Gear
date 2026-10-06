@@ -1,3 +1,6 @@
+import { validatePacketComposition, packetPrintifyArtwork } from '../../functions/src/services/assembly-store';
+import { deleteBuildPacket } from '../../functions/src/services/build-session-state';
+import { packetBuildFields } from '../../shared/builderSnapshot';
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
 import { PRODUCT_PACKETS_COLLECTION, STORE_PRODUCT_LINKS_COLLECTION } from "../lib/constants";
@@ -369,6 +372,10 @@ export function registerPacketRoutes(app: Express): void {
         updatedAt: now,
       };
       
+      if (req.body.builderSnapshot) {
+        try { Object.assign(packetData, packetBuildFields(req.body.builderSnapshot)); }
+        catch (error: any) { res.status(400).json({ error: error.message }); return; }
+      }
       const packetRef = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
       const packetId = packetRef.id;
       
@@ -547,12 +554,9 @@ export function registerPacketRoutes(app: Express): void {
       }
       
       // ── Publish guard (parity with functions pp-pricing-packets Fix 15) ──────
-      if (updates.status === 'published') {
-        const existingData = doc.data() as any;
-        const resolvedAssemblyId = updates.assemblyId || existingData?.assemblyId || null;
-        if (!resolvedAssemblyId) {
-          return res.status(400).json({ error: 'Cannot publish packet — assemblyId is missing. Complete the QRG → BLD → GRF chain first.' });
-        }
+      if (updates.status === 'published' || doc.data()?.status === 'published') {
+        try { await validatePacketComposition(firestoreDb, packetId, { ...doc.data(), ...updates }); }
+        catch (e: any) { return res.status(400).json({ error: e.message }); }
       }
       // ── end publish guard ─────────────────────────────────────────────────────
 
@@ -619,46 +623,8 @@ export function registerPacketRoutes(app: Express): void {
         return res.status(404).json({ error: "Packet not found" });
       }
       
-      const cascadeResults = {
-        graphics: 0,
-        templates: 0,
-        storeProductLinks: 0,
-      };
-      
-      const graphicsSnap = await firestoreDb.collection("productGraphics")
-        .where("packetId", "==", packetId)
-        .get();
-      for (const graphicDoc of graphicsSnap.docs) {
-        await graphicDoc.ref.delete();
-        cascadeResults.graphics++;
-      }
-      
-      const templatesSnap = await firestoreDb.collection("productTemplates")
-        .where("packetId", "==", packetId)
-        .get();
-      for (const templateDoc of templatesSnap.docs) {
-        await templateDoc.ref.delete();
-        cascadeResults.templates++;
-      }
-      
-      const linksSnap = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
-        .where("packetId", "==", packetId)
-        .get();
-      for (const linkDoc of linksSnap.docs) {
-        await linkDoc.ref.delete();
-        cascadeResults.storeProductLinks++;
-      }
-      
-      await docRef.delete();
-      
-      console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);
-      
-      res.json({
-        success: true,
-        packetId,
-        message: "Packet deleted with cascade cleanup",
-        cascade: cascadeResults,
-      });
+      await deleteBuildPacket(firestoreDb, packetId, (await import('firebase-admin/firestore')).FieldValue.serverTimestamp());
+      res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
     } catch (error: any) {
       console.error("[Packets DELETE] Error:", error);
       res.status(500).json({ error: error.message });
@@ -668,7 +634,7 @@ export function registerPacketRoutes(app: Express): void {
   // ── Publish Packet to Printify ─────────────────────────────────────────────
   // Creates (or re-creates) a Printify product from the packet's composite images.
   // Stores printifyProductId, printifyVariantMap, and printifyPublishedAt back on the packet.
-  app.post("/api/admin/packets/:packetId/publish-to-printify", isAdmin, async (req: any, res) => {
+  app.post("/api/admin/qrg/publish-to-printify/:packetId", isAdmin, async (req: any, res) => {
     try {
       const { packetId } = req.params;
       const overrideProviderId: number | undefined = req.body.printProviderId
@@ -686,6 +652,10 @@ export function registerPacketRoutes(app: Express): void {
         return res.status(404).json({ error: `Packet ${packetId} not found` });
       }
       const packet = packetDoc.data()!;
+      try { await validatePacketComposition(firestoreDb, packetId, packet); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
+      if (packet.fulfillmentProvider && packet.fulfillmentProvider !== 'printify') { res.status(400).json({ error: 'This packet is not a Printify product.' }); return; }
+
 
       if (!packet.blueprintId) {
         return res.status(400).json({ error: "Packet is missing blueprintId" });
@@ -694,6 +664,9 @@ export function registerPacketRoutes(app: Express): void {
         return res.status(400).json({ error: "Packet is missing compositeUrl — regenerate the composite first" });
       }
 
+      let artwork: Array<{ position: string; imageUrl: string }>;
+      try { artwork = await packetPrintifyArtwork(firestoreDb, packet); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
       const blueprintId = parseInt(packet.blueprintId, 10);
       const printProviderId = overrideProviderId || packet.printProviderId || 99;
 
@@ -744,31 +717,12 @@ export function registerPacketRoutes(app: Express): void {
       }
 
       // ── 3. Upload composite images to Printify ─────────────────────────────
-      const PLACEMENT_URL_MAP: Record<string, string> = {
-        front: "compositeUrl",
-        left_sleeve: "sleeveCompositeUrl",
-        right_sleeve: "rightSleeveCompositeUrl",
-        back: "backCompositeUrl",
-      };
-
-      const placements: string[] = packet.placements || ["front"];
-
       const placeholders: Array<{
         position: string;
         images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
       }> = [];
 
-      for (const placement of placements) {
-        const urlField = PLACEMENT_URL_MAP[placement];
-        if (!urlField) {
-          console.warn(`[PublishToPrintify] Unknown placement "${placement}" — skipping`);
-          continue;
-        }
-        const imageUrl: string | undefined = packet[urlField];
-        if (!imageUrl) {
-          console.warn(`[PublishToPrintify] Placement "${placement}" has no image URL — skipping`);
-          continue;
-        }
+      for (const { position: placement, imageUrl } of artwork) {
         const upload = await printify.uploadImage(imageUrl, `${packetId}-${placement}.png`);
         console.log(`[PublishToPrintify] ${placement} image uploaded: ${upload.id}`);
         placeholders.push({

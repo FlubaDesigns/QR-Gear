@@ -1,3 +1,4 @@
+import { LoadBldModule } from './modules/LoadBldModule';
 import { useState, useRef, useCallback } from "react";
 import { ChevronDown, ChevronRight, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -286,6 +287,7 @@ function BuilderModules() {
         />
 
         <BuilderSummaryCard />
+        <LoadBldModule />
 
         <LoadSavedModule open={savedOpen} onOpenChange={setSavedOpen} hideCard />
         <LoadTemplateModule open={templateOpen} onOpenChange={setTemplateOpen} hideCard />

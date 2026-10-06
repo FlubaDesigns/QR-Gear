@@ -1,7 +1,7 @@
 #!/bin/bash
 # Step 1 of 3 — Bump BUILD_ID + functions version and compile both targets
 # Bash tool timeout: 90000ms
-set -e
+set -eo pipefail
 
 # Bump _BUILD_ID in index.ts
 sed -i "s/const _BUILD_ID = '[^']*'/const _BUILD_ID = '$(date +%Y%m%d-%H%M%S)-$RANDOM'/" functions/src/index.ts

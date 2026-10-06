@@ -1,3 +1,5 @@
+import { listBldDefinitions, readBldDefinition } from '../../functions/src/services/bld-store';
+import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../../functions/src/services/build-session-state';
 /**
  * Admin Build Sessions
  *
@@ -53,6 +55,20 @@ function sanitizeForFirestore(obj: any): any {
 }
 
 export function registerAdminBuildSessionRoutes(app: Express): void {
+
+  app.get('/api/admin/bld', isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      const definitions = await listBldDefinitions(getFirestoreDb(), req.query.context, req.query.layout);
+      res.json({ success: true, definitions, count: definitions.length });
+    } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
+  });
+  app.get('/api/admin/bld/:bldId', isAdmin, async (req: any, res) => {
+    try {
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      res.json({ success: true, bld: await readBldDefinition(getFirestoreDb(), req.params.bldId) });
+    } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
+  });
 
   // ── List build sessions for admin ────────────────────────────────────────
   app.get("/api/admin/build-sessions", isAdmin, async (req: any, res) => {
@@ -561,6 +577,9 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         return res.json({
           success: true,
           alreadyCommitted: true,
+          packetId: session.generated?.packetId || null,
+          bldId: session.bldId || null,
+          assemblyId: session.assemblyId || null,
           instanceId: session.committedInstanceId,
           sessionId: id,
         });
@@ -575,6 +594,12 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
           error: "Artifact must be generated before committing. Call generate-artifact first.",
         });
       }
+
+      // Render, BLD and Assembly must consume the same captured build inputs.
+      try {
+        session.working = await readGeneratedBuild(db, { ...session, id });
+      } catch (error: any) { res.status(400).json({ error: error.message }); return; }
+      const previousInstance = await existingBuildInstance(db, { ...session, id });
 
       const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(session.sourceMasterId).get();
       if (!masterDoc.exists) {
@@ -694,7 +719,11 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
         await import("../lib/schema-commit");
 
       // ── Gate 2: Allocate QRG instance ────────────────────────────────────────
-      const qrgIdentity = await allocateQrgInstanceDev(masterQrgBlankId, 'I');
+      const qrgIdentity = previousInstance ? {
+        qrgBlankId: previousInstance.qrgBlankId, qrgContext: previousInstance.qrgContext,
+        instanceNumber: previousInstance.instanceNumber, qrgBaseCode: previousInstance.qrgBaseCode,
+        variantCode: previousInstance.variantCode ?? null, qrgFullCode: previousInstance.qrgFullCode ?? null,
+      } : await allocateQrgInstanceDev(masterQrgBlankId, 'I');
       const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
       console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
 
@@ -726,12 +755,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       // ── Gate 4: Write BLD definition (BLOCKING) ──────────────────────────────
       let bldId: string | null = null;
       try {
-        const bldResult = await writeBldDev({
-          working: session.working || {},
-          sourceSessionId: id, sourceInstanceId: null,
-          qrgBlankId: qrgIdentity.qrgBlankId, qrgBaseCode: qrgIdentity.qrgBaseCode,
-          packetId,
-        });
+        const bldResult = await writeBldDev({ working: session.working || {}, packetId: packetId });
         bldId = bldResult.bldId;
         console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
       } catch (bldErr: any) {
@@ -758,7 +782,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       }
 
       // ── Gate 6: Create admin_catalog_instance (all schema records exist) ─────
-      const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
+      const instanceRef = await saveBuildInstance(db, { ...session, id }, {
         instanceType: "admin",
         sourceMasterId: session.sourceMasterId,
         sourceSessionId: id,

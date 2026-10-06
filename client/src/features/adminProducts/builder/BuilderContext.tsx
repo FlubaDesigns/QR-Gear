@@ -1,3 +1,5 @@
+import { applyBuilderBld } from '@shared/bldCodes';
+import { buildWorkingSnapshot, sanitizeSnapshot, requireBuilderSnapshot } from '@shared/builderSnapshot';
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
 import { adminFetch } from "@/lib/adminFetch";
@@ -16,6 +18,7 @@ interface BuilderContextValue {
   selectedChannel: Channel | null;
   selectedCollection: Collection | null;
   setSourceType: (type: SourceType) => void;
+  loadBld: (definition: Record<string, any>) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
   loadBackground: (background: LoadedBackground | null) => void;
@@ -38,6 +41,7 @@ interface BuilderContextValue {
   setProductDescription: (description: string | null, source?: TextLayerSource) => void;
   setProductTitle: (title: string | null, source?: TextLayerSource) => void;
   resetBuilder: () => void;
+  saveWorking: (draftName?: string) => Promise<Record<string, any>>;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   loadFromWorkingState: (working: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   hasChangesFromBaseline: () => boolean;
@@ -135,18 +139,12 @@ const initialState: BuilderState = {
   sessionStatus: null,
   committedInstanceId: null,
   selectedCatalogId: "all",
+  selectedBldId: null,
   providerLayout: null,
 };
 
 interface BuilderProviderProps {
   children: React.ReactNode;
-}
-
-interface BuilderSnapshotContext {
-  selectedRole: RoleType | null;
-  selectedStore: Store | null;
-  selectedChannel: Channel | null;
-  selectedCollection: Collection | null;
 }
 
 function normalizeLandingTextBlocks(blocks: any[]): any[] {
@@ -170,252 +168,8 @@ function normalizeLandingTextBlocks(blocks: any[]): any[] {
   }));
 }
 
-/**
- * Compute canonical BLD zone data conforming to BLD.md structural schema.
- * Stored at working.bld.layout.zones — the canonical session-level zone record.
- *
- * BLD.md rules enforced:
- *   - Structural params ONLY — no content (no text, no GRF IDs, no QRG refs)
- *   - Vehicle types: txt | img | qrc  (shorthand T/I/Q never used outside diagrams)
- *   - Zone mode (Z): qrc positionLR/UD are implicit center — NOT stored per spec
- *   - Palette mode (P): qrc positionLR/UD required
- *
- * Zone structure per BLD.md:
- *   top       → txt | img   (header region)
- *   middle    → qrc         (QR code — centered+locked in Zone, floating in Palette)
- *   subBottom → txt         (strip below QR)
- *   bottom    → txt | img   (footer region)
- *
- * @see BLD.md
- */
-function buildBldLayoutZones(state: BuilderState): Record<string, any> {
-  const content = state.content || {};
-  const layoutMode = (content.graphicLayoutMode as string) || 'zone';
-  const layoutCode: 'Z' | 'P' = layoutMode === 'freeform' ? 'P' : 'Z';
-
-  const header = (content.headerStyle || {}) as any;
-  const footer = (content.footerStyle || {}) as any;
-  const sub    = (content.subBottomStyle || {}) as any;
-
-  const topType: 'txt' | 'img'    = header.mode === 'image' ? 'img' : 'txt';
-  const bottomType: 'txt' | 'img' = footer.mode === 'image' ? 'img' : 'txt';
-
-  // Strip undefined/null/'' so Firestore doesn't store empty fields
-  const v = (val: any): any => (val !== undefined && val !== null && val !== '') ? val : undefined;
-
-  // ── TOP ZONE (header) ────────────────────────────────────────────────────
-  const topZone: Record<string, any> = {
-    seq:     '01',
-    type:    topType,
-    role:    'header',
-    enabled: !!header.enabled,
-  };
-  if (topType === 'txt') {
-    Object.assign(topZone, {
-      fontFamily:    v(header.fontFamily),
-      fontSize:      header.fontSize     ? Number(header.fontSize)     : undefined,
-      fontWeight:    v(header.fontWeight),
-      letterSpacing: header.letterSpacing != null ? Number(header.letterSpacing) : undefined,
-      strokeWidth:   header.strokeWidth   != null ? Number(header.strokeWidth)   : undefined,
-      strokeColor:   v(header.strokeColor),
-      positionLR:    header.horizontalOffset ?? 50,
-      positionUD:    header.verticalOffset   ?? 80,
-    });
-  } else {
-    Object.assign(topZone, {
-      size:       header.imageScale      ?? 100,
-      positionLR: header.horizontalOffset ?? 50,
-      positionUD: header.verticalOffset   ?? 50,
-    });
-  }
-
-  // ── MIDDLE ZONE (qrc) ────────────────────────────────────────────────────
-  // BLD.md: Zone mode — positionLR/UD are implicit center, NOT stored.
-  //         Palette mode — positionLR/UD REQUIRED.
-  const middleZone: Record<string, any> = {
-    seq:  '02',
-    type: 'qrc',
-    size: content.qrSizePercent ?? 75,
-  };
-  if (layoutCode === 'P') {
-    middleZone.positionLR = content.qrPositionX ?? 50;
-    middleZone.positionUD = content.qrPositionY ?? 50;
-  }
-
-  // ── SUB-BOTTOM ZONE (txt strip below QR) ────────────────────────────────
-  const subBottomZone: Record<string, any> = {
-    seq:       '03',
-    type:      'txt',
-    role:      'sub_bottom',
-    enabled:   !!(sub.enabled && sub.text),
-    fontFamily: v(sub.fontFamily),
-    fontSize:   sub.fontSize ? Number(sub.fontSize) : undefined,
-    fontWeight: v(sub.fontWeight),
-    positionLR: 50,
-    positionUD: 50,
-  };
-
-  // ── BOTTOM ZONE (footer) ─────────────────────────────────────────────────
-  const bottomZone: Record<string, any> = {
-    seq:     '04',
-    type:    bottomType,
-    role:    'footer',
-    enabled: !!footer.enabled,
-  };
-  if (bottomType === 'txt') {
-    Object.assign(bottomZone, {
-      fontFamily:    v(footer.fontFamily),
-      fontSize:      footer.fontSize     ? Number(footer.fontSize)     : undefined,
-      fontWeight:    v(footer.fontWeight),
-      letterSpacing: footer.letterSpacing != null ? Number(footer.letterSpacing) : undefined,
-      strokeWidth:   footer.strokeWidth   != null ? Number(footer.strokeWidth)   : undefined,
-      strokeColor:   v(footer.strokeColor),
-      positionLR:    footer.horizontalOffset ?? 50,
-      positionUD:    footer.verticalOffset   ?? 80,
-    });
-  } else {
-    Object.assign(bottomZone, {
-      size:       footer.imageScale      ?? 100,
-      positionLR: footer.horizontalOffset ?? 50,
-      positionUD: footer.verticalOffset   ?? 50,
-    });
-  }
-
-  return {
-    layoutMode: layoutCode,
-    layout: {
-      zones: {
-        top:       topZone,
-        middle:    middleZone,
-        subBottom: subBottomZone,
-        bottom:    bottomZone,
-      },
-    },
-    // providerLayout is NOT a BLD field — it lives at working.providerLayout (see buildWorkingSnapshot).
-  };
-}
-
-/**
- * Compute a client-side BLD draft summary from the current builder state.
- * Mirrors the server-side extractBldInstances logic (bld-builder.ts) but
- * produces a lightweight preview — no IDs, no Firestore writes.
- * Used in autosave so the server can validate the draft shape without a commit.
- *
- * BLD.md rule: structural params ONLY — no content (no text, no GRF IDs, no QRG refs).
- * Layer entries carry seq, type, and role only.
- */
-function buildBldDraft(state: BuilderState): Record<string, any> {
-  const content = state.content || {};
-  const layers: Array<{ seq: string; type: string; role?: string }> = [];
-  let seq = 1;
-  const pad = (n: number) => String(n).padStart(2, '0');
-
-  const bgUrl    = state.loadedBackground?.url || null;
-  const areaUrl  = content.areaImageUrl || null;
-  if (bgUrl || areaUrl) {
-    layers.push({ seq: pad(seq++), type: 'img', role: bgUrl ? 'background' : 'area_image' });
-  }
-  layers.push({ seq: pad(seq++), type: 'qrc' });
-
-  if (content.headerStyle?.enabled && content.headerStyle?.text)
-    layers.push({ seq: pad(seq++), type: 'txt', role: 'header' });
-  if (content.footerStyle?.enabled && content.footerStyle?.text)
-    layers.push({ seq: pad(seq++), type: 'txt', role: 'footer' });
-  if (content.subBottomStyle?.enabled && content.subBottomStyle?.text)
-    layers.push({ seq: pad(seq++), type: 'txt', role: 'sub_bottom' });
-  for (const block of (Array.isArray(content.landingTextBlocks) ? content.landingTextBlocks : [])) {
-    const b = block as any;
-    if (b.enabled && b.text)
-      layers.push({ seq: pad(seq++), type: 'txt', role: b.role || 'landing_text' });
-  }
-
-  return {
-    layoutMode:    content.graphicLayoutMode || 'zone',
-    instanceCount: layers.length,
-    layers,
-  };
-}
-
-/**
- * Sanitize a snapshot for safe transmission to the server.
- * JSON.stringify drops undefined values; the replacer also converts
- * NaN/Infinity → null so the server never receives non-finite numbers.
- */
-function sanitizeSnapshot(obj: any): any {
-  return JSON.parse(JSON.stringify(obj, (_, v) => {
-    if (v === undefined) return null;
-    if (typeof v === 'number' && !isFinite(v)) return null;
-    return v;
-  }));
-}
-
-function buildWorkingSnapshot(state: BuilderState, ctx: BuilderSnapshotContext): Record<string, any> {
-  const { playMediaFile, playMediaPreview, ...serializableContent } = state.content;
-  // PROGRESSIVE TRUTH — WRITE STRICT PACKET VALUES ONLY.
-  // NULL = "no explicit packet value". Display fallback is handled by
-  // shared/descriptionLayers.ts at render time — NEVER at save time.
-  // Do NOT fall back to masterTitle, masterDescription, or any upstream layer here.
-  const packetTitle = state.adminCatalogTitle !== null && state.adminCatalogTitle !== undefined
-    ? state.adminCatalogTitle : null;
-  const titleSource: TextLayerSource = state.titleSource ?? null;
-  const packetDescription = state.productDescription !== null && state.productDescription !== undefined
-    ? state.productDescription : null;
-  const descriptionSource: TextLayerSource = state.descriptionSource ?? null;
-  const adminCatalogDescription = state.adminCatalogDescription !== null && state.adminCatalogDescription !== undefined
-    ? state.adminCatalogDescription : null;
-  return {
-    title: packetTitle,
-    titleSource,
-    description: packetDescription,
-    adminCatalogDescription,
-    descriptionSource,
-    images: state.selectedProduct?.images ?? [],
-    graphics: {
-      content: serializableContent,
-      loadedBackground: state.loadedBackground,
-      loadedGraphic: state.loadedGraphic,
-      loadedTemplate: state.loadedTemplate,
-    },
-    qrConfig: {
-      qrProductState: state.qrProductState,
-      selectedColor: state.selectedColor,
-      templateProductHint: state.templateProductHint,
-    },
-    layoutConfig: {
-      selectedPlacements: state.selectedPlacements,
-      placementConfig: state.placementConfig,
-      placementSizes: state.placementSizes,
-      placementMethods: state.placementMethods,
-    },
-    metadata: {
-      fulfillmentProvider: state.fulfillmentProvider,
-      category: state.category,
-      originFilter: state.originFilter,
-      genderFilter: state.genderFilter,
-      sourceType: state.sourceType,
-      selectedProductDocId: state.selectedProduct?.docId ?? null,
-      selectedProductBlueprintId: state.selectedProduct?.blueprintId ?? null,
-      templateProductHint: state.templateProductHint ?? null,
-      selectedCatalogId: state.selectedCatalogId ?? "all",
-      selectedRole: ctx.selectedRole ?? null,
-      selectedStore: ctx.selectedStore ?? null,
-      selectedChannel: ctx.selectedChannel ?? null,
-      selectedCollection: ctx.selectedCollection ?? null,
-    },
-    // BLD canonical zone data — structural schema per BLD.md (no content, no GRF IDs)
-    // Stored at working.bld.layout.zones; read by bld-builder at commit time
-    bld: buildBldLayoutZones(state),
-    // BLD draft — lightweight layer preview for server-side validation without a commit
-    // structural only: seq, type, role — no text, no GRF IDs, no QRG refs (BLD.md)
-    bldDraft: buildBldDraft(state),
-    // Provider layout — renderer/export dimensions. NOT a BLD field; stored here (not in
-    // working.bld) per BLD.md separation of concerns. Read back by loadFromWorkingState.
-    providerLayout: state.providerLayout ?? null,
-  };
-}
-
 export function BuilderProvider({ children }: BuilderProviderProps) {
-  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
+  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
@@ -424,6 +178,24 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const flushSaveRef = useRef<(() => void) | null>(null);
   // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
   const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || 'printify');
+
+  const saveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const persistWorking = useCallback((sessionId: string, snapshot: Record<string, any>, draftName?: string) => {
+    const save = saveQueueRef.current.catch(() => undefined).then(() => adminFetch(`/build-sessions/${sessionId}`, {
+      method: 'PATCH', json: { working: snapshot, ...(draftName !== undefined ? { draftName } : {}) },
+    }));
+    saveQueueRef.current = save;
+    return save;
+  }, []);
+  const saveWorking = useCallback(async (draftName?: string) => {
+    if (!state.activeSessionId) throw new Error('Select a product before saving.');
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    const snapshot = sanitizeSnapshot(buildWorkingSnapshot(state, { selectedRole, selectedStore, selectedChannel, selectedCollection }));
+    await persistWorking(state.activeSessionId, snapshot, draftName);
+    setAutoSaveFailed(false);
+    setAutoSaveError(null);
+    return snapshot;
+  }, [state, selectedRole, selectedStore, selectedChannel, selectedCollection, persistWorking]);
 
   // Subscribe to auth state so the keepalive cache is primed the moment Firebase
   // resolves the user — even on first load when auth.currentUser is still null.
@@ -514,24 +286,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           ` | gfx: ${cleanSnapshot.graphics?.loadedGraphic ? 'yes' : 'no'}` +
           ` | placements: ${JSON.stringify(cleanSnapshot.layoutConfig?.selectedPlacements ?? [])}`,
         );
-        await adminFetch(`/build-sessions/${sessionId}`, {
-          method: "PATCH",
-          json: { working: cleanSnapshot },
-        });
+        await persistWorking(sessionId, cleanSnapshot);
         setAutoSaveFailed(false);
         setAutoSaveError(null);
         console.log(`[BuilderContext] Auto-save OK — session ${sessionId}`);
 
-        // Secondary: if a packet already exists, keep its builderSnapshot in sync too.
-        // Use the same complete, sanitized snapshot so packet restore has full fidelity.
-        if (state.activePacketId) {
-          await adminFetch(`/packets/${state.activePacketId}`, {
-            method: "PATCH",
-            json: { builderSnapshot: cleanSnapshot },
-          }).catch((e) => {
-            console.warn(`[BuilderContext] Packet sync failed:`, e.message);
-          });
-        }
+        // Packet snapshots are frozen render inputs. Draft edits stay in session.working.
       } catch (e: any) {
         const rawMsg = e?.message || String(e) || "Unknown error";
         // Extract just the HTTP status + server detail for display — the full URL prefix is noise.
@@ -572,6 +332,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     state.sessionStatus,
     state.activePacketId,
     state.selectedCatalogId,
+    state.selectedBldId,
     selectedRole,
     selectedStore,
     selectedChannel,
@@ -903,6 +664,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }));
   }, []);
 
+  const loadBld = useCallback((definition: Record<string, any>) => {
+    // Validate before React's updater so the picker can display a useful error.
+    const content = applyBuilderBld(definition, state.content);
+    setState(prev => ({ ...prev, content: content as ContentData, selectedBldId: definition.bldId }));
+  }, [state.content]);
+
   const setContent = useCallback((content: Partial<ContentData>) => {
     setState(prev => ({
       ...prev,
@@ -1057,12 +824,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       ` | placements: ${JSON.stringify(layoutConfig.selectedPlacements ?? [])}` +
       ` | product: ${resolvedProduct?.title ?? "null"}`,
     );
-    if (metadata.selectedRole) setSelectedRole(metadata.selectedRole as RoleType);
-    if (metadata.selectedStore) setSelectedStore(metadata.selectedStore as Store);
-    if (metadata.selectedChannel) setSelectedChannel(metadata.selectedChannel as Channel);
-    if (metadata.selectedCollection) setSelectedCollection(metadata.selectedCollection as Collection);
+    if (metadata.fulfillmentProvider) setSelectedProviders([metadata.fulfillmentProvider]);
+    setSelectedRole((metadata.selectedRole ?? null) as RoleType | null);
+    setSelectedStore((metadata.selectedStore ?? null) as Store | null);
+    setSelectedChannel((metadata.selectedChannel ?? null) as Channel | null);
+    setSelectedCollection((metadata.selectedCollection ?? null) as Collection | null);
 
-    const product = resolvedProduct ?? null;
+    const product = resolvedProduct ? { ...resolvedProduct, fulfillmentProvider: metadata.fulfillmentProvider ?? resolvedProduct.fulfillmentProvider } : null;
     // Always re-fetch options on load — the saved product may have stale/partial
     // placements (e.g. only 'front' from a previous session). Setting optionsLoaded:false
     // above is not enough because needsOptionsFetch was computed from the original value.
@@ -1086,11 +854,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       productDescription: working.description ?? null,
       adminCatalogDescription: working.adminCatalogDescription ?? working.description ?? null,
       descriptionSource: (working.descriptionSource as TextLayerSource) ?? null,
-      selectedProduct: product ? { ...product, optionsLoaded: false } : prev.selectedProduct,
+      selectedProduct: product ? { ...product, optionsLoaded: false } : null,
       placementsLoading: needsOptionsFetch,
       placementsError: null,
       placementsRestoreWarning: null,
       activePacketId: null,
+      selectedBldId: metadata.selectedBldId ?? null,
       selectedCatalogId: (metadata.selectedCatalogId as string) ?? "all",
       fulfillmentProvider: (metadata.fulfillmentProvider as string) ?? prev.fulfillmentProvider,
       category: (metadata.category as string) ?? null,
@@ -1106,7 +875,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     if (needsOptionsFetch && product) {
       fetchOptionsForProduct(product);
     }
-  }, [setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection, fetchOptionsForProduct]);
+  }, [setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection, fetchOptionsForProduct]);
 
   const buildBaselineSnapshot = (
     packetData: Record<string, any>,
@@ -1116,8 +885,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     backgroundUrl: string | null,
     blueprintId: number | null,
   ): string => {
-    const h = (packetData.headerStyle as any) || content.headerStyle || {};
-    const f = (packetData.footerStyle as any) || content.footerStyle || {};
+    const h: Partial<ContentData['headerStyle']> = content.headerStyle || {};
+    const f: Partial<ContentData['footerStyle']> = content.footerStyle || {};
     const sb = content.subBottomStyle as any || {};
     return JSON.stringify({
       blueprintId,
@@ -1151,117 +920,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   };
 
   const loadFromPacketData = useCallback((packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => {
-    const snapshot = packetData.builderSnapshot?.content as Partial<ContentData> | undefined;
-
-    const headerStyle = packetData.headerStyle
-      ? { ...initialContent.headerStyle, ...(packetData.headerStyle as object) }
-      : (snapshot?.headerStyle ? { ...initialContent.headerStyle, ...snapshot.headerStyle } : initialContent.headerStyle);
-
-    const footerStyle = packetData.footerStyle
-      ? { ...initialContent.footerStyle, ...(packetData.footerStyle as object) }
-      : (snapshot?.footerStyle ? { ...initialContent.footerStyle, ...snapshot.footerStyle } : initialContent.footerStyle);
-
-    const subBottomStyle = snapshot?.subBottomStyle || {
-      ...defaultTextStyle,
-      enabled: packetData.subBottomEnabled || false,
-      text: packetData.subBottomText || '',
-      fontFamily: packetData.subBottomFontFamily || 'Arial',
-      fontSize: packetData.subBottomFontSize || '14',
-      fontWeight: packetData.subBottomFontWeight || '400',
-      color: packetData.subBottomColor || '#666666',
-      mode: 'text' as const,
-    };
-
-    if (packetData.qrContent && !snapshot?.url) {
-      console.warn('[BuilderContext] loadFromPacketData: Packet has qrContent but builder snapshot url is missing. Falling back to qrContent.');
-    }
-
-    const newContent: Partial<ContentData> = {
-      url: snapshot?.url || packetData.qrContent || '',
-      title: packetData.landingPageTitle || snapshot?.title || '',
-      description: packetData.landingPageDescription || snapshot?.description || '',
-      headerStyle,
-      footerStyle,
-      subBottomStyle,
-      qrPositionX: packetData.qrPositionX ?? snapshot?.qrPositionX ?? 50,
-      qrPositionY: packetData.qrPositionY ?? snapshot?.qrPositionY ?? 50,
-      qrSizePercent: packetData.qrSizePercent ?? snapshot?.qrSizePercent ?? 75,
-      areaImageUrl: packetData.areaImageUrl || snapshot?.areaImageUrl || '',
-      areaImageMode: (packetData.areaImageMode || snapshot?.areaImageMode || 'behind-qr') as "behind-qr",
-      areaImageOffsetX: packetData.areaImageOffsetX ?? snapshot?.areaImageOffsetX ?? 50,
-      areaImageOffsetY: packetData.areaImageOffsetY ?? snapshot?.areaImageOffsetY ?? 50,
-      areaImageScale: packetData.areaImageScale ?? snapshot?.areaImageScale ?? 100,
-      landingTextBlocks: snapshot?.landingTextBlocks || (packetData.landingTextBlocks as any[]) || [],
-      graphicLayoutMode: (packetData.graphicLayoutMode || snapshot?.graphicLayoutMode || '') as "" | "zone" | "freeform",
-      qrBasicInputType: (packetData.qrBasicInputType || (snapshot as any)?.qrBasicInputType || 'text') as 'text' | 'url',
-    };
-
-    const selectedColor: SelectedColor | null = packetData.defaultColor
-      ? { name: packetData.defaultColor, hex: packetData.defaultColorHex || '#000000' }
-      : null;
-
-    const bgUrl = packetData.backgroundUrl || packetData.landingPageBackgroundUrl || null;
-    const loadedBackground = bgUrl
-      ? { id: 'template-bg', name: 'Template Background', url: bgUrl }
-      : null;
-
-    const selectedPlacements: string[] = Array.isArray(packetData.selectedPlacements)
-      ? packetData.selectedPlacements
-      : (Array.isArray(packetData.builderSnapshot?.selectedPlacements) ? packetData.builderSnapshot.selectedPlacements : []);
-    const blueprintId: number | null = packetData.blueprintId ? Number(packetData.blueprintId) : null;
-
-    const hint: TemplateProductHint = {
-      blueprintId,
-      printProviderId: packetData.printProviderId ? Number(packetData.printProviderId) : null,
-      productId: packetData.productId ? Number(packetData.productId) : null,
-      productName: packetData.productName || null,
-      fulfillmentProvider: packetData.fulfillmentProvider || 'printify',
-    };
-
-    const baseline = buildBaselineSnapshot(
-      packetData,
-      newContent,
-      selectedPlacements,
-      selectedColor?.name || null,
-      bgUrl,
-      blueprintId,
-    );
-
-    // Always re-fetch options on load — the saved product may have stale/partial
-    // placements (e.g. only 'front' from a previous session).
-    const needsOptionsFetch = !!resolvedProduct;
-
-    setState(prev => ({
-      ...prev,
-      qrProductState: (packetData.qrProductState as QRProductState) || 'qr_canvas',
-      selectedPlacements,
-      placementConfig: (packetData.placementConfig as Record<string, any>) || {},
-      placementSizes: (packetData.placementSizes as Record<string, any>) || {},
-      placementMethods: (packetData.placementMethods as Record<string, any>) || {},
-      selectedColor,
-      loadedBackground,
-      fulfillmentProvider: packetData.fulfillmentProvider || 'printify',
-      content: { ...initialContent, ...newContent },
-      activePacketId: null,
-      templateBaseline: baseline,
-      templateProductHint: hint,
-      selectedProduct: resolvedProduct ? { ...resolvedProduct, optionsLoaded: false } : null,
-      // PROGRESSIVE TRUTH — hydrate only the packet-owned value. Never fall back to
-      // resolvedProduct?.description (upstream provider text). NULL is correct when the
-      // packet has no explicit description; display resolver handles fallback at render time.
-      productDescription: packetData.productDescription !== undefined ? packetData.productDescription : null,
-      adminCatalogDescription: packetData.adminCatalogDescription !== undefined ? packetData.adminCatalogDescription : null,
-      placementsLoading: needsOptionsFetch,
-      placementsError: null,
-      placementsRestoreWarning: null,
-      // Restore persisted provider layout so renderer uses correct dims when loading from packet
-      providerLayout: (packetData.providerLayout as ProviderLayout) ?? null,
-    }));
-
-    if (needsOptionsFetch && resolvedProduct) {
-      fetchOptionsForProduct(resolvedProduct);
-    }
-  }, [fetchOptionsForProduct]);
+    const working = requireBuilderSnapshot(packetData.builderSnapshot);
+    working.metadata.selectedBldId = packetData.bldId || working.metadata.selectedBldId || null;
+    loadFromWorkingState(working, resolvedProduct);
+    const content = working.graphics.content;
+    setState(prev => ({ ...prev, templateBaseline: buildBaselineSnapshot(
+      packetData, content, working.layoutConfig.selectedPlacements,
+      working.qrConfig.selectedColor?.name ?? null, working.graphics.loadedBackground?.url ?? null,
+      resolvedProduct?.blueprintId ?? null,
+    ) }));
+  }, [loadFromWorkingState]);
 
   const hasChangesFromBaseline = useCallback((): boolean => {
     if (!state.templateBaseline) return true;
@@ -1334,6 +1002,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     selectProduct,
     setQRProductState,
     setContent,
+    loadBld,
     togglePlacement,
     setPlacementType,
     setPlacementSize,
@@ -1346,12 +1015,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setProductDescription,
     setProductTitle,
     resetBuilder,
+    saveWorking,
     loadFromPacketData,
     loadFromWorkingState,
     hasChangesFromBaseline,
     setTemplateProductResolved,
     api,
-  }), [state, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, loadBld, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
 
   return (
     <BuilderContext.Provider value={value}>

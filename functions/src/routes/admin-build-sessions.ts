@@ -1,3 +1,5 @@
+import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
+import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../services/build-session-state';
 /**
  * Admin Build Sessions (Cloud Functions port)
  *
@@ -486,6 +488,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
         res.json({
           success: true,
           alreadyCommitted: true,
+          packetId: session.generated?.packetId || null,
+          bldId: session.bldId || null,
+          assemblyId: session.assemblyId || null,
           instanceId: session.committedInstanceId,
           sessionId: id,
         });
@@ -503,6 +508,12 @@ export function registerAdminBuildSessions(app: express.Express): void {
         });
         return;
       }
+
+      // Render, BLD and Assembly must consume the same captured build inputs.
+      try {
+        session.working = await readGeneratedBuild(db, { ...session, id });
+      } catch (error: any) { res.status(400).json({ error: error.message }); return; }
+      const previousInstance = await existingBuildInstance(db, { ...session, id });
 
       const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(session.sourceMasterId).get();
       if (!masterDoc.exists) {
@@ -641,7 +652,11 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       // ── Gate 2: Allocate QRG instance (atomically minted — never hand-coded) ──
-      const qrgIdentity = await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
+      const qrgIdentity = previousInstance ? {
+        qrgBlankId: previousInstance.qrgBlankId, qrgContext: previousInstance.qrgContext,
+        instanceNumber: previousInstance.instanceNumber, qrgBaseCode: previousInstance.qrgBaseCode,
+        variantCode: previousInstance.variantCode ?? null, qrgFullCode: previousInstance.qrgFullCode ?? null,
+      } : await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
       const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
       console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
 
@@ -680,14 +695,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // ── Gate 4: Write BLD definition (BLOCKING — commit fails if BLD write fails) ──
       let bldId: string | null = null;
       try {
-        const bldResult = await writeBldDefinition({
-          working:          session.working || {},
-          sourceSessionId:  id,
-          sourceInstanceId: null,  // back-filled onto instance after creation
-          qrgBlankId:       qrgIdentity.qrgBlankId,
-          qrgBaseCode:      qrgIdentity.qrgBaseCode,
-          packetId:         newPacketId,
-        });
+        const bldResult = await writeBldDefinition({ working: session.working || {}, packetId: newPacketId });
         bldId = bldResult.bldId;
         console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
       } catch (bldErr: any) {
@@ -720,7 +728,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       // ── Gate 6: Create admin_catalog_instance (all schema records exist) ────
-      const instanceRef = await db.collection(ADMIN_INSTANCES_COLLECTION).add({
+      const instanceRef = await saveBuildInstance(db, { ...session, id }, {
         instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
         catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
         baseSnapshot, overrides, resolved,
@@ -1044,6 +1052,10 @@ export function registerAdminBuildSessions(app: express.Express): void {
         return;
       }
       const packet = packetDoc.data()!;
+      try { await validatePacketComposition(db, packetId, packet); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
+      if (packet.fulfillmentProvider && packet.fulfillmentProvider !== 'printify') { res.status(400).json({ error: 'This packet is not a Printify product.' }); return; }
+
 
       if (!packet.blueprintId) {
         res.status(400).json({ error: 'Packet is missing blueprintId' });
@@ -1058,6 +1070,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
         return;
       }
 
+      let artwork: Array<{ position: string; imageUrl: string }>;
+      try { artwork = await packetPrintifyArtwork(db, packet); }
+      catch (e: any) { res.status(400).json({ error: e.message }); return; }
       const blueprintId = parseInt(packet.blueprintId, 10);
       const printProviderId = overrideProviderId || packet.printProviderId || 99;
 
@@ -1118,34 +1133,12 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       // ── 3. Upload composite images to Printify (generic — driven by placements array) ──
-      const PLACEMENT_URL_MAP: Record<string, string> = {
-        front:        'compositeUrl',
-        left_sleeve:  'sleeveCompositeUrl',
-        right_sleeve: 'rightSleeveCompositeUrl',
-        back:         'backCompositeUrl',
-      };
-
-      // All available graphic placements — exclude label/tag placements
-      const PUBLISH_LABEL_PLACEMENTS = new Set(['label', 'inside_label', 'neck_label', 'outside_label']);
-      const placements: string[] = (packet.placements?.length > 0 ? packet.placements : ['front'])
-        .filter((p: string) => !PUBLISH_LABEL_PLACEMENTS.has(p));
-
       const placeholders: Array<{
         position: string;
         images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
       }> = [];
 
-      for (const placement of placements) {
-        const urlField = PLACEMENT_URL_MAP[placement];
-        if (!urlField) {
-          console.warn(`[PublishToPrintify] Unknown placement "${placement}" — skipping`);
-          continue;
-        }
-        const imageUrl: string | undefined = packet[urlField];
-        if (!imageUrl) {
-          console.warn(`[PublishToPrintify] Placement "${placement}" has no image URL (field: ${urlField}) — skipping`);
-          continue;
-        }
+      for (const { position: placement, imageUrl } of artwork) {
         const upload = await printifyClient.uploadImage(`${packetId}-${placement}.png`, imageUrl);
         console.log(`[PublishToPrintify] ${placement} image uploaded: ${upload.id}`);
         placeholders.push({

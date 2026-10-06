@@ -11,11 +11,11 @@ import { normalizeProductColors } from "@shared/adapters/catalog.adapter";
 async function fetchCatalog(): Promise<Array<{ items: any[] }>> {
   try {
     const res = await fetch("/api/master-catalog");
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error(`Catalog load failed (${res.status})`);
     const data = await res.json();
     return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+  } catch (error) {
+    throw error;
   }
 }
 
@@ -99,7 +99,7 @@ export function DraftResumeHandler() {
         }
 
         // ── 3. Determine restore mode ────────────────────────────────────
-        const isPacketBacked = !!packetData;
+        const isPacketBacked = !!packetData && (session.status === 'committed' || !session?.working?.graphics?.content);
         const hasWorkingState =
           !!session?.working && Object.keys(session.working).length > 0;
 

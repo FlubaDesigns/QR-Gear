@@ -82,6 +82,9 @@ export function CreateGraphicsModule() {
   const isBasicsOrPlusMode = state.qrProductState === "qr_basics" || state.qrProductState === "qr_plus";
 
   const validationErrors: string[] = [];
+  if (!state.activeSessionId) validationErrors.push('Wait for the product session to finish loading');
+  if (!state.content.graphicLayoutMode) validationErrors.push('Select a design layout');
+  if (!state.selectedPlacements.length) validationErrors.push('Select a print placement');
   if (!selectedCollection) {
     validationErrors.push("Select a collection (folder) above before creating a packet");
   }
@@ -92,7 +95,7 @@ export function CreateGraphicsModule() {
     isCommitting, commitResult,
     artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
-    setPacketResult,
+    setPacketResult, setCommitResult, setArtifactError,
   } = useCreatePacket({
     state, selectedRole, selectedStore, selectedChannel, selectedCollection,
     loadGraphic, resetBuilder, pricingSettings,
@@ -177,6 +180,10 @@ export function CreateGraphicsModule() {
         json: {},
       });
       setActiveSession(state.activeSessionId, 'working', data.committedInstanceId || state.committedInstanceId);
+      setActivePacketId(null);
+      setPacketResult(null);
+      setCommitResult(null);
+      setArtifactError(null);
       toast({ title: 'Ready to edit', description: 'Make changes, create a new packet, then save as admin instance.' });
     } catch (err: any) {
       toast({ title: 'Could not reopen', description: err.message || 'Please try again.', variant: 'destructive' });
@@ -300,6 +307,12 @@ export function CreateGraphicsModule() {
               Saving to catalog…
             </p>
           </div>
+        )}
+
+        {hasActiveSession && sessionStatus === 'artifact_ready' && !isCommitting && (
+          <Button onClick={handleCommitSession} disabled={isCreating} data-testid="button-retry-commit">
+            Retry catalog save
+          </Button>
         )}
 
         {/* Committed confirmation + Phase 2 actions */}

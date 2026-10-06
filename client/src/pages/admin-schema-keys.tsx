@@ -1,4 +1,5 @@
 import AdminShell from "@/components/AdminShell";
+import { BLD_CONTEXTS, BLD_LAYOUTS, BLD_LAYOUTS_BY_CONTEXT, BLD_VEHICLES, BLD_MAX_INSTANCES, BLD_MAX_SEQUENCE, formatBldId } from "@shared/bldCodes";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { SIZE_TYPES, LENGTH_TYPES, COLOR_CODE_MAP, PARENT_CATEGORY_LABELS } from "@shared/qrgCodes";
 import {
@@ -233,6 +234,22 @@ export default function AdminSchemaKeys() {
         >
           <KeyTable cols={["Code", "Canonical color"]} rows={COLOR_ROWS} />
           <p className="text-xs text-muted-foreground">00 = unknown. Codes 54–98 reserved for future colors.</p>
+        </Section>
+
+        <Section title="BLD — Build Structure" subtitle="Reusable layout, ordered slots, and styling. Product identity, assets, and text are bound through Assembly.">
+          <FormatBar label="ID format" parts={[
+            { seg: "BLD", desc: "Prefix", mono: true },
+            { seg: "S / U", desc: "Context", mono: true },
+            { seg: "Z / P / I / V / D", desc: "Layout mode", mono: true },
+            { seg: `0–${BLD_MAX_INSTANCES}`, desc: "Instance count", mono: true },
+            { seg: `001–${BLD_MAX_SEQUENCE}`, desc: "Build sequence", mono: true },
+          ]} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <KeyTable cols={["Context", "Meaning", "Layouts"]} rows={Object.entries(BLD_CONTEXTS).map(([code, label]) => [code, label, BLD_LAYOUTS_BY_CONTEXT[code as keyof typeof BLD_CONTEXTS].map(layout => `${layout}: ${BLD_LAYOUTS[layout]}`).join(', ')])} />
+            <KeyTable cols={["Vehicle", "Meaning"]} rows={Object.entries(BLD_VEHICLES).map(([code, label]) => [code, label])} />
+          </div>
+          <CodePill>{formatBldId('S', 'Z', 3, 1)}</CodePill>
+          <p className="text-xs text-muted-foreground">Slots run in order from 01. Palette QR slots specify horizontal and vertical positions. Action slots are optional and may define a CTA link. Each definition stores one instances array.</p>
         </Section>
 
         {/* ── GRF ──────────────────────────────────────────────────────────── */}

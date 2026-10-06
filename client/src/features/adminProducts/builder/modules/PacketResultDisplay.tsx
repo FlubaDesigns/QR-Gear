@@ -117,7 +117,7 @@ function PrintifySection({
         enabledColors: string[];
         printifyVariantMap: Record<string, number>;
         printifyPublishedAt: string;
-      }>(`/packets/${packetResult.packetId}/publish-to-printify`, {
+      }>(`/qrg/publish-to-printify/${packetResult.packetId}`, {
         method: "POST",
         json: body,
       });
