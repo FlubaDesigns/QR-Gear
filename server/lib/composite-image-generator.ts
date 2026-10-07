@@ -1,3 +1,4 @@
+import { createFontLoader } from '../../functions/src/services/font-loader';
 import { createCanvas, registerFont, loadImage } from "canvas";
 import QRCode from "qrcode";
 
@@ -41,18 +42,7 @@ const PLACEMENT_DIMENSIONS: Record<string, { width: number; height: number }> = 
   "right_sleeve": { width: 1200, height: 1500 },
 };
 
-const FONT_MAP: Record<string, string> = {
-  "Arial": "Arial",
-  "Helvetica": "Helvetica", 
-  "Times New Roman": "Times New Roman",
-  "Georgia": "Georgia",
-  "Verdana": "Verdana",
-  "Courier New": "Courier New",
-  "Impact": "Impact",
-  "Comic Sans MS": "Comic Sans MS",
-  "Trebuchet MS": "Trebuchet MS",
-  "Palatino Linotype": "Palatino Linotype",
-};
+const ensureFont = createFontLoader(registerFont);
 
 /**
  * Convert fontSize setting to actual display size (matches frontend PhoneMockup).
@@ -185,7 +175,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   } else if (topText && topText.text) {
     const previewFontSize = getPreviewFontSize(topText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
-    const fontFamily = FONT_MAP[topText.fontFamily] || "Arial";
+    const fontFamily = await ensureFont(topText.fontFamily);
     const fillColor = topText.color || textColor;
     
     ctx.font = `bold ${fontSize}px "${fontFamily}"`;
@@ -250,7 +240,7 @@ export async function generateCompositeImage(options: CompositeImageOptions): Pr
   } else if (bottomText && bottomText.text) {
     const previewFontSize = getPreviewFontSize(bottomText.fontSize);
     const fontSize = previewFontSize * scaleFactor;
-    const fontFamily = FONT_MAP[bottomText.fontFamily] || "Arial";
+    const fontFamily = await ensureFont(bottomText.fontFamily);
     const fillColor = bottomText.color || textColor;
     
     ctx.font = `bold ${fontSize}px "${fontFamily}"`;

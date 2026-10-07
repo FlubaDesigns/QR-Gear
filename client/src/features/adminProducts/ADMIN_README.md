@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Videos upload validation and mobile controls, sandbox).
+Last updated: October 7, 2026 (Shared Fonts settings, saving and rendering, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -356,6 +356,25 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Fonts source, save integrity and mobile previews (sandbox)
+
+Both adapters now use `config/fonts` with one validation/read/write service. Font defaults and the existing available-family catalog are shared with the admin and editor. Saves preserve order, reject invalid values, normalize duplicates, block concurrent edits, cancel stale reads and publish the confirmed list into the shared query cache. Failed saves retain unsaved work; refreshed data cannot overwrite it. Previews load when visible and expose Retry, with left-side 48px add/remove/reorder controls. No drag handle or hover dependency remains.
+
+Browser generation waits for fonts; text editors report loading/settings errors. The two server renderers now share font loading, successful-request deduplication, invalid-file checks and retryable errors instead of silently substituting Arial. Device fonts retain their native device/runtime dependency. Existing BLD fontFamily values remain styling, unchanged by removal from the available list. Local tests cover both API prefixes, invalid/auth/failure paths, concurrent saves, stale reads, browser readiness and server retry. No live deployment or settings migration.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `shared/fonts.ts`, `shared/googleFonts.ts`, `client/src/data/google-fonts-list.ts` | One defaults/catalog/validation contract; existing catalog re-export |
+| `functions/src/services/font-settings.ts`, `functions/src/routes/am-sync.ts`, `server/routes/misc/fonts-and-test.routes.ts` | Shared canonical settings routes |
+| `client/src/pages/admin-fonts.tsx`, `client/src/hooks/use-fonts.ts` | Save/read integrity, phone controls, viewport previews and error states |
+| `client/src/lib/fontLoader.ts`, `client/src/features/shared/components/TextStyleEditor.tsx`, `client/src/features/shared/graphics/productGraphicRenderer.ts` | Awaited font readiness and visible editor failures |
+| `functions/src/services/font-loader.ts`, `functions/src/services/composite-image.ts`, `server/lib/composite-image-generator.ts` | One server font loader; failures stop rendering and remain retryable |
+| `client/src/lib/__tests__/{adminFonts,fontLoader}.test.ts`, `functions/src/services/__tests__/{font-settings,font-loader}.test.ts` | Focused UI, HTTP and font-loading tests |
+| `functions/src/index.ts`, `README.md`, `MANIFEST.json` | Sandbox build marker and checked documentation |
+
 
 ### October 7, 2026 — Videos upload and phone controls (sandbox)
 

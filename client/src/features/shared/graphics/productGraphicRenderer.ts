@@ -1,3 +1,4 @@
+import { loadGoogleFonts } from '@/lib/fontLoader';
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
@@ -309,6 +310,12 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     qrSizePercent: resolvedQrSizePercent,
     layoutMode: graphicLayoutMode,
   });
+
+  const fontNames: string[] = [];
+  if (headerActive && headerStyle && !headerImageUrl && !(headerStyle.mode === 'image' && headerStyle.imageUrl)) fontNames.push(headerStyle.fontFamily);
+  if (footerActive && footerStyle && !footerImageUrl && !(footerStyle.mode === 'image' && footerStyle.imageUrl)) fontNames.push(footerStyle.fontFamily);
+  if (subBottomActive) fontNames.push(subBottomFontFamily);
+  await loadGoogleFonts(fontNames);
 
   const canvas = document.createElement("canvas");
   canvas.width = W;

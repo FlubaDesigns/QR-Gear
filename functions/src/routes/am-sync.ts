@@ -1,3 +1,4 @@
+import { registerFontRoutes } from '../services/font-settings';
 import { projectTemplateDisplay } from '../../../shared/templateDisplay';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -667,20 +668,7 @@ app.patch('/admin/email-templates/:id', requireAdmin, async (req: Request, res: 
 
 // /admin/background-assets/migrate — removed (legacy library_assets pipeline purged)
 
-app.get('/fonts', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('config').doc('fonts').get();
-    if (!doc.exists) { res.json({ fonts: ['Arial', 'Georgia', 'Verdana', 'Impact', 'Comic Sans MS'] }); return; }
-    res.json(doc.data());
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.put('/admin/fonts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('config').doc('fonts').set({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+registerFontRoutes(app, '', requireAdmin, () => db);
 
 app.get('/admin/provider-counts', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
