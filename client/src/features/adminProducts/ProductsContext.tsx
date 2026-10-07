@@ -17,8 +17,8 @@ import type {
 const ProductsContext = createContext<ProductsContextValue | null>(null);
 
 const FALLBACK_PROVIDERS: FulfillmentProvider[] = [
-  { id: "printful", name: "Printful", configured: true, role: "fulfillment" },
-  { id: "printify", name: "Printify", configured: true, role: "fulfillment" },
+  { id: "printful", name: "Printful", configured: false, role: "fulfillment" },
+  { id: "printify", name: "Printify", configured: false, role: "fulfillment" },
   { id: "apliiq", name: "Apliiq", configured: false, role: "fulfillment" },
 ];
 
@@ -40,20 +40,14 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const [selectedChannel, setSelectedChannelState] = useState<Channel | null>(null);
   const [selectedCollection, setSelectedCollectionState] = useState<Collection | null>(null);
 
-  const { data: apiProviders } = useQuery<FulfillmentProvider[]>({
+  const { data: apiProviders, isLoading: providersLoading, error: providerQueryError } = useQuery<FulfillmentProvider[]>({
     queryKey: ["fulfillment-providers"],
-    queryFn: async () => {
-      try {
-        return await adminFetch<FulfillmentProvider[]>("/fulfillment-providers");
-      } catch (error) {
-        console.warn("[ProductsContext] Error fetching providers, using fallback:", error);
-        return FALLBACK_PROVIDERS;
-      }
-    },
+    queryFn: () => adminFetch<FulfillmentProvider[]>("/fulfillment-providers"),
     staleTime: 60000,
   });
 
-  const providers = apiProviders || FALLBACK_PROVIDERS;
+  const providers = providerQueryError ? FALLBACK_PROVIDERS : (apiProviders || FALLBACK_PROVIDERS);
+  const providersError = providerQueryError ? providerQueryError.message : null;
 
   const setSelectedProviders = useCallback((providers: string[]) => {
     setSelectedProvidersState(providers);
@@ -94,11 +88,12 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const api = useMemo<ProductsApi>(() => {
     const getQueryKey = (type: string = "all"): string[] => ["products", type];
 
-    const invalidateProducts = (type?: string): void => {
+    const invalidateProducts = async (type?: string): Promise<void> => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/master-catalog"] }, { throwOnError: true });
       if (type) {
-        queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
+        await queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
       } else {
-        queryClient.invalidateQueries({ queryKey: ["products"] });
+        await queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     };
 
@@ -171,6 +166,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       requiresAuth: true,
       api,
       providers,
+      providersLoading,
+      providersError,
       selectedProviders,
       setSelectedProviders,
       roles: DEFAULT_ROLES,
@@ -186,6 +183,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
     [
       api, 
       providers,
+      providersLoading,
+      providersError,
       selectedProviders, 
       setSelectedProviders,
       selectedRole,

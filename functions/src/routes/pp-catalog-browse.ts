@@ -33,10 +33,11 @@ function buildColorSizeFromDoc(p: any): {
   const sizeCodesSeen = new Map<string, { label: string; providerLabels: Set<string> }>();
 
   for (const [vc, variant] of Object.entries(qrgVariants)) {
-    if (typeof vc !== 'string' || vc.length < 7) continue;
+    if (!/^(?:\d{4}|\d{5}|\d{7})$/.test(vc)) continue;
     const v = variant as any;
-    const sc = vc.slice(0, 3); // TSS
-    const cc = vc.slice(5, 7); // CC
+    // SSCC is canonical; retain the stored size code on older TSSCC/TSSLLCC rows.
+    const sc = vc.slice(0, vc.length === 4 ? 2 : 3);
+    const cc = vc.slice(-2);
     if (cc) {
       if (!colorCodesSeen.has(cc)) {
         colorCodesSeen.set(cc, { label: v.colorLabel || COLOR_LABELS[cc] || cc, providerLabels: new Set() });
@@ -45,9 +46,22 @@ function buildColorSizeFromDoc(p: any): {
     }
     if (sc) {
       if (!sizeCodesSeen.has(sc)) {
-        sizeCodesSeen.set(sc, { label: v.sizeLabel || SIZE_LABELS[sc] || sc, providerLabels: new Set() });
+        sizeCodesSeen.set(sc, { label: v.sizeLabel || SIZE_LABELS[sc] || SIZE_LABELS[sc === '00' ? '000' : `1${sc}`] || sc, providerLabels: new Set() });
       }
       if (v.sizeLabel) sizeCodesSeen.get(sc)!.providerLabels.add(v.sizeLabel);
+    }
+  }
+
+  if (Object.keys(qrgVariants).length === 0) {
+    for (const code of (p.availableColors || [])) {
+      if (typeof code === 'string' && /^\d{2}$/.test(code)) {
+        colorCodesSeen.set(code, { label: COLOR_LABELS[code] || code, providerLabels: new Set() });
+      }
+    }
+    for (const code of (p.availableSizes || [])) {
+      if (typeof code === 'string' && /^\d{2,3}$/.test(code)) {
+        sizeCodesSeen.set(code, { label: SIZE_LABELS[code] || SIZE_LABELS[code === '00' ? '000' : `1${code}`] || code, providerLabels: new Set() });
+      }
     }
   }
 
@@ -500,7 +514,10 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       if (!categories[category]) categories[category] = [];
 
       // Extract provider IDs from providerMappings (new format) or legacy fields
-      const providerMappings: any[] = Array.isArray(p.providerMappings) ? p.providerMappings : [];
+      const providerMappings: any[] = Array.isArray(p.providerMappings) ? p.providerMappings
+        : Object.entries(p.providerMappings || {})
+            .filter(([provider, mapping]) => ['printify', 'printful'].includes(provider) && !!mapping)
+            .map(([provider, mapping]) => ({ ...(mapping as object), provider }));
       const pyMapping = providerMappings.find((m: any) => m.provider === 'printify') || null;
       const pfMapping = providerMappings.find((m: any) => m.provider === 'printful') || null;
 
@@ -510,7 +527,7 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       // availableVia is the provider badge: ["printify"], ["printful"], or ["printify","printful"]
       const availableVia: string[] = Array.isArray(p.availableVia) && p.availableVia.length > 0
         ? p.availableVia
-        : (blueprintId != null && printfulId != null ? ['printify', 'printful'] : blueprintId != null ? ['printify'] : ['printful']);
+        : (blueprintId != null && printfulId != null ? ['printify', 'printful'] : blueprintId != null ? ['printify'] : printfulId != null ? ['printful'] : []);
 
       // fulfillmentProvider for backward compat with existing frontend code
       const fulfillmentProvider = availableVia.length > 1 ? 'both' : (availableVia[0] || 'printify');

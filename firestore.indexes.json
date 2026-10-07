@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "catalogSyncs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "syncType", "order": "ASCENDING" },
+        { "fieldPath": "startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "catalogItemLinks",
       "queryScope": "COLLECTION",
       "fields": [

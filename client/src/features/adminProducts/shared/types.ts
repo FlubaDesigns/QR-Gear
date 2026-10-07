@@ -64,7 +64,7 @@ export interface LibraryAsset {
 
 export interface ProductsApi {
   getQueryKey: (type: string) => string[];
-  invalidateProducts: (type?: string) => void;
+  invalidateProducts: (type?: string) => Promise<void>;
   fetchProducts: (provider?: string) => Promise<Product[]>;
   syncCatalog: (provider?: string) => Promise<{ synced: number }>;
   fetchStores: (roleType: RoleType) => Promise<Store[]>;
@@ -78,6 +78,8 @@ export interface ProductsContextValue {
   requiresAuth: boolean;
   api: ProductsApi;
   providers: FulfillmentProvider[];
+  providersLoading: boolean;
+  providersError: string | null;
   selectedProviders: string[];
   setSelectedProviders: (providers: string[]) => void;
   selectedRole: RoleType | null;

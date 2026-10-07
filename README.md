@@ -284,3 +284,11 @@ Seven React integration tests exercise the actual Products module and BuilderCon
 The existing engine can approve a one-use browser request at `/login?engine=1`. The browser keeps its proof in an HttpOnly cookie; only the request ID is shared with the engine. The QR Gear target in Fluba's canonical authorization registry supplies the allowed origin and engine principal during deployment. A Google-signed engine identity approves the request, and the browser exchanges a Firebase custom token for the existing owner account. Normal Firebase and admin checks still apply; no admin role is created or bypassed. The handoff expires after 10 minutes and the browser session uses memory persistence (closing/reloading the page requires another sign-in). Never log or publish the cookie, identity token, or custom token.
 
 Security coverage: origin and principal restrictions, browser proof binding, expiry, disabled owner, single consumption, missing configuration, and start-rate limiting.
+
+### Fulfillment card wiring — sandbox (October 6, 2026)
+
+The Products fulfillment card supports Printify and Printful as lookup sources for the existing QRG master catalog. Opening the page reads supplier-specific history without rebuilding products. Explicit Smart Sync tracks the selected supplier, waits for the QRG rebuild, then refreshes the master-catalog query before announcing success. Configuration failures, sync failures, and rebuild/refresh failures are visible. Configured means a server credential is present, not that a live supplier connection has been verified.
+
+Printful sync updates `printful_products` and `printful_variants`, the tables consumed by the QRG builder, and maintains the existing `printfulCatalog` compatibility table. Master-catalog responses retain both supplier mappings and read canonical SSCC variants as well as historical stored variants. Canonical QRG document identity and numbering definitions are unchanged.
+
+Held on `sandbox/products-fulfillment` for the combined release. The release must include the `catalogSyncs` (`syncType`, `startedAt`) index in `firestore.indexes.json` before the new provider-history query is used. Local tests use controlled supplier/Firestore adapters; no live supplier calls or production database writes were made.

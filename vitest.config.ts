@@ -9,6 +9,6 @@ export default defineConfig({
   oxc: { jsx: { runtime: 'automatic' } },
   test: {
     environment: 'node',
-    include: ['client/src/features/adminProducts/builder/__tests__/productSelection.test.ts'],
+    include: ['client/src/features/adminProducts/builder/__tests__/productSelection.test.ts', 'client/src/features/adminProducts/**/*.test.ts'],
   },
 });
