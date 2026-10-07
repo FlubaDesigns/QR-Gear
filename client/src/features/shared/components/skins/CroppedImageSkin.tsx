@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Trash2, Image } from "lucide-react";
+import { Archive, Image } from "lucide-react";
 import type { CardSkinProps } from "./types";
 
 // VVSS 1·1·1·0  Skin: CroppedCardSkin
@@ -21,7 +21,7 @@ export function CroppedCardSkin({ item, actions, isActionPending }: CardSkinProp
             <img
               src={item.primaryImage}
               alt={item.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               data-testid={`img-cropped-${item.id}`}
             />
           ) : (
@@ -44,15 +44,15 @@ export function CroppedCardSkin({ item, actions, isActionPending }: CardSkinProp
         <div className="flex gap-1">
           {actions?.onDelete && (
             <Button
-              size="icon"
+              size="default"
               variant="ghost"
-              className="flex-1 text-destructive"
+              className="flex-1 min-h-[44px] text-destructive"
               onClick={handleArchive}
               disabled={isActionPending}
               data-testid={`button-archive-${item.id}`}
               title="Archive"
             >
-              <Trash2 className="h-3 w-3" />
+              <Archive className="h-4 w-4 mr-1" />Archive
             </Button>
           )}
         </div>
