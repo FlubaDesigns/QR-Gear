@@ -937,6 +937,8 @@ export function ProductsModule() {
             size="sm"
             variant="outline"
             onClick={() => setPickerOpen(true)}
+            disabled={!activeCatalog}
+            title={activeCatalog ? undefined : "Choose a catalog to add blanks"}
             data-testid="button-open-blank-picker"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1368,8 +1370,8 @@ export function ProductsModule() {
       )}
     </div>
 
-    {pickerOpen && (
-      <BlankPickerModal open={pickerOpen} onOpenChange={setPickerOpen} />
+    {pickerOpen && activeCatalog && (
+      <BlankPickerModal key={activeCatalog.id} targetCatalogId={activeCatalog.id} open={pickerOpen} onOpenChange={setPickerOpen} />
     )}
     </>
   );

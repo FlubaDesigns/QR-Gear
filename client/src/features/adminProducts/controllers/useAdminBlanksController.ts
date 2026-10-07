@@ -181,9 +181,10 @@ function isAvailableVia(p: CatalogProduct, provider: ProviderFilter): boolean {
   return false;
 }
 
-export function useAdminBlanksController() {
+export function useAdminBlanksController({ targetCatalogId }: { targetCatalogId?: string | null } = {}) {
   const { toast } = useToast();
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null);
+  const [localCatalogId, setSelectedCatalogId] = useState<string | null>(null);
+  const selectedCatalogId = targetCatalogId === undefined ? localCatalogId : targetCatalogId;
   const [sourceCatalogId, setSourceCatalogId] = useState<string | null>(null);
   const [defaultLoaded, setDefaultLoaded] = useState(false);
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>("printful");
@@ -324,10 +325,19 @@ export function useAdminBlanksController() {
       .filter(c => c.count > 0);
   }, [masterCategories]);
 
-  const activeCategories = providerFilter === "printful" ? printfulCategories : printifyCategories;
+  const activeCategories = targetCatalogId !== undefined
+    ? masterCategories
+    : providerFilter === "printful" ? printfulCategories : printifyCategories;
   const allProducts = useMemo(() => {
-    return providerFilter === "printful" ? printfulProducts : printifyProducts;
-  }, [providerFilter, printifyProducts, printfulProducts]);
+    const products = new Map<string, CatalogProduct>();
+    for (const category of activeCategories) {
+      for (const product of category.items) {
+        const key = getProductKey(product);
+        if (!products.has(key)) products.set(key, product);
+      }
+    }
+    return Array.from(products.values());
+  }, [activeCategories]);
 
   // ── Product map — indexed by all known keys for backward compat ───────────────
   const allProductMap = useMemo(() => {
@@ -357,12 +367,12 @@ export function useAdminBlanksController() {
 
   // Auto-load default catalog as SOURCE on first load
   useEffect(() => {
-    if (!defaultLoaded && defaultsData?.defaultCatalogId && catalogs.length > 0) {
+    if (targetCatalogId === undefined && !defaultLoaded && defaultsData?.defaultCatalogId && catalogs.length > 0) {
       const exists = catalogs.find(c => c.id === defaultsData.defaultCatalogId);
       if (exists) setSourceCatalogId(defaultsData.defaultCatalogId);
       setDefaultLoaded(true);
     }
-  }, [defaultsData, catalogs, defaultLoaded]);
+  }, [defaultsData, catalogs, defaultLoaded, targetCatalogId]);
 
   // Source catalog derivations
   const sourceCatalog = sourceCatalogId ? catalogs.find(c => c.id === sourceCatalogId) ?? null : null;
@@ -467,7 +477,7 @@ export function useAdminBlanksController() {
   const filtered = useMemo(() => {
     let items = allProducts;
     // Narrow to source catalog items when source is selected
-    if (sourceCatalogId && sourceBlankSet.size > 0) {
+    if (sourceCatalogId) {
       items = items.filter(p => sourceBlankSet.has(getLookupBlankKey(p)));
     }
     if (categoryFilter !== "all") {
