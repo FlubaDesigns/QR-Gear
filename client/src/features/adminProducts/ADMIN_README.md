@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Assembly/GRF documentation and manifest reconciliation).
+Last updated: October 7, 2026 (Left-hand Blanks controls; Assembly/GRF documentation and manifest reconciliation).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -246,6 +246,8 @@ The selected provider supplies fresh options through the existing options endpoi
 
 ## Blank Catalog (`/admin/blanks`)
 
+The owner uses a phone left-handed with one finger. Catalog-card remove X controls are on the left with 48px tap targets; badges sit to the right. The shared product detail preview also places its existing 48px close X on the left. Apply this preference to other controls as their screens are updated.
+
 **Key files:**
 - `client/src/features/adminProducts/controllers/useAdminBlanksController.ts`
 - `client/src/pages/admin-blanks.tsx`
@@ -345,6 +347,10 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Left-hand Blanks controls (sandbox)
+
+Moved the catalog-card remove X and shared product-preview close X to the left. Enlarged the catalog-card target from 24px to 48px and repositioned badges to avoid overlap. Existing handlers are unchanged; other Blanks findings remain under review. Updated `AdminCatalogBlankSkin.tsx`, `ProductSelectCardSkin.tsx`, both READMEs, and the integrity manifest. Frontend-only, held in sandbox.
 
 ### October 7, 2026 — Assembly/GRF documentation and manifest reconciliation (sandbox)
 

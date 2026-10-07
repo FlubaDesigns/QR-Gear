@@ -285,7 +285,7 @@ function PreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="[&_button]:min-h-12 [&_button]:min-w-12 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:bg-background fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
+        className="[&_button]:min-h-12 [&_button]:min-w-12 [&>button]:left-4 [&>button]:right-auto [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:bg-background fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
         data-testid={`modal-preview-${item.id}`}
       >
         <VisuallyHidden>
@@ -359,7 +359,7 @@ function PreviewModal({
               )}
 
               {item.madeInUSA && (
-                <div className="absolute top-3 left-3">
+                <div className="absolute bottom-3 right-3">
                   <Badge
                     variant="secondary"
                     className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm"
