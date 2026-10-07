@@ -10,7 +10,7 @@ const m = vi.hoisted(() => ({ context: {} as any, toast: vi.fn(), api: vi.fn(), 
 vi.mock('../BuilderContext', () => ({ useBuilderContext: () => m.context }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: m.toast }) }));
 vi.mock('@/lib/adminFetch', () => ({ adminFetch: m.api }));
-vi.mock('@/features/shared/components/views/ModalView', () => ({ ModalView: ({ open, children }: any) => open ? React.createElement('div', null, children) : null, ImageModalView: () => null }));
+vi.mock('@/features/shared/components/shapes/ModalView', () => ({ ModalView: ({ open, children }: any) => open ? React.createElement('div', null, children) : null, ImageModalView: () => null }));
 vi.mock('@/features/shared/components/CollapsibleModule', () => ({ CollapsibleModule: ({ children }: any) => React.createElement('div', null, children) }));
 vi.mock('../modules/PacketResultDisplay', () => ({ PacketResultDisplay: () => null }));
 vi.mock('../modules/useCreatePacket', () => ({ useCreatePacket: () => m.packet }));

@@ -20,7 +20,7 @@ This folder contains reusable components organized in a **Viewer → View → Sk
 │    │                                                     │  │
 │    │    ┌─────────────────────────────────────────────┐  │  │
 │    │    │  SKIN (Visual Styling)                      │  │  │
-│    │    │  TemplateSkin, GraphicsSkin, BackgroundSkin │  │  │
+│    │    │  TemplateSkin, AdminGraphicSkins, BackgroundSkin │  │  │
 │    │    │  - Pure presentation                        │  │  │
 │    │    │  - No behavior logic                        │  │  │
 │    │    │  - Card appearance, detail layout           │  │  │
@@ -46,7 +46,7 @@ shared/
 │   └── skins/                 # SKINS - Visual Styling Only
 │       ├── types.ts           # Shared types (SkinItem, SkinActions)
 │       ├── TemplateSkin.tsx   # Template card/detail styling
-│       ├── GraphicsSkin.tsx   # Graphics card/detail styling
+│       ├── AdminGraphicSkins.tsx   # Graphics card/detail styling
 │       ├── BackgroundSkin.tsx # Background card/detail styling
 │       └── ...
 ```

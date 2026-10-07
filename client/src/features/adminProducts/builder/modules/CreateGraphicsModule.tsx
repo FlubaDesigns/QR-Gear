@@ -3,7 +3,7 @@ import { Package, Loader2, Check, CheckCircle2, Copy, Pencil } from "lucide-reac
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { ImageModalView } from "@/features/shared/components/shapes/ModalView";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";

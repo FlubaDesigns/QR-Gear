@@ -4,7 +4,7 @@ import { Archive, Loader2, Image, CheckCircle2, Package, Trash2 } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ModalView } from "@/features/shared/components/views/ModalView";
+import { ModalView } from "@/features/shared/components/shapes/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 

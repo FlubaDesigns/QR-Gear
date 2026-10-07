@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ModalView } from '@/features/shared/components/views/ModalView';
+import { ModalView } from '@/features/shared/components/shapes/ModalView';
 import { useToast } from '@/hooks/use-toast';
 import { useBuilderContext } from '../BuilderContext';
 

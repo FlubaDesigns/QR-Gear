@@ -5,7 +5,7 @@ import { StoreBuilderProductDetail } from "./StoreBuilderProductDetail";
 import { StoreBuilderAssignment } from "./StoreBuilderAssignment";
 import { HeroImageLightbox } from "./StoreBuilderComponents";
 import { TemplatePickerSkin } from "@/features/shared/components/skins";
-import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { ImageModalView } from "@/features/shared/components/shapes/ModalView";
 import { Button } from "@/components/ui/button";
 
 function StepIndicator() {

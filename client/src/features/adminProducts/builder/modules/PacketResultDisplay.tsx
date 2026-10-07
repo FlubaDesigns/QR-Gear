@@ -3,7 +3,7 @@ import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks,
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { ImageModalView } from "@/features/shared/components/shapes/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import PhoneMockupCard from "@/components/PhoneMockupCard";
