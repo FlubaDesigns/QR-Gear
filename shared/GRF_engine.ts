@@ -78,10 +78,8 @@ export function mimeToGrfFormat(mimeType: string): GrfFormat {
 }
 
 // ── MIME normalization — browser → GRF-compatible MIME ───────────────────────
-// Some browsers (especially mobile/iOS) report MIME types that are not in
-// GRF_FORMATS. Map them to the nearest supported type before calling
-// mimeToGrfFormat. All callers must go through here — never define this map
-// locally in a component or route file.
+// Validate against GRF_FORMATS. Only true MIME aliases are normalized; unsupported
+// image encodings must be converted by an image processor before upload.
 
 // Source uploads preserve bytes; MIME aliases must not pretend to convert files.
 export const GRF_IMAGE_ACCEPT_TYPES = Object.values(GRF_FORMATS['1']).map(f => f.mime).join(',');
@@ -147,26 +145,6 @@ export function templateGrfParams(mimeType: string): LibraryGrfParams {
     channel:    LIBRARY_CHANNEL,
     purpose:    PURPOSE_TEMPLATE,
     format:     mimeToGrfFormat(mimeType),
-  };
-}
-
-// ── Crop transition ───────────────────────────────────────────────────────────
-// When a source image is cropped, two GRF records are produced:
-//   1. The crop result       → purpose=2 (cropped),    always JPEG
-//   2. The promoted original → purpose=3 (background), inherits source MIME
-
-export interface CropTransition {
-  cropped:    LibraryGrfParams;
-  background: LibraryGrfParams;
-}
-
-export function buildCropTransition(
-  originalMimeType: string,
-  croppedMimeType = 'image/jpeg',
-): CropTransition {
-  return {
-    cropped:    croppedGrfParams(croppedMimeType),
-    background: backgroundGrfParams(originalMimeType),
   };
 }
 

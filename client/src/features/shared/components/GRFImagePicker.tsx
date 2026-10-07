@@ -209,9 +209,7 @@ export function GRFImagePicker({
 
     const raw = sourceAssets.find((a) => a.grfId === sourceAsset.id);
     const grfId = raw?.grfId || sourceAsset.id;
-    const origMime = raw?.mimeType || "image/jpeg";
     const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
-    const origUrl = raw?.publicUrl || sourceAsset.imageUrl;
 
     const croppedImageData = croppedDataUrl.startsWith("data:")
       ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
@@ -224,8 +222,6 @@ export function GRFImagePicker({
         json: {
           croppedImageData,
           croppedMimeType: GRF_CROP_MIME_TYPE,
-          originalMimeType: origMime,
-          originalPublicUrl: origUrl,
           sourceGrfId: grfId,
         },
       });
@@ -273,8 +269,6 @@ export function GRFImagePicker({
           json: {
             croppedImageData,
             croppedMimeType: GRF_CROP_MIME_TYPE,
-            originalMimeType: bg.mimeType || "image/jpeg",
-            originalPublicUrl: bg.publicUrl,
             sourceGrfId: bg.grfId,
           },
         });

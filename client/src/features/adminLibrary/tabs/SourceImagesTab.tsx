@@ -183,9 +183,6 @@ function SourceImagesTabInner() {
     const skinItem = skinItems.find(s => s.id === sourceAsset.id);
     const raw      = skinItem?.metadata?.raw as GrfAsset | undefined;
     const grfId    = raw?.grfId || sourceAsset.id;
-    const origMime = raw?.mimeType || "image/jpeg";
-    const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
-    const origUrl  = raw?.publicUrl || sourceAsset.imageUrl;
 
     const croppedMimeType = GRF_CROP_MIME_TYPE;
 
@@ -200,8 +197,6 @@ function SourceImagesTabInner() {
         json: {
           croppedImageData,
           croppedMimeType,
-          originalMimeType:  origMime,
-          originalPublicUrl: origUrl,
           sourceGrfId:       grfId,
         },
       });

@@ -38,7 +38,6 @@ exports.originalGrfParams = originalGrfParams;
 exports.croppedGrfParams = croppedGrfParams;
 exports.backgroundGrfParams = backgroundGrfParams;
 exports.templateGrfParams = templateGrfParams;
-exports.buildCropTransition = buildCropTransition;
 exports.purposeLabel = purposeLabel;
 const graphicCodes_1 = require("./graphicCodes");
 // ── Fixed digits — verified against the GRF scheme at module load ─────────────
@@ -79,10 +78,8 @@ function mimeToGrfFormat(mimeType) {
     return digit;
 }
 // ── MIME normalization — browser → GRF-compatible MIME ───────────────────────
-// Some browsers (especially mobile/iOS) report MIME types that are not in
-// GRF_FORMATS. Map them to the nearest supported type before calling
-// mimeToGrfFormat. All callers must go through here — never define this map
-// locally in a component or route file.
+// Validate against GRF_FORMATS. Only true MIME aliases are normalized; unsupported
+// image encodings must be converted by an image processor before upload.
 // Source uploads preserve bytes; MIME aliases must not pretend to convert files.
 exports.GRF_IMAGE_ACCEPT_TYPES = Object.values(graphicCodes_1.GRF_FORMATS['1']).map(f => f.mime).join(',');
 exports.GRF_IMAGE_MAX_MB = 20;
@@ -131,12 +128,6 @@ function templateGrfParams(mimeType) {
         channel: exports.LIBRARY_CHANNEL,
         purpose: exports.PURPOSE_TEMPLATE,
         format: mimeToGrfFormat(mimeType),
-    };
-}
-function buildCropTransition(originalMimeType, croppedMimeType = 'image/jpeg') {
-    return {
-        cropped: croppedGrfParams(croppedMimeType),
-        background: backgroundGrfParams(originalMimeType),
     };
 }
 // ── Purpose label lookup ──────────────────────────────────────────────────────

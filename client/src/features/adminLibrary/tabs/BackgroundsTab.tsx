@@ -10,7 +10,7 @@ import { CropUtility, type CropAsset } from "@/features/shared/components/utilit
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { BackgroundCardSkin } from "@/features/shared/components/skins/BackgroundSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "@shared/GRF_engine";
+import { GRF_FILTER_BACKGROUNDS } from "@shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape ───────────────────────────────────────────────────────────
@@ -144,10 +144,7 @@ function BackgroundsTabInner() {
       return;
     }
     try {
-      const originalMimeType = originalAsset.mimeType || "image/jpeg";
       const croppedMimeType  = GRF_CROP_MIME_TYPE;
-      const { cropped: croppedGrfParams, background: backgroundGrfParams } =
-        buildCropTransition(originalMimeType, croppedMimeType);
 
       const croppedImageData = croppedDataUrl.startsWith("data:")
         ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
@@ -158,10 +155,6 @@ function BackgroundsTabInner() {
         json: {
           croppedImageData,
           croppedMimeType,
-          croppedGrfParams,
-          backgroundGrfParams,
-          originalPublicUrl: originalAsset.publicUrl,
-          name:              originalAsset.originalFilename || originalAsset.name,
           sourceGrfId:       originalAsset.sourceGrfId || originalAsset.grfId || originalAsset.id,
         },
       });
