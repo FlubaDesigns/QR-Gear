@@ -4,6 +4,14 @@ Firestore schema reference. Sections explicitly marked **planned** document appr
 
 ---
 
+## Marketplace fee and authorization contract — October 7, 2026
+
+- `marketplaceListings.fees` is the sole marketplace fee snapshot: `status` (`estimated`, `partial`, `unavailable`; `stale` is derived on read), `source`, `scope` (`per_sale` or `listing`), nullable `amount`, `currency`, input `price`/`sku`/`accountId`, `contextKey`, `retrievedAt`, `components` and explanatory `reason`. Product/QRG identity stays on the existing listing references. `externalOfferId` retains eBay's offer identity. No fee is stored on lookup tables or duplicated into account percentages.
+- `estimatedMargin` is read-time output from the shared pricing engine using a current per-sale estimate and the canonical product pricing subtotal. It is null for partial/unavailable/stale fees, unknown cost, or mismatched currency. It excludes shipping/tax and is not an order settlement record.
+- Legacy `marketplaceAccounts.feePercent` is unused, omitted from API responses and rejected on writes. No destructive data migration is performed.
+- The existing server-only `oauth_pkce_state` collection now stores hashed random state IDs for all three marketplaces: account/platform binding, approved `returnTo`, browser-secret hash, Etsy verifier and numeric `expiresAt` (10 minutes). State is transactionally consumed once. `marketplaceAccounts.oauthAttempt` rejects superseded/disconnected attempts; it is never returned to the client. Provider credentials remain only in existing account token fields. `*Connected` is written only after token and identity checks succeed; `lastHealthCheck` records that verification time, not continuous monitoring.
+- Amazon US SKU estimates and eBay single-offer listing fee retrieval are implemented. Etsy fee estimates and provider settlement imports are not implemented; the UI reports unavailable. Canonical QRG/BLD/GRF/Assembly identities are unchanged.
+
 ## Marketplace publishing records — sandbox wiring
 
 Existing collections remain the publishing contract; there is no second catalog or seller credential store.

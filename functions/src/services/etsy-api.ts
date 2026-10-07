@@ -4,7 +4,7 @@
  *
  * Requires environment variables:
  *   ETSY_KEYSTRING     — API key / Client ID from developers.etsy.com
- *   ETSY_SHARED_SECRET — Shared Secret (not used in PKCE flow but kept for reference)
+ *   ETSY_SHARED_SECRET — Shared Secret (required in v3 API request headers)
  *   ETSY_REDIRECT_URI  — OAuth callback URL
  *                        (https://qrgear.com/api/marketplace/etsy/oauth/callback)
  */
@@ -89,6 +89,12 @@ const ETSY_AUTH_URL = 'https://www.etsy.com/oauth/connect';
 const ETSY_TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 
 const ETSY_SCOPES = 'listings_r listings_w listings_d';
+
+function etsyApiKey(): string {
+  const key = process.env.ETSY_KEYSTRING, secret = process.env.ETSY_SHARED_SECRET;
+  if (!key || !secret) throw new Error('Etsy API key and shared secret are not configured.');
+  return `${key}:${secret}`;
+}
 
 // ─── PKCE Helpers ─────────────────────────────────────────────────────────────
 
@@ -218,19 +224,12 @@ export async function getEtsyShopInfo(
 
   const headers = {
     'Authorization': `Bearer ${accessToken}`,
-    'x-api-key': keystring,
+    'x-api-key': etsyApiKey(),
   };
 
-  // Get user info
-  const userResp = await fetch(`${ETSY_API_BASE}/v3/application/users/me`, { headers });
-  if (!userResp.ok) {
-    const text = await userResp.text();
-    throw new Error(`Could not retrieve Etsy user info (${userResp.status}): ${text}`);
-  }
-  const userData = await userResp.json() as any;
-  const userId: string = String(userData?.user_id || '');
-
-  if (!userId) throw new Error('Etsy user info missing user_id.');
+  // Etsy documents the token prefix as the authenticated numeric user ID.
+  const userId = accessToken.split('.')[0];
+  if (!/^\d+$/.test(userId)) throw new Error('Etsy token is missing its user identity.');
 
   // Get shop info
   const shopResp = await fetch(`${ETSY_API_BASE}/v3/application/users/${userId}/shops`, { headers });
@@ -285,7 +284,7 @@ export async function pushListingToEtsy(
 
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${accessToken}`,
-    'x-api-key': keystring,
+    'x-api-key': etsyApiKey(),
     'Content-Type': 'application/json',
   };
 
@@ -396,7 +395,7 @@ export async function pushListingToEtsy(
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'x-api-key': keystring,
+            'x-api-key': etsyApiKey(),
             // Do NOT set Content-Type — let fetch set multipart boundary automatically
           },
           body: formData,

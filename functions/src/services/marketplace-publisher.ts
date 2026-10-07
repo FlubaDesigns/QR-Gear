@@ -1,3 +1,4 @@
+import { marketplaceSalePrice } from '../../../shared/surfaces';
 import { pushListingToAmazon } from './amazon-sp-api';
 import { pushListingToEbay } from './ebay-api';
 import { pushListingToEtsy } from './etsy-api';
@@ -23,12 +24,13 @@ export async function publishMarketplaceListing(
     etsyCreateAttempt: () => Promise<void>;
     etsyToken: (refreshToken: string) => Promise<void>;
     externalListing: (externalListingId: string) => Promise<void>;
+    ebayOffer?: (offerId: string) => Promise<void>;
   },
 ): Promise<PublishResult> {
   if (account.platform !== platform || !account.isActive) throw new Error('Marketplace account is inactive or does not match this listing.');
   if (!surface.enabledPlatforms?.includes(platform)) throw new Error('Enable this marketplace on the surface before publishing.');
   if (!account[`${platform}Connected`] || !account[`${platform}RefreshToken`]) throw new Error(`Connect this ${platform} account before publishing.`);
-  const price = platform === 'ebay' ? surface.ebay?.priceOverride ?? surface.retailPrice : surface.retailPrice;
+  const price = marketplaceSalePrice(surface as any, platform);
   if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) throw new Error('Set a positive retail price before publishing.');
   if (!surface.title?.trim() || !surface.description?.trim() || !surface.images?.length) throw new Error('Title, description and product images are required before publishing.');
   const sku: string = surface.sku;
@@ -57,7 +59,7 @@ export async function publishMarketplaceListing(
       returnPolicyId: eb.returnsPolicyId || undefined, merchantLocationKey: eb.merchantLocationKey || undefined,
       upc: eb.upc || undefined, ean: eb.ean || undefined, mpn: eb.mpn || undefined, aspects,
       bestOfferEnabled: eb.bestOfferEnabled === true, subtitle: eb.subtitle || undefined,
-    }, sku);
+    }, sku, persist.ebayOffer);
     return { ...result, listingStatus: result.success ? 'active' : 'error', ...(result.listingId ? { externalListingId: result.listingId, externalUrl: `https://www.ebay.com/itm/${result.listingId}` } : {}) };
   }
   const options = listing.publishOptions || {};

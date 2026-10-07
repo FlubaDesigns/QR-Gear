@@ -85,7 +85,7 @@ describe('Marketplace product and job handoff', () => {
     fixture.store.set('marketplaceAccounts/a', { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'ebay-selected' });
     fixture.store.get('surfaces/s').ebay.priceOverride = 35; vi.mocked(pushListingToEbay).mockResolvedValue({ success: true, sku, listingId: 'ebay-id' });
     const listing = await getOrCreateMarketplaceListing('s', 'a'); await runMarketplaceJob(listing.id, 'create');
-    expect(pushListingToEbay).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'ebay-selected' }), expect.objectContaining({ price: 35, quantity: 0 }), sku);
+    expect(pushListingToEbay).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'ebay-selected' }), expect.objectContaining({ price: 35, quantity: 0 }), sku, expect.any(Function));
   });
   it('retains Etsy settings and partial external identity for retry', async () => {
     fixture.store.set('marketplaceAccounts/a', { platform: 'etsy', isActive: true, etsyConnected: true, etsyRefreshToken: 'etsy-selected', etsyShopId: 'shop' });
@@ -111,4 +111,24 @@ describe('Marketplace product and job handoff', () => {
     const result = await runMarketplaceJob(listing.id, 'delete'); expect(result.success).toBe(false); expect(pushListingToAmazon).not.toHaveBeenCalled();
     await request(app).delete(`/admin/surfaces/listings/${listing.id}`).expect(409);
   });
+});
+
+it('rejects account-wide fees and platform changes, and never returns seller tokens from edits', async () => {
+  await request(app).patch('/admin/surfaces/accounts/a').send({ feePercent: 10 }).expect(400);
+  await request(app).patch('/admin/surfaces/accounts/a').send({ platform: 'etsy' }).expect(400);
+  const result = await request(app).patch('/admin/surfaces/accounts/a').send({ accountName: 'My Amazon' }).expect(200);
+  expect(JSON.stringify(result.body)).not.toContain('selected-account-token');
+});
+it('exposes unavailable fee status from the real listing endpoint without substituting zero', async () => {
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  const result = await request(app).post(`/admin/surfaces/listings/${listing.id}/fees`).send({}).expect(422);
+  expect(result.body.fees.amount).toBeNull();
+  const saved = await request(app).get('/admin/surfaces/listings').expect(200);
+  expect(saved.body[0].fees.status).toBe('unavailable'); expect(saved.body[0].estimatedMargin).toBeNull();
+});
+
+it('does not discard an eBay offer identity when publication has not completed', async () => {
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  fixture.store.get(`marketplaceListings/${listing.id}`).externalOfferId = 'prepared-offer';
+  await request(app).delete(`/admin/surfaces/listings/${listing.id}`).expect(409);
 });

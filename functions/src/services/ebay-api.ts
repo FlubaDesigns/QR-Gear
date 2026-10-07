@@ -226,6 +226,7 @@ export async function pushListingToEbay(
   credentials: EbayCredentials,
   product: EbayListingProduct,
   sku: string,
+  onOfferReady?: (offerId: string) => Promise<void>,
 ): Promise<EbayPushResult> {
   let accessToken: string;
   try {
@@ -326,6 +327,9 @@ export async function pushListingToEbay(
   } catch (err: any) {
     return { success: false, sku, error: `Network error creating/updating offer: ${err.message}` };
   }
+
+  // Capture listing fees while this offer is still unpublished.
+  if (onOfferReady) await onOfferReady(offerId);
 
   // ── Step 4: Publish Offer ─────────────────────────────────────────────────
   try {

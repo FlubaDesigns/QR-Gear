@@ -30,7 +30,7 @@ export function ListingsSection() {
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ surfaceId: "", accountId: "" });
 
-  const { data: listings = [], isLoading } = useQuery<ListingData[]>({
+  const { data: listings = [], isLoading, error: listingsError, refetch: reloadListings } = useQuery<ListingData[]>({
     queryKey: ["/api/admin/surfaces/listings"],
     refetchInterval: (query) => {
       const data = query.state.data;
@@ -74,6 +74,16 @@ export function ListingsSection() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/logs"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const feeMutation = useMutation({
+    mutationFn: async (listingId: string) => {
+      const res = await apiRequest("POST", `/api/admin/surfaces/listings/${listingId}/fees`, {});
+      return res.json();
+    },
+    onSuccess: () => toast({ title: "Item fees updated" }),
+    onError: (err: Error) => toast({ title: "Fees unavailable", description: err.message, variant: "destructive" }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] }),
   });
 
   const deleteMutation = useMutation({
@@ -123,7 +133,7 @@ export function ListingsSection() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : listings.length === 0 ? (
+      ) : listingsError ? (<div role="alert" className="space-y-2"><p>Could not load listings: {listingsError.message}</p><Button onClick={() => reloadListings()}>Retry</Button></div>) : listings.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <Link2 className="h-16 w-16 text-muted-foreground/30" />
@@ -147,7 +157,7 @@ export function ListingsSection() {
             return (
               <Card key={listing.id} data-testid={`card-listing-${listing.id}`}>
                 <CardContent className="py-4">
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         {PIcon && <PIcon className={`h-4 w-4 flex-shrink-0 ${info.color}`} />}
@@ -159,8 +169,19 @@ export function ListingsSection() {
                       <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
                         <span>Surface: {getSurfaceTitle(listing.surfaceId)}</span>
                         <span>Account: {getAccountName(listing.accountId)}</span>
-                        {listing.price > 0 && <span>${listing.price.toFixed(2)}</span>}
+                        {listing.price > 0 && <span>{listing.currency || "USD"} {listing.price.toFixed(2)}</span>}
                         {listing.externalListingId && <span className="font-mono">#{listing.externalListingId}</span>}
+                      </div>
+                      <div className="mt-3 space-y-1 text-sm" data-testid={`listing-fees-${listing.id}`}>
+                        <p>{listing.fees?.amount != null && ["estimated", "partial"].includes(listing.fees.status)
+                          ? `${listing.fees.status === "partial" ? "Partial listing fees" : "Estimated fees per item"}: ${listing.fees.currency} ${listing.fees.amount.toFixed(2)}${listing.fees.status === "estimated" ? ` (${(listing.fees.amount / listing.fees.price * 100).toFixed(2)}% of item price)` : ""}`
+                          : listing.fees?.status === "stale" ? "Fees need refreshing" : "Fees unavailable"}</p>
+                        {listing.fees?.reason && <p className="text-xs text-muted-foreground">{listing.fees.reason}</p>}
+                        {(listing.fees?.components?.length ?? 0) > 0 && <ul className="text-xs text-muted-foreground">{listing.fees!.components.map((fee, index) => <li key={index}>{fee.name}: {listing.fees!.currency} {fee.amount.toFixed(2)}</li>)}</ul>}
+                        <p>{listing.estimatedMargin
+                          ? `Estimated margin before shipping/tax: ${listing.estimatedMargin.currency} ${listing.estimatedMargin.amount.toFixed(2)} (${listing.estimatedMargin.percent.toFixed(2)}%)`
+                          : "Margin unavailable until item cost and sale fees are known."}</p>
+                        {listing.fees?.retrievedAt && <p className="text-xs text-muted-foreground">Fee check: {formatDate(listing.fees.retrievedAt)}</p>}
                       </div>
                       {listing.lastSyncAt && (
                         <p className="text-xs text-muted-foreground mt-1" data-testid={`text-listing-sync-${listing.id}`}>
@@ -173,13 +194,16 @@ export function ListingsSection() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 [&>button]:min-h-12">
+                      <Button className="min-h-12" variant="outline" disabled={feeMutation.isPending || listing.status === "syncing"} onClick={() => feeMutation.mutate(listing.id)} data-testid={`button-fees-${listing.id}`}>
+                        <RefreshCw className="mr-2 h-4 w-4" />{feeMutation.isPending && feeMutation.variables === listing.id ? "Checking fees…" : "Refresh item fees"}
+                      </Button>
                       {listing.externalUrl && (
                         <Button variant="ghost" size="icon" asChild data-testid={`button-view-external-${listing.id}`}>
                           <a href={listing.externalUrl} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
                         </Button>
                       )}
-                      {listing.status === "pending" && (
+                      {["pending", "draft"].includes(listing.status) && (
                         <Button
                           variant="outline"
                           size="sm"

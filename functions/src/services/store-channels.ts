@@ -21,7 +21,6 @@ export async function createStore(db: Firestore, input: Record<string, any>) {
   if (input.roleType === 'marketplace') {
     data.marketplaceConfig = {
       platform: input.platform || '', apiKeyRef: input.apiKeyRef || '', shopId: input.shopId || '', shopName: input.shopName || '',
-      feePercent: typeof input.feePercent === 'number' ? input.feePercent : 0,
       syncEnabled: input.syncEnabled === true, apiKeyConfigured: false,
     };
   }

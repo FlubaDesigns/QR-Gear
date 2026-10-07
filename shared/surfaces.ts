@@ -100,13 +100,51 @@ export interface MarketplaceAccount {
   shopId: string;
   shopName: string;
   isActive: boolean;
-  feePercent: number;
   apiKeyConfigured: boolean;
+  // Amazon SP-API OAuth fields
+  amazonConnected?: boolean;
+  amazonSellerId?: string;
+  amazonMarketplaceId?: string;
+  amazonMarketplaceIds?: string[];
+  amazonConnectedAt?: string;
+  // eBay OAuth fields
+  ebayConnected?: boolean;
+  ebayUserId?: string;
+  ebayUsername?: string;
+  ebayConnectedAt?: string;
+  // Etsy OAuth fields
+  etsyConnected?: boolean;
+  etsyUserId?: string;
+  etsyShopId?: string;
+  etsyShopName?: string;
+  etsyConnectedAt?: string;
+
   lastHealthCheck?: string;
   healthStatus?: 'healthy' | 'unhealthy' | 'unknown';
   healthError?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A provider response belongs to one product listing and one seller account. */
+export interface MarketplaceFees {
+  status: 'estimated' | 'partial' | 'unavailable' | 'stale';
+  source: 'amazon_product_fees' | 'ebay_listing_fees' | 'etsy' | 'none';
+  scope: 'per_sale' | 'listing';
+  amount: number | null;
+  currency: string;
+  price: number;
+  sku: string;
+  accountId: string;
+  contextKey: string;
+  retrievedAt: string;
+  components: Array<{ name: string; amount: number }>;
+  reason?: string;
+}
+
+/** Same sale price used for publishing, fee retrieval and margin display. */
+export function marketplaceSalePrice(surface: { retailPrice: number; ebay?: { priceOverride?: number | null } }, platform: string): number {
+  return platform === 'ebay' ? surface.ebay?.priceOverride ?? surface.retailPrice : surface.retailPrice;
 }
 
 export interface MarketplaceListing {
@@ -121,7 +159,11 @@ export interface MarketplaceListing {
   accountId: string;
   platform: MarketplacePlatform;
   externalListingId?: string;
+  externalOfferId?: string;
   externalUrl?: string;
+  fees?: MarketplaceFees;
+  /** Read-time calculation; null when fees or product cost are unavailable. Before shipping/tax. */
+  estimatedMargin?: { amount: number; percent: number; productCost: number; currency: string } | null;
   status: ListingStatus;
   title: string;
   price: number;

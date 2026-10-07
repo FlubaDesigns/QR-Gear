@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Marketplace wiring and Dashboard To-Do List, sandbox).
+Last updated: October 7, 2026 (Marketplace item fees, verified connections and seller signup links, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -386,6 +386,24 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Item fees and verified seller connections
+
+Fees moved from the account form to individual marketplace listings. Official signup links, same-tab authorization, verified seller/shop identity and protected callback state replace the incomplete connection behavior. Amazon estimates drive the item margin before shipping/tax; eBay listing charges are explicitly partial and Etsy estimates unavailable. The canonical fee schema invalidates stale context and no missing fee becomes zero. Existing draft listings now have Publish.
+
+#### Files Changed
+| Files | Change |
+|---|---|
+| `shared/surfaces.ts` | Shared account/listing/fee contract and sale-price selector |
+| `functions/src/services/marketplace-fees.ts` | Provider estimate retrieval, per-item persistence, stale checks and shared-engine margin |
+| `functions/src/services/marketplace-oauth.ts`, `functions/src/routes/{amazon,ebay,etsy}-oauth.ts` | One verified authorization flow, protected state and disconnect |
+| `functions/src/services/{amazon-sp-api,ebay-api,etsy-api,marketplace-publisher,marketplace-sync,store-channels}.ts` | Provider integration, offer fee capture, price reuse and obsolete fee default removal |
+| `functions/src/routes/marketplace.ts` | Item fee API, enriched listing reads and sanitized account responses |
+| `client/src/pages/marketplaces-{accounts,listings}.tsx` | Signup/Connect controls, item fee/margin cards and draft Publish |
+| Marketplace backend and React regression tests | Connection rejection/success, provider requests, fee ownership, stale data and mobile navigation behavior |
+| `functions/src/index.ts`, READMEs, `FIREBASE_SCHEMA.md`, `MANIFEST.json` | Sandbox build identifier and schema/review documentation |
+
+
 
 ### October 7, 2026 — Dashboard To-Do List (sandbox)
 
@@ -851,3 +869,20 @@ October 7, 2026 navigation update: Partners now has its own main admin tab, alon
 AllowedProductsEditor owns its optional close action and dirty/save guard; StoreManager's Product choices opener no longer toggles the mounted editor away. MoveDialog guards immediate duplicate submission and uses a per-dialog collection-list ID. InstanceCard safely formats saved numeric-string prices and wraps long titles/destination paths. build-destination imports the collection list's shared isActiveStoreRecord policy from store-admin; explicit deleted collection IDs fail without writes, while a reused collection name remains unbound to the archived definition. No schema or alternate persistence layer was introduced.
 
 185 client and 250 backend tests passed, including seven additional regression cases, plus TypeScript and both builds. Existing store/channel deletion, parent identity, QRG selections, empty choices, destination propagation and failure/retry checks remain green. Authority/execution refresh checked. No live mutations or deployment. Place's former Library remains named Store Products in sandbox; its shared saved-instance path was included in the check.
+
+
+## Marketplace item fees and seller connections — sandbox, October 7, 2026
+
+Marketplace fees now belong to `marketplaceListings/{id}.fees`, keyed to the existing item/QRG, surface and seller account. Account-wide `feePercent` inputs, defaults and displays were removed; old stored values are ignored and account write APIs reject that input. Shared `MarketplaceFees`, account and listing types in `shared/surfaces.ts` are used by the UI. Publishing, fee requests and display use the same sale-price selector, including the eBay override.
+
+Amazon Product Fees API estimates are requested for the selected seller's SKU, current item price/currency and US marketplace with seller fulfillment. The listing saves source, amount, component breakdown, timestamp and context fingerprint. The UI derives the effective item percentage from that response and uses the shared pricing engine with canonical builder pricing subtotal for the estimated margin before shipping/tax. Missing costs/fees or currency mismatches produce no margin. Price, category/policy, SKU, product or account changes invalidate the displayed estimate. A transaction rejects responses for a context changed in flight. Explicit Refresh item fees and successful Amazon publishing refresh the estimate; no fee polling is added.
+
+eBay captures its offer ID and queries fees for that single unpublished offer before publishing. These are **partial listing charges**, not per-sale/final-value fees, and are never substituted into a complete sale margin. Etsy pre-sale estimates are **unavailable**; payment/ledger fee ingestion is not implemented. Provider failures store unavailable with a null amount, not zero. These limitations are visible on the item cards. Shipping charges, actual settlement reconciliation and multi-variant fee estimates remain outside this implementation.
+
+Account cards and Add Account platform choices provide official seller signup links for Amazon, eBay and Etsy. Connect navigates in the same tab to avoid blocked mobile popups. One shared OAuth implementation replaces three divergent callbacks: admin-only start, configuration/callback checks, random single-use expiring state, browser binding, Etsy PKCE, full token validation and mandatory seller/shop lookup before connected status is saved. It returns to the originating approved QR Gear admin URL. The browser cookie uses Firebase Hosting's forwarded `__session` name scoped to `/api/marketplace`, separate from Authorization Engine's `/api/auth/engine` scope. Pending attempts are invalidated by disconnect, and account changes during authorization are rejected. API responses never include refresh tokens or pending OAuth state. Incomplete older connections display disconnected. Etsy v3 requests now use the required keystring/shared-secret header and verified token user ID for shop lookup.
+
+New draft listings now expose the existing Publish action. Accounts and Listings show query failures instead of an empty state. Cards wrap their controls for mobile use, with 48px minimum action heights.
+
+**Review of the other tabs:** Surfaces creates/edits product publishing data and calls the real publishing service, but manual field duplication and stored fields not consumed by adapters remain. Listings is the required item/account placement and fee record. Jobs and Logs both use real backend data and are useful operational history; they could be combined into an Activity view without deleting the underlying records. Size/color variation publishing, remote delisting, complete Amazon category/Etsy processing-profile requirements, inbound marketplace status reconciliation and live seller acceptance tests remain incomplete. Surfaces and Jobs still need explicit query-error states. These are review findings, not a claim that all selling paths are production-ready.
+
+Validation uses mocked provider HTTP, Firestore fixtures and rendered React interactions. No real marketplace account was authorized, no item was published, and production app credential configuration was not inspected. Sandbox source only; Main/live hosting are unchanged.

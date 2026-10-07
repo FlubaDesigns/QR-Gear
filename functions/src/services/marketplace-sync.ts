@@ -1,3 +1,5 @@
+import { refreshListingFees } from './marketplace-fees';
+import { marketplaceSalePrice } from '../../../shared/surfaces';
 import { createHash } from 'crypto';
 import { db } from '../core';
 import { SURFACES_COLLECTION, MARKETPLACE_ACCOUNTS_COLLECTION, MARKETPLACE_LISTINGS_COLLECTION, MARKETPLACE_SYNC_JOBS_COLLECTION, MARKETPLACE_SYNC_LOGS_COLLECTION, SURFACE_VARIANTS_COLLECTION, type MarketplacePlatform, type SyncJobAction } from '../constants';
@@ -42,7 +44,7 @@ export async function getOrCreateMarketplaceListing(surfaceId: string, accountId
     if (prior && account.platform === 'etsy' && !prior.listingId) throw new MarketplaceError('An earlier Etsy push exists without a listing ID. Reconcile it in Etsy before publishing again.', 409);
     const data = {
       surfaceId, accountId, platform: account.platform, qrgCode: surface.sku, marketplaceSku: surface.sku,
-      productInstanceId: surface.masterProductId, status: prior ? 'pending' : 'draft', title: surface.title, price: surface.retailPrice,
+      productInstanceId: surface.masterProductId, status: prior ? 'pending' : 'draft', title: surface.title, price: marketplaceSalePrice(surface as any, account.platform),
       ...(prior?.listingId ? { externalListingId: String(prior.listingId) } : {}),
       createdAt: now(), updatedAt: now(),
     };
@@ -117,6 +119,10 @@ export async function executeSyncJob(jobId: string): Promise<void> {
     const selectionErrors = marketplaceSelectionErrors(product, !variants.empty);
     if (selectionErrors.length) throw new MarketplaceError(selectionErrors.join(' '));
     result = await publishMarketplaceListing(job.platform as MarketplacePlatform, surface, account, listing, {
+      ebayOffer: async offerId => {
+        await listingRef.update({ externalOfferId: offerId, updatedAt: now() });
+        await refreshListingFees(job.listingId);
+      },
       etsyToken: async token => { await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(job.accountId).update({ etsyRefreshToken: token, updatedAt: now() }); },
       externalListing: async id => { await listingRef.update({ externalListingId: id, updatedAt: now() }); },
       etsyCreateAttempt: async () => { await listingRef.update({ externalCreateAttempted: true, updatedAt: now() }); },
@@ -139,6 +145,11 @@ export async function executeSyncJob(jobId: string): Promise<void> {
     tx.create(db.collection(MARKETPLACE_SYNC_LOGS_COLLECTION).doc(), { jobId, listingId: job.listingId, accountId: job.accountId,
       platform: job.platform, level: result.success ? 'info' : 'error', message: result.error || `Marketplace returned ${result.listingStatus}.`, createdAt: timestamp });
   });
+  if (result.success && job.platform !== 'ebay') {
+    // Fee failures have their own visible status; an accepted listing stays accepted.
+    try { await refreshListingFees(job.listingId); }
+    catch { console.error('[Marketplace fees] Could not save fee retrieval result:', job.listingId); }
+  }
 }
 
 export async function retryFailedJob(jobId: string) {

@@ -268,37 +268,15 @@ function buildListingPayload(product: AmazonListingProduct, marketplaceId: strin
   };
 }
 
-// ─── Seller ID Extraction ─────────────────────────────────────────────────────
-
-/**
- * After OAuth, Amazon includes the seller_id (spapi_oauth_code) in the callback.
- * This helper validates the spapi_oauth_code and extracts the seller ID
- * from the SP-API /sellers/v1/marketplaceParticipations endpoint.
- */
-export async function getSellerIdFromToken(accessToken: string): Promise<{ sellerId: string; marketplaceIds: string[] }> {
+/** Verify the granted seller token against active marketplace participation. Seller ID comes from Amazon's OAuth callback. */
+export async function getSellerMarketplaceIds(accessToken: string): Promise<string[]> {
   const resp = await fetch(`${SP_API_BASE_NA}/sellers/v1/marketplaceParticipations`, {
-    headers: {
-      'x-amz-access-token': accessToken,
-      'User-Agent': 'QRGear/1.0 (Language=TypeScript)',
-    },
+    headers: { 'x-amz-access-token': accessToken, 'User-Agent': 'QRGear/1.0 (Language=TypeScript)' },
+    signal: AbortSignal.timeout(20000),
   });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`Could not retrieve seller info (${resp.status}): ${text}`);
-  }
-
-  const data = await resp.json() as any;
-  const participations: any[] = data?.payload || [];
-
-  if (participations.length === 0) {
-    throw new Error('No marketplace participations found for this seller account.');
-  }
-
-  const sellerId: string = participations[0]?.seller?.sellerId;
-  const marketplaceIds: string[] = participations.map((p: any) => p?.marketplace?.id).filter(Boolean);
-
-  if (!sellerId) throw new Error('Could not extract seller ID from marketplace participations.');
-
-  return { sellerId, marketplaceIds };
+  if (!resp.ok) throw new Error(`Amazon seller verification failed (${resp.status}).`);
+  const data: any = await resp.json();
+  const ids = (data?.payload || []).filter((p: any) => p.participation?.isParticipating === true && p.participation?.hasSuspendedListings !== true).map((p: any) => p.marketplace?.id).filter(Boolean);
+  if (!ids.length) throw new Error('No active Amazon marketplaces found.');
+  return ids;
 }

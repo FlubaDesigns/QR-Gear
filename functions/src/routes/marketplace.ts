@@ -1,3 +1,5 @@
+import { publicMarketplaceAccount } from '../services/marketplace-oauth';
+import { refreshListingFees, listingWithFees } from '../services/marketplace-fees';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
@@ -34,8 +36,7 @@ app.get('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Resp
     const snapshot = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).get();
     const accounts = snapshot.docs.map((doc: any) => {
       const data = doc.data();
-      const visible = Object.fromEntries(Object.entries(data).filter(([key]) => !/token|secret|verifier/i.test(key)));
-      return { ...visible, id: doc.id };
+      return publicMarketplaceAccount(data, doc.id);
     });
     accounts.sort((a: any, b: any) => (a.accountName || '').localeCompare(b.accountName || ''));
     res.json(accounts);
@@ -47,7 +48,8 @@ app.get('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Resp
 
 app.post('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { platform, accountName, shopId, shopName, feePercent } = req.body;
+    const { platform, accountName, shopId, shopName } = req.body;
+    if (req.body.feePercent !== undefined) { res.status(400).json({ error: 'Fees belong to individual listings and are retrieved from the marketplace.' }); return; }
     if (!platform || !accountName) {
       res.status(400).json({ error: 'platform and accountName are required' }); return;
     }
@@ -61,7 +63,6 @@ app.post('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Res
       shopId: shopId || '',
       shopName: shopName || '',
       isActive: true,
-      feePercent: typeof feePercent === 'number' ? feePercent : parseFloat(feePercent) || 0,
       apiKeyConfigured: false,
       healthStatus: 'unknown',
       createdAt: now,
@@ -81,17 +82,16 @@ app.patch('/admin/surfaces/accounts/:accountId', requireAdmin, async (req: Reque
     const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
     const updates: Record<string, any> = {};
-    const allowed = ['accountName', 'shopId', 'shopName', 'isActive', 'feePercent', 'platform'];
+    if (req.body.feePercent !== undefined) { res.status(400).json({ error: 'Fees belong to individual listings and are retrieved from the marketplace.' }); return; }
+    if (req.body.platform !== undefined && req.body.platform !== doc.data()!.platform) { res.status(400).json({ error: 'Create a separate account to use another marketplace.' }); return; }
+    const allowed = ['accountName', 'shopId', 'shopName', 'isActive'];
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
-    if (updates.feePercent !== undefined) {
-      updates.feePercent = typeof updates.feePercent === 'number' ? updates.feePercent : parseFloat(updates.feePercent) || 0;
     }
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
     updates.updatedAt = new Date().toISOString();
     await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).update(updates);
-    res.json({ id: accountId, ...doc.data(), ...updates });
+    res.json(publicMarketplaceAccount({ ...doc.data(), ...updates }, accountId));
   } catch (error: any) {
     console.error('[Surfaces] PATCH account error:', error);
     res.status(500).json({ error: error.message });
@@ -488,7 +488,7 @@ app.get('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Resp
     const snapshot = await query.get();
     const listings = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
     listings.sort((a: any, b: any) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-    res.json(listings);
+    res.json(await Promise.all(listings.map(listingWithFees)));
   } catch (error: any) {
     console.error('[Surfaces] GET listings error:', error);
     res.status(500).json({ error: error.message });
@@ -506,12 +506,24 @@ app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Res
   }
 });
 
+app.post('/admin/surfaces/listings/:listingId/fees', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ref = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(req.params.listingId);
+    if (!(await ref.get()).exists) { res.status(404).json({ error: 'Listing not found' }); return; }
+    const fees = await refreshListingFees(req.params.listingId);
+    res.status(fees.status === 'unavailable' ? 422 : 200).json({ fees, ...(fees.status === 'unavailable' ? { error: fees.reason } : {}) });
+  } catch (error: any) {
+    console.error('[Marketplace fees] Refresh failed:', error.message);
+    res.status(409).json({ error: 'Could not refresh fees. Reload this item and retry.' });
+  }
+});
+
 app.delete('/admin/surfaces/listings/:listingId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { listingId } = req.params;
     const doc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
-    if (doc.data()?.externalListingId || doc.data()?.externalCreateAttempted || doc.data()?.status === 'syncing') {
+    if (doc.data()?.externalListingId || doc.data()?.externalOfferId || doc.data()?.externalCreateAttempted || doc.data()?.status === 'syncing') {
       res.status(409).json({ error: 'This record tracks an external listing or an in-progress attempt and cannot be removed.' }); return;
     }
     await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).delete();

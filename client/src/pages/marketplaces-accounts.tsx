@@ -21,39 +21,13 @@ import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
 
 export type MarketplacePlatform = "etsy" | "ebay" | "amazon";
 
-const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string }> = {
-  etsy: { name: "Etsy", icon: SiEtsy, color: "text-orange-500" },
-  ebay: { name: "eBay", icon: SiEbay, color: "text-blue-500" },
-  amazon: { name: "Amazon", icon: SiAmazon, color: "text-yellow-500" },
+const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string; signupUrl: string }> = {
+  etsy: { name: "Etsy", icon: SiEtsy, color: "text-orange-500", signupUrl: "https://www.etsy.com/sell" },
+  ebay: { name: "eBay", icon: SiEbay, color: "text-blue-500", signupUrl: "https://www.ebay.com/sellercenter/selling/start-selling-on-ebay" },
+  amazon: { name: "Amazon", icon: SiAmazon, color: "text-yellow-500", signupUrl: "https://sell.amazon.com/" },
 };
 
-export interface MarketplaceAccount {
-  id: string;
-  platform: MarketplacePlatform;
-  accountName: string;
-  shopId: string;
-  shopName: string;
-  feePercent: number;
-  isActive: boolean;
-  healthStatus?: string;
-  // Amazon SP-API OAuth fields
-  amazonConnected?: boolean;
-  amazonSellerId?: string;
-  amazonMarketplaceId?: string;
-  amazonMarketplaceIds?: string[];
-  amazonConnectedAt?: string;
-  // eBay OAuth fields
-  ebayConnected?: boolean;
-  ebayUserId?: string;
-  ebayUsername?: string;
-  ebayConnectedAt?: string;
-  // Etsy OAuth fields
-  etsyConnected?: boolean;
-  etsyUserId?: string;
-  etsyShopId?: string;
-  etsyShopName?: string;
-  etsyConnectedAt?: string;
-}
+export type MarketplaceAccount = import("@shared/surfaces").MarketplaceAccount;
 
 export function AccountsSection() {
   const { toast } = useToast();
@@ -66,7 +40,6 @@ export function AccountsSection() {
     accountName: "",
     shopId: "",
     shopName: "",
-    feePercent: "0",
   });
 
   // Detect redirect back from Amazon or eBay OAuth and show result toast
@@ -76,7 +49,7 @@ export function AccountsSection() {
     const amazonResult = params.get("amazon_connect");
     if (amazonResult) {
       if (amazonResult === "success") {
-        toast({ title: "Amazon account connected", description: "Your seller account is now linked and ready to push listings." });
+        toast({ title: "Amazon account connected", description: "Your seller account is now linked after seller verification." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
       } else if (amazonResult === "error") {
         const reason = params.get("reason") || "unknown error";
@@ -89,7 +62,7 @@ export function AccountsSection() {
     const ebayResult = params.get("ebay_connect");
     if (ebayResult) {
       if (ebayResult === "success") {
-        toast({ title: "eBay account connected", description: "Your eBay seller account is now linked and ready to push listings." });
+        toast({ title: "eBay account connected", description: "Your eBay seller account is now linked after seller verification." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
       } else if (ebayResult === "error") {
         const reason = params.get("reason") || "unknown error";
@@ -102,7 +75,7 @@ export function AccountsSection() {
     const etsyResult = params.get("etsy_connect");
     if (etsyResult) {
       if (etsyResult === "success") {
-        toast({ title: "Etsy account connected", description: "Your Etsy shop is now linked and ready to push listings." });
+        toast({ title: "Etsy account connected", description: "Your Etsy shop is now linked after seller verification." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
       } else if (etsyResult === "error") {
         const reason = params.get("reason") || "unknown error";
@@ -112,7 +85,7 @@ export function AccountsSection() {
     }
   }, []);
 
-  const { data: accounts = [], isLoading } = useQuery<MarketplaceAccount[]>({
+  const { data: accounts = [], isLoading, error: accountsError, refetch: reloadAccounts } = useQuery<MarketplaceAccount[]>({
     queryKey: ["/api/admin/surfaces/accounts"],
   });
 
@@ -120,7 +93,6 @@ export function AccountsSection() {
     mutationFn: async (data: typeof form) => {
       const res = await apiRequest("POST", "/api/admin/surfaces/accounts", {
         ...data,
-        feePercent: parseFloat(data.feePercent) || 0,
       });
       return res.json();
     },
@@ -169,7 +141,7 @@ export function AccountsSection() {
 
   const connectAmazonMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const res = await apiRequest("GET", `/api/marketplace/amazon/oauth/start?accountId=${accountId}`, undefined);
+      const res = await apiRequest("GET", `/api/marketplace/amazon/oauth/start?accountId=${encodeURIComponent(accountId)}&returnTo=${encodeURIComponent(window.location.origin + "/admin/marketplaces")}`, undefined);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
@@ -177,8 +149,8 @@ export function AccountsSection() {
     onSuccess: (data) => {
       setConnectingId(null);
       if (data.oauthUrl) {
-        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
-        toast({ title: "Amazon authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+        window.location.assign(data.oauthUrl);
+        toast({ title: "Amazon authorization opened", description: "Authorize QR Gear to link this seller account." });
       }
     },
     onError: (err: Error) => {
@@ -208,7 +180,7 @@ export function AccountsSection() {
 
   const connectEbayMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const res = await apiRequest("GET", `/api/marketplace/ebay/oauth/start?accountId=${accountId}`, undefined);
+      const res = await apiRequest("GET", `/api/marketplace/ebay/oauth/start?accountId=${encodeURIComponent(accountId)}&returnTo=${encodeURIComponent(window.location.origin + "/admin/marketplaces")}`, undefined);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
@@ -216,8 +188,8 @@ export function AccountsSection() {
     onSuccess: (data) => {
       setConnectingId(null);
       if (data.oauthUrl) {
-        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
-        toast({ title: "eBay authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+        window.location.assign(data.oauthUrl);
+        toast({ title: "eBay authorization opened", description: "Authorize QR Gear to link this seller account." });
       }
     },
     onError: (err: Error) => {
@@ -257,7 +229,7 @@ export function AccountsSection() {
 
   const connectEtsyMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const res = await apiRequest("GET", `/api/marketplace/etsy/oauth/start?accountId=${accountId}`, undefined);
+      const res = await apiRequest("GET", `/api/marketplace/etsy/oauth/start?accountId=${encodeURIComponent(accountId)}&returnTo=${encodeURIComponent(window.location.origin + "/admin/marketplaces")}`, undefined);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
@@ -265,8 +237,8 @@ export function AccountsSection() {
     onSuccess: (data) => {
       setConnectingId(null);
       if (data.oauthUrl) {
-        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
-        toast({ title: "Etsy authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+        window.location.assign(data.oauthUrl);
+        toast({ title: "Etsy authorization opened", description: "Authorize QR Gear to link this seller account." });
       }
     },
     onError: (err: Error) => {
@@ -275,7 +247,7 @@ export function AccountsSection() {
       toast({
         title: isSetup ? "Etsy app credentials not set up yet" : "Could not start Etsy connection",
         description: isSetup
-          ? "Set ETSY_KEYSTRING and ETSY_REDIRECT_URI in the server environment, then try again."
+          ? "Set ETSY_KEYSTRING, ETSY_SHARED_SECRET and ETSY_REDIRECT_URI in the server environment, then try again."
           : err.message,
         variant: "destructive",
       });
@@ -299,7 +271,7 @@ export function AccountsSection() {
     connectEtsyMutation.mutate(accountId);
   };
 
-  const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "", feePercent: "0" });
+  const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "" });
 
   const openEdit = (acct: MarketplaceAccount) => {
     setEditingId(acct.id);
@@ -308,13 +280,12 @@ export function AccountsSection() {
       accountName: acct.accountName,
       shopId: acct.shopId,
       shopName: acct.shopName,
-      feePercent: String(acct.feePercent || 0),
     });
   };
 
   const handleSave = () => {
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: { ...form, feePercent: parseFloat(form.feePercent) || 0 } });
+      updateMutation.mutate({ id: editingId, data: { ...form } });
     } else {
       if (!form.accountName.trim()) { toast({ title: "Account name required", variant: "destructive" }); return; }
       createMutation.mutate(form);
@@ -341,7 +312,7 @@ export function AccountsSection() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : accounts.length === 0 ? (
+      ) : accountsError ? (<div role="alert" className="space-y-2"><p>Could not load accounts: {accountsError.message}</p><Button onClick={() => reloadAccounts()}>Retry</Button></div>) : accounts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <Settings className="h-16 w-16 text-muted-foreground/30" />
@@ -362,7 +333,7 @@ export function AccountsSection() {
             const PIcon = info?.icon;
             return (
               <Card key={acct.id} data-testid={`card-account-${acct.id}`}>
-                <CardContent className="flex items-center justify-between gap-4 py-4">
+                <CardContent className="flex flex-col items-stretch gap-4 py-4">
                   <div className="flex items-center gap-3 min-w-0">
                     {PIcon && <PIcon className={`h-6 w-6 flex-shrink-0 ${info.color}`} />}
                     <div className="min-w-0">
@@ -397,13 +368,12 @@ export function AccountsSection() {
                         {acct.platform === "etsy" && acct.etsyShopName && (
                           <span className="text-xs text-muted-foreground">{acct.etsyShopName}</span>
                         )}
-                        {acct.feePercent > 0 && (
-                          <span className="text-xs text-muted-foreground">{acct.feePercent}% fee</span>
-                        )}
+
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 [&>button]:min-h-12 [&>a]:min-h-12">
+                    <Button asChild variant="outline" data-testid={`link-marketplace-signup-${acct.id}`}><a href={info.signupUrl} target="_blank" rel="noopener noreferrer">Sign up for {info.name}<ExternalLink className="ml-2 h-4 w-4" /></a></Button>
                     {acct.platform === "amazon" && (
                       acct.amazonConnected ? (
                         <Button
@@ -515,16 +485,19 @@ export function AccountsSection() {
                 {(Object.entries(PLATFORM_INFO) as [MarketplacePlatform, typeof PLATFORM_INFO["etsy"]][]).map(([key, info]) => {
                   const Icon = info.icon;
                   return (
+                    <div key={key} className="min-w-0 space-y-2">
                     <Button
-                      key={key}
                       variant={form.platform === key ? "default" : "outline"}
-                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      className="flex w-full flex-col items-center gap-2 h-auto py-4"
+                      disabled={editingId !== null}
                       onClick={() => setForm({ ...form, platform: key })}
                       data-testid={`button-platform-${key}`}
                     >
                       <Icon className={`h-6 w-6 ${form.platform !== key ? info.color : ""}`} />
                       <span className="text-sm">{info.name}</span>
                     </Button>
+                    <a className="flex min-h-12 items-center justify-center text-center text-sm underline" href={info.signupUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-signup-${key}`}>Sign up for {info.name}</a>
+                    </div>
                   );
                 })}
               </div>
@@ -541,10 +514,7 @@ export function AccountsSection() {
               <Label htmlFor="shop-name">Shop Name</Label>
               <Input id="shop-name" placeholder="Your shop name on the marketplace" value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })} data-testid="input-shop-name" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="fee-pct">Marketplace Fee %</Label>
-              <Input id="fee-pct" type="number" min="0" max="100" step="0.1" value={form.feePercent} onChange={(e) => setForm({ ...form, feePercent: e.target.value })} data-testid="input-fee-percent" />
-            </div>
+            <p className="text-sm text-muted-foreground">Fees are retrieved for each item in Listings after connecting your seller account.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }} data-testid="button-cancel-account">Cancel</Button>
@@ -2142,19 +2112,4 @@ export function SurfacesSection() {
 
 // ============ LISTINGS SECTION ============
 
-export interface ListingData {
-  id: string;
-  surfaceId: string;
-  accountId: string;
-  platform: MarketplacePlatform;
-  externalListingId?: string;
-  externalUrl?: string;
-  status: string;
-  title: string;
-  price: number;
-  lastSyncAt?: string;
-  errorMessage?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
+export type ListingData = import("@shared/surfaces").MarketplaceListing & { currency?: string };

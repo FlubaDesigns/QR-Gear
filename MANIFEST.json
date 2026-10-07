@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "generatedAt": "2026-10-07T19:26:00.414Z",
+  "generatedAt": "2026-10-07T20:41:38.320Z",
   "algorithm": "sha256",
   "extraFilePolicy": "flag",
   "requiredFiles": [
@@ -22,17 +22,17 @@
     "ASSEMBLY.md": "2138cf65205f1eba7d9ec27a5e89c81df25b5486c592a67306f55b79e5eae3d7",
     "ASSET_LIBRARY_SPEC.md": "9e6db6dee8fd8740efd852c5779ef0db50fe6cf5a6e33e69135fe581292cfad2",
     "BLD.md": "c9adf60252ff45502924b8dac39a2a43cf13964eca06ca59627179e6da9a97b4",
-    "FIREBASE_SCHEMA.md": "93627903e93bee07d54bc1944ddab3205ae659f07cef57fe80b2ce50cce7578d",
+    "FIREBASE_SCHEMA.md": "cb4c8d510f36f098f2757bcdfdd96afeb216dbed3a62413509a0ff80d869e0ae",
     "GRF.md": "c679abf32f77c28f69b2051a61599f1f9bfe23ba3beee7c455b3d3e67413c5b3",
     "METHODOLOGY.md": "99c4aa463b851ccef46ff6efa7d842c63014e70b72baf38f7227cf0066b6b6f1",
     "NAMING_STANDARDS.md": "9b3098fb3e13dafc474d940dfd1c0e73fe53aed84870f2ffb3a51418b20618db",
     "PRODUCTION_INVENTORY.md": "56282a369db1de5a568db7f14d5c95ff26195942cb8499e7417a0ac10ed5605f",
     "QRG.md": "ec111cdefa9e71469050c5cee86d2ba467cf0d6dd53701109a588a791f1b39c3",
-    "README.md": "22691c88414803883980a88f993f900293adecb9c8fee4395150927217c15b50",
+    "README.md": "46f3aef49c95ba2340ecb9f18f5fc1a0fc4dfdb44672f6f9b87254992cd9d73f",
     "REPLIT.md": "53981ed33cb31a49228d70d8dde0153fefe0df3af64b00cf28155fcce92af3f7",
     "SKILLS.md": "baea7b005655b63c38fb46f06aa18bc0ed0a32ea7d0dbfbd496eef2175c7f745",
     "SYSTEM_KEYS.md": "5e8ef1dcd1bdf25f804f3ad788be836da3321cb95fcd50f5d0aafaaa0f36e4b5",
     "design_guidelines.md": "e066eeece9e47e40c8956c1876d32582e0b23507ef5c1167c7a51006cf81e15b"
   },
-  "packageHash": "a1894c2b3cac9231fc56342e121a3ad818f94f858bfd81625eaa8edfd3ce745f"
+  "packageHash": "436994f5edd08af76abaef4e5d8a50e1e638140c1efa0c0e5e08dc760ab6f614"
 }

@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { pushListingToAmazon } from '../amazon-sp-api';
+import { pushListingToAmazon, getSellerMarketplaceIds } from '../amazon-sp-api';
 import { pushListingToEbay } from '../ebay-api';
-import { pushListingToEtsy } from '../etsy-api';
+import { pushListingToEtsy, getEtsyShopInfo } from '../etsy-api';
 const fetchMock = vi.fn();
 const response = (value: any, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const common = { title: 'Saved product', description: 'Description', price: 29, currencyCode: 'USD', quantity: 0, imageUrls: ['https://images/a.jpg'] };
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock); fetchMock.mockReset(); fetchMock.mockImplementation(() => { throw new Error('Unexpected external request'); });
-  for (const key of ['ETSY_KEYSTRING', 'EBAY_APP_ID', 'EBAY_CERT_ID', 'AMAZON_SP_CLIENT_ID', 'AMAZON_SP_CLIENT_SECRET']) vi.stubEnv(key, 'test-app');
+  for (const key of ['ETSY_KEYSTRING', 'ETSY_SHARED_SECRET', 'EBAY_APP_ID', 'EBAY_CERT_ID', 'AMAZON_SP_CLIENT_ID', 'AMAZON_SP_CLIENT_SECRET']) vi.stubEnv(key, 'test-app');
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('Marketplace provider request regressions (mocked HTTP only)', () => {
@@ -44,4 +44,19 @@ describe('Marketplace provider request regressions (mocked HTTP only)', () => {
     expect(JSON.parse(fetchMock.mock.calls[3][1].body).products[0].offerings[0]).toEqual({ price: 29, quantity: 0, is_enabled: true, readiness_state_id: 4 });
     expect(beforeCreate).not.toHaveBeenCalled(); expect(fetchMock.mock.calls[1][0]).toContain('/listings/123'); expect(fetchMock.mock.calls[1][1].method).toBe('PATCH');
   });
+});
+
+it('verifies Amazon participation without inventing a seller ID from the response', async () => {
+  fetchMock.mockResolvedValueOnce(response({ payload: [
+    { marketplace: { id: 'ATVPDKIKX0DER' }, participation: { isParticipating: true, hasSuspendedListings: false } },
+    { marketplace: { id: 'inactive' }, participation: { isParticipating: false } },
+  ] }));
+  expect(await getSellerMarketplaceIds('authorized')).toEqual(['ATVPDKIKX0DER']);
+  expect(fetchMock.mock.calls[0][1].headers['x-amz-access-token']).toBe('authorized');
+});
+it('gets the Etsy shop for the authenticated user and sends the required API key pair', async () => {
+  fetchMock.mockResolvedValueOnce(response({ shop_id: 456, shop_name: 'MyShop' }));
+  expect(await getEtsyShopInfo('123.authorized')).toEqual({ userId: '123', shopId: '456', shopName: 'MyShop' });
+  expect(fetchMock.mock.calls[0][0]).toContain('/users/123/shops');
+  expect(fetchMock.mock.calls[0][1].headers['x-api-key']).toBe('test-app:test-app');
 });
