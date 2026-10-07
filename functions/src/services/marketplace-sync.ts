@@ -1,3 +1,4 @@
+import { resolveMarketplaceVariants } from './marketplace-variants';
 import { refreshListingFees } from './marketplace-fees';
 import { marketplaceSalePrice } from '../../../shared/surfaces';
 import { createHash } from 'crypto';
@@ -13,13 +14,17 @@ const now = () => new Date().toISOString();
 const listings = () => db.collection(MARKETPLACE_LISTINGS_COLLECTION);
 const jobs = () => db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION);
 
-async function readContext(surfaceId: string, accountId: string) {
+async function readContext(surfaceId: string, accountId: string, remoteOnly = false) {
   const [surfaceDoc, accountDoc] = await Promise.all([
     db.collection(SURFACES_COLLECTION).doc(surfaceId).get(),
     db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get(),
   ]);
   if (!surfaceDoc.exists || !accountDoc.exists) throw new MarketplaceError('Surface or marketplace account not found.', 404);
   const surface = surfaceDoc.data()!, account = accountDoc.data()!;
+  if (remoteOnly) {
+    if (!account.isActive) throw new MarketplaceError('Marketplace account is inactive.');
+    return { surface, account, product: null };
+  }
   if (!surface.masterProductId) throw new MarketplaceError('Generate this surface from a committed product first.');
   const product = await normalizeProductForPublishing(surface.masterProductId, db);
   if (surface.sku !== product.sku) throw new MarketplaceError('Surface QRG identity does not match its product. Regenerate the surface.');
@@ -107,26 +112,37 @@ export async function executeSyncJob(jobId: string): Promise<void> {
   let result: PublishResult;
   try {
     const listing = (await listingRef.get()).data()!;
-    const { surface, account, product } = await readContext(job.surfaceId, job.accountId);
+    const { surface, account, product } = await readContext(job.surfaceId, job.accountId, ['check_status', 'delete'].includes(job.action));
     if (listing.surfaceId !== job.surfaceId || listing.accountId !== job.accountId || account.platform !== job.platform ||
         listing.platform !== job.platform || job.qrgCode !== surface.sku || job.marketplaceSku !== surface.sku ||
         listing.qrgCode !== surface.sku || listing.marketplaceSku !== surface.sku || job.productInstanceId !== surface.masterProductId) {
       throw new MarketplaceError('Listing, job and product identity do not match.');
     }
-    if (job.action === 'delete') throw new MarketplaceError('Remote delisting is not wired yet. Remove the listing in the marketplace; it will not be marked deleted here.');
-    if (!['create', 'update', 'full_sync', 'sync_inventory'].includes(job.action)) throw new MarketplaceError('Unsupported marketplace job action.');
-    const variants = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', job.surfaceId).get();
-    const selectionErrors = marketplaceSelectionErrors(product, !variants.empty);
-    if (selectionErrors.length) throw new MarketplaceError(selectionErrors.join(' '));
+    if (['delete', 'check_status'].includes(job.action) && job.platform !== 'ebay') throw new MarketplaceError('Remote status and ending listings are currently available for eBay.');
+    if (!['create', 'update', 'full_sync', 'sync_inventory', 'delete', 'check_status'].includes(job.action)) throw new MarketplaceError('Unsupported marketplace job action.');
+    let resolvedVariants: Awaited<ReturnType<typeof resolveMarketplaceVariants>> = [];
+    if (product) {
+      const variants = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', job.surfaceId).get();
+      if (job.platform === 'ebay') {
+        if (!variants.empty) throw new MarketplaceError('Legacy surface variant overrides must be reconciled with the built product before publishing.');
+        resolvedVariants = await resolveMarketplaceVariants(product, db);
+      } else {
+        const selectionErrors = marketplaceSelectionErrors(product, !variants.empty);
+        if (selectionErrors.length) throw new MarketplaceError(selectionErrors.join(' '));
+      }
+    }
     result = await publishMarketplaceListing(job.platform as MarketplacePlatform, surface, account, listing, {
-      ebayOffer: async offerId => {
-        await listingRef.update({ externalOfferId: offerId, updatedAt: now() });
-        await refreshListingFees(job.listingId);
+      ebayOffer: async (offerId, identity) => {
+        await listingRef.update({ externalOfferId: offerId, ...(identity?.offers ? { ebayOffers: identity.offers } : {}),
+          ...(identity?.inventoryItemGroupKey ? { ebayInventoryItemGroupKey: identity.inventoryItemGroupKey } : {}), updatedAt: now() });
+      },
+      ebayPrepared: async () => {
+        try { await refreshListingFees(job.listingId); } catch { console.error('[Marketplace fees] Could not save eBay fee result:', job.listingId); }
       },
       etsyToken: async token => { await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(job.accountId).update({ etsyRefreshToken: token, updatedAt: now() }); },
       externalListing: async id => { await listingRef.update({ externalListingId: id, updatedAt: now() }); },
       etsyCreateAttempt: async () => { await listingRef.update({ externalCreateAttempted: true, updatedAt: now() }); },
-    });
+    }, resolvedVariants, job.action);
   } catch (error) {
     result = { success: false, sku: job.qrgCode || '', listingStatus: 'error', error: error instanceof Error ? error.message : String(error) };
   }
@@ -135,17 +151,23 @@ export async function executeSyncJob(jobId: string): Promise<void> {
   const storedResult = JSON.parse(JSON.stringify(result));
   await db.runTransaction(async tx => {
     const listingSnap = await tx.get(listingRef);
+    const related = await tx.get(listings().where('surfaceId', '==', job.surfaceId));
+    const surfaceSnap = await tx.get(db.collection(SURFACES_COLLECTION).doc(job.surfaceId));
     if (!listingSnap.exists || listingSnap.data()!.lastSyncJobId !== jobId) throw new MarketplaceError('Listing changed during publishing; result requires reconciliation.', 409);
     tx.update(jobRef, { status: result.success ? 'completed' : 'failed', result: storedResult,
       errorMessage: result.error || null, completedAt: timestamp, updatedAt: timestamp });
     tx.update(listingRef, { status: result.listingStatus, lastSyncAt: timestamp, updatedAt: timestamp,
-      errorMessage: result.error || null, ...(result.externalListingId ? { externalListingId: result.externalListingId } : {}),
+      errorMessage: result.error || null, ...(result.success && job.platform === 'ebay' ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
+      ...(result.externalListingId ? { externalListingId: result.externalListingId } : {}),
       ...(result.externalUrl ? { externalUrl: result.externalUrl } : {}) });
-    if (result.listingStatus === 'active') tx.update(db.collection(SURFACES_COLLECTION).doc(job.surfaceId), { status: 'published', updatedAt: timestamp });
+    if (result.success && surfaceSnap.exists) {
+      const hasActiveListing = related.docs.some(doc => doc.id === job.listingId ? result.listingStatus === 'active' : doc.data().status === 'active');
+      tx.update(surfaceSnap.ref, { status: hasActiveListing ? 'published' : surfaceSnap.data()!.status === 'published' ? 'draft' : surfaceSnap.data()!.status, updatedAt: timestamp });
+    }
     tx.create(db.collection(MARKETPLACE_SYNC_LOGS_COLLECTION).doc(), { jobId, listingId: job.listingId, accountId: job.accountId,
       platform: job.platform, level: result.success ? 'info' : 'error', message: result.error || `Marketplace returned ${result.listingStatus}.`, createdAt: timestamp });
   });
-  if (result.success && job.platform !== 'ebay') {
+  if (result.success && job.platform !== 'ebay' && !['check_status', 'delete'].includes(job.action)) {
     // Fee failures have their own visible status; an accepted listing stays accepted.
     try { await refreshListingFees(job.listingId); }
     catch { console.error('[Marketplace fees] Could not save fee retrieval result:', job.listingId); }

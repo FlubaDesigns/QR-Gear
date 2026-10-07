@@ -149,9 +149,9 @@ Builds the embeddable widget runtime for selling QR Gear products on external we
 ### #8 — Marketplace Expansion
 **Status: In progress — sandbox wiring repaired October 7, 2026; not production-ready**
 
-Current pass joins direct Push and Jobs around selected OAuth accounts, canonical QRG products, shared listing/job/log records and explicit retries. The product picker, route ordering, authenticated Logs and retail-price handoffs are repaired. Saved selections remain intact; unsupported variations and remote delisting now fail visibly. No live publication or Main deployment was performed.
+Current pass joins direct Push and Jobs around selected OAuth accounts, canonical QRG products, shared listing/job/log records and explicit retries. The product picker, route ordering, authenticated Logs and retail-price handoffs are repaired. Saved selections remain intact. eBay now has connected-seller policy/category/location setup, publishing of actual saved variant combinations, explicit provider size/color labels, manual remote status checks and verified withdrawal. The eBay job path reuses saved offers and preserves history. No live publication or Main deployment was performed.
 
-Still to do: implement provider-specific variation payloads with canonical variant identities, complete provider category/processing-profile requirements, wire remote delisting, and verify account-to-listing behavior in provider test environments. Amazon accepted submissions need later status reconciliation. Review the security and order dependencies below before production release.
+Still to do: verify the eBay flow with a real connected seller, implement Amazon/Etsy variation payloads and remaining category/processing-profile requirements, add their remote status/delisting paths, and ingest actual marketplace settlement fees. eBay variation-group fee estimates remain unavailable; single-offer listing fees are partial. Amazon accepted submissions need later status reconciliation. Review the security and order dependencies below before production release.
 
 The following paragraph records the original expansion scope:
 

@@ -644,10 +644,6 @@ type SurfaceForm = {
   ebay_subtitle: string;
   ebay_bestOfferEnabled: boolean;
   ebay_itemSpecifics: string;
-  ebay_shippingPolicyId: string;
-  ebay_returnsPolicyId: string;
-  ebay_paymentPolicyId: string;
-  ebay_handlingTime: string;
   ebay_packageWeightLbs: string;
   ebay_dimLength: string;
   ebay_dimWidth: string;
@@ -694,10 +690,6 @@ function surfaceToForm(s: SurfaceData): SurfaceForm {
     ebay_subtitle: eb.subtitle || "",
     ebay_bestOfferEnabled: !!eb.bestOfferEnabled,
     ebay_itemSpecifics: serializeItemSpecifics(eb.itemSpecifics),
-    ebay_shippingPolicyId: eb.shippingPolicyId || "",
-    ebay_returnsPolicyId: eb.returnsPolicyId || "",
-    ebay_paymentPolicyId: eb.paymentPolicyId || "",
-    ebay_handlingTime: eb.handlingTime != null ? String(eb.handlingTime) : "",
     ebay_packageWeightLbs: eb.packageWeightLbs != null ? String(eb.packageWeightLbs) : "",
     ebay_dimLength: dims?.length != null ? String(dims.length) : "",
     ebay_dimWidth: dims?.width != null ? String(dims.width) : "",
@@ -721,10 +713,6 @@ function buildSurfacePayload(data: SurfaceForm) {
     subtitle: data.ebay_subtitle || undefined,
     itemSpecifics: parseItemSpecifics(data.ebay_itemSpecifics),
     bestOfferEnabled: data.ebay_bestOfferEnabled,
-    shippingPolicyId: data.ebay_shippingPolicyId || undefined,
-    returnsPolicyId: data.ebay_returnsPolicyId || undefined,
-    paymentPolicyId: data.ebay_paymentPolicyId || undefined,
-    handlingTime: data.ebay_handlingTime ? parseInt(data.ebay_handlingTime) : undefined,
     packageWeightLbs: data.ebay_packageWeightLbs ? parseFloat(data.ebay_packageWeightLbs) : undefined,
     packageDimensionsInches: (data.ebay_dimLength && data.ebay_dimWidth && data.ebay_dimHeight) ? {
       length: parseFloat(data.ebay_dimLength),
@@ -1259,7 +1247,7 @@ export function MarketplaceItemSetup({ surface, onClose, onSaved }: {
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-sku">SKU</Label>
-              <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setF({ sku: e.target.value })} data-testid="input-surface-sku" />
+              <Input readOnly id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setF({ sku: e.target.value })} data-testid="input-surface-sku" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-tags">Tags (comma-separated)</Label>
@@ -1401,10 +1389,11 @@ export function MarketplaceItemSetup({ surface, onClose, onSaved }: {
                         <SelectItem value="1000">1000 — New</SelectItem>
                         <SelectItem value="1500">1500 — New Other</SelectItem>
                         <SelectItem value="2000">2000 — Certified Refurbished</SelectItem>
-                        <SelectItem value="2500">2500 — Excellent Refurbished</SelectItem>
-                        <SelectItem value="3000">3000 — Very Good Refurbished</SelectItem>
-                        <SelectItem value="4000">4000 — Good Refurbished</SelectItem>
-                        <SelectItem value="7000">7000 — Used</SelectItem>
+                        <SelectItem value="2500">2500 — Seller Refurbished</SelectItem>
+                        <SelectItem value="3000">3000 — Used</SelectItem>
+                        <SelectItem value="4000">4000 — Very Good</SelectItem>
+                        <SelectItem value="5000">5000 — Good</SelectItem>
+                        <SelectItem value="6000">6000 — Acceptable</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1417,7 +1406,7 @@ export function MarketplaceItemSetup({ surface, onClose, onSaved }: {
                       <SelectTrigger id="eb-format" data-testid="select-ebay-listing-format"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="FIXED_PRICE">Fixed Price</SelectItem>
-                        <SelectItem value="AUCTION">Auction</SelectItem>
+
                       </SelectContent>
                     </Select>
                   </div>
@@ -1449,29 +1438,10 @@ export function MarketplaceItemSetup({ surface, onClose, onSaved }: {
                   Enable Best Offer
                 </label>
 
-                {/* Business Policies */}
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Business Policy IDs</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-ship" className="text-xs">Shipping Policy ID</Label>
-                    <Input id="eb-ship" placeholder="Policy ID" value={form.ebay_shippingPolicyId} onChange={(e) => setF({ ebay_shippingPolicyId: e.target.value })} data-testid="input-ebay-shipping-policy" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-ret" className="text-xs">Returns Policy ID</Label>
-                    <Input id="eb-ret" placeholder="Policy ID" value={form.ebay_returnsPolicyId} onChange={(e) => setF({ ebay_returnsPolicyId: e.target.value })} data-testid="input-ebay-returns-policy" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-pay" className="text-xs">Payment Policy ID</Label>
-                    <Input id="eb-pay" placeholder="Policy ID" value={form.ebay_paymentPolicyId} onChange={(e) => setF({ ebay_paymentPolicyId: e.target.value })} data-testid="input-ebay-payment-policy" />
-                  </div>
-                </div>
-
+                <p className="text-sm">Use eBay Setup on the listing to choose seller policies, location and category requirements.</p>
                 {/* Handling + Package */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-handling" className="text-xs">Handling Time (days)</Label>
-                    <Input id="eb-handling" type="number" min="0" max="30" placeholder="e.g. 3" value={form.ebay_handlingTime} onChange={(e) => setF({ ebay_handlingTime: e.target.value })} data-testid="input-ebay-handling-time" />
-                  </div>
+
                   <div className="space-y-1">
                     <Label htmlFor="eb-weight" className="text-xs">Package Weight (lbs)</Label>
                     <Input id="eb-weight" type="number" min="0" step="0.1" placeholder="e.g. 0.5" value={form.ebay_packageWeightLbs} onChange={(e) => setF({ ebay_packageWeightLbs: e.target.value })} data-testid="input-ebay-package-weight" />
@@ -1515,8 +1485,8 @@ export function MarketplaceItemSetup({ surface, onClose, onSaved }: {
                     <Input id="eb-price-ovr" type="number" min="0" step="0.01" placeholder="Leave blank to use Retail Price" value={form.ebay_priceOverride} onChange={(e) => setF({ ebay_priceOverride: e.target.value })} data-testid="input-ebay-price-override" />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="eb-qty" className="text-xs">Quantity Override</Label>
-                    <Input id="eb-qty" type="number" min="0" step="1" placeholder="Leave blank to use 999" value={form.ebay_quantity} onChange={(e) => setF({ ebay_quantity: e.target.value })} data-testid="input-ebay-quantity-override" />
+                    <Label htmlFor="eb-qty" className="text-xs">Quantity per variation</Label>
+                    <Input id="eb-qty" type="number" min="0" step="1" placeholder="Leave blank to use 100" value={form.ebay_quantity} onChange={(e) => setF({ ebay_quantity: e.target.value })} data-testid="input-ebay-quantity-override" />
                   </div>
                 </div>
               </div>

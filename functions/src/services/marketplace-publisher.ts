@@ -1,13 +1,14 @@
 import { marketplaceSalePrice } from '../../../shared/surfaces';
 import { pushListingToAmazon } from './amazon-sp-api';
-import { pushListingToEbay } from './ebay-api';
+import { pushListingToEbay, checkEbayListing, type EbayListingIdentity } from './ebay-api';
+import type { MarketplaceVariant } from './marketplace-variants';
 import { pushListingToEtsy } from './etsy-api';
 import type { MarketplacePlatform } from '../constants';
 
 export interface PublishResult {
   success: boolean;
   sku: string;
-  listingStatus: 'pending' | 'draft' | 'active' | 'error';
+  listingStatus: 'pending' | 'draft' | 'active' | 'error' | 'delisted';
   externalListingId?: string;
   externalUrl?: string;
   error?: string;
@@ -24,12 +25,22 @@ export async function publishMarketplaceListing(
     etsyCreateAttempt: () => Promise<void>;
     etsyToken: (refreshToken: string) => Promise<void>;
     externalListing: (externalListingId: string) => Promise<void>;
-    ebayOffer?: (offerId: string) => Promise<void>;
+    ebayPrepared?: () => Promise<void>;
+    ebayOffer?: (offerId: string, identity?: EbayListingIdentity) => Promise<void>;
   },
+  variants: MarketplaceVariant[] = [],
+  action = 'create',
 ): Promise<PublishResult> {
   if (account.platform !== platform || !account.isActive) throw new Error('Marketplace account is inactive or does not match this listing.');
-  if (!surface.enabledPlatforms?.includes(platform)) throw new Error('Enable this marketplace on the surface before publishing.');
   if (!account[`${platform}Connected`] || !account[`${platform}RefreshToken`]) throw new Error(`Connect this ${platform} account before publishing.`);
+  if (platform === 'ebay' && ['check_status', 'delete'].includes(action)) {
+    const result = await checkEbayListing({ userId: account.ebayUserId || '', username: account.ebayUsername || '', refreshToken: account.ebayRefreshToken }, {
+      offers: listing.ebayOffers || (listing.externalOfferId ? [{ sku: listing.marketplaceSku, offerId: listing.externalOfferId }] : []),
+      inventoryItemGroupKey: listing.ebayInventoryItemGroupKey, externalListingId: listing.externalListingId,
+    }, listing.marketplaceSku, action === 'delete');
+    return { ...result, listingStatus: result.success ? result.listingStatus! : 'error', ...(result.listingId ? { externalListingId: result.listingId, externalUrl: `https://www.ebay.com/itm/${result.listingId}` } : {}) };
+  }
+  if (!surface.enabledPlatforms?.includes(platform)) throw new Error('Enable this marketplace on the surface before publishing.');
   const price = marketplaceSalePrice(surface as any, platform);
   if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) throw new Error('Set a positive retail price before publishing.');
   if (!surface.title?.trim() || !surface.description?.trim() || !surface.images?.length) throw new Error('Title, description and product images are required before publishing.');
@@ -49,18 +60,20 @@ export async function publishMarketplaceListing(
   }
   if (platform === 'ebay') {
     const eb = surface.ebay || {};
+    const seller = listing.publishOptions?.ebay || {};
     if (!eb.categoryId) throw new Error('Set the eBay category ID on the surface before publishing.');
     const raw = typeof eb.itemSpecifics === 'string' ? JSON.parse(eb.itemSpecifics) : eb.itemSpecifics || {};
     const aspects = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value.map(String) : [String(value)]]));
     const result = await pushListingToEbay({ userId: account.ebayUserId || '', username: account.ebayUsername || '', refreshToken: account.ebayRefreshToken }, {
       ...common, condition: eb.conditionId === '1000' ? 'NEW' : eb.conditionId || 'NEW', brand: eb.brand || surface.brand || 'QR Gear',
       categoryId: String(eb.categoryId), listingFormat: eb.listingFormat || 'FIXED_PRICE',
-      fulfillmentPolicyId: eb.shippingPolicyId || undefined, paymentPolicyId: eb.paymentPolicyId || undefined,
-      returnPolicyId: eb.returnsPolicyId || undefined, merchantLocationKey: eb.merchantLocationKey || undefined,
+      fulfillmentPolicyId: seller.fulfillmentPolicyId, paymentPolicyId: seller.paymentPolicyId,
+      returnPolicyId: seller.returnPolicyId, merchantLocationKey: seller.merchantLocationKey,
       upc: eb.upc || undefined, ean: eb.ean || undefined, mpn: eb.mpn || undefined, aspects,
       bestOfferEnabled: eb.bestOfferEnabled === true, subtitle: eb.subtitle || undefined,
-    }, sku, persist.ebayOffer);
-    return { ...result, listingStatus: result.success ? 'active' : 'error', ...(result.listingId ? { externalListingId: result.listingId, externalUrl: `https://www.ebay.com/itm/${result.listingId}` } : {}) };
+      variants: variants.map(variant => ({ ...variant, size: seller.variationValues?.Size?.[variant.size] || variant.size, color: seller.variationValues?.Color?.[variant.color] || variant.color })), packageWeightLbs: eb.packageWeightLbs, packageDimensionsInches: eb.packageDimensionsInches,
+    }, sku, persist.ebayOffer, { offers: listing.ebayOffers || (listing.externalOfferId ? [{ sku, offerId: listing.externalOfferId }] : []), inventoryItemGroupKey: listing.ebayInventoryItemGroupKey, externalListingId: listing.externalListingId }, persist.ebayPrepared);
+    return { ...result, listingStatus: result.success ? result.listingStatus || 'pending' : 'error', ...(result.listingId ? { externalListingId: result.listingId, externalUrl: `https://www.ebay.com/itm/${result.listingId}` } : {}) };
   }
   const options = listing.publishOptions || {};
   for (const key of ['taxonomyId', 'shippingProfileId']) {

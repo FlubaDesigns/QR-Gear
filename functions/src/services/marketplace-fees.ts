@@ -14,7 +14,7 @@ export function feeContextKey(listing: any, surface: any, account: any): string 
     active: account.isActive === true, enabled: surface.enabledPlatforms?.includes(listing.platform) === true,
     // Category/attributes/shipping policies can change the estimate without changing price.
     amazonProductType: surface.amazonProductType || '', ebay: surface.ebay || {},
-    externalOfferId: listing.externalOfferId || '',
+    externalOfferId: listing.externalOfferId || '', ebayOffers: listing.ebayOffers || [], ebaySettings: listing.publishOptions?.ebay || {},
   })).digest('hex');
 }
 
@@ -59,6 +59,7 @@ export async function retrieveMarketplaceFees(listing: any, surface: any, accoun
       fees.reason = 'Per sale estimate for seller fulfillment and the item price; excludes buyer shipping charges and actual settlement adjustments.';
     } else if (listing.platform === 'ebay') {
       fees.source = 'ebay_listing_fees'; fees.scope = 'listing';
+      if (listing.ebayOffers?.length > 1) throw new Error('eBay variation-group fee estimates are not available here. No single-variant fee is substituted for the whole item.');
       if (!listing.externalOfferId) throw new Error('eBay listing fees become available when its offer is prepared for publishing.');
       const token = await ebayToken(account.ebayRefreshToken);
       const resp = await fetch('https://api.ebay.com/sell/inventory/v1/offer/get_listing_fees', {

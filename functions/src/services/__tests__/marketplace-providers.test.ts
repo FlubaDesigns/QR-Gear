@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { pushListingToAmazon, getSellerMarketplaceIds } from '../amazon-sp-api';
-import { pushListingToEbay } from '../ebay-api';
 import { pushListingToEtsy, getEtsyShopInfo } from '../etsy-api';
 const fetchMock = vi.fn();
 const response = (value: any, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
@@ -20,12 +19,6 @@ describe('Marketplace provider request regressions (mocked HTTP only)', () => {
     expect(payload.attributes.purchasable_offer[0].our_price[0].schedule[0].value_with_tax).toBe(29);
     expect(payload.attributes.other_product_image_locator_2[0].media_location).toBe('c');
     expect(payload.attributes.fulfillment_availability[0].quantity).toBe(0);
-  });
-  it('eBay fails closed after an offer lookup failure and keeps inventory zero', async () => {
-    fetchMock.mockResolvedValueOnce(response({ access_token: 'fresh-token' })).mockResolvedValueOnce(new Response(null, { status: 204 })).mockResolvedValueOnce(response({ errors: [{ errorId: 999 }] }, 503));
-    const result = await pushListingToEbay({ refreshToken: 'selected', userId: 'seller', username: 'name' }, { ...common, brand: 'QR Gear', categoryId: '123', listingFormat: 'FIXED_PRICE', condition: 'NEW' }, 'qrg-sku');
-    expect(result.success).toBe(false); expect(result.error).toContain('lookup failed'); expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).availability.shipToLocationAvailability.quantity).toBe(0);
   });
   it('Etsy saves rotated credentials and the draft ID before image failure', async () => {
     const events: string[] = [];

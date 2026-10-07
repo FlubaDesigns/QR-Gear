@@ -6,13 +6,13 @@ const context = vi.hoisted(() => ({ db: null as any }));
 vi.mock('../../core', () => ({ get db() { return context.db; } }));
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next() }));
 vi.mock('../amazon-sp-api', () => ({ pushListingToAmazon: vi.fn() }));
-vi.mock('../ebay-api', () => ({ pushListingToEbay: vi.fn() }));
+vi.mock('../ebay-api', () => ({ pushListingToEbay: vi.fn(), checkEbayListing: vi.fn(), getEbaySetupOptions: vi.fn() }));
 vi.mock('../etsy-api', () => ({ pushListingToEtsy: vi.fn() }));
 import { register } from '../../routes/marketplace';
 import { getOrCreateMarketplaceListing, runMarketplaceJob, retryFailedJob } from '../marketplace-sync';
 import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct } from '../surface-generator';
 import { pushListingToAmazon } from '../amazon-sp-api';
-import { pushListingToEbay } from '../ebay-api';
+import { pushListingToEbay, checkEbayListing, getEbaySetupOptions } from '../ebay-api';
 import { pushListingToEtsy } from '../etsy-api';
 const sku = 'QRG-11111-I-000001';
 let fixture: ReturnType<typeof database>;
@@ -85,7 +85,7 @@ describe('Marketplace product and job handoff', () => {
     fixture.store.set('marketplaceAccounts/a', { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'ebay-selected' });
     fixture.store.get('surfaces/s').ebay.priceOverride = 35; vi.mocked(pushListingToEbay).mockResolvedValue({ success: true, sku, listingId: 'ebay-id' });
     const listing = await getOrCreateMarketplaceListing('s', 'a'); await runMarketplaceJob(listing.id, 'create');
-    expect(pushListingToEbay).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'ebay-selected' }), expect.objectContaining({ price: 35, quantity: 0 }), sku, expect.any(Function));
+    expect(pushListingToEbay).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'ebay-selected' }), expect.objectContaining({ price: 35, quantity: 0 }), sku, expect.any(Function), expect.any(Object), expect.any(Function));
   });
   it('retains Etsy settings and partial external identity for retry', async () => {
     fixture.store.set('marketplaceAccounts/a', { platform: 'etsy', isActive: true, etsyConnected: true, etsyRefreshToken: 'etsy-selected', etsyShopId: 'shop' });
@@ -131,4 +131,54 @@ it('does not discard an eBay offer identity when publication has not completed',
   const listing = await getOrCreateMarketplaceListing('s', 'a');
   fixture.store.get(`marketplaceListings/${listing.id}`).externalOfferId = 'prepared-offer';
   await request(app).delete(`/admin/surfaces/listings/${listing.id}`).expect(409);
+});
+
+it('checks and ends an eBay listing through the same locked job path even if product selections are invalid', async () => {
+  fixture.store.set('marketplaceAccounts/a', { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'selected' });
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  fixture.store.get(`marketplaceListings/${listing.id}`).externalOfferId = 'offer';
+  fixture.store.get(`marketplaceListings/${listing.id}`).externalListingId = 'live';
+  fixture.store.get('admin_catalog_instances/i').enabledColors = [];
+  fixture.store.get('admin_catalog_instances/i').resolved.colors = ['Black'];
+  fixture.store.get('surfaces/s').enabledPlatforms = [];
+  vi.mocked(checkEbayListing).mockResolvedValue({ success: true, sku, listingStatus: 'active', listingId: 'live', remoteStatus: 'PUBLISHED/ACTIVE' });
+  await request(app).post('/admin/surfaces/jobs').send({ listingId: listing.id, action: 'check_status' }).expect(200);
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).status).toBe('active');
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).remoteCheckedAt).toBeTruthy();
+  vi.mocked(checkEbayListing).mockResolvedValue({ success: true, sku, listingStatus: 'delisted', listingId: 'live', remoteStatus: 'UNPUBLISHED/ENDED' });
+  await runMarketplaceJob(listing.id, 'delete');
+  expect(checkEbayListing).toHaveBeenLastCalledWith(expect.objectContaining({ refreshToken: 'selected' }), expect.objectContaining({ offers: [{ sku, offerId: 'offer' }] }), sku, true);
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).status).toBe('delisted');
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).externalListingId).toBe('live');
+});
+it('saves seller policies on the listing and shared eBay details on the existing item', async () => {
+  fixture.store.set('marketplaceAccounts/a', { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'selected' });
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  vi.mocked(getEbaySetupOptions).mockResolvedValue({ fulfillmentPolicies: [{ fulfillmentPolicyId: 'ship', name: 'Ship' }], paymentPolicies: [{ paymentPolicyId: 'pay', name: 'Pay' }], returnPolicies: [{ returnPolicyId: 'return', name: 'Return' }], locations: [{ merchantLocationKey: 'location', name: 'Warehouse' }], categories: [], aspects: [] });
+  const body = { categoryId: '123', itemSpecifics: { Brand: 'Saved Brand' }, settings: { fulfillmentPolicyId: 'ship', paymentPolicyId: 'pay', returnPolicyId: 'return', merchantLocationKey: 'location' } };
+  await request(app).patch(`/admin/surfaces/listings/${listing.id}/ebay-setup`).send(body).expect(200);
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).publishOptions.ebay).toEqual(body.settings);
+  expect(fixture.store.get('surfaces/s').ebay.itemSpecifics).toEqual(body.itemSpecifics);
+  await request(app).patch(`/admin/surfaces/listings/${listing.id}/ebay-setup`).send({ ...body, settings: { ...body.settings, paymentPolicyId: 'another-seller' } }).expect(400);
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).publishOptions.ebay.paymentPolicyId).toBe('pay');
+});
+it('keeps a failed remote end from being recorded as delisted', async () => {
+  fixture.store.set('marketplaceAccounts/a', { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'selected' });
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  vi.mocked(checkEbayListing).mockResolvedValue({ success: false, sku, error: 'Remote end rejected' });
+  await runMarketplaceJob(listing.id, 'delete');
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).status).toBe('error');
+});
+
+it('uses explicit eBay size labels while retaining the canonical item and variant mapping', async () => {
+  fixture.store.set('marketplaceAccounts/a', { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'selected' });
+  Object.assign(fixture.store.get('admin_catalog_instances/i'), { sourceMasterId: 'qrg_11111', enabledSizes: ['L'], enabledColors: ['Black'] });
+  fixture.store.set('master_catalog/qrg_11111', { isActive: true, qrgVariants: { '0501': { sizeLabel: 'L', colorLabel: 'Black' } } });
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  fixture.store.get(`marketplaceListings/${listing.id}`).publishOptions = { ebay: { variationValues: { Size: { L: 'Large' } } } };
+  vi.mocked(pushListingToEbay).mockResolvedValue({ success: true, sku, listingId: 'live', listingStatus: 'active' });
+  await runMarketplaceJob(listing.id, 'create');
+  expect(pushListingToEbay).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variants: [{ variantKey: '0501', sku: `${sku}:0501`, size: 'Large', color: 'Black' }] }), sku, expect.any(Function), expect.any(Object), expect.any(Function));
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).qrgCode).toBe(sku);
+  expect(fixture.store.get('admin_catalog_instances/i').enabledSizes).toEqual(['L']);
 });

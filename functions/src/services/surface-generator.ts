@@ -64,6 +64,7 @@ export interface NormalizedProduct {
   printfulProductId: string | null;
   manufacturer: string | null;
   selectionErrors: string[];
+  fulfillmentProvider?: 'printify' | 'printful' | null;
 }
 
 export type SupportedMarketplace = 'ebay' | 'etsy' | 'amazon';
@@ -73,10 +74,6 @@ export interface EbayGenerateDefaults {
   conditionId?: string;
   listingFormat?: 'FIXED_PRICE' | 'AUCTION';
   bestOfferEnabled?: boolean;
-  handlingTime?: number;
-  shippingPolicyId?: string;
-  returnsPolicyId?: string;
-  paymentPolicyId?: string;
   packageWeightLbs?: number;
   quantity?: number;
 }
@@ -406,6 +403,7 @@ export async function normalizeProductForPublishing(
     printifyBlueprintId,
     printfulProductId,
     manufacturer,
+    fulfillmentProvider: packet?.fulfillmentProvider ?? packet?.builderSnapshot?.metadata?.fulfillmentProvider ?? null,
     selectionErrors: [
       ...(adminColors?.length === 0 && resolvedColors.length ? ['No colors are enabled on this product.'] : []),
       ...(adminSizes?.length === 0 && resolvedSizes.length ? ['No sizes are enabled on this product.'] : []),
@@ -422,8 +420,8 @@ export async function normalizeProductForPublishing(
  * The returned object can be written directly to the surfaces Firestore collection.
  *
  * Auto-populates eBay item specifics from the normalized product attributes.
- * All policy IDs and identifiers that require external lookup are left null
- * so the operator can review and fill them in the Surface editor.
+ * Category and product identifiers remain unset until reviewed. Seller policies
+ * belong to the selected marketplace listing and are chosen in eBay Setup.
  */
 export function createSurfaceDraftFromNormalizedProduct(
   normalized: NormalizedProduct,
@@ -456,10 +454,6 @@ export function createSurfaceDraftFromNormalizedProduct(
         subtitle: null,
         bestOfferEnabled: ebayDefs.bestOfferEnabled ?? false,
         itemSpecifics: autoItemSpecifics,
-        shippingPolicyId: ebayDefs.shippingPolicyId || null,
-        returnsPolicyId: ebayDefs.returnsPolicyId || null,
-        paymentPolicyId: ebayDefs.paymentPolicyId || null,
-        handlingTime: ebayDefs.handlingTime ?? 3,
         packageWeightLbs: ebayDefs.packageWeightLbs ?? null,
         packageDimensionsInches: null,
         upc: null,

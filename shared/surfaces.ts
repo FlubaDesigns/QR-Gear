@@ -147,12 +147,30 @@ export function marketplaceSalePrice(surface: { retailPrice: number; ebay?: { pr
   return platform === 'ebay' ? surface.ebay?.priceOverride ?? surface.retailPrice : surface.retailPrice;
 }
 
+export interface EbaySellerSettings {
+  /** Explicit marketplace labels; canonical product selections remain unchanged. */
+  variationValues?: { Size?: Record<string, string>; Color?: Record<string, string> };
+  fulfillmentPolicyId: string;
+  paymentPolicyId: string;
+  returnPolicyId: string;
+  merchantLocationKey: string;
+}
+
+export interface EbaySetupOptions {
+  fulfillmentPolicies: Array<{ fulfillmentPolicyId: string; name: string }>;
+  paymentPolicies: Array<{ paymentPolicyId: string; name: string }>;
+  returnPolicies: Array<{ returnPolicyId: string; name: string }>;
+  locations: Array<{ merchantLocationKey: string; name: string }>;
+  categories: Array<{ categoryId: string; categoryName: string }>;
+  aspects: Array<{ name: string; required: boolean; variation: boolean; mode: string; values: string[] }>;
+}
+
 export interface MarketplaceListing {
   id: string;
   qrgCode?: string;
   marketplaceSku?: string;
   productInstanceId?: string;
-  publishOptions?: { taxonomyId?: number; shippingProfileId?: number; returnPolicyId?: number; whoMade?: string; whenMade?: string };
+  publishOptions?: { ebay?: EbaySellerSettings; taxonomyId?: number; shippingProfileId?: number; returnPolicyId?: number; whoMade?: string; whenMade?: string };
   /** Prevent blind recreation if Etsy creation returned an unknown outcome. */
   externalCreateAttempted?: boolean;
   surfaceId: string;
@@ -160,6 +178,10 @@ export interface MarketplaceListing {
   platform: MarketplacePlatform;
   externalListingId?: string;
   externalOfferId?: string;
+  ebayOffers?: Array<{ sku: string; offerId: string }>;
+  ebayInventoryItemGroupKey?: string;
+  remoteCheckedAt?: string;
+  remoteStatus?: string;
   externalUrl?: string;
   fees?: MarketplaceFees;
   /** Read-time calculation; null when fees or product cost are unavailable. Before shipping/tax. */

@@ -163,3 +163,35 @@ it('retains Etsy requirements and restricts publishing to the listing’s connec
   await click('button-etsy-push-confirm');
   expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/s/push-to-etsy', expect.objectContaining({ accountId: 'etsy', taxonomyId: 123, shippingProfileId: 456 }));
 });
+
+it('checks and ends eBay listings through distinct job actions without deleting the record', async () => {
+  mocks.api.mockResolvedValue({ json: async () => ({ success: true, listingStatus: 'delisted' }) });
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [{ ...listing, platform: 'ebay', status: 'active', externalListingId: 'live', externalOfferId: 'offer' }] });
+  expect(tree.root.findByProps({ 'data-testid': 'button-delete-listing-item' }).props.disabled).toBe(true);
+  await click('button-ebay-status-item');
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/jobs', { listingId: 'item', action: 'check_status' });
+  await click('button-ebay-end-item');
+  expect(window.confirm).toHaveBeenCalled();
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/jobs', { listingId: 'item', action: 'delete' });
+  expect(mocks.api.mock.calls.some(call => call[0] === 'DELETE')).toBe(false);
+});
+it('opens eBay setup before first publication and saves policies for the existing listing', async () => {
+  const settings = { fulfillmentPolicyId: 'ship', paymentPolicyId: 'pay', returnPolicyId: 'return', merchantLocationKey: 'location' };
+  const setup = { categoryId: '123', settings, itemSpecifics: { Department: 'Unisex Adults' }, variants: [], options: { fulfillmentPolicies: [{ fulfillmentPolicyId: 'ship', name: 'Shipping' }], paymentPolicies: [{ paymentPolicyId: 'pay', name: 'Payment' }], returnPolicies: [{ returnPolicyId: 'return', name: 'Return' }], locations: [{ merchantLocationKey: 'location', name: 'Warehouse' }], categories: [], aspects: [{ name: 'Department', required: true, mode: 'FREE_TEXT', values: [] }] } };
+  mocks.api.mockImplementation(async (method: string) => ({ json: async () => method === 'GET' ? setup : { success: true } }));
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [{ ...listing, platform: 'ebay' }] });
+  await click('button-publish-item');
+  expect(mocks.api).toHaveBeenCalledWith('GET', '/api/admin/surfaces/listings/item/ebay-setup');
+  expect(mocks.api.mock.calls.some(call => call[1] === '/api/admin/surfaces/jobs')).toBe(false);
+  expect(tree.root.findByProps({ 'data-testid': 'button-save-ebay-setup' }).props.disabled).toBe(false);
+  await click('button-save-ebay-setup');
+  expect(mocks.api).toHaveBeenCalledWith('PATCH', '/api/admin/surfaces/listings/item/ebay-setup', { categoryId: '123', settings, itemSpecifics: setup.itemSpecifics });
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['/api/admin/surfaces/listings'] });
+});
+it('shows failed eBay policy reads and blocks saving incomplete setup', async () => {
+  mocks.api.mockRejectedValue(new Error('Seller authorization expired'));
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [{ ...listing, platform: 'ebay' }] });
+  await click('button-ebay-setup-item');
+  expect(JSON.stringify(tree.toJSON())).toContain('Seller authorization expired');
+  expect(tree.root.findByProps({ 'data-testid': 'button-save-ebay-setup' }).props.disabled).toBe(true);
+});

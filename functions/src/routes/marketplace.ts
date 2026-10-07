@@ -1,3 +1,5 @@
+import { getEbaySetupOptions, createEbayInventoryLocation } from '../services/ebay-api';
+import { resolveMarketplaceVariants } from '../services/marketplace-variants';
 import { publicMarketplaceAccount } from '../services/marketplace-oauth';
 import { refreshListingFees, listingWithFees } from '../services/marketplace-fees';
 import { Request, Response } from 'express';
@@ -21,7 +23,7 @@ import { isValidQrgCode } from '../../../shared/qrgCodes';
 const VALID_PLATFORMS = new Set<string>(MARKETPLACE_PLATFORMS);
 const VALID_SURFACE_STATUSES = new Set<string>(['draft', 'ready', 'published', 'archived']);
 const VALID_LISTING_STATUSES = new Set<string>(['pending', 'draft', 'active', 'syncing', 'error', 'paused', 'delisted']);
-const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_inventory', 'full_sync']);
+const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_inventory', 'full_sync', 'check_status']);
 
   export function register(app: express.Express): void {
 
@@ -229,7 +231,11 @@ app.patch('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: 
     }
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
     updates.updatedAt = new Date().toISOString();
-    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updates);
+    await db.runTransaction(async tx => {
+      const linked = await tx.get(db.collection(MARKETPLACE_LISTINGS_COLLECTION).where('surfaceId', '==', surfaceId));
+      if (linked.docs.some(row => row.data().status === 'syncing')) throw new MarketplaceError('Wait for this item’s running job before saving setup.', 409);
+      tx.update(db.collection(SURFACES_COLLECTION).doc(surfaceId), updates);
+    });
     res.json({ id: surfaceId, ...doc.data(), ...updates });
   } catch (error: any) {
     console.error('[Surfaces] PATCH surface error:', error);
@@ -280,7 +286,10 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     try {
       const product = await normalizeProductForPublishing(surface.masterProductId, db);
       if (product.sku !== surface.sku) errors.push('Surface QRG identity does not match its product.');
-      errors.push(...marketplaceSelectionErrors(product, variants.length > 0));
+      if (surface.enabledPlatforms?.includes('ebay') && surface.enabledPlatforms.length === 1) {
+        if (variants.length) errors.push('Legacy surface variants need reconciliation with the built product.');
+        await resolveMarketplaceVariants(product, db);
+      } else errors.push(...marketplaceSelectionErrors(product, variants.length > 0));
     } catch (error: any) { errors.push(error.message); }
     const variantSkus: string[] = [];
     for (const v of enabledVariants) {
@@ -298,7 +307,7 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     if (!hasAnyChannel) errors.push('At least one selling channel must be enabled (marketplace or embed)');
 
     // eBay-specific readiness validation
-    if (surface.supportsEbay) {
+    if (surface.enabledPlatforms?.includes('ebay')) {
       const eb = surface.ebay || {};
       if (!eb.categoryId || !String(eb.categoryId).trim()) {
         errors.push('eBay: Category ID is required (ebay.categoryId)');
@@ -306,8 +315,8 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
       if (!eb.conditionId || !String(eb.conditionId).trim()) {
         errors.push('eBay: Condition ID is required (ebay.conditionId)');
       }
-      if (!eb.listingFormat) {
-        errors.push('eBay: Listing format must be set (FIXED_PRICE or AUCTION)');
+      if (eb.listingFormat !== 'FIXED_PRICE') {
+        errors.push('eBay: This connection requires fixed-price listings.');
       }
       // At least one aspect/identifier must be known — brand from common or itemSpecifics
       const hasBrand = (surface.brand && surface.brand.trim()) || (eb.brand && eb.brand.trim());
@@ -315,16 +324,12 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
       if (!hasBrand && !hasItemSpecifics) {
         errors.push('eBay: At least a Brand or one item specific is required for eBay aspects');
       }
-      // Warn (non-blocking) about shipping policy — surface can still be "ready" without it
-      if (!eb.shippingPolicyId && !eb.returnsPolicyId) {
-        // Not a blocking error — just surfaces in logs via readiness response
-        // so callers can surface this as a warning in the UI
-      }
+
     }
 
     const newStatus = surface.status === 'published' ? 'published' : errors.length === 0 ? 'ready' : 'draft';
     await db.collection(SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
-    res.json({ ready: errors.length === 0, errors, status: newStatus });
+    res.json({ ready: errors.length === 0, errors, status: newStatus, ...(surface.enabledPlatforms?.includes('ebay') ? { note: 'Item checks only. eBay Setup and publishing validate the selected seller policies and live category requirements.' } : {}) });
   } catch (error: any) {
     console.error('[Surfaces] POST check-readiness error:', error);
     res.status(500).json({ error: error.message });
@@ -504,6 +509,79 @@ app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Res
     console.error('[Marketplace] Create listing failed:', error.message);
     res.status(error instanceof MarketplaceError ? error.status : 500).json({ error: error.message });
   }
+});
+
+async function ebaySetupContext(listingId: string) {
+  const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), listingDoc = await listingRef.get();
+  if (!listingDoc.exists) throw new MarketplaceError('Listing not found.', 404);
+  const listing = listingDoc.data()!;
+  if (listing.platform !== 'ebay') throw new MarketplaceError('This is not an eBay listing.');
+  const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(listing.accountId).get(), account = accountDoc.data();
+  if (!account?.isActive || account.platform !== 'ebay' || !account.ebayConnected || !account.ebayRefreshToken) throw new MarketplaceError('Connect this eBay seller account first.');
+  const surfaceRef = db.collection(SURFACES_COLLECTION).doc(listing.surfaceId), surfaceDoc = await surfaceRef.get();
+  if (!surfaceDoc.exists) throw new MarketplaceError('Item setup is missing.', 404);
+  return { listingRef, listing, surfaceRef, surface: surfaceDoc.data()!, credentials: { userId: account.ebayUserId || '', username: account.ebayUsername || '', refreshToken: account.ebayRefreshToken } };
+}
+
+app.get('/admin/surfaces/listings/:listingId/ebay-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await ebaySetupContext(req.params.listingId);
+    const categoryId = typeof req.query.categoryId === 'string' ? req.query.categoryId : context.surface.ebay?.categoryId || '';
+    const query = typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : '';
+    const options = await getEbaySetupOptions(context.credentials, categoryId, query);
+    const product = await normalizeProductForPublishing(context.surface.masterProductId, db);
+    const variants = await resolveMarketplaceVariants(product, db);
+    res.json({ options, variants, settings: context.listing.publishOptions?.ebay || {}, categoryId, itemSpecifics: context.surface.ebay?.itemSpecifics || {} });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
+app.post('/admin/surfaces/listings/:listingId/ebay-location', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await ebaySetupContext(req.params.listingId);
+    const { name, postalCode, country } = req.body;
+    if ([name, postalCode, country].some(value => typeof value !== 'string')) throw new MarketplaceError('Location name, postal code and country are required.');
+    res.json(await createEbayInventoryLocation(context.credentials, context.listing.accountId, { name, postalCode, country }));
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
+app.patch('/admin/surfaces/listings/:listingId/ebay-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await ebaySetupContext(req.params.listingId);
+    const settings: Record<string, any> = {};
+    for (const key of ['fulfillmentPolicyId', 'paymentPolicyId', 'returnPolicyId', 'merchantLocationKey']) {
+      if (typeof req.body.settings?.[key] !== 'string' || !req.body.settings[key].trim()) throw new MarketplaceError('Choose all three seller policies and an inventory location.');
+      settings[key] = req.body.settings[key].trim();
+    }
+    if (req.body.settings.variationValues !== undefined) {
+      const mappings = req.body.settings.variationValues;
+      if (!mappings || typeof mappings !== 'object' || Array.isArray(mappings) || Object.keys(mappings).some(key => !['Size', 'Color'].includes(key))) throw new MarketplaceError('Invalid eBay variation mappings.');
+      for (const values of Object.values(mappings)) {
+        if (!values || typeof values !== 'object' || Array.isArray(values) || Object.values(values).some(value => typeof value !== 'string' || !value.trim())) throw new MarketplaceError('Variation mappings must contain text values.');
+      }
+      settings.variationValues = mappings;
+    }
+    const categoryId = String(req.body.categoryId || '').trim();
+    if (!/^\d+$/.test(categoryId)) throw new MarketplaceError('Choose an eBay category.');
+    const itemSpecifics = req.body.itemSpecifics;
+    if (!itemSpecifics || typeof itemSpecifics !== 'object' || Array.isArray(itemSpecifics) || Object.values(itemSpecifics).some(value => typeof value !== 'string')) throw new MarketplaceError('Item specifics must contain text values.');
+    // Check ownership against the selected seller before writing settings.
+    const options = await getEbaySetupOptions(context.credentials, categoryId);
+    for (const [field, rows] of [['fulfillmentPolicyId', options.fulfillmentPolicies], ['paymentPolicyId', options.paymentPolicies], ['returnPolicyId', options.returnPolicies], ['merchantLocationKey', options.locations]] as const) {
+      if (!rows.some((row: any) => row[field] === settings[field])) throw new MarketplaceError(`Selected ${field} is not available for this seller.`);
+    }
+    await db.runTransaction(async tx => {
+      const listingDoc = await tx.get(context.listingRef), surfaceDoc = await tx.get(context.surfaceRef);
+      const linked = await tx.get(db.collection(MARKETPLACE_LISTINGS_COLLECTION).where('surfaceId', '==', context.listing.surfaceId));
+      if (!listingDoc.exists || !surfaceDoc.exists || linked.docs.some(doc => doc.data().status === 'syncing')) throw new MarketplaceError('Wait for this item’s running job before saving setup.', 409);
+      if (listingDoc.data()!.accountId !== context.listing.accountId) throw new MarketplaceError('Seller changed. Reload setup.', 409);
+      const ebay = { ...surfaceDoc.data()!.ebay, categoryId, itemSpecifics, listingFormat: 'FIXED_PRICE' };
+      for (const key of ['shippingPolicyId', 'returnsPolicyId', 'paymentPolicyId', 'merchantLocationKey']) delete ebay[key];
+      const timestamp = new Date().toISOString();
+      tx.update(context.surfaceRef, { ebay, updatedAt: timestamp });
+      tx.update(context.listingRef, { publishOptions: { ...listingDoc.data()!.publishOptions, ebay: settings }, updatedAt: timestamp });
+    });
+    res.json({ success: true });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
 });
 
 app.post('/admin/surfaces/listings/:listingId/fees', requireAdmin, async (req: Request, res: Response): Promise<void> => {

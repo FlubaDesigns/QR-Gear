@@ -74,3 +74,8 @@ describe('Marketplace fee ownership and margin', () => {
     const amazonFees = await refreshListingFees('l'); expect(itemMargin(amazonFees, undefined, 'USD')).toBeNull(); expect(itemMargin(amazonFees, 10, 'EUR')).toBeNull();
   });
 });
+
+it('never uses one variation’s fees as the fee for the entire variation group', async () => {
+  const fees = await retrieveMarketplaceFees({ ...listing, platform: 'ebay', externalOfferId: 'offer', ebayOffers: [{ sku: 'first', offerId: 'offer' }, { sku: 'second', offerId: 'other' }] }, surface, { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'selected' });
+  expect(fees.status).toBe('unavailable'); expect(fees.amount).toBeNull(); expect(fees.reason).toContain('variation-group'); expect(fetchMock).not.toHaveBeenCalled();
+});
