@@ -2,7 +2,7 @@
  * NEXUS CORE - EXPERIMENTAL (SHELVED)
  * 
  * This module contains the self-learning Nexus foundation architecture.
- * Currently shelved while we focus on practical NexusMail implementation.
+ * Currently shelved.
  * 
  * To re-enable, uncomment the exports below.
  * 
