@@ -20,21 +20,10 @@ export function StateModule() {
   const { state, setQRProductState } = useBuilderContext();
   const isMobile = useIsMobile();
 
-  const selectedQrLabel = QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label;
-
-  const badge = (state.selectedProduct || state.qrProductState) ? (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {state.selectedProduct && (
-        <Badge variant="secondary" className="text-xs max-w-[140px] truncate">
-          {state.selectedProduct.title}
-        </Badge>
-      )}
-      {selectedQrLabel && (
-        <Badge variant="outline" className="text-xs">
-          {selectedQrLabel}
-        </Badge>
-      )}
-    </div>
+  const badge = state.selectedProduct ? (
+    <Badge variant="secondary" className="text-xs max-w-[140px] truncate">
+      {state.selectedProduct.title}
+    </Badge>
   ) : undefined;
 
   return (
