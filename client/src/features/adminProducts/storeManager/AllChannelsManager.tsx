@@ -1,3 +1,4 @@
+import { refreshStoreViews } from "@/features/storeBuilder/storeQueries";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Hash, Trash2, Loader2, X, Store, AlertTriangle } from "lucide-react";
@@ -27,19 +28,21 @@ function DeleteConfirm({
   isPending: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
-      <span className="text-xs text-red-300 flex-1">Delete &ldquo;{label}&rdquo;?</span>
+    <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+      <span className="text-xs text-red-300 flex-1">Delete &ldquo;{label}&rdquo;? Its listings will be archived and hidden. Build files are retained.</span>
       <button
         onClick={onConfirm}
         disabled={isPending}
-        className="qr-btn qr-btn--touch text-xs px-3 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded"
+        className="min-h-12 min-w-12 qr-btn qr-btn--touch text-sm px-3 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded"
         data-testid="button-confirm-del-channel"
       >
         {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Delete"}
       </button>
       <button
         onClick={onCancel}
-        className="qr-btn qr-btn--ghost qr-btn--touch p-1"
+        disabled={isPending}
+        aria-label="Cancel deletion"
+        className="min-h-12 min-w-12 order-first qr-btn qr-btn--ghost qr-btn--touch p-1"
         data-testid="button-cancel-del-channel"
       >
         <X className="h-3.5 w-3.5" />
@@ -48,12 +51,12 @@ function DeleteConfirm({
   );
 }
 
-export function AllChannelsManager() {
+export function AllChannelsManager({ orphanedOnly = false }: { orphanedOnly?: boolean }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const { data: channels = [], isLoading } = useQuery<ChannelRow[]>({
+  const { data: channels = [], isLoading, error, refetch } = useQuery<ChannelRow[]>({
     queryKey: ["all-channels"],
     queryFn: () => adminFetch<ChannelRow[]>("/channels"),
   });
@@ -64,14 +67,14 @@ export function AllChannelsManager() {
     onSuccess: (_, channelId) => {
       toast({ title: "Channel deleted" });
       setConfirmId(null);
-      queryClient.invalidateQueries({ queryKey: ["all-channels"] });
-      queryClient.invalidateQueries({ queryKey: ["channels"] });
+      return refreshStoreViews(queryClient);
     },
     onError: () => toast({ title: "Error", description: "Could not delete channel.", variant: "destructive" }),
   });
 
   const orphaned = channels.filter(c => !c.storeExists);
   const active = channels.filter(c => c.storeExists);
+  if (error) return <div role="alert"><p>Could not load channels.</p><button className="min-h-12 px-4" onClick={() => refetch()}>Retry</button></div>;
 
   if (isLoading) {
     return (
@@ -81,7 +84,7 @@ export function AllChannelsManager() {
     );
   }
 
-  if (channels.length === 0) {
+  if (channels.length === 0 || (orphanedOnly && !orphaned.length)) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-white/30 gap-3">
         <Hash className="h-9 w-9" />
@@ -121,7 +124,8 @@ export function AllChannelsManager() {
           </div>
           <button
             onClick={() => setConfirmId(ch.id)}
-            className="p-1.5 text-white/25 hover-elevate rounded flex-shrink-0"
+            disabled={deleteMutation.isPending}
+            className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded flex-shrink-0"
             data-testid={`button-delete-channel-${ch.id}`}
             title="Delete channel"
           >
@@ -145,7 +149,7 @@ export function AllChannelsManager() {
         </div>
       )}
 
-      <div className="space-y-2">
+      {!orphanedOnly && <div className="space-y-2">
         <p className="glass-subtitle text-xs uppercase tracking-wider px-1">
           Active channels
           <span className="normal-case opacity-60 ml-2">({active.length})</span>
@@ -155,7 +159,7 @@ export function AllChannelsManager() {
         ) : (
           active.map(renderRow)
         )}
-      </div>
+      </div>}
     </div>
   );
 }

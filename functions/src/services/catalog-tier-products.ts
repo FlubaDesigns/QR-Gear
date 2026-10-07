@@ -1,3 +1,4 @@
+import { memberProductPricing } from '../../../shared/memberProductPricing';
 import { CATALOG_SECTIONS } from '../../../shared/catalogs';
 import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 import { masterCatalogProduct } from '../../../shared/masterCatalog';
@@ -36,8 +37,7 @@ export async function catalogTierProducts(db: any, section: string) {
     if (!provider) { unavailableBlankIds.push(id); continue; }
     const category = typeof raw.qrgCategory === 'string' && raw.qrgCategory ? raw.qrgCategory : 'Unclassified';
     const cost = item.price;
-    const retailPrice = cost === null ? null : Math.ceil((cost * (1 + (pricing.markupPercent ?? 25) / 100) + (pricing.markupFixed ?? 0)) * 100) / 100;
-    const memberEarnings = retailPrice === null || cost === null ? null : Math.round((retailPrice - cost) * (pricing.memberProfitShare ?? 0.25) * 100) / 100;
+    const { retailPrice, memberEarnings } = memberProductPricing(cost, pricing);
     const config = tierConfig[tier] || {};
     tiers[category] ||= {};
     tiers[category][tier] ||= { tier, displayName: config.displayName || tier[0].toUpperCase() + tier.slice(1), description: config.description || '', tagline: config.tagline || '', products: [] };

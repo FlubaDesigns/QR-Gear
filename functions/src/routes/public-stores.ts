@@ -74,44 +74,7 @@ app.delete('/stores/:storeId/channels/:channelId', requireAdmin, async (req: Req
   }
 });
 
-app.get('/stores/:storeId/allowed-products', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const doc = await db.collection('storeAllowedProducts').doc(storeId).get();
-    if (!doc.exists) { res.json({ storeId, products: [] }); return; }
-    const data = doc.data();
-    res.json({ storeId, products: data?.products || [], updatedAt: data?.updatedAt });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.post('/stores/:storeId/allowed-products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const { products } = req.body;
-    if (!Array.isArray(products)) { res.status(400).json({ error: 'products must be an array' }); return; }
-    const pricingDoc = await db.collection("testSettings").doc("pricing").get();
-    const ps = pricingDoc.exists ? pricingDoc.data() : null;
-    const markupPercent = ps?.markupPercent ?? 25; const markupFixed = ps?.markupFixed ?? 0;
-    const memberProfitShare = ps?.memberProfitShare ?? 0.25;
-    const enrichedProducts = await Promise.all(products.map(async (p: any) => {
-      try {
-        let baseCost = 0;
-        if (p.blueprintId) {
-          const provSnap = await db.collection('printifyPrintProviders').where('blueprintId', '==', p.blueprintId).limit(5).get();
-          const usaProv = provSnap.docs.filter(d => d.data().isUSA);
-          const selectedProv = usaProv[0] || provSnap.docs[0];
-          if (selectedProv) baseCost = (selectedProv.data().minCost || 0) / 100;
-        }
-        const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
-        const profit = retailPrice - baseCost;
-        const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
-        return { blueprintId: p.blueprintId, title: p.title, addedAt: p.addedAt || new Date().toISOString(), imageUrl: p.imageUrl || null, baseCost, retailPrice, profit, memberEarnings, pricingUsed: { markupPercent, markupFixed, memberProfitShare }, packetCreatedAt: new Date().toISOString() };
-      } catch { return { ...p, addedAt: p.addedAt || new Date().toISOString(), baseCost: 0, retailPrice: 0, profit: 0, memberEarnings: 0 }; }
-    }));
-    await db.collection('storeAllowedProducts').doc(storeId).set({ storeId, products: enrichedProducts, updatedAt: new Date().toISOString() });
-    res.json({ success: true, storeId, productCount: enrichedProducts.length });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
 app.get('/partner-stores', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {

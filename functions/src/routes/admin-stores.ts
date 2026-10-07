@@ -1,3 +1,4 @@
+import { registerStoreAdminRoutes } from '../services/store-admin';
 import { createStore, createStoreChannel, deleteStore, deleteStoreChannel } from '../services/store-channels';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -16,6 +17,7 @@ import { printfulClient } from '../services/printful';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 
   export function register(app: express.Express): void {
+  registerStoreAdminRoutes(app, '', requireAdmin, () => db, () => admin.firestore.FieldValue.serverTimestamp());
   // ============ ADMIN STORES (stores + storeChannels collections) ============
 
 app.get('/admin/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -33,23 +35,7 @@ app.get('/admin/stores', requireAdmin, async (req: Request, res: Response): Prom
   }
 });
 
-app.post('/admin/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    res.json(await createStore(db, req.body));
-  } catch (error: any) {
-    console.error('[Stores] POST /stores:', error.message);
-    res.status(error.status || 500).json({ error: error.message });
-  }
-});
 
-app.delete('/admin/stores/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    res.json(await deleteStore(db, () => admin.firestore.FieldValue.serverTimestamp(), req.params.storeId));
-  } catch (error: any) {
-    console.error('[Stores] DELETE /stores/:storeId:', error.message);
-    res.status(error.status || 500).json({ error: error.message });
-  }
-});
 
 app.get('/admin/stores/by-id/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -74,148 +60,15 @@ app.get('/admin/stores/by-id/:storeId', requireAdmin, async (req: Request, res: 
 });
 
 // List ALL channels across all stores (with store name, including orphaned)
-app.get('/admin/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('storeChannels').get();
-    const storeIds = [...new Set(snapshot.docs.map((d: any) => d.data().storeId).filter(Boolean))] as string[];
-    const storeMap: Record<string, string> = {};
-    for (const id of storeIds) {
-      const doc = await db.collection('stores').doc(id).get();
-      storeMap[id] = doc.exists ? ((doc.data() as any)?.name || id) : `(orphaned)`;
-    }
-    const channels = snapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data(),
-      storeName: storeMap[doc.data().storeId] || `(orphaned)`,
-      storeExists: !!storeMap[doc.data().storeId] && !storeMap[doc.data().storeId].includes('orphaned'),
-    }));
-    channels.sort((a: any, b: any) => (a.storeName || '').localeCompare(b.storeName || '') || (a.name || '').localeCompare(b.name || ''));
-    res.json(channels);
-  } catch (error: any) {
-    console.error('[AllChannels] GET error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Delete any channel directly by ID (no storeId required)
-app.delete('/admin/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { channelId } = req.params;
-    const channel = await db.collection('storeChannels').doc(channelId).get();
-    if (!channel.exists) { res.status(404).json({ error: 'Channel not found' }); return; }
-    res.json(await deleteStoreChannel(db, () => admin.firestore.FieldValue.serverTimestamp(), channel.data()!.storeId, channelId));
-  } catch (error: any) {
-    console.error('[AllChannels] DELETE error:', error);
-    res.status(error.status || 500).json({ error: error.message });
-  }
-});
 
-app.get('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const snapshot = await db.collection('storeChannels').where('storeId', '==', storeId).get();
-    const channels = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-    channels.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    res.json(channels);
-  } catch (error: any) {
-    console.error('[Channels] GET error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
-app.post('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    res.json(await createStoreChannel(db, req.params.storeId, req.body));
-  } catch (error: any) {
-    console.error('[Stores] POST /stores/:storeId/channels:', error.message);
-    res.status(error.status || 500).json({ error: error.message });
-  }
-});
 
-app.delete('/admin/stores/:storeId/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    res.json(await deleteStoreChannel(db, () => admin.firestore.FieldValue.serverTimestamp(), req.params.storeId, req.params.channelId));
-  } catch (error: any) {
-    console.error('[Stores] DELETE /stores/:storeId/channels/:channelId:', error.message);
-    res.status(error.status || 500).json({ error: error.message });
-  }
-});
 
 // Admin: Delete a collection (soft-deletes all catalog instances in it)
-app.delete('/admin/stores/:storeId/channels/:channelId/collections/:collectionName', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId, channelId, collectionName } = req.params;
-    const now = admin.firestore.FieldValue.serverTimestamp();
-
-    const snap = await db.collection('admin_catalog_instances')
-      .where('storeId', '==', storeId)
-      .where('channelId', '==', channelId)
-      .where('collectionName', '==', collectionName)
-      .get();
-
-    const batch = db.batch();
-    snap.docs.forEach(doc => {
-      batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
-    });
-    await batch.commit();
-
-    res.json({ success: true, deleted: snap.size });
-  } catch (error: any) {
-    console.error('[Collections] DELETE error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Admin: Get collections for a store channel
-app.get('/admin/stores/:storeId/channels/:channelId/collections', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId, channelId } = req.params;
-    if (!storeId || !channelId) {
-      res.status(400).json({ error: 'storeId and channelId are required' });
-      return;
-    }
-
-    const collectionsSet = new Set<string>();
-
-    // 1. From admin_catalog_instances (primary source for Catalog tab)
-    // Exclude soft-deleted instances so their collections don't appear in the sidebar.
-    const instancesSnapshot = await db.collection('admin_catalog_instances')
-      .where('storeId', '==', storeId)
-      .where('channelId', '==', channelId)
-      .get();
-    instancesSnapshot.docs.forEach(doc => {
-      const d = doc.data();
-      if (d.isVisible === false || d.status === 'deleted') return;
-      const col = d.collectionName;
-      if (col) collectionsSet.add(col);
-    });
-
-    // 2. From storeProductLinks (legacy / store-facing products)
-    const linksSnapshot = await db.collection('storeProductLinks')
-      .where('storeId', '==', storeId)
-      .where('channel', '==', channelId)
-      .get();
-    linksSnapshot.docs.forEach(doc => {
-      const collection = doc.data().collection;
-      if (collection) collectionsSet.add(collection);
-    });
-
-    // 3. From mosaic templates
-    const explicitSnapshot = await db.collection(MOSAIC_TEMPLATES_COLLECTION)
-      .where('storeId', '==', storeId)
-      .where('channelId', '==', channelId)
-      .get();
-    explicitSnapshot.docs.forEach(doc => {
-      const name = doc.data().name;
-      if (name) collectionsSet.add(name);
-    });
-
-    const collections = Array.from(collectionsSet).sort();
-    res.json({ success: true, collections, count: collections.length });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // ============ ADMIN PARTNER STORES ============
 
@@ -342,7 +195,7 @@ app.get('/admin/stores/:storeId/channels/:channelName/products', requireAdmin, a
       .where('storeId', '==', storeId)
       .where('channel', '==', channelName)
       .get();
-    const legacyProducts = legacySnap.docs.map((doc: any) => {
+    const legacyProducts = legacySnap.docs.filter((doc: any) => doc.data().isVisible !== false && !['deleted', 'archived'].includes(doc.data().status)).map((doc: any) => {
       const d = doc.data();
       return {
         id: doc.id,

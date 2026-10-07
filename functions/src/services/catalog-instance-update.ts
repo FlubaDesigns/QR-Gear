@@ -11,7 +11,14 @@ export async function updateCatalogInstance(db: any, id: string, body: Record<st
     const overrides = { ...existing.overrides, ...body.overrides, ...(body.metadata !== undefined ? { metadata: body.metadata } : {}) };
     const resolved = resolveInstance(existing.baseSnapshot, overrides);
     const update: Record<string, any> = { overrides, resolved, version: (existing.version || 0) + 1, updatedAt: now, updatedBy: actor };
-    for (const field of ['status','enabledColors','enabledSizes','customerPrice']) if (body[field] !== undefined) update[field] = body[field];
+    for (const [field, allowed] of [['enabledColors', resolved.colors], ['enabledSizes', resolved.sizes]] as const) {
+      if (body[field] === undefined) continue;
+      if (!Array.isArray(body[field]) || body[field].some((v: unknown) => typeof v !== 'string' || !allowed.includes(v))) {
+        throw Object.assign(new Error(`Invalid ${field}`), { status: 400 });
+      }
+      update[field] = Array.from(new Set(body[field]));
+    }
+    for (const field of ['status','customerPrice']) if (body[field] !== undefined) update[field] = body[field];
     let packet: any = null, session: any = null, links: any = null;
     if (body.folderUpdate) {
       const destination = await resolveBuildDestination(transactionReader(db, tx), body.folderUpdate);

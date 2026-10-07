@@ -1,3 +1,4 @@
+import { listCatalogInstances } from "../../functions/src/services/catalog-list";
 import { getFirestoreDb, FieldValue } from '../lib/firebase-admin';
 import { updateCatalogInstance } from '../../functions/src/services/catalog-instance-update';
 /**
@@ -24,66 +25,9 @@ const PRODUCT_PACKETS_COLLECTION = "productPackets";
 export function registerAdminCatalogInstanceRoutes(app: Express): void {
 
   // ── List admin instances ─────────────────────────────────────────────────
-  app.get("/api/admin/catalog-instances", isAdmin, async (req: any, res) => {
-    try {
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const db = getFirestoreDb();
-
-      const { storeId, channelId, collectionName, folderPath, catalogId, sourceMasterId } = req.query as Record<string, string>;
-
-      // Build the Firestore query using only the most selective indexed fields.
-      // channelId / collectionName are intentionally NOT used as Firestore filters
-      // because older instances (pre-folder-path CF) have those fields as null.
-      // We filter them in memory below so legacy items still surface.
-      let query: any = (storeId || catalogId || sourceMasterId)
-        ? db.collection(ADMIN_INSTANCES_COLLECTION)
-        : db.collection(ADMIN_INSTANCES_COLLECTION).orderBy("createdAt", "desc");
-
-      if (catalogId)      query = query.where("catalogId",      "==", catalogId);
-      if (sourceMasterId) query = query.where("sourceMasterId", "==", sourceMasterId);
-      if (storeId)        query = query.where("storeId",        "==", storeId);
-      // folderPath is an exact-match shortcut when provided — only use it alone
-      if (folderPath && !channelId && !collectionName) {
-        query = query.where("folderPath", "==", folderPath);
-      }
-
-      const snap = await query.limit(500).get();
-      let instances: any[] = snap.docs.map((doc: any) => {
-        const d = doc.data();
-        return {
-          id: doc.id,
-          ...d,
-          createdAt: d.createdAt?.toDate?.() || null,
-          updatedAt: d.updatedAt?.toDate?.() || null,
-        };
-      });
-
-      // In-memory filters for channel / collection — handles legacy null fields gracefully.
-      // An instance with a null/missing channelId is treated as belonging to ALL channels
-      // within its store so it always surfaces (prevents data disappearing after CF upgrade).
-      if (channelId) {
-        instances = instances.filter(inst =>
-          !inst.channelId || inst.channelId === channelId
-        );
-      }
-      if (collectionName) {
-        instances = instances.filter(inst =>
-          inst.collectionName === collectionName
-        );
-      }
-
-      // Sort newest-first
-      instances.sort((a: any, b: any) => {
-        const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bt - at;
-      });
-
-      res.json({ success: true, instances, count: instances.length });
-    } catch (err: any) {
-      console.error("[AdminInstances] list error:", err);
-      res.status(500).json({ error: err.message });
-    }
+  app.get('/api/admin/catalog-instances', isAdmin, async (req: any, res: any) => {
+    try { res.json(await listCatalogInstances(getFirestoreDb(), req.query)); }
+    catch (error: any) { res.status(500).json({ error: error.message }); }
   });
 
   // ── Look up instance by packetId (for auto-select after commit) ─────────────

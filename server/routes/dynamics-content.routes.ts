@@ -300,57 +300,6 @@ export function registerDynamicsContentRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/admin/stores/:storeId/channels/:channelId/collections", isAdmin, async (req: any, res) => {
-    try {
-      const { storeId, channelId } = req.params;
-
-      if (!storeId || !channelId) {
-        return res.status(400).json({ error: "storeId and channelId are required" });
-      }
-
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-
-      const linksSnapshot = await firestoreDb.collection(STORE_PRODUCT_LINKS_COLLECTION)
-        .where("storeId", "==", storeId)
-        .where("channel", "==", channelId)
-        .get();
-
-      const collectionsSet = new Set<string>();
-
-      linksSnapshot.docs.forEach(doc => {
-        const collection = doc.data().collection;
-        if (collection) {
-          collectionsSet.add(collection);
-        }
-      });
-
-      const explicitSnapshot = await firestoreDb.collection(MOSAIC_TEMPLATES_COLLECTION)
-        .where("storeId", "==", storeId)
-        .where("channelId", "==", channelId)
-        .get();
-
-      explicitSnapshot.docs.forEach(doc => {
-        const name = doc.data().name;
-        if (name) {
-          collectionsSet.add(name);
-        }
-      });
-
-      const collections = Array.from(collectionsSet).sort();
-
-      console.log(`[Collections] Found ${collections.length} collections for ${storeId}/${channelId}`);
-
-      res.json({
-        success: true,
-        collections,
-        count: collections.length
-      });
-    } catch (error: any) {
-      console.error("[Collections] Error getting collections:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   app.post("/api/admin/stores/:storeId/channels/:channelId/collections", isAdmin, async (req: any, res) => {
     try {

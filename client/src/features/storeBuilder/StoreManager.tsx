@@ -1,408 +1,50 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Store, Package, Check, Loader2, Plus, Trash2, Users, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ProductsProvider } from "@/features/adminProducts/ProductsContext";
-import { BuilderProvider, useBuilderContext } from "@/features/adminProducts/builder/BuilderContext";
-import { ProductsModule } from "@/features/adminProducts/builder/modules/ProductsModule";
-import { useProductsContext } from "@/features/adminProducts/ProductsContext";
-import { adminFetch } from "@/lib/adminFetch";
-import AdminSectionCard from "@/components/admin/AdminSectionCard";
+import { useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { adminFetch } from '@/lib/adminFetch';
+import { STORE_ROLES, type StoreRole } from '@shared/storeRoles';
+import { AllowedProductsEditor } from './AllowedProductsEditor';
+import { refreshStoreViews } from './storeQueries';
+import { X } from 'lucide-react';
 
-interface StoreData { id: string; name: string; roleType: string; isActive?: boolean; }
-interface ProductBlueprint { id: number; title: string; }
-interface BlueprintDetails { id: string; colors: Array<{ name: string; hex?: string }>; sizes: string[]; }
-interface BareProduct { blueprintId: number; title: string; colors: string[]; sizes: string[]; addedAt: string; imageUrl?: string; }
+export function StoreManager({ storeId, createOnly = false }: { storeId?: string; createOnly?: boolean }) {
+  const client = useQueryClient();
+  const stores = useQuery<any[]>({ queryKey: ['/api/admin/stores'], queryFn: () => adminFetch('/stores') });
+  const [name, setName] = useState(''), [role, setRole] = useState<StoreRole>('member');
+  const [editing, setEditing] = useState<string | null>(null), [confirm, setConfirm] = useState<string | null>(null);
+  const [channelName, setChannelName] = useState(''), [channelStore, setChannelStore] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
+  const lock = useRef(false);
+  async function change(task: () => Promise<unknown>, done: () => void) {
+    if (lock.current) return; lock.current = true; setBusy(true); setMessage('');
+    try { await task(); done(); await refreshStoreViews(client); setMessage('Saved'); }
+    catch (e: any) { setMessage(e.message); }
+    finally { lock.current = false; setBusy(false); }
+  }
+  if (stores.error) return <div role="alert" className="space-y-3"><p>Could not load stores.</p><Button className="h-12" onClick={() => stores.refetch()}>Retry</Button></div>;
+  if (stores.isLoading) return <p role="status">Loading stores…</p>;
+  return <div className="min-w-0 space-y-4">
+    {createOnly && <section className="rounded-lg border p-4 space-y-3">
+      <h2 className="text-lg font-semibold">Create a store</h2>
+      <fieldset disabled={busy} className="space-y-3 min-w-0">
+        <Input className="h-12 text-base" aria-label="Store name" placeholder="Store name" value={name} onChange={e => setName(e.target.value)} />
+        <select aria-label="Store role" className="h-12 w-full rounded-md border bg-background px-3 text-base" value={role} onChange={e => setRole(e.target.value as StoreRole)}>{STORE_ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+        <Button className="h-12 w-full" disabled={!name.trim() || busy} onClick={() => change(() => adminFetch('/stores', { method: 'POST', json: { name: name.trim(), roleType: role } }), () => setName(''))}>Create store</Button>
+      </fieldset>
+    </section>}
+    {message && <p role={message === 'Saved' ? 'status' : 'alert'} className="[overflow-wrap:anywhere]">{message}</p>}
 
-function BareProductsFulfillmentInner({ store, onClose, onProductAdded }: { store: StoreData; onClose: () => void; onProductAdded: (product: BareProduct) => void }) {
-  const { toast } = useToast();
-  const { providers, selectedProviders, setSelectedProviders } = useProductsContext();
-  const { state } = useBuilderContext();
-  const [selectedColors, setSelectedColors] = useState<Set<string>>(new Set());
-  const [selectedSizes, setSelectedSizes] = useState<Set<string>>(new Set());
-
-  const { data: details } = useQuery<BlueprintDetails>({
-    queryKey: ["/api/printify/catalog", state.selectedProduct?.id],
-    queryFn: async () => { 
-      const res = await apiRequest("GET", `/api/printify/catalog/${state.selectedProduct?.id}`); 
-      return res.json(); 
-    },
-    enabled: !!state.selectedProduct?.id,
-  });
-
-  useEffect(() => {
-    if (details) {
-      setSelectedColors(new Set(details.colors.map(c => c.name)));
-      setSelectedSizes(new Set(details.sizes));
-    }
-  }, [details]);
-
-  const toggleColor = (name: string) => setSelectedColors(prev => { const next = new Set(prev); next.has(name) ? next.delete(name) : next.add(name); return next; });
-  const toggleSize = (size: string) => setSelectedSizes(prev => { const next = new Set(prev); next.has(size) ? next.delete(size) : next.add(size); return next; });
-
-  const handleAdd = () => {
-    if (!state.selectedProduct || selectedColors.size === 0 || selectedSizes.size === 0) return;
-    const product: BareProduct = {
-      blueprintId: state.selectedProduct.id,
-      title: state.selectedProduct.title,
-      colors: Array.from(selectedColors),
-      sizes: Array.from(selectedSizes),
-      imageUrl: state.selectedProduct.imageUrl || undefined,
-      addedAt: new Date().toISOString(),
-    };
-    onProductAdded(product);
-    toast({ title: "Added", description: `${state.selectedProduct.title} added to ${store.name}` });
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-medium text-base truncate">Add Products to: {store.name}</h3>
-        <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={onClose} data-testid="button-close-fulfillment"><X className="h-4 w-4" /></Button>
+    {stores.data?.filter(store => !createOnly && store.id === storeId).map(store => <section key={store.id} className="min-w-0 rounded-lg border p-4 space-y-3">
+      <h3 className="font-semibold [overflow-wrap:anywhere]">{store.name}</h3><p className="text-sm text-muted-foreground">{STORE_ROLES.find(r => r.id === store.roleType)?.name || store.roleType} · {store.channelCount || 0} channels</p>
+      <div className="flex flex-wrap gap-2">
+        <Button className="h-12" variant="outline" disabled={busy} onClick={() => setEditing(editing === store.id ? null : store.id)}>Product choices</Button>
+        <Button className="h-12" variant="outline" disabled={busy} onClick={() => { setChannelStore(store.id); setChannelName(''); }}>Add channel</Button>
+        <Button className="h-12" variant="outline" disabled={busy} onClick={() => setConfirm(store.id)}>Delete store</Button>
       </div>
-
-      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg flex-wrap">
-        <span className="text-sm text-muted-foreground">Provider:</span>
-        <div className="flex gap-2 flex-wrap">
-          {providers.filter(p => p.role === "fulfillment").map(p => (
-            <button
-              key={p.id}
-              onClick={() => setSelectedProviders([p.id])}
-              className={`px-3 py-1.5 rounded text-sm transition-all min-h-[44px] ${
-                selectedProviders.includes(p.id) 
-                  ? "bg-primary text-primary-foreground" 
-                  : "bg-muted hover:bg-muted/80"
-              }`}
-              data-testid={`provider-${p.id}`}
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <ProductsModule />
-
-      {state.selectedProduct && details && (
-        <div className="p-4 border rounded-lg bg-accent/5 space-y-4">
-          <div className="flex items-center gap-3">
-            {state.selectedProduct.imageUrl && (
-              <img src={state.selectedProduct.imageUrl} alt="" className="w-16 h-16 object-cover rounded" />
-            )}
-            <div className="min-w-0">
-              <p className="font-medium truncate">{state.selectedProduct.title}</p>
-              <p className="text-sm text-muted-foreground truncate">{state.selectedProduct.brand}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-sm font-medium">Colors ({selectedColors.size})</p>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setSelectedColors(new Set(details.colors.map(c => c.name)))}>All</Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedColors(new Set())}>None</Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {details.colors.map(c => (
-                <button
-                  key={c.name}
-                  onClick={() => toggleColor(c.name)}
-                  className={`w-11 h-11 rounded-full border-2 transition-all ${selectedColors.has(c.name) ? "ring-2 ring-primary ring-offset-2" : "opacity-50"}`}
-                  style={{ backgroundColor: c.hex || "#ccc" }}
-                  title={c.name}
-                  data-testid={`color-inner-${c.name}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <p className="text-sm font-medium">Sizes ({selectedSizes.size})</p>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => setSelectedSizes(new Set(details.sizes))}>All</Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedSizes(new Set())}>None</Button>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {details.sizes.map(size => (
-                <button
-                  key={size}
-                  onClick={() => toggleSize(size)}
-                  className={`px-3 py-2 rounded border text-sm transition-all min-h-[44px] ${selectedSizes.has(size) ? "bg-primary text-primary-foreground" : "bg-muted/50"}`}
-                  data-testid={`size-inner-${size}`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button 
-            className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full"
-            onClick={handleAdd}
-            disabled={selectedColors.size === 0 || selectedSizes.size === 0}
-            data-testid="button-add-to-store"
-          >
-            <Plus className="h-5 w-5" />
-            Add to Store
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BareProductsFulfillment({ store, onClose }: { store: StoreData; onClose: () => void }) {
-  const [addedProducts, setAddedProducts] = useState<BareProduct[]>([]);
-
-  const { data: existingData } = useQuery({
-    queryKey: ["/api/admin/stores", store.id, "allowed-products"],
-    queryFn: () => adminFetch<any>(`/stores/${store.id}/allowed-products`),
-  });
-
-  useEffect(() => {
-    if (existingData?.products) setAddedProducts(existingData.products);
-  }, [existingData]);
-
-  const saveMutation = useMutation({
-    mutationFn: (products: BareProduct[]) =>
-      adminFetch(`/stores/${store.id}/allowed-products`, { method: "POST", json: { products } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores", store.id, "allowed-products"] });
-    },
-  });
-
-  const handleProductAdded = (product: BareProduct) => {
-    const updated = [...addedProducts.filter(p => p.blueprintId !== product.blueprintId), product];
-    setAddedProducts(updated);
-    saveMutation.mutate(updated);
-  };
-
-  const handleRemove = (blueprintId: number) => {
-    const updated = addedProducts.filter(p => p.blueprintId !== blueprintId);
-    setAddedProducts(updated);
-    saveMutation.mutate(updated);
-  };
-
-  return (
-    <ProductsProvider>
-      <BuilderProvider>
-        <AdminSectionCard title={`Products in ${store.name}`} icon={Package}>
-          <BareProductsFulfillmentInner store={store} onClose={onClose} onProductAdded={handleProductAdded} />
-          
-          {addedProducts.length > 0 && (
-            <div className="border-t pt-4 mt-4 space-y-2">
-              <p className="text-sm font-medium">In Store ({addedProducts.length})</p>
-              {addedProducts.map(p => (
-                <div key={p.blueprintId} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-green-500/10 border">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {p.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 object-cover rounded flex-shrink-0" />}
-                    <div className="text-sm min-w-0">
-                      <p className="font-medium truncate">{p.title}</p>
-                      <p className="text-xs text-muted-foreground">{p.colors.length} colors, {p.sizes.length} sizes</p>
-                    </div>
-                  </div>
-                  <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => handleRemove(p.blueprintId)} data-testid={`button-remove-${p.blueprintId}`}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </AdminSectionCard>
-      </BuilderProvider>
-    </ProductsProvider>
-  );
-}
-
-export function StoreManager() {
-  const { toast } = useToast();
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newStoreName, setNewStoreName] = useState("");
-  const [newStoreType, setNewStoreType] = useState<string>("member");
-  const [editingStore, setEditingStore] = useState<StoreData | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  const { data: stores = [], isLoading } = useQuery<StoreData[]>({
-    queryKey: ["/api/admin/stores"],
-    queryFn: () => adminFetch<StoreData[]>("/stores"),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: () =>
-      adminFetch<any>("/stores", { method: "POST", json: { name: newStoreName.trim(), roleType: newStoreType } }),
-    onSuccess: (data) => {
-      toast({ title: "Store Created", description: `${data.name} (${data.roleType})` });
-      setNewStoreName("");
-      setShowCreateForm(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (storeId: string) =>
-      adminFetch(`/stores/${storeId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      toast({ title: "Store deleted" });
-      setConfirmDeleteId(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const memberStores = stores.filter(s => s.roleType === "member");
-  const otherStores = stores.filter(s => s.roleType !== "member");
-
-  return (
-    <div className="space-y-4">
-      {editingStore && (
-        <BareProductsFulfillment store={editingStore} onClose={() => setEditingStore(null)} />
-      )}
-
-      <AdminSectionCard
-        title="Manage Stores"
-        icon={Users}
-        actions={
-          !showCreateForm ? (
-            <Button size="sm" onClick={() => setShowCreateForm(true)} data-testid="button-show-create">
-              <Plus className="h-4 w-4 mr-1" /> New Store
-            </Button>
-          ) : undefined
-        }
-      >
-        {showCreateForm && (
-          <div className="p-4 border rounded-lg bg-accent/5 space-y-3 mb-4">
-            <h3 className="font-medium text-sm">Create New Store</h3>
-            <Input 
-              placeholder="Store name" 
-              value={newStoreName} 
-              onChange={e => setNewStoreName(e.target.value)} 
-              autoFocus
-              className="min-h-[48px]"
-              data-testid="input-store-name" 
-            />
-            <Select value={newStoreType} onValueChange={setNewStoreType}>
-              <SelectTrigger className="min-h-[48px]" data-testid="select-store-type"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Member Store</SelectItem>
-                <SelectItem value="internal">Internal Store</SelectItem>
-                <SelectItem value="external">External Store</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <button 
-                className="qr-btn qr-btn--primary qr-btn--touch flex-1" 
-                onClick={() => createMutation.mutate()} 
-                disabled={!newStoreName.trim() || createMutation.isPending} 
-                data-testid="button-create-store"
-              >
-                {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
-                Save Store
-              </button>
-              <button 
-                className="qr-btn qr-btn--outline qr-btn--touch" 
-                onClick={() => { setShowCreateForm(false); setNewStoreName(""); }}
-                data-testid="button-cancel-create"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {memberStores.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2 font-medium">Member Stores ({memberStores.length})</p>
-                <div className="space-y-2">
-                  {memberStores.map(s => (
-                    <div key={s.id} className="p-3 rounded-lg border bg-green-500/10 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">{s.name}</span>
-                        {confirmDeleteId === s.id ? (
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs text-destructive">Delete?</span>
-                            <Button size="sm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-confirm-delete-${s.id}`}>
-                              {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes"}
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => setConfirmDeleteId(null)} data-testid={`button-cancel-delete-${s.id}`}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => setConfirmDeleteId(s.id)} data-testid={`button-delete-${s.id}`}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                      <button 
-                        className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
-                        onClick={() => setEditingStore(s)}
-                        data-testid={`button-add-products-${s.id}`}
-                      >
-                        <Package className="h-4 w-4" />
-                        Add Products
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {otherStores.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2 font-medium">Other Stores ({otherStores.length})</p>
-                <div className="space-y-2">
-                  {otherStores.map(s => (
-                    <div key={s.id} className="p-3 rounded-lg border space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm truncate">{s.name} <span className="text-xs text-muted-foreground">({s.roleType})</span></span>
-                        {confirmDeleteId === s.id ? (
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs text-destructive">Delete?</span>
-                            <Button size="sm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(s.id)} data-testid={`button-confirm-delete-${s.id}`}>
-                              {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Yes"}
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => setConfirmDeleteId(null)} data-testid={`button-cancel-delete-${s.id}`}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button size="icon" variant="ghost" className="min-h-[44px] min-w-[44px]" onClick={() => setConfirmDeleteId(s.id)} data-testid={`button-delete-${s.id}`}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                      <button 
-                        className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full text-sm"
-                        onClick={() => setEditingStore(s)}
-                        data-testid={`button-add-products-${s.id}`}
-                      >
-                        <Package className="h-4 w-4" />
-                        Add Products
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {stores.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">No stores created yet</p>
-            )}
-          </div>
-        )}
-      </AdminSectionCard>
-    </div>
-  );
+      {channelStore === store.id && <fieldset disabled={busy} className="min-w-0 space-y-2"><Input className="h-12 text-base" aria-label="Channel name" placeholder="Channel name" value={channelName} onChange={e => setChannelName(e.target.value)} /><div className="flex flex-wrap gap-2"><Button className="h-12" disabled={!channelName.trim() || busy} onClick={() => change(() => adminFetch(`/stores/${store.id}/channels`, { method: 'POST', json: { name: channelName.trim() } }), () => setChannelStore(null))}>Save channel</Button><Button className="h-12" variant="outline" onClick={() => setChannelStore(null)}>Cancel</Button></div></fieldset>}
+      {confirm === store.id && <div className="space-y-2 rounded-md border border-destructive p-3"><p>Delete “{store.name}” and its channels? All listings in this store will be archived and hidden. Build files are retained.</p><div className="flex flex-wrap gap-2"><Button className="h-12" variant="outline" disabled={busy} onClick={() => setConfirm(null)}>Cancel</Button><Button className="h-12" variant="destructive" disabled={busy} onClick={() => change(() => adminFetch(`/stores/${store.id}`, { method: 'DELETE' }), () => { setConfirm(null); setEditing(null); })}>Delete store</Button></div></div>}
+      {editing === store.id && <div className="space-y-3 border-t pt-3"><Button className="h-12" variant="outline" onClick={() => { if (window.confirm("Close product choices? Any unsaved changes will be lost.")) setEditing(null); }}><X className="mr-2 h-5 w-5" />Close product choices</Button><AllowedProductsEditor key={store.id} storeId={store.id} /></div>}
+    </section>)}
+  </div>;
 }

@@ -1,3 +1,4 @@
+import { listCatalogInstances } from "../services/catalog-list";
 import { updateCatalogInstance } from '../services/catalog-instance-update';
 import { buildPacketImageOrder, instanceCatalogImages } from "../../../shared/productImages";
 /**
@@ -44,65 +45,9 @@ export function register(app: express.Express): void {
   // Filters by storeId in Firestore (indexed), then applies channelId /
   // collectionName in memory so legacy instances (committed before folder-path
   // CF update, channelId=null) still surface instead of silently disappearing.
-  app.get('/admin/catalog-instances', requireAdmin, async (req: any, res: any): Promise<void> => {
-    try {
-      const {
-        storeId, channelId, collectionName, folderPath,
-        catalogId, sourceMasterId, status,
-      } = req.query as Record<string, string>;
-
-      // Use storeId as the primary Firestore filter when available — it's the
-      // most reliable field (set even on pre-folder-path instances).
-      // Avoid combining orderBy with inequality filters to sidestep index requirements.
-      let q: FirebaseFirestore.Query = (storeId || catalogId || sourceMasterId)
-        ? db.collection(ADMIN_INSTANCES)
-        : db.collection(ADMIN_INSTANCES).orderBy('createdAt', 'desc');
-
-      if (catalogId)      q = q.where('catalogId',      '==', catalogId);
-      if (sourceMasterId) q = q.where('sourceMasterId', '==', sourceMasterId);
-      if (status)         q = q.where('status',         '==', status);
-      if (storeId)        q = q.where('storeId',        '==', storeId);
-      // folderPath exact-match only when no sub-filters present
-      if (folderPath && !channelId && !collectionName) {
-        q = q.where('folderPath', '==', folderPath);
-      }
-
-      const snap = await q.limit(500).get();
-      let instances = snap.docs.map(toSerializable);
-
-      // Default: hide soft-deleted / invisible instances unless the caller
-      // explicitly requests a specific status (e.g. status=deleted for audit).
-      if (!status) {
-        instances = instances.filter(inst =>
-          inst.status !== 'deleted' && inst.isVisible !== false
-        );
-      }
-
-      // In-memory filters for channel / collection.
-      // An instance with null/missing channelId is treated as belonging to ALL
-      // channels within its store (backward compat with pre-folder-path commits).
-      if (channelId) {
-        instances = instances.filter(inst =>
-          !inst.channelId || inst.channelId === channelId
-        );
-      }
-      if (collectionName) {
-        instances = instances.filter(inst =>
-          inst.collectionName === collectionName
-        );
-      }
-
-      // Sort newest-first when Firestore orderBy was skipped
-      if (storeId || catalogId || sourceMasterId) {
-        instances.sort((a, b) => {
-          const at = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bt = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return bt - at;
-        });
-      }
-
-      res.json({ success: true, instances, count: instances.length });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.get('/admin/catalog-instances', requireAdmin, async (req: any, res: any) => {
+    try { res.json(await listCatalogInstances(db, req.query)); }
+    catch (error: any) { res.status(500).json({ error: error.message }); }
   });
 
   // ── GET /admin/catalog-instances/by-packet/:packetId ────────────────────────
