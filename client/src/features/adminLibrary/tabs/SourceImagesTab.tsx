@@ -3,6 +3,7 @@ import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { ImageUploader, type UploadParams } from "@/features/shared/components/utilities/ImageUploader";
@@ -11,7 +12,7 @@ import { ScrollGridView } from "@/features/shared/components/views/ScrollGridVie
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
 import { SourceCardSkin } from "@/features/shared/components/skins/SourceSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { GRF_FILTER_ORIGINALS } from "@shared/GRF_engine";
+import { GRF_FILTER_ORIGINALS, GRF_IMAGE_ACCEPT_TYPES, GRF_IMAGE_MAX_MB, GRF_CROP_MIME_TYPE } from "@shared/GRF_engine";
 import { ORIGINALS_QK, CROPPED_QK, BACKGROUNDS_QK } from "../shared/grfQueryKeys";
 
 async function fetchImageBlob(url: string): Promise<string> {
@@ -97,6 +98,7 @@ class SourceImagesBoundary extends Component<
 
 function SourceImagesTabInner() {
   const { toast } = useToast();
+  const [archiveId, setArchiveId] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
   const [uploadError,    setUploadError]    = useState<string | null>(null);
@@ -119,6 +121,7 @@ function SourceImagesTabInner() {
     mutationFn: (id: string) =>
       adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
     onSuccess: () => {
+      setArchiveId(null);
       toast({ title: "Image archived" });
       queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
     },
@@ -141,7 +144,7 @@ function SourceImagesTabInner() {
     console.log("[SourceImagesTab] Starting crop for:", item.id, raw?.grfId);
   };
 
-  const handleDelete = (id: string) => archiveMutation.mutate(id);
+  const handleDelete = (id: string) => setArchiveId(id);
 
   const handleUploadSingle = async (params: UploadParams) => {
     const mimeType = params.mimeType || "image/jpeg";
@@ -184,7 +187,7 @@ function SourceImagesTabInner() {
     const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
     const origUrl  = raw?.publicUrl || sourceAsset.imageUrl;
 
-    const croppedMimeType = "image/jpeg";
+    const croppedMimeType = GRF_CROP_MIME_TYPE;
 
     // Strip data URI prefix — crop-mint expects raw base64
     const croppedImageData = croppedDataUrl.startsWith("data:")
@@ -213,6 +216,7 @@ function SourceImagesTabInner() {
       const error = err as Error;
       console.error("[SourceImagesTab] Crop save error:", error.message);
       toast({ title: "Crop save failed", description: error.message, variant: "destructive" });
+      throw error;
     }
   };
 
@@ -226,7 +230,8 @@ function SourceImagesTabInner() {
         title="Upload Source Images"
         description="Upload original images to the GRF library. Cropping creates a cropped derivative and promotes the original as a background asset."
         showZipUpload={false}
-        acceptTypes="image/png,image/jpeg,image/webp,image/svg+xml,image/heic,image/heif,image/gif,image/bmp,image/tiff,image/avif"
+        acceptTypes={GRF_IMAGE_ACCEPT_TYPES}
+        maxSizeMB={GRF_IMAGE_MAX_MB}
       />
 
       {uploadError && (
@@ -288,6 +293,7 @@ function SourceImagesTabInner() {
       )}
 
       <CropUtility
+        outputMimeType={GRF_CROP_MIME_TYPE}
         asset={assetToCrop}
         open={cropDialogOpen}
         onOpenChange={(open) => {
@@ -299,6 +305,21 @@ function SourceImagesTabInner() {
         aspectRatio={9 / 16}
         title="Crop Source Image"
       />
+      <AlertDialog open={!!archiveId} onOpenChange={open => { if (!open && !archiveMutation.isPending) setArchiveId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive this source image?</AlertDialogTitle>
+            <AlertDialogDescription>It will be hidden from the Source library. The stored file and its existing crops will remain.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="min-h-[44px]" disabled={archiveMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="min-h-[44px]" disabled={archiveMutation.isPending} onClick={event => {
+              event.preventDefault();
+              if (archiveId) archiveMutation.mutate(archiveId);
+            }}>{archiveMutation.isPending ? 'Archiving…' : 'Archive image'}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SinglePaneViewer>
   );
 }

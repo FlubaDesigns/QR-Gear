@@ -83,24 +83,19 @@ export function mimeToGrfFormat(mimeType: string): GrfFormat {
 // mimeToGrfFormat. All callers must go through here — never define this map
 // locally in a component or route file.
 
-const _MIME_NORMALIZE: Record<string, string> = {
-  'image/jpg':  'image/jpeg',
-  'image/heic': 'image/jpeg',
-  'image/heif': 'image/jpeg',
-  'image/avif': 'image/jpeg',
-  'image/gif':  'image/png',
-  'image/bmp':  'image/png',
-  'image/tiff': 'image/png',
-};
+// Source uploads preserve bytes; MIME aliases must not pretend to convert files.
+export const GRF_IMAGE_ACCEPT_TYPES = Object.values(GRF_FORMATS['1']).map(f => f.mime).join(',');
+export const GRF_IMAGE_MAX_MB = 20;
+export const GRF_IMAGE_MAX_BYTES = GRF_IMAGE_MAX_MB * 1024 * 1024;
+export const GRF_CROP_MIME_TYPE = 'image/png';
 
 export function normalizeMimeType(raw: string): string {
   const lower = (raw || '').toLowerCase();
-  const mapped = _MIME_NORMALIZE[lower];
-  if (mapped) {
-    console.warn(`GRF_engine: normalizeMimeType mapped "${raw}" → "${mapped}"`);
-    return mapped;
+  const normalized = lower === 'image/jpg' ? 'image/jpeg' : lower;
+  if (!Object.values(GRF_FORMATS['1']).some(f => f.mime === normalized)) {
+    throw new Error('Unsupported image format. Use PNG, JPEG, WebP, or SVG.');
   }
-  return lower || 'image/jpeg';
+  return normalized;
 }
 
 // ── GRF param shape ───────────────────────────────────────────────────────────

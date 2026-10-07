@@ -75,18 +75,18 @@ import { createGrfRegistrar, type RegisterGrfAssetOptions, type PacketGrfIds } f
 import { resolveBuilderBld } from '../../functions/src/services/bld-store';
 import { createAutoAssembly, type AutoAssemblyOptions } from '../../functions/src/services/assembly-store';
 export type DevGrfIds = PacketGrfIds;
-async function registrar() {
+export async function getGrfRegistrar() {
   const { FieldValue, getStorageBucket } = await import('./firebase-admin');
   return createGrfRegistrar({ db: await getDb(), now: () => FieldValue.serverTimestamp(), bucket: getStorageBucket });
 }
 export async function registerGrfDev(opts: RegisterGrfAssetOptions & { db?: FirebaseFirestore.Firestore }) {
-  return (await (await registrar()).registerGrfAsset(opts)).grfId;
+  return (await (await getGrfRegistrar()).registerGrfAsset(opts)).grfId;
 }
 export async function registerPacketGrfsDev(packet: Record<string, any>, sessionId: string | null, packetId: string | null) {
-  return (await registrar()).registerPacketGrfAssets(packet, sessionId, packetId);
+  return (await getGrfRegistrar()).registerPacketGrfAssets(packet, sessionId, packetId);
 }
 export async function registerMockupGrfsDev(packetId: string, lifestyleUrl: string | null, placements: Record<string, string> | null) {
-  return (await registrar()).registerMockupGrfAssets(packetId, lifestyleUrl, placements);
+  return (await getGrfRegistrar()).registerMockupGrfAssets(packetId, lifestyleUrl, placements);
 }
 export async function writeBldDev({ working, packetId }: { working: Record<string, any>; packetId?: string }) {
   const { FieldValue } = await import('./firebase-admin');

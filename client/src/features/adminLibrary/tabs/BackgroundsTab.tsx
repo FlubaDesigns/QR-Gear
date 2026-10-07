@@ -1,3 +1,4 @@
+import { GRF_CROP_MIME_TYPE } from '@shared/GRF_engine';
 import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -144,7 +145,7 @@ function BackgroundsTabInner() {
     }
     try {
       const originalMimeType = originalAsset.mimeType || "image/jpeg";
-      const croppedMimeType  = "image/jpeg";
+      const croppedMimeType  = GRF_CROP_MIME_TYPE;
       const { cropped: croppedGrfParams, background: backgroundGrfParams } =
         buildCropTransition(originalMimeType, croppedMimeType);
 
@@ -223,6 +224,7 @@ function BackgroundsTabInner() {
       )}
 
       <CropUtility
+        outputMimeType={GRF_CROP_MIME_TYPE}
         asset={assetToCrop}
         open={cropDialogOpen}
         onOpenChange={(open) => {

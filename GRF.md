@@ -219,6 +219,22 @@ Atomically incremented in a Firestore transaction for every new GRF ID. Never de
 
 ---
 
+## Source uploads and crops
+
+Source uploads are shared inputs for print and website designs. They accept PNG, JPEG,
+WebP, and SVG up to 20 MB per image. Original bytes and filenames are retained. Unsupported
+formats are rejected rather than relabeled. Limits and MIME rules come from `shared/GRF_engine.ts`.
+
+Source uploads and crops use `createGrfRegistrar` in `functions/src/services/grf-store.ts`
+in both development and Cloud Functions. Identical uploads reuse their registered identity.
+Each distinct crop gets a fresh global sequence and immutable file, linked to its original
+through `sourceGrfId`; identical crop retries reuse the same derivative. Library crops use
+PNG to retain transparency. Background records reference the original file without copying it.
+
+Archiving a source hides its record from active selection; it does not delete its file or crops.
+
+---
+
 ## API Endpoints
 
 **Save a GRF asset:**

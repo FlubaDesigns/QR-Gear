@@ -1,97 +1,16 @@
 "use strict";
-/**
- * functions/src/routes/admin-library-source.ts
- *
- * Mirrors server/routes/library-source.routes.ts for production Cloud Functions.
- *
- * POST /admin/library/upload-source
- *   Mints a new source GRF asset (channel=4, purpose=1) from a raw upload.
- *   All GRF classification is handled here — the client sends only file data.
- */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerAdminLibrarySource = registerAdminLibrarySource;
-const core_1 = require("../core");
 const middleware_1 = require("../middleware");
-const GRF_engine_1 = require("../../../shared/GRF_engine");
+const grf_registrar_1 = require("../services/grf-registrar");
+const grf_store_1 = require("../services/grf-store");
 function registerAdminLibrarySource(app) {
     app.post('/admin/library/upload-source', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { imageUrl, mimeType: rawMime, name, originalFilename } = req.body;
-            if (!imageUrl || !rawMime) {
-                res.status(400).json({ error: 'Missing required fields: imageUrl, mimeType' });
-                return;
-            }
-            const mimeType = (0, GRF_engine_1.normalizeMimeType)(rawMime);
-            const grfParams = (0, GRF_engine_1.originalGrfParams)(mimeType);
-            const counterRef = core_1.db.collection('grf_counters').doc(GRF_engine_1.GRF_COUNTER_KEY);
-            let newSeq = 0;
-            await core_1.db.runTransaction(async (tx) => {
-                const doc = await tx.get(counterRef);
-                newSeq = (doc.exists ? doc.data().count : 0) + 1;
-                tx.set(counterRef, { count: newSeq, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
-            });
-            let grfId = (0, GRF_engine_1.buildGrfId)({ ...grfParams, sequence: newSeq });
-            let parsed = (0, GRF_engine_1.parseGrfId)(grfId);
-            // Advance past any legacy docs that already occupy this sequence slot.
-            const MAX_RETRIES = 10;
-            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-                const existing = await core_1.db.collection('grf_assets').doc(grfId).get();
-                if (!existing.exists)
-                    break;
-                console.warn(`[UploadSource] Sequence collision at ${grfId} (attempt ${attempt + 1}) — advancing counter`);
-                if (attempt === MAX_RETRIES - 1) {
-                    res.status(500).json({ error: `GRF counter exhausted: could not find free slot after ${MAX_RETRIES} attempts.` });
-                    return;
-                }
-                await core_1.db.runTransaction(async (tx) => {
-                    const doc = await tx.get(counterRef);
-                    newSeq = (doc.exists ? doc.data().count : 0) + 1;
-                    tx.set(counterRef, { count: newSeq, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
-                });
-                grfId = (0, GRF_engine_1.buildGrfId)({ ...grfParams, sequence: newSeq });
-                parsed = (0, GRF_engine_1.parseGrfId)(grfId);
-            }
-            const storagePath = (0, GRF_engine_1.grfStoragePath)(grfId, originalFilename || undefined);
-            const base64Data = imageUrl.replace(/^data:[^;]+;base64,/, '');
-            const buffer = Buffer.from(base64Data, 'base64');
-            const bucket = (0, core_1.getStorageBucket)();
-            const storageFile = bucket.file(storagePath);
-            await storageFile.save(buffer, { metadata: { contentType: mimeType } });
-            await storageFile.makePublic();
-            const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
-            const publicUrl = `https://storage.googleapis.com/${core_1.STORAGE_BUCKET_NAME}/${encodedPath}`;
-            const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-            await core_1.db.collection('grf_assets').doc(grfId).set({
-                grfId,
-                assetClass: parsed.assetClass,
-                mediaType: parsed.mediaType,
-                channel: parsed.channel,
-                purpose: parsed.purpose,
-                format: parsed.format,
-                sequence: parsed.sequence,
-                assetClassName: parsed.assetClassName,
-                mediaTypeName: parsed.mediaTypeName,
-                channelName: parsed.channelName,
-                purposeName: parsed.purposeName,
-                formatName: parsed.formatName,
-                mimeType,
-                name: grfId,
-                originalFilename: originalFilename || name || null,
-                storagePath,
-                publicUrl,
-                sourceGrfId: null,
-                createdAt: now,
-                createdBy: 'admin',
-                isActive: true,
-            });
-            console.log(`[UploadSource] Minted ${grfId} (originalFilename="${originalFilename || name || null}")`);
-            const doc = await core_1.db.collection('grf_assets').doc(grfId).get();
-            const saved = doc.data();
-            res.json({ success: true, grfId, asset: saved });
+            res.json(await (0, grf_registrar_1.registerSourceImage)(req.body));
         }
         catch (error) {
-            console.error('[UploadSource] Error:', error);
-            res.status(500).json({ error: error.message });
+            res.status(error instanceof grf_store_1.LibraryImageError ? error.status : 500).json({ error: error.message });
         }
     });
 }
