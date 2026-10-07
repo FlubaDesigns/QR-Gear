@@ -382,3 +382,10 @@ October 7, 2026 navigation update: Partners now has its own main admin tab, alon
 A final pass traced Placement, product choices, store/channel setup, collection destinations, saved selections and the Store Products handoff. Closing product choices now uses one editor-owned action: reopening the panel cannot silently discard edits, Close warns only for unsaved changes, and Close is blocked during Save. Move ignores duplicate rapid taps and gives each collection suggestion list its own ID. Saved prices represented as strings no longer crash the shared product card; long titles and paths wrap. Destination validation uses the same active-record policy as collection listing, so archived collection IDs are rejected and reusing a name cannot reattach the deleted definition. The QRG/BLD/GRF/Assembly authority files are unchanged.
 
 Validation: 185 client tests, 250 backend tests, TypeScript and both builds passed. Seven new regression cases cover close/save behavior, duplicate moves, old prices and deleted collections. Tests use fixtures; mobile sizing was source-checked, not rendered in a phone browser. Sandbox source only; no Main or hosting deployment.
+
+
+## Placement consolidation — sandbox, October 7, 2026
+
+Place no longer has a separate Store Products tab. Finished products are managed in Store Builder → Placement through the existing catalog-instance query, cards and writers. Search, manual Refresh, all-channel browsing and Printify publication status/retry now live there. The retired `/admin/store-library` route redirects with the original store/channel parameters; old channel names resolve to canonical IDs, failed destinations show errors, and delayed lookups cannot override manual selections. Duplicate screen components were removed. Store Builder → Products still controls member blank choices; Build → Library remains graphics/templates/assets.
+
+Validation: 186 client tests, TypeScript and production build passed. Shared schemas, provider tables and QRG/BLD/GRF/Assembly authority files are unchanged. No live mutations or device-browser verification. Saved on `sandbox/products-fulfillment`, not Main or live hosting.

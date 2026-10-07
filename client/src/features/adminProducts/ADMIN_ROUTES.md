@@ -34,7 +34,7 @@ Last verified: May 6, 2026
 |-------|-----------|-------|
 | `/admin/store-planner` | `StorePlanner` | PLACE cockpit |
 | `/admin/store-builder` | `AdminStoreBuilder` | Storefront configuration |
-| `/admin/store-library` | `AdminStoreLibrary` | Browse stores and channels |
+| `/admin/store-library` | `AdminStoreLibrary` | Legacy redirect to Store Builder → Placement |
 | `/admin/partners` | `AdminPartners` | Partner / referral management |
 | `/admin/external-sites` | `AdminExternalSites` | Embedded product widgets |
 | `/admin/marketplaces` | `AdminMarketplaces` | eBay, Etsy, Amazon integrations |

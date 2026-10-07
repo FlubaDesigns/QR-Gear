@@ -17,7 +17,6 @@ import {
   BookOpen,
   MapPin,
   Globe,
-  LayoutGrid,
   Layers,
   Folder,
   Hash,
@@ -50,7 +49,6 @@ export const BUILD_SUBNAV: SubNavItem[] = [
 
 export const PLACE_SUBNAV: SubNavItem[] = [
   { label: "Store Builder", href: "/admin/store-builder", icon: Store },
-  { label: "Store Products", href: "/admin/store-library", icon: LayoutGrid },
   { label: "External Sites", href: "/admin/external-sites", icon: Globe },
   { label: "Marketplaces", href: "/admin/marketplaces", icon: MapPin },
 ];

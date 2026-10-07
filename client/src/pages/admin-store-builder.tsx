@@ -22,6 +22,6 @@ export default function AdminStoreBuilderPage() {
   return <AdminShell title="Store Builder" icon={Store} tabs={storeTabs} activeTab={activeTab}
     onTabChange={tab => { const next = new URLSearchParams(search); next.set("tab", tab); navigate(`/admin/store-builder?${next}`); }}
     sectionNav={<AdminSectionSubNav items={PLACE_SUBNAV} />}>
-    {activeTab === "placement" ? <StoreManagerTab initialPacketId={packetId} /> : <MemberProductLibrary />}
+    {activeTab === "placement" ? <StoreManagerTab initialPacketId={packetId} initialStoreId={params.get("storeId") || undefined} initialChannelKey={params.get("channelId") || params.get("channel") || undefined} initialRole={params.get("role") || undefined} /> : <MemberProductLibrary />}
   </AdminShell>;
 }

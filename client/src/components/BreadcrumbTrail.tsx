@@ -29,7 +29,7 @@ const routeLabels: Record<string, string> = {
   "pricing": "Pricing",
   "library": "Library",
   "store-builder": "Store Builder",
-  "store-library": "Store Products",
+  "store-library": "Placement",
   "fonts": "Fonts",
   "dynamics": "Dynamics",
   "ar-demo": "AR Demo",

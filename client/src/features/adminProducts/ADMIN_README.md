@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Build tabs integration review, sandbox).
+Last updated: October 7, 2026 (Placement consolidation, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -175,7 +175,7 @@ Selected blank is NOT inside the BLD draft. They are stored at different levels 
 |-------|-----------|---------|
 | `/admin/store-planner` | StorePlanner | PLACE cockpit — product configs, store tool links |
 | `/admin/store-builder` | AdminStoreBuilder | Configure storefronts and assign products |
-| `/admin/store-library` | AdminStoreLibrary | Browse existing stores and channels |
+| `/admin/store-library` | AdminStoreLibrary | Legacy redirect to Store Builder → Placement |
 | `/admin/partners` | AdminPartners | Partner / referral management |
 | `/admin/external-sites` | AdminExternalSites | Manage embedded product widgets |
 | `/admin/marketplaces` | AdminMarketplaces | Marketplace integrations (eBay, Etsy, Amazon) |
@@ -374,6 +374,25 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — One finished-product screen (sandbox)
+
+Removed Place's duplicate Store Products tab and its context/filter/grid/harness. Placement remains the one saved-instance editor, with search, Refresh, all-channel browsing and existing Printify publication status/retry transferred into its shared cards. Old `/admin/store-library` links redirect to Placement with their parameters intact; store/channel names resolve to canonical IDs, failures remain visible, and late responses cannot override manual navigation. Products retains member blank choices; Build Library retains graphics/templates/assets. No schema, database or provider-table changes.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `client/src/components/admin/adminNavConfig.ts`, `client/src/components/BreadcrumbTrail.tsx` | Remove duplicate navigation; legacy breadcrumb points to Placement |
+| `client/src/pages/admin-store-library.tsx`, `client/src/pages/admin-store-builder.tsx` | Preserve old links through Placement |
+| `client/src/features/adminProducts/storeManager/StoreManagerTab.tsx` | Canonical destination selection, search, refresh, all channels and publication status |
+| `client/src/features/adminProducts/storeManager/StorePublishStatus.tsx`, `PublishStatusBadge.tsx` | Existing publication status/retry moved into shared product cards |
+| `client/src/features/shared/components/skins/StoreProductSkin.tsx` | Use relocated badge |
+| `client/src/features/adminProducts/storeLibrary/` | Remove obsolete duplicate screen components |
+| `client/src/lib/__tests__/storeProducts.test.ts` | Navigation, destination, late-response, search and status regression coverage |
+| `README.md`, `ADMIN_README.md`, `ADMIN_ROUTES.md`, `client/src/features/shared/PRODUCT_LIFECYCLE.md`, `MANIFEST.json` | Documentation and manifest |
+
+Validation: 186 client tests, TypeScript and production build passed. Tests use controlled service adapters; phone layout was inspected in source, not rendered on a device. Saved to `sandbox/products-fulfillment`; no Main/hosting deployment or live mutations.
 
 ### October 7, 2026 — Fonts source, save integrity and mobile previews (sandbox)
 

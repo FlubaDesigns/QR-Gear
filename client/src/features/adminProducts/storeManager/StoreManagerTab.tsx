@@ -1,6 +1,8 @@
+import { StorePublishStatus } from "./StorePublishStatus";
+import { Input } from "@/components/ui/input";
 import { StoreManager } from "@/features/storeBuilder/StoreManager";
 import { AllChannelsManager } from "./AllChannelsManager";
-import { STORE_ROLES } from "@shared/storeRoles";
+import { STORE_ROLES, isStoreRole } from "@shared/storeRoles";
 import { refreshStoreViews } from "@/features/storeBuilder/storeQueries";
 import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState, useCallback, useEffect, useRef, useId } from "react";
@@ -55,6 +57,10 @@ export interface AdminInstance {
   colorMap?: Record<string, string>;
   customerPrice?: string;
   currentPacketId?: string;
+  printifyProductId?: string;
+  publishStatus?: "synced" | "pending" | "error";
+  lastPublishedAt?: string;
+  publishError?: string;
 }
 
 const ROLES = STORE_ROLES.map(role => ({ value: role.id, label: role.name }));
@@ -463,6 +469,8 @@ export function InstanceCard({
         )}
       </AccordionSection>
 
+      <StorePublishStatus product={instance} />
+
       {/* Bottom-right delete */}
       <div className="flex justify-end mt-2 pt-2 border-t border-white/10">
         <button
@@ -774,11 +782,14 @@ function UnplacedItems() {
   );
 }
 
-export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string } = {}) {
+export function StoreManagerTab({ initialPacketId, initialStoreId, initialChannelKey, initialRole }: { initialPacketId?: string; initialStoreId?: string; initialChannelKey?: string; initialRole?: string } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [selectedRole, setSelectedRole] = useState<RoleType | "">("");
+  const [selectedRole, setSelectedRole] = useState<RoleType | "">(isStoreRole(initialRole) ? initialRole : "");
+  const [search, setSearch] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkAttempt, setLinkAttempt] = useState(0);
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
@@ -790,7 +801,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     storeId: string;
     storeName: string;
     channelId: string | null;
-    instanceId: string;
+    instanceId: string | null;
   } | null>(null);
   const [highlightedInstanceId, setHighlightedInstanceId] = useState<string | null>(null);
   const navigationVersion = useRef(0);
@@ -817,41 +828,32 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     },
   });
 
-  // ── Fetch instance by packetId on mount ─────────────────────────────────────
+  // Existing packet links and retired Store Products links use the same destination selection.
   useEffect(() => {
-    if (!initialPacketId) return;
     let cancelled = false;
     const version = navigationVersion.current;
-    adminFetch<any>(`/catalog-instances/by-packet/${initialPacketId}`)
-      .then((data) => {
-        if (cancelled || version !== navigationVersion.current) return;
-        const inst = data.instance;
-        if (!inst || !data.storeRoleType || !inst.storeId) {
-          console.warn("[StoreManagerTab] by-packet lookup: missing instance/store info", data);
-          return;
-        }
-        setAutoSelect({
-          roleType: data.storeRoleType,
-          storeId: inst.storeId,
-          storeName: inst.storeName ?? inst.storeId,
-          channelId: inst.channelId ?? null,
-          instanceId: inst.id,
+    setLinkError(null); setAutoSelect(null); setSelectedStore(null); setSelectedChannelId(null); setSelectedCollectionName(null);
+    setSelectedRole(isStoreRole(initialRole) ? initialRole : "");
+    if (!initialStoreId && !initialPacketId) return;
+    const lookup = initialStoreId
+      ? adminFetch<StoreType[]>("/stores").then(stores => {
+          const store = stores.find(s => s.id === initialStoreId);
+          if (!store) throw new Error("This store no longer exists. Choose another store.");
+          return { roleType: store.roleType, storeId: store.id, storeName: store.name, channelId: initialChannelKey || null, instanceId: null };
+        })
+      : adminFetch<any>(`/catalog-instances/by-packet/${initialPacketId}`).then(data => {
+          const inst = data.instance;
+          if (!inst || !data.storeRoleType || !inst.storeId) return null;
+          return { roleType: data.storeRoleType, storeId: inst.storeId, storeName: inst.storeName ?? inst.storeId, channelId: inst.channelId ?? null, instanceId: inst.id };
         });
-        setHighlightedInstanceId(inst.id);
-        // Kick off the role selection so the stores query fires
-        setSelectedRole(data.storeRoleType as RoleType);
-      })
-      .catch((err) => {
-        console.error("[StoreManagerTab] by-packet lookup failed:", err);
-        toast({
-          title: "Could not locate product",
-          description: "The committed product could not be found. Navigate manually.",
-          variant: "destructive",
-        });
-      });
-  return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPacketId]);
+    lookup.then(destination => {
+      if (cancelled || version !== navigationVersion.current || !destination) return;
+      setAutoSelect(destination); setHighlightedInstanceId(destination.instanceId); setSelectedRole(destination.roleType as RoleType);
+    }).catch(error => {
+      if (!cancelled && version === navigationVersion.current) setLinkError(error.message || "Could not load the linked destination.");
+    });
+    return () => { cancelled = true; };
+  }, [initialPacketId, initialStoreId, initialChannelKey, initialRole, linkAttempt]);
 
   const { data: stores = [], isLoading: loadingStores, error: storesError, refetch: retryStores } = useQuery<StoreType[]>({
     queryKey: ["stores", selectedRole],
@@ -884,28 +886,30 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
       if (selectedCollectionName) params.set("collectionName", selectedCollectionName);
       return adminFetch<any>(`/catalog-instances?${params}`);
     },
-    enabled: !!selectedStore,
+    enabled: !!selectedStore && !linkError && (!autoSelect?.channelId || !!selectedChannelId),
   });
 
   // ── Auto-set store once the stores list loads ────────────────────────────────
   useEffect(() => {
-    if (!autoSelect || !stores.length || loadingStores) return;
+    if (!autoSelect || selectedRole !== autoSelect.roleType || loadingStores || storesError) return;
     const store = stores.find(s => s.id === autoSelect.storeId);
+    if (!store) { setLinkError("This store no longer exists. Choose another store."); return; }
     if (store && selectedStore?.id !== store.id) {
       setSelectedStore(store);
       setSelectedChannelId(null);
       setSelectedCollectionName(null);
     }
-  }, [autoSelect, stores, loadingStores]);
+  }, [autoSelect, selectedRole, stores, loadingStores, storesError]);
 
-  // ── Auto-set channel once the channels list loads ────────────────────────────
+  // Resolve old channel-name links without ever using names in the product query.
   useEffect(() => {
-    if (!autoSelect || !channels.length || loadingChannels) return;
-    if (autoSelect.channelId && selectedChannelId !== autoSelect.channelId) {
-      setSelectedChannelId(autoSelect.channelId);
-      setSelectedCollectionName(null);
+    if (!autoSelect || loadingChannels || !selectedStore || selectedStore.id !== autoSelect.storeId || channelsError) return;
+    if (autoSelect.channelId) {
+      const channel = channels.find(c => c.id === autoSelect.channelId || c.name === autoSelect.channelId);
+      if (!channel) { setLinkError("This channel no longer exists. Choose another channel."); return; }
+      setSelectedChannelId(channel.id); setSelectedCollectionName(null);
     }
-  }, [autoSelect, channels, loadingChannels]);
+  }, [autoSelect, channels, loadingChannels, selectedStore, channelsError]);
 
   // ── Scroll to highlighted instance once it appears ───────────────────────────
   useEffect(() => {
@@ -921,10 +925,11 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
       setSelectedStore(null); setSelectedChannelId(null); setSelectedCollectionName(null);
     }
   }, [stores, loadingStores, storesError, selectedStore]);
-  const instances = instancesData?.instances ?? [];
+  const allInstances = instancesData?.instances ?? [];
+  const instances = allInstances.filter(item => `${item.resolved?.title || ""} ${item.id} ${item.collectionName || ""}`.toLowerCase().includes(search.toLowerCase()));
 
   const handleRoleChange = (role: string) => {
-    navigationVersion.current++; setAutoSelect(null);
+    navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSearch("");
     setHighlightedInstanceId(null);
     setSelectedRole(role as RoleType);
     setSelectedStore(null);
@@ -933,7 +938,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
   };
 
   const handleStoreChange = (storeId: string) => {
-    navigationVersion.current++; setAutoSelect(null); setHighlightedInstanceId(null);
+    navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSearch(""); setHighlightedInstanceId(null);
     const store = stores.find(s => s.id === storeId);
     setSelectedStore(store ?? null);
     setSelectedChannelId(null);
@@ -941,7 +946,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
   };
 
   const handleFolderSelect = (channelId: string, collectionName: string | null) => {
-    navigationVersion.current++; setAutoSelect(null); setHighlightedInstanceId(null);
+    navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSearch(""); setHighlightedInstanceId(null);
     setSelectedChannelId(channelId);
     setSelectedCollectionName(collectionName);
   };
@@ -977,6 +982,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
 
   return (
     <div className="min-w-0 space-y-4">
+      {linkError && <div role="alert" className="space-y-2"><p>{linkError}</p><Button className="h-12" onClick={() => setLinkAttempt(n => n + 1)}>Retry linked destination</Button></div>}
       {(storesError || channelsError || instancesError) && <div role="alert" className="space-y-2 rounded-md border border-destructive p-3"><p>Could not load store contents.</p><Button className="h-12" onClick={() => { void retryStores(); if (selectedStore) { void retryChannels(); void retryInstances(); } }}>Retry</Button></div>}
       {/* Unplaced items — always visible so committed packets can be found and moved */}
       <UnplacedItems />
@@ -1054,12 +1060,14 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
       {selectedStore && (
         <>
           <details className="glass-card p-4" key={selectedStore.id}><summary className="min-h-12 cursor-pointer py-3">Manage {selectedStore.name}</summary><StoreManager storeId={selectedStore.id} /></details>
+          <div className="flex flex-wrap gap-2"><Input className="h-12 text-base flex-1 min-w-0" aria-label="Find store products" placeholder="Find a product…" value={search} onChange={event => setSearch(event.target.value)} /><Button className="h-12" variant="outline" disabled={loadingInstances || !!linkError} onClick={refreshInstances}>Refresh</Button></div>
           {/* ── Two-panel layout: stacked on mobile, side-by-side on desktop ── */}
           <div className="flex flex-col md:flex-row gap-4">
 
             {/* Left: channel tree */}
             <div className="md:w-60 md:flex-shrink-0 glass-card p-3">
               <p className="glass-subtitle text-xs uppercase tracking-wider mb-3 px-1">Channels</p>
+              <Button className="min-h-12 w-full mb-2" variant={selectedChannelId ? "outline" : "default"} onClick={() => { navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSelectedChannelId(null); setSelectedCollectionName(null); }}>All channels</Button>
               {channelsError ? null : loadingChannels ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="h-5 w-5 animate-spin text-white/40" />
@@ -1084,7 +1092,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
 
             {/* Right: instance grid — always visible */}
             <div className="flex-1 min-w-0">
-              {instancesError ? null : loadingInstances ? (
+              {(instancesError || linkError) ? null : loadingInstances ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-6 w-6 animate-spin text-white/40" />
                 </div>
@@ -1092,7 +1100,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
                 <div className="flex flex-col items-center justify-center py-20 text-white/30 gap-3">
                   <Package className="h-9 w-9" />
                   <p className="text-sm text-center px-4">
-                    No products in {selectedCollectionName ?? selectedChannel?.name ?? "this folder"}
+                    {search ? "No products match your search." : `No products in ${selectedCollectionName ?? selectedChannel?.name ?? "this store"}`}
                   </p>
                 </div>
               ) : (
