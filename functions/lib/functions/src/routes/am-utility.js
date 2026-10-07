@@ -49,15 +49,6 @@ function register(app) {
             res.status(500).json({ error: e.message });
         }
     });
-    app.get('/admin/images', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const snap = await core_1.db.collection('libraryAssets').where('isActive', '==', true).limit(20).get();
-            res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        }
-        catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    });
     app.get('/admin/template-categories/by-parent', middleware_1.requireAdmin, async (req, res) => {
         try {
             const parentId = req.query.parentId;

@@ -580,12 +580,12 @@ export default function AdminSchemaKeys() {
                     },
                     {
                       surface: "Library › Images",
-                      code: "1·1·?·1",
+                      code: "1·1·1·1",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
-                      skin: "— (inline, no named Skin)",
-                      shape: "ItemModalView",
-                      note: "⚠ Non-conformant — no CardSkin",
+                      view: "ScrollGridView",
+                      skin: "AdminImageCardSkin",
+                      shape: "AdminImageShape",
+                      note: "Shared image browser for website and product assets",
                     },
                   ].map((row) => (
                     <tr key={row.surface} className={row.note ? "bg-amber-500/5" : ""}>

@@ -26,13 +26,6 @@ app.get('/admin/health', requireAdmin, async (req: Request, res: Response): Prom
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/admin/images', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snap = await db.collection('libraryAssets').where('isActive', '==', true).limit(20).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
 app.get('/admin/template-categories/by-parent', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const parentId = req.query.parentId as string;
