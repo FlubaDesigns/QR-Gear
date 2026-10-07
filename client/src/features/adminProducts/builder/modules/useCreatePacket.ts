@@ -551,7 +551,7 @@ export function useCreatePacket({
           }
         });
 
-        const primaryMockupUrl = placementMockupUrls[allPlacements[0]] || null;
+        const primaryMockupUrl = allPlacements.map(placement => placementMockupUrls[placement]).find(Boolean) || null;
 
         if (!primaryMockupUrl) {
           const errorMsg = "Mockup generation failed for all placements";
@@ -569,13 +569,13 @@ export function useCreatePacket({
         await adminFetch(`/packets/${capturedPacketId}`, {
           method: "PATCH",
           json: packetPatch,
-        }).catch(() => {});
+        });
 
         if (capturedInstanceId) {
           await adminFetch(`/catalog-instances/${capturedInstanceId}/rebuild-images`, {
             method: "POST",
             json: {},
-          }).catch(() => {});
+          });
         }
 
         setPacketResult(prev => prev && prev.packetId === capturedPacketId ? {

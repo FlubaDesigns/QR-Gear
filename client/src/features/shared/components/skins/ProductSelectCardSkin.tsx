@@ -50,6 +50,7 @@ export interface ProductSelectCardSkinProps {
   titleSaving?: boolean;
   editableTitle?: boolean;
   textEditScope?: string;
+  priceLabel?: string;
   selectLabel?: React.ReactNode;
   selectedLabel?: React.ReactNode;
   disableWhenSelected?: boolean;
@@ -92,7 +93,15 @@ function PreviewModal({
   savedColors,
   onColorsSave,
   colorsSaving,
+  actionLabel,
+  actionDisabled,
+  priceLabel,
+  providerLabel,
 }: {
+  actionLabel: React.ReactNode;
+  actionDisabled: boolean;
+  priceLabel?: string;
+  providerLabel?: string;
   item: ProductSelectItem;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -133,7 +142,7 @@ function PreviewModal({
   }, [savedColors, item.availableColors]);
 
   const masterImages = useMemo(() => {
-    const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
+    const imgs = item.images ?? (item.primaryImageUrl ? [item.primaryImageUrl] : []);
     return imgs;
   }, [item.images, item.primaryImageUrl]);
 
@@ -208,6 +217,8 @@ function PreviewModal({
         setLocalImages(masterCatalogImages);
         setCurrentIndex(0);
       }
+    } catch {
+      // The save callback reports the error; keep the current selection.
     } finally {
       setRestoringImages(false);
     }
@@ -253,6 +264,8 @@ function PreviewModal({
       setLocalImages(keptImages);
       setCurrentIndex(0);
       exitBulkMode();
+    } catch {
+      // The save callback reports the error; retain the selection for retry.
     } finally {
       setBulkSaving(false);
     }
@@ -675,7 +688,7 @@ function PreviewModal({
                 <div className="flex items-center gap-3 flex-wrap">
                   {item.price != null && (
                     <span className="text-2xl font-bold" data-testid={`text-preview-price-${item.id}`}>
-                      ${item.price.toFixed(2)}
+                      {priceLabel && <span className="text-sm font-normal mr-2">{priceLabel}</span>}${item.price.toFixed(2)}
                     </span>
                   )}
                   {item.cost != null && (
@@ -690,6 +703,7 @@ function PreviewModal({
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {providerLabel && <Badge variant="outline">{providerLabel}</Badge>}
                   {defaultColorEntry && (
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
                       <span className="flex items-center gap-1.5">
@@ -924,9 +938,10 @@ function PreviewModal({
                   onSelect();
                   onOpenChange(false);
                 }}
+                disabled={actionDisabled}
                 data-testid={`button-modal-select-${item.id}`}
               >
-                Select This Product
+                {actionLabel}
               </Button>
             </div>
           </div>
@@ -948,7 +963,15 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, priceLabel, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+  const providerLabel = fulfillmentProvider === "both" ? "Printify + Printful"
+    : fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider;
+  const actionLabel = isSelected ? (selectedLabel ?? "Selected") : (selectLabel ?? "Select product");
+  const actionDisabled = (isSelected && !!disableWhenSelected) || !!selectDisabled;
+  const titleParts = item.name.split(" | ");
+  const splitTitle = titleParts.length === 2 && !!item.manufacturer && titleParts[1].toLowerCase().includes(item.manufacturer.toLowerCase());
+  const cardTitle = splitTitle ? titleParts[1] : item.name;
+  const cardSubtitle = splitTitle ? titleParts[0] : null;
   const [previewOpen, setPreviewOpen] = useState(false);
   const [imageToRemove, setImageToRemove] = useState<string | null>(null);
   const [imageRemovalError, setImageRemovalError] = useState<string | null>(null);
@@ -957,7 +980,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
 
   // All images available for the card thumbnail slider
   const cardImages = useMemo(() => {
-    const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
+    const imgs = item.images ?? (item.primaryImageUrl ? [item.primaryImageUrl] : []);
     return imgs;
   }, [item.images, item.primaryImageUrl]);
 
@@ -1013,7 +1036,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
       >
         {/* ── Main image area with nav arrows ── */}
         <div
-          className="relative w-full aspect-square max-h-[180px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
+          className="relative w-full aspect-square max-h-[320px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
           onClick={() => setPreviewOpen(true)}
           data-testid={`img-tap-${item.id}`}
         >
@@ -1049,7 +1072,8 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 type="button"
                 onClick={handleCardPrev}
                 disabled={clampedIndex === 0}
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow disabled:opacity-30"
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm min-w-12 min-h-12 flex items-center justify-center shadow disabled:opacity-30"
+                aria-label="Previous image"
                 data-testid={`button-card-prev-${item.id}`}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -1058,7 +1082,8 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 type="button"
                 onClick={handleCardNext}
                 disabled={clampedIndex === cardImages.length - 1}
-                className="absolute right-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow disabled:opacity-30"
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm min-w-12 min-h-12 flex items-center justify-center shadow disabled:opacity-30"
+                aria-label="Next image"
                 data-testid={`button-card-next-${item.id}`}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1101,17 +1126,6 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             </div>
           )}
 
-          {fulfillmentProvider && (
-            <div className="absolute bottom-2 right-2">
-              <Badge
-                variant="outline"
-                className="text-[10px] bg-background/90 backdrop-blur-sm shadow-sm"
-                data-testid={`badge-provider-${item.id}`}
-              >
-                {fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider}
-              </Badge>
-            </div>
-          )}
         </div>
 
         {/* ── Thumbnail strip ── */}
@@ -1122,7 +1136,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 key={img}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setCardImageIndex(idx); }}
-                className={`flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-colors ${
+                className={`flex-shrink-0 w-14 h-14 rounded border-2 overflow-hidden transition-colors ${
                   idx === clampedIndex ? "border-primary" : "border-transparent"
                 }`}
                 data-testid={`thumbnail-${item.id}-${idx}`}
@@ -1139,11 +1153,12 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
 
         <CardContent className="p-3 space-y-2">
           <h3
-            className="font-semibold text-sm leading-snug line-clamp-2"
+            className="font-sans font-semibold text-base leading-snug"
             data-testid={`text-name-${item.id}`}
           >
-            {item.name}
+            {cardTitle}
           </h3>
+          {cardSubtitle && <p className="text-sm text-muted-foreground">{cardSubtitle}</p>}
 
           <p
             className="text-[10px] text-muted-foreground/60 font-mono"
@@ -1152,7 +1167,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             {formatBlankId(item.id, item.qrgBlankId)}
           </p>
 
-          {(item.manufacturer || item.model) && (
+          {!splitTitle && (item.manufacturer || item.model) && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-make-model-${item.id}`}>
               {[item.manufacturer, item.model].filter(Boolean).join(' ')}
             </p>
@@ -1165,34 +1180,32 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 className="text-[10px] bg-background/80"
                 data-testid={`badge-provider-card-${item.id}`}
               >
-                {fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider}
+                {providerLabel}
               </Badge>
             )}
             {item.price != null && (
               <span className="text-sm font-bold ml-auto" data-testid={`text-price-${item.id}`}>
-                ${item.price.toFixed(2)}
+                {priceLabel && <span className="font-normal mr-1">{priceLabel}</span>}${item.price.toFixed(2)}
               </span>
             )}
           </div>
 
+          {(item.availableColors.length > 0 || item.availableSizes.length > 0) && (
+            <p className="text-xs text-muted-foreground">
+              {[item.availableColors.length > 0 ? `${item.availableColors.length} colors` : null,
+                item.availableSizes.length > 0 ? `${item.availableSizes.length} sizes` : null].filter(Boolean).join(" · ")}
+            </p>
+          )}
+
           <Button
             variant={isSelected ? "secondary" : "default"}
-            className="w-full min-h-11 text-sm"
+            className="w-full min-h-12 text-base"
             onClick={(e) => { e.stopPropagation(); onSelect(item.id, item); }}
-            disabled={(isSelected && !!disableWhenSelected) || !!selectDisabled}
+            disabled={actionDisabled}
             title={selectDisabled ? selectDisabledTitle : undefined}
             data-testid={`button-select-${item.id}`}
           >
-            {isSelected ? (
-              selectedLabel ?? (
-                <>
-                  <Check className="w-4 h-4 mr-1.5" />
-                  Added
-                </>
-              )
-            ) : (
-              selectLabel ?? "Add"
-            )}
+            {actionLabel}
           </Button>
 
         </CardContent>
@@ -1219,6 +1232,10 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
       </AlertDialog>
 
       <PreviewModal
+        actionLabel={actionLabel}
+        actionDisabled={actionDisabled}
+        priceLabel={priceLabel}
+        providerLabel={providerLabel}
         item={item}
         open={previewOpen}
         onOpenChange={setPreviewOpen}

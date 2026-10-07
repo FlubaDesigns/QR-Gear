@@ -1,3 +1,4 @@
+import { buildPacketImageOrder, instanceCatalogImages } from "../../../shared/productImages";
 /**
  * Admin Catalog Instances — Production Routes
  *
@@ -24,36 +25,6 @@ const ADMIN_INSTANCES  = 'admin_catalog_instances';
 const MASTER_CATALOG   = 'master_catalog';
 const MEMBER_INSTANCES = 'member_library_instances';
 const PACKETS          = 'productPackets';
-
-const PLACEMENT_ORDER = ['front', 'front-center', 'back', 'left_sleeve', 'right_sleeve'];
-
-function buildPacketImageOrder(pkt: any): string[] {
-  const ordered: string[] = [];
-  const seen = new Set<string>();
-
-  function add(url: string | null | undefined) {
-    if (!url || seen.has(url)) return;
-    seen.add(url);
-    ordered.push(url);
-  }
-
-  add(pkt.lifestyleMockupUrl);
-
-  const placementMockupUrls: Record<string, string> = pkt.placementMockupUrls || {};
-  const placementKeys = Object.keys(placementMockupUrls);
-  const sortedKeys = [
-    ...PLACEMENT_ORDER.filter(p => placementKeys.includes(p)),
-    ...placementKeys.filter(p => !PLACEMENT_ORDER.includes(p)),
-  ];
-  for (const key of sortedKeys) add(placementMockupUrls[key]);
-
-  if (sortedKeys.length === 0) add(pkt.priorityMockupUrl);
-
-  add(pkt.compositeUrl || pkt.productGraphicUrl);
-  add(pkt.landingPageSnapshotUrl);
-
-  return ordered;
-}
 
 function toSerializable(doc: FirebaseFirestore.DocumentSnapshot): Record<string, any> {
   const data = doc.data() as any;
@@ -631,7 +602,7 @@ export function register(app: express.Express): void {
           if (!packetDoc.exists) { skipped++; continue; }
 
           const pkt = packetDoc.data() as any;
-          const images = buildPacketImageOrder(pkt);
+          const images = buildPacketImageOrder(pkt, instanceCatalogImages(instance));
           if (images.length === 0) { skipped++; continue; }
 
           const qrgBaseCode: string | null = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
@@ -658,7 +629,7 @@ export function register(app: express.Express): void {
 
   // ── POST /admin/catalog-instances/:id/rebuild-images ────────────────────────
   // Reads the linked packet and rebuilds resolved.images in canonical order:
-  //   lifestyle → per-placement mockups → composite artwork → landing page snapshot
+  //   generated product images → artwork/proof → saved catalog photos
   // Also syncs resolved.qrgId from the packet. Safe to call any time after a packet
   // is created; the storefront gallery will reflect the update immediately.
   app.post('/admin/catalog-instances/:id/rebuild-images', requireAdmin, async (req: any, res: any): Promise<void> => {
@@ -678,7 +649,7 @@ export function register(app: express.Express): void {
       if (!packetDoc.exists) { res.status(404).json({ error: 'Packet not found' }); return; }
 
       const pkt = packetDoc.data() as any;
-      const images = buildPacketImageOrder(pkt);
+      const images = buildPacketImageOrder(pkt, instanceCatalogImages(instance));
       const qrgBaseCode: string | null = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
 
       const update: Record<string, any> = {

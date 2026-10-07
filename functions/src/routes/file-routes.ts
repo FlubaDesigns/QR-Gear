@@ -1,3 +1,4 @@
+import { buildPacketImageOrder, instanceCatalogImages } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -149,7 +150,10 @@ export async function processQueueInBackground(): Promise<void> {
               bestUrl &&
               (!existingUrl || (mockupResult.lifestyleMockupUrl && existingUrl !== mockupResult.lifestyleMockupUrl));
             if (isUpgrade) {
-              await packetRef.update({ priorityMockupUrl: bestUrl });
+              await packetRef.update({
+                priorityMockupUrl: bestUrl,
+                ...(mockupResult.lifestyleMockupUrl ? { lifestyleMockupUrl: mockupResult.lifestyleMockupUrl } : {}),
+              });
               console.log(`[Queue Background] Updated packet ${packetId} priorityMockupUrl with ${mockupResult.lifestyleMockupUrl ? 'lifestyle' : 'flat'} mockup`);
 
               // Also prepend the mockup into the committed admin_catalog_instance, if one exists.
@@ -161,17 +165,15 @@ export async function processQueueInBackground(): Promise<void> {
                   const instanceSnap = await instanceRef.get();
                   if (instanceSnap.exists) {
                     const instanceData = instanceSnap.data() || {};
-                    const existingImages: string[] = instanceData.resolved?.images || [];
-                    if (!existingImages[0] || existingImages[0] !== bestUrl) {
-                      const filtered = existingImages.filter((img: string) => img !== bestUrl);
-                      const newImages = [bestUrl, ...filtered];
-                      await instanceRef.update({
-                        'resolved.images': newImages,
-                        'baseSnapshot.images': newImages,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                      });
-                      console.log(`[Queue Background] Updated instance ${ownerInstanceId} resolved.images with mockup`);
-                    }
+                    const newImages = buildPacketImageOrder({
+                      ...packetData,
+                      priorityMockupUrl: bestUrl,
+                      lifestyleMockupUrl: mockupResult.lifestyleMockupUrl || packetData.lifestyleMockupUrl,
+                    }, instanceCatalogImages(instanceData));
+                    await instanceRef.update({
+                      'resolved.images': newImages,
+                      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
                   }
                 } catch (instanceErr: any) {
                   console.error(`[Queue Background] Failed to write-back mockup to instance ${ownerInstanceId}:`, instanceErr.message);

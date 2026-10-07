@@ -1,3 +1,4 @@
+import { updateCatalogImageSelection } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -438,20 +439,14 @@ app.put('/admin/catalog-defaults', requireAdmin, async (req: Request, res: Respo
 app.put('/admin/catalogs/:catalogId/blank-images', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { catalogId } = req.params;
-    const { blankId, images } = req.body;
+    const { blankId, images, restore } = req.body;
     if (!blankId || !Array.isArray(images)) { res.status(400).json({ error: 'blankId and images[] required' }); return; }
     const docRef = db.collection('catalogs').doc(catalogId);
     const doc = await docRef.get();
     if (!doc.exists) { res.status(404).json({ error: 'Catalog not found' }); return; }
     const canonicalId = await resolveCatalogBlankId(String(blankId));
     if (canonicalId === null) { res.status(400).json({ error: `Blank "${blankId}" is pending classification` }); return; }
-    const blankImages = { ...(doc.data()?.blankImages || {}) };
-    if (images.length > 0) {
-      blankImages[canonicalId] = images.map(String);
-    } else {
-      // Empty array = restore master — remove override entry
-      delete blankImages[canonicalId];
-    }
+    const blankImages = updateCatalogImageSelection(doc.data()?.blankImages || {}, canonicalId, images, restore === true);
     await docRef.update({ blankImages, updatedAt: new Date().toISOString() });
     console.log(`[Catalogs] Updated images for blank ${canonicalId} in catalog ${catalogId}: ${images.length} images`);
     res.json({ success: true, blankId: canonicalId, imageCount: images.length });

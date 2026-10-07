@@ -1,3 +1,4 @@
+import { masterBlankImages, resolveCatalogImages } from "@shared/productImages";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -115,14 +116,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
     ? Math.ceil((cost * (1 + pricing.markupPercent / 100) + pricing.markupFixed) * 100) / 100
     : null;
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
-  // Collect all available provider images into one deduplicated array.
-  // p.images is the master_catalog images array (injected by build-shelf GET).
-  const allImages = Array.from(new Set([
-    ...(p.images || []),
-    ...(p.printifyImages || []),
-    ...(p.printfulImages || []),
-  ])).filter(Boolean);
-  const images = allImages.length > 0 ? allImages : (imageUrl ? [imageUrl] : []);
+  const images = masterBlankImages(p);
   // Prefer canonicalDescription, then description
   const providerDesc = p.canonicalDescription || p.description || null;
   const effectiveDesc = adminCatalogDesc || providerDesc;
@@ -156,7 +150,7 @@ function normalizeSourceBlank(p: CatalogProduct, pricing: PricingSettings, admin
 function buildBlankSnapshot(p: CatalogProduct): Record<string, { title: string | null; maker: string | null; model: string | null; providers: string[]; images: string[]; primaryImageUrl: string | null }> {
   const key = getProductKey(p);
   const imageUrl = p.imageUrl || p.image_url || p.thumbnailUrl || null;
-  const allImages = Array.from(new Set([...(p.printifyImages || []), ...(p.printfulImages || [])])).filter(Boolean);
+  const allImages = masterBlankImages(p);
   return {
     [key]: {
       title: p.canonicalTitle || p.title || null,
@@ -516,13 +510,13 @@ export function useAdminBlanksController({ targetCatalogId }: { targetCatalogId?
         const catalogTitle = blankTitles[safe];
         const catalogMaker = blankMakers[safe];
         const catalogModel = blankModels[safe];
-        const catalogImage = blankImages[safe]?.[0] || blankPrimaryImages[safe] || null;
+        const catalogImage = resolveCatalogImages([blankPrimaryImages[safe], ...masterBlankImages(product)], blankImages[safe])[0] || null;
         return {
           id: getProductKey(product),
           catalogKey: safe,
           title: catalogTitle || product.canonicalTitle || product.title,
           subtitle: [catalogMaker || product.brand || product.maker, catalogModel || product.model].filter(Boolean).join(' ') || null,
-          imageUrl: catalogImage || product.imageUrl || product.image_url || product.thumbnailUrl || null,
+          imageUrl: catalogImage,
           tier: (blankTiers[safe] as "good" | "better" | "best") || null,
           isPrintful: isAvailableVia(product, 'printful'),
           hasMockupMapping: false,

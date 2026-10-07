@@ -102,3 +102,30 @@ describe('Exterior card image removal', () => {
     expect(tree.root.findByType('alert-dialog').props.open).toBe(false);
   });
 });
+
+
+describe('Card and detail consistency', () => {
+  it('uses the same action and cost label in the card and detail', async () => {
+    await mount({ selectLabel: 'Use this blank', priceLabel: 'Our cost', fulfillmentProvider: 'both' });
+    for (const id of ['button-select', 'button-modal-select']) {
+      expect(field(id).children).toContain('Use this blank');
+      expect(field(id).props.disabled).toBe(false);
+    }
+    for (const id of ['text-price', 'text-preview-price']) {
+      expect(field(id).findAllByType('span').some(n => n.children.includes('Our cost'))).toBe(true);
+    }
+    expect(field('badge-provider-card').children).toContain('Printify + Printful');
+    expect(tree.root.findAll(n => n.props['data-testid'] === `badge-provider-${item.id}`)).toHaveLength(0);
+  });
+  it('disables the selected action in both views', async () => {
+    await mount({ isSelected: true, disableWhenSelected: true, selectedLabel: 'Selected' });
+    for (const id of ['button-select', 'button-modal-select']) {
+      expect(field(id).children).toContain('Selected');
+      expect(field(id).props.disabled).toBe(true);
+    }
+  });
+  it('does not redisplay the old primary image after every catalog photo is removed', async () => {
+    await mount({ item: { ...item, primaryImageUrl: 'removed-photo', images: [] } });
+    expect(tree.root.findAllByType('img').filter(n => n.props.src === 'removed-photo')).toHaveLength(0);
+  });
+});

@@ -1,3 +1,4 @@
+import { masterBlankImages, resolveCatalogImages } from "@shared/productImages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -86,18 +87,10 @@ function catalogToSelectItem(
   adminCatalogTitle?: string | null,
   adminCatalogImages?: string[] | null,
 ): ProductSelectItem {
-  const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
+  const parsedCost = p.minPrice == null ? NaN : Number(p.minPrice);
+  const minPrice = Number.isFinite(parsedCost) ? parsedCost : null;
   const raw = p as any;
-  const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
-  // Combine per-provider image arrays — same logic as useAdminBlanksController normalizeSourceBlank
-  const allProviderImages = Array.from(new Set([
-    ...(p.printifyImages || raw.printifyImages || []),
-    ...(p.printfulImages || raw.printfulImages || []),
-  ])).filter(Boolean) as string[];
-  const masterImages: string[] = allProviderImages.length > 0
-    ? allProviderImages
-    : (p.images?.length ? p.images : (imageUrl ? [imageUrl] : []));
-  const effectiveImages = (adminCatalogImages && adminCatalogImages.length > 0) ? adminCatalogImages : masterImages;
+  const effectiveImages = resolveCatalogImages(masterBlankImages(raw), adminCatalogImages);
   const providerDescription = p.description || null;
   const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
     ? adminCatalogDescription
@@ -117,7 +110,7 @@ function catalogToSelectItem(
     cost: null,
     manufacturer: p.brand || raw.manufacturer || null,
     madeInUSA: p.madeInUSA ?? false,
-    primaryImageUrl: effectiveImages[0] ?? imageUrl,
+    primaryImageUrl: effectiveImages[0] ?? null,
     images: effectiveImages,
     description: effectiveDescription,
     providerDescription,
@@ -668,6 +661,7 @@ export function ProductsModule() {
     } catch (err: any) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not save images", description: err?.message || "Unknown error", variant: "destructive" });
+      throw err;
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
@@ -735,12 +729,13 @@ export function ProductsModule() {
       };
     });
     try {
-      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images: [] });
+      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images: [], restore: true });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Images restored from master catalog" });
     } catch (err: any) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not restore images", description: err?.message || "Unknown error", variant: "destructive" });
+      throw err;
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
@@ -781,8 +776,8 @@ export function ProductsModule() {
     const curatedProduct = {
       ...entry.catalog,
       fulfillmentProvider: selectedProvider,
-      images: entry.selectItem.images?.length ? entry.selectItem.images : (catalogProduct.images || []),
-      imageUrl: entry.selectItem.primaryImageUrl || catalogProduct.imageUrl,
+      images: entry.selectItem.images ?? [],
+      imageUrl: entry.selectItem.primaryImageUrl,
       availableColors: entry.selectItem.availableColors,
       availableSizes: entry.selectItem.availableSizes,
     } as typeof entry.catalog;
@@ -851,12 +846,7 @@ export function ProductsModule() {
       if (!entry) return null;
       const cardId = String(scrollItem.id);
       const rawProduct = entry.catalog as any;
-      const rawImages: string[] = Array.from(new Set([
-        ...(Array.isArray(rawProduct.printifyImages) ? rawProduct.printifyImages : []),
-        ...(Array.isArray(rawProduct.printfulImages) ? rawProduct.printfulImages : []),
-        ...(Array.isArray(rawProduct.images) ? rawProduct.images : []),
-        ...(rawProduct.imageUrl ? [rawProduct.imageUrl] : []),
-      ])).filter(Boolean) as string[];
+      const rawImages = masterBlankImages(rawProduct);
       const blankKey = entry.blankKey;
       const itemTier = (activeCatalog?.blankTiers?.[blankKey] ?? null) as "good" | "better" | "best" | null;
       return (
@@ -869,6 +859,10 @@ export function ProductsModule() {
           textEditScope={activeCatalog ? `Catalog: ${activeCatalog.name}` : "Product"}
           isSelected={selectedProductId === cardId}
           onSelect={handleCardSelect}
+          priceLabel="Our cost"
+          selectLabel="Use this blank"
+          selectedLabel="Selected"
+          disableWhenSelected
           editableDescription={!!activeCatalog || selectedProductId === cardId}
           onDescriptionSave={handleDescriptionSave}
           editableTitle={!!activeCatalog || selectedProductId === cardId}

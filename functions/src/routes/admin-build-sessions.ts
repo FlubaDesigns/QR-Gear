@@ -1,3 +1,4 @@
+import { buildPacketImageOrder, instanceCatalogImages, masterBlankImages, resolveCatalogImages } from "../../../shared/productImages";
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
 import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../services/build-session-state';
@@ -546,7 +547,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // Priority: catalog blankTitles/blankDescriptions/blankImages > master catalog
       let curatedTitle: string = master.title || '';
       let curatedDescription: string | null = master.description || null;
-      let curatedImages: string[] = master.images || [];
+      let curatedImages = masterBlankImages(master);
       if (effectiveCatalogId) {
         try {
           const catDoc = await db.collection('catalogs').doc(effectiveCatalogId).get();
@@ -560,10 +561,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
             const lookupKey = session.blankKey || session.sourceMasterId;
             if (blankTitles[lookupKey]) curatedTitle = blankTitles[lookupKey];
             if (blankDescriptions[lookupKey]) curatedDescription = blankDescriptions[lookupKey];
-            const trimmed: string[] = blankImages[lookupKey] || [];
-            if (trimmed.length > 0) curatedImages = trimmed;
+            curatedImages = resolveCatalogImages(curatedImages, blankImages[lookupKey]);
           }
-        } catch (_) { /* fall back to master values */ }
+        } catch (error) { throw new Error("Could not load the catalog image selection; try again."); }
       }
 
       // Capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes.
@@ -1000,35 +1000,19 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const qrOnlyUrl = `https://api.qrserver.com/v1/create-qr-code/?size=3000x3000&data=${encodeUri(qrContent)}&format=png&qzone=0&ecc=H&color=000000&bgcolor=ffffff`;
 
       // ── 4. Save composites to packet ──────────────────────────────────────
-      const packetUpdate: Record<string, any> = { compositeUrl, qrOnlyUrl, updatedAt: FieldValue.serverTimestamp() };
-      if (sleeveCompositeUrl) packetUpdate.sleeveCompositeUrl = sleeveCompositeUrl;
+      const packetUpdate: Record<string, any> = {
+        compositeUrl, qrOnlyUrl, sleeveCompositeUrl, sleeveCompositeUrls: sleeveUrls,
+        updatedAt: FieldValue.serverTimestamp(),
+      };
       await packetRef.update(packetUpdate);
 
       // ── 5. Build resolved.images for catalog instance ─────────────────────
-      // Order: front composite, sleeve composite(s), priority mockup, qr-only URL
-      // Drop all stock images (images.printify.com) when we have ≥3 real images
-      const priorityMockupUrl: string | null = packet.priorityMockupUrl || null;
-      const realImages: string[] = [compositeUrl];
-      for (const slv of sleevePlacements) { if (sleeveUrls[slv]) realImages.push(sleeveUrls[slv]); }
-      if (priorityMockupUrl) realImages.push(priorityMockupUrl);
-      realImages.push(qrOnlyUrl);
-
-      // Use real images if ≥3; otherwise fall back to keeping existing non-stock images
       const instanceSnap = await db.collection(ADMIN_INSTANCES_COLLECTION)
         .where('currentPacketId', '==', packetId).limit(1).get();
       if (!instanceSnap.empty) {
         const instRef = instanceSnap.docs[0].ref;
         const instData = instanceSnap.docs[0].data();
-        let updatedImages: string[];
-        if (realImages.length >= 3) {
-          // We have enough real images — drop all stock printify images
-          updatedImages = realImages;
-        } else {
-          // Not enough real images yet — keep existing non-stock images and prepend composite
-          const existingImages: string[] = (instData.resolved?.images || [])
-            .filter((u: string) => !u.includes('images.printify.com'));
-          updatedImages = [compositeUrl, ...existingImages.filter((u: string) => u !== compositeUrl)];
-        }
+        const updatedImages = buildPacketImageOrder({ ...packet, ...packetUpdate }, instanceCatalogImages(instData));
         await instRef.update({
           'resolved.images': updatedImages,
           updatedAt: FieldValue.serverTimestamp(),
@@ -1043,7 +1027,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         );
       }).catch(() => {});
 
-      res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: realImages.length });
+      res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: buildPacketImageOrder({ ...packet, ...packetUpdate }).length });
     } catch (err: any) {
       console.error('[QRG] regenerate-composite error:', err.message);
       res.status(500).json({ error: err.message });

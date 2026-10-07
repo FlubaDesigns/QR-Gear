@@ -1,3 +1,4 @@
+import { buildPacketImageOrder, resolveProductImages, instanceCatalogImages, imageUrls } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -34,11 +35,9 @@ function extractPacketMockups(pkt: Record<string, any>): {
   defaultColor: string | null;
 } {
   const raw = pkt.mockupsByColor;
-  const fallbackUrl: string | null =
-    pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
 
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { mockupsByColor: null, mockupImages: fallbackUrl ? [fallbackUrl] : [], defaultColor: null };
+    return { mockupsByColor: null, mockupImages: buildPacketImageOrder(pkt), defaultColor: null };
   }
 
   const result: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> = {};
@@ -77,7 +76,7 @@ function extractPacketMockups(pkt: Record<string, any>): {
   }
 
   if (Object.keys(result).length === 0) {
-    return { mockupsByColor: null, mockupImages: fallbackUrl ? [fallbackUrl] : [], defaultColor: null };
+    return { mockupsByColor: null, mockupImages: buildPacketImageOrder(pkt), defaultColor: null };
   }
 
   const defaultColor = Object.keys(result)[0];
@@ -87,7 +86,7 @@ function extractPacketMockups(pkt: Record<string, any>): {
   if (first.front) mockupImages.push(first.front);
   (first.angles || []).forEach((u) => mockupImages.push(u));
 
-  return { mockupsByColor: result, mockupImages, defaultColor };
+  return { mockupsByColor: result, mockupImages: buildPacketImageOrder(pkt, [], mockupImages), defaultColor };
 }
 
 /**
@@ -166,14 +165,10 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       const toStrArr = (arr: any[]): string[] =>
         (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
 
-      // Build ordered gallery: packet mockups first → provider catalog images after
-      const providerImages = toUrlArr(resolved.images || []);
-      const allImages: string[] = [];
-      packetMockupImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      providerImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      if (packetMockupImages.length === 0 && packetMockupUrl && !allImages.includes(packetMockupUrl)) {
-        allImages.unshift(packetMockupUrl);
-      }
+      const allImages = resolveProductImages({
+        mockups: packetMockupImages.length ? packetMockupImages : [packetMockupUrl, ...imageUrls(resolved.images)],
+        catalog: instanceCatalogImages(d),
+      });
 
       const bColors = toStrArr(d.enabledColors || resolved.colors || []);
       const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
@@ -301,9 +296,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         }
       }
 
-      const allImages: string[] = [];
-      mockupImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      storedImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
+      const allImages = resolveProductImages({ mockups: mockupImages, catalog: storedImages });
 
       res.json({
         id: linkDoc.id,
@@ -536,20 +529,13 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
             const toStringArray = (arr: any[]): string[] =>
               (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
-            const toImgUrl = (img: any): string | null =>
-              typeof img === 'string' ? img : (img?.url || null);
-
             const rawColors = d.enabledColors || resolved.colors || [];
             const rawSizes = d.enabledSizes || resolved.sizes || [];
 
-            // Build ordered gallery: packet mockups first → provider catalog images after
-            const providerImgs = (resolved.images || []).map(toImgUrl).filter(Boolean) as string[];
-            const allImages: string[] = [];
-            pktMockupImages1.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-            providerImgs.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-            if (pktMockupImages1.length === 0 && packetImageUrl && !allImages.includes(packetImageUrl)) {
-              allImages.unshift(packetImageUrl);
-            }
+            const allImages = resolveProductImages({
+              mockups: pktMockupImages1.length ? pktMockupImages1 : [packetImageUrl, ...imageUrls(resolved.images)],
+              catalog: instanceCatalogImages(d),
+            });
 
             const l1Colors = toStringArray(rawColors);
             const l1Sizes = toStringArray(rawSizes);
@@ -677,15 +663,10 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               }
             }
 
-            const toImgUrlCh = (img: any): string | null =>
-              typeof img === 'string' ? img : (img?.url || null);
-            const providerImgsCh = (resolved.images || []).map(toImgUrlCh).filter(Boolean) as string[];
-            const allImagesCh: string[] = [];
-            pktMockupImages2.forEach((u) => { if (!allImagesCh.includes(u)) allImagesCh.push(u); });
-            providerImgsCh.forEach((u) => { if (!allImagesCh.includes(u)) allImagesCh.push(u); });
-            if (pktMockupImages2.length === 0 && packetImageUrl && !allImagesCh.includes(packetImageUrl)) {
-              allImagesCh.unshift(packetImageUrl);
-            }
+            const allImagesCh = resolveProductImages({
+              mockups: pktMockupImages2.length ? pktMockupImages2 : [packetImageUrl, ...imageUrls(resolved.images)],
+              catalog: instanceCatalogImages(d),
+            });
 
             const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
             const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
@@ -779,15 +760,10 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             }
           }
 
-          const toImgUrlSt = (img: any): string | null =>
-            typeof img === 'string' ? img : (img?.url || null);
-          const providerImgsSt = (resolved.images || []).map(toImgUrlSt).filter(Boolean) as string[];
-          const allImagesSt: string[] = [];
-          pktMockupImages3.forEach((u) => { if (!allImagesSt.includes(u)) allImagesSt.push(u); });
-          providerImgsSt.forEach((u) => { if (!allImagesSt.includes(u)) allImagesSt.push(u); });
-          if (pktMockupImages3.length === 0 && packetImageUrl && !allImagesSt.includes(packetImageUrl)) {
-            allImagesSt.unshift(packetImageUrl);
-          }
+          const allImagesSt = resolveProductImages({
+            mockups: pktMockupImages3.length ? pktMockupImages3 : [packetImageUrl, ...imageUrls(resolved.images)],
+            catalog: instanceCatalogImages(d),
+          });
 
           const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
           const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);

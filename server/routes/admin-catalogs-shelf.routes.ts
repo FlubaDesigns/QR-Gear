@@ -1,3 +1,4 @@
+import { updateCatalogImageSelection } from "../../shared/productImages";
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
@@ -837,10 +838,10 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
   });
 
   // ── Curated image list for a blank within a catalog ──────────────────────
-  // An empty array restores the master images (clears the override).
+  // Empty arrays are intentional selections; restore:true clears the override.
   app.put("/api/admin/catalogs/:id/blank-images", isAdmin, async (req: any, res) => {
     try {
-      const { blankId, images } = req.body;
+      const { blankId, images, restore } = req.body;
       if (!blankId || !Array.isArray(images)) {
         return res.status(400).json({ error: "blankId and images[] are required" });
       }
@@ -848,13 +849,7 @@ export function registerAdminCatalogsShelfRoutes(app: Express): void {
       if (!catalog) return res.status(404).json({ error: "Catalog not found" });
       const canonicalId = await resolveCatalogBlankId(String(blankId));
       if (canonicalId === null) return res.status(400).json({ error: `Blank "${blankId}" is pending classification` });
-      const blankImages = { ...(catalog.blankImages || {}) };
-      if (images.length > 0) {
-        blankImages[canonicalId] = images.map(String);
-      } else {
-        // Empty array = restore master — remove override entry
-        delete blankImages[canonicalId];
-      }
+      const blankImages = updateCatalogImageSelection(catalog.blankImages || {}, canonicalId, images, restore === true);
       await fsUpdate("catalogs", req.params.id, { blankImages });
       console.log(`[Catalogs] Updated images for blank ${canonicalId} in catalog ${req.params.id}: ${images.length} images`);
       res.json({ success: true, blankId: canonicalId, imageCount: images.length });

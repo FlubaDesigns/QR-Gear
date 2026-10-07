@@ -1,3 +1,4 @@
+import { masterBlankImages } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
@@ -533,12 +534,7 @@ app.get('/master-catalog', async (_req: Request, res: Response): Promise<void> =
       const fulfillmentProvider = availableVia.length > 1 ? 'both' : (availableVia[0] || 'printify');
 
       const { colorMap, sizeMap } = buildColorSizeFromDoc(p);
-      const allImages: string[] = Array.from(new Set([
-        ...(Array.isArray(p.printifyImages) ? p.printifyImages.filter(Boolean).map(String) : []),
-        ...(Array.isArray(p.printfulImages) ? p.printfulImages.filter(Boolean).map(String) : []),
-        ...(Array.isArray(p.images) ? p.images.filter(Boolean).map(String) : []),
-        ...(p.imageUrl ? [String(p.imageUrl)] : []),
-      ]));
+      const allImages = masterBlankImages(p);
       const imageUrl = allImages[0] ?? null;
 
       // madeInUSA: true if any provider mapping is USA
