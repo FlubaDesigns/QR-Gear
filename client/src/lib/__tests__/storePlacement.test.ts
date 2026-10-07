@@ -21,7 +21,7 @@ const buttons=()=>tree.root.findAllByType('button');
 beforeEach(()=>{vi.clearAllMocks();mocks.search='';mocks.api.mockResolvedValue({json:async()=>[{items:[{docId:'qrg_11101',title:'Shirt',availableColors:[{name:'Black',hex:'#000'}],availableSizes:['M']}]}]});mocks.admin.mockResolvedValue({products:[]});});
 afterEach(()=>{if(tree)act(()=>tree.unmount());client?.clear();});
 it.each(['catalog','channels','stores','partners'])('old %s links share Placement and preserve packet links when changing tabs',async tab=>{
- mocks.search=`tab=${tab}&packetId=p`;await mount(React.createElement(AdminStoreBuilderPage));expect(tree.root.findByType('nav').props['data-active']).toBe('placement');expect(buttons().map(b=>b.children[0])).toEqual(['Placement','Product Library']);act(()=>buttons()[1].props.onClick());expect(mocks.navigate).toHaveBeenCalledWith('/admin/store-builder?tab=library&packetId=p');
+ mocks.search=`tab=${tab}&packetId=p`;await mount(React.createElement(AdminStoreBuilderPage));expect(tree.root.findByType('nav').props['data-active']).toBe('placement');expect(buttons().map(b=>b.children[0])).toEqual(['Placement','Products']);act(()=>buttons()[1].props.onClick());expect(mocks.navigate).toHaveBeenCalledWith('/admin/store-builder?tab=library&packetId=p');
 });
 it('shows failed product reads instead of an editable empty list',async()=>{mocks.admin.mockRejectedValue(new Error('Offline'));await mount(React.createElement(AllowedProductsEditor,{storeId:'a'}));expect(text()).toContain('Could not load product choices');expect(buttons().map(b=>b.children[0])).toContain('Retry');expect(tree.root.findAllByType('input')).toHaveLength(0);});
 it('retains failed edits and blocks duplicate saves',async()=>{

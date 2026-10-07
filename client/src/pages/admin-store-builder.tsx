@@ -9,7 +9,7 @@ import { PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
 
 const storeTabs: AdminTab[] = [
   { id: "placement", label: "Placement", icon: LayoutGrid },
-  { id: "library", label: "Product Library", icon: Package },
+  { id: "library", label: "Products", icon: Package },
 ];
 
 export default function AdminStoreBuilderPage() {
