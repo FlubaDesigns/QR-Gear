@@ -253,6 +253,12 @@ The Canonical Core is the ONLY truth.
 
 🔚 END OF README — EXECUTION BEGINS
 
+## Cloud Storage upload integrity — sandbox, October 7, 2026
+
+The root and Cloud Functions packages pin `@google-cloud/storage` to `7.19.0`, meeting Google's published Node.js minimum for automatic upload checksums. Both lockfiles resolve Firebase Admin to that same SDK within their package tree. Existing GRF and image upload services continue to use the SDK defaults; no separate checksum implementation, upload route, schema change or credential change was added.
+
+Validation on Node.js 20: root TypeScript check, Cloud Functions compilation and 30 existing image/video/composition tests passed. A local HTTP fixture exercised the actual SDK in both package trees: valid PNG uploads succeeded, incorrect returned CRC32C checksums were rejected and corrupt-upload cleanup was requested, for both resumable and multipart uploads. This does not verify live Google Cloud storage. Held on `sandbox/products-fulfillment`; no Main or Firebase deployment.
+
 ## Marketplace wiring — sandbox, October 7, 2026
 
 The built-product picker now reads the canonical catalog-instance response envelope. Logs uses the authenticated request helper and displays read errors with Retry. Specific Listings/Jobs/Logs routes precede the generic surface-ID route, fixing their accidental 404s. QRG is displayed read-only in Push dialogs; failed attempts retain dialog input and refresh shared results.

@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (eBay selling setup, variations, status and withdrawal, sandbox).
+Last updated: October 7, 2026 (Cloud Storage upload integrity, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -374,6 +374,8 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 
 ## Firebase Storage Paths
 
+Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase Admin uses that same SDK; existing server upload services retain default CRC32C validation. This sandbox dependency update is pending release and does not change stored asset identities or paths.
+
 | Path | Content |
 |------|---------|
 | `grf/{grfId}/{filename}` | GRF assets — canonical path for all product graphics (composites, glamor shots, URL graphics, source uploads, backgrounds, templates) |
@@ -386,6 +388,18 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Cloud Storage upload integrity (sandbox)
+
+Pinned the Google Storage SDK to `7.19.0` in both package manifests and regenerated the corresponding lockfiles. Traced Firebase Admin storage initialization, the GRF registrar and the image helper; they use the existing SDK upload path without disabling checksum validation. No alternate upload/checksum logic was added. Node.js 20 TypeScript and Functions compilation passed, along with 30 image/video/composition tests. Actual SDK tests against local HTTP fixtures verified valid PNG uploads and checksum-mismatch rejection/cleanup for resumable and multipart requests in both package trees. Live Google Cloud upload remains unverified; no Main or Firebase deployment. Repository instruction/schema refresh checked.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `package.json`, `functions/package.json` | Pin the existing storage SDK to 7.19.0 in each independently installed package tree |
+| `package-lock.json`, `functions/package-lock.json` | Lock the SDK and its required XML parser dependencies; Firebase Admin resolves the same SDK |
+| `README.md`, `client/src/features/adminProducts/ADMIN_README.md`, `MANIFEST.json` | Record scope, checks and sandbox-only status |
 
 ### October 7, 2026 — eBay selling flow
 
