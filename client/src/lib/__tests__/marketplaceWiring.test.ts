@@ -195,3 +195,29 @@ it('shows failed eBay policy reads and blocks saving incomplete setup', async ()
   expect(JSON.stringify(tree.toJSON())).toContain('Seller authorization expired');
   expect(tree.root.findByProps({ 'data-testid': 'button-save-ebay-setup' }).props.disabled).toBe(true);
 });
+
+it('wires Amazon status and whole-family removal to the selected listing job', async () => {
+  mocks.api.mockResolvedValue({ json: async () => ({ success: true }) });
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [{ ...listing, status: 'active', amazonItems: [{ sku: 'SKU', parent: true }, { sku: 'SKU:0101' }] }] });
+  await click('button-amazon-status-item');
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/jobs', { listingId: 'item', action: 'check_status' });
+  await click('button-amazon-remove-item');
+  expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('all its variations'));
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/jobs', { listingId: 'item', action: 'delete' });
+});
+it('opens Amazon Setup before first publish and saves without submitting a listing', async () => {
+  mocks.api.mockImplementation(async (method: string) => ({ json: async () => method === 'GET' ? { productType: 'SHIRT', settings: { productType: 'SHIRT', quantity: 0, attributes: {} }, variants: [], options: { productTypes: [], schema: { properties: {} } } } : { success: true } }));
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [listing] });
+  await click('button-publish-item');
+  expect(mocks.api).toHaveBeenCalledWith('GET', '/api/admin/surfaces/listings/item/amazon-setup');
+  await click('button-save-amazon-setup');
+  expect(mocks.api).toHaveBeenCalledWith('PATCH', '/api/admin/surfaces/listings/item/amazon-setup', expect.objectContaining({ settings: expect.objectContaining({ productType: 'SHIRT', quantity: 0 }) }));
+  expect(mocks.api.mock.calls.some(call => call[1] === '/api/admin/surfaces/jobs')).toBe(false);
+});
+it('preserves Amazon setup and displays a save failure', async () => {
+  mocks.api.mockImplementation(async (method: string) => { if (method === 'PATCH') throw new Error('Connection lost'); return { json: async () => ({ productType: 'SHIRT', settings: { productType: 'SHIRT', quantity: 7, attributes: {} }, variants: [], options: { productTypes: [], schema: { properties: {} } } }) }; });
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [listing] });
+  await click('button-amazon-setup-item'); await click('button-save-amazon-setup');
+  expect(JSON.stringify(tree.toJSON())).toContain('Connection lost');
+  expect(tree.root.findByProps({ id: 'amazon-quantity' }).props.value).toBe(7);
+});

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { pushListingToAmazon, getSellerMarketplaceIds } from '../amazon-sp-api';
+import { getSellerMarketplaceIds } from '../amazon-sp-api';
 import { pushListingToEtsy, getEtsyShopInfo } from '../etsy-api';
 const fetchMock = vi.fn();
 const response = (value: any, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
@@ -10,16 +10,6 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 describe('Marketplace provider request regressions (mocked HTTP only)', () => {
-  it('Amazon sends the selling offer price and distinct image slots with the selected seller token', async () => {
-    fetchMock.mockResolvedValueOnce(response({ access_token: 'fresh-token' })).mockResolvedValueOnce(response({ status: 'ACCEPTED' }));
-    const result = await pushListingToAmazon({ refreshToken: 'selected', sellerId: 'seller', marketplaceId: 'market' }, { ...common, imageUrls: ['a', 'b', 'c'], bulletPoints: [], keywords: [], brandName: 'QR Gear', condition: 'new_new' }, 'qrg-sku');
-    expect(result.success).toBe(true);
-    expect(fetchMock.mock.calls[0][1].body).toContain('refresh_token=selected');
-    const payload = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(payload.attributes.purchasable_offer[0].our_price[0].schedule[0].value_with_tax).toBe(29);
-    expect(payload.attributes.other_product_image_locator_2[0].media_location).toBe('c');
-    expect(payload.attributes.fulfillment_availability[0].quantity).toBe(0);
-  });
   it('Etsy saves rotated credentials and the draft ID before image failure', async () => {
     const events: string[] = [];
     fetchMock.mockResolvedValueOnce(response({ access_token: 'fresh', refresh_token: 'rotated' })).mockResolvedValueOnce(response({ listing_id: 123 })).mockResolvedValueOnce(response({ products: [{ property_values: [], offerings: [{ readiness_state_id: 4 }] }] })).mockResolvedValueOnce(response({})).mockResolvedValueOnce(new Response(null, { status: 404 }));

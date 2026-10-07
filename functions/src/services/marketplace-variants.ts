@@ -29,7 +29,7 @@ export async function resolveMarketplaceVariants(product: NormalizedProduct, db:
     if (!/^\d{4}$|^\d{5}$|^\d{7}$/.test(key) || !value.sizeLabel || !value.colorLabel || value.isActive === false || value.available === false)
       throw new Error(`Variant ${key} needs a valid available master-catalog record.`);
     if (product.fulfillmentProvider && !value.providerVariants?.[product.fulfillmentProvider]) throw new Error(`Variant ${value.sizeLabel}/${value.colorLabel} is not mapped to the built product’s fulfillment provider.`);
-    // eBay SKU is an external mapping key. It is NOT a new QRG identity.
+    // Marketplace SKU is an external mapping key. It is NOT a new QRG identity.
     return { variantKey: key, sku: `${product.sku}:${key}`, size: value.sizeLabel, color: value.colorLabel };
   });
   if (!result.length) throw new Error('No saved master-catalog variants match the selected sizes and colors.');
@@ -37,6 +37,5 @@ export async function resolveMarketplaceVariants(product: NormalizedProduct, db:
     if (values.some(value => !result.some(row => row[field] === value))) throw new Error(`A selected ${field} has no available canonical variant.`);
   }
   if (new Set(result.map(row => `${row.size}\0${row.color}`)).size !== result.length) throw new Error('Ambiguous canonical size/color variants must be resolved before publishing.');
-  if (result.length > 250) throw new Error('eBay supports at most 250 variations per listing. Reduce the selected variants.');
   return result;
 }

@@ -1,3 +1,4 @@
+import { AmazonSetupDialog } from "./marketplaces-amazon";
 import { EbaySetupDialog } from "./marketplaces-ebay";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
   const [showGenerate, setShowGenerate] = useState(false);
   const [setupId, setSetupId] = useState<string | null>(null);
   const [continueToAccount, setContinueToAccount] = useState(false);
+  const [amazonListing, setAmazonListing] = useState<ListingData | null>(null);
   const [ebayListing, setEbayListing] = useState<ListingData | null>(null);
   const [etsyListing, setEtsyListing] = useState<ListingData | null>(null);
 
@@ -107,6 +109,7 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
   });
 
   const publishListing = (listing: ListingData, action: string) => {
+    if (listing.platform === "amazon" && !listing.publishOptions?.amazon) { setAmazonListing(listing); return; }
     if (listing.platform === "ebay" && !listing.publishOptions?.ebay) { setEbayListing(listing); return; }
     if (listing.platform === "etsy" && (!listing.publishOptions?.taxonomyId || !listing.publishOptions?.shippingProfileId)) {
       setEtsyListing(listing);
@@ -222,14 +225,16 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
                       <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
                         <span>Item: {getSurfaceTitle(listing.surfaceId)}</span>
                         <span>Account: {getAccountName(listing.accountId)}</span>
-                        {listing.remoteCheckedAt && <span>eBay checked: {formatDate(listing.remoteCheckedAt)} · {listing.remoteStatus}</span>}
+                        {listing.remoteCheckedAt && <span>{PLATFORM_INFO[listing.platform]?.name || listing.platform} checked: {formatDate(listing.remoteCheckedAt)} · {listing.remoteStatus}</span>}
                         {listing.price > 0 && <span>{listing.currency || "USD"} {listing.price.toFixed(2)}</span>}
                         {listing.externalListingId && <span className="font-mono">#{listing.externalListingId}</span>}
                       </div>
                       <div className="mt-3 space-y-1 text-sm" data-testid={`listing-fees-${listing.id}`}>
                         <p>{listing.fees?.amount != null && ["estimated", "partial"].includes(listing.fees.status)
                           ? `${listing.fees.status === "partial" ? "Partial listing fees" : "Estimated fees per item"}: ${listing.fees.currency} ${listing.fees.amount.toFixed(2)}${listing.fees.status === "estimated" ? ` (${(listing.fees.amount / listing.fees.price * 100).toFixed(2)}% of item price)` : ""}`
-                          : listing.fees?.status === "stale" ? "Fees need refreshing" : "Fees unavailable"}</p>
+                          : listing.fees?.status === "stale" ? "Fees need refreshing" : listing.fees?.variants?.length ? "Fees by variation" : "Fees unavailable"}</p>
+                        {listing.amazonItems?.map(item => <p key={item.sku} className="text-xs break-all">{item.parent ? 'Parent' : [item.size, item.color].filter(Boolean).join(' / ') || `Variation ${item.variantKey || ''}`}: {item.status || 'Submitted — check status'}{item.asin ? ` · ${item.asin}` : ''}</p>)}
+                        {listing.fees?.variants?.map(fee => <p key={fee.sku} className="text-xs break-all">{[listing.amazonItems?.find(item => item.sku === fee.sku)?.size, listing.amazonItems?.find(item => item.sku === fee.sku)?.color].filter(Boolean).join(' / ') || fee.sku.split(':').pop()}: {fee.status === 'estimated' && fee.amount != null ? `${fee.currency} ${fee.amount.toFixed(2)} (${(fee.amount / fee.price * 100).toFixed(2)}%) per sale` : fee.status === 'stale' ? 'Refresh fees' : fee.reason || 'Fees unavailable'}</p>)}
                         {listing.fees?.reason && <p className="text-xs text-muted-foreground">{listing.fees.reason}</p>}
                         {(listing.fees?.components?.length ?? 0) > 0 && <ul className="text-xs text-muted-foreground">{listing.fees!.components.map((fee, index) => <li key={index}>{fee.name}: {listing.fees!.currency} {fee.amount.toFixed(2)}</li>)}</ul>}
                         <p>{listing.estimatedMargin
@@ -251,6 +256,11 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
                     <div className="flex flex-wrap items-center gap-2 [&>button]:min-h-12">
                       <Button variant="outline" onClick={() => openSetup(listing.surfaceId)} data-testid={`button-setup-${listing.id}`}>Item Setup</Button>
                       <Button variant="outline" onClick={() => chooseAccount(listing.surfaceId)}>Add Marketplace</Button>
+                      {listing.platform === "amazon" && <>
+                        <Button variant="outline" disabled={listing.status === "syncing"} onClick={() => setAmazonListing(listing)} data-testid={`button-amazon-setup-${listing.id}`}>Amazon Setup</Button>
+                        <Button variant="outline" disabled={publishMutation.isPending || listing.status === "syncing"} onClick={() => publishMutation.mutate({ listingId: listing.id, action: "check_status" })} data-testid={`button-amazon-status-${listing.id}`}>Check Amazon status</Button>
+                        {(listing.amazonItems?.length || listing.externalListingId) && listing.status !== "delisted" && <Button variant="outline" disabled={publishMutation.isPending || listing.status === "syncing"} onClick={() => { if (window.confirm("Remove this listing and all its variations from Amazon? Your product and listing history will remain.")) publishMutation.mutate({ listingId: listing.id, action: "delete" }); }} data-testid={`button-amazon-remove-${listing.id}`}>Remove from Amazon</Button>}
+                      </>}
                       {listing.platform === "ebay" ? <>
                         <Button variant="outline" disabled={listing.status === "syncing"} onClick={() => setEbayListing(listing)} data-testid={`button-ebay-setup-${listing.id}`}>eBay Setup</Button>
                         <Button variant="outline" disabled={publishMutation.isPending || listing.status === "syncing"} onClick={() => publishMutation.mutate({ listingId: listing.id, action: "check_status" })} data-testid={`button-ebay-status-${listing.id}`}>Check eBay status</Button>
@@ -305,7 +315,7 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
                         variant="ghost"
                         size="icon"
                         aria-label="Remove local draft listing"
-                        disabled={deleteMutation.isPending || !!listing.externalListingId || !!listing.externalOfferId || !!listing.ebayOffers?.length || !!listing.externalCreateAttempted || listing.status === "syncing"}
+                        disabled={deleteMutation.isPending || !!listing.externalListingId || !!listing.externalOfferId || !!listing.ebayOffers?.length || !!listing.amazonItems?.length || !!listing.externalCreateAttempted || listing.status === "syncing"}
                         onClick={() => { if (window.confirm("Remove this local draft listing?")) deleteMutation.mutate(listing.id); }}
                         data-testid={`button-delete-listing-${listing.id}`}
                       >
@@ -327,6 +337,7 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
         {setupLoading ? <p>Loading item setup…</p> : <div role="alert"><p>Could not load item setup: {setupError?.message}</p><Button onClick={() => reloadSetup()}>Retry</Button></div>}
         <Button variant="outline" onClick={() => setSetupId(null)}>Close</Button>
       </DialogContent></Dialog>}
+      {amazonListing && <AmazonSetupDialog key={amazonListing.id} listing={amazonListing} onClose={() => setAmazonListing(null)} />}
       {ebayListing && <EbaySetupDialog key={ebayListing.id} listing={ebayListing} onClose={() => setEbayListing(null)} />}
       {etsyListing && <PushToEtsyDialog key={etsyListing.id} open onClose={() => setEtsyListing(null)} surfaceId={etsyListing.surfaceId} surfaceTitle={etsyListing.title || getSurfaceTitle(etsyListing.surfaceId)} surfaceSku={etsyListing.marketplaceSku} accountId={etsyListing.accountId} publishOptions={etsyListing.publishOptions} />}
 

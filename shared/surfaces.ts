@@ -139,6 +139,8 @@ export interface MarketplaceFees {
   contextKey: string;
   retrievedAt: string;
   components: Array<{ name: string; amount: number }>;
+  /** Separate seller SKU estimates; never summed into a per-sale group fee. */
+  variants?: MarketplaceFees[];
   reason?: string;
 }
 
@@ -165,12 +167,32 @@ export interface EbaySetupOptions {
   aspects: Array<{ name: string; required: boolean; variation: boolean; mode: string; values: string[] }>;
 }
 
+/** Seller-specific Amazon requirements; QRG identity and sale price stay on the product/surface. */
+export interface AmazonSellerSettings {
+  productType: string;
+  quantity: number;
+  variationTheme?: string;
+  attributes: Record<string, any>;
+  parentAttributes?: Record<string, any>;
+  variantAttributes?: Record<string, Record<string, any>>;
+}
+export interface AmazonListingItem {
+  sku: string;
+  size?: string;
+  color?: string;
+  variantKey?: string;
+  parent?: boolean;
+  asin?: string;
+  status?: string;
+  issues?: string[];
+}
+
 export interface MarketplaceListing {
   id: string;
   qrgCode?: string;
   marketplaceSku?: string;
   productInstanceId?: string;
-  publishOptions?: { ebay?: EbaySellerSettings; taxonomyId?: number; shippingProfileId?: number; returnPolicyId?: number; whoMade?: string; whenMade?: string };
+  publishOptions?: { amazon?: AmazonSellerSettings; ebay?: EbaySellerSettings; taxonomyId?: number; shippingProfileId?: number; returnPolicyId?: number; whoMade?: string; whenMade?: string };
   /** Prevent blind recreation if Etsy creation returned an unknown outcome. */
   externalCreateAttempted?: boolean;
   surfaceId: string;
@@ -180,6 +202,8 @@ export interface MarketplaceListing {
   externalOfferId?: string;
   ebayOffers?: Array<{ sku: string; offerId: string }>;
   ebayInventoryItemGroupKey?: string;
+  amazonItems?: AmazonListingItem[];
+  amazonRemovalRequested?: boolean;
   remoteCheckedAt?: string;
   remoteStatus?: string;
   externalUrl?: string;
@@ -605,3 +629,7 @@ export type InsertBuilderProfile = Omit<BuilderProfile, 'id' | 'createdAt' | 'up
 export type InsertBuilderPlacement = Omit<BuilderPlacement, 'id' | 'createdAt' | 'updatedAt'>;
 export type InsertPricingPolicy = Omit<PricingPolicy, 'id' | 'createdAt' | 'updatedAt'>;
 export type InsertRevenueSplit = Omit<RevenueSplit, 'id' | 'createdAt' | 'updatedAt'>;
+
+export function amazonManagedAttribute(name: string) {
+  return ['item_name', 'product_description', 'bullet_point', 'generic_keyword', 'purchasable_offer', 'fulfillment_availability', 'parentage_level', 'child_parent_sku_relationship', 'variation_theme'].includes(name) || /^(main|other)_product_image_locator/.test(name);
+}

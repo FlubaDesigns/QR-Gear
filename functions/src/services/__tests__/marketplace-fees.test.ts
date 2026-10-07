@@ -79,3 +79,22 @@ it('never uses one variation’s fees as the fee for the entire variation group'
   const fees = await retrieveMarketplaceFees({ ...listing, platform: 'ebay', externalOfferId: 'offer', ebayOffers: [{ sku: 'first', offerId: 'offer' }, { sku: 'second', offerId: 'other' }] }, surface, { platform: 'ebay', isActive: true, ebayConnected: true, ebayRefreshToken: 'selected' });
   expect(fees.status).toBe('unavailable'); expect(fees.amount).toBeNull(); expect(fees.reason).toContain('variation-group'); expect(fetchMock).not.toHaveBeenCalled();
 });
+
+it('attaches Amazon estimates to individual child SKUs without adding them into a group sale fee', async () => {
+  const row = fixture.store.get('marketplaceListings/l');
+  row.amazonItems = [{ sku: surface.sku, parent: true }, { sku: `${surface.sku}:0101`, variantKey: '0101' }, { sku: `${surface.sku}:0202`, variantKey: '0202' }];
+  const fees = await refreshListingFees('l');
+  expect(fees.amount).toBeNull(); expect(fees.status).toBe('partial'); expect(fees.variants?.map(item => item.amount)).toEqual([4.5, 4.5]);
+  expect(fetchMock.mock.calls.map(call => call[0])).toEqual(expect.arrayContaining([expect.stringContaining(encodeURIComponent(`${surface.sku}:0101`)), expect.stringContaining(encodeURIComponent(`${surface.sku}:0202`))]));
+  expect(itemMargin(fees, 10, 'USD')).toBeNull();
+  const stale = currentFees({ ...row, fees }, { ...surface, retailPrice: 31 }, account);
+  expect(stale?.variants?.every((item: any) => item.status === 'stale' && item.amount === null)).toBe(true);
+});
+it('preserves one child fee when another child estimate fails', async () => {
+  const row = fixture.store.get('marketplaceListings/l');
+  row.amazonItems = [{ sku: surface.sku, parent: true }, { sku: `${surface.sku}:0101` }, { sku: `${surface.sku}:0202` }];
+  const original = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation((url, options) => String(url).includes('0202') ? response({}, 403) : original(url, options));
+  const fees = await refreshListingFees('l');
+  expect(fees.variants?.[0].amount).toBe(4.5); expect(fees.variants?.[1].amount).toBeNull(); expect(fees.status).toBe('partial');
+});

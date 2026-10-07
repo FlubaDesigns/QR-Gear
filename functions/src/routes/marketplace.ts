@@ -1,3 +1,4 @@
+import { amazonCredentials, getAmazonSetupOptions, validateAmazonSettings, buildAmazonSubmissions, previewAmazonSubmissions, amazonProductFromSurface } from '../services/amazon-sp-api';
 import { getEbaySetupOptions, createEbayInventoryLocation } from '../services/ebay-api';
 import { resolveMarketplaceVariants } from '../services/marketplace-variants';
 import { publicMarketplaceAccount } from '../services/marketplace-oauth';
@@ -286,7 +287,7 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     try {
       const product = await normalizeProductForPublishing(surface.masterProductId, db);
       if (product.sku !== surface.sku) errors.push('Surface QRG identity does not match its product.');
-      if (surface.enabledPlatforms?.includes('ebay') && surface.enabledPlatforms.length === 1) {
+      if (surface.enabledPlatforms?.length && surface.enabledPlatforms.every((platform: string) => ['amazon', 'ebay'].includes(platform))) {
         if (variants.length) errors.push('Legacy surface variants need reconciliation with the built product.');
         await resolveMarketplaceVariants(product, db);
       } else errors.push(...marketplaceSelectionErrors(product, variants.length > 0));
@@ -329,7 +330,7 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
 
     const newStatus = surface.status === 'published' ? 'published' : errors.length === 0 ? 'ready' : 'draft';
     await db.collection(SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
-    res.json({ ready: errors.length === 0, errors, status: newStatus, ...(surface.enabledPlatforms?.includes('ebay') ? { note: 'Item checks only. eBay Setup and publishing validate the selected seller policies and live category requirements.' } : {}) });
+    res.json({ ready: errors.length === 0, errors, status: newStatus, ...(surface.enabledPlatforms?.some((platform: string) => ['ebay', 'amazon'].includes(platform)) ? { note: 'Item checks only. Marketplace Setup and publishing validate the selected seller requirements.' } : {}) });
   } catch (error: any) {
     console.error('[Surfaces] POST check-readiness error:', error);
     res.status(500).json({ error: error.message });
@@ -511,6 +512,52 @@ app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Res
   }
 });
 
+async function amazonSetupContext(listingId: string) {
+  const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), listingDoc = await listingRef.get();
+  if (!listingDoc.exists) throw new MarketplaceError('Listing not found.', 404);
+  const listing = listingDoc.data()!;
+  if (listing.platform !== 'amazon') throw new MarketplaceError('This is not an Amazon listing.');
+  const account = (await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(listing.accountId).get()).data();
+  if (!account?.isActive || account.platform !== 'amazon' || !account.amazonConnected) throw new MarketplaceError('Connect this Amazon seller account first.');
+  const surfaceRef = db.collection(SURFACES_COLLECTION).doc(listing.surfaceId), surfaceDoc = await surfaceRef.get();
+  if (!surfaceDoc.exists) throw new MarketplaceError('Item setup is missing.', 404);
+  const surface = surfaceDoc.data()!, product = await normalizeProductForPublishing(surface.masterProductId, db);
+  if (product.sku !== surface.sku || listing.marketplaceSku !== surface.sku) throw new MarketplaceError('Listing and product identity do not match.');
+  if (!(await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', listing.surfaceId).get()).empty) throw new MarketplaceError('Legacy surface variants need reconciliation with the built product.');
+  const variants = await resolveMarketplaceVariants(product, db);
+  return { listingRef, listing, surfaceRef, surface, variants, credentials: amazonCredentials(account) };
+}
+app.get('/admin/surfaces/listings/:listingId/amazon-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await amazonSetupContext(req.params.listingId);
+    const productType = typeof req.query.productType === 'string' ? req.query.productType : context.listing.publishOptions?.amazon?.productType || '';
+    const query = typeof req.query.q === 'string' ? req.query.q : '';
+    const options = await getAmazonSetupOptions(context.credentials, productType, query, context.variants.length > 0);
+    res.json({ options, productType, variants: context.variants, settings: context.listing.publishOptions?.amazon || { productType: '', quantity: 0, attributes: {} } });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+app.patch('/admin/surfaces/listings/:listingId/amazon-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await amazonSetupContext(req.params.listingId), settings = validateAmazonSettings(req.body.settings);
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(context.listingRef);
+      if (!snap.exists || snap.data()!.status === 'syncing') throw new MarketplaceError('Wait for the running job before saving setup.', 409);
+      if (snap.data()!.accountId !== context.listing.accountId) throw new MarketplaceError('Seller changed. Reload setup.', 409);
+      tx.update(context.listingRef, { publishOptions: { ...snap.data()!.publishOptions, amazon: settings }, updatedAt: new Date().toISOString() });
+    });
+    res.json({ success: true });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 400).json({ error: error.message }); }
+});
+app.post('/admin/surfaces/listings/:listingId/amazon-preview', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await amazonSetupContext(req.params.listingId), settings = validateAmazonSettings(req.body.settings);
+    const options = await getAmazonSetupOptions(context.credentials, settings.productType, '', context.variants.length > 0);
+    const submissions = buildAmazonSubmissions(amazonProductFromSurface(context.surface), context.surface.sku, settings, context.variants, options);
+    const errors = await previewAmazonSubmissions(context.credentials, submissions);
+    res.json({ valid: errors.length === 0, errors });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
 async function ebaySetupContext(listingId: string) {
   const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), listingDoc = await listingRef.get();
   if (!listingDoc.exists) throw new MarketplaceError('Listing not found.', 404);
@@ -601,7 +648,7 @@ app.delete('/admin/surfaces/listings/:listingId', requireAdmin, async (req: Requ
     const { listingId } = req.params;
     const doc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
-    if (doc.data()?.externalListingId || doc.data()?.externalOfferId || doc.data()?.externalCreateAttempted || doc.data()?.status === 'syncing') {
+    if (doc.data()?.amazonItems?.length || doc.data()?.externalListingId || doc.data()?.externalOfferId || doc.data()?.externalCreateAttempted || doc.data()?.status === 'syncing') {
       res.status(409).json({ error: 'This record tracks an external listing or an in-progress attempt and cannot be removed.' }); return;
     }
     await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).delete();

@@ -5,13 +5,13 @@ import { database } from './composition-fixture';
 const context = vi.hoisted(() => ({ db: null as any }));
 vi.mock('../../core', () => ({ get db() { return context.db; } }));
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next() }));
-vi.mock('../amazon-sp-api', () => ({ pushListingToAmazon: vi.fn() }));
+vi.mock('../amazon-sp-api', async importOriginal => ({ ...await importOriginal<any>(), pushListingToAmazon: vi.fn(), getAmazonSetupOptions: vi.fn(), previewAmazonSubmissions: vi.fn(), checkAmazonListing: vi.fn() }));
 vi.mock('../ebay-api', () => ({ pushListingToEbay: vi.fn(), checkEbayListing: vi.fn(), getEbaySetupOptions: vi.fn() }));
 vi.mock('../etsy-api', () => ({ pushListingToEtsy: vi.fn() }));
 import { register } from '../../routes/marketplace';
 import { getOrCreateMarketplaceListing, runMarketplaceJob, retryFailedJob } from '../marketplace-sync';
 import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct } from '../surface-generator';
-import { pushListingToAmazon } from '../amazon-sp-api';
+import { pushListingToAmazon, checkAmazonListing, getAmazonSetupOptions, previewAmazonSubmissions } from '../amazon-sp-api';
 import { pushListingToEbay, checkEbayListing, getEbaySetupOptions } from '../ebay-api';
 import { pushListingToEtsy } from '../etsy-api';
 const sku = 'QRG-11111-I-000001';
@@ -22,9 +22,9 @@ beforeEach(() => {
   fixture = database({
     'admin_catalog_instances/i': { qrgBaseCode: sku, resolved: { title: 'Saved product', description: 'Product description', images: ['https://files/image.jpg'], pricing: { customerPrice: 29 } } },
     'surfaces/s': { masterProductId: 'i', sku, title: 'Saved product', description: 'Product description', images: ['https://files/image.jpg'], retailPrice: 29, enabledPlatforms: ['amazon', 'ebay', 'etsy'], status: 'draft', ebay: { categoryId: '123', quantity: 0 } },
-    'marketplaceAccounts/a': { platform: 'amazon', isActive: true, amazonConnected: true, amazonRefreshToken: 'selected-account-token', amazonSellerId: 'selected-seller' },
+    'marketplaceAccounts/a': { platform: 'amazon', isActive: true, amazonConnected: true, amazonRefreshToken: 'selected-account-token', amazonSellerId: 'selected-seller', amazonMarketplaceId: 'ATVPDKIKX0DER' },
   }); context.db = fixture.db;
-  vi.mocked(pushListingToAmazon).mockResolvedValue({ success: true, sku, status: 'ACCEPTED', submissionId: 'submission' });
+  vi.mocked(pushListingToAmazon).mockResolvedValue({ success: true, sku, status: 'ACCEPTED', listingStatus: 'pending', submissionId: 'submission' });
 });
 
 describe('Marketplace product and job handoff', () => {
@@ -42,7 +42,7 @@ describe('Marketplace product and job handoff', () => {
   it('uses selected account OAuth and retail price, tracks accepted Amazon as pending', async () => {
     const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create');
     expect(result.success).toBe(true);
-    expect(pushListingToAmazon).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'selected-account-token', sellerId: 'selected-seller' }), expect.objectContaining({ price: 29 }), sku);
+    expect(pushListingToAmazon).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'selected-account-token', sellerId: 'selected-seller' }), expect.objectContaining({ price: 29 }), sku, undefined, [], expect.any(Function), []);
     expect(fixture.store.get(`marketplaceListings/${listing.id}`).status).toBe('pending'); expect(fixture.store.get('surfaces/s').status).toBe('draft');
     expect(fixture.store.get(`marketplaceSyncJobs/${result.id}`).status).toBe('completed');
     expect([...fixture.store.keys()].filter(key => key.startsWith('marketplaceSyncLogs/'))).toHaveLength(1);
@@ -53,23 +53,23 @@ describe('Marketplace product and job handoff', () => {
     const listing = await getOrCreateMarketplaceListing('s', 'a'); expect(listing.id).toBe(response.body.marketplaceListingId);
     await request(app).post('/admin/surfaces/jobs').send({ listingId: listing.id, action: 'update' }).expect(200);
     expect([...fixture.store.keys()].filter(key => key.startsWith('marketplaceListings/'))).toHaveLength(1);
-    expect(pushListingToAmazon).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), sku);
+    expect(pushListingToAmazon).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), sku, undefined, [], expect.any(Function), []);
   });
   it.each(['listings', 'jobs', 'logs', 'accounts'])('routes %s before the generic surface lookup', async path => {
     const response = await request(app).get(`/admin/surfaces/${path}`).expect(200);
     expect(Array.isArray(response.body)).toBe(true);
     if (path === 'accounts') expect(JSON.stringify(response.body)).not.toContain('selected-account-token');
   });
-  it('blocks variations and reports the same readiness failure', async () => {
+  it('blocks unresolved canonical variants and reports readiness failure', async () => {
     fixture.store.get('admin_catalog_instances/i').resolved.colors = ['Black', 'White'];
     const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create');
-    expect(result.success).toBe(false); expect(result.error).toContain('variation publishing'); expect(pushListingToAmazon).not.toHaveBeenCalled();
+    expect(result.success).toBe(false); expect(result.error).toContain('canonical blank'); expect(pushListingToAmazon).not.toHaveBeenCalled();
     const readiness = await request(app).post('/admin/surfaces/s/check-readiness').send({}).expect(200);
     expect(readiness.body.ready).toBe(false); expect(readiness.body.errors.join(' ')).toContain('variation publishing');
   });
   it('leaves failures failed until explicit retry and rejects concurrent jobs', async () => {
     const listing = await getOrCreateMarketplaceListing('s', 'a');
-    vi.mocked(pushListingToAmazon).mockResolvedValueOnce({ success: false, sku, error: 'Rejected' });
+    vi.mocked(pushListingToAmazon).mockResolvedValueOnce({ success: false, sku, listingStatus: 'error', error: 'Rejected' });
     const result = await runMarketplaceJob(listing.id, 'create');
     expect(result.success).toBe(false); expect(fixture.store.get(`marketplaceSyncJobs/${result.id}`).status).toBe('failed');
     await retryFailedJob(result.id); expect(pushListingToAmazon).toHaveBeenCalledTimes(2);
@@ -108,6 +108,7 @@ describe('Marketplace product and job handoff', () => {
   });
   it('does not claim remote deletion succeeded or discard linked records', async () => {
     const listing = await getOrCreateMarketplaceListing('s', 'a'); fixture.store.get(`marketplaceListings/${listing.id}`).externalListingId = sku;
+    vi.mocked(checkAmazonListing).mockRejectedValueOnce(new Error('Amazon removal failed'));
     const result = await runMarketplaceJob(listing.id, 'delete'); expect(result.success).toBe(false); expect(pushListingToAmazon).not.toHaveBeenCalled();
     await request(app).delete(`/admin/surfaces/listings/${listing.id}`).expect(409);
   });
@@ -181,4 +182,36 @@ it('uses explicit eBay size labels while retaining the canonical item and varian
   expect(pushListingToEbay).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ variants: [{ variantKey: '0501', sku: `${sku}:0501`, size: 'Large', color: 'Black' }] }), sku, expect.any(Function), expect.any(Object), expect.any(Function));
   expect(fixture.store.get(`marketplaceListings/${listing.id}`).qrgCode).toBe(sku);
   expect(fixture.store.get('admin_catalog_instances/i').enabledSizes).toEqual(['L']);
+});
+
+it('saves Amazon setup on exactly the selected listing, blocks changes during a job, and previews without publishing', async () => {
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  const settings = { productType: 'SHIRT', quantity: 0, attributes: { brand: [{ value: 'QR Gear' }] } };
+  await request(app).patch(`/admin/surfaces/listings/${listing.id}/amazon-setup`).send({ settings }).expect(200);
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).publishOptions.amazon).toMatchObject(settings);
+  expect(fixture.store.get('surfaces/s').publishOptions).toBeUndefined(); expect(pushListingToAmazon).not.toHaveBeenCalled();
+  vi.mocked(getAmazonSetupOptions).mockResolvedValue({ productTypes: [], schema: { properties: { brand: {} } } });
+  vi.mocked(previewAmazonSubmissions).mockResolvedValue(['Amazon needs a barcode']);
+  const preview = await request(app).post(`/admin/surfaces/listings/${listing.id}/amazon-preview`).send({ settings }).expect(200);
+  expect(preview.body).toEqual({ valid: false, errors: ['Amazon needs a barcode'] }); expect(pushListingToAmazon).not.toHaveBeenCalled();
+  expect(getAmazonSetupOptions).toHaveBeenCalledWith(expect.objectContaining({ sellerId: 'selected-seller', refreshToken: 'selected-account-token' }), 'SHIRT', '', false);
+  fixture.store.get(`marketplaceListings/${listing.id}`).status = 'syncing';
+  await request(app).patch(`/admin/surfaces/listings/${listing.id}/amazon-setup`).send({ settings }).expect(409);
+});
+it('tracks Amazon identities before a failed submission and keeps remote checks/removal usable after product selection changes', async () => {
+  const listing = await getOrCreateMarketplaceListing('s', 'a');
+  vi.mocked(pushListingToAmazon).mockImplementationOnce(async (_c, _p, _s, _settings, _variants, persist) => { await persist!([{ sku }]); return { success: false, sku, listingStatus: 'error', error: 'Unknown outcome' }; });
+  await runMarketplaceJob(listing.id, 'create');
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).amazonItems).toEqual([{ sku }]);
+  await request(app).delete(`/admin/surfaces/listings/${listing.id}`).expect(409);
+  fixture.store.get('surfaces/s').enabledPlatforms = [];
+  fixture.store.get('admin_catalog_instances/i').resolved.colors = ['Unavailable'];
+  vi.mocked(checkAmazonListing).mockResolvedValue({ success: true, sku, listingStatus: 'active', remoteStatus: '1/1 variations buyable', externalListingId: sku, amazonItems: [{ sku, status: 'BUYABLE' }] });
+  const check = await runMarketplaceJob(listing.id, 'check_status');
+  expect(check.success).toBe(true); expect(fixture.store.get('surfaces/s').status).toBe('published');
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).remoteCheckedAt).toBeTruthy();
+  vi.mocked(checkAmazonListing).mockImplementationOnce(async (_c, _s, _items, remove, _requested, persist) => { expect(remove).toBe(true); await persist!(); return { success: true, sku, listingStatus: 'pending', remoteStatus: 'Removal processing', externalListingId: sku, amazonItems: [{ sku }] }; });
+  await runMarketplaceJob(listing.id, 'delete');
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).amazonRemovalRequested).toBe(true);
+  expect(fixture.store.get(`marketplaceListings/${listing.id}`).status).toBe('pending');
 });

@@ -118,12 +118,12 @@ export async function executeSyncJob(jobId: string): Promise<void> {
         listing.qrgCode !== surface.sku || listing.marketplaceSku !== surface.sku || job.productInstanceId !== surface.masterProductId) {
       throw new MarketplaceError('Listing, job and product identity do not match.');
     }
-    if (['delete', 'check_status'].includes(job.action) && job.platform !== 'ebay') throw new MarketplaceError('Remote status and ending listings are currently available for eBay.');
+    if (['delete', 'check_status'].includes(job.action) && !['ebay', 'amazon'].includes(job.platform)) throw new MarketplaceError('Remote status and removal are available for eBay and Amazon.');
     if (!['create', 'update', 'full_sync', 'sync_inventory', 'delete', 'check_status'].includes(job.action)) throw new MarketplaceError('Unsupported marketplace job action.');
     let resolvedVariants: Awaited<ReturnType<typeof resolveMarketplaceVariants>> = [];
     if (product) {
       const variants = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', job.surfaceId).get();
-      if (job.platform === 'ebay') {
+      if (['ebay', 'amazon'].includes(job.platform)) {
         if (!variants.empty) throw new MarketplaceError('Legacy surface variant overrides must be reconciled with the built product before publishing.');
         resolvedVariants = await resolveMarketplaceVariants(product, db);
       } else {
@@ -132,6 +132,8 @@ export async function executeSyncJob(jobId: string): Promise<void> {
       }
     }
     result = await publishMarketplaceListing(job.platform as MarketplacePlatform, surface, account, listing, {
+      amazonItems: async items => { await listingRef.update({ amazonItems: items, amazonRemovalRequested: false, remoteStatus: 'Submission processing', externalListingId: surface.sku, updatedAt: now() }); },
+      amazonRemoval: async () => { await listingRef.update({ amazonRemovalRequested: true, updatedAt: now() }); },
       ebayOffer: async (offerId, identity) => {
         await listingRef.update({ externalOfferId: offerId, ...(identity?.offers ? { ebayOffers: identity.offers } : {}),
           ...(identity?.inventoryItemGroupKey ? { ebayInventoryItemGroupKey: identity.inventoryItemGroupKey } : {}), updatedAt: now() });
@@ -157,7 +159,8 @@ export async function executeSyncJob(jobId: string): Promise<void> {
     tx.update(jobRef, { status: result.success ? 'completed' : 'failed', result: storedResult,
       errorMessage: result.error || null, completedAt: timestamp, updatedAt: timestamp });
     tx.update(listingRef, { status: result.listingStatus, lastSyncAt: timestamp, updatedAt: timestamp,
-      errorMessage: result.error || null, ...(result.success && job.platform === 'ebay' ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
+      errorMessage: result.error || null, ...((job.platform === 'ebay' && result.success) || (job.platform === 'amazon' && result.amazonItems && ['check_status', 'delete'].includes(job.action)) ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
+      ...(result.amazonItems ? { amazonItems: result.amazonItems } : {}),
       ...(result.externalListingId ? { externalListingId: result.externalListingId } : {}),
       ...(result.externalUrl ? { externalUrl: result.externalUrl } : {}) });
     if (result.success && surfaceSnap.exists) {

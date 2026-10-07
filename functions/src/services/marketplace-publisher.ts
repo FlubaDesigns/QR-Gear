@@ -1,5 +1,5 @@
 import { marketplaceSalePrice } from '../../../shared/surfaces';
-import { pushListingToAmazon } from './amazon-sp-api';
+import { pushListingToAmazon, checkAmazonListing, amazonCredentials, amazonProductFromSurface } from './amazon-sp-api';
 import { pushListingToEbay, checkEbayListing, type EbayListingIdentity } from './ebay-api';
 import type { MarketplaceVariant } from './marketplace-variants';
 import { pushListingToEtsy } from './etsy-api';
@@ -25,6 +25,8 @@ export async function publishMarketplaceListing(
     etsyCreateAttempt: () => Promise<void>;
     etsyToken: (refreshToken: string) => Promise<void>;
     externalListing: (externalListingId: string) => Promise<void>;
+    amazonItems?: (items: import('../../../shared/surfaces').AmazonListingItem[]) => Promise<void>;
+    amazonRemoval?: () => Promise<void>;
     ebayPrepared?: () => Promise<void>;
     ebayOffer?: (offerId: string, identity?: EbayListingIdentity) => Promise<void>;
   },
@@ -33,6 +35,11 @@ export async function publishMarketplaceListing(
 ): Promise<PublishResult> {
   if (account.platform !== platform || !account.isActive) throw new Error('Marketplace account is inactive or does not match this listing.');
   if (!account[`${platform}Connected`] || !account[`${platform}RefreshToken`]) throw new Error(`Connect this ${platform} account before publishing.`);
+  if (platform === 'amazon' && ['check_status', 'delete'].includes(action)) {
+    return await checkAmazonListing(amazonCredentials(account), listing.marketplaceSku,
+      listing.amazonItems || (listing.externalListingId === listing.marketplaceSku ? [{ sku: listing.marketplaceSku }] : []),
+      action === 'delete', listing.amazonRemovalRequested, persist.amazonRemoval) as PublishResult;
+  }
   if (platform === 'ebay' && ['check_status', 'delete'].includes(action)) {
     const result = await checkEbayListing({ userId: account.ebayUserId || '', username: account.ebayUsername || '', refreshToken: account.ebayRefreshToken }, {
       offers: listing.ebayOffers || (listing.externalOfferId ? [{ sku: listing.marketplaceSku, offerId: listing.externalOfferId }] : []),
@@ -50,15 +57,14 @@ export async function publishMarketplaceListing(
   const common = { title: surface.title, description: surface.description, price, currencyCode: surface.currency || 'USD', quantity,
     imageUrls: surface.images.map((image: any) => typeof image === 'string' ? image : image?.url).filter(Boolean) };
   if (platform === 'amazon') {
-    if (!account.amazonSellerId) throw new Error('Reconnect Amazon to record your Seller ID.');
-    const result = await pushListingToAmazon({ sellerId: account.amazonSellerId, marketplaceId: account.amazonMarketplaceId || 'ATVPDKIKX0DER', refreshToken: account.amazonRefreshToken }, {
-      ...common, bulletPoints: surface.bulletPoints || [], keywords: surface.keywords || surface.tags || [],
-      condition: 'new_new', brandName: surface.brand || 'QR Gear', productType: surface.amazonProductType || 'SHIRT',
-    }, sku);
-    // An accepted submission is not proof that Amazon made the listing buyable.
-    return { ...result, listingStatus: result.success ? 'pending' : 'error', ...(result.success ? { externalListingId: sku } : {}) };
+    if (listing.amazonRemovalRequested && listing.remoteStatus !== 'Removed') throw new Error('Check Amazon status until removal is confirmed before publishing again.');
+    const result = await pushListingToAmazon(amazonCredentials(account), amazonProductFromSurface(surface), sku,
+      listing.publishOptions?.amazon, variants, persist.amazonItems, listing.remoteStatus === 'Removed' ? [] : listing.amazonItems || []);
+    return { ...result, ...(result.success ? { externalListingId: sku } : {}) };
   }
+
   if (platform === 'ebay') {
+    if (variants.length > 250) throw new Error('eBay supports at most 250 variations per listing. Reduce the selected variants.');
     const eb = surface.ebay || {};
     const seller = listing.publishOptions?.ebay || {};
     if (!eb.categoryId) throw new Error('Set the eBay category ID on the surface before publishing.');

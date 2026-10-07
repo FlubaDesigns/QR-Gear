@@ -13,6 +13,7 @@ export function feeContextKey(listing: any, surface: any, account: any): string 
     connected: account[`${listing.platform}Connected`] === true, connectedAt: account[`${listing.platform}ConnectedAt`] || '',
     active: account.isActive === true, enabled: surface.enabledPlatforms?.includes(listing.platform) === true,
     // Category/attributes/shipping policies can change the estimate without changing price.
+    amazonItems: listing.amazonItems?.map((item: any) => ({ sku: item.sku, parent: item.parent || false })) || [], amazonSettings: listing.publishOptions?.amazon || {},
     amazonProductType: surface.amazonProductType || '', ebay: surface.ebay || {},
     externalOfferId: listing.externalOfferId || '', ebayOffers: listing.ebayOffers || [], ebaySettings: listing.publishOptions?.ebay || {},
   })).digest('hex');
@@ -41,22 +42,47 @@ export async function retrieveMarketplaceFees(listing: any, surface: any, accoun
       fees.source = 'amazon_product_fees';
       if (!account.amazonSellerId || !account.amazonMarketplaceId) throw new Error('Reconnect Amazon to verify the seller and marketplace.');
       const token = await amazonToken(account.amazonRefreshToken);
-      const identifier = randomUUID();
-      const resp = await fetch(`https://sellingpartnerapi-na.amazon.com/products/fees/v0/listings/${encodeURIComponent(surface.sku)}/feesEstimate`, {
-        method: 'POST', signal: AbortSignal.timeout(20000),
-        headers: { 'Content-Type': 'application/json', 'x-amz-access-token': token },
-        body: JSON.stringify({ FeesEstimateRequest: { MarketplaceId: account.amazonMarketplaceId, Identifier: identifier,
-          IsAmazonFulfilled: false, PriceToEstimateFees: { ListingPrice: { CurrencyCode: currency, Amount: price } } } }),
-      });
-      if (!resp.ok) throw new Error(`Amazon fees unavailable (HTTP ${resp.status}). Check seller authorization and SKU, then retry.`);
-      const data: any = await resp.json(), result = data?.payload?.FeesEstimateResult;
-      if (result?.Status !== 'Success') throw new Error('Amazon could not estimate this SKU. It may need to be accepted in the seller catalog first.');
-      if (result.FeesEstimateIdentifier?.SellerInputIdentifier !== identifier) throw new Error('Amazon returned a fee estimate for a different request.');
-      const estimate = result.FeesEstimate;
-      fees.amount = money(estimate?.TotalFeesEstimate, currency);
-      fees.components = (estimate.FeeDetailList || []).map((item: any) => ({ name: item.FeeType, amount: money(item.FinalFee, currency) }));
-      fees.status = 'estimated';
-      fees.reason = 'Per sale estimate for seller fulfillment and the item price; excludes buyer shipping charges and actual settlement adjustments.';
+      if (account.amazonMarketplaceId !== 'ATVPDKIKX0DER' || currency !== 'USD') throw new Error('Amazon fees currently require the US marketplace and USD.');
+      const readEstimate = async (itemSku: string, target: MarketplaceFees, attempt = 0): Promise<void> => {
+        const identifier = randomUUID();
+        const resp = await fetch(`https://sellingpartnerapi-na.amazon.com/products/fees/v0/listings/${encodeURIComponent(itemSku)}/feesEstimate`, {
+          method: 'POST', signal: AbortSignal.timeout(20000),
+          headers: { 'Content-Type': 'application/json', 'x-amz-access-token': token },
+          body: JSON.stringify({ FeesEstimateRequest: { MarketplaceId: account.amazonMarketplaceId, Identifier: identifier,
+            IsAmazonFulfilled: false, PriceToEstimateFees: { ListingPrice: { CurrencyCode: currency, Amount: price } } } }),
+        });
+        if (resp.status === 429 && attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, Math.min(5, Math.max(1, Number(resp.headers.get('Retry-After')) || attempt + 1)) * 1000));
+          return readEstimate(itemSku, target, attempt + 1);
+        }
+        if (!resp.ok) throw new Error(`Amazon fees unavailable (HTTP ${resp.status}). Check seller authorization and SKU, then retry.`);
+        const data: any = await resp.json(), result = data?.payload?.FeesEstimateResult;
+        if (result?.Status !== 'Success') throw new Error('Amazon could not estimate this SKU. It may need to be accepted in the seller catalog first.');
+        if (result.FeesEstimateIdentifier?.SellerInputIdentifier !== identifier) throw new Error('Amazon returned a fee estimate for a different request.');
+        const estimate = result.FeesEstimate;
+        target.amount = money(estimate?.TotalFeesEstimate, currency);
+        target.components = (estimate.FeeDetailList || []).map((item: any) => ({ name: item.FeeType, amount: money(item.FinalFee, currency) }));
+        target.status = 'estimated';
+        target.reason = 'Per sale estimate for seller fulfillment and the item price; excludes buyer shipping charges and actual settlement adjustments.';
+      };
+      const children = listing.amazonItems?.filter((item: any) => !item.parent) || [];
+      if (listing.amazonItems?.some((item: any) => item.parent)) {
+        if (!children.length) throw new Error('Amazon fees need saved child listings first.');
+        fees.variants = [];
+        for (const child of children) {
+          if (!child.sku.startsWith(`${surface.sku}:`)) throw new Error('Listing and product identity do not match.');
+          const target: MarketplaceFees = { ...fees, sku: child.sku, variants: undefined };
+          try { await readEstimate(child.sku, target); }
+          catch { target.status = 'unavailable'; target.amount = null; target.reason = 'Amazon could not estimate this variation. Check its listing status and retry.'; }
+          delete target.variants;
+          fees.variants.push(target);
+        }
+        fees.status = fees.variants.some(item => item.status === 'estimated') ? 'partial' : 'unavailable';
+        fees.reason = 'Fees are attached to each sellable variation below. There is no single group fee or group margin.';
+      } else {
+        if (!listing.amazonItems?.length && (surface.colors?.length || surface.sizes?.length || surface.options?.length)) throw new Error('Amazon fees need saved child listings first. Publish the variations, then refresh fees.');
+        await readEstimate(surface.sku, fees);
+      }
     } else if (listing.platform === 'ebay') {
       fees.source = 'ebay_listing_fees'; fees.scope = 'listing';
       if (listing.ebayOffers?.length > 1) throw new Error('eBay variation-group fee estimates are not available here. No single-variant fee is substituted for the whole item.');
@@ -93,7 +119,7 @@ export async function retrieveMarketplaceFees(listing: any, surface: any, accoun
 /** Never silently reuse an estimate after price, seller or product context changes. */
 export function currentFees(listing: any, surface: any, account: any): MarketplaceFees | undefined {
   if (!listing.fees) return undefined;
-  if (listing.fees.contextKey !== feeContextKey(listing, surface, account)) return { ...listing.fees, status: 'stale', amount: null, reason: 'Item or account changed. Refresh fees.' };
+  if (listing.fees.contextKey !== feeContextKey(listing, surface, account)) return { ...listing.fees, status: 'stale', amount: null, variants: listing.fees.variants?.map((fee: MarketplaceFees) => ({ ...fee, status: 'stale', amount: null })), reason: 'Item or account changed. Refresh fees.' };
   return listing.fees;
 }
 
