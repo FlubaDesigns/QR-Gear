@@ -191,6 +191,7 @@ function createGrfRegistrar({ db, now, bucket }) {
         const qrBytes = await QRCode.toBuffer(packetData.qrContent.trim(), { type: 'png', width: 3000, margin: 2, errorCorrectionLevel: 'M' });
         const qr = await registerGrfAsset({ imageData: qrBytes.toString('base64'), mimeType: 'image/png', sourceSessionId, packetId, ...GRF_engine_1.GRF_PACKET_SLOTS.qrStandalone });
         result.qrGrfId = qr.grfId;
+        await db.collection(GRF_ASSETS_COLLECTION).doc(qr.grfId).update({ qrPayloadHash: (0, crypto_1.createHash)('sha256').update(packetData.qrContent.trim()).digest('hex') });
         if (packetId)
             await db.collection('productPackets').doc(packetId).update({ qrOnlyUrl: qr.publicUrl });
         const compositeUrl = packetData.compositeUrl || packetData.productGraphicUrl || null;

@@ -113,11 +113,11 @@ function InstanceRow({
   onRemove: (i: number) => void;
 }) {
   return (
-    <div className="grid grid-cols-[2rem_1fr_1fr_auto_auto] gap-2 items-center" data-testid={`row-instance-${index}`}>
+    <div className="grid grid-cols-[2rem_1fr_auto] sm:grid-cols-[2rem_1fr_1fr_auto_auto] gap-2 items-center" data-testid={`row-instance-${index}`}>
       <span className="text-xs font-mono text-muted-foreground text-center">{formatSeq(index)}</span>
 
       <Select value={inst.type} onValueChange={(v) => onChange(index, "type", v)}>
-        <SelectTrigger className="h-8 text-xs" data-testid={`select-type-${index}`}>
+        <SelectTrigger className="min-h-[44px] text-sm" data-testid={`select-type-${index}`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -131,7 +131,7 @@ function InstanceRow({
         value={inst.role}
         onChange={(e) => onChange(index, "role", e.target.value)}
         placeholder="role (e.g. header)"
-        className="h-8 text-xs"
+        className="min-h-[44px] text-sm"
         data-testid={`input-role-${index}`}
       />
 
@@ -139,7 +139,7 @@ function InstanceRow({
         type="button"
         disabled={inst.type === 'act'}
         onClick={() => onChange(index, "required", !inst.required)}
-        className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+        className={`min-h-[44px] min-w-[44px] text-sm px-2 py-1 rounded-md border transition-colors ${
           inst.required
             ? "bg-primary/10 border-primary/30 text-primary"
             : "bg-muted border-border text-muted-foreground"
@@ -159,7 +159,7 @@ function InstanceRow({
       <button
         type="button"
         onClick={() => onRemove(index)}
-        className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+        className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
         data-testid={`button-remove-instance-${index}`}
         title="Remove instance"
       >
@@ -286,7 +286,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
             </span>
           ) : (
             <Button
-              size="sm"
+              size="default"
               variant="outline"
               onClick={handleAddInstance}
 
@@ -299,7 +299,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
 
         <div className="space-y-1.5">
-          <div className="grid grid-cols-[2rem_1fr_1fr_auto_auto] gap-2 px-0.5">
+          <div className="grid grid-cols-[2rem_1fr_auto] sm:grid-cols-[2rem_1fr_1fr_auto_auto] gap-2 px-0.5">
             <span className="text-xs text-muted-foreground text-center">#</span>
             <span className="text-xs text-muted-foreground">Type</span>
             <span className="text-xs text-muted-foreground">Role</span>
@@ -307,7 +307,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
             <span />
           </div>
           {formInstances.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2 text-center">No instances — add at least one.</p>
+            <p className="text-xs text-muted-foreground py-2 text-center">No layers. The schema allows an empty reusable definition.</p>
           ) : (
             formInstances.map((inst, i) => (
               <InstanceRow
@@ -326,8 +326,8 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
 
       <Button
         onClick={handleSubmit}
-        disabled={mutation.isPending || formInstances.length === 0}
-        className="w-full"
+        disabled={mutation.isPending}
+        className="w-full min-h-[44px]"
         data-testid="button-submit-bld"
       >
         {mutation.isPending ? (
@@ -350,7 +350,7 @@ function DefinitionCard({
   const [expanded, setExpanded] = useState(false);
 
   const layout = def.layoutMode ?? null;
-  const instances = def.instances ?? [];
+  const instances = Array.isArray(def.instances) ? def.instances.filter(Boolean) : [];
   const recordedCount = def.instanceCount;
   const actualCount = instances.length;
 
@@ -370,7 +370,7 @@ function DefinitionCard({
               {def.bldId}
             </span>
             {!idValid && <MissingBadge text="INVALID ID" />}
-            {def.validationError && <p className="text-xs text-destructive">{def.validationError}</p>}
+
             <Badge variant="outline" className="text-xs">{def.context ?? "—"}</Badge>
             {layoutMissing
               ? <MissingBadge text="MISSING LAYOUT" />
@@ -399,7 +399,7 @@ function DefinitionCard({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
             onClick={(e) => { e.stopPropagation(); onDelete(def.bldId); }}
             data-testid={`button-delete-bld-${def.id}`}
             title="Delete definition"
@@ -412,6 +412,12 @@ function DefinitionCard({
           }
         </div>
       </div>
+
+      {def.validationError && <div className="border-t p-3 space-y-2">
+        <p className="font-medium text-destructive">This definition does not follow the schema</p>
+        <p className="text-sm break-words">{def.validationError}</p>
+        <p className="text-sm text-muted-foreground">Create a new build using the current schema.</p>
+      </div>}
 
       {expanded && instances.length > 0 && (
         <div className="border-t px-3 py-2 space-y-1">
@@ -462,14 +468,13 @@ function BldDefinitionsTabInner() {
     },
     onError: (err: Error) => {
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
-      setDeleteTarget(null);
     },
   });
 
   const definitions = data?.definitions ?? [];
 
   return (
-    <div className="space-y-4" data-testid="tab-bld-definitions">
+    <div className="space-y-4 [&_button]:min-h-[44px] [&_input]:min-h-[44px]" data-testid="tab-bld-definitions">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
@@ -479,7 +484,7 @@ function BldDefinitionsTabInner() {
           )}
         </div>
         <Button
-          size="sm"
+          size="default"
           variant={showCreate ? "secondary" : "default"}
           onClick={() => setShowCreate(v => !v)}
           data-testid="button-toggle-create-bld"
@@ -527,7 +532,7 @@ function BldDefinitionsTabInner() {
         </div>
       )}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete BLD Definition</AlertDialogTitle>
@@ -537,11 +542,11 @@ function BldDefinitionsTabInner() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete-bld">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="min-h-[44px]" disabled={deleteMutation.isPending} data-testid="button-cancel-delete-bld">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              onClick={event => { event.preventDefault(); if (deleteTarget) deleteMutation.mutate(deleteTarget); }}
               disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="min-h-[44px] bg-red-600 hover:bg-red-700 text-white"
               data-testid="button-confirm-delete-bld"
             >
               {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}

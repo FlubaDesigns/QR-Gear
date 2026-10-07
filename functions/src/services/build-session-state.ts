@@ -68,3 +68,42 @@ export async function deleteBuildPacket(db: any, packetId: string, now: any): Pr
     txn.delete(packetRef);
   });
 }
+
+/** A generated artifact becomes ready only after its saved rendering inputs are verified.
+ * Both HTTP adapters use this path; regeneration cannot retain a previous schema chain.
+ */
+export async function saveGeneratedBuildArtifact(db: any, sessionId: string, packetFields: Record<string, any>, now: any) {
+  return db.runTransaction(async (tx: any) => {
+    const sessionRef = db.collection('admin_build_sessions').doc(sessionId);
+    const sessionDoc = await tx.get(sessionRef);
+    if (!sessionDoc.exists) throw new Error('Build session not found.');
+    const session = sessionDoc.data();
+    if (['committed', 'abandoned'].includes(session.status)) throw new Error(`Cannot generate an artifact for a ${session.status} session.`);
+    const existingId = packetFields.existingPacketId || session.generated?.packetId;
+    const ref = db.collection('productPackets').doc(existingId || undefined);
+    const existing = existingId ? await tx.get(ref) : null;
+    if (existingId && !existing?.exists) throw new Error('Generated packet no longer exists. Generate a new packet.');
+    const prior = existing?.data() || {};
+    if (prior.buildSessionId && prior.buildSessionId !== sessionId) throw new Error('Packet belongs to a different build session.');
+    const linking = !!packetFields.existingPacketId;
+    const fields = linking ? prior : { ...packetFields };
+    const snapshot = requireBuilderSnapshot(fields.builderSnapshot);
+    if (snapshot.metadata.selectedProductDocId !== session.sourceMasterId) throw new Error('Generated packet and build session reference different product blanks.');
+    if (!fields.compositeUrl || !fields.qrContent?.trim()) throw new Error('Generate the stored graphic and QR payload before saving.');
+    const oldAsm = !linking && prior.assemblyId ? await tx.get(db.collection('assemblies').doc(prior.assemblyId)) : null;
+    const catalog = !linking && existingId ? await tx.get(db.collection('admin_catalog_instances').where('currentPacketId', '==', existingId)) : null;
+    if (!linking && (prior.status === 'published' || (catalog && !catalog.empty))) throw new Error('Generate a new packet to replace a saved product; its existing output is in use.');
+    const packet = linking ? { ownerType: 'admin_build_session', buildSessionId: sessionId, sourceMasterId: session.sourceMasterId, updatedAt: now } : {
+      ...fields, builderSnapshot: snapshot, ownerType: 'admin_build_session', buildSessionId: sessionId,
+      sourceMasterId: session.sourceMasterId, sourceAdminInstanceId: null, bldId: null, assemblyId: null,
+      backgroundGrfId: null, qrGrfId: null, compositeGrfId: null, landingSnapshotGrfId: null,
+      headerGrfId: null, footerGrfId: null, placementGrfIds: {},
+      createdAt: prior.createdAt || now, updatedAt: now,
+    };
+    if (oldAsm?.exists) tx.update(oldAsm.ref, { packetIds: (oldAsm.data().packetIds || []).filter((id: string) => id !== ref.id), updatedAt: now });
+    if (existing?.exists) tx.update(ref, packet); else tx.create(ref, packet);
+    tx.update(sessionRef, { 'generated.packetId': ref.id, 'generated.artifactReady': true,
+      'generated.previewImageUrl': fields.previewImageUrl || null, status: 'artifact_ready', updatedAt: now, lastActiveAt: now });
+    return ref.id;
+  });
+}

@@ -1,7 +1,7 @@
 import { buildPacketImageOrder, instanceCatalogImages, masterBlankImages, resolveCatalogImages } from "../../../shared/productImages";
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
-import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../services/build-session-state';
+import { readGeneratedBuild, existingBuildInstance, saveBuildInstance, saveGeneratedBuildArtifact } from '../services/build-session-state';
 /**
  * Admin Build Sessions (Cloud Functions port)
  *
@@ -398,78 +398,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const { id } = req.params;
       const packetFields = req.body;
 
-      const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
-      const doc = await ref.get();
-
-      if (!doc.exists) {
-        res.status(404).json({ error: 'Build session not found' });
-        return;
-      }
-
-      const session = doc.data()!;
-
-      if (session.status === 'committed') {
-        res.status(409).json({ error: 'Session already committed.' });
-        return;
-      }
-      if (session.status === 'abandoned') {
-        res.status(409).json({ error: 'Cannot generate artifact for an abandoned session.' });
-        return;
-      }
-
-      const now = FieldValue.serverTimestamp();
-      let packetId: string;
-
-      if (packetFields.existingPacketId) {
-        packetId = packetFields.existingPacketId;
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
-          ownerType: 'admin_build_session',
-          buildSessionId: id,
-          sourceMasterId: session.sourceMasterId,
-          sourceAdminInstanceId: null,
-          updatedAt: now,
-        });
-      } else {
-        const packetData = {
-          ownerType: 'admin_build_session',
-          buildSessionId: id,
-          sourceMasterId: session.sourceMasterId,
-          sourceAdminInstanceId: null,
-          masterTitle: session.working?.title || null,
-          adminCatalogTitle: session.working?.title || null,
-          effectiveTitle: session.working?.title || null,
-          masterDescription: session.working?.description || null,
-          adminCatalogDescription: session.working?.description || null,
-          effectiveDescription: session.working?.description || null,
-          productImageUrl: session.working?.images?.[0] || null,
-          ...packetFields,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        if (session.generated?.packetId) {
-          const { createdAt: _c, ...updateFields } = packetData as any;
-          await db.collection(PRODUCT_PACKETS_COLLECTION)
-            .doc(session.generated.packetId)
-            .update({ ...updateFields, updatedAt: now });
-          packetId = session.generated.packetId;
-        } else {
-          const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
-          packetId = packetRef.id;
-        }
-      }
-
-      const sessionUpdate: Record<string, any> = {
-        'generated.packetId': packetId,
-        'generated.artifactReady': true,
-        status: 'artifact_ready',
-        updatedAt: now,
-        lastActiveAt: now,
-      };
-      if (packetFields.previewImageUrl) {
-        sessionUpdate['generated.previewImageUrl'] = packetFields.previewImageUrl;
-      }
-      await ref.update(sessionUpdate);
+      const packetId = await saveGeneratedBuildArtifact(db, id, packetFields, FieldValue.serverTimestamp());
 
       res.json({ success: true, sessionId: id, packetId, artifactReady: true });
     } catch (err: any) {

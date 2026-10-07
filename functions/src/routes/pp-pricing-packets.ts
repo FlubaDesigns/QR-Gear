@@ -1,3 +1,4 @@
+import { updatePacketWithComposition } from '../services/composition-links';
 import { validatePacketComposition } from '../services/assembly-store';
 import { deleteBuildPacket } from '../services/build-session-state';
 import { packetBuildFields } from '../../../shared/builderSnapshot';
@@ -355,44 +356,7 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     }
     // ── end data-URI guard ────────────────────────────────────────────────────
 
-    // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
-    if (cleanUpdates.status === 'published' || doc.data()?.status === 'published') {
-      try { await validatePacketComposition(db, packetId, { ...doc.data(), ...cleanUpdates }); }
-      catch (e: any) { res.status(400).json({ error: e.message }); return; }
-    }
-    // ── end publish guard ──────────────────────────────────────────────────
-
-    // ── Fix 13: assemblyId bi-directional sync (atomic transaction) ───────
-    // When assemblyId is being set or changed, keep assemblies.packetIds in sync
-    // inside a single Firestore transaction so both writes succeed or both fail.
-    if ('assemblyId' in cleanUpdates) {
-      const existingAssemblyId: string | null = (doc.data() as any)?.assemblyId || null;
-      const newAssemblyId: string | null = cleanUpdates.assemblyId || null;
-
-      if (newAssemblyId !== existingAssemblyId) {
-        const oldRef = existingAssemblyId ? db.collection('assemblies').doc(existingAssemblyId) : null;
-        const newRef = newAssemblyId     ? db.collection('assemblies').doc(newAssemblyId)      : null;
-
-        await db.runTransaction(async (txn) => {
-          const oldDoc = oldRef ? await txn.get(oldRef) : null;
-          const newDoc = newRef ? await txn.get(newRef) : null;
-          const now    = admin.firestore.FieldValue.serverTimestamp();
-
-          if (oldDoc?.exists && oldRef) {
-            const filtered = ((oldDoc.data() as any).packetIds || []).filter((p: string) => p !== packetId);
-            txn.update(oldRef, { packetIds: filtered, updatedAt: now });
-          }
-          if (newDoc?.exists && newRef) {
-            const existing = (newDoc.data() as any).packetIds || [];
-            const merged   = [...new Set([...existing, packetId])];
-            txn.update(newRef, { packetIds: merged, updatedAt: now });
-          }
-        });
-      }
-    }
-    // ── end assemblyId sync ────────────────────────────────────────────────
-
-    await docRef.update({ ...cleanUpdates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    await updatePacketWithComposition(db, packetId, cleanUpdates, admin.firestore.FieldValue.serverTimestamp());
 
     // ── GRF registration for mockup URLs ────────────────────────────────────
     const incomingLifestyle     = cleanUpdates.lifestyleMockupUrl  || null;

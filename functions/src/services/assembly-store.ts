@@ -1,8 +1,10 @@
+import { createHash } from 'crypto';
+import { prepareAssemblyDefinition } from './assembly-records';
+import { inspectComposition, transactionReader } from './composition-validation';
 import { toProviderPlacement } from '../../../shared/placements';
 import type { Firestore } from 'firebase-admin/firestore';
 import { extractBuilderLayers, validateBldStructure, sameBldStructure, builderBldLayoutMode, extractBldInstances } from '../../../shared/bldCodes';
 import { validateAssemblyMappings, isValidAssemblyId, type AssemblyMapping } from '../../../shared/assemblyCodes';
-import { isValidQrgBlankId } from '../../../shared/qrgCodes';
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 
 export function extractAssemblyMappings(working: Record<string, any>, grfIds: Record<string, any> = {}): AssemblyMapping[] {
@@ -17,26 +19,8 @@ export function extractAssemblyMappings(working: Record<string, any>, grfIds: Re
 }
 
 export async function validateComposition(db: Firestore, input: { bldId: string; qrgId: string; mappings: AssemblyMapping[] }) {
-  if (!isValidQrgBlankId(input.qrgId)) throw new Error('Assembly requires a valid QRG blank identity.');
-  if (!input.bldId) throw new Error('Assembly requires a BLD.');
-  const [bldDoc, masters] = await Promise.all([
-    db.collection('bld_definitions').doc(input.bldId).get(),
-    db.collection('master_catalog').where('qrgBlankId', '==', input.qrgId).get(),
-  ]);
-  if (!masters.docs.some(d => d.data().isActive !== false && d.data().status !== 'archived')) throw new Error('QRG blank does not exist or is archived.');
-  if (!bldDoc.exists) throw new Error('Referenced BLD does not exist.');
-  const bld = bldDoc.data()!;
-  const bldError = validateBldStructure(bld);
-  if (bldError || bld.isActive === false) throw new Error(bldError || 'Referenced BLD is archived.');
-  const mappingError = validateAssemblyMappings(input.mappings, bld.instances);
-  if (mappingError) throw new Error(mappingError);
-  const assets: Record<string, any> = {};
-  for (const id of Array.from(new Set(input.mappings.map(m => m.grfId).filter(Boolean) as string[]))) {
-    const doc = await db.collection('grf_assets').doc(id).get();
-    const asset = doc.data();
-    if (!doc.exists || asset?.isActive === false || !asset?.publicUrl || asset?.registrationState === 'pending') throw new Error(`GRF ${id} is missing, archived, or unfinished.`);
-    assets[id] = asset;
-  }
+  const { issues, bld, assets } = await inspectComposition(db, input);
+  if (issues.length) throw new Error(issues.join(' '));
   return { bld, assets };
 }
 
@@ -46,27 +30,22 @@ export interface AutoAssemblyOptions {
 }
 export async function createAutoAssembly(db: Firestore, now: () => unknown, opts: AutoAssemblyOptions) {
   const mappings = extractAssemblyMappings(opts.working, opts.grfIds);
-  await validateComposition(db, { ...opts, mappings });
-  const counter = db.collection('asm_counters').doc('global');
   const packetRef = opts.packetId ? db.collection('productPackets').doc(opts.packetId) : null;
   return db.runTransaction(async tx => {
+    await validateComposition(transactionReader(db, tx), { ...opts, mappings });
     const packetDoc = packetRef ? await tx.get(packetRef) : null;
+    if (packetRef && !packetDoc?.exists) throw new Error('Packet not found.');
+    if (packetDoc?.data()?.bldId && packetDoc.data()!.bldId !== opts.bldId) throw new Error('Packet and Assembly reference different BLDs.');
     const existingId = packetDoc?.data()?.assemblyId;
     if (existingId) {
       const existing = (await tx.get(db.collection('assemblies').doc(existingId))).data();
-      if (!existing || existing.bldId !== opts.bldId || existing.qrgId !== opts.qrgId || JSON.stringify(existing.mappings) !== JSON.stringify(mappings)) throw new Error('Packet already has a different Assembly. Generate a new packet for edited content.');
+      if (!existing || existing.assemblyId !== existingId || !existing.packetIds?.includes(opts.packetId) || existing.bldId !== opts.bldId || existing.qrgId !== opts.qrgId || JSON.stringify(existing.mappings) !== JSON.stringify(mappings)) throw new Error('Packet already has a different Assembly. Generate a new packet for edited content.');
       return { assemblyId: existingId, sequence: existing.sequence, mappingCount: mappings.length };
     }
-    const count = (await tx.get(counter)).data()?.count ?? 0;
-    if (!Number.isInteger(count) || count < 0 || count >= 999999) throw new Error('Invalid or exhausted Assembly counter.');
-    const sequence = count + 1;
-    const assemblyId = `ASM-${String(sequence).padStart(6, '0')}`;
-    const ref = db.collection('assemblies').doc(assemblyId);
-    if ((await tx.get(ref)).exists) throw new Error('Assembly counter points to an existing record.');
-    tx.set(counter, { count: sequence }, { merge: true });
-    tx.create(ref, { assemblyId, sequence, qrgId: opts.qrgId, bldId: opts.bldId, mappings,
-      packetIds: opts.packetId ? [opts.packetId] : [], sourceSessionId: opts.sourceSessionId,
-      source: 'auto_commit', createdAt: now(), createdBy: 'system' });
+    const prepared = await prepareAssemblyDefinition(db, tx, now, { ...opts, mappings,
+      packetIds: opts.packetId ? [opts.packetId] : [], source: 'auto_commit', createdBy: 'system' });
+    prepared.write();
+    const { assemblyId, sequence } = prepared.definition;
     if (packetRef) tx.update(packetRef, { assemblyId, bldId: opts.bldId });
     return { assemblyId, sequence, mappingCount: mappings.length };
   });
@@ -78,9 +57,17 @@ export async function validatePacketComposition(db: Firestore, packetId: string,
   const asm = (await db.collection('assemblies').doc(packet.assemblyId).get()).data();
   if (!asm || !asm.packetIds?.includes(packetId)) throw new Error('Packet is not linked to its Assembly.');
   if (packet.bldId !== asm.bldId) throw new Error('Packet and Assembly reference different BLDs.');
+  if (asm.assemblyId !== packet.assemblyId) throw new Error('Assembly document identity does not match its stored ID.');
+  return validatePacketContent(db, packet, asm);
+}
+
+/** Check a candidate link before either side is written. */
+export async function validatePacketContent(db: Firestore, packet: Record<string, any>, asm: Record<string, any>) {
   const { bld, assets } = await validateComposition(db, asm as any);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   if (!sameBldStructure(bld, { context: 'S', layoutMode: builderBldLayoutMode(snapshot.graphics.content.graphicLayoutMode), instances: extractBldInstances(snapshot) })) throw new Error('Saved BLD differs from the rendered layout. Regenerate the packet.');
+  const qrPayloadHash = createHash('sha256').update(String(packet.qrContent || '').trim()).digest('hex');
+  if (assets[packet.qrGrfId]?.qrPayloadHash !== qrPayloadHash) throw new Error('QR payload differs from the registered graphic. Generate the packet again.');
   const expected = extractAssemblyMappings(snapshot, packet);
   if (JSON.stringify(expected) !== JSON.stringify(asm.mappings)) throw new Error('Assembly content differs from the generated packet. Regenerate it.');
   for (const layer of extractBuilderLayers(snapshot)) if (layer.imageUrl && layer.assetKey) {

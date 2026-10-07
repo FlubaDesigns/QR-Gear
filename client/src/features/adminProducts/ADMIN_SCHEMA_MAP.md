@@ -78,7 +78,7 @@ Each layer answers exactly one question. No layer answers another layer's questi
 
 **Firestore collections:**
 - `bld_definitions` — top-level BLD records. Doc ID = full BLD code
-- `bld_definitions/{bldId}/instances` — sub-collection (builder-generated only). One doc per layer. Doc ID = two-digit sequence (`01`–`09`)
+- Each root BLD record holds one flat `instances[]` array. No instance sub-collections.
 - `bld_counters` — atomic sequence counters. Doc ID = context+mode key (e.g. `SZ`, `SP`)
 
 **Valid vehicle types (the only valid values):**
@@ -99,20 +99,11 @@ Each layer answers exactly one question. No layer answers another layer's questi
 - Image content (the actual files)
 - Packet data
 
-**Builder-generated BLD docs also carry** (informational fields set at commit, not in draft):
-`sourceSessionId`, `sourceInstanceId`, `qrgBlankId` (from master), `qrgBaseCode`, `packetId`, `graphicLayoutMode`, `qrProductState`, `qrSizePercent`, `qrPositionX`, `qrPositionY`
+**BLD metadata:** `bldId`, `context`, `layoutMode`, `instanceCount`, `buildSequence`, `instances`, `name`, `source`, `isActive`, and timestamps. Session, product, packet, and GRF links are outside BLD.
 
-**Autosave BLD draft format** (`working.bldDraft` in `admin_build_sessions`):
-```ts
-{
-  layoutMode:    string,   // "zone" | "palette"
-  instanceCount: number,
-  layers:        Layer[]   // vehicle payload per slot
-}
-```
-No QRG fields. No GRF fields. Layout only.
+**Autosave draft:** `working.bldDraft` is derived by `shared/builderSnapshot.ts` using the shared layer extractor. It contains `context`, the canonical layout code, `instanceCount`, and `instances[]`. It is a projection, not a second source of structure.
 
-**Source files:** `functions/src/routes/bld.ts` (prod), `server/routes/` (dev mirror)
+**Runtime authority:** `shared/bldCodes.ts`, `functions/src/services/bld-store.ts`, and `functions/src/services/admin-composition-routes.ts`. Production and development register the same implementation.
 
 ---
 
@@ -120,55 +111,15 @@ No QRG fields. No GRF fields. Layout only.
 
 **Question answered:** What file is this asset?
 
-**Format:** `GRF-TT-K-NNNNNN`
+**Format:** `GRF-[assetClass][mediaType][channel][purpose][format]-[sequence]`
 
-| Segment | Meaning | Example |
-|---------|---------|---------|
-| TT | Type code (01–07) | 04 = QR graphic |
-| K | Role code (1–5) | 3 = Renderable |
-| NNNNNN | Sequence (000001–999999) | 000001 |
+The five code digits are asset class, media type, channel, purpose, and format. Their labels and permitted combinations come from `shared/graphicCodes.ts`; `shared/GRF_engine.ts` supplies the Library registration rules. There is no TT/K identity model.
 
-**Valid TT → K pairings:**
+**Storage:** `grf_assets/{grfId}` holds the canonical file record. `grf_counters/global` allocates the six-digit sequence. The record stores the parsed code components, MIME type, storage path, public URL, registration state, and archive state.
 
-| TT | Label | Valid K |
-|----|-------|---------|
-| 01 | upload_source | 1 |
-| 02 | cropped_derivative | 2 |
-| 03 | background | 3 |
-| 04 | qr_graphic | 3 |
-| 05 | canvas_design | 3, 4 |
-| 06 | url_artifact_asset | 3 |
-| 07 | template_graphic | 5 |
+**Build roles:** `GRF_PACKET_SLOTS` defines registration parameters for backgrounds, standalone QR files, print composites, URL snapshots, and store mockups. Assembly refers to these assets by `grfId`; it never stores an alternative file identity.
 
-Any undefined TT/K pairing → hard error, reject, do not save.
-
-**Firestore collections:**
-- `grf_assets/{grfId}` — asset file records
-- `grf_counters` — atomic sequence counters. Doc ID = `{TT}_{K}`
-
-**Key fields on a grf_assets doc:**
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `grfId` | string | Document ID = the GRF code |
-| `typeCode` | string | TT value |
-| `roleCode` | string | K value |
-| `typeName` | string | Human label from GRF_TYPE_MAP |
-| `mimeType` | string | Must be compatible with typeCode |
-| `storagePath` | string | GCS path |
-| `publicUrl` | string | Accessible URL |
-| `isActive` | boolean | false = archived |
-
-**GRF contains ONLY:** File identity. Nothing else.
-
-**GRF must NEVER contain:**
-- Layout data (that is BLD)
-- Context or placement (that is BLD)
-- Mapping logic (that is Assembly)
-- QRG identity (that is QRG)
-
-**Shared code:** `shared/graphicCodes.ts`
-Functions: `isValidGraphicId()`, `assertValidGraphicId()`, `parseGraphicId()`, `buildGraphicId()`, `grfCounterKey()`, `GRF_VALID_PAIRINGS`
+**Shared code:** `shared/graphicCodes.ts`, `shared/GRF_engine.ts`, and `functions/src/services/grf-store.ts`.
 
 ---
 
@@ -192,7 +143,7 @@ Functions: `isValidGraphicId()`, `assertValidGraphicId()`, `parseGraphicId()`, `
 
 **Mapping entry — asset slot (img, qrc):**
 ```ts
-{ seq: "01", type: "img", grfId: "GRF-03-3-000007" }
+{ seq: "01", type: "img", grfId: "GRF-11431-000007" }
 ```
 
 **Mapping entry — text slot (txt, act):**
@@ -200,19 +151,13 @@ Functions: `isValidGraphicId()`, `assertValidGraphicId()`, `parseGraphicId()`, `
 { seq: "02", type: "txt", value: "UNITED STATES ARMED FORCES", color: "#FFFFFF" }
 ```
 
-**GRF type compatibility per BLD vehicle:**
-
-| BLD vehicle | Compatible GRF TT |
-|-------------|-------------------|
-| `img` (background) | 03 |
-| `img` (overlay) | 02, 05 |
-| `qrc` | 04 |
+**GRF compatibility:** `validateAssemblyMappings()` reads canonical GRF identities. A QR slot requires `GRF_PACKET_SLOTS.qrStandalone`; an image slot cannot substitute for it. See `shared/graphicCodes.ts` and `shared/assemblyCodes.ts`.
 
 **Assembly rules:**
 - Every Assembly must have exactly one valid `qrgId` — no Assembly without QRG anchor
 - `qrgId` must resolve to a real, active `master_catalog` record
-- `qrgId` and `bldId` are immutable once the Assembly has linked Packets
-- Slot count must match required BLD slot count exactly
+- `qrgId`, `bldId`, and `mappings` are immutable while the Assembly is used by packets or saved builds
+- Each required slot must be mapped; optional slots may be omitted
 - Each required BLD slot → exactly one mapping (no missing, no duplicates)
 - Vehicle types must match BLD slot definitions
 - Slot order must match BLD sequence exactly
@@ -234,7 +179,7 @@ Functions: `isValidAssemblyId()`, `parseAssemblyId()`, `validateAssemblyMappings
 Before any build is executed, all of the following must pass:
 
 1. BLD exists and is valid
-2. Assembly slot count matches required BLD slot count
+2. Every mapping matches a BLD slot and each required slot is filled
 3. All required slots are assigned
 4. All GRF references resolve to valid, active `grf_assets` records
 5. All vehicle types match BLD slot expectations

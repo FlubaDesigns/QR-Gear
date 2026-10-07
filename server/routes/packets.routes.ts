@@ -1,3 +1,4 @@
+import { updatePacketWithComposition } from '../../functions/src/services/composition-links';
 import { validatePacketComposition, packetPrintifyArtwork } from '../../functions/src/services/assembly-store';
 import { deleteBuildPacket } from '../../functions/src/services/build-session-state';
 import { packetBuildFields } from '../../shared/builderSnapshot';
@@ -553,13 +554,6 @@ export function registerPacketRoutes(app: Express): void {
         return res.status(404).json({ error: "Packet not found" });
       }
       
-      // ── Publish guard (parity with functions pp-pricing-packets Fix 15) ──────
-      if (updates.status === 'published' || doc.data()?.status === 'published') {
-        try { await validatePacketComposition(firestoreDb, packetId, { ...doc.data(), ...updates }); }
-        catch (e: any) { return res.status(400).json({ error: e.message }); }
-      }
-      // ── end publish guard ─────────────────────────────────────────────────────
-
       // ── Data-URI guard: never let a raw base64 image reach Firestore ──────────
       // A base64 PNG is ~11 MB — far above Firestore's 1 MB document limit.
       // Strip any field whose value is a data: URI so the write always succeeds.
@@ -574,10 +568,7 @@ export function registerPacketRoutes(app: Express): void {
       }
       // ── end data-URI guard ────────────────────────────────────────────────────
 
-      await docRef.update({
-        ...safeUpdates,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      await updatePacketWithComposition(firestoreDb, packetId, safeUpdates, FieldValue.serverTimestamp());
 
       // ── GRF registration for mockup URLs (dev parity) ───────────────────
       const incomingLifestyle     = safeUpdates.lifestyleMockupUrl  || null;
