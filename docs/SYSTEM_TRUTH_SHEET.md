@@ -42,7 +42,6 @@ Store → Channel → Collection → Artifact
 - `qrDynamicsInstances` — QR Dynamics buyer instances
 - `member_earnings` — Creator earning records
 - `social_calendar` — Scheduled social media posts
-- `nexusmail_queue` — Email queue for NexusMail
 - Media/catalog/publishing records
 
 ### Postgres Owns

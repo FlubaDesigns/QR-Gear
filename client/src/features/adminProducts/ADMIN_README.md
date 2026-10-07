@@ -171,7 +171,6 @@ Selected blank is NOT inside the BLD draft. They are stored at different levels 
 | `/admin/settings` | AdminSettings | Platform-wide settings |
 | `/admin/health` | AdminHealth | System health monitoring |
 | `/admin/email-templates` | AdminEmailTemplates | Automated email configuration |
-| `/admin/email-health` | AdminEmailHealth | Email delivery monitoring |
 | `/admin/manual` | AdminManual | Admin manual |
 | `/admin/sales/build` | StoreBuild | Sales build flow |
 
@@ -296,11 +295,11 @@ Flow: Store Picker → Channel Picker → Catalog Browser → Product Configure 
 
 ---
 
-## Email System (NexusMail)
+## Email
 
-**Shared types:** `shared/nexusmail/` | **Implementation:** `functions/src/nexusmail/` | **Provider:** Resend
+**Implementation:** `functions/src/services/email.ts` | **Provider:** Resend
 
-Handles: order confirmations, shipping notifications, claim code delivery, welcome emails.
+Order confirmations and shipping notices use `email_templates` and `email_logs`, managed under System → Email. Activation emails use the same delivery service.
 
 ---
 

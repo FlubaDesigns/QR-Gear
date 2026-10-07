@@ -1,4 +1,6 @@
 import { Resend } from 'resend';
+import type { Firestore } from 'firebase-admin/firestore';
+import { createHash, randomUUID } from 'crypto';
 
   // ============ EMAIL SERVICE (QR Gear - Separate from KC) ============
 
@@ -108,13 +110,14 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
   `;
 
   try {
-    await client.emails.send({
+    const { data: sent, error } = await client.emails.send({
       from: QR_GEAR_FROM_EMAIL,
       to: customerEmail,
       subject: `Your QR Activation Code — ${productName}`,
       html,
     });
-    console.log(`[Email] Activation email sent to ${customerEmail} with code ${activationCode}`);
+    if (error || !sent?.id) return false;
+    console.log('[Email] Activation email accepted', { orderId });
     return true;
   } catch (err) {
     console.error('[Email] Failed to send activation email:', err);
@@ -124,4 +127,96 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
 
   export { getResendApiKey, getResendClient, QR_GEAR_FROM_EMAIL, sendActivationEmail };
   export type { OrderEmailData, ShippingEmailData, ActivationEmailData };
-  
+
+
+interface SendResult { success: boolean; reason?: string }
+interface SendOptions { resend?: boolean }
+
+function escapeEmailHtml(value: string): string {
+  return String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
+}
+
+// Uses the existing Email page's schema and collections, without a second queue.
+async function sendOrderEmail(
+  db: Firestore,
+  trigger: 'order_confirmation' | 'order_shipped',
+  orderId: string,
+  recipientEmail: string,
+  variables: Record<string, string>,
+  defaultSubject: string,
+  defaultText: string,
+  eventKey: string,
+  options: SendOptions,
+): Promise<SendResult> {
+  let subject = defaultSubject;
+  let templateId: string | null = null;
+  let result: SendResult;
+  let resendId: string | null = null;
+  try {
+    const templates = await db.collection('email_templates').where('trigger', '==', trigger).get();
+    if (templates.size > 1) throw new Error(`Multiple templates for ${trigger}; keep one in System → Email`);
+    const template = templates.docs[0]?.data();
+    templateId = templates.docs[0]?.id ?? null;
+    if (template?.isEnabled === false) throw new Error('Email template is disabled');
+    const render = (source: string, html: boolean): string => source.replace(/{{\s*(\w+)\s*}}/g, (_match, key: string) => {
+      if (!(key in variables)) throw new Error(`Unknown email template variable: ${key}`);
+      return html ? escapeEmailHtml(variables[key]) : variables[key];
+    });
+    subject = template ? render(template.subject, false) : defaultSubject;
+    const text = template?.textContent ? render(template.textContent, false) : defaultText;
+    const html = template?.htmlContent
+      ? render(template.htmlContent, true)
+      : `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><h1>QR Gear</h1><div style="white-space:pre-wrap">${escapeEmailHtml(text)}</div></div>`;
+    const client = getResendClient();
+    if (!client) throw new Error('Resend is not configured');
+    const idempotencyKey = options.resend ? `manual-${randomUUID()}` : createHash('sha256').update(`${trigger}:${orderId}:${eventKey}`).digest('hex');
+    const { data, error } = await client.emails.send({ from: QR_GEAR_FROM_EMAIL, to: recipientEmail, subject, html, text }, { idempotencyKey });
+    if (error) throw new Error(error.message);
+    if (!data?.id) throw new Error('Resend did not acknowledge the email');
+    resendId = data.id;
+    result = { success: true };
+  } catch (error) {
+    result = { success: false, reason: error instanceof Error ? error.message : 'Email send failed' };
+  }
+  try {
+    await db.collection('email_logs').add({
+      templateId, trigger, recipientEmail, subject, orderId,
+      status: result.success ? 'sent' : 'failed', resendId,
+      errorMessage: result.reason ?? null, sentAt: new Date().toISOString(),
+    });
+  } catch {
+    // A log failure must not turn an accepted email into a second send.
+    console.error('[Email] Could not save send log', { orderId, trigger, success: result.success });
+  }
+  return result;
+}
+
+export function sendOrderConfirmation(
+  db: Firestore, orderId: string, customerEmail: string, customerName: string,
+  items: OrderEmailData['items'], totalAmount: string,
+  shippingAddress?: OrderEmailData['shippingAddress'], options: SendOptions = {},
+): Promise<SendResult> {
+  const orderNumber = orderId.slice(0, 8).toUpperCase();
+  const itemText = items.map(item => `${item.productName} × ${item.quantity} — $${item.price}`).join('\n');
+  const address = shippingAddress ? [shippingAddress.address1, shippingAddress.address2, `${shippingAddress.city}, ${shippingAddress.region} ${shippingAddress.zip}`, shippingAddress.country].filter(Boolean).join('\n') : '';
+  return sendOrderEmail(db, 'order_confirmation', orderId, customerEmail,
+    { customerName, orderNumber, orderTotal: totalAmount, orderDate: new Date().toISOString().slice(0, 10), items: itemText },
+    `Order Confirmed — #${orderNumber}`,
+    `Hello ${customerName},\n\nThank you for your order #${orderNumber}.\n\n${itemText}\n\nTotal: $${totalAmount}${address ? `\n\nShip to:\n${address}` : ''}\n\nWe'll email you when tracking is available.`,
+    'confirmed', options);
+}
+
+export function sendShippingNotification(
+  db: Firestore, orderId: string, customerEmail: string, customerName: string,
+  trackingNumber: string, carrier: string, trackingUrl?: string, options: SendOptions = {},
+): Promise<SendResult> {
+  const orderNumber = orderId.slice(0, 8).toUpperCase();
+  // Do not include executable or unexpected URL schemes in email templates.
+  let safeTrackingUrl = '';
+  try { const url = new URL(trackingUrl || ''); if (url.protocol === 'https:' || url.protocol === 'http:') safeTrackingUrl = url.href; } catch { /* tracking URL is optional */ }
+  return sendOrderEmail(db, 'order_shipped', orderId, customerEmail,
+    { customerName, orderNumber, trackingNumber, carrier, trackingUrl: safeTrackingUrl },
+    `Your Order Has Shipped — #${orderNumber}`,
+    `Hello ${customerName},\n\nYour order #${orderNumber} has shipped.\nCarrier: ${carrier}\nTracking: ${trackingNumber}${safeTrackingUrl ? `\n${safeTrackingUrl}` : ''}`,
+    trackingNumber, options);
+}

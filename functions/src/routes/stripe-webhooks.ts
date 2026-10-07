@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
   import { db } from '../core';
   import { createCanonicalOrder, writePayoutAttribution, confirmEmbedOrderPayout } from '../services/order-service';
 import Stripe from 'stripe';
-import { sendOrderConfirmation as nexusOrderConfirmation } from '../nexusmail';
+import { sendOrderConfirmation } from '../services/email';
 import { submitOrderToPrintify } from '../services/printify';
 
   export function register(app: express.Express): void {
@@ -171,7 +171,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
               ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
               : customerDetails?.name || 'Customer';
 
-            await nexusOrderConfirmation(
+            await sendOrderConfirmation(
               db,
               orderId,
               customerEmail,

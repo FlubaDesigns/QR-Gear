@@ -4,7 +4,7 @@ exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const printify_1 = require("../services/printify");
-const nexusmail_1 = require("../nexusmail");
+const email_1 = require("../services/email");
 function register(app) {
     // ============ GIFT PACKAGES (ADMIN) ============
     app.get('/admin/gift-packages', middleware_1.requireAdmin, async (_req, res) => {
@@ -215,14 +215,14 @@ function register(app) {
             const updatedOrder = updatedOrderDoc.data();
             const hasTrackingNow = !!updatedOrder.trackingNumber;
             const hasNewTracking = hasTrackingNow && !hadTrackingBefore;
-            // Send shipping notification email via NexusMail if tracking was just added
+            // Send shipping notification email if tracking was just added
             let emailSent = false;
             if (hasNewTracking && updatedOrder.customerEmail) {
                 const shippingAddress = updatedOrder.shippingAddress;
                 const customerName = shippingAddress
                     ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
                     : 'Customer';
-                const emailResult = await (0, nexusmail_1.sendShippingNotification)(core_1.db, orderId, updatedOrder.customerEmail, customerName, updatedOrder.trackingNumber, updatedOrder.carrier || 'Carrier', updatedOrder.trackingUrl);
+                const emailResult = await (0, email_1.sendShippingNotification)(core_1.db, orderId, updatedOrder.customerEmail, customerName, updatedOrder.trackingNumber, updatedOrder.carrier || 'Carrier', updatedOrder.trackingUrl);
                 emailSent = emailResult.success;
             }
             res.json({
@@ -259,10 +259,10 @@ function register(app) {
             const customerName = shippingAddress
                 ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
                 : 'Customer';
-            // Use NexusMail for shipping notification (with admin override to bypass idempotency)
-            const result = await (0, nexusmail_1.sendShippingNotification)(core_1.db, orderId, order.customerEmail, customerName, order.trackingNumber, order.carrier || 'Carrier', order.trackingUrl);
+            // Send shipping notification (explicit admin resend)
+            const result = await (0, email_1.sendShippingNotification)(core_1.db, orderId, order.customerEmail, customerName, order.trackingNumber, order.carrier || 'Carrier', order.trackingUrl, { resend: true });
             if (result.success) {
-                res.json({ success: true, message: 'Shipping notification email sent via NexusMail' });
+                res.json({ success: true, message: 'Shipping notification email sent' });
             }
             else {
                 res.status(500).json({ success: false, error: result.reason });
@@ -309,17 +309,17 @@ function register(app) {
             const customerName = shippingAddress
                 ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
                 : 'Customer';
-            // Use NexusMail for order confirmation
-            const result = await (0, nexusmail_1.sendOrderConfirmation)(core_1.db, orderId, order.customerEmail, customerName, emailItems, order.totalAmount || '0', shippingAddress ? {
+            // Send order confirmation
+            const result = await (0, email_1.sendOrderConfirmation)(core_1.db, orderId, order.customerEmail, customerName, emailItems, order.totalAmount || '0', shippingAddress ? {
                 address1: shippingAddress.address1,
                 address2: shippingAddress.address2,
                 city: shippingAddress.city,
                 region: shippingAddress.region,
                 zip: shippingAddress.zip,
                 country: shippingAddress.country,
-            } : undefined);
+            } : undefined, { resend: true });
             if (result.success) {
-                res.json({ success: true, message: 'Order confirmation email resent via NexusMail' });
+                res.json({ success: true, message: 'Order confirmation email resent' });
             }
             else {
                 res.status(500).json({ success: false, error: result.reason });

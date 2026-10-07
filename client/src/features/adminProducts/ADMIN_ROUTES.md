@@ -58,7 +58,6 @@ Last verified: May 6, 2026
 | `/admin/settings` | `AdminSettings` | Platform settings |
 | `/admin/health` | `AdminHealth` | System health |
 | `/admin/email-templates` | `AdminEmailTemplates` | Email configuration |
-| `/admin/email-health` | `AdminEmailHealth` | Email delivery monitoring |
 | `/admin/manual` | `AdminManual` | Admin manual |
 
 ---

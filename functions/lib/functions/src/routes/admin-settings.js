@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
-const nexusmail_1 = require("../nexusmail");
 function register(app) {
     // ============ ADMIN PRICING RULES ============
     app.get('/admin/pricing-rules', middleware_1.requireAdmin, async (_req, res) => {
@@ -141,86 +140,6 @@ function register(app) {
         try {
             await core_1.db.collection('coupons').doc(req.params.id).delete();
             res.json({ success: true });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // ============ NEXUSMAIL ADMIN ENDPOINTS ============
-    // Get NexusMail status and health
-    app.get('/admin/nexusmail/status', middleware_1.requireAdmin, async (_req, res) => {
-        try {
-            const service = (0, nexusmail_1.getNexusMailService)(core_1.db);
-            const isReady = service.isReady();
-            const healthScore = service.getHealthScore();
-            const stats = await service.getStats();
-            res.json({
-                ready: isReady,
-                provider: isReady ? 'resend' : 'not_configured',
-                health: healthScore,
-                outboxStats: stats,
-            });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Seed default email templates
-    app.post('/admin/nexusmail/seed-templates', middleware_1.requireAdmin, async (_req, res) => {
-        try {
-            const service = (0, nexusmail_1.getNexusMailService)(core_1.db);
-            const templateStore = service.getTemplateStore();
-            const seeded = await (0, nexusmail_1.seedDefaultTemplates)(templateStore);
-            res.json({
-                success: true,
-                message: `Seeded ${seeded} templates`,
-                templatesSeeded: seeded,
-            });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Get outbox records
-    app.get('/admin/nexusmail/outbox', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const service = (0, nexusmail_1.getNexusMailService)(core_1.db);
-            const outboxRepo = service.getOutboxRepo();
-            const limit = parseInt(req.query.limit) || 50;
-            const records = await outboxRepo.getRecent(limit);
-            res.json({ records });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Process pending outbox items
-    app.post('/admin/nexusmail/process-outbox', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const service = (0, nexusmail_1.getNexusMailService)(core_1.db);
-            const limit = parseInt(req.body.limit) || 10;
-            const sent = await service.processOutbox(limit);
-            res.json({
-                success: true,
-                sent,
-                message: `Processed ${sent} emails`,
-            });
-        }
-        catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // Retry failed outbox items
-    app.post('/admin/nexusmail/retry-failed', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const service = (0, nexusmail_1.getNexusMailService)(core_1.db);
-            const limit = parseInt(req.body.limit) || 10;
-            const sent = await service.retryFailed(limit);
-            res.json({
-                success: true,
-                sent,
-                message: `Retried and sent ${sent} emails`,
-            });
         }
         catch (error) {
             res.status(500).json({ error: error.message });

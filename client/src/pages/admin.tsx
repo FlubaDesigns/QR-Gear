@@ -359,7 +359,6 @@ const QUICK_ACTIONS = [
   { label: "Marketplaces", icon: Globe, href: "/admin/marketplaces" },
   { label: "Orders", icon: ShoppingCart, href: "/admin/orders" },
   { label: "Payouts", icon: CreditCard, href: "/admin/external-sites" },
-  { label: "Email Health", icon: Mail, href: "/admin/email-health" },
   { label: "Pre-Launch", icon: Zap, href: "/admin/launch" },
 ];
 
@@ -408,7 +407,6 @@ const ADMIN_SECTIONS = [
   { title: "External Sites", description: "Embedded stores and affiliate payouts", icon: Globe, href: "/admin/external-sites" },
   { title: "System Health", description: "Provider status and system health", icon: Activity, href: "/admin/health" },
   { title: "Email Templates", description: "Email templates and logs", icon: Mail, href: "/admin/email-templates" },
-  { title: "Email Health", description: "Email system health and queue", icon: Mail, href: "/admin/email-health" },
   { title: "Settings", description: "API keys and integrations", icon: Settings, href: "/admin/settings" },
   { title: "Admin Manual", description: "Complete management guide", icon: Book, href: "/admin/manual" },
   { title: "Schema Keys", description: "QRG, GRF, ASM, VVS code reference", icon: FileText, href: "/admin/schema-keys" },

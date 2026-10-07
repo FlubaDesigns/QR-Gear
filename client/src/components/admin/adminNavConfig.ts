@@ -59,7 +59,6 @@ export const SYSTEM_SUBNAV: SubNavItem[] = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Health", href: "/admin/health", icon: Activity },
   { label: "Email", href: "/admin/email-templates", icon: Mail },
-  { label: "Email Health", href: "/admin/email-health", icon: Activity },
   { label: "Manual", href: "/admin/manual", icon: BookOpen },
 ];
 
@@ -103,7 +102,6 @@ const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
       "/admin/settings",
       "/admin/health",
       "/admin/email-templates",
-      "/admin/email-health",
       "/admin/manual",
       "/admin/ar-demo",
     ],

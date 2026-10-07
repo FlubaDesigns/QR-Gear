@@ -36,7 +36,6 @@ import AdminCoupons from "@/pages/admin-coupons";
 import AdminHealth from "@/pages/admin-health";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminEmailTemplates from "@/pages/admin-email-templates";
-import AdminEmailHealth from "@/pages/admin-email-health";
 import AdminManual from "@/pages/admin-manual";
 import AdminSettings from "@/pages/admin-settings";
 import ShopSegment from "@/pages/shop-segment";
@@ -145,7 +144,6 @@ function Router() {
       <Route path="/admin/health">{() => <AdminRoute><AdminHealth /></AdminRoute>}</Route>
       <Route path="/admin/customers">{() => <AdminRoute><AdminCustomers /></AdminRoute>}</Route>
       <Route path="/admin/email-templates">{() => <AdminRoute><AdminEmailTemplates /></AdminRoute>}</Route>
-      <Route path="/admin/email-health">{() => <AdminRoute><AdminEmailHealth /></AdminRoute>}</Route>
       <Route path="/admin/manual">{() => <AdminRoute><AdminManual /></AdminRoute>}</Route>
       <Route path="/admin/settings">{() => <AdminRoute><AdminSettings /></AdminRoute>}</Route>
       <Route path="/admin/sales/build">{() => <AdminRoute><StoreBuild /></AdminRoute>}</Route>

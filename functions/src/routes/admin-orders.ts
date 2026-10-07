@@ -12,7 +12,7 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { getNexusMailService, sendOrderConfirmation as nexusOrderConfirmation, sendShippingNotification as nexusShippingNotification, seedDefaultTemplates } from '../nexusmail';
+import { sendOrderConfirmation, sendShippingNotification } from '../services/email';
 
   export function register(app: express.Express): void {
   // ============ GIFT PACKAGES (ADMIN) ============
@@ -255,7 +255,7 @@ app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, r
     const hasTrackingNow = !!updatedOrder.trackingNumber;
     const hasNewTracking = hasTrackingNow && !hadTrackingBefore;
 
-    // Send shipping notification email via NexusMail if tracking was just added
+    // Send shipping notification email if tracking was just added
     let emailSent = false;
     if (hasNewTracking && updatedOrder.customerEmail) {
       const shippingAddress = updatedOrder.shippingAddress;
@@ -263,7 +263,7 @@ app.post('/admin/orders/:id/sync-printify', requireAdmin, async (req: Request, r
         ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
         : 'Customer';
 
-      const emailResult = await nexusShippingNotification(
+      const emailResult = await sendShippingNotification(
         db,
         orderId,
         updatedOrder.customerEmail,
@@ -315,19 +315,20 @@ app.post('/admin/orders/:id/send-shipping-email', requireAdmin, async (req: Requ
       ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
       : 'Customer';
 
-    // Use NexusMail for shipping notification (with admin override to bypass idempotency)
-    const result = await nexusShippingNotification(
+    // Send shipping notification (explicit admin resend)
+    const result = await sendShippingNotification(
       db,
       orderId,
       order.customerEmail,
       customerName,
       order.trackingNumber,
       order.carrier || 'Carrier',
-      order.trackingUrl
+      order.trackingUrl,
+      { resend: true }
     );
     
     if (result.success) {
-      res.json({ success: true, message: 'Shipping notification email sent via NexusMail' });
+      res.json({ success: true, message: 'Shipping notification email sent' });
     } else {
       res.status(500).json({ success: false, error: result.reason });
     }
@@ -380,8 +381,8 @@ app.post('/admin/orders/:id/resend-confirmation', requireAdmin, async (req: Requ
       ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim() 
       : 'Customer';
 
-    // Use NexusMail for order confirmation
-    const result = await nexusOrderConfirmation(
+    // Send order confirmation
+    const result = await sendOrderConfirmation(
       db,
       orderId,
       order.customerEmail,
@@ -395,11 +396,12 @@ app.post('/admin/orders/:id/resend-confirmation', requireAdmin, async (req: Requ
         region: shippingAddress.region,
         zip: shippingAddress.zip,
         country: shippingAddress.country,
-      } : undefined
+      } : undefined,
+      { resend: true }
     );
     
     if (result.success) {
-      res.json({ success: true, message: 'Order confirmation email resent via NexusMail' });
+      res.json({ success: true, message: 'Order confirmation email resent' });
     } else {
       res.status(500).json({ success: false, error: result.reason });
     }

@@ -116,7 +116,6 @@ These are the ONLY Firestore collections that should be used. Do NOT create new 
 ### Email
 | Collection | Purpose | Used By |
 |---|---|---|
-| `email_outbox` | NexusMail outbound queue | Dev |
 | `email_templates` | Email template definitions | Dev |
 
 ### Analytics

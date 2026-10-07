@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
-const nexusmail_1 = require("../nexusmail");
+const email_1 = require("../services/email");
 const constants_1 = require("../constants");
 async function buildQueue() {
     const items = [];
@@ -22,77 +22,18 @@ async function buildQueue() {
                 });
             }
         })(),
-        // 2. NexusMail / Resend health
+        // 2. Transactional email configuration
         (async () => {
-            try {
-                const service = (0, nexusmail_1.getNexusMailService)(core_1.db);
-                if (!service.isReady()) {
-                    items.push({
-                        id: 'email-not-configured',
-                        title: 'Email not configured',
-                        reason: 'Resend API key not set — transactional emails will not send',
-                        priority: 'critical',
-                        category: 'email',
-                        href: '/admin/settings',
-                    });
-                    return;
-                }
-                const health = await service.getHealthScore();
-                const stats = await service.getStats();
-                if (health?.isPaused) {
-                    items.push({
-                        id: 'email-paused',
-                        title: 'Email system is paused',
-                        reason: 'NexusMail outbox is paused — emails will not send until resumed',
-                        priority: 'critical',
-                        category: 'email',
-                        href: '/admin/email-health',
-                    });
-                }
-                else if (health?.status === 'unhealthy') {
-                    items.push({
-                        id: 'email-unhealthy',
-                        title: 'Email system unhealthy',
-                        reason: `Health score ${health.score}/100 — ${health.consecutiveFailures} consecutive failures`,
-                        priority: 'critical',
-                        category: 'email',
-                        href: '/admin/email-health',
-                    });
-                }
-                else if (health?.status === 'degraded') {
-                    items.push({
-                        id: 'email-degraded',
-                        title: 'Email system degraded',
-                        reason: `Health score ${health.score}/100 — delivery may be unreliable`,
-                        priority: 'important',
-                        category: 'email',
-                        href: '/admin/email-health',
-                    });
-                }
-                if (stats?.dead > 0) {
-                    items.push({
-                        id: 'email-dead-letters',
-                        title: 'Dead email messages in outbox',
-                        reason: `${stats.dead} message${stats.dead === 1 ? '' : 's'} permanently failed — manual review needed`,
-                        priority: 'critical',
-                        category: 'email',
-                        href: '/admin/email-health',
-                        count: stats.dead,
-                    });
-                }
-                if (stats?.failed > 0) {
-                    items.push({
-                        id: 'email-failed',
-                        title: 'Failed emails in outbox',
-                        reason: `${stats.failed} message${stats.failed === 1 ? '' : 's'} failed — will retry automatically`,
-                        priority: 'important',
-                        category: 'email',
-                        href: '/admin/email-health',
-                        count: stats.failed,
-                    });
-                }
+            if (!(0, email_1.getResendClient)()) {
+                items.push({
+                    id: 'email-not-configured',
+                    title: 'Email not configured',
+                    reason: 'Resend API key not set — transactional emails will not send',
+                    priority: 'critical',
+                    category: 'email',
+                    href: '/admin/settings',
+                });
             }
-            catch { /* nexusmail may not be configured */ }
         })(),
         // 3. Marketplace sync jobs — failed
         (async () => {

@@ -150,16 +150,6 @@ These 88 admin routes exist in both the dev server and the Cloud Function. They 
 | POST | `/admin/queue/retry-failed` | `/api/admin/queue/retry-failed` | Synced |
 | GET | — | `/api/admin/queue/status` | Dev-only (CF missing GET) |
 
-### 1.11 NexusMail
-
-| Method | Route (CF path) | Dev Server Path | Status |
-|--------|----------------|-----------------|--------|
-| GET | `/admin/nexusmail/outbox` | `/api/admin/nexusmail/outbox` | Synced |
-| GET | `/admin/nexusmail/status` | `/api/admin/nexusmail/status` | Synced |
-| POST | `/admin/nexusmail/process-outbox` | `/api/admin/nexusmail/process-outbox` | Synced |
-| POST | `/admin/nexusmail/retry-failed` | `/api/admin/nexusmail/retry-failed` | Synced |
-| POST | `/admin/nexusmail/seed-templates` | `/api/admin/nexusmail/seed-templates` | Synced |
-
 ### 1.12 Packets
 
 | Method | Route (CF path) | Dev Server Path | Status |

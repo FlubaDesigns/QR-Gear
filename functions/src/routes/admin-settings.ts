@@ -12,7 +12,6 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { getNexusMailService, sendOrderConfirmation as nexusOrderConfirmation, sendShippingNotification as nexusShippingNotification, seedDefaultTemplates } from '../nexusmail';
 
   export function register(app: express.Express): void {
   // ============ ADMIN PRICING RULES ============
@@ -164,92 +163,5 @@ app.delete('/admin/coupons/:id', requireAdmin, async (req: Request, res: Respons
 });
 
 
-// ============ NEXUSMAIL ADMIN ENDPOINTS ============
 
-// Get NexusMail status and health
-app.get('/admin/nexusmail/status', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const service = getNexusMailService(db);
-    const isReady = service.isReady();
-    const healthScore = service.getHealthScore();
-    const stats = await service.getStats();
-
-    res.json({
-      ready: isReady,
-      provider: isReady ? 'resend' : 'not_configured',
-      health: healthScore,
-      outboxStats: stats,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Seed default email templates
-app.post('/admin/nexusmail/seed-templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const service = getNexusMailService(db);
-    const templateStore = service.getTemplateStore();
-    const seeded = await seedDefaultTemplates(templateStore);
-    
-    res.json({ 
-      success: true, 
-      message: `Seeded ${seeded} templates`,
-      templatesSeeded: seeded,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get outbox records
-app.get('/admin/nexusmail/outbox', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const service = getNexusMailService(db);
-    const outboxRepo = service.getOutboxRepo();
-    const limit = parseInt(req.query.limit as string) || 50;
-    const records = await outboxRepo.getRecent(limit);
-    
-    res.json({ records });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Process pending outbox items
-app.post('/admin/nexusmail/process-outbox', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const service = getNexusMailService(db);
-    const limit = parseInt(req.body.limit) || 10;
-    const sent = await service.processOutbox(limit);
-    
-    res.json({ 
-      success: true, 
-      sent,
-      message: `Processed ${sent} emails`,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Retry failed outbox items
-app.post('/admin/nexusmail/retry-failed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const service = getNexusMailService(db);
-    const limit = parseInt(req.body.limit) || 10;
-    const sent = await service.retryFailed(limit);
-    
-    res.json({ 
-      success: true, 
-      sent,
-      message: `Retried and sent ${sent} emails`,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-  }
-  
+}

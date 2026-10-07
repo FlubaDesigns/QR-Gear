@@ -45,7 +45,6 @@ const routeLabels: Record<string, string> = {
   "coupons": "Coupons",
   "dashboard": "Dashboard",
   "email-templates": "Email Templates",
-  "email-health": "Email Health",
   "sales": "Sales",
   "earn": "Earn",
   "success": "Success",

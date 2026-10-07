@@ -27,7 +27,6 @@ The authoritative data model documentation lives in:
 | `admin_catalog_instances` | auto-id | Committed product instances |
 | `admin_build_shelf` | auto-id | Admin build shelf entries (shelfKey = `qrg_STNNN`) |
 | `admin_build_sessions` | auto-id | Builder session state |
-| `email_outbox` | auto-id | NexusMail outbox queue |
 | `email_templates` | auto-id | Email template records |
 
 > Provider IDs (`py_NNN`, `pf_NNN`, `pf:NNN`) are lookup references only. They are **never** persisted as document identity in any collection.

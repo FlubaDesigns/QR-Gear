@@ -223,39 +223,13 @@ const sections: ManualSection[] = [
   },
   {
     id: "email",
-    title: "NexusMail System",
+    title: "Transactional Email",
     icon: Mail,
     content: (
       <div className="space-y-6">
-        <p>NexusMail is the self-healing email system powering QR Gear's transactional emails.</p>
-        
-        <div className="space-y-3">
-          <h4 className="font-semibold">Email Types</h4>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong>Order Confirmation</strong> - Sent automatically when checkout completes</li>
-            <li><strong>Shipping Notification</strong> - Sent when tracking info is available</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-semibold">Email Status Types</h4>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong>QUEUED</strong> - Email is waiting to be sent</li>
-            <li><strong>SENDING</strong> - Currently being sent</li>
-            <li><strong>SENT</strong> - Delivered successfully</li>
-            <li><strong>FAILED</strong> - Failed but will be retried</li>
-            <li><strong>DEAD</strong> - Failed permanently (max retries exceeded)</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-semibold">First-Time Setup</h4>
-          <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-            <li>Make an API call to <code className="px-1 bg-muted rounded">POST /admin/nexusmail/seed-templates</code></li>
-            <li>This creates the default email templates in Firestore</li>
-            <li>Emails will now use the NexusMail system</li>
-          </ol>
-        </div>
+        <p>QR Gear sends order confirmations, shipping notices, and activation emails through Resend.</p>
+        <p>Use System → Email for order and shipping templates and send logs. If no template is saved, the built-in email is used. A disabled template stops that email.</p>
+        <p>Sent means Resend accepted the email; it does not confirm inbox delivery. Failed sends show their error in the log. Use the order page to resend a confirmation or shipping notice.</p>
       </div>
     ),
   },
