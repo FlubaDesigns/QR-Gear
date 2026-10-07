@@ -20,7 +20,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => mocks.queryClient,
   useQuery: ({ queryKey }: any) => ({ data:
     queryKey[0] === '/api/admin/catalogs' ? mocks.catalogData :
-    queryKey[0] === '/api/master-catalog' ? mocks.categories : undefined,
+    queryKey[0] === '/api/master-catalog' ? mocks.categories :
+    queryKey[0] === 'catalog-products' ? mocks.categories.find((cat: any) => cat.name === queryKey[2]) : undefined,
   }),
 }));
 vi.mock('@/features/shared/components/skins/ProductSelectCardSkin', () => ({
@@ -87,6 +88,50 @@ afterEach(() => {
 });
 
 describe('Product selection through the real builder context', () => {
+  it('leaves the entire build unchanged when the selected QR type is tapped again', async () => {
+    await mount();
+    await act(async () => { current.selectProduct(blank()); });
+    await resolveOptions(0);
+    await act(async () => { current.setQRProductState('qr_plus'); });
+    await act(async () => {
+      current.setContent({ title: 'Keep my design', url: 'https://example.com' });
+      current.togglePlacement('front');
+      current.setPlacementSize('front', 'small');
+      current.setPlacementMethod('front', 'dtg');
+    });
+    const before = current.state;
+    await act(async () => { current.setQRProductState('qr_plus'); });
+    expect(current.state).toBe(before);
+    await act(async () => { current.setQRProductState('qr_canvas'); });
+    expect(current.state.qrProductState).toBe('qr_canvas');
+    expect(current.state.content.title).toBe('');
+    expect(current.state.selectedPlacements).toEqual([]);
+  });
+
+  it('shows restored origin filters from the same state that filters the product cards', async () => {
+    mocks.categories[0].items[1].madeInUSA = false;
+    await mount(true);
+    const control = (id: string) => tree.root.findAll(n => typeof n.type === 'string' && n.props['data-testid'] === id)[0];
+    await act(async () => { control('qrg-super-category-1').props.onClick(); });
+    await act(async () => { control('qrg-sub-category-11').props.onClick(); });
+    await act(async () => { control('button-toggle-more-filters').props.onClick(); });
+    for (const [originFilter, selected, expectedIds] of [
+      [{ showUSA: true, showOther: false }, 'usa', ['qrg_11001']],
+      [{ showUSA: false, showOther: true }, 'other', ['qrg_11002']],
+      [{ showUSA: true, showOther: true }, 'all', ['qrg_11001', 'qrg_11002']],
+    ] as const) {
+      await act(async () => { current.loadFromWorkingState({ metadata: { category: 'T-Shirts', originFilter, genderFilter: 'all' } }); });
+      expect(tree.root.findAllByType('product-card').map(c => c.props.item.id)).toEqual(expectedIds);
+      for (const location of ['all', 'usa', 'other']) {
+        const badge = tree.root.findAll(n => typeof n.type === 'function' && n.props['data-testid'] === `filter-location-${location}`)[0];
+        expect(badge.props.variant).toBe(location === selected ? 'default' : 'outline');
+      }
+    }
+    await act(async () => { control('filter-location-usa').props.onClick(); });
+    expect(current.state.originFilter).toEqual({ showUSA: true, showOther: false });
+    expect(tree.root.findAllByType('product-card').map(c => c.props.item.id)).toEqual(['qrg_11001']);
+  });
+
   it('loads sizes and colors, then clears blank-specific state when selecting another QRG blank with the same provider ID', async () => {
     await mount();
     await act(async () => { current.selectProduct(blank()); });

@@ -1,11 +1,11 @@
 import { SaveDraftDialog } from './modules/SaveDraftDialog';
 import { useToast } from '@/hooks/use-toast';
-import { LoadBldModule } from './modules/LoadBldModule';
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronDown, ChevronRight, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import type { BuilderState } from "./types";
+import { QR_PRODUCT_STATES } from "./types";
 import { StateModule } from "./modules/StateModule";
 import { PlacementModule, ColorSection } from "./modules/PlacementModule";
 import type { ProductColor } from "./types";
@@ -39,14 +39,6 @@ const SECTIONS: SectionDef[] = [
   { key: "layout", label: "Layout", number: 4 },
   { key: "output", label: "Output", number: 5 },
 ];
-
-const QR_LABEL: Record<string, string> = {
-  qr_canvas: "QR Canvas",
-  qr_basics: "QR Basics",
-  qr_plus: "QR Plus",
-  qr_play: "QR Play",
-  qr_compose: "QR Compose",
-};
 
 type SectionStatus = "complete" | "partial" | "missing";
 
@@ -94,7 +86,7 @@ function getSectionSummary(key: SectionKey, state: BuilderState): string {
   switch (key) {
     case "product": {
       if (!state.selectedProduct) return "No product selected";
-      const qrLabel = state.qrProductState ? (QR_LABEL[state.qrProductState] ?? state.qrProductState) : "";
+      const qrLabel = QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label ?? "";
       return [state.selectedProduct.title, qrLabel].filter(Boolean).join(" · ");
     }
     case "design":
@@ -318,7 +310,6 @@ function BuilderModules() {
         <SaveDraftDialog open={saveOpen} onOpenChange={setSaveOpen} />
 
         <BuilderSummaryCard />
-        <LoadBldModule />
 
         <LoadSavedModule open={savedOpen} onOpenChange={setSavedOpen} hideCard />
         <LoadTemplateModule open={templateOpen} onOpenChange={setTemplateOpen} hideCard />

@@ -710,7 +710,7 @@ const colors = item.availableColors;
 
 ### Product builder: saved layouts and complete composition
 
-Use **Saved Styles** to load a physical BLD without leaving the product builder. The layout supplies fonts, geometry, and slot types; add your own words and images. The selected BLD survives draft saves and packet reopening. An unchanged structure reuses the existing BLD; a structural change creates a new definition. Layouts the current physical editor cannot represent report an explicit error.
+Use **Templates** in the product builder's command strip to start a separate draft from a saved product build, including its layout and content. There is no separate Saved Styles picker. BLD remains the structural source of truth behind generation: its identity survives draft saves and packet reopening, unchanged structure reuses the existing BLD, and structural changes create a new definition.
 
 Generation captures one builder snapshot and renders each selected placement using its saved provider dimensions. Failed rendering or uploads stop generation with an error. Commit registers QR, area/header/footer images, composites, and destination previews through the shared backend GRF registrar, then binds every required slot in Assembly. Destination text/backgrounds are excluded from physical BLD layers.
 

@@ -1,7 +1,6 @@
 import { fetchBuildCatalog, resolveBuildProduct } from './restoreProduct';
 import { isQRGBlankId } from '@shared/blankKeys';
 import { normalizeProductColors, normalizeProductSizes } from '@shared/adapters/catalog.adapter';
-import { applyBuilderBld } from '@shared/bldCodes';
 import { buildWorkingSnapshot, sanitizeSnapshot, requireBuilderSnapshot } from '@shared/builderSnapshot';
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
@@ -21,7 +20,6 @@ interface BuilderContextValue {
   selectedChannel: Channel | null;
   selectedCollection: Collection | null;
   setSourceType: (type: SourceType) => void;
-  loadBld: (definition: Record<string, any>) => void;
   loadTemplate: (template: LoadedTemplate) => void;
   loadGraphic: (graphic: LoadedGraphic) => void;
   loadBackground: (background: LoadedBackground | null) => void;
@@ -699,7 +697,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, [fetchOptionsForProduct, setSelectedProviders]);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {
-    setState(prev => ({
+    setState(prev => prev.qrProductState === qrState ? prev : ({
       ...prev,
       qrProductState: qrState,
       content: initialContent,
@@ -709,12 +707,6 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementMethods: {},
     }));
   }, []);
-
-  const loadBld = useCallback((definition: Record<string, any>) => {
-    // Validate before React's updater so the picker can display a useful error.
-    const content = applyBuilderBld(definition, state.content);
-    setState(prev => ({ ...prev, content: content as ContentData, selectedBldId: definition.bldId }));
-  }, [state.content]);
 
   const setContent = useCallback((content: Partial<ContentData>) => {
     setState(prev => ({
@@ -999,7 +991,6 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     selectProduct,
     setQRProductState,
     setContent,
-    loadBld,
     togglePlacement,
     setPlacementType,
     setPlacementSize,
@@ -1016,7 +1007,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     loadFromPacketData,
     loadFromWorkingState,
     api,
-  }), [state, busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, loadBld, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
+  }), [state, busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
 
   return (
     <BuilderContext.Provider value={value}>

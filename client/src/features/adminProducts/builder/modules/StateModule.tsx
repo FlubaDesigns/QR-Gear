@@ -78,9 +78,7 @@ export function StateModule() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm">{qrState.label}</p>
-                        {!isMobile && (
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{qrState.description}</p>
-                        )}
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{qrState.description}</p>
                       </div>
                       {isSelected && (
                         <Badge variant="default" className="flex-shrink-0 text-xs">

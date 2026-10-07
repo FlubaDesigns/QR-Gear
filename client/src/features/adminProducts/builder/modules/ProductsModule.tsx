@@ -177,13 +177,12 @@ export function ProductsModule() {
   const selectedCatalogId = state.selectedCatalogId;
 
   const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
-  const [dataMode, setDataMode] = useState<DataMode>(() => {
-    const id = state.selectedCatalogId;
-    if (!id || id === "all") return "all";
-    if (id === "joint") return "joint";
-    return "catalog";
-  });
+  // Display selections are projections of the same state used by filtering and saves.
+  const locationFilter = state.originFilter.showUSA
+    ? (state.originFilter.showOther ? "all" : "usa")
+    : (state.originFilter.showOther ? "other" : "none");
+  const dataMode: DataMode = !selectedCatalogId || selectedCatalogId === "all"
+    ? "all" : selectedCatalogId === "joint" ? "joint" : "catalog";
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [openShelfIds, setOpenShelfIds] = useState<Set<string>>(new Set());
@@ -201,14 +200,7 @@ export function ProductsModule() {
   const [qrgSubCategory, setQrgSubCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedCatalogId || selectedCatalogId === "all") {
-      setDataMode("all");
-    } else if (selectedCatalogId === "joint") {
-      setDataMode("joint");
-      setQrgSuperCategory(null);
-      setQrgSubCategory(null);
-    } else {
-      setDataMode("catalog");
+    if (selectedCatalogId && selectedCatalogId !== "all") {
       setQrgSuperCategory(null);
       setQrgSubCategory(null);
     }
@@ -331,16 +323,8 @@ export function ProductsModule() {
 
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
-    if (catalogId === "all") {
-      setDataMode("all");
-    } else if (catalogId === "joint") {
-      setDataMode("joint");
-      selectProduct(null);
-    } else {
-      setDataMode("catalog");
-      selectProduct(null);
-    }
-  }, [selectProduct]);
+    if (catalogId !== "all") selectProduct(null);
+  }, [selectProduct, setSelectedCatalogId]);
 
   // catalogModeProducts — derived from master_catalog filtered by catalog.blankIds.
   // Mirrors the approach used by useAdminBlanksController (the working "add blanks" path):
@@ -404,7 +388,6 @@ export function ProductsModule() {
   });
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
-    setLocationFilter(loc);
     if (loc === "all") setOriginFilter({ showUSA: true, showOther: true });
     else if (loc === "usa") setOriginFilter({ showUSA: true, showOther: false });
     else setOriginFilter({ showUSA: false, showOther: true });
