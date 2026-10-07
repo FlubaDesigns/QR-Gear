@@ -1,7 +1,7 @@
-import { AlertTriangle, Tag, Archive, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AlertTriangle, Tag, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL, isValidGrfId } from "@shared/GRF_engine";
+import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL, isValidGrfId, inspectGrfAsset } from "@shared/GRF_engine";
 import type { GrfChannel } from "@shared/GRF_engine";
 import type { CardSkinProps, DetailSkinProps } from "./types";
 
@@ -48,10 +48,6 @@ function resolvePurposeLabel(channel: string, purpose: string) {
   return entry ? { label: entry.label, valid: true } : { label: purpose || "—", valid: false };
 }
 
-function isValidMime(mimeType: string) {
-  return mimeType?.startsWith("image/") ?? false;
-}
-
 function MissingBadge({ text }: { text: string }) {
   return (
     <Badge variant="destructive" className="text-xs gap-1 font-mono">
@@ -72,8 +68,8 @@ export function AdminGraphicCardSkin({ item, onClick, actions, isSelected, isAct
   const channelResult   = resolveChannelLabel(channel);
   const purposeResult   = resolvePurposeLabel(channel, purpose);
   const idValid         = isValidGrfId(grfId);
-  const mimeValid       = isValidMime(mimeType);
-  const hasWarning      = !channelResult.valid || !purposeResult.valid || !idValid || !mimeValid;
+  const mimeValid       = !inspectGrfAsset(raw || { grfId }).some(issue => issue.startsWith('MIME'));
+  const hasWarning = inspectGrfAsset(raw || { grfId }).length > 0;
 
   return (
     <div
@@ -128,11 +124,11 @@ export function AdminGraphicCardSkin({ item, onClick, actions, isSelected, isAct
           </p>
         </div>
       </button>
-      {actions?.onArchive && (
+      {actions?.onDelete && (
         <Button variant="ghost" className="w-full min-h-[44px]" disabled={isActionPending}
-          onClick={() => actions.onArchive!(item.id)}
-          data-testid={`button-archive-graphic-${item.id}`}>
-          <Archive className="h-4 w-4" />Archive
+          onClick={() => actions.onDelete!(item.id)}
+          data-testid={`button-delete-graphic-${item.id}`}>
+          <Trash2 className="h-4 w-4" />Delete
         </Button>
       )}
     </div>
@@ -159,10 +155,11 @@ export function AdminGraphicDetailSkin({
   const channelResult = resolveChannelLabel(channel);
   const purposeResult = resolvePurposeLabel(channel, purpose);
   const idValid       = isValidGrfId(grfId);
-  const mimeValid     = isValidMime(mimeType);
+  const mimeValid     = !inspectGrfAsset(raw || { grfId }).some(issue => issue.startsWith('MIME'));
 
   return (
     <div className="w-full min-w-0 space-y-3">
+      {inspectGrfAsset(raw || { grfId }).map(issue => <p role="alert" className="text-sm text-destructive" key={issue}>{issue}</p>)}
       {/* Name + schema badges */}
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="min-w-0">
@@ -249,17 +246,17 @@ export function AdminGraphicDetailSkin({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          {actions?.onArchive && (
+          {actions?.onDelete && (
             <Button
               variant="destructive"
               size="default"
               className="min-h-[44px]"
-              onClick={() => actions.onArchive!(item.id)}
+              onClick={() => actions.onDelete!(item.id)}
               disabled={isActionPending}
-              data-testid="button-detail-archive"
+              data-testid="button-detail-delete"
             >
               {isActionPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-              Archive
+              Delete
             </Button>
           )}
           <Button variant="outline" size="default" className="min-h-[44px]" onClick={onClose} data-testid="button-detail-close">

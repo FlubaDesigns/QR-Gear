@@ -1,6 +1,5 @@
 import { updatePacketWithComposition } from '../services/composition-links';
 import { validatePacketComposition } from '../services/assembly-store';
-import { deleteBuildPacket } from '../services/build-session-state';
 import { packetBuildFields } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -379,19 +378,5 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
   }
 });
 
-app.delete('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { packetId } = req.params;
-    if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const docRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
-    const doc = await docRef.get();
-    if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-      await deleteBuildPacket(db, packetId, admin.firestore.FieldValue.serverTimestamp());
-      res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
-  } catch (error: any) {
-    console.error("[Packets DELETE] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
   }

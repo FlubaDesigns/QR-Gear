@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import { extractBuilderLayers } from '../../../shared/bldCodes';
 import {
   buildGrfId, parseGrfId, grfStoragePath,
-  GRF_COUNTER_KEY, GRF_PACKET_SLOTS, isValidGrfId,
+  GRF_COUNTER_KEY, GRF_PACKET_SLOTS, isValidGrfId, inspectGrfAsset,
   originalGrfParams, croppedGrfParams, backgroundGrfParams,
 } from '../../../shared/GRF_engine';
 import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/GRF_engine';
@@ -86,6 +86,10 @@ async function registerGrfAsset(
     sourceSessionId, packetId,
   } = opts;
 
+  // Validate the encoded identity and MIME before reserving an ID or uploading bytes.
+  const expected = parseGrfId(buildGrfId({ assetClass, mediaType, channel, purpose, format, sequence: 1 }));
+  const schemaErrors = inspectGrfAsset({ grfId: buildGrfId({ assetClass, mediaType, channel, purpose, format, sequence: 1 }), assetClass, mediaType, channel, purpose, format, mimeType: mimeType || expected.mimeType });
+  if (schemaErrors.length) throw new LibraryImageError(schemaErrors.join(' '));
   if (!sourceUrl && !imageData) {
     throw new Error('[GRFRegistrar] Either sourceUrl or imageData is required');
   }
@@ -171,7 +175,7 @@ async function registerGrfAsset(
     channelName:    parsed.channelName,
     purposeName:    parsed.purposeName,
     formatName:     parsed.formatName,
-    mimeType:       mimeType || parsed.mimeType,
+    mimeType:       parsed.mimeType,
     name:           name    || `${parsed.purposeName} ${grfId}`,
     description:    description    || null,
     storagePath,

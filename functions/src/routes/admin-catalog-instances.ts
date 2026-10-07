@@ -1,3 +1,4 @@
+import { updateCatalogInstance } from '../services/catalog-instance-update';
 import { buildPacketImageOrder, instanceCatalogImages } from "../../../shared/productImages";
 /**
  * Admin Catalog Instances — Production Routes
@@ -239,176 +240,13 @@ export function register(app: express.Express): void {
   // Save admin overrides. resolveInstance is recomputed. Master is NEVER touched.
   // Also accepts top-level listing controls: enabledColors, enabledSizes,
   // customerPrice, and folderUpdate (for moving an instance to a different folder).
-  app.patch('/admin/catalog-instances/:id', requireAdmin, async (req: any, res: any): Promise<void> => {
-    try {
-      const {
-        overrides: rawOverrides = {},
-        status,
-        enabledColors,
-        enabledSizes,
-        customerPrice,
-        folderUpdate,
-      } = req.body;
-
-      const topLevelMetadata = req.body.metadata;
-      const incomingOverrides = topLevelMetadata !== undefined
-        ? { ...rawOverrides, metadata: topLevelMetadata }
-        : rawOverrides;
-
-      const ref = db.collection(ADMIN_INSTANCES).doc(req.params.id);
-      const doc = await ref.get();
-      if (!doc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
-      const existing = doc.data() as any;
-
-      // Merge incoming overrides on top of stored overrides (object-level merge)
-      const mergedOverrides = { ...existing.overrides, ...incomingOverrides };
-
-      // Single source of truth for resolved state
-      const resolved = resolveInstance(existing.baseSnapshot, mergedOverrides);
-
-      const update: Record<string, any> = {
-        overrides:  mergedOverrides,
-        resolved,
-        version:    (existing.version ?? 1) + 1,
-        updatedAt:  admin.firestore.FieldValue.serverTimestamp(),
-        updatedBy:  req.user?.uid ?? 'system',
-      };
-      if (status !== undefined) update.status = status;
-
-      // Listing controls — stored at top level, not inside overrides
-      if (enabledColors !== undefined) update.enabledColors = enabledColors;
-      if (enabledSizes  !== undefined) update.enabledSizes  = enabledSizes;
-      if (customerPrice !== undefined) update.customerPrice = customerPrice;
-
-      // Folder move — allowlisted keys written to top level atomically
-      if (folderUpdate) {
-        const allowed = ['storeId','storeName','channelId','channelName','collectionId','collectionName','folderPath'];
-        for (const key of allowed) {
-          if (folderUpdate[key] !== undefined) update[key] = folderUpdate[key];
-        }
-      }
-
-      await ref.update(update);
-      console.log(`[AdminInstances] Updated ${req.params.id} → v${update.version}`);
-      res.json({ success: true, instanceId: req.params.id, resolved, version: update.version });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  app.patch('/admin/catalog-instances/:id', requireAdmin, async (req: any, res: any) => {
+    try { res.json(await updateCatalogInstance(db, req.params.id, req.body, admin.firestore.FieldValue.serverTimestamp(), req.user?.uid || 'system')); }
+    catch (error: any) { res.status(400).json({ error: error.message }); }
   });
 
   // ── DELETE /admin/catalog-instances/:id ─────────────────────────────────────
   // Soft-deletes so the public store immediately hides the item without losing data.
-  app.delete('/admin/catalog-instances/:id', requireAdmin, async (req: any, res: any): Promise<void> => {
-    try {
-      const ref = db.collection(ADMIN_INSTANCES).doc(req.params.id);
-      const doc = await ref.get();
-      if (!doc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
-      const now = admin.firestore.FieldValue.serverTimestamp();
-      await ref.update({
-        isVisible: false,
-        status: 'deleted',
-        deletedAt: now,
-        deletedBy: req.user?.uid ?? 'system',
-        updatedAt: now,
-        updatedBy: req.user?.uid ?? 'system',
-      });
-      // Best-effort: clean up matching legacy storeProductLinks
-      try {
-        const instance = doc.data() as any;
-        const toDelete: FirebaseFirestore.DocumentReference[] = [];
-
-        // Match by instanceId (set on links created after instance-linking was added)
-        const byInstanceId = await db.collection('storeProductLinks')
-          .where('instanceId', '==', req.params.id)
-          .get();
-        byInstanceId.docs.forEach(d => toDelete.push(d.ref));
-
-        // Also match by packetId for links created before instanceId was stored
-        if (instance.currentPacketId) {
-          const byPacketId = await db.collection('storeProductLinks')
-            .where('packetId', '==', instance.currentPacketId)
-            .get();
-          byPacketId.docs.forEach(d => {
-            if (!toDelete.find(r => r.id === d.id)) toDelete.push(d.ref);
-          });
-        }
-
-        if (toDelete.length > 0) {
-          const batch = db.batch();
-          toDelete.forEach(ref => batch.delete(ref));
-          await batch.commit();
-          console.log(`[AdminInstances] Removed ${toDelete.length} legacy storeProductLink(s) for instance ${req.params.id}`);
-        }
-      } catch (_) { /* non-fatal */ }
-      console.log(`[AdminInstances] Soft-deleted ${req.params.id}`);
-      res.json({ success: true, instanceId: req.params.id });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  // ── POST /admin/catalog-instances/:id/create-packet ─────────────────────────
-  // Create or update a packet attached to this admin instance.
-  // The packet is an artifact — it carries full lineage.
-  app.post('/admin/catalog-instances/:id/create-packet', requireAdmin, async (req: any, res: any): Promise<void> => {
-    try {
-      const { id }       = req.params;
-      const packetFields = req.body;
-
-      const instanceRef = db.collection(ADMIN_INSTANCES).doc(id);
-      const instanceDoc = await instanceRef.get();
-      if (!instanceDoc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
-
-      const instance = instanceDoc.data() as any;
-      const resolved = instance.resolved ?? {};
-      const now      = admin.firestore.FieldValue.serverTimestamp();
-
-      const packetData = stripUndef({
-        // ── Lineage — mandatory on every packet ────────────────────────────
-        ownerType:             'admin',
-        ownerInstanceId:       id,
-        sourceMasterId:        instance.sourceMasterId,
-        sourceAdminInstanceId: id,
-        sourceMemberInstanceId: null,
-
-        // ── Effective identity from resolved state ──────────────────────────
-        effectiveTitle:       resolved.title       ?? null,
-        effectiveDescription: resolved.description ?? null,
-        productImageUrl:      resolved.images?.[0]?.url ?? resolved.images?.[0] ?? null,
-        category:             resolved.category    ?? null,
-        colors:               resolved.colors      ?? [],
-        sizes:                resolved.sizes       ?? [],
-        blueprintId:          instance.baseSnapshot?.printifyBlueprintId ?? null,
-
-        // ── Caller-supplied packet fields (QR, graphics, layout, etc.) ──────
-        ...packetFields,
-
-        updatedAt: now,
-        updatedBy: req.user?.uid ?? 'system',
-      });
-
-      let packetId: string;
-      if (instance.currentPacketId) {
-        // Update existing packet
-        const { createdAt: _omit, createdBy: _omit2, ...updateFields } = packetData;
-        await db.collection(PACKETS).doc(instance.currentPacketId).update({ ...updateFields, updatedAt: now });
-        packetId = instance.currentPacketId;
-      } else {
-        // Create new packet
-        packetData.createdAt = now;
-        packetData.createdBy = req.user?.uid ?? 'system';
-        const packetRef = await db.collection(PACKETS).add(packetData);
-        packetId = packetRef.id;
-      }
-
-      // Write packet reference back onto the instance
-      await instanceRef.update({
-        currentPacketId: packetId,
-        updatedAt:       now,
-        updatedBy:       req.user?.uid ?? 'system',
-        version:         admin.firestore.FieldValue.increment(1),
-      });
-
-      console.log(`[AdminInstances] Packet ${packetId} linked to instance ${id}`);
-      res.json({ success: true, packetId, instanceId: id });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
 
   // ── POST /admin/catalog-instances/:id/requeue-mockups ───────────────────────
   // Re-queue mockup generation for an existing instance's packet.
@@ -424,7 +262,7 @@ export function register(app: express.Express): void {
 
       const instance = instanceDoc.data() as any;
       if (!instance.currentPacketId) {
-        res.status(400).json({ error: 'Instance has no linked packet. Create a packet first via /create-packet.' });
+        res.status(400).json({ error: 'Instance has no linked packet. Generate and save the product in the builder first.' });
         return;
       }
 

@@ -20,24 +20,24 @@ function find(node: any, match: (node: any) => boolean): any {
     const result = find(child, match); if (result) return result;
   }
 }
-function viewer(list = items, onArchive = vi.fn()) {
-  return SkinHorizontalViewer({ items: list, CardSkin: AdminGraphicCardSkin, Shape, actions: { onArchive } });
+function viewer(list = items, onDelete = vi.fn()) {
+  return SkinHorizontalViewer({ items: list, CardSkin: AdminGraphicCardSkin, Shape, actions: { onDelete } });
 }
 beforeEach(() => { state.selected = null; });
-describe('Graphics archive targeting and selection', () => {
-  it('archives the tapped card even with no detail selection', () => {
-    const onArchive = vi.fn(); const tree = viewer(items, onArchive);
+describe('Graphics delete targeting and selection', () => {
+  it('deletes the tapped card even with no detail selection', () => {
+    const onDelete = vi.fn(); const tree = viewer(items, onDelete);
     const gallery = find(tree, n => n.type === 'gallery');
     const card = AdminGraphicCardSkin({ item: items[1], actions: gallery.props.actions });
-    find(card, n => n.props?.['data-testid'] === `button-archive-graphic-${items[1].id}`).props.onClick();
-    expect(onArchive).toHaveBeenCalledWith(items[1].id);
+    find(card, n => n.props?.['data-testid'] === `button-delete-graphic-${items[1].id}`).props.onClick();
+    expect(onDelete).toHaveBeenCalledWith(items[1].id);
     expect(state.selected).toBeNull();
   });
-  it('keeps the detail open when archive is requested, for confirmation or retry', () => {
-    state.selected = items[1].id; const onArchive = vi.fn();
-    const detail = find(viewer(items, onArchive), n => n.type === Shape);
-    detail.props.actions.onArchive(detail.props.item.id);
-    expect(onArchive).toHaveBeenCalledWith(items[1].id);
+  it('keeps the detail open when delete is requested, for confirmation or retry', () => {
+    state.selected = items[1].id; const onDelete = vi.fn();
+    const detail = find(viewer(items, onDelete), n => n.type === Shape);
+    detail.props.actions.onDelete(detail.props.item.id);
+    expect(onDelete).toHaveBeenCalledWith(items[1].id);
     expect(find(viewer(), n => n.type === Shape).props.open).toBe(true);
   });
   it('keeps the same selected asset when an earlier card disappears', () => {

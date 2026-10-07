@@ -1,8 +1,9 @@
+import { GRF_PACKET_SLOTS, GRF_PURPOSES_BY_CHANNEL } from '@shared/GRF_engine';
 import { Component, useState } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
-import { ArchiveGrfDialog } from "@/features/shared/components/ArchiveGrfDialog";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
 import { GRAPHICS_QK } from "../shared/grfQueryKeys";
 import { SkinHorizontalViewer } from "@/features/shared/components/SkinHorizontalViewer";
 import { AdminGraphicCardSkin, grfAssetToSkinItem } from "@/features/shared/components/skins/AdminGraphicSkins";
@@ -14,11 +15,9 @@ import type { GrfAsset } from "@/features/shared/components/skins/AdminGraphicSk
 // Show print artwork and website graphics. Store mockups and page snapshots
 // remain with their product packets. QR artwork retains its encoded destination.
 
-const REUSABLE_GRAPHIC_TYPES = [
-  { channel: '1', purpose: '1', label: 'QR Composite' },
-  { channel: '1', purpose: '2', label: 'QR Code' },
-  { channel: '3', purpose: '2', label: 'URL Graphic' },
-] as const;
+const REUSABLE_GRAPHIC_TYPES = [GRF_PACKET_SLOTS.qrComposite, GRF_PACKET_SLOTS.qrStandalone,
+  { channel: '3' as const, purpose: '2' }].map(({ channel, purpose }) => ({ channel, purpose,
+    label: GRF_PURPOSES_BY_CHANNEL[channel][purpose].label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\bQr\b/, 'QR') }));
 
 type GraphicTypeFilter = 'all' | '1-1' | '1-2' | '3-2';
 
@@ -69,7 +68,7 @@ class GraphicsBoundary extends Component<
 // ── GraphicsTabInner ──────────────────────────────────────────────────────────
 
 function GraphicsTabInner() {
-  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<GraphicTypeFilter>("all");
 
@@ -146,8 +145,8 @@ function GraphicsTabInner() {
         items={skinItems}
         CardSkin={AdminGraphicCardSkin}
         Shape={AdminGraphicShape}
-        actions={{ onArchive: setArchiveId }}
-        isActionPending={!!archiveId}
+        actions={{ onDelete: setDeleteId }}
+        isActionPending={!!deleteId}
         cardWidth="160px"
         isLoading={isLoading}
         emptyMessage={reusable.length === 0
@@ -156,7 +155,7 @@ function GraphicsTabInner() {
         emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
         header={filterHeader}
       />
-      <ArchiveGrfDialog grfId={archiveId} onClose={() => setArchiveId(null)} queryKey={GRAPHICS_QK} />
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </>
   );
 }

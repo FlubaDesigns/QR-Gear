@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Archive, Image } from "lucide-react";
+import { Trash2, Image } from "lucide-react";
 import type { CardSkinProps } from "./types";
 
 // VVSS 1·1·1·0  Skin: CroppedCardSkin
@@ -8,7 +8,7 @@ import type { CardSkinProps } from "./types";
 // Actions (archive) fire directly from card buttons.
 
 export function CroppedCardSkin({ item, actions, isActionPending }: CardSkinProps) {
-  const handleArchive = (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     actions?.onDelete?.(item.id);
   };
@@ -47,12 +47,12 @@ export function CroppedCardSkin({ item, actions, isActionPending }: CardSkinProp
               size="default"
               variant="ghost"
               className="flex-1 min-h-[44px] text-destructive"
-              onClick={handleArchive}
+              onClick={handleDelete}
               disabled={isActionPending}
-              data-testid={`button-archive-${item.id}`}
-              title="Archive"
+              data-testid={`button-delete-${item.id}`}
+              title="Delete"
             >
-              <Archive className="h-4 w-4 mr-1" />Archive
+              <Trash2 className="h-4 w-4 mr-1" />Delete
             </Button>
           )}
         </div>

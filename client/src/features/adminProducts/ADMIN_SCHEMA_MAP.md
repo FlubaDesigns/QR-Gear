@@ -119,7 +119,7 @@ The five code digits are asset class, media type, channel, purpose, and format. 
 
 **Build roles:** `GRF_PACKET_SLOTS` defines registration parameters for backgrounds, standalone QR files, print composites, URL snapshots, and store mockups. Assembly refers to these assets by `grfId`; it never stores an alternative file identity.
 
-**Shared code:** `shared/graphicCodes.ts`, `shared/GRF_engine.ts`, and `functions/src/services/grf-store.ts`.
+**Shared code:** `shared/graphicCodes.ts`, `shared/GRF_engine.ts`, and `functions/src/services/grf-store.ts`. `inspectGrfAsset()` checks stored classification and MIME against the encoded ID for display, registration and Assembly validation. `admin-grf-routes.ts` supplies both HTTP adapters. `build-deletion.ts` supplies reviewed dependency deletion and shared-file protection; `DeleteBuildDialog` is the common confirmation.
 
 ---
 
@@ -225,3 +225,10 @@ grf_asset.zonePosition = 'top'
 // VIOLATION — fake QRG generated client-side
 const qrgId = `QRG-${Math.random()}`
 ```
+
+### Library-to-Products lifecycle
+
+- `buildLifecycle.ts` defines the supported deletion targets. `build-deletion.ts` and `DeleteBuildDialog` are shared by Library graphics, generated packets and catalog items. They preview connected records, recheck the confirmed plan, remove the complete affected build, retain shared assets, and track any remaining file cleanup.
+- `build-destination.ts` resolves store/channel/collection identity and display fields. `catalog-instance-update.ts` applies folder moves to the catalog item, packet snapshot, saved build and storefront link in one transaction. The printed QR payload and artwork remain unchanged by a folder move.
+- `saveBuildInstance()` validates the generated schema chain and atomically links the catalog item, packet and saved build. Schema IDs come from their existing allocators; new Firestore documents use the SDK's no-argument auto-ID call.
+- Unused catalog-to-packet creation endpoints have been removed. The builder's saved snapshot is the creation source. The shared instance resolver supplies catalog overrides in both server adapters.

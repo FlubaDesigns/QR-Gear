@@ -1,6 +1,5 @@
 import { updatePacketWithComposition } from '../../functions/src/services/composition-links';
 import { validatePacketComposition, packetPrintifyArtwork } from '../../functions/src/services/assembly-store';
-import { deleteBuildPacket } from '../../functions/src/services/build-session-state';
 import { packetBuildFields } from '../../shared/builderSnapshot';
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
@@ -596,31 +595,6 @@ export function registerPacketRoutes(app: Express): void {
     }
   });
 
-  app.delete("/api/admin/packets/:packetId", isAdmin, async (req: any, res) => {
-    try {
-      const { packetId } = req.params;
-
-      if (!packetId) {
-        return res.status(400).json({ error: "packetId is required" });
-      }
-
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      
-      const docRef = firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
-      const doc = await docRef.get();
-      
-      if (!doc.exists) {
-        return res.status(404).json({ error: "Packet not found" });
-      }
-      
-      await deleteBuildPacket(firestoreDb, packetId, (await import('firebase-admin/firestore')).FieldValue.serverTimestamp());
-      res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
-    } catch (error: any) {
-      console.error("[Packets DELETE] Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ── Publish Packet to Printify ─────────────────────────────────────────────
   // Creates (or re-creates) a Printify product from the packet's composite images.

@@ -95,7 +95,7 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
   const canCreate = validationErrors.length === 0;
 
   const {
-    isCreating, packetResult, error, isDeleting,
+    isCreating, packetResult, error,
     isCommitting, commitResult,
     artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
@@ -280,7 +280,6 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
             isPlayMode={isPlayMode}
             isBasicsOrPlusMode={isBasicsOrPlusMode}
             pricingSettings={pricingSettings}
-            isDeleting={isDeleting}
             thumbnailLightbox={thumbnailLightbox}
             onThumbnailLightbox={setThumbnailLightbox}
             onNext={handleNext}

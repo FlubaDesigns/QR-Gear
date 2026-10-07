@@ -1,3 +1,5 @@
+import { getFirestoreDb, FieldValue } from '../lib/firebase-admin';
+import { updateCatalogInstance } from '../../functions/src/services/catalog-instance-update';
 /**
  * Admin Catalog Instances
  *
@@ -18,15 +20,6 @@ const MASTER_CATALOG_COLLECTION = "master_catalog";
 const MEMBER_INSTANCES_COLLECTION = "member_library_instances";
 const PRODUCT_PACKETS_COLLECTION = "productPackets";
 
-function resolveFields(base: Record<string, any>, overrides: Record<string, any>): Record<string, any> {
-  const resolved: Record<string, any> = { ...base };
-  for (const [key, val] of Object.entries(overrides)) {
-    if (val !== null && val !== undefined && val !== "") {
-      resolved[key] = val;
-    }
-  }
-  return resolved;
-}
 
 export function registerAdminCatalogInstanceRoutes(app: Express): void {
 
@@ -227,185 +220,15 @@ export function registerAdminCatalogInstanceRoutes(app: Express): void {
   });
 
   // ── Save admin overrides to instance (NEVER touches master) ─────────────
-  app.patch("/api/admin/catalog-instances/:id", isAdmin, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const { overrides, metadata, status, folderUpdate, enabledColors, enabledSizes, customerPrice } = req.body;
-
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const { FieldValue } = await import("firebase-admin/firestore");
-      const db = getFirestoreDb();
-
-      const ref = db.collection(ADMIN_INSTANCES_COLLECTION).doc(id);
-      const doc = await ref.get();
-      if (!doc.exists) return res.status(404).json({ error: "Instance not found" });
-
-      const existing = doc.data()!;
-
-      // Merge incoming overrides on top of existing overrides
-      const mergedOverrides = { ...existing.overrides, ...overrides };
-
-      // Recompute resolved = base merged with all overrides (no nulls win)
-      const resolved = resolveFields(existing.baseSnapshot, mergedOverrides);
-
-      const update: Record<string, any> = {
-        overrides: mergedOverrides,
-        resolved,
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-      if (metadata !== undefined) update.metadata = metadata;
-      if (status !== undefined) update.status = status;
-
-      // Listing controls — stored at top level, not in overrides
-      if (enabledColors !== undefined) update.enabledColors = enabledColors;
-      if (enabledSizes !== undefined) update.enabledSizes = enabledSizes;
-      if (customerPrice !== undefined) update.customerPrice = customerPrice;
-
-      // Folder move — update top-level folder fields atomically
-      if (folderUpdate) {
-        const allowed = ["storeId","storeName","channelId","channelName","collectionId","collectionName","folderPath"];
-        for (const key of allowed) {
-          if (folderUpdate[key] !== undefined) update[key] = folderUpdate[key];
-        }
-      }
-
-      await ref.update(update);
-
-      console.log(`[AdminInstances] Updated instance ${id}`);
-      res.json({ success: true, instanceId: id, resolved });
-    } catch (err: any) {
-      console.error("[AdminInstances] patch error:", err);
-      res.status(500).json({ error: err.message });
-    }
+  app.patch('/api/admin/catalog-instances/:id', isAdmin, async (req: any, res: any) => {
+    try { res.json(await updateCatalogInstance(getFirestoreDb(), req.params.id, req.body, FieldValue.serverTimestamp(), req.user?.uid || 'system')); }
+    catch (error: any) { res.status(400).json({ error: error.message }); }
   });
 
   // ── Delete admin instance ────────────────────────────────────────────────
-  app.delete("/api/admin/catalog-instances/:id", isAdmin, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const db = getFirestoreDb();
-
-      const ref = db.collection(ADMIN_INSTANCES_COLLECTION).doc(id);
-      const doc = await ref.get();
-      if (!doc.exists) return res.status(404).json({ error: "Instance not found" });
-
-      const { FieldValue } = await import("firebase-admin/firestore");
-      const now = FieldValue.serverTimestamp();
-      const instance = doc.data() as any;
-
-      await ref.update({
-        isVisible: false,
-        status: "deleted",
-        deletedAt: now,
-        deletedBy: (req as any).user?.uid ?? "system",
-        updatedAt: now,
-        updatedBy: (req as any).user?.uid ?? "system",
-      });
-
-      // Best-effort: clean up matching legacy storeProductLinks
-      try {
-        const toDelete: any[] = [];
-        const byInstanceId = await db.collection("storeProductLinks").where("instanceId", "==", id).get();
-        byInstanceId.docs.forEach((d: any) => toDelete.push(d.ref));
-        if (instance?.currentPacketId) {
-          const byPacketId = await db.collection("storeProductLinks").where("packetId", "==", instance.currentPacketId).get();
-          byPacketId.docs.forEach((d: any) => { if (!toDelete.find((r: any) => r.id === d.id)) toDelete.push(d.ref); });
-        }
-        if (toDelete.length > 0) {
-          const batch = db.batch();
-          toDelete.forEach((r: any) => batch.delete(r));
-          await batch.commit();
-        }
-      } catch (_) { /* non-fatal */ }
-
-      console.log(`[AdminInstances] Soft-deleted instance ${id}`);
-      res.json({ success: true, instanceId: id });
-    } catch (err: any) {
-      console.error("[AdminInstances] delete error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   // ── Create or update a packet from an admin instance ─────────────────────
   // Packet is an attached artifact — lineage is written back onto the instance
-  app.post("/api/admin/catalog-instances/:id/create-packet", isAdmin, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const packetFields = req.body;
-
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const { FieldValue } = await import("firebase-admin/firestore");
-      const db = getFirestoreDb();
-
-      const instanceRef = db.collection(ADMIN_INSTANCES_COLLECTION).doc(id);
-      const instanceDoc = await instanceRef.get();
-      if (!instanceDoc.exists) return res.status(404).json({ error: "Instance not found" });
-
-      const instance = instanceDoc.data()!;
-      const now = FieldValue.serverTimestamp();
-
-      const packetData = {
-        // Lineage — mandatory, never lose these
-        ownerType: "admin",
-        ownerInstanceId: id,
-        sourceMasterId: instance.sourceMasterId,
-        sourceAdminInstanceId: id,
-        sourceMemberInstanceId: null,
-
-        // Resolved product identity from the instance
-        productId: instance.resolved?.printifyBlueprintId
-          ? `py_${instance.resolved.printifyBlueprintId}`
-          : null,
-        masterTitle: instance.baseSnapshot?.title || null,
-        adminCatalogTitle: instance.resolved?.title || null,
-        effectiveTitle: instance.resolved?.title || instance.baseSnapshot?.title || null,
-        masterDescription: instance.baseSnapshot?.description || null,
-        adminCatalogDescription: instance.resolved?.description || null,
-        effectiveDescription: instance.resolved?.description || instance.baseSnapshot?.description || null,
-        productImageUrl: instance.resolved?.images?.[0] || null,
-        blueprintId: instance.resolved?.printifyBlueprintId || null,
-        manufacturer: instance.resolved?.brand || null,
-        madeInUSA: instance.resolved?.originCountry === "US" || instance.resolved?.originCountry === "USA" || false,
-        category: instance.resolved?.category || null,
-        colors: instance.resolved?.colors || [],
-        sizes: instance.resolved?.sizes || [],
-
-        // Caller-supplied packet-specific fields (QR, graphics, layout, etc.)
-        ...packetFields,
-
-        // Timestamps always server-controlled
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      let packetId: string;
-      if (instance.currentPacketId) {
-        // Update existing packet
-        await db.collection(PRODUCT_PACKETS_COLLECTION)
-          .doc(instance.currentPacketId)
-          .update({ ...packetData, createdAt: FieldValue.delete(), updatedAt: now });
-        packetId = instance.currentPacketId;
-        console.log(`[AdminInstances] Updated packet ${packetId} for instance ${id}`);
-      } else {
-        // Create new packet
-        const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
-        packetId = packetRef.id;
-        console.log(`[AdminInstances] Created packet ${packetId} for instance ${id}`);
-      }
-
-      // Write packet reference back onto the instance
-      await instanceRef.update({
-        currentPacketId: packetId,
-        updatedAt: now,
-      });
-
-      res.json({ success: true, packetId, instanceId: id });
-    } catch (err: any) {
-      console.error("[AdminInstances] create-packet error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   // ── Push admin instance to a member → creates member library instance ────
   app.post("/api/admin/catalog-instances/:id/push-to-member", isAdmin, async (req: any, res) => {

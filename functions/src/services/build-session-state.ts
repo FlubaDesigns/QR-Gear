@@ -1,3 +1,6 @@
+import { validatePacketContent } from './assembly-store';
+import { transactionReader } from './composition-validation';
+import { destinationMetadata } from './build-destination';
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 
 /** Shared by the production and development route adapters. */
@@ -28,45 +31,30 @@ export async function existingBuildInstance(db: any, session: any): Promise<any 
 
 /** Updating a saved item preserves its instance and QRG identity. */
 export async function saveBuildInstance(db: any, session: any, data: Record<string, any>): Promise<any> {
-  const collection = db.collection('admin_catalog_instances');
-  if (!session.committedInstanceId) return collection.add(data);
-  const ref = collection.doc(session.committedInstanceId);
-  const { createdAt: _createdAt, ...updates } = data;
-  await ref.update(updates);
-  return ref;
-}
-
-/** Remove a packet and detach its current references in one transaction. Assets remain reusable. */
-export async function deleteBuildPacket(db: any, packetId: string, now: any): Promise<void> {
-  await db.runTransaction(async (txn: any) => {
-    const packetRef = db.collection('productPackets').doc(packetId);
-    const packet = await txn.get(packetRef);
-    if (!packet.exists) throw new Error('Packet not found');
-    const relations = [
-      ['admin_build_sessions', 'generated.packetId', '=='],
-      ['admin_catalog_instances', 'currentPacketId', '=='],
-      ['assemblies', 'packetIds', 'array-contains'],
-      ['productGraphics', 'packetId', '=='],
-      ['productTemplates', 'packetId', '=='],
-      ['storeProductLinks', 'packetId', '=='],
-    ];
-    const snapshots = await Promise.all(relations.map(([collection, field, op]) =>
-      txn.get(db.collection(collection).where(field, op, packetId))));
-    for (const doc of snapshots[0].docs) txn.update(doc.ref, {
-      'generated.packetId': null, 'generated.artifactReady': false,
-      'generated.previewImageUrl': null, 'generated.templateId': null, 'generated.graphicSetId': null,
-      status: 'working', bldId: null, assemblyId: null, updatedAt: now,
-    });
-    for (const doc of snapshots[1].docs) txn.update(doc.ref, {
-      currentPacketId: null, currentTemplateId: null, currentGraphicSetId: null,
-      bldId: null, assemblyId: null, status: 'draft', isVisible: false, updatedAt: now,
-    });
-    for (const doc of snapshots[2].docs) txn.update(doc.ref, {
-      packetIds: doc.data().packetIds.filter((id: string) => id !== packetId), updatedAt: now,
-    });
-    for (const snapshot of snapshots.slice(3)) for (const doc of snapshot.docs) txn.delete(doc.ref);
-    txn.delete(packetRef);
+  const instances = db.collection('admin_catalog_instances');
+  const instanceRef = session.committedInstanceId ? instances.doc(session.committedInstanceId) : instances.doc();
+  await db.runTransaction(async (tx: any) => {
+    const sessionRef = db.collection('admin_build_sessions').doc(session.id);
+    const savedSession = await tx.get(sessionRef);
+    const packetRef = db.collection('productPackets').doc(data.currentPacketId);
+    const packetDoc = await tx.get(packetRef);
+    const assemblyDoc = await tx.get(db.collection('assemblies').doc(data.assemblyId));
+    const existing = session.committedInstanceId ? await tx.get(instanceRef) : null;
+    if (!savedSession.exists || !packetDoc.exists || !assemblyDoc.exists) throw new Error('The saved build chain is incomplete.');
+    if (savedSession.data().generated?.packetId !== data.currentPacketId || packetDoc.data().buildSessionId !== session.id) throw new Error('Packet and saved build ownership disagree.');
+    if (data.sourceMasterId !== packetDoc.data().builderSnapshot?.metadata?.selectedProductDocId) throw new Error('Catalog item and rendered product blank differ.');
+    if (data.bldId !== packetDoc.data().bldId || data.assemblyId !== packetDoc.data().assemblyId || data.qrgBlankId !== assemblyDoc.data().qrgId) throw new Error('Catalog, packet and Assembly identities disagree.');
+    if (existing && (!existing.exists || existing.data().sourceSessionId !== session.id)) throw new Error('Catalog item belongs to a different build.');
+    // Validate the rendered candidate before atomically attaching its catalog owner.
+    await validatePacketContent(transactionReader(db, tx), packetDoc.data(), assemblyDoc.data());
+    const { createdAt, ...updates } = data;
+    if (existing) tx.update(instanceRef, updates); else tx.create(instanceRef, data);
+    tx.update(packetRef, { ownerType: 'admin', ownerInstanceId: instanceRef.id, sourceAdminInstanceId: instanceRef.id,
+      bldId: data.bldId, assemblyId: data.assemblyId, updatedAt: data.updatedAt });
+    tx.update(sessionRef, { status: 'committed', committedInstanceId: instanceRef.id, bldId: data.bldId, assemblyId: data.assemblyId,
+      'working.metadata': { ...savedSession.data().working?.metadata, ...destinationMetadata(data as any) }, updatedAt: data.updatedAt });
   });
+  return instanceRef;
 }
 
 /** A generated artifact becomes ready only after its saved rendering inputs are verified.
@@ -80,7 +68,8 @@ export async function saveGeneratedBuildArtifact(db: any, sessionId: string, pac
     const session = sessionDoc.data();
     if (['committed', 'abandoned'].includes(session.status)) throw new Error(`Cannot generate an artifact for a ${session.status} session.`);
     const existingId = packetFields.existingPacketId || session.generated?.packetId;
-    const ref = db.collection('productPackets').doc(existingId || undefined);
+    const packets = db.collection('productPackets');
+    const ref = existingId ? packets.doc(existingId) : packets.doc();
     const existing = existingId ? await tx.get(ref) : null;
     if (existingId && !existing?.exists) throw new Error('Generated packet no longer exists. Generate a new packet.');
     const prior = existing?.data() || {};

@@ -1,4 +1,4 @@
-import { Archive, Image, Crop } from "lucide-react";
+import { Trash2, Image, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CardSkinProps } from "./types";
@@ -13,7 +13,7 @@ export function BackgroundCardSkin({ item, actions, isActionPending }: CardSkinP
     actions?.onCrop?.(item.id);
   };
 
-  const handleArchive = (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     actions?.onDelete?.(item.id);
   };
@@ -63,12 +63,12 @@ export function BackgroundCardSkin({ item, actions, isActionPending }: CardSkinP
               size="default"
               variant="ghost"
               className="flex-1 min-h-[44px] text-destructive"
-              onClick={handleArchive}
+              onClick={handleDelete}
               disabled={isActionPending}
-              data-testid={`button-archive-${item.id}`}
-              title="Archive"
+              data-testid={`button-delete-${item.id}`}
+              title="Delete"
             >
-              <Archive className="h-4 w-4 mr-1" />Archive
+              <Trash2 className="h-4 w-4 mr-1" />Delete
             </Button>
           )}
         </div>

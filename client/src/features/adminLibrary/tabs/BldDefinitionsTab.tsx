@@ -185,6 +185,12 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   const atInstanceCap = formInstances.length >= MAX_INSTANCES;
 
   function handleContextChange(v: string) {
+    const allowed = BLD_VEHICLES_BY_CONTEXT[v as BldContext] as readonly string[];
+    const incompatible = formInstances.filter(slot => !allowed.includes(slot.type));
+    if (incompatible.length) {
+      toast({ title: "Change these slots first", description: `This context cannot use ${Array.from(new Set(incompatible.map(slot => slot.type))).join(', ')}. Change or remove those slots before switching.`, variant: "destructive" });
+      return;
+    }
     setContext(v);
     setLayout(BLD_LAYOUTS_BY_CONTEXT[v as BldContext][0]);
   }

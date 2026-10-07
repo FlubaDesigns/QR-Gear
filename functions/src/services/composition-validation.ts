@@ -1,3 +1,4 @@
+import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { validateBldStructure, isValidBldId } from '../../../shared/bldCodes';
 import { validateAssemblyMappings, isValidAssemblyId } from '../../../shared/assemblyCodes';
 import { isValidQrgBlankId } from '../../../shared/qrgCodes';
@@ -29,7 +30,12 @@ export async function inspectComposition(db: any, input: any) {
     const doc = await db.collection('grf_assets').doc(id).get();
     const asset = doc.data();
     if (!doc.exists || asset?.isActive === false || !asset?.publicUrl || asset?.registrationState === 'pending') issues.push(`GRF ${id} is missing, archived, or unfinished.`);
-    else assets[id] = asset;
+    else {
+      const errors = inspectGrfAsset(asset);
+      if (asset.grfId !== id) errors.push('Document identity does not match the GRF ID.');
+      issues.push(...errors.map(error => `GRF ${id}: ${error}`));
+      if (!errors.length) assets[id] = asset;
+    }
   }
   return { issues, bld, assets };
 }

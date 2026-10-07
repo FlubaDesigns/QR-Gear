@@ -22,7 +22,7 @@ export async function updatePacketWithComposition(db: any, packetId: string, upd
         newAsm = await tx.get(db.collection('assemblies').doc(next.assemblyId));
         if (!newAsm.exists) throw new Error('Referenced Assembly does not exist.');
         next.bldId = newAsm.data().bldId;
-        await validatePacketContent(reader, next, newAsm.data());
+        await validatePacketContent(reader, { ...next, id: packetId }, newAsm.data());
       } else next.bldId = null;
       if ((next.status === 'published' || old.status === 'published') && !next.assemblyId) throw new Error('A published packet must retain a valid Assembly.');
     } else if (next.assemblyId && ('assemblyId' in updates || 'bldId' in updates || 'builderSnapshot' in updates || next.status === 'published' || old.status === 'published')) {

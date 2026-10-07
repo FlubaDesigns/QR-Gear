@@ -1,3 +1,5 @@
+import { resolveBuildDestination, destinationMetadata } from '../services/build-destination';
+import { resolveInstance as resolveFields } from '../services/instance-resolver';
 import { buildPacketImageOrder, instanceCatalogImages, masterBlankImages, resolveCatalogImages } from "../../../shared/productImages";
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
@@ -33,15 +35,6 @@ const PRODUCT_PACKETS_COLLECTION = 'productPackets';
 
 const SESSION_EXPIRY_DAYS = 7;
 
-function resolveFields(base: Record<string, any>, overrides: Record<string, any>): Record<string, any> {
-  const resolved: Record<string, any> = { ...base };
-  for (const [key, val] of Object.entries(overrides)) {
-    if (val !== null && val !== undefined && val !== '') {
-      resolved[key] = val;
-    }
-  }
-  return resolved;
-}
 
 /**
  * Sanitize an arbitrary value for safe Firestore writes.
@@ -553,39 +546,15 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const newPacketId = session.generated?.packetId || null;
 
       const meta = w.metadata || {};
-      // Use metadata from autosave; fall back to values passed in request body
-      // Body values take precedence over stale autosaved metadata so that the
-      // manual/retry commit path (which now always sends store/channel in body)
-      // is never blocked by a debounce race.
-      const selectedStore = (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null)
-        || meta.selectedStore || null;
-      const selectedChannel = (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null)
-        || meta.selectedChannel || null;
-      const selectedCollection = (bodyCollectionName ? { name: bodyCollectionName } : null)
-        || meta.selectedCollection || null;
-      console.log(`[BuildSessions] commit ${id} | store: ${selectedStore?.id ?? 'null'} channel: ${selectedChannel?.id ?? 'null'} (meta: ${meta.selectedChannel?.id ?? 'null'}, body: ${bodyChannelId ?? 'null'})`);
-      const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
-        .filter(Boolean).join(' / ') || null;
-
-      // ── Gate 0.5: Verify selected channel exists in storeChannels ──────────
-      if (selectedChannel?.id) {
-        const chanDoc = await db.collection('storeChannels').doc(selectedChannel.id).get();
-        if (!chanDoc.exists) {
-          res.status(400).json({
-            error: `Channel "${selectedChannel.id}" does not exist in storeChannels. ` +
-                   `Create it via the Store Builder before committing, or check for an ID mismatch (e.g. "usa-250" vs "usa250").`,
-          });
-          return;
-        }
-        // Verify the channel actually belongs to the selected store
-        const chanData = chanDoc.data() as any;
-        if (selectedStore?.id && chanData.storeId && chanData.storeId !== selectedStore.id) {
-          res.status(400).json({
-            error: `Channel "${selectedChannel.id}" belongs to store "${chanData.storeId}", not "${selectedStore.id}".`,
-          });
-          return;
-        }
-      }
+      const destination = await resolveBuildDestination(db, {
+        storeId: bodyStoreId || meta.selectedStore?.id,
+        channelId: bodyChannelId || meta.selectedChannel?.id,
+        collectionId: bodyCollectionName && bodyCollectionName !== meta.selectedCollection?.name ? null : meta.selectedCollection?.id,
+        collectionName: bodyCollectionName || meta.selectedCollection?.name,
+      });
+      const { selectedStore, selectedChannel, selectedCollection } = destinationMetadata(destination);
+      const folderPath = destination.folderPath;
+      session.working.metadata = { ...meta, ...destinationMetadata(destination) };
 
       // ── Gate 1: Validate QRG blank identity ────────────────────────────────
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
@@ -619,6 +588,8 @@ export function registerAdminBuildSessions(app: express.Express): void {
             console.log(`[BuildSessions] GRF assets registered: bg=${grfIds.backgroundGrfId} qr=${grfIds.qrGrfId} comp=${grfIds.compositeGrfId}`);
             // Back-fill GRF IDs onto packet for schema traceability
             await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
+              ...destination,
+            builderSnapshot: { ...session.working, metadata: session.working.metadata },
               backgroundGrfId:      grfIds.backgroundGrfId      || null,
               qrGrfId:              grfIds.qrGrfId              || null,
               compositeGrfId:       grfIds.compositeGrfId       || null,
@@ -706,26 +677,6 @@ export function registerAdminBuildSessions(app: express.Express): void {
       });
       const instanceId = instanceRef.id;
       console.log(`[BuildSessions] Created instance ${instanceId} (QRG=${qrgIdentity.qrgBaseCode} BLD=${bldId} ASM=${assemblyId})`);
-
-      // ── Back-fill instance ownership + schema chain onto packet ─────────────
-      if (newPacketId) {
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
-          ownerType:            'admin',
-          ownerInstanceId:      instanceId,
-          sourceAdminInstanceId: instanceId,
-          bldId,
-          assemblyId,
-          updatedAt: now,
-        });
-      }
-
-      await ref.update({
-        status:             'committed',
-        committedInstanceId: instanceId,
-        bldId,
-        assemblyId,
-        updatedAt: now,
-      });
 
       res.json({
         success: true,

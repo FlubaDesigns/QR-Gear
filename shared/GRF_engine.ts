@@ -164,3 +164,16 @@ export const GRF_FILTER_TEMPLATES   = { channel: LIBRARY_CHANNEL, purpose: PURPO
 // ── Re-exports — graphicCodes is an implementation detail; import from here ──
 
 export * from './graphicCodes';
+
+/** Check record metadata against the identity encoded by the canonical GRF schema. */
+export function inspectGrfAsset(asset: Record<string, any>): string[] {
+  if (!isValidGrfId(asset.grfId)) return ['Invalid GRF identity.'];
+  const parsed = parseGrfId(asset.grfId);
+  const issues: string[] = [];
+  for (const key of ['assetClass', 'mediaType', 'channel', 'purpose', 'format'] as const) {
+    if (asset[key] !== parsed[key]) issues.push(`${key} does not match the GRF ID.`);
+  }
+  const mime = String(asset.mimeType || '').toLowerCase().replace(/^image\/jpg$/, 'image/jpeg');
+  if (mime !== parsed.mimeType) issues.push('MIME type does not match the GRF format.');
+  return issues;
+}

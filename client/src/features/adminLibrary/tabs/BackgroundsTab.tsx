@@ -1,5 +1,5 @@
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
-import { ArchiveGrfDialog } from "@/features/shared/components/ArchiveGrfDialog";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
 import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -90,7 +90,7 @@ class BackgroundsBoundary extends Component<
 // VVSS: 1·1·1·0 — SinglePaneViewer · ScrollGridView · BackgroundCardSkin · flat (no popup)
 
 function BackgroundsTabInner() {
-  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
@@ -114,7 +114,7 @@ function BackgroundsTabInner() {
     setCropDialogOpen(true);
   };
 
-  const handleArchive = (grfId: string) => setArchiveId(grfId);
+  const handleArchive = (grfId: string) => setDeleteId(grfId);
 
   const handleSaveCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
     if (!sourceAsset?.id) throw new Error("Choose a background image before cropping.");
@@ -175,7 +175,7 @@ function BackgroundsTabInner() {
                 onCrop:   handleStartCrop,
                 onDelete: handleArchive,
               }}
-              isActionPending={!!archiveId}
+              isActionPending={!!deleteId}
             />
           )}
         />
@@ -194,7 +194,7 @@ function BackgroundsTabInner() {
         aspectRatio={9 / 16}
         title="Crop Background"
       />
-      <ArchiveGrfDialog grfId={archiveId} onClose={() => setArchiveId(null)} queryKey={BACKGROUNDS_QK} />
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </SinglePaneViewer>
   );
 }

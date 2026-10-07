@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,216 +42,50 @@ export function ImageUploader({
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("");
 
-  const handleZipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!onUploadZip) return;
-    
-    const file = e.target.files?.[0];
-    if (!file || !file.name.endsWith(".zip")) {
-      toast({ title: "Please select a ZIP file", variant: "destructive" });
-      return;
-    }
-
-    const fileName = file.name;
-    const blobUrl = URL.createObjectURL(file);
-    e.target.value = "";
-
-    let base64: string;
-    try {
-      console.log("[ImageUploader] Reading ZIP from blob URL:", fileName);
-      const resp = await fetch(blobUrl);
-      const arrayBuffer = await resp.arrayBuffer();
-      base64 = arrayBufferToBase64(arrayBuffer);
-      console.log("[ImageUploader] ZIP read complete, base64 length:", base64.length);
-    } catch (readErr) {
-      console.error("[ImageUploader] ZIP read failed:", readErr);
-      toast({ title: "Could not read file", description: "Try selecting the file again", variant: "destructive" });
-      return;
-    } finally {
-      URL.revokeObjectURL(blobUrl);
-    }
-
-    setUploading(true);
-    setUploadStatus("Uploading ZIP...");
-
-    try {
-      const result = await onUploadZip({
-        name: fileName,
-        originalFilename: fileName,
-        imageData: base64,
-        mimeType: "application/zip",
-        assetType,
-      });
-
-      toast({ 
-        title: "ZIP uploaded", 
-        description: `${result.extractedCount} images extracted` 
-      });
-      onUploadComplete?.();
-
-    } catch (error: unknown) {
-      const err = error as Error;
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
-    } finally {
-      setUploading(false);
-      setUploadStatus("");
-    }
-  };
-
-  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-    const bytes = new Uint8Array(buffer);
+  const showBothInputs = showZipUpload && showImageUpload;
+  const uploadLock = useRef(false);
+  const encodeFile = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
     let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-      binary += String.fromCharCode(...Array.from(chunk));
-    }
+    for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...Array.from(bytes.subarray(i, i + 8192)));
     return btoa(binary);
   };
-
-  const readViaFileReader = (file: File): Promise<ArrayBuffer> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
-  const readViaBlobUrl = async (file: File): Promise<ArrayBuffer> => {
-    const url = URL.createObjectURL(file);
-    try {
-      const resp = await fetch(url);
-      return await resp.arrayBuffer();
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const readFileAsBase64 = async (file: File): Promise<{ name: string; base64: string; mimeType: string }> => {
-    let arrayBuffer: ArrayBuffer | null = null;
-
-    try {
-      arrayBuffer = await file.arrayBuffer();
-      console.log("[ImageUploader] Read via arrayBuffer() for", file.name);
-    } catch (err1) {
-      console.warn("[ImageUploader] arrayBuffer() failed for", file.name, "trying FileReader...", err1 instanceof Error ? err1.message : err1);
-      try {
-        arrayBuffer = await readViaFileReader(file);
-        console.log("[ImageUploader] Read via FileReader for", file.name);
-      } catch (err2) {
-        console.warn("[ImageUploader] FileReader failed for", file.name, "trying blob URL...", err2 instanceof Error ? err2.message : err2);
-        try {
-          arrayBuffer = await readViaBlobUrl(file);
-          console.log("[ImageUploader] Read via blob URL for", file.name);
-        } catch (err3) {
-          console.error("[ImageUploader] All read methods failed for", file.name, err3 instanceof Error ? err3.message : err3);
-          throw new Error(`Could not read ${file.name}. Please try selecting the file again.`);
-        }
-      }
-    }
-
-    const base64 = arrayBufferToBase64(arrayBuffer);
-    console.log("[ImageUploader] Read complete for", file.name, "base64 length:", base64.length);
-    return { name: file.name, base64, mimeType: file.type || "image/png" };
-  };
-
-  const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!onUploadSingle) return;
-    
-    const files = e.target.files;
-    if (!files?.length) return;
-
-    console.log("[ImageUploader] Starting upload of", files.length, "files");
-
-    const tooLarge: string[] = [];
-    const validFiles: File[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      console.log("[ImageUploader] Capturing file:", file.name, "size:", file.size, "type:", file.type);
-      if (file.size > maxSizeMB * 1024 * 1024) {
-        console.warn("[ImageUploader] File too large:", file.name, file.size);
-        tooLarge.push(file.name);
-        continue;
-      }
-      validFiles.push(file);
-    }
-
-    const readResults: { name: string; base64: string; mimeType: string }[] = [];
-    for (const file of validFiles) {
-      try {
-        const result = await readFileAsBase64(file);
-        readResults.push(result);
-      } catch (readErr) {
-        console.error("[ImageUploader] Read failed for", file.name, readErr);
-        toast({
-          title: `Could not read: ${file.name}`,
-          description: "Try selecting the file again",
-          variant: "destructive",
-        });
-      }
-    }
-
-    e.target.value = "";
-
-    if (tooLarge.length > 0) {
-      toast({
-        title: `${tooLarge.length} file(s) too large`,
-        description: `Max size is ${maxSizeMB}MB`,
-        variant: "destructive",
-      });
-    }
-
-    if (readResults.length === 0) {
-      console.log("[ImageUploader] No files to upload after reading");
-      return;
-    }
-
+  const uploadFiles = async (event: React.ChangeEvent<HTMLInputElement>, zip: boolean) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (uploadLock.current || !files.length || (zip ? !onUploadZip : !onUploadSingle)) return;
+    uploadLock.current = true;
     setUploading(true);
-    let successCount = 0;
-
+    let completed = 0;
     try {
-      for (let i = 0; i < readResults.length; i++) {
-        const { name, base64, mimeType } = readResults[i];
-        setUploadStatus(`Uploading ${i + 1} of ${readResults.length}: ${name}`);
-
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
+        setUploadStatus(`Uploading ${index + 1} of ${files.length}: ${file.name}`);
         try {
-          console.log("[ImageUploader] Calling onUploadSingle for", name);
-          await onUploadSingle({
-            name: name.replace(/\.[^/.]+$/, ""),
-            originalFilename: name,
-            imageData: base64,
-            mimeType,
-            assetType,
-          });
-          console.log("[ImageUploader] Upload success:", name);
-          successCount++;
-        } catch (uploadErr) {
-          const msg = uploadErr instanceof Error ? uploadErr.message : "Unknown error";
-          console.error("[ImageUploader] Upload failed for", name, ":", msg, uploadErr);
-          toast({
-            title: `Failed to upload: ${name}`,
-            description: msg,
-            variant: "destructive",
-          });
+          if (file.size > maxSizeMB * 1024 * 1024) throw new Error(`Max size is ${maxSizeMB} MB`);
+          if (zip && !file.name.toLowerCase().endsWith('.zip')) throw new Error('Please select a ZIP file');
+          const params = { name: file.name, originalFilename: file.name, imageData: await encodeFile(file), mimeType: zip ? 'application/zip' : file.type, assetType };
+          if (zip) {
+            const result = await onUploadZip!(params);
+            toast({ title: 'ZIP uploaded', description: `${result.extractedCount} images extracted` });
+          } else await onUploadSingle!(params);
+          completed++;
+        } catch (error) {
+          toast({ title: `Could not upload ${file.name}`, description: error instanceof Error ? error.message : 'Upload failed', variant: 'destructive' });
         }
       }
-
-      console.log("[ImageUploader] Batch complete:", successCount, "/", readResults.length);
-      toast({ title: `Uploaded ${successCount} of ${readResults.length} images` });
-      onUploadComplete?.();
-
-    } catch (error: unknown) {
-      const err = error as Error;
-      console.error("[ImageUploader] Batch upload error:", err.message, err.stack);
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+      if (completed) {
+        if (!zip) toast({ title: `Uploaded ${completed} of ${files.length} images` });
+        onUploadComplete?.();
+      }
     } finally {
+      uploadLock.current = false;
       setUploading(false);
-      setUploadStatus("");
+      setUploadStatus('');
     }
   };
-
-  const showBothInputs = showZipUpload && showImageUpload && onUploadZip && onUploadSingle;
+  const handleZipUpload = (event: React.ChangeEvent<HTMLInputElement>) => uploadFiles(event, true);
+  const handleSingleUpload = (event: React.ChangeEvent<HTMLInputElement>) => uploadFiles(event, false);
 
   return (
     <Card className="mb-6">

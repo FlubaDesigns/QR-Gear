@@ -1,3 +1,5 @@
+import { resolveBuildDestination } from './build-destination';
+import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { createHash } from 'crypto';
 import { prepareAssemblyDefinition } from './assembly-records';
 import { inspectComposition, transactionReader } from './composition-validation';
@@ -58,7 +60,15 @@ export async function validatePacketComposition(db: Firestore, packetId: string,
   if (!asm || !asm.packetIds?.includes(packetId)) throw new Error('Packet is not linked to its Assembly.');
   if (packet.bldId !== asm.bldId) throw new Error('Packet and Assembly reference different BLDs.');
   if (asm.assemblyId !== packet.assemblyId) throw new Error('Assembly document identity does not match its stored ID.');
-  return validatePacketContent(db, packet, asm);
+  const result = await validatePacketContent(db, packet, asm);
+  if (packet.ownerType === 'admin' && packet.ownerInstanceId) {
+    const instance = (await db.collection('admin_catalog_instances').doc(packet.ownerInstanceId).get()).data();
+    if (!instance || instance.currentPacketId !== packetId) throw new Error('Catalog item is not connected to this packet.');
+    if (instance.assemblyId !== packet.assemblyId || instance.bldId !== packet.bldId || instance.qrgBlankId !== asm.qrgId) throw new Error('Catalog item and packet schema identities disagree.');
+    for (const key of ['storeId','channelId','collectionId','collectionName']) if ((instance[key] || null) !== (packet[key] || null)) throw new Error('Catalog item and packet destinations disagree.');
+  }
+  await resolveBuildDestination(db, packet);
+  return result;
 }
 
 /** Check a candidate link before either side is written. */
@@ -75,9 +85,11 @@ export async function validatePacketContent(db: Firestore, packet: Record<string
     if (![asset?.sourceUrl, asset?.publicUrl].includes(layer.imageUrl)) throw new Error(`Slot ${layer.instance.seq} file differs from the rendered image.`);
   }
   const composite = (await db.collection('grf_assets').doc(packet.compositeGrfId || '__missing__').get()).data();
-  if (!composite || composite.isActive === false || composite.publicUrl !== packet.compositeUrl) throw new Error('Composite file is missing or differs from the registered GRF.');
+  if (!composite || composite.isActive === false || inspectGrfAsset(composite).length || composite.grfId !== packet.compositeGrfId || composite.publicUrl !== packet.compositeUrl) throw new Error('Composite file is missing or differs from the registered GRF.');
   const source = (await db.collection('master_catalog').doc(snapshot.metadata.selectedProductDocId).get()).data();
   if (!source || source.qrgBlankId !== asm.qrgId) throw new Error('Product blank and Assembly QRG identity differ.');
+  if (packet.sourceMasterId && packet.sourceMasterId !== snapshot.metadata.selectedProductDocId) throw new Error('Packet and rendered snapshot reference different product blanks.');
+  if (packet.qrgBlankId && packet.qrgBlankId !== asm.qrgId) throw new Error('Packet and Assembly QRG identities differ.');
   return { assembly: asm, bld, compositeUrl: composite.publicUrl };
 }
 
@@ -93,7 +105,7 @@ export async function packetPrintifyArtwork(db: Firestore, packet: Record<string
     if (!grfId) throw new Error(`Generate the graphic for ${placement} before publishing.`);
     const asset = (await db.collection('grf_assets').doc(grfId).get()).data();
     const imageUrl = packet.placementGraphicUrls?.[placement] || (index === 0 ? packet.compositeUrl : null);
-    if (!asset || asset.isActive === false || asset.publicUrl !== imageUrl) throw new Error(`The registered graphic for ${placement} is missing or differs from the packet.`);
+    if (!asset || asset.isActive === false || inspectGrfAsset(asset).length || asset.grfId !== grfId || asset.publicUrl !== imageUrl) throw new Error(`The registered graphic for ${placement} is missing or differs from the packet.`);
     const position = snapshot.layoutConfig.providerLayouts?.[placement]?.providerPlacementId || toProviderPlacement('printify', placement);
     if (output.some(p => p.position === position)) throw new Error(`More than one graphic targets ${position}. Choose one placement for that area.`);
     output.push({ position, imageUrl });

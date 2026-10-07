@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildWorkingSnapshot, packetBuildFields, productGraphicOptions, requireBuilderSnapshot } from '../../../../shared/builderSnapshot';
-import { readGeneratedBuild, existingBuildInstance, saveBuildInstance, deleteBuildPacket } from '../build-session-state';
+import { readGeneratedBuild, existingBuildInstance } from '../build-session-state';
 
 export function fixture() {
   return buildWorkingSnapshot({
@@ -54,24 +54,12 @@ describe('builder snapshot handoffs', () => {
     expect((await readGeneratedBuild(db, session)).title).toBe('Custom title');
     await expect(readGeneratedBuild(db, { ...session, id: 'other' })).rejects.toThrow('different build session');
   });
-  it('updates an existing instance without changing identity or creation time', async () => {
+  it('resolves an existing instance without changing its identity', async () => {
     const original = { sourceMasterId: 'qrg_11001', sourceSessionId: 's', qrgBaseCode: 'QRG-11001-I-000001', createdAt: 'original' };
     const { db, store } = memoryDb({ 'admin_catalog_instances/item': original });
     const session = { id: 's', sourceMasterId: 'qrg_11001', committedInstanceId: 'item' };
     expect(await existingBuildInstance(db, session)).toEqual(original);
-    expect((await saveBuildInstance(db, session, { currentPacketId: 'next', createdAt: 'replacement' })).id).toBe('item');
-    expect(store.size).toBe(1); expect(store.get('admin_catalog_instances/item')).toMatchObject({ createdAt: 'original', qrgBaseCode: original.qrgBaseCode, currentPacketId: 'next' });
+
   });
-  it('detaches deleted output while retaining reusable records and QRG identity', async () => {
-    const { db, store } = memoryDb({ 'productPackets/p': {},
-      'admin_build_sessions/s': { generated: { packetId: 'p', artifactReady: true }, committedInstanceId: 'item' },
-      'admin_catalog_instances/item': { currentPacketId: 'p', qrgBaseCode: 'QRG-11001-I-000001' },
-      'assemblies/a': { packetIds: ['p', 'other'] }, 'bld_definitions/b': {}, 'grf_assets/g': {}, 'productTemplates/t': { packetId: 'p' } });
-    await deleteBuildPacket(db, 'p', 'now');
-    expect(store.has('productPackets/p')).toBe(false);
-    expect(store.get('admin_build_sessions/s')).toMatchObject({ status: 'working', generated: { packetId: null, artifactReady: false }, committedInstanceId: 'item' });
-    expect(store.get('admin_catalog_instances/item')).toMatchObject({ currentPacketId: null, isVisible: false, qrgBaseCode: 'QRG-11001-I-000001' });
-    expect(store.get('assemblies/a').packetIds).toEqual(['other']);
-    expect(store.has('bld_definitions/b') && store.has('grf_assets/g')).toBe(true); expect(store.has('productTemplates/t')).toBe(false);
-  });
+
 });

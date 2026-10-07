@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useSearch } from "wouter";
+import { PendingAssetDeletions } from '@/features/shared/components/DeleteBuildDialog';
+import { useSearch, useLocation } from "wouter";
 import { QrCode, Layers, ImageIcon, LayoutTemplate, Link2, Upload, Crop, Image } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
@@ -28,15 +28,13 @@ const TABS = [
 export default function LibraryPage() {
   const searchString = useSearch();
   const params = new URLSearchParams(searchString);
-  const initialTab = (params.get("tab") as TabType) || "source";
-  const [tab, setTab] = useState<TabType>(initialTab);
-
-  useEffect(() => {
-    const newTab = params.get("tab") as TabType;
-    if (newTab && TABS.some(t => t.id === newTab) && newTab !== tab) {
-      setTab(newTab);
-    }
-  }, [searchString]);
+  const [location, navigate] = useLocation();
+  const tab = TABS.find(item => item.id === params.get("tab"))?.id ?? "source";
+  function selectTab(id: TabType) {
+    const next = new URLSearchParams(searchString);
+    next.set("tab", id);
+    navigate(`${location}?${next.toString()}`, { replace: true });
+  }
 
   return (
     <AdminAuthProvider apiBase="/api/admin">
@@ -59,7 +57,7 @@ export default function LibraryPage() {
                 return (
                   <button
                     key={t.id}
-                    onClick={() => setTab(t.id)}
+                    onClick={() => selectTab(t.id)}
                     data-testid={`tab-${t.id}`}
                     style={{ flexShrink: 0 }}
                     className={`inline-flex items-center gap-2 px-4 rounded-md font-semibold text-sm transition-all
@@ -79,6 +77,7 @@ export default function LibraryPage() {
           </div>
 
           <div className="glass-card">
+            <PendingAssetDeletions />
             {tab === "source"      && <SourceImagesTab />}
             {tab === "backgrounds" && <BackgroundsTab />}
             {tab === "cropped"     && <CroppedImagesTab />}

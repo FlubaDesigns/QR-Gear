@@ -1,3 +1,4 @@
+import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -12,16 +13,7 @@ import { useStoreLibraryContext, ProductInfo } from "../StoreLibraryContext";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+
 
 function productToSkinItem(product: ProductInfo): StoreProductItem {
   return {
@@ -57,20 +49,6 @@ export function ProductGridModule() {
   const { data: products = [], isLoading, error } = useQuery<ProductInfo[]>({
     queryKey: [productsQueryKey],
     enabled: !!selectedStore && !!selectedChannel?.name,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (instanceId: string) =>
-      adminFetch(`/catalog-instances/${instanceId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [productsQueryKey] });
-      toast({ title: "Item removed from store" });
-      setPendingDeleteItem(null);
-    },
-    onError: (err: Error) => {
-      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
-      setPendingDeleteItem(null);
-    },
   });
 
   const republishMutation = useMutation({
@@ -118,11 +96,6 @@ export function ProductGridModule() {
     setPendingDeleteItem(item);
   };
 
-  const handleDeleteConfirm = () => {
-    if (!pendingDeleteItem) return;
-    deleteMutation.mutate(pendingDeleteItem.id);
-  };
-
   const handleRepublish = (item: StoreProductItem) => {
     if (republishingIds.has(item.id)) return;
     republishMutation.mutate(item.id);
@@ -167,34 +140,7 @@ export function ProductGridModule() {
         )}
       </CollapsibleModule>
 
-      <AlertDialog
-        open={!!pendingDeleteItem}
-        onOpenChange={(open) => { if (!open) setPendingDeleteItem(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove from store?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove <strong>{pendingDeleteItem?.name}</strong> from this channel. The
-              underlying packet and template are not deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              data-testid="button-confirm-delete"
-              className="bg-destructive text-destructive-foreground"
-            >
-              {deleteMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Remove"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteBuildDialog target={pendingDeleteItem ? { kind: 'catalog-instances', id: pendingDeleteItem.id } : null} onClose={() => setPendingDeleteItem(null)} onDeleted={() => { if (pendingDeleteItem) removeFromSelection(pendingDeleteItem.id); }} />
     </>
   );
 }

@@ -3,7 +3,7 @@ import type { ReactNode, ErrorInfo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
-import { ArchiveGrfDialog } from "@/features/shared/components/ArchiveGrfDialog";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { ImageUploader, type UploadParams } from "@/features/shared/components/utilities/ImageUploader";
@@ -98,7 +98,7 @@ class SourceImagesBoundary extends Component<
 
 function SourceImagesTabInner() {
   const { toast } = useToast();
-  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
   const [uploadError,    setUploadError]    = useState<string | null>(null);
@@ -128,7 +128,7 @@ function SourceImagesTabInner() {
     console.log("[SourceImagesTab] Starting crop for:", item.id, raw?.grfId);
   };
 
-  const handleDelete = (id: string) => setArchiveId(id);
+  const handleDelete = (id: string) => setDeleteId(id);
 
   const handleUploadSingle = async (params: UploadParams) => {
     const mimeType = params.mimeType || "image/jpeg";
@@ -265,7 +265,7 @@ function SourceImagesTabInner() {
                 onCrop:   () => handleStartCrop(item),
                 onDelete: () => handleDelete(item.id),
               }}
-              isActionPending={!!archiveId}
+              isActionPending={!!deleteId}
             />
           )}
         />
@@ -284,7 +284,7 @@ function SourceImagesTabInner() {
         aspectRatio={9 / 16}
         title="Crop Source Image"
       />
-      <ArchiveGrfDialog grfId={archiveId} onClose={() => setArchiveId(null)} queryKey={ORIGINALS_QK} />
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </SinglePaneViewer>
   );
 }

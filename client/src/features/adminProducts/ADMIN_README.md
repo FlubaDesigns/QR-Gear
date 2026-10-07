@@ -477,19 +477,9 @@ Two fixes to `POST /library/upload-source`:
 
 ---
 
-### May 9, 2026 — Permanent Delete for Background and Cropped Images
+### Library deletion
 
-Trash icon on Background and Cropped cards now permanently deletes (Firestore doc + Storage file) instead of archiving. New `DELETE /admin/graphics/:grfId` endpoint added to both dev server and Cloud Functions. Storage delete is best-effort — warns and continues if the file is already gone. Frontend `archiveMutation` renamed to `deleteMutation` in both tabs; toast updated to "Image deleted".
-
-#### Files Changed
-| File | Change |
-|------|--------|
-| `functions/src/routes/admin-graphics.ts` | Added `DELETE /admin/graphics/:grfId` — deletes Firestore doc + Storage file |
-| `server/routes/admin-content.routes.ts` | Matching `DELETE /api/admin/graphics/:grfId` for dev server |
-| `client/src/features/adminLibrary/tabs/BackgroundsTab.tsx` | `archiveMutation` → `deleteMutation`, calls `DELETE /graphics/:grfId` |
-| `client/src/features/adminLibrary/tabs/CroppedImagesTab.tsx` | Same rename and endpoint change |
-
----
+`DeleteBuildDialog` obtains a dependency preview before allowing deletion. Both HTTP adapters register `admin-grf-routes.ts`; `build-deletion.ts` owns the same dependency plan, confirmation token, transactional record removal, shared-file protection, and tracked Storage cleanup. A changed dependency plan requires a new review. Failed file cleanup remains visible in the Library after reload. Source collections, catalog blanks and website records are retained. The old archive handler and duplicate background upload routes have been removed; uploads use the shared GRF registrar.
 
 ### May 9, 2026 — VVSS Alignment: Backgrounds and Cropped Tabs Go Flat (1·1·1·0)
 

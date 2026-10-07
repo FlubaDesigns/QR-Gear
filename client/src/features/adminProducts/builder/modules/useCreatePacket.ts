@@ -44,7 +44,6 @@ export function useCreatePacket({
   const [isCreating, setIsCreating] = useState(false);
   const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
@@ -91,22 +90,13 @@ export function useCreatePacket({
     try {
       const mimeMatch = rawUrl.match(/^data:([^;]+);base64,/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-      const base64Data = rawUrl.replace(/^data:[^;]+;base64,/, "");
       const ext = mimeType.split("/")[1] || "jpg";
-      const uploadResult = await adminFetch<{ storageUrl: string }>("/background-assets", {
+      const uploadResult = await adminFetch<{ asset: { publicUrl: string } }>("/library/upload-source", {
         method: "POST",
-        json: {
-          name: `bg-${Date.now()}.${ext}`,
-          assetType: "source",
-          imageData: base64Data,
-          mimeType,
-        },
+        json: { imageUrl: rawUrl, mimeType, originalFilename: `bg-${Date.now()}.${ext}` },
       });
-      if (!uploadResult.storageUrl) {
-        throw new Error("Background upload succeeded but returned no storageUrl");
-      }
-      console.log("[CreatePacket] Background uploaded to Storage:", uploadResult.storageUrl);
-      return uploadResult.storageUrl;
+      if (!uploadResult.asset?.publicUrl) throw new Error("Background upload returned no registered image URL");
+      return uploadResult.asset.publicUrl;
     } catch (err: any) {
       console.error("[CreatePacket] Background upload failed — stripping base64 to prevent Firestore overflow:", err.message);
       toast({
@@ -617,24 +607,14 @@ export function useCreatePacket({
     }
   };
 
-  const handleDeletePacket = async () => {
-    if (!packetResult?.packetId || isDeleting) return;
-    setIsDeleting(true);
-    try {
-      await adminFetch(`/packets/${packetResult.packetId}`, { method: "DELETE" });
-      setActivePacketId(null);
-      setActiveSession(state.activeSessionId, 'working', state.committedInstanceId);
-      setCommitResult(null);
-      setArtifactError(null);
-      toast({ title: "Packet Deleted", description: "Starting fresh..." });
-      setPacketResult(null);
-      setError(null);
-    } catch (err: any) {
-      console.error("Delete packet failed:", err);
-      toast({ title: "Delete Failed", description: err.message || "Could not delete packet", variant: "destructive" });
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleDeletePacket = () => {
+    // The shared dialog has deleted the complete build, including its saved session.
+    setActivePacketId(null);
+    setActiveSession(null, null, null);
+    setCommitResult(null);
+    setArtifactError(null);
+    setPacketResult(null);
+    setError(null);
   };
 
   const handleCommitSession = async () => {
@@ -689,7 +669,7 @@ export function useCreatePacket({
   };
 
   return {
-    isCreating, packetResult, error, isDeleting,
+    isCreating, packetResult, error,
     isCommitting, commitResult, artifactError,
     calculatePricing, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,

@@ -225,7 +225,7 @@ app.post('/upload', async (req: Request, res: Response): Promise<void> => {
 // GRF asset routes live exclusively in admin-graphics.ts (registered after this file).
 // admin-graphics.ts is the single source of truth — imports from GRF_engine,
 // handles GET /admin/graphics, POST /admin/graphics/save-grf,
-// and PATCH /admin/graphics/:grfId/archive.
+// and DELETE /admin/graphics/:grfId (with reviewed dependency token).
 
 // Admin: Get mockups for a template
 app.get('/admin/templates/:templateId/mockups', requireAdmin, async (req: Request, res: Response): Promise<void> => {

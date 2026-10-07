@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Crop, Archive, Image } from "lucide-react";
+import { Crop, Trash2, Image } from "lucide-react";
 import type { DetailSkinProps } from "../skins/types";
 
 // VVSS Shape: SourceDetailShape (digit 4)
@@ -72,8 +72,8 @@ export function SourceDetailShape({ item, actions, onClose }: DetailSkinProps) {
             onClick={handleDelete}
             data-testid="button-detail-delete"
           >
-            <Archive className="h-4 w-4 mr-2" />
-            Archive
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
           </Button>
         )}
       </div>

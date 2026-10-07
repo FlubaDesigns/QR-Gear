@@ -1,3 +1,4 @@
+import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +17,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Archive, Video, Info } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Video, Info } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
@@ -57,17 +58,7 @@ function VideosContent() {
     queryFn: () => adminFetch<GrfVideoAsset[]>("/graphics?mediaType=2"),
   });
 
-  const archiveMutation = useMutation({
-    mutationFn: (grfId: string) =>
-      adminFetch(`/graphics/${grfId}/archive`, { method: "PATCH" }),
-    onSuccess: () => {
-      toast({ title: "Video archived" });
-      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { mediaType: "2" }] });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Failed to archive", description: err.message, variant: "destructive" });
-    },
-  });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
@@ -123,7 +114,7 @@ function VideosContent() {
         // Re-mint a new GRF with a note, or just show a toast explaining.
         toast({
           title: "GRF assets are immutable",
-          description: "Archive this video and mint a new one to replace it.",
+          description: "Delete this video and mint a new one to replace it.",
           variant: "destructive",
         });
         handleCloseDialog();
@@ -268,11 +259,11 @@ function VideosContent() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => archiveMutation.mutate(asset.grfId)}
-                      disabled={archiveMutation.isPending}
-                      data-testid={`button-archive-video-${asset.grfId}`}
+                      onClick={() => setDeleteId(asset.grfId)}
+                      disabled={!!deleteId}
+                      data-testid={`button-delete-video-${asset.grfId}`}
                     >
-                      <Archive className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -337,7 +328,7 @@ function VideosContent() {
               >
                 <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-amber-800 dark:text-amber-300">
-                  GRF assets are immutable. Archive this video and mint a new one to replace it.
+                  GRF assets are immutable. Delete this video and mint a new one to replace it.
                 </p>
               </div>
             )}
@@ -359,6 +350,7 @@ function VideosContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </AdminShell>
   );
 }

@@ -1,3 +1,4 @@
+import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -325,17 +326,6 @@ function InstanceCard({
     onError: () => toast({ title: "Error", description: "Could not save changes.", variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: () =>
-      adminFetch(`/catalog-instances/${instance.id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      setDeleteOpen(false);
-      toast({ title: "Deleted", description: "Item removed." });
-      onDeleted();
-    },
-    onError: () => toast({ title: "Error", description: "Could not delete.", variant: "destructive" }),
-  });
-
   const toggleColor = useCallback((color: string) => {
     const next = enabledColors.includes(color)
       ? enabledColors.filter(c => c !== color)
@@ -465,27 +455,7 @@ function InstanceCard({
         </button>
       </div>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove <strong>{title}</strong> from the store. The underlying packet and template are not deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid={`button-cancel-delete-${instance.id}`}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground"
-              data-testid={`button-confirm-delete-${instance.id}`}
-            >
-              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Yes, remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteBuildDialog target={deleteOpen ? { kind: 'catalog-instances', id: instance.id } : null} onClose={() => setDeleteOpen(false)} onDeleted={onDeleted} />
 
       {lightboxOpen && imageUrl && (
         <ImageLightbox url={imageUrl} alt={title} onClose={() => setLightboxOpen(false)} />

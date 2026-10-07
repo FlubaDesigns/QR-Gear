@@ -1,3 +1,4 @@
+import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState } from "react";
 import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2, AlertTriangle, ExternalLink, Package2, RefreshCw, Palette } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +46,6 @@ interface PacketResultDisplayProps {
   isPlayMode: boolean;
   isBasicsOrPlusMode: boolean;
   pricingSettings: PricingSettings | undefined;
-  isDeleting: boolean;
   thumbnailLightbox: string | null;
   onThumbnailLightbox: (url: string | null) => void;
   onNext: () => void;
@@ -301,7 +301,6 @@ export function PacketResultDisplay({
   isPlayMode,
   isBasicsOrPlusMode,
   pricingSettings,
-  isDeleting,
   thumbnailLightbox,
   onThumbnailLightbox,
   onNext,
@@ -310,6 +309,7 @@ export function PacketResultDisplay({
   artifactError,
   onPrintifyPublished,
 }: PacketResultDisplayProps) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
@@ -722,17 +722,12 @@ export function PacketResultDisplay({
         </button>
         <button
           type="button"
-          onClick={onDelete}
-          disabled={isDeleting}
-          className={`qr-btn qr-btn--ghost qr-btn--touch qr-btn--xl qr-btn--full ${isDeleting ? 'opacity-50' : ''}`}
+          onClick={() => setDeleteOpen(true)}
+          className="qr-btn qr-btn--ghost qr-btn--touch qr-btn--xl qr-btn--full"
           style={{ color: '#ef4444' }}
           data-testid="button-delete-packet"
         >
-          {isDeleting ? (
-            <Loader2 className="h-6 w-6 animate-spin" />
-          ) : (
-            <Trash2 className="h-6 w-6" />
-          )}
+          <Trash2 className="h-6 w-6" />
           Delete This Packet
         </button>
       </div>
@@ -745,6 +740,7 @@ export function PacketResultDisplay({
           />
         </div>
       )}
+      <DeleteBuildDialog target={deleteOpen ? { kind: 'packets', id: packetResult.packetId } : null} onClose={() => setDeleteOpen(false)} onDeleted={onDelete} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import type { ReactNode, ErrorInfo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Crop as CropIcon } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
-import { ArchiveGrfDialog } from "@/features/shared/components/ArchiveGrfDialog";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { CroppedCardSkin } from "@/features/shared/components/skins/CroppedImageSkin";
@@ -81,7 +81,7 @@ class CroppedImagesBoundary extends Component<
 // VVSS: 1·1·1·0 — SinglePaneViewer · ScrollGridView · CroppedCardSkin · flat (no popup)
 
 function CroppedImagesTabInner() {
-  const [archiveId, setArchiveId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: assets = [], isLoading, error: queryError } = useQuery<GrfAsset[]>({
     queryKey: CROPPED_QK,
@@ -119,12 +119,12 @@ function CroppedImagesTabInner() {
         renderItem={(item) => (
           <CroppedCardSkin
             item={item}
-            actions={{ onDelete: setArchiveId }}
-            isActionPending={!!archiveId}
+            actions={{ onDelete: setDeleteId }}
+            isActionPending={!!deleteId}
           />
         )}
       />
-      <ArchiveGrfDialog grfId={archiveId} onClose={() => setArchiveId(null)} queryKey={CROPPED_QK} />
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </SinglePaneViewer>
   );
 }

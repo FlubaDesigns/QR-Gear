@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Crop, Archive, Image } from "lucide-react";
+import { Crop, Trash2, Image } from "lucide-react";
 import { ModalView } from "@/features/shared/components/shapes/ModalView";
 import { SourceDetailShape } from "@/features/shared/components/shapes/SourceShape";
 import type { CardSkinProps } from "./types";
@@ -94,9 +94,9 @@ export function SourceCardSkin({ item, actions, isActionPending }: CardSkinProps
                 onClick={handleDelete}
                 disabled={isActionPending}
                 data-testid={`button-delete-${item.id}`}
-                title="Archive"
+                title="Delete"
               >
-                <Archive className="h-4 w-4 mr-1" />Archive
+                <Trash2 className="h-4 w-4 mr-1" />Delete
               </Button>
             )}
           </div>
