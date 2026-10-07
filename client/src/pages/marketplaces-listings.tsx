@@ -2,21 +2,15 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import {
-  Plus, Trash2, ShoppingBag, Settings, RefreshCw, Loader2, ExternalLink,
-  CheckCircle, AlertCircle, Package, Layers, Link2, ListChecks, ScrollText,
-  Pencil, Play, Clock, XCircle, Info, AlertTriangle, RotateCcw,
-} from "lucide-react";
+import { Plus, Trash2, Settings, RefreshCw, Loader2, ExternalLink, CheckCircle, AlertCircle, Link2, ListChecks, ScrollText, Play, Clock, XCircle, Info, AlertTriangle, RotateCcw } from "lucide-react";
 import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
+import { GenerateFromProductDialog, MarketplaceItemSetup, PushToEtsyDialog } from "./marketplaces-accounts";
 import type { MarketplaceAccount, SurfaceData, ListingData, MarketplacePlatform } from "./marketplaces-accounts";
 
 const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string }> = {
@@ -25,9 +19,14 @@ const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof Si
   amazon: { name: "Amazon", icon: SiAmazon, color: "text-yellow-500" },
 };
 
-export function ListingsSection() {
+export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => void } = {}) {
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [setupId, setSetupId] = useState<string | null>(null);
+  const [continueToAccount, setContinueToAccount] = useState(false);
+  const [etsyListing, setEtsyListing] = useState<ListingData | null>(null);
+
   const [addForm, setAddForm] = useState({ surfaceId: "", accountId: "" });
 
   const { data: listings = [], isLoading, error: listingsError, refetch: reloadListings } = useQuery<ListingData[]>({
@@ -39,12 +38,41 @@ export function ListingsSection() {
     },
   });
 
-  const { data: surfaces = [] } = useQuery<SurfaceData[]>({
+  const { data: surfaces = [], isLoading: surfacesLoading, error: surfacesError, refetch: reloadSurfaces } = useQuery<SurfaceData[]>({
     queryKey: ["/api/admin/surfaces"],
   });
 
-  const { data: accounts = [] } = useQuery<MarketplaceAccount[]>({
+  const { data: accounts = [], error: accountsError, refetch: reloadAccounts } = useQuery<MarketplaceAccount[]>({
     queryKey: ["/api/admin/surfaces/accounts"],
+  });
+
+  const { data: setupSurface, isLoading: setupLoading, error: setupError, refetch: reloadSetup } = useQuery<SurfaceData>({
+    queryKey: [`/api/admin/surfaces/${setupId}`],
+    enabled: !!setupId,
+    staleTime: 0,
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/admin/surfaces/${setupId}`);
+      return res.json();
+    },
+  });
+  const openSetup = (surfaceId: string) => { setContinueToAccount(false); setSetupId(surfaceId); };
+  const chooseAccount = (surfaceId = "") => { setAddForm({ surfaceId, accountId: "" }); setShowAdd(true); };
+  const selectedSurface = surfaces.find(surface => surface.id === addForm.surfaceId);
+  const availableAccounts = accounts.filter(account => account.isActive && selectedSurface?.enabledPlatforms?.includes(account.platform));
+  const unlistedItems = surfaces.filter(surface => !listings.some(listing => listing.surfaceId === surface.id));
+
+  const checkMutation = useMutation({
+    mutationFn: async (surfaceId: string) => (await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/check-readiness`, {})).json(),
+    onSuccess: data => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      toast({ title: data.ready ? "Item is ready for publishing" : "Item needs setup", description: data.errors?.slice(0, 3).join(" • ") });
+    },
+    onError: (err: Error) => toast({ title: "Check failed", description: err.message, variant: "destructive" }),
+  });
+  const removeItemMutation = useMutation({
+    mutationFn: async (surfaceId: string) => (await apiRequest("DELETE", `/api/admin/surfaces/${surfaceId}`, {})).json(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] }),
+    onError: (err: Error) => toast({ title: "Could not remove item", description: err.message, variant: "destructive" }),
   });
 
   const createMutation = useMutation({
@@ -75,6 +103,12 @@ export function ListingsSection() {
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
+
+  const publishListing = (listing: ListingData, action: string) => {
+    if (listing.platform === "etsy" && (!listing.publishOptions?.taxonomyId || !listing.publishOptions?.shippingProfileId)) {
+      setEtsyListing(listing);
+    } else publishMutation.mutate({ listingId: listing.id, action });
+  };
 
   const feeMutation = useMutation({
     mutationFn: async (listingId: string) => {
@@ -110,7 +144,7 @@ export function ListingsSection() {
     }
   };
 
-  const getSurfaceTitle = (id: string) => surfaces.find((s) => s.id === id)?.title || id || "Unknown surface";
+  const getSurfaceTitle = (id: string) => surfaces.find((s) => s.id === id)?.title || id || "Unknown item";
   const getAccountName = (id: string) => accounts.find((a) => a.id === id)?.accountName || id || "Unknown account";
 
   const formatDate = (iso?: string) => {
@@ -123,17 +157,33 @@ export function ListingsSection() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold" data-testid="text-listings-title">Marketplace Listings</h2>
-          <p className="text-sm text-muted-foreground">Surface-to-account connections</p>
+          <p className="text-sm text-muted-foreground">Your products, marketplace accounts and item fees</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} data-testid="button-add-listing" disabled={surfaces.length === 0 || accounts.length === 0}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Listing
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button className="min-h-12" onClick={() => setShowGenerate(true)} data-testid="button-generate-surface"><Plus className="mr-2 h-4 w-4" />Add Product</Button>
+          <Button className="min-h-12" variant="outline" onClick={() => chooseAccount()} data-testid="button-add-listing" disabled={surfaces.length === 0 || !!surfacesError}>Add Marketplace</Button>
+        </div>
       </div>
 
-      {isLoading ? (
+      {surfacesError && <div role="alert"><p>Could not load item setup: {surfacesError.message}</p><Button className="min-h-12" onClick={() => reloadSurfaces()}>Retry</Button></div>}
+      {accountsError && <div role="alert"><p>Could not load marketplace accounts: {accountsError.message}</p><Button className="min-h-12" onClick={() => reloadAccounts()}>Retry</Button></div>}
+      {!isLoading && !listingsError && unlistedItems.length > 0 && <section className="space-y-3" aria-label="Products awaiting marketplace selection">
+        <h3 className="font-semibold">Choose a marketplace account</h3>
+        {unlistedItems.map(item => <Card key={item.id} data-testid={`card-unlisted-${item.id}`}><CardContent className="py-4 space-y-3">
+          <div><p className="font-medium">{item.title || "Untitled item"}</p><p className="text-xs text-muted-foreground break-all">{item.sku}</p></div>
+          {item.readinessErrors?.map((error, index) => <p key={index} className="text-sm text-destructive">{error}</p>)}
+          <div className="flex flex-wrap gap-2 [&>button]:min-h-12">
+            <Button variant="outline" onClick={() => openSetup(item.id)} data-testid={`button-setup-unlisted-${item.id}`}>Item Setup</Button>
+            <Button onClick={() => chooseAccount(item.id)} data-testid={`button-place-${item.id}`}>Choose Account</Button>
+            <Button variant="outline" onClick={() => checkMutation.mutate(item.id)} disabled={checkMutation.isPending}>Check</Button>
+            <Button variant="ghost" aria-label={`Remove ${item.title || "item"}`} disabled={removeItemMutation.isPending} onClick={() => { if (window.confirm("Remove this unlisted item setup? The built product will remain.")) removeItemMutation.mutate(item.id); }}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        </CardContent></Card>)}
+      </section>}
+
+      {isLoading || surfacesLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : listingsError ? (<div role="alert" className="space-y-2"><p>Could not load listings: {listingsError.message}</p><Button onClick={() => reloadListings()}>Retry</Button></div>) : listings.length === 0 ? (
+      ) : listingsError ? (<div role="alert" className="space-y-2"><p>Could not load listings: {listingsError.message}</p><Button onClick={() => reloadListings()}>Retry</Button></div>) : listings.length === 0 ? (unlistedItems.length > 0 ? null : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <Link2 className="h-16 w-16 text-muted-foreground/30" />
@@ -141,15 +191,15 @@ export function ListingsSection() {
               <h3 className="text-lg font-semibold" data-testid="text-empty-listings">No Listings</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 {surfaces.length === 0
-                  ? "Create a surface first, then connect it to an account."
+                  ? "Add a built product to get started."
                   : accounts.length === 0
                   ? "Add a marketplace account first, then create a listing."
-                  : "Link a surface to a marketplace account to create a listing."}
+                  : "Choose an item and marketplace account to create a listing."}
               </p>
             </div>
           </CardContent>
         </Card>
-      ) : (
+      )) : (
         <div className="space-y-3">
           {listings.map((listing) => {
             const info = PLATFORM_INFO[listing.platform];
@@ -167,7 +217,7 @@ export function ListingsSection() {
                         {listingStatusBadge(listing.status)}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                        <span>Surface: {getSurfaceTitle(listing.surfaceId)}</span>
+                        <span>Item: {getSurfaceTitle(listing.surfaceId)}</span>
                         <span>Account: {getAccountName(listing.accountId)}</span>
                         {listing.price > 0 && <span>{listing.currency || "USD"} {listing.price.toFixed(2)}</span>}
                         {listing.externalListingId && <span className="font-mono">#{listing.externalListingId}</span>}
@@ -195,6 +245,10 @@ export function ListingsSection() {
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 [&>button]:min-h-12">
+                      <Button variant="outline" onClick={() => openSetup(listing.surfaceId)} data-testid={`button-setup-${listing.id}`}>Item Setup</Button>
+                      <Button variant="outline" onClick={() => chooseAccount(listing.surfaceId)}>Add Marketplace</Button>
+                      <Button variant="outline" onClick={() => checkMutation.mutate(listing.surfaceId)} disabled={checkMutation.isPending}>Check</Button>
+                      {listing.platform === "etsy" && <Button variant="outline" onClick={() => setEtsyListing(listing)} disabled={listing.status === "syncing"}>Etsy Settings</Button>}
                       <Button className="min-h-12" variant="outline" disabled={feeMutation.isPending || listing.status === "syncing"} onClick={() => feeMutation.mutate(listing.id)} data-testid={`button-fees-${listing.id}`}>
                         <RefreshCw className="mr-2 h-4 w-4" />{feeMutation.isPending && feeMutation.variables === listing.id ? "Checking fees…" : "Refresh item fees"}
                       </Button>
@@ -207,7 +261,7 @@ export function ListingsSection() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => publishMutation.mutate({ listingId: listing.id, action: "create" })}
+                          onClick={() => publishListing(listing, "create")}
                           disabled={publishMutation.isPending}
                           data-testid={`button-publish-${listing.id}`}
                         >
@@ -219,7 +273,7 @@ export function ListingsSection() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => publishMutation.mutate({ listingId: listing.id, action: "update" })}
+                          onClick={() => publishListing(listing, "update")}
                           disabled={publishMutation.isPending}
                           data-testid={`button-sync-${listing.id}`}
                         >
@@ -231,7 +285,7 @@ export function ListingsSection() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => publishMutation.mutate({ listingId: listing.id, action: "create" })}
+                          onClick={() => publishListing(listing, "create")}
                           disabled={publishMutation.isPending}
                           data-testid={`button-retry-listing-${listing.id}`}
                         >
@@ -256,14 +310,23 @@ export function ListingsSection() {
         </div>
       )}
 
+      {showGenerate && <GenerateFromProductDialog open onClose={() => setShowGenerate(false)} onGenerated={surfaceId => { setContinueToAccount(true); setSetupId(surfaceId); }} />}
+      {setupId && setupSurface && <MarketplaceItemSetup key={setupId} surface={setupSurface} onClose={() => setSetupId(null)} onSaved={surfaceId => { setSetupId(null); if (continueToAccount) chooseAccount(surfaceId); }} />}
+      {setupId && !setupSurface && <Dialog open onOpenChange={open => { if (!open) setSetupId(null); }}><DialogContent className="[&>button]:left-4 [&>button]:right-auto [&>button]:h-12 [&>button]:w-12">
+        <DialogHeader><DialogTitle className="pl-12">Item Setup</DialogTitle></DialogHeader>
+        {setupLoading ? <p>Loading item setup…</p> : <div role="alert"><p>Could not load item setup: {setupError?.message}</p><Button onClick={() => reloadSetup()}>Retry</Button></div>}
+        <Button variant="outline" onClick={() => setSetupId(null)}>Close</Button>
+      </DialogContent></Dialog>}
+      {etsyListing && <PushToEtsyDialog key={etsyListing.id} open onClose={() => setEtsyListing(null)} surfaceId={etsyListing.surfaceId} surfaceTitle={etsyListing.title || getSurfaceTitle(etsyListing.surfaceId)} surfaceSku={etsyListing.marketplaceSku} accountId={etsyListing.accountId} publishOptions={etsyListing.publishOptions} />}
+
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Create Listing</DialogTitle></DialogHeader>
+        <DialogContent className="[&>button]:left-4 [&>button]:right-auto [&>button]:h-12 [&>button]:w-12">
+          <DialogHeader><DialogTitle className="pl-12">Add Marketplace</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Surface</Label>
-              <Select value={addForm.surfaceId} onValueChange={(v) => setAddForm({ ...addForm, surfaceId: v })}>
-                <SelectTrigger data-testid="select-listing-surface"><SelectValue placeholder="Select a surface" /></SelectTrigger>
+              <Label>Item</Label>
+              <Select value={addForm.surfaceId} onValueChange={(v) => setAddForm({ surfaceId: v, accountId: "" })}>
+                <SelectTrigger data-testid="select-listing-surface"><SelectValue placeholder="Select an item" /></SelectTrigger>
                 <SelectContent>
                   {surfaces.map((s) => (
                     <SelectItem key={s.id} value={s.id ?? ""}>{s.title || s.id}</SelectItem>
@@ -276,7 +339,7 @@ export function ListingsSection() {
               <Select value={addForm.accountId} onValueChange={(v) => setAddForm({ ...addForm, accountId: v })}>
                 <SelectTrigger data-testid="select-listing-account"><SelectValue placeholder="Select an account" /></SelectTrigger>
                 <SelectContent>
-                  {accounts.map((a) => {
+                  {availableAccounts.map((a) => {
                     const info = PLATFORM_INFO[a.platform];
                     return <SelectItem key={a.id} value={a.id ?? ""}>{info?.name} - {a.accountName}</SelectItem>;
                   })}
@@ -284,11 +347,13 @@ export function ListingsSection() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          {addForm.surfaceId && availableAccounts.length === 0 && <p className="text-sm">Enable a marketplace in Item Setup and add an active seller account in Accounts.</p>}
+          {onOpenAccounts && <Button variant="outline" className="min-h-12" onClick={onOpenAccounts}>Manage Accounts</Button>}
+          <DialogFooter className="gap-2 [&>button]:min-h-12">
             <Button variant="outline" onClick={() => setShowAdd(false)} data-testid="button-cancel-listing">Cancel</Button>
             <Button
               onClick={() => createMutation.mutate(addForm)}
-              disabled={createMutation.isPending || !addForm.surfaceId || !addForm.accountId}
+              disabled={createMutation.isPending || !addForm.surfaceId || !availableAccounts.some(a => a.id === addForm.accountId)}
               data-testid="button-save-listing"
             >
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -320,10 +385,10 @@ interface SyncJobData {
   updatedAt: string;
 }
 
-export function JobsSection() {
+function JobsSection() {
   const { toast } = useToast();
 
-  const { data: jobs = [], isLoading } = useQuery<SyncJobData[]>({
+  const { data: jobs = [], isLoading, error: jobsError, refetch: reloadJobs } = useQuery<SyncJobData[]>({
     queryKey: ["/api/admin/surfaces/jobs"],
     refetchInterval: (query) => {
       const data = query.state.data;
@@ -373,13 +438,13 @@ export function JobsSection() {
   return (
     <div className="p-4 space-y-4">
       <div>
-        <h2 className="text-lg font-semibold" data-testid="text-jobs-title">Sync Jobs</h2>
+        <h2 className="text-lg font-semibold" data-testid="text-jobs-title">Publishing Activity</h2>
         <p className="text-sm text-muted-foreground">Publishing pipeline execution history</p>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : jobs.length === 0 ? (
+      ) : jobsError ? (<div role="alert"><p>Could not load publishing activity: {jobsError.message}</p><Button className="min-h-12" onClick={() => reloadJobs()}>Retry</Button></div>) : jobs.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <ListChecks className="h-16 w-16 text-muted-foreground/30" />
@@ -423,6 +488,7 @@ export function JobsSection() {
                           size="sm"
                           onClick={() => retryMutation.mutate(job.id)}
                           disabled={retryMutation.isPending}
+                          className="min-h-12"
                           data-testid={`button-retry-job-${job.id}`}
                         >
                           <RotateCcw className="h-3 w-3 mr-1" />
@@ -455,7 +521,7 @@ interface SyncLogData {
   createdAt: string;
 }
 
-export function LogsSection() {
+function LogsSection() {
   const [levelFilter, setLevelFilter] = useState<string>("all");
 
   const { data: logs = [], isLoading, error, refetch } = useQuery<SyncLogData[]>({
@@ -484,7 +550,7 @@ export function LogsSection() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold" data-testid="text-logs-title">Sync Logs</h2>
+          <h2 className="text-lg font-semibold" data-testid="text-logs-title">Activity Details</h2>
           <p className="text-sm text-muted-foreground">Detailed log entries from sync operations</p>
         </div>
         <Select value={levelFilter} onValueChange={setLevelFilter}>
@@ -539,4 +605,17 @@ export function LogsSection() {
       )}
     </div>
   );
+}
+
+export function ActivitySection() {
+  const [showDetails, setShowDetails] = useState(false);
+  return <div>
+    <JobsSection />
+    <div className="px-4 pb-4">
+      <Button className="min-h-12 w-full justify-start" variant="outline" aria-expanded={showDetails} aria-controls="marketplace-activity-details" onClick={() => setShowDetails(value => !value)} data-testid="button-activity-details">
+        <ScrollText className="mr-2 h-4 w-4" />{showDetails ? "Hide detailed logs" : "Show detailed logs"}
+      </Button>
+      {showDetails && <div id="marketplace-activity-details"><LogsSection /></div>}
+    </div>
+  </div>;
 }

@@ -15,8 +15,11 @@ vi.mock('@/components/ui/select', () => {
   const Pass = ({ children, ...props }: any) => React.createElement('div', props, children);
   return { Select: Pass, SelectContent: Pass, SelectItem: Pass, SelectTrigger: Pass, SelectValue: Pass };
 });
-import { AccountsSection, SurfacesSection } from '@/pages/marketplaces-accounts';
-import { ListingsSection, LogsSection } from '@/pages/marketplaces-listings';
+import { AccountsSection, PushToEtsyDialog } from '@/pages/marketplaces-accounts';
+import { ListingsSection, ActivitySection } from '@/pages/marketplaces-listings';
+vi.mock('@/components/AdminShell', () => ({ default: ({ tabs, onTabChange, children }: any) => React.createElement('div', null, tabs.map((tab: any) => React.createElement('button', { key: tab.id, 'data-testid': `tab-${tab.id}`, onClick: () => onTabChange(tab.id) }, tab.label)), children) }));
+vi.mock('@/components/admin/AdminSectionSubNav', () => ({ default: () => null }));
+import AdminMarketplaces from '@/pages/admin-marketplaces';
 let tree: ReactTestRenderer, client: QueryClient;
 const flush = () => new Promise(resolve => setTimeout(resolve, 5));
 async function mount(component: any, products: any = { success: true, instances: [{ id: 'built', resolved: { title: 'My saved shirt' } }], count: 1 }, records: Record<string, any> = {}) {
@@ -24,24 +27,26 @@ async function mount(component: any, products: any = { success: true, instances:
   await act(async () => { tree = create(React.createElement(QueryClientProvider, { client }, React.createElement(component))); await flush(); });
   await act(async () => { await flush(); });
 }
-beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal('window', { location: { search: '', pathname: '/admin/marketplaces', origin: 'https://qrgear-c1ffd.web.app', assign: vi.fn() }, history: { replaceState: vi.fn() } }); });
+beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal('window', { location: { search: '', pathname: '/admin/marketplaces', origin: 'https://qrgear-c1ffd.web.app', assign: vi.fn() }, history: { replaceState: vi.fn() }, confirm: vi.fn(() => true) }); });
 afterEach(() => { if (tree) act(() => tree.unmount()); client?.clear(); vi.unstubAllGlobals(); });
 it('renders products from the canonical response envelope', async () => {
-  await mount(SurfacesSection);
+  await mount(ListingsSection);
   await act(async () => { tree.root.findByProps({ 'data-testid': 'button-generate-surface' }).props.onClick(); await flush(); });
   await act(async () => { await flush(); });
   expect(JSON.stringify(tree.toJSON())).toContain('My saved shirt');
   expect(tree.root.findByProps({ 'data-testid': 'option-instance-built' })).toBeDefined();
 });
 it('shows malformed product responses as errors instead of crashing or showing an empty picker', async () => {
-  await mount(SurfacesSection, []);
+  await mount(ListingsSection, []);
   await act(async () => { tree.root.findByProps({ 'data-testid': 'button-generate-surface' }).props.onClick(); await flush(); });
   await act(async () => { await flush(); });
   expect(JSON.stringify(tree.toJSON())).toContain('Invalid product response');
 });
 it('loads Logs through the authenticated request helper and shows read failure', async () => {
   mocks.api.mockRejectedValue(new Error('Authentication expired'));
-  await mount(LogsSection);
+  await mount(ActivitySection);
+  expect(mocks.api).not.toHaveBeenCalled();
+  await click("button-activity-details");
   expect(mocks.api).toHaveBeenCalledWith('GET', '/api/admin/surfaces/logs');
   expect(JSON.stringify(tree.toJSON())).toContain('Could not load logs');
   expect(tree.root.findAllByProps({ 'data-testid': 'text-empty-logs' })).toHaveLength(0);
@@ -71,4 +76,90 @@ it('shows item fee state, provides draft Publish and retrieves fees for exactly 
   expect(tree.root.findByProps({ 'data-testid': 'button-publish-item' })).toBeDefined();
   await act(async () => { tree.root.findByProps({ 'data-testid': 'button-fees-item' }).props.onClick(); await flush(); });
   expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/listings/item/fees', {});
+});
+
+async function click(id: string) {
+  await act(async () => { tree.root.findByProps({ 'data-testid': id }).props.onClick(); await flush(); });
+  await act(async () => { await flush(); });
+}
+async function select(id: string, value: string) {
+  let node = tree.root.findByProps({ 'data-testid': id });
+  while (!node.props.onValueChange) node = node.parent!;
+  await act(async () => { node.props.onValueChange(value); await flush(); });
+}
+const surface = { id: 's', masterProductId: 'built', title: 'Shirt', retailPrice: 30, sku: 'SKU', enabledPlatforms: ['amazon'] };
+const listing = { id: 'item', surfaceId: 's', accountId: 'seller', platform: 'amazon', status: 'draft', title: 'Shirt', price: 30 };
+it('offers exactly Accounts, Listings and Activity with the product action inside Listings', async () => {
+  await mount(AdminMarketplaces);
+  expect(tree.root.findAll(node => node.type === 'button' && node.props['data-testid']?.startsWith('tab-')).map(node => node.children.join(''))).toEqual(['Accounts', 'Listings', 'Activity']);
+  await click('tab-listings');
+  expect(tree.root.findByProps({ 'data-testid': 'button-generate-surface' })).toBeDefined();
+  await click('tab-activity');
+  expect(tree.root.findByProps({ 'data-testid': 'text-jobs-title' })).toBeDefined();
+  expect(tree.root.findAllByProps({ 'data-testid': 'text-logs-title' })).toHaveLength(0);
+});
+it('loads and saves the listing’s existing item setup and refreshes item fees', async () => {
+  mocks.api.mockImplementation(async (method: string) => ({ json: async () => method === 'GET' ? surface : { success: true } }));
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [listing], '/api/admin/surfaces': [surface] });
+  await click('button-setup-item');
+  expect(mocks.api).toHaveBeenCalledWith('GET', '/api/admin/surfaces/s');
+  await act(async () => { tree.root.findByProps({ 'data-testid': 'input-surface-title' }).props.onChange({ target: { value: 'Updated shirt' } }); });
+  await click('button-save-surface');
+  expect(mocks.api).toHaveBeenCalledWith('PATCH', '/api/admin/surfaces/s', expect.objectContaining({ title: 'Updated shirt', retailPrice: 30 }));
+  expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['/api/admin/surfaces/listings'] });
+  expect(tree.root.findAllByProps({ 'data-testid': 'input-surface-title' })).toHaveLength(0);
+});
+it('keeps unsaved item edits after a failed save and respects discard cancellation', async () => {
+  mocks.api.mockImplementation(async (method: string) => { if (method === 'PATCH') throw new Error('Save unavailable'); return { json: async () => surface }; });
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces/listings': [listing] });
+  await click('button-setup-item');
+  await act(async () => { tree.root.findByProps({ 'data-testid': 'input-surface-title' }).props.onChange({ target: { value: 'Keep this edit' } }); });
+  await click('button-save-surface');
+  expect(tree.root.findByProps({ 'data-testid': 'input-surface-title' }).props.value).toBe('Keep this edit');
+  expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Save failed' }));
+  vi.mocked(window.confirm).mockReturnValue(false);
+  await click('button-cancel-surface');
+  expect(tree.root.findByProps({ 'data-testid': 'input-surface-title' }).props.value).toBe('Keep this edit');
+});
+it('opens a newly generated item from its detail endpoint before the list refreshes, then continues to account choice', async () => {
+  mocks.api.mockImplementation(async (method: string, path: string) => ({ json: async () => path.endsWith('generate-from-instance') ? { surfaceId: 's' } : method === 'GET' ? surface : { success: true } }));
+  await mount(ListingsSection);
+  await click('button-generate-surface');
+  await select('select-generate-instance', 'built');
+  await click('button-generate-confirm');
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/generate-from-instance', { instanceId: 'built', marketplace: 'ebay' });
+  expect(tree.root.findByProps({ 'data-testid': 'input-surface-title' }).props.value).toBe('Shirt');
+  await click('button-save-surface');
+  expect(tree.root.findByProps({ 'data-testid': 'select-listing-surface' })).toBeDefined();
+});
+it('limits account choices to enabled marketplaces and clears the account when the item changes', async () => {
+  await mount(ListingsSection, undefined, { '/api/admin/surfaces': [surface, { ...surface, id: 'other', enabledPlatforms: ['ebay'] }], '/api/admin/surfaces/accounts': [
+    { id: 'seller', platform: 'amazon', accountName: 'Amazon seller', isActive: true },
+    { id: 'ebay', platform: 'ebay', accountName: 'eBay seller', isActive: true },
+    { id: 'inactive', platform: 'amazon', accountName: 'Inactive seller', isActive: false },
+  ] });
+  await click('button-add-listing');
+  await select('select-listing-surface', 's');
+  let snapshot = JSON.stringify(tree.toJSON());
+  expect(snapshot).toContain('Amazon seller');
+  expect(snapshot).not.toContain('eBay seller');
+  expect(snapshot).not.toContain('Inactive seller');
+  await select('select-listing-account', 'seller');
+  expect(tree.root.findByProps({ 'data-testid': 'button-save-listing' }).props.disabled).toBe(false);
+  await select('select-listing-surface', 'other');
+  expect(tree.root.findByProps({ 'data-testid': 'button-save-listing' }).props.disabled).toBe(true);
+});
+it('keeps failed publishing job retries wired in Activity', async () => {
+  mocks.api.mockResolvedValue({ json: async () => ({ success: true, listingStatus: 'active' }) });
+  await mount(ActivitySection, undefined, { '/api/admin/surfaces/jobs': [{ id: 'job', status: 'failed', platform: 'amazon', action: 'create', attempts: 1, maxAttempts: 3, createdAt: '2026-10-07' }] });
+  await click('button-retry-job-job');
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/jobs/job/retry', {});
+});
+it('retains Etsy requirements and restricts publishing to the listing’s connected seller', async () => {
+  const Component = () => React.createElement(PushToEtsyDialog, { open: true, onClose: vi.fn(), surfaceId: 's', surfaceTitle: 'Shirt', accountId: 'etsy', publishOptions: { taxonomyId: 123, shippingProfileId: 456 } });
+  mocks.api.mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+  await mount(Component, undefined, { '/api/admin/surfaces/accounts': [{ id: 'etsy', platform: 'etsy', accountName: 'Selected shop', etsyConnected: true, isActive: true }, { id: 'other', platform: 'etsy', accountName: 'Other shop', etsyConnected: true, isActive: true }] });
+  expect(JSON.stringify(tree.toJSON())).not.toContain('Other shop');
+  await click('button-etsy-push-confirm');
+  expect(mocks.api).toHaveBeenCalledWith('POST', '/api/admin/surfaces/s/push-to-etsy', expect.objectContaining({ accountId: 'etsy', taxonomyId: 123, shippingProfileId: 456 }));
 });
