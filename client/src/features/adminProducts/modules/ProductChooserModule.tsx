@@ -1,3 +1,4 @@
+import { normalizeProductColors, normalizeProductSizes } from "@shared/adapters/catalog.adapter";
 import { useState, useMemo, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
@@ -44,14 +45,8 @@ function productToSelectItem(product: Product): ProductSelectItem {
 
   const imageUrl = product.imageUrl || (metadata.image as string) || "";
 
-  const colors: Array<{ name: string; hex?: string }> = Array.isArray(
-    raw.availableColors
-  )
-    ? raw.availableColors
-    : [];
-  const sizes: string[] = Array.isArray(raw.availableSizes)
-    ? raw.availableSizes
-    : [];
+  const colors = normalizeProductColors(raw);
+  const sizes = normalizeProductSizes(raw);
 
   const madeInUSA =
     metadata.originCountry === "US" ||

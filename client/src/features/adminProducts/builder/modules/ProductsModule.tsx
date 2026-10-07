@@ -30,6 +30,7 @@ import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getLookupBlankKey, getProductSnapshotKey, isQRGBlankId } from "@shared/blankKeys";
 import { normalizeProductColors, normalizeProductSizes } from "@shared/adapters/catalog.adapter";
+import { resolveDisplayText } from "@shared/descriptionLayers";
 import { BlankPickerModal } from "./BlankPickerModal";
 
 interface AdminCatalog {
@@ -98,12 +99,12 @@ function catalogToSelectItem(
   const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
     ? adminCatalogDescription
     : null;
-  const effectiveDescription = normalizedAdminDesc ?? providerDescription;
+  const effectiveDescription = resolveDisplayText({ catalogValue: normalizedAdminDesc, providerValue: providerDescription }).value;
   const providerTitle = p.title || raw.name || "";
   const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0
     ? adminCatalogTitle
     : null;
-  const effectiveTitle = normalizedAdminTitle ?? providerTitle;
+  const effectiveTitle = resolveDisplayText({ catalogValue: normalizedAdminTitle, providerValue: providerTitle }).value;
   return {
     id: (p as any).docId || String(p.id),
     name: effectiveTitle,
@@ -578,40 +579,38 @@ export function ProductsModule() {
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    if (selectedProductId === id) {
-      setProductDescription(description || null, 'manual');
-    }
 
     if (activeCatalog) {
       try {
-        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description || "" });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description.trim() });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Description saved to catalog" });
-      } catch {
-        toast({ title: "Description set for this session only", description: "Could not save to catalog", variant: "destructive" });
+      } catch (error) {
+        toast({ title: "Could not save description", variant: "destructive" });
+        throw error;
       }
-    } else {
-      toast({ title: "Description set for this session" });
+    } else if (selectedProductId === id) {
+      setProductDescription(description.trim() || null, 'manual');
+      toast({ title: "Product description saved" });
     }
   }, [selectItemMap, selectedProductId, setProductDescription, activeCatalog, queryClient, toast]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    if (selectedProductId === id) {
-      setProductTitle(title || null, 'manual');
-    }
 
     if (activeCatalog) {
       try {
-        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-title`, { blankId: entry.blankKey, title: title || "" });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-title`, { blankId: entry.blankKey, title: title.trim() });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Title saved to catalog" });
-      } catch {
-        toast({ title: "Title set for this session only", description: "Could not save to catalog", variant: "destructive" });
+      } catch (error) {
+        toast({ title: "Could not save title", variant: "destructive" });
+        throw error;
       }
-    } else {
-      toast({ title: "Title set for this session" });
+    } else if (selectedProductId === id) {
+      setProductTitle(title.trim() || null, 'manual');
+      toast({ title: "Product title saved" });
     }
   }, [selectItemMap, selectedProductId, setProductTitle, activeCatalog, queryClient, toast]);
 
@@ -895,7 +894,12 @@ export function ProductsModule() {
       const itemTier = (activeCatalog?.blankTiers?.[blankKey] ?? null) as "good" | "better" | "best" | null;
       return (
         <ProductSelectCardSkin
-          item={entry.selectItem}
+          item={!activeCatalog && selectedProductId === cardId ? {
+            ...entry.selectItem,
+            name: resolveDisplayText({ packetValue: state.adminCatalogTitle, providerValue: entry.selectItem.providerTitle }).value,
+            description: resolveDisplayText({ packetValue: state.productDescription, providerValue: entry.selectItem.providerDescription }).value,
+          } : entry.selectItem}
+          textEditScope={activeCatalog ? `Catalog: ${activeCatalog.name}` : "Product"}
           isSelected={selectedProductId === cardId}
           onSelect={handleCardSelect}
           editableDescription={!!activeCatalog || selectedProductId === cardId}
@@ -916,7 +920,7 @@ export function ProductsModule() {
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, handleImagesBulkSave]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, state.adminCatalogTitle, state.productDescription, handleImagesBulkSave]
   );
 
   return (

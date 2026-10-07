@@ -257,6 +257,60 @@ describe('Product cards and draft handoff', () => {
     expect(current.state.activeSessionId).toBe('fresh'); expect(current.state.forceNewSession).toBe(false);
   });
 
+  it('catalog edits and resets never overwrite the selected product or master copy', async () => {
+    mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'session-a', session: { status: 'working' } }) });
+    const getCards = await cards();
+    await act(async () => { const card = getCards()[0]; card.props.onSelect(card.props.item.id, card.props.item); });
+    await act(async () => {
+      current.setProductTitle('My product title');
+      current.setProductDescription('My product description');
+    });
+    expect(getCards()[0].props.textEditScope).toBe('Catalog: Catalog');
+    expect(getCards()[0].props.item.name).toBe('Catalog title');
+    for (const value of ['Updated catalog text', '']) {
+      await act(async () => {
+        await getCards()[0].props.onTitleSave('qrg_11001', value);
+        await getCards()[0].props.onDescriptionSave('qrg_11001', value);
+      });
+      expect(current.state.adminCatalogTitle).toBe('My product title');
+      expect(current.state.productDescription).toBe('My product description');
+      expect(current.state.masterTitle).toBe('Provider qrg_11001');
+      expect(current.state.masterDescription).toBe('Provider description');
+      expect(current.state.activeSessionId).toBe('session-a');
+      expect(mocks.apiRequest.mock.calls.at(-1)?.[2]).toEqual({ blankId: 'qrg_11001', description: value });
+    }
+  });
+
+  it('surfaces a failed catalog save without changing the product copy', async () => {
+    mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'session-a', session: { status: 'working' } }) });
+    const getCards = await cards();
+    await act(async () => { const card = getCards()[0]; card.props.onSelect(card.props.item.id, card.props.item); });
+    mocks.apiRequest.mockRejectedValueOnce(new Error('save failed'));
+    await act(async () => {
+      await expect(getCards()[0].props.onTitleSave('qrg_11001', 'Unsaved title')).rejects.toThrow('save failed');
+    });
+    expect(current.state.adminCatalogTitle).toBe('Catalog title');
+  });
+
+  it('product-only editing displays and changes the packet without a catalog write', async () => {
+    mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'session-a', session: { status: 'working' } }) });
+    const getCards = await cards();
+    await act(async () => { const card = getCards()[0]; card.props.onSelect(card.props.item.id, card.props.item); });
+    await act(async () => { current.setSelectedCatalogId('all'); current.setGenderFilter('all'); });
+    await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-super-category-1' }).props.onClick(); });
+    await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-sub-category-11' }).props.onClick(); });
+    const count = mocks.apiRequest.mock.calls.length;
+    await act(async () => {
+      await getCards()[0].props.onTitleSave('qrg_11001', 'Packet title');
+      await getCards()[0].props.onDescriptionSave('qrg_11001', 'Packet description');
+    });
+    expect(getCards()[0].props.textEditScope).toBe('Product');
+    expect(getCards()[0].props.item.name).toBe('Packet title');
+    expect(getCards()[0].props.item.description).toBe('Packet description');
+    expect(mocks.apiRequest).toHaveBeenCalledTimes(count);
+    expect(current.state.masterTitle).toBe('Provider qrg_11001');
+  });
+
   it('editing another catalog card does not replace the active product or session', async () => {
     mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'session-a', session: { status: 'working' } }) });
     const getCards = await cards();

@@ -1,3 +1,4 @@
+import type { CanonicalProductSelectItem } from "@shared/adapters/catalog.adapter";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,27 +29,8 @@ import {
   Square,
 } from "lucide-react";
 
-export interface ProductSelectItem {
-  id: string;
-  name: string;
-  providerTitle?: string | null;
-  adminCatalogTitle?: string | null;
-  price: number | null;
-  cost: number | null;
-  manufacturer: string | null;
-  model?: string | null;
-  madeInUSA: boolean;
-  primaryImageUrl: string | null;
-  images?: string[];
-  description: string | null;
-  providerDescription?: string | null;
-  adminCatalogDescription?: string | null;
-  providerDescriptionRaw?: string | null;
-  availableColors: Array<{ name: string; hex?: string }>;
-  availableSizes: string[];
-  defaultColor: string | null;
-  qrgBlankId?: string | null;
-}
+// Keep the shared catalog adapter as the single UI field contract.
+export type ProductSelectItem = CanonicalProductSelectItem;
 
 export type TierValue = "good" | "better" | "best" | null;
 
@@ -65,6 +47,7 @@ export interface ProductSelectCardSkinProps {
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  textEditScope?: string;
   selectLabel?: React.ReactNode;
   selectedLabel?: React.ReactNode;
   disableWhenSelected?: boolean;
@@ -96,6 +79,7 @@ function PreviewModal({
   onTitleSave,
   titleSaving,
   editableTitle,
+  textEditScope,
   onImageDelete,
   onImageRestore,
   onImagesBulkSave,
@@ -120,6 +104,7 @@ function PreviewModal({
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  textEditScope?: string;
   mockupImageUrl?: string | null;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
@@ -190,21 +175,25 @@ function PreviewModal({
     }
   };
 
-  const handleSaveDesc = async () => {
-    if (!onDescriptionSave) return;
-    if (editingTitle && onTitleSave) {
-      await onTitleSave(item.id, draftTitle);
-      setEditingTitle(false);
+  const [savingText, setSavingText] = useState(false);
+  const [textSaveError, setTextSaveError] = useState<string | null>(null);
+  const saveText = async (field: "title" | "description", value: string) => {
+    const save = field === "title" ? onTitleSave : onDescriptionSave;
+    if (!save || savingText) return;
+    setSavingText(true);
+    setTextSaveError(null);
+    try {
+      await save(item.id, value);
+      if (field === "title") { setEditingTitle(false); setConfirmResetTitle(false); }
+      else { setEditingDesc(false); setConfirmResetDesc(false); }
+    } catch {
+      setTextSaveError("Could not save. Your edits are still here.");
+    } finally {
+      setSavingText(false);
     }
-    await onDescriptionSave(item.id, draftDesc);
-    setEditingDesc(false);
   };
-
-  const handleSaveTitle = async () => {
-    if (!onTitleSave) return;
-    await onTitleSave(item.id, draftTitle);
-    setEditingTitle(false);
-  };
+  const handleSaveDesc = () => saveText("description", draftDesc);
+  const handleSaveTitle = () => saveText("title", draftTitle);
 
   const [restoringImages, setRestoringImages] = useState(false);
   const imagesAreModified = masterCatalogImages !== undefined
@@ -283,7 +272,7 @@ function PreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
+        className="[&_button]:min-h-12 [&_button]:min-w-12 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:bg-background fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
         data-testid={`modal-preview-${item.id}`}
       >
         <VisuallyHidden>
@@ -329,6 +318,7 @@ function PreviewModal({
                     variant="ghost"
                     className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
                     onClick={handlePrev}
+                    aria-label="Previous image"
                     disabled={currentIndex === 0}
                     data-testid={`button-img-prev-${item.id}`}
                   >
@@ -339,6 +329,7 @@ function PreviewModal({
                     variant="ghost"
                     className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
                     onClick={handleNext}
+                    aria-label="Next image"
                     disabled={currentIndex === displayImages.length - 1}
                     data-testid={`button-img-next-${item.id}`}
                   >
@@ -373,6 +364,7 @@ function PreviewModal({
                   size="icon"
                   variant="ghost"
                   onClick={handlePrev}
+                    aria-label="Previous image"
                   disabled={currentIndex === 0}
                   data-testid={`button-img-prev-${item.id}`}
                 >
@@ -385,6 +377,7 @@ function PreviewModal({
                   size="icon"
                   variant="ghost"
                   onClick={handleNext}
+                    aria-label="Next image"
                   disabled={currentIndex === displayImages.length - 1}
                   data-testid={`button-img-next-${item.id}`}
                 >
@@ -452,7 +445,7 @@ function PreviewModal({
                       >
                         <img
                           src={imgUrl}
-                          alt={isMockupThumb ? "Mockup" : `Thumbnail ${idx}`}
+                          alt={isMockupThumb ? "Mockup" : `Thumbnail ${idx + 1}`}
                           className="w-full h-full object-contain bg-background p-0.5"
                         />
                         {isMockupThumb && (
@@ -596,6 +589,10 @@ function PreviewModal({
             )}
 
             <div className="p-4 space-y-4">
+              {textEditScope && (editableTitle || editableDescription) && (
+                <p className="text-sm font-medium" data-testid={`text-edit-scope-${item.id}`}>{textEditScope}</p>
+              )}
+              {textSaveError && <p role="alert" className="text-sm text-destructive">{textSaveError}</p>}
               <div className="space-y-2">
                 {editableTitle && onTitleSave ? (
                   <div data-testid={`title-edit-area-${item.id}`}>
@@ -615,7 +612,8 @@ function PreviewModal({
                               <button
                                 type="button"
                                 className="text-red-400 hover:text-red-300 underline font-medium"
-                                onClick={() => { setDraftTitle(item.providerTitle || ""); setConfirmResetTitle(false); }}
+                                disabled={savingText || titleSaving}
+                                onClick={() => saveText("title", "")}
                                 data-testid={`button-confirm-yes-reset-title-${item.id}`}
                               >
                                 Yes, reset
@@ -640,11 +638,19 @@ function PreviewModal({
                             </button>
                           )
                         )}
-                        <p className="text-xs text-muted-foreground">Title will save with description below.</p>
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveTitle} disabled={savingText || titleSaving} data-testid={`button-save-title-${item.id}`}>
+                            Save title
+                          </Button>
+                          <Button variant="outline" disabled={savingText} onClick={() => { setEditingTitle(false); setConfirmResetTitle(false); setDraftTitle(item.name || ""); }}>
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
                     ) : (
-                      <div
-                        className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
+                      <button
+                        type="button"
+                        className="group w-full text-left cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-3"
                         onClick={() => { setDraftTitle(item.name || ""); setEditingTitle(true); }}
                         data-testid={`button-edit-title-${item.id}`}
                       >
@@ -657,7 +663,7 @@ function PreviewModal({
                         {item.adminCatalogTitle && (
                           <span className="ml-6 text-xs text-blue-400">Custom title</span>
                         )}
-                      </div>
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -724,7 +730,8 @@ function PreviewModal({
                               <button
                                 type="button"
                                 className="text-red-400 hover:text-red-300 underline font-medium"
-                                onClick={() => { setDraftDesc(item.providerDescription || item.providerDescriptionRaw || ""); setConfirmResetDesc(false); }}
+                                disabled={savingText || descriptionSaving}
+                                onClick={() => saveText("description", "")}
                                 data-testid={`button-confirm-yes-reset-desc-${item.id}`}
                               >
                                 Yes, reset
@@ -753,7 +760,7 @@ function PreviewModal({
                           <Button
                             size="sm"
                             onClick={handleSaveDesc}
-                            disabled={descriptionSaving}
+                            disabled={descriptionSaving || savingText}
                             data-testid={`button-save-desc-${item.id}`}
                           >
                             {descriptionSaving ? (
@@ -761,12 +768,13 @@ function PreviewModal({
                             ) : (
                               <Save className="w-4 h-4" />
                             )}
-                            Save
+                            Save description
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => { setEditingDesc(false); setDraftDesc(item.description || ""); }}
+                            disabled={savingText}
+                            onClick={() => { setConfirmResetDesc(false); setEditingDesc(false); setDraftDesc(item.description || ""); }}
                             data-testid={`button-cancel-desc-${item.id}`}
                           >
                             Cancel
@@ -774,8 +782,9 @@ function PreviewModal({
                         </div>
                       </>
                     ) : (
-                      <div
-                        className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
+                      <button
+                        type="button"
+                        className="group w-full text-left cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-3"
                         onClick={() => { setDraftDesc(item.description || item.providerDescription || ""); setEditingDesc(true); }}
                         data-testid={`button-edit-desc-${item.id}`}
                       >
@@ -787,7 +796,7 @@ function PreviewModal({
                             <p className="text-sm text-muted-foreground italic">Tap to add a custom description...</p>
                           )}
                         </div>
-                      </div>
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -939,7 +948,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cardImageIndex, setCardImageIndex] = useState(0);
@@ -1244,6 +1253,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onTitleSave={onTitleSave}
         titleSaving={titleSaving}
         editableTitle={editableTitle}
+        textEditScope={textEditScope}
         onImageDelete={onImageDelete}
         onImageRestore={onImageRestore}
         onImagesBulkSave={onImagesBulkSave}
