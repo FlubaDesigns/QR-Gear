@@ -399,7 +399,7 @@ const ADMIN_SECTIONS = [
   { title: "Library", description: "Templates and backgrounds", icon: Image, href: "/admin/library" },
   { title: "Videos", description: "Video backgrounds for QR pages", icon: Video, href: "/admin/videos" },
   { title: "Gifts", description: "Gift packages and codes", icon: Gift, href: "/admin/gifts" },
-  { title: "Templates", description: "Product category templates", icon: Tag, href: "/admin/categories" },
+  { title: "Categories", description: "Collection categories", icon: Tag, href: "/admin/categories" },
   { title: "Store Builder", description: "Manage stores, channels, and collections", icon: Store, href: "/admin/store-builder" },
   { title: "Store Administrator", description: "Create and configure stores", icon: Store, href: "/admin/store-builder?tab=stores" },
   { title: "Partners", description: "Partner stores and product lines", icon: Store, href: "/admin/partners" },

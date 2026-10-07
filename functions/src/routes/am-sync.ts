@@ -250,35 +250,6 @@ app.delete('/admin/templates/:id', requireAdmin, async (req: Request, res: Respo
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/admin/product-categories', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('product_categories').orderBy('sortOrder', 'asc').get();
-    const categories = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ categories });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/admin/product-categories', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('product_categories').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.put('/admin/product-categories/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('product_categories').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.delete('/admin/product-categories/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('product_categories').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
 app.get('/admin/template-categories', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('template_categories').orderBy('sortOrder', 'asc').get();

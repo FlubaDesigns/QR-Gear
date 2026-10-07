@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,20 +15,12 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
   Pencil,
   Trash2,
-  GripVertical,
+  X,
   Church,
   Flag,
   Trophy,
@@ -71,10 +62,11 @@ function IconDisplay({ iconName, className }: { iconName: string; className?: st
   return <Icon className={className} />;
 }
 
-function CategoriesContent() {
+export function CategoriesContent() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -93,10 +85,12 @@ function CategoriesContent() {
 
   async function loadCategories() {
     setLoading(true);
+    setLoadError(false);
     try {
       const cats = await getCategories();
       setCategories(cats);
     } catch (error) {
+      setLoadError(true);
       console.error("Error loading categories:", error);
       toast({
         title: "Error",
@@ -112,8 +106,8 @@ function CategoriesContent() {
     setSaving(true);
     try {
       await seedDefaultCategories();
-      await loadCategories();
       toast({ title: "Success", description: "Default categories added." });
+      await loadCategories();
     } catch (error) {
       toast({ title: "Error", description: "Failed to seed defaults.", variant: "destructive" });
     } finally {
@@ -146,10 +140,10 @@ function CategoriesContent() {
     setSaving(true);
     try {
       if (editingCategory) {
-        await updateCategory(editingCategory.id, formData);
+        await updateCategory(editingCategory.id, { ...formData, name: formData.name.trim() });
         toast({ title: "Success", description: `"${formData.name}" updated.` });
       } else {
-        await createCategory(formData);
+        await createCategory({ ...formData, name: formData.name.trim() });
         toast({ title: "Success", description: `"${formData.name}" created.` });
       }
       setIsDialogOpen(false);
@@ -176,34 +170,35 @@ function CategoriesContent() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+    <Card className="min-w-0 max-w-full">
+      <CardHeader className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
         <div>
           <CardTitle data-testid="text-categories-title">Product Categories</CardTitle>
-          <CardDescription>Manage product categories from Firestore</CardDescription>
+          <CardDescription>Manage category names for future collections</CardDescription>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" className="h-12 px-4" onClick={loadCategories} disabled={loading}>
+          <Button variant="outline" className="h-12 px-4" onClick={loadCategories} disabled={loading || saving}>
             <RefreshCw className={`h-5 w-5 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          {categories.length === 0 && !loading && (
+          {categories.length === 0 && !loading && !loadError && (
             <Button variant="outline" className="h-12 px-4" onClick={handleSeedDefaults} disabled={saving}>
               Seed Defaults
             </Button>
           )}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!saving) setIsDialogOpen(open); }}>
             <DialogTrigger asChild>
-              <Button className="h-12 px-4" onClick={openCreateDialog}>
+              <Button className="h-12 px-4" onClick={openCreateDialog} disabled={saving || loading || loadError}>
                 <Plus className="h-5 w-5 mr-2" />
                 Add
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent showCloseButton={false} className="max-h-[90dvh] overflow-y-auto pt-16 [overflow-wrap:anywhere]">
+              <DialogClose asChild><Button variant="ghost" size="icon" className="absolute left-3 top-3 h-12 w-12" disabled={saving} aria-label="Close"><X className="h-5 w-5" /></Button></DialogClose>
               <DialogHeader>
                 <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-4">
+              <fieldset disabled={saving} className="min-w-0 space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
                   <Input
@@ -227,6 +222,8 @@ function CategoriesContent() {
                     {ICON_OPTIONS.map((iconName) => (
                       <Button
                         key={iconName}
+                        aria-label={iconName}
+                        aria-pressed={formData.icon === iconName}
                         type="button"
                         variant={formData.icon === iconName ? "default" : "outline"}
                         size="icon"
@@ -246,12 +243,12 @@ function CategoriesContent() {
                   />
                   <Label htmlFor="isActive">Active</Label>
                 </div>
-              </div>
+              </fieldset>
               <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline" className="h-12" disabled={saving}>Cancel</Button>
                 </DialogClose>
-                <Button onClick={handleSubmit} disabled={saving}>
+                <Button className="h-12" onClick={handleSubmit} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   {editingCategory ? "Update" : "Create"}
                 </Button>
@@ -265,64 +262,49 @@ function CategoriesContent() {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
+        ) : loadError ? (
+          <div role="alert" className="space-y-3 py-6"><p>Could not load categories. Please retry.</p><Button className="h-12" onClick={loadCategories}>Retry</Button></div>
         ) : categories.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Tag className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No categories yet.</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead className="hidden md:table-cell">Description</TableHead>
-                <TableHead className="w-24 text-center">Status</TableHead>
-                <TableHead className="w-28 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                      <IconDisplay iconName={category.icon} className="h-5 w-5 text-primary" />
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{category.name}</TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">
-                    {category.description}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={category.isActive ? "default" : "secondary"}>
-                      {category.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-12 w-12" onClick={() => openEditDialog(category)}>
-                        <Pencil className="h-5 w-5" />
-                      </Button>
+          <ul className="min-w-0 divide-y">
+            {categories.map((category) => (
+              <li key={category.id} className="grid min-w-0 gap-3 py-4 md:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="min-w-0 space-y-2 [overflow-wrap:anywhere]">
+                  <div className="flex items-start gap-2">
+                    <IconDisplay iconName={category.icon} className="h-5 w-5 shrink-0 text-primary" />
+                    <span className="min-w-0 font-medium">{category.name}</span>
+                  </div>
+                  {category.description && <p className="text-sm text-muted-foreground">{category.description}</p>}
+                  <Badge variant={category.isActive ? "default" : "secondary"}>{category.isActive ? "Active" : "Inactive"}</Badge>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="h-12" disabled={saving} onClick={() => openEditDialog(category)} aria-label={`Edit ${category.name}`}>
+                    <Pencil className="mr-2 h-5 w-5" />Edit
+                  </Button>
                       <Dialog
                         open={deleteConfirmId === category.id}
-                        onOpenChange={(open) => setDeleteConfirmId(open ? category.id : null)}
+                        onOpenChange={(open) => { if (!saving) setDeleteConfirmId(open ? category.id : null); }}
                       >
                         <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-12 w-12">
+                          <Button variant="outline" size="icon" className="h-12 w-12" disabled={saving} aria-label={`Delete ${category.name}`}>
                             <Trash2 className="h-5 w-5 text-destructive" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent showCloseButton={false} className="max-h-[90dvh] overflow-y-auto pt-16 [overflow-wrap:anywhere]">
+              <DialogClose asChild><Button variant="ghost" size="icon" className="absolute left-3 top-3 h-12 w-12" disabled={saving} aria-label="Close"><X className="h-5 w-5" /></Button></DialogClose>
                           <DialogHeader>
                             <DialogTitle>Delete Category</DialogTitle>
                           </DialogHeader>
                           <p>Delete "{category.name}"? This cannot be undone.</p>
                           <DialogFooter>
                             <DialogClose asChild>
-                              <Button variant="outline">Cancel</Button>
+                              <Button variant="outline" className="h-12" disabled={saving}>Cancel</Button>
                             </DialogClose>
-                            <Button variant="destructive" onClick={() => handleDelete(category.id)} disabled={saving}>
+                            <Button variant="destructive" className="h-12" onClick={() => handleDelete(category.id)} disabled={saving}>
                               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                               Delete
                             </Button>
@@ -330,11 +312,9 @@ function CategoriesContent() {
                         </DialogContent>
                       </Dialog>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>
@@ -371,8 +351,8 @@ export default function AdminCategories() {
 
   return (
     <AdminShell
-      title="Templates"
-      subtitle="Manage category templates"
+      title="Categories"
+      subtitle="Manage collection categories"
       icon={Tag}
       backHref="/admin"
       backLabel="Back"

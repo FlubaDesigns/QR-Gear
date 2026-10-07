@@ -803,20 +803,6 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/admin/product-categories/seed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ message: "Use POST to seed categories" }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/admin/product-categories/seed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const defaults = ['T-Shirts', 'Hoodies', 'Mugs', 'Posters', 'Stickers', 'Phone Cases', 'Tote Bags', 'Hats'];
-    const batch = db.batch();
-    defaults.forEach(name => { const ref = db.collection('product_categories').doc(); batch.set(ref, { name, slug: name.toLowerCase().replace(/\s+/g, '-'), isActive: true, createdAt: new Date() }); });
-    await batch.commit();
-    res.json({ success: true, count: defaults.length });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
 // ============ BATCH: FILE SERVING ROUTES ============
 
 app.get('/library-files/:file', async (req: Request, res: Response): Promise<void> => {

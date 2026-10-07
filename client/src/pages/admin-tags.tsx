@@ -1,21 +1,22 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Plus, Check, X, Tag } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
-import type { ProductCategory } from "@shared/schema";
+import { parseProductTags, type ProductTag } from "@shared/productTags";
 import { useAuth } from "@/hooks/useAuth";
 
-function ProductTagsContent() {
+export function ProductTagsContent() {
   const { toast } = useToast();
   
-  const { data: categories, isLoading, refetch } = useQuery<ProductCategory[]>({
+  const { data: categories, isLoading, isFetching, isError, refetch } = useQuery<ProductTag[]>({
     queryKey: ["/api/admin/product-categories"],
+    queryFn: async () => parseProductTags(await (await apiRequest("GET", "/api/admin/product-categories")).json()),
+    select: parseProductTags,
   });
 
   const seedMutation = useMutation({
@@ -26,14 +27,14 @@ function ProductTagsContent() {
     onSuccess: (data) => {
       refetch();
       toast({
-        title: "Categories Seeded",
-        description: `Created ${data.created} default product categories.`,
+        title: "Tags seeded",
+        description: `Created ${data.created} default tags.`,
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to seed categories.",
+        description: "Failed to seed tags.",
         variant: "destructive",
       });
     },
@@ -46,18 +47,21 @@ function ProductTagsContent() {
     onSuccess: () => {
       refetch();
     },
+    onError: () => toast({ title: "Save failed", description: "Could not update the tag. Please try again.", variant: "destructive" }),
   });
 
   const groupedCategories = {
     season: categories?.filter(c => c.taxonomyType === "season") || [],
     holiday: categories?.filter(c => c.taxonomyType === "holiday") || [],
     occasion: categories?.filter(c => c.taxonomyType === "occasion") || [],
-    other: categories?.filter(c => c.taxonomyType === "other") || [],
+    other: categories?.filter(c => !["season", "holiday", "occasion"].includes(c.taxonomyType)) || [],
   };
+
+  const busy = seedMutation.isPending || toggleMutation.isPending || isFetching;
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="min-w-0 max-w-full">
         <CardContent className="p-8 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto" />
         </CardContent>
@@ -66,17 +70,17 @@ function ProductTagsContent() {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
+    <Card className="min-w-0 max-w-full">
+      <CardHeader className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
         <div>
-          <CardTitle>Product Categories</CardTitle>
+          <CardTitle>Product Tags</CardTitle>
           <CardDescription>
             Organize products by seasons, holidays, and occasions
           </CardDescription>
         </div>
         <Button
           onClick={() => seedMutation.mutate()}
-          disabled={seedMutation.isPending}
+          disabled={busy || isError}
           className="h-12 px-6"
           data-testid="button-seed-categories"
         >
@@ -89,11 +93,13 @@ function ProductTagsContent() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
-        {(!categories || categories.length === 0) ? (
+        {isError ? (
+          <div role="alert" className="space-y-3"><p>Could not load tags. Please retry.</p><Button className="h-12" onClick={() => refetch()} disabled={isFetching}>Retry</Button></div>
+        ) : (!categories || categories.length === 0) ? (
           <div className="text-center py-8 text-muted-foreground">
             <Tag className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No product categories yet.</p>
-            <p className="text-sm">Click "Seed Defaults" to add standard categories.</p>
+            <p>No tags yet.</p>
+            <p className="text-sm">Click "Seed Defaults" to add standard tags.</p>
           </div>
         ) : (
           <>
@@ -107,16 +113,18 @@ function ProductTagsContent() {
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {cats.map(cat => (
-                      <Badge
+                      <Button
                         key={cat.id}
                         variant={cat.isActive ? "default" : "outline"}
-                        className="gap-2 px-4 py-3 cursor-pointer text-base min-h-[48px] flex items-center"
+                        className="gap-2 max-w-full h-auto px-4 py-3 text-base min-h-[48px] whitespace-normal text-left [overflow-wrap:anywhere]"
+                        disabled={busy}
+                        aria-pressed={cat.isActive === true}
                         onClick={() => toggleMutation.mutate({ id: cat.id, isActive: !cat.isActive })}
                         data-testid={`badge-category-${cat.slug}`}
                       >
-                        {cat.isActive ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                        {cat.name}
-                      </Badge>
+                        {cat.isActive ? <Check className="w-4 h-4 shrink-0" /> : <X className="w-4 h-4 shrink-0" />}
+                        <span className="min-w-0">{cat.name}</span>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -160,7 +168,7 @@ export default function AdminTags() {
   return (
     <AdminShell
       title="Product Tags"
-      subtitle="Manage product tags and categories"
+      subtitle="Manage seasons, holidays, and occasions"
       icon={Tag}
       backHref="/admin"
       backLabel="Back"
