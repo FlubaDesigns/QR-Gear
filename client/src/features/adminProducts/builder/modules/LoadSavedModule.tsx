@@ -1,3 +1,4 @@
+import { useBuilderContext } from '../BuilderContext';
 import { useState, useEffect, useCallback } from "react";
 import { Archive, Loader2, Image, CheckCircle2, Package, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ function SessionCard({
           ) : (
             <Badge className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               <Package className="h-3 w-3 mr-1" />
-              Has Packet
+              {session.status === 'working' ? 'Draft' : 'Packet Ready'}
             </Badge>
           )}
         </div>
@@ -113,6 +114,7 @@ interface LoadSavedModuleProps {
 
 export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOpenChange, hideCard }: LoadSavedModuleProps = {}) {
   const { toast } = useToast();
+  const { resumeSession, state, busy } = useBuilderContext();
 
   const controlled = externalOpen !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
@@ -134,7 +136,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
       const data = await adminFetch<{ sessions: SavedSession[] }>("/build-sessions");
       const all: SavedSession[] = data.sessions || [];
       const relevant = all
-        .filter(s => s.status === 'artifact_ready' || s.status === 'committed')
+        .filter(s => ['working', 'artifact_ready', 'committed'].includes(s.status))
         .sort((a, b) => {
           const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
           const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
@@ -152,13 +154,24 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
     if (open) fetchSessions();
   }, [open, fetchSessions]);
 
-  const handleSelect = useCallback((session: SavedSession) => {
+  const handleSelect = async (session: SavedSession) => {
+    if (selecting || busy || deletingId) return;
     setSelecting(true);
-    window.location.href = `/admin/products?resume=${session.id}`;
-  }, []);
+    try {
+      await resumeSession(session.id);
+      setOpen(false);
+      toast({ title: 'Build resumed', description: session.draftName || 'Continue your saved build.' });
+    } catch (error: any) {
+      toast({ title: 'Could not resume build', description: error.message, variant: 'destructive' });
+    } finally { setSelecting(false); }
+  };
 
   const handleDelete = useCallback(async (session: SavedSession, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (selecting || busy || deletingId) return;
+    if (session.id === state.activeSessionId) {
+      toast({ title: 'This build is open', description: 'Start a new build or resume another before deleting this draft.' }); return;
+    }
     const label = session.draftName || session.working?.title || 'Untitled';
     if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
     setDeletingId(session.id);
@@ -171,7 +184,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
     } finally {
       setDeletingId(null);
     }
-  }, [toast]);
+  }, [toast, selecting, busy, deletingId, state.activeSessionId]);
 
   return (
     <>
@@ -182,7 +195,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
             <div className="min-w-0">
               <p className="text-sm font-medium leading-tight">Resume a saved build</p>
               <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-                Pick up any item that already has a packet or was saved
+                Continue a draft or open a generated build
               </p>
             </div>
           </div>
@@ -201,7 +214,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
 
       <ModalView
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={value => { if (!selecting && !busy) setOpen(value); }}
         title="Resume a Saved Build"
         maxWidth="sm:max-w-2xl"
         className="max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!max-w-full max-sm:!rounded-t-2xl max-sm:!rounded-b-none max-sm:!h-[88svh] max-sm:!max-h-[88svh]"
@@ -215,7 +228,7 @@ export function LoadSavedModule({ open: externalOpen, onOpenChange: onExternalOp
             <div className="text-center py-16 text-muted-foreground">
               <Archive className="h-12 w-12 mx-auto mb-3 opacity-40" />
               <p className="text-sm">No saved builds yet.</p>
-              <p className="text-xs mt-1">Create a packet and save it to see it here.</p>
+              <p className="text-xs mt-1">Select a product and save your draft to see it here.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

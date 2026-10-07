@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { FolderOpen, Loader2, AlertTriangle, X, Image, Trash2 } from "lucide-react";
+import { FolderOpen, Loader2, Image, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalView } from "@/features/shared/components/views/ModalView";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
@@ -8,46 +8,12 @@ import type { SkinItem } from "@/features/shared/components/skins/types";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
-import type { CatalogProduct } from "../types";
 
-interface PacketInfo {
-  id: string;
-  compositeUrl?: string;
-  qrOnlyUrl?: string;
-  qrContent?: string;
-  headerText?: string;
-  footerText?: string;
-  qrProductState?: string;
-  productName?: string;
-  priorityMockupUrl?: string | null;
-  landingPageSnapshotUrl?: string | null;
-  blueprintId?: number | null;
-  printProviderId?: number | null;
-  productId?: number | null;
-  fulfillmentProvider?: string;
-  defaultColor?: string;
-  defaultColorHex?: string;
-  placements?: string[];
-  placementConfig?: Record<string, string>;
-  placementSizes?: Record<string, string>;
-  headerStyle?: Record<string, any>;
-  footerStyle?: Record<string, any>;
-  subBottomEnabled?: boolean;
-  subBottomText?: string;
-  subBottomFontFamily?: string;
-  subBottomFontSize?: string;
-  subBottomFontWeight?: string;
-  subBottomColor?: string;
-  qrContent2?: string;
-  landingPageTitle?: string;
-  landingPageDescription?: string;
-  backgroundUrl?: string;
-  landingPageBackgroundUrl?: string;
-  builderSnapshot?: { content?: Record<string, any> };
-  [key: string]: any;
-}
+// Packet restoration consumes builderSnapshot; display projections are for thumbnails only.
+type PacketInfo = Record<string, any>;
 
 interface TemplateItem {
+  builderSnapshot?: Record<string, any>;
   id: string;
   name?: string;
   productName?: string;
@@ -99,7 +65,7 @@ interface LoadTemplateModuleProps {
 }
 
 export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExternalOpenChange, hideCard }: LoadTemplateModuleProps = {}) {
-  const { loadFromPacketData, setTemplateProductResolved, setActiveSession, state } = useBuilderContext();
+  const { startFromTemplate, busy } = useBuilderContext();
   const { toast } = useToast();
 
   const controlled = externalOpen !== undefined;
@@ -116,8 +82,6 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
   const [selecting, setSelecting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const hint = state.templateProductHint;
-  const productUnavailable = !!hint && !state.selectedProduct;
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
@@ -135,119 +99,17 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
     if (open) fetchTemplates();
   }, [open, fetchTemplates]);
 
-  const resolveProduct = useCallback(
-    async (packet: PacketInfo): Promise<CatalogProduct | null> => {
-      const provider = packet.fulfillmentProvider || "printify";
-      const blueprintId = packet.blueprintId;
-      if (!blueprintId) return null;
-
-      try {
-        const res = await fetch(`/api/master-catalog`);
-        if (!res.ok) return null;
-        const data = await res.json();
-        const allCategories: Array<{ items: CatalogProduct[] }> = Array.isArray(data) ? data : [];
-        for (const cat of allCategories) {
-          const items: CatalogProduct[] = cat.items || [];
-          const match = items.find((p) => {
-            if (provider === "printful")
-              return p.fulfillmentProvider === "printful" && Number(p.id) === Number(blueprintId);
-            return (
-              (!p.fulfillmentProvider || p.fulfillmentProvider === "printify") &&
-              Number(p.blueprintId || p.id) === Number(blueprintId)
-            );
-          });
-          if (match) return match;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    },
-    []
-  );
-
-  const handleSelect = useCallback(
-    async (skinItem: SkinItem) => {
-      setSelecting(true);
-      try {
-        const item = skinItem.metadata as TemplateItem;
-        let packet = item.packet;
-
-        if (!packet && item.packetId) {
-          const data = await adminFetch<any>(`/packets/${item.packetId}`).catch(() => null);
-          if (data) {
-            const p = data.landingPage || data.packet || data;
-            if (p && (p.packetId || p.id)) {
-              packet = { ...p, id: p.packetId || p.id };
-            }
-          }
-        }
-
-        if (!packet) {
-          toast({
-            title: "Template has no packet data",
-            description: "The packet linked to this template could not be found.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        console.log(`[LoadTemplateModule] Loading template ${item.id} | packet ${packet.id}`);
-
-        const resolvedProduct = await resolveProduct(packet);
-        console.log(
-          `[LoadTemplateModule] Resolved product: ${resolvedProduct?.title ?? "NOT FOUND"} (docId: ${resolvedProduct?.docId ?? "none"})`
-        );
-
-        setActiveSession(null, null, null);
-
-        const sourceMasterId: string | null =
-          resolvedProduct?.docId ||
-          (packet.productId ? String(packet.productId) : null) ||
-          (packet.blueprintId ? String(packet.blueprintId) : null);
-
-        if (sourceMasterId) {
-          try {
-            const sessionData = await adminFetch<any>("/build-sessions/from-master", {
-              method: "POST",
-              json: { sourceMasterId },
-            });
-            console.log(
-              `[LoadTemplateModule] Session ${sessionData.isExisting ? "resumed" : "created"}: ${sessionData.sessionId} ` +
-                `(sourceMasterId: ${sourceMasterId})`
-            );
-            setActiveSession(sessionData.sessionId, "working", null);
-          } catch (e) {
-            console.warn("[LoadTemplateModule] Session creation error:", e);
-          }
-        } else {
-          console.warn(
-            "[LoadTemplateModule] No sourceMasterId — template loaded without session. Autosave inactive."
-          );
-        }
-
-        loadFromPacketData(packet, resolvedProduct);
-
-        if (!resolvedProduct && packet.blueprintId) {
-          toast({
-            title: "Template loaded",
-            description: `The original product "${packet.productName || "Unknown"}" isn't available — please select a replacement below.`,
-          });
-        } else {
-          toast({
-            title: "Template loaded",
-            description: "All settings restored. Make your changes and create a new packet.",
-          });
-        }
-        setOpen(false);
-      } catch {
-        toast({ title: "Failed to load template", variant: "destructive" });
-      } finally {
-        setSelecting(false);
-      }
-    },
-    [loadFromPacketData, resolveProduct, setActiveSession, toast]
-  );
+  const handleSelect = async (skinItem: SkinItem) => {
+    if (selecting || busy || deletingId) return;
+    setSelecting(true);
+    try {
+      await startFromTemplate(skinItem.metadata as TemplateItem);
+      setOpen(false);
+      toast({ title: 'Template loaded', description: 'A separate draft is ready to edit.' });
+    } catch (error: any) {
+      toast({ title: 'Could not load template', description: error.message, variant: 'destructive' });
+    } finally { setSelecting(false); }
+  };
 
   const handleDelete = useCallback(
     async (skinItem: SkinItem) => {
@@ -267,10 +129,6 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
     },
     [toast]
   );
-
-  const handleDismissBanner = useCallback(() => {
-    setTemplateProductResolved(null);
-  }, [setTemplateProductResolved]);
 
   const skinItems: SkinItem[] = templates.map(templateToSkinItem);
 
@@ -300,36 +158,9 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
         </div>
       )}
 
-      {productUnavailable && hint && (
-        <div
-          className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-md mx-3"
-          data-testid="banner-product-unavailable"
-        >
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              Original product not available
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-              "{hint.productName || "Unknown product"}" wasn't found in your catalog. Select a replacement
-              product below to continue.
-            </p>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDismissBanner}
-            className="flex-shrink-0 text-amber-600 dark:text-amber-400"
-            data-testid="button-dismiss-unavailable"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
       <ModalView
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={value => { if (!selecting && !busy) setOpen(value); }}
         title="Choose a Template"
         maxWidth="sm:max-w-2xl"
         className="max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!max-w-full max-sm:!rounded-t-2xl max-sm:!rounded-b-none max-sm:!h-[88svh] max-sm:!max-h-[88svh]"

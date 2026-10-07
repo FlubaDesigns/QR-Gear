@@ -166,7 +166,8 @@ describe('Product selection through the real builder context', () => {
     await act(async () => { current.setCategory('Hoodies'); current.setGenderFilter('all'); });
     expect(current.state.selectedProduct?.docId).toBe('qrg_11001');
     expect(current.state.activeSessionId).toBe('session-a');
-    await act(async () => { current.resetBuilder(); });
+    mocks.adminFetch.mockResolvedValueOnce({ success: true });
+    await act(async () => { await current.resetBuilder(); });
     expect(ownsSelection()).toBe(false);
     await resolveOptions(0);
     expect(current.state.selectedProduct).toBeNull();
@@ -200,6 +201,15 @@ describe('Product cards and draft handoff', () => {
     expect(getCards()[0].props.isSelected).toBe(false);
     expect(getCards()[1].props.isSelected).toBe(true);
     expect(mocks.apiRequest.mock.calls[1][2].sourceMasterId).toBe('qrg_11002');
+  });
+
+  it('New tells the existing product route to create a fresh session, then consumes that intent', async () => {
+    mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'fresh', isExisting: false, session: { status: 'working' } }) });
+    const getCards = await cards();
+    await act(async () => { await current.resetBuilder(); current.setSelectedCatalogId('catalog'); });
+    await act(async () => { const card = getCards()[0]; card.props.onSelect(card.props.item.id, card.props.item); });
+    expect(mocks.apiRequest.mock.calls[0][2].forceNew).toBe(true);
+    expect(current.state.activeSessionId).toBe('fresh'); expect(current.state.forceNewSession).toBe(false);
   });
 
   it('editing another catalog card does not replace the active product or session', async () => {

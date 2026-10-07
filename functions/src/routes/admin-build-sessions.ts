@@ -1,3 +1,4 @@
+import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
 import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../services/build-session-state';
 /**
@@ -133,7 +134,18 @@ export function registerAdminBuildSessions(app: express.Express): void {
   // ── Create or load a build session from a master catalog item ─────────────
   app.post('/admin/build-sessions/from-master', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
-      const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId } = req.body;
+      const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId, forceNew = false, initialWorking } = req.body;
+      if (typeof forceNew !== 'boolean' || (initialWorking !== undefined && !forceNew)) {
+        res.status(400).json({ error: 'initialWorking requires forceNew: true.' }); return;
+      }
+      let templateWorking: Record<string, any> | null = null;
+      if (initialWorking !== undefined) {
+        try { templateWorking = requireBuilderSnapshot(initialWorking); }
+        catch (error: any) { res.status(400).json({ error: error.message }); return; }
+        if (templateWorking.metadata.selectedProductDocId !== sourceMasterId) {
+          res.status(400).json({ error: 'Template product identity must match sourceMasterId.' }); return;
+        }
+      }
 
       if (!sourceMasterId) {
         res.status(400).json({ error: 'sourceMasterId is required' });
@@ -159,7 +171,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       // Filter status in-memory to avoid requiring a composite Firestore index.
-      const rawSessions = await db.collection(BUILD_SESSIONS_COLLECTION)
+      const rawSessions = forceNew ? { docs: [] } : await db.collection(BUILD_SESSIONS_COLLECTION)
         .where('ownerAdminId', '==', ownerAdminId)
         .where('sourceMasterId', '==', sourceMasterId)
         .get();
@@ -231,7 +243,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         ownerAdminId,
         catalogId: catalogId || null,
         blankKey: bodyBlankKey || null,
-        working: {
+        working: templateWorking || {
           title: master.title || null,
           description: master.description || null,
           images: master.images || [],
@@ -326,6 +338,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
     try {
       const { id } = req.params;
       const { working, draftName } = req.body;
+      if (draftName !== undefined && typeof draftName !== 'string') {
+        res.status(400).json({ error: 'Draft name must be text.' }); return;
+      }
 
       if (!working && draftName === undefined) {
         res.status(400).json({ error: 'working object or draftName is required' });
@@ -363,7 +378,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       if (draftName !== undefined) {
-        updatePayload.draftName = draftName;
+        updatePayload.draftName = draftName.trim();
+        // An explicitly saved draft remains resumable until the admin deletes it.
+        updatePayload.expiresAt = draftName.trim() ? null : Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 86400000));
       }
 
       await ref.update(updatePayload);
@@ -890,12 +907,13 @@ export function registerAdminBuildSessions(app: express.Express): void {
         .get();
 
       const batch = db.batch();
-      stale.docs.forEach((doc: any) => {
+      const disposable = stale.docs.filter((doc: any) => !doc.data().draftName);
+      disposable.forEach((doc: any) => {
         batch.update(doc.ref, { status: 'abandoned' });
       });
       await batch.commit();
 
-      res.json({ success: true, cleaned: stale.size });
+      res.json({ success: true, cleaned: disposable.length });
     } catch (err: any) {
       console.error('[BuildSessions] cleanup error:', err.message);
       res.status(500).json({ error: err.message });

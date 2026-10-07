@@ -854,6 +854,7 @@ export function ProductsModule() {
     const shelfItem = shelfItemByCanonicalId.get(id) ?? shelfItemByCanonicalId.get(entry.blankKey) ?? null;
     apiRequest("POST", "/api/admin/build-sessions/from-master", {
       sourceMasterId,
+      forceNew: state.forceNewSession,
       catalogId: activeCatalog?.id || null,
       blankKey: entry.blankKey || null,
       shelfItemId: shelfItem?.id || null,
@@ -868,7 +869,7 @@ export function ProductsModule() {
           return;
         }
         const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
-        setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null);
+        setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null, data.session?.draftName || null);
 
         if (data.isExisting && data.session?.working && Object.keys(data.session.working).length > 0) {
           loadFromWorkingState(data.session.working, curatedProduct);
@@ -893,7 +894,7 @@ export function ProductsModule() {
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast, shelfItemByCanonicalId]);
+  }, [selectItemMap, selectProduct, state.forceNewSession, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast, shelfItemByCanonicalId]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {

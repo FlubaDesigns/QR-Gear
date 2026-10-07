@@ -336,6 +336,8 @@ export interface TemplateProductHint {
 export type TextLayerSource = 'provider' | 'catalog' | 'packet' | 'manual' | 'none' | null;
 
 export interface BuilderState {
+  draftName: string | null;
+  forceNewSession: boolean;
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
   loadedGraphic: LoadedGraphic | null;
@@ -366,7 +368,6 @@ export interface BuilderState {
   placementSizes: _PlacementSizeConfig;
   placementMethods: PrintMethodSelection;
   activePacketId: string | null;
-  templateBaseline: string | null;
   templateProductHint: TemplateProductHint | null;
   activeSessionId: string | null;
   sessionStatus: 'working' | 'artifact_ready' | 'committed' | 'abandoned' | null;

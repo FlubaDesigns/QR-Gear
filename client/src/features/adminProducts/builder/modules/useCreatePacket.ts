@@ -31,7 +31,7 @@ interface UseCreatePacketArgs {
   selectedChannel: any;
   selectedCollection: any;
   loadGraphic: (g: { compositeUrl: string; qrOnlyUrl: string }) => void;
-  resetBuilder: () => void;
+  resetBuilder: () => Promise<void>;
   pricingSettings: PricingSettings | undefined;
 }
 
@@ -48,7 +48,7 @@ export function useCreatePacket({
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
-  const { setActiveSession, saveWorking, setActivePacketId } = useBuilderContext();
+  const { setActiveSession, saveWorking, setActivePacketId, beginBuildActivity } = useBuilderContext();
 
   const calculatePricing = useCallback((): PricingBreakdown | null => {
     if (!pricingSettings || !state.selectedProduct || !state.content) return null;
@@ -133,6 +133,8 @@ export function useCreatePacket({
       return;
     }
 
+    let finish: () => void;
+    try { finish = beginBuildActivity('Generating packet…'); } catch { return; }
     setIsCreating(true);
     setError(null);
     setArtifactError(null);
@@ -252,11 +254,6 @@ export function useCreatePacket({
         } catch (uploadErr: any) {
           const errMsg = uploadErr?.message || uploadErr?.toString?.() || JSON.stringify(uploadErr) || "Unknown error";
           throw new Error(`Play media upload failed: ${errMsg}`);
-          toast({
-            title: "Video Upload Failed",
-            description: errMsg.slice(0, 200),
-            variant: "destructive",
-          });
         }
       } else if (isPlayMode && content.playMediaSource === "url" && content.playMediaUrl) {
         uploadedPlayMediaUrl = content.playMediaUrl;
@@ -558,7 +555,7 @@ export function useCreatePacket({
 
         if (!primaryMockupUrl) {
           const errorMsg = "Mockup generation failed for all placements";
-          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+          setPacketResult(prev => prev && prev.packetId === capturedPacketId ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
           toast({ title: "Mockup Generation Failed", description: errorMsg, variant: "destructive" });
           return;
         }
@@ -581,7 +578,7 @@ export function useCreatePacket({
           }).catch(() => {});
         }
 
-        setPacketResult(prev => prev ? {
+        setPacketResult(prev => prev && prev.packetId === capturedPacketId ? {
           ...prev,
           priorityMockupUrl: primaryMockupUrl,
           lifestyleMockupUrl: lifestyleMockupUrl,
@@ -591,7 +588,7 @@ export function useCreatePacket({
         toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
       }).catch((err) => {
         const errorMsg = err.message || "Failed to connect to mockup service";
-        setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+        setPacketResult(prev => prev && prev.packetId === capturedPacketId ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
         toast({ title: "Mockup Service Error", description: errorMsg, variant: "destructive" });
       });
 
@@ -600,6 +597,7 @@ export function useCreatePacket({
       setError(err.message || "Failed to create packet");
       toast({ title: "Error", description: err.message || "Failed to create packet", variant: "destructive" });
     } finally {
+      finish();
       setIsCreating(false);
     }
   };
@@ -610,10 +608,13 @@ export function useCreatePacket({
     }
   };
 
-  const handleReset = () => {
-    setPacketResult(null);
-    setError(null);
-    resetBuilder();
+  const handleReset = async () => {
+    try {
+      await resetBuilder();
+      setPacketResult(null); setError(null);
+    } catch (error: any) {
+      toast({ title: 'Could not start a new build', description: error.message, variant: 'destructive' });
+    }
   };
 
   const handleDeletePacket = async () => {

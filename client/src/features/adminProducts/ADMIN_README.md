@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 6, 2026 (Diagnostics moved to System Health).
+Last updated: October 6, 2026 (Builder command wiring and draft lifecycle).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -63,6 +63,20 @@ Example: `GRF-11411-000001` = input build · image · assets · original · PNG 
 Example: `GRF-21111-000001` = output artifact · image · print · qr_composite · PNG · #1
 
 ---
+
+## Builder command buttons
+
+| Button | Behavior |
+|---|---|
+| Resume | Lists working drafts, packet-ready builds, and committed builds; restores in place without a page reload. |
+| Templates | Loads its canonical saved snapshot, resolves QRG identity and the saved supplier, and creates a separate working draft. Existing drafts remain intact. |
+| New | Saves the current working draft, clears the build, opens Product, and creates a fresh session on the next product selection. Keeps fulfillment and destination selections. |
+| Save / Save Draft | Both bars open the same name dialog and save the full working snapshot. Named drafts remain resumable through cleanup. Finalized builds use Update Saved Item first. |
+| Generate / View | Generate invokes the existing packet creator and displays missing requirements; View opens the existing packet. |
+
+New, Resume, and Templates use the same save-before-switch action. A failed save or restore retains the open build. The activity guard prevents overlapping command/generation actions. Templates and Resume resolve by canonical QRG document identity; Printify and Printful mappings are supported on the same product. A removed product or missing saved supplier is reported explicitly. Legacy supplier IDs are accepted only if they identify one unambiguous QRG product.
+
+Output remains mounted when another accordion opens, so packet creation is not lost during navigation. Opening a packet-ready draft does not automatically commit it. The existing Retry catalog save button remains available. Save as New uses the same in-place resume path. All changes are sandbox-only pending the combined release.
 
 ## Master Catalog Diagnostics
 
@@ -332,6 +346,27 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — Shared builder commands and safe draft handoffs (sandbox)
+
+Unified Save, New, Resume, and Templates in the existing builder/session flow. Corrected bridged supplier identity, fresh-session intent, named draft retention, and the Generate handoff. Removed the obsolete command-strip implementation, duplicate saves/resolvers, unused baseline/dismissal state, and full-page draft navigation. Verified 132 tests across frontend behavior and backend route/regression coverage, frontend TypeScript/build, and functions build with controlled adapters; no production writes or deployment.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `builder/BuilderContext.tsx`, `builder/types.ts` | Shared activity/save/restore transitions, draft name and fresh-session intent; remove unused baseline logic |
+| `builder/restoreProduct.ts` | Shared canonical QRG and saved supplier resolution |
+| `builder/BuilderHarness.tsx` | Shared Save dialog, New navigation, Generate request and persistent Output mount |
+| `builder/modules/BuilderCommandStrip.tsx`, `BuilderBottomBar.tsx`, `SaveDraftDialog.tsx` | One set of actions and one full-draft save form |
+| `builder/modules/BuilderStickyBar.tsx` | Removed obsolete file |
+| `builder/modules/DraftResumeHandler.tsx`, `LoadSavedModule.tsx`, `LoadTemplateModule.tsx` | Thin callers of shared restore paths; working drafts included |
+| `builder/modules/ProductsModule.tsx` | Consume fresh-session intent and restore saved draft name |
+| `builder/modules/CreateGraphicsModule.tsx`, `useCreatePacket.ts` | Existing generation action, guarded handoff, in-place clone resume, stale result protection |
+| `functions/src/routes/admin-build-sessions.ts`, `functions/src/index.ts` | Explicit fresh sessions, atomic template seed, named draft retention, sandbox build ID |
+| `builder/__tests__/{productSelection,restoreProduct,buildCommands,commandButtons}.test.ts` | Product, restore, command, and generation regression coverage |
+| `functions/src/services/__tests__/build-session-commands.test.ts` | Production route behavior with controlled Firestore adapter |
+| `README.md`, `MANIFEST.json` | Behavior notes and integrity manifest |
+
 
 ### October 6, 2026 — Move diagnostics out of Products (sandbox)
 

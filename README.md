@@ -304,3 +304,13 @@ Sandbox validation: 44 frontend tests and 55 backend tests passed, covering dest
 ### Master catalog diagnostics location — sandbox (October 6, 2026)
 
 The existing Master Catalog Diagnostics panel now appears under System → Health (`/admin/health`), collapsed by default. It is no longer rendered on Products. Its scan/repair component and authenticated endpoints are unchanged; no new diagnostics route or implementation was added. Frontend-only change, held in the same sandbox for the combined release.
+
+### Builder commands — sandbox (October 6, 2026)
+
+Resume lists working drafts and restores them in place through BuilderContext, preserving the existing browser login. Templates use the saved builder snapshot and canonical QRG product identity, then resolve its saved Printify/Printful mapping (including products offered by both). Supplier-only resolution remains solely for unambiguous legacy builds without canonical identity. A missing QRG product or supplier mapping is an explicit error, not a substitution.
+
+New saves the current working draft before clearing the builder, retains the selected supplier/destination, and requests a fresh session on the next product selection. Templates use the same save-before-switch handoff and atomically create a separate session containing their snapshot. Failed saves/restores keep the current build. Existing callers of `from-master` retain their select-to-resume behavior; only explicit `forceNew: true` bypasses reuse.
+
+Both button bars open one Save dialog and save the complete working snapshot plus its name. Named drafts are excluded from stale-session cleanup and newly named saves clear expiration. Generate opens Output and invokes the existing packet creator after pricing/options and input validation; existing packets show View. Output stays mounted during accordion navigation and resets its local result when the session changes. Generation and build transitions share an activity guard. Opening an artifact-ready draft no longer automatically commits it; its existing Retry catalog save action remains.
+
+Removed duplicate save handlers, the obsolete BuilderStickyBar file, supplier-only template/resume resolvers, full-page Resume navigation, unused template baseline/dismissal code, and unreachable upload-error code. No QRG numbering or supplier-table schema changes. Validation: 66 frontend tests and 66 backend regression tests, TypeScript, frontend build, and functions build. Database and supplier adapters are controlled test doubles; no live supplier calls or deployment. Held on `sandbox/products-fulfillment` for the combined release.

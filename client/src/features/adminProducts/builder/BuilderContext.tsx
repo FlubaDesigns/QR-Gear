@@ -1,3 +1,4 @@
+import { fetchBuildCatalog, resolveBuildProduct } from './restoreProduct';
 import { isQRGBlankId } from '@shared/blankKeys';
 import { normalizeProductColors, normalizeProductSizes } from '@shared/adapters/catalog.adapter';
 import { applyBuilderBld } from '@shared/bldCodes';
@@ -39,15 +40,18 @@ interface BuilderContextValue {
   refreshPlacements: () => void;
   setSelectedCatalogId: (id: string) => void;
   setActivePacketId: (id: string | null) => void;
-  setActiveSession: (id: string | null, status: 'working' | 'artifact_ready' | 'committed' | null, instanceId: string | null) => void;
+  setActiveSession: (id: string | null, status: 'working' | 'artifact_ready' | 'committed' | null, instanceId: string | null, draftName?: string | null) => void;
   setProductDescription: (description: string | null, source?: TextLayerSource) => void;
   setProductTitle: (title: string | null, source?: TextLayerSource) => void;
-  resetBuilder: () => void;
+  resetBuilder: () => Promise<void>;
+  resumeSession: (id: string) => Promise<void>;
+  startFromTemplate: (template: { packet?: any; packetId?: string; builderSnapshot?: any }) => Promise<void>;
+  busy: string | null;
+  beginBuildActivity: (label: string) => () => void;
+  saveDraft: (name: string) => Promise<void>;
   saveWorking: (draftName?: string) => Promise<Record<string, any>>;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
   loadFromWorkingState: (working: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
-  hasChangesFromBaseline: () => boolean;
-  setTemplateProductResolved: (product: CatalogProduct | null) => void;
   api: ReturnType<typeof useProductsContext>["api"];
 }
 
@@ -94,6 +98,8 @@ const initialContent: ContentData = {
 };
 
 const initialState: BuilderState = {
+  draftName: null,
+  forceNewSession: false,
   sourceType: "custom",
   loadedTemplate: null,
   loadedGraphic: null,
@@ -135,7 +141,6 @@ const initialState: BuilderState = {
   placementSizes: {},
   placementMethods: {},
   activePacketId: null,
-  templateBaseline: null,
   templateProductHint: null,
   activeSessionId: null,
   sessionStatus: null,
@@ -147,27 +152,6 @@ const initialState: BuilderState = {
 
 interface BuilderProviderProps {
   children: React.ReactNode;
-}
-
-function normalizeLandingTextBlocks(blocks: any[]): any[] {
-  if (!Array.isArray(blocks)) return [];
-  return blocks.map((b) => ({
-    text: b.text || '',
-    enabled: b.enabled ?? false,
-    fontFamily: b.fontFamily || '',
-    fontSize: b.fontSize || '',
-    fontWeight: b.fontWeight || '',
-    color: b.color || '',
-    warpPreset: b.warpPreset || '',
-    letterSpacing: Number(b.letterSpacing ?? 0),
-    strokeColor: b.strokeColor || '',
-    strokeWidth: Number(b.strokeWidth ?? 0),
-    verticalOffset: Number(b.verticalOffset ?? 0),
-    horizontalOffset: Number(b.horizontalOffset ?? 0),
-    mode: b.mode || '',
-    imageUrl: b.imageUrl || '',
-    imageScale: Number(b.imageScale ?? 0),
-  }));
 }
 
 function getProviderLayout(product: CatalogProduct | null, placementId?: string): ProviderLayout | null {
@@ -193,6 +177,19 @@ function getProviderLayout(product: CatalogProduct | null, placementId?: string)
 export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
+  const [busy, setBusy] = useState<string | null>(null);
+  const activityRef = useRef(false);
+  const mountedRef = useRef(true);
+  const currentStateRef = useRef(state);
+  currentStateRef.current = state;
+  const saveVersionRef = useRef(0);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+  const beginBuildActivity = useCallback((label: string) => {
+    if (activityRef.current) throw new Error('Please wait for the current build action to finish.');
+    activityRef.current = true;
+    setBusy(label);
+    return () => { activityRef.current = false; if (mountedRef.current) setBusy(null); };
+  }, []);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaveFailed, setAutoSaveFailed] = useState(false);
   const [autoSaveError, setAutoSaveError] = useState<string | null>(null);
@@ -215,13 +212,24 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
   const saveWorking = useCallback(async (draftName?: string) => {
     if (!state.activeSessionId) throw new Error('Select a product before saving.');
+    if (state.sessionStatus === 'committed' || state.sessionStatus === 'abandoned') throw new Error('Use Update Saved Item before editing this build.');
+    ++saveVersionRef.current;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     const snapshot = sanitizeSnapshot(buildWorkingSnapshot(state, { selectedRole, selectedStore, selectedChannel, selectedCollection }));
     await persistWorking(state.activeSessionId, snapshot, draftName);
-    setAutoSaveFailed(false);
-    setAutoSaveError(null);
+    if (mountedRef.current && currentStateRef.current.activeSessionId === state.activeSessionId) {
+      setAutoSaveFailed(false);
+      setAutoSaveError(null);
+      if (draftName !== undefined) setState(prev => prev.activeSessionId === state.activeSessionId ? { ...prev, draftName } : prev);
+    }
     return snapshot;
   }, [state, selectedRole, selectedStore, selectedChannel, selectedCollection, persistWorking]);
+
+  const saveDraft = useCallback(async (name: string) => {
+    if (!name.trim()) throw new Error('Enter a draft name.');
+    const finish = beginBuildActivity('Saving draft…');
+    try { await saveWorking(name.trim()); } finally { finish(); }
+  }, [beginBuildActivity, saveWorking]);
 
   // Subscribe to auth state so the keepalive cache is primed the moment Firebase
   // resolves the user — even on first load when auth.currentUser is still null.
@@ -291,6 +299,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       clearTimeout(autoSaveTimerRef.current);
     }
 
+    const saveVersion = ++saveVersionRef.current;
     autoSaveTimerRef.current = setTimeout(async () => {
       try {
         const currentUser = auth.currentUser;
@@ -303,6 +312,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           }
         }
 
+        if (saveVersion !== saveVersionRef.current || !mountedRef.current) return;
         // Primary: save full working state into the build session
         console.log(
           `[BuilderContext] Auto-saving to session ${sessionId}` +
@@ -313,12 +323,14 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           ` | placements: ${JSON.stringify(cleanSnapshot.layoutConfig?.selectedPlacements ?? [])}`,
         );
         await persistWorking(sessionId, cleanSnapshot);
+        if (!mountedRef.current || currentStateRef.current.activeSessionId !== sessionId) return;
         setAutoSaveFailed(false);
         setAutoSaveError(null);
         console.log(`[BuilderContext] Auto-save OK — session ${sessionId}`);
 
         // Packet snapshots are frozen render inputs. Draft edits stay in session.working.
       } catch (e: any) {
+        if (!mountedRef.current || currentStateRef.current.activeSessionId !== sessionId) return;
         const rawMsg = e?.message || String(e) || "Unknown error";
         // Extract just the HTTP status + server detail for display — the full URL prefix is noise.
         // adminFetch format: "[adminFetch] PATCH /api/admin/... → 409 Conflict — detail"
@@ -331,6 +343,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }, 1500);
 
     return () => {
+      ++saveVersionRef.current;
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
@@ -671,11 +684,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementMethods: {},
       providerLayout: null,
       activeSessionId: null,
+      draftName: null,
       sessionStatus: null,
       committedInstanceId: null,
       activePacketId: null,
       loadedGraphic: null,
-      templateBaseline: null,
       templateProductHint: null,
       placementsLoading: !!product,
       placementsError: null,
@@ -804,10 +817,13 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     id: string | null,
     status: 'working' | 'artifact_ready' | 'committed' | null,
     instanceId: string | null,
+    draftName?: string | null,
   ) => {
     setState(prev => ({
       ...prev,
       activeSessionId: id,
+      forceNewSession: id ? false : prev.forceNewSession,
+      draftName: draftName !== undefined ? draftName : (id === prev.activeSessionId ? prev.draftName : null),
       sessionStatus: status,
       committedInstanceId: instanceId,
     }));
@@ -887,115 +903,84 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }
   }, [setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection, fetchOptionsForProduct]);
 
-  const buildBaselineSnapshot = (
-    packetData: Record<string, any>,
-    content: Partial<ContentData>,
-    selectedPlacements: string[],
-    selectedColorName: string | null,
-    backgroundUrl: string | null,
-    blueprintId: number | null,
-  ): string => {
-    const h: Partial<ContentData['headerStyle']> = content.headerStyle || {};
-    const f: Partial<ContentData['footerStyle']> = content.footerStyle || {};
-    const sb = content.subBottomStyle as any || {};
-    return JSON.stringify({
-      blueprintId,
-      qrProductState: packetData.qrProductState || null,
-      selectedPlacements: [...selectedPlacements].sort(),
-      placementConfig: packetData.placementConfig || {},
-      placementSizes: packetData.placementSizes || {},
-      selectedColorName,
-      url: content.url || '',
-      title: content.title || '',
-      description: content.description || '',
-      headerEnabled: h.enabled || false,
-      headerText: h.text || '',
-      headerColor: h.color || '',
-      headerFontFamily: h.fontFamily || '',
-      headerFontSize: h.fontSize || '',
-      footerEnabled: f.enabled || false,
-      footerText: f.text || '',
-      footerColor: f.color || '',
-      footerFontFamily: f.fontFamily || '',
-      footerFontSize: f.fontSize || '',
-      subBottomEnabled: sb.enabled || false,
-      subBottomText: sb.text || '',
-      subBottomColor: sb.color || '',
-      qrPositionX: content.qrPositionX ?? 50,
-      qrPositionY: content.qrPositionY ?? 50,
-      qrSizePercent: content.qrSizePercent ?? 75,
-      backgroundUrl,
-      landingTextBlocks: normalizeLandingTextBlocks(content.landingTextBlocks as any[]),
-    });
-  };
-
   const loadFromPacketData = useCallback((packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => {
     const working = requireBuilderSnapshot(packetData.builderSnapshot);
     working.metadata.selectedBldId = packetData.bldId || working.metadata.selectedBldId || null;
     loadFromWorkingState(working, resolvedProduct);
-    const content = working.graphics.content;
-    setState(prev => ({ ...prev, templateBaseline: buildBaselineSnapshot(
-      packetData, content, working.layoutConfig.selectedPlacements,
-      working.qrConfig.selectedColor?.name ?? null, working.graphics.loadedBackground?.url ?? null,
-      resolvedProduct?.blueprintId ?? null,
-    ) }));
   }, [loadFromWorkingState]);
 
-  const hasChangesFromBaseline = useCallback((): boolean => {
-    if (!state.templateBaseline) return true;
-    const s = state;
-    const c = s.content;
-    const h = c.headerStyle as any;
-    const f = c.footerStyle as any;
-    const sb = c.subBottomStyle as any;
-    const current = JSON.stringify({
-      blueprintId: s.selectedProduct?.blueprintId ?? null,
-      qrProductState: s.qrProductState || null,
-      selectedPlacements: [...(s.selectedPlacements || [])].sort(),
-      placementConfig: s.placementConfig || {},
-      placementSizes: s.placementSizes || {},
-      selectedColorName: s.selectedColor?.name || null,
-      url: c.url || '',
-      title: c.title || '',
-      description: c.description || '',
-      headerEnabled: h?.enabled || false,
-      headerText: h?.text || '',
-      headerColor: h?.color || '',
-      headerFontFamily: h?.fontFamily || '',
-      headerFontSize: h?.fontSize || '',
-      footerEnabled: f?.enabled || false,
-      footerText: f?.text || '',
-      footerColor: f?.color || '',
-      footerFontFamily: f?.fontFamily || '',
-      footerFontSize: f?.fontSize || '',
-      subBottomEnabled: sb?.enabled || false,
-      subBottomText: sb?.text || '',
-      subBottomColor: sb?.color || '',
-      qrPositionX: c.qrPositionX ?? 50,
-      qrPositionY: c.qrPositionY ?? 50,
-      qrSizePercent: c.qrSizePercent ?? 75,
-      backgroundUrl: s.loadedBackground?.url || null,
-      landingTextBlocks: normalizeLandingTextBlocks(c.landingTextBlocks as any[]),
-    });
-    return current !== state.templateBaseline;
-  }, [state]);
-
-  const setTemplateProductResolved = useCallback((product: CatalogProduct | null) => {
-    setState(prev => ({
-      ...prev,
-      selectedProduct: product,
-      templateProductHint: product ? null : prev.templateProductHint,
-    }));
-  }, []);
-
-  const resetBuilder = useCallback(() => {
-    ++selectionVersionRef.current;
+  // One handoff path: finish saving the current draft before replacing it.
+  const switchBuild = useCallback(async (label: string, install: () => Promise<void>) => {
+    const finish = beginBuildActivity(label);
+    const version = ++selectionVersionRef.current;
     ++optionsVersionRef.current;
-    setState(initialState);
-  }, []);
+    try {
+      if (state.activeSessionId && ['working', 'artifact_ready'].includes(state.sessionStatus || '')) await saveWorking();
+      if (!mountedRef.current) return;
+      await install();
+    } finally {
+      if (mountedRef.current && version === selectionVersionRef.current && state.selectedProduct) fetchOptionsForProduct(state.selectedProduct);
+      finish();
+    }
+  }, [state.activeSessionId, state.sessionStatus, state.selectedProduct, saveWorking, beginBuildActivity, fetchOptionsForProduct]);
+
+  const resetBuilder = useCallback(async () => {
+    await switchBuild('Starting a new build…', async () => {
+      ++selectionVersionRef.current;
+      ++optionsVersionRef.current;
+      setState({ ...initialState, fulfillmentProvider: selectedProviders[0] || 'printify', forceNewSession: true });
+      setAutoSaveFailed(false);
+      setAutoSaveError(null);
+    });
+  }, [switchBuild, selectedProviders]);
+
+  const resumeSession = useCallback(async (id: string) => {
+    await switchBuild('Opening saved build…', async () => {
+      const { session } = await adminFetch<any>(`/build-sessions/${encodeURIComponent(id)}`);
+      if (!session || !['working', 'artifact_ready', 'committed'].includes(session.status)) throw new Error('This build cannot be resumed.');
+      const packetId = session.generated?.packetId || null;
+      let packet: any = null;
+      if (session.status === 'committed' || !session.working?.graphics?.content) {
+        if (packetId) {
+          const data = await adminFetch<any>(`/packets/${encodeURIComponent(packetId)}`);
+          packet = data.packet || data;
+        }
+      }
+      const working = packet ? requireBuilderSnapshot(packet.builderSnapshot) : session.working;
+      if (!working || !Object.keys(working).length) throw new Error('This draft has no saved working state.');
+      const product = resolveBuildProduct(await fetchBuildCatalog(), working, { ...packet, sourceMasterId: session.sourceMasterId });
+      if (!mountedRef.current) return;
+      if (packet) loadFromPacketData(packet, product); else loadFromWorkingState(working, product);
+      setActiveSession(session.id, session.status, session.committedInstanceId || null, session.draftName || null);
+      setActivePacketId(packetId);
+    });
+  }, [switchBuild, loadFromPacketData, loadFromWorkingState, setActiveSession, setActivePacketId]);
+
+  const startFromTemplate = useCallback(async (template: { packet?: any; packetId?: string; builderSnapshot?: any }) => {
+    await switchBuild('Loading template…', async () => {
+      let packet = { ...template.packet, builderSnapshot: template.builderSnapshot || template.packet?.builderSnapshot };
+      if (!packet?.builderSnapshot && template.packetId) {
+        const data = await adminFetch<any>(`/packets/${encodeURIComponent(template.packetId)}`);
+        packet = data.packet || data;
+      }
+      const working = requireBuilderSnapshot(packet?.builderSnapshot);
+      const product = resolveBuildProduct(await fetchBuildCatalog(), working, packet);
+      working.metadata.selectedProductDocId = product.docId;
+      working.metadata.selectedProductBlueprintId = product.blueprintId;
+      const data = await adminFetch<any>('/build-sessions/from-master', {
+        method: 'POST', json: { sourceMasterId: product.docId, forceNew: true, initialWorking: working,
+          catalogId: working.metadata.selectedCatalogId === 'all' ? null : working.metadata.selectedCatalogId },
+      });
+      if (!data.sessionId) throw new Error('The new template draft could not be created.');
+      if (!mountedRef.current) return;
+      loadFromPacketData({ ...packet, builderSnapshot: working }, product);
+      setActiveSession(data.sessionId, 'working', null, null);
+    });
+  }, [switchBuild, loadFromPacketData, setActiveSession]);
 
   const value = useMemo<BuilderContextValue>(() => ({
     state,
+    busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate,
     autoSaveFailed,
     autoSaveError,
     activeProviders: selectedProviders,
@@ -1030,14 +1015,15 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     saveWorking,
     loadFromPacketData,
     loadFromWorkingState,
-    hasChangesFromBaseline,
-    setTemplateProductResolved,
     api,
-  }), [state, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, loadBld, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, hasChangesFromBaseline, setTemplateProductResolved, api]);
+  }), [state, busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, loadBld, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
 
   return (
     <BuilderContext.Provider value={value}>
       {children}
+      {busy && <div role="status" aria-live="polite" className="fixed inset-0 z-[1000] flex items-center justify-center bg-background/60" data-testid="builder-busy">
+        <div className="rounded-md border bg-background p-4 shadow-lg">{busy}</div>
+      </div>}
     </BuilderContext.Provider>
   );
 }

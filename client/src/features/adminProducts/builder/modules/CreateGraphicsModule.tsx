@@ -47,8 +47,8 @@ export interface PacketResult {
   enabledColors?: string[];
 }
 
-export function CreateGraphicsModule() {
-  const { state, setContent, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, setActivePacketId, setActiveSession } = useBuilderContext();
+export function CreateGraphicsModule({ generateRequested = false, onGenerateHandled }: { generateRequested?: boolean; onGenerateHandled?: () => void } = {}) {
+  const { state, setContent, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, resumeSession, setActivePacketId, setActiveSession } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function CreateGraphicsModule() {
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
 
-  const { data: pricingSettings } = useQuery<PricingSettings>({
+  const { data: pricingSettings, isLoading: pricingLoading, error: pricingError } = useQuery<PricingSettings>({
     queryKey: ["/api/pricing-settings"],
     queryFn: async () => {
       const res = await fetch(`/api/pricing-settings`);
@@ -70,7 +70,7 @@ export function CreateGraphicsModule() {
 
   // Auto-seed content.title from full folder path when not already set
   useEffect(() => {
-    if (!state.content?.title) {
+    if (state.selectedProduct && !state.content?.title) {
       const parts = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean);
       if (parts.length > 0) {
         setContent({ title: parts.join(' / ') });
@@ -83,6 +83,10 @@ export function CreateGraphicsModule() {
 
   const validationErrors: string[] = [];
   if (!state.activeSessionId) validationErrors.push('Wait for the product session to finish loading');
+  if (!state.selectedProduct) validationErrors.push('Select a product');
+  if (state.placementsLoading) validationErrors.push('Wait for product options to finish loading');
+  if (state.placementsError) validationErrors.push(state.placementsError);
+  if (!pricingSettings) validationErrors.push(pricingError ? 'Pricing could not be loaded' : 'Wait for pricing to finish loading');
   if (!state.content.graphicLayoutMode) validationErrors.push('Select a design layout');
   if (!state.selectedPlacements.length) validationErrors.push('Select a print placement');
   if (!selectedCollection) {
@@ -101,22 +105,19 @@ export function CreateGraphicsModule() {
     loadGraphic, resetBuilder, pricingSettings,
   });
 
-  // Auto-retry commit once on mount if this session was already artifact_ready
-  // (i.e. a resumed session whose previous auto-commit failed or was interrupted).
-  // We use a ref so this only fires once per mount, never on subsequent renders.
-  const autoRetryFiredRef = useRef(false);
+  const generationRequestHandled = useRef(false);
   useEffect(() => {
-    if (
-      !autoRetryFiredRef.current &&
-      sessionStatus === 'artifact_ready' &&
-      !isCommitting &&
-      !commitResult
-    ) {
-      autoRetryFiredRef.current = true;
-      handleCommitSession();
+    if (!generateRequested) { generationRequestHandled.current = false; return; }
+    if (generationRequestHandled.current || pricingLoading || state.placementsLoading) return;
+    generationRequestHandled.current = true;
+    onGenerateHandled?.();
+    if (packetResult || state.activePacketId || state.sessionStatus === 'committed') return;
+    if (!canCreate) {
+      toast({ title: 'Complete the build first', description: validationErrors.join('. '), variant: 'destructive' });
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void handleCreatePacket();
+  }, [generateRequested, pricingLoading, state.placementsLoading, canCreate, handleCreatePacket, onGenerateHandled]);
 
   // Sync active packet ID whenever a new packet is created
   useEffect(() => {
@@ -162,8 +163,8 @@ export function CreateGraphicsModule() {
           enabledColors,
         });
         console.log(`[CreateGraphicsModule] Restored packetResult for ${state.activePacketId}`);
-      } catch {
-        // silent — fallback to showing Create Packet button
+      } catch (error: any) {
+        if (!cancelled) setArtifactError(`Could not load saved packet: ${error.message}`);
       }
     };
 
@@ -200,11 +201,10 @@ export function CreateGraphicsModule() {
         method: "POST",
         json: { sourceSessionId: state.activeSessionId },
       });
-      window.location.href = `/admin/products?resume=${data.sessionId}`;
+      await resumeSession(data.sessionId);
     } catch (err: any) {
       toast({ title: 'Could not save as new', description: err.message || 'Please try again.', variant: 'destructive' });
-      setIsCloningSession(false);
-    }
+    } finally { setIsCloningSession(false); }
   };
 
 
@@ -220,7 +220,7 @@ export function CreateGraphicsModule() {
       defaultOpen
     >
       <div className="space-y-4">
-        {!packetResult && (
+        {!packetResult && !state.activePacketId && (
           <>
             {validationErrors.length > 0 && (
               <div className="p-4 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
@@ -264,6 +264,7 @@ export function CreateGraphicsModule() {
           </>
         )}
 
+        {artifactError && !packetResult && <p role="alert" className="text-sm text-destructive">{artifactError}</p>}
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-950/50 rounded-md border border-red-200 dark:border-red-800">
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
