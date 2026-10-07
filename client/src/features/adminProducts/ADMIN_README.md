@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 6, 2026 (Builder command wiring and draft lifecycle).
+Last updated: October 7, 2026 (Assembly/GRF documentation and manifest reconciliation).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -235,7 +235,7 @@ The selected provider supplies fresh options through the existing options endpoi
 - Update Saved Item clears the displayed result, reopens the session, and updates the existing instance while preserving its QRG identity.
 - A failed catalog commit has a visible Retry catalog save button. Successful commit returns its Assembly ID to the result view.
 - Publish uses the existing `/admin/qrg/publish-to-printify/:packetId` route in both backend adapters.
-- Delete Packet detaches session/instance/Assembly references and deletes dependent templates/old display links in one transaction. Reusable BLD/GRF/Assembly records and QRG identity are retained.
+- Delete Packet uses the shared dependency preview and confirmation described under Library deletion. It removes affected build records together, preserves files and assets still used elsewhere, and tracks unfinished Storage cleanup.
 
 **Key files:**
 - `BuilderStickyBar.tsx` — Save Draft button, autosave failure badge
@@ -345,6 +345,18 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Assembly/GRF documentation and manifest reconciliation (sandbox)
+
+Corrected GRF ID/filename examples, removed obsolete Archive API instructions, and documented the existing reviewed deletion flow. Assembly examples now follow the referenced BLD slot order, distinguish the blank number from its Firestore document key, and describe the linked-record deletion guard. The BLD QR reference points to the shared GRF slot definition. Traced these corrections against the shared schema, registrar, composition routes, and deletion service. Regenerated the existing manifest after confirming earlier documentation changes were intentional. No runtime code or production data changes.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `GRF.md`, `ASSEMBLY.md`, `BLD.md` | Correct examples and current shared lifecycle references |
+| `README.md`, `client/src/features/adminProducts/ADMIN_README.md` | Record repair and remove superseded GRF/packet lifecycle guidance |
+| `MANIFEST.json` | Regenerate tracked hashes with the existing script |
 
 ### October 6, 2026 — Shared builder commands and safe draft handoffs (sandbox)
 
@@ -611,34 +623,11 @@ bash deploy/3-hosting.sh    # Deploy frontend hosting (75s)
 
 ---
 
-## PENDING AGENT WORK — GRF ATOMIC NUMBER (May 8 2026)
+## GRF registration — current shared implementation
 
-### What needs to happen
+`createGrfRegistrar` in `functions/src/services/grf-store.ts` owns registration in both server adapters. It validates classification and MIME through `shared/GRF_engine.ts`, reserves identity transactionally, and reuses matching content hashes or source URLs with the same classification. Crops retain `sourceGrfId`; distinct crops receive distinct immutable files. `inspectGrfAsset` compares stored metadata against the encoded identity, and composition validation checks file records before use.
 
-Every file in the system — source upload, crop, background, QR, composite, landing snapshot — must carry one permanent GRF ID from the moment it is created through every downstream step (builder, packet, assembly). The user calls this the "atomic number." Right now the chain breaks at the builder: a background is selected by URL only, and when a packet is committed `registerPacketGrfsDev`/`registerGrfAsset` mints a brand-new GRF ID for a URL that already has one in `grf_assets`, producing duplicates and losing the lineage.
-
-### What was attempted
-
-1. Added URL-dedup lookup inside `registerGrfDev` (dev) and `registerGrfAsset` (prod) — query `grf_assets` where `sourceUrl == url` before minting a new counter sequence. If found, reuse and update `packetId`/`sourceSessionId`. This is in `server/lib/schema-commit.ts` and `functions/src/services/grf-registrar.ts`.
-2. Consolidated all `graphicCodes` imports behind `shared/GRF_engine.ts` so the engine is the single door. Every server route, Cloud Function, and frontend file now imports from `@shared/GRF_engine` only.
-
-### Why it is still broken
-
-The URL-dedup fix only works for the packet-commit path. It does NOT fix the case where an asset was uploaded/cropped before a proper GRF ID existed — those old Firestore docs have wrong `grfId` values (legacy Firestore document IDs like `1000050493` instead of `GRF-11411-NNNNNN`). The dedup query finds those bad docs and returns the bad ID.
-
-The real fix requires:
-- A one-time Firestore migration to backfill correct `GRF-114XX-NNNNNN` IDs on all `grf_assets` docs that have non-GRF `grfId` values
-- Possibly also fixing the `sourceGrfId` field on cropped/background docs that point to those bad parent IDs
-- Verifying the crop-mint route correctly passes `originalMimeType` so `buildCropTransition` produces 114XX codes (it appears correct in code but has not been confirmed against live data)
-
-### Source of truth files
-
-- `shared/GRF_engine.ts` — ALL GRF logic must go through here
-- `shared/graphicCodes.ts` — internal implementation, do not import directly
-- `server/lib/schema-commit.ts` — dev server GRF registration (has dedup)
-- `functions/src/services/grf-registrar.ts` — prod GRF registration (has dedup)
-- `server/routes/library-crop.routes.ts` — crop-mint route (uses engine)
-- `functions/src/routes/admin-library-crop.ts` — prod crop-mint (uses engine)
+The old separate development registrar and old-ID migration proposal are superseded. Invalid beta records are reported; no migration or alternate legacy identity path is part of the current implementation. Lifecycle and API details are maintained in root `GRF.md` and `ASSEMBLY.md`.
 
 ---
 
@@ -703,7 +692,7 @@ Use **Templates** in the product builder's command strip to start a separate dra
 
 Generation captures one builder snapshot and renders each selected placement using its saved provider dimensions. Failed rendering or uploads stop generation with an error. Commit registers QR, area/header/footer images, composites, and destination previews through the shared backend GRF registrar, then binds every required slot in Assembly. Destination text/backgrounds are excluded from physical BLD layers.
 
-Before Printify publishing, the backend checks actual QRG/BLD/Assembly/GRF records, active file state, matching content and structure, and every chosen print location. Missing graphics are reported instead of silently skipping a location. Printful packets are not submitted to Printify. Deleting a generated packet keeps reusable BLD/GRF records and removes the packet's references.
+Before Printify publishing, the backend checks actual QRG/BLD/Assembly/GRF records, active file state, matching content and structure, and every chosen print location. Missing graphics are reported instead of silently skipping a location. Printful packets are not submitted to Printify. Deleting a generated packet uses the same reviewed build deletion flow as the Library; shared files and manually created reusable BLD definitions are retained.
 
 Checked locally with 32 focused service/route tests and frontend/functions compilation. Live Firebase storage, browser canvas rendering, and provider publishing require the authenticated beta environment and remain a pre-release verification step.
 

@@ -1,6 +1,6 @@
 # ASSEMBLY — The Three-Schema Glue Layer
 
-> **Status: IMPLEMENTED** — `assemblies` collection, CRUD routes (`functions/src/routes/assemblies.ts`), admin UI tab (`AssembliesTab.tsx`), and shared utilities (`shared/assemblyCodes.ts`) are all live.
+> **Implementation:** `assemblies` collection, shared CRUD routes (`functions/src/services/admin-composition-routes.ts`), admin UI tab (`AssembliesTab.tsx`), and shared validation (`shared/assemblyCodes.ts`). Sandbox changes await the combined release.
 
 > **Iron Rule:** Assembly is the ONLY place where QRG, BLD, and GRF are linked together. No other layer may cross-reference these three schemas simultaneously. Assembly has no pricing, no checkout, no product metadata — those live in Packet.
 
@@ -10,6 +10,7 @@
 
 | Date | Update |
 |------|--------|
+| 2026-10-07 | Corrected blank document-key notation, aligned examples with BLD slot order, and reconciled deletion instructions with the shared reference protection and reviewed build deletion flow |
 | 2026-05-05 | Hardening pass — Mapping Enforcement Rules section added: slot count (required only), 1:1 assignment (required only), vehicle type matching, slot order, complete required mapping (required only, optional slots exempt), no fallback/auto-generation, no conditional logic, QRG anchor requirement; Pre-Build Validation Phase checklist (7 checks); Assembly Responsibility Boundary section added |
 
 ---
@@ -64,23 +65,25 @@ An Assembly is created when a build session resolves into a committed set of ass
 
 **Collection:** `assemblies/{assemblyId}`
 
+The following record shows a mappings excerpt; a saved Assembly must fill every required slot in its referenced BLD. The complete nine-slot example appears below.
+
 ```typescript
 {
   assemblyId:  "ASM-000001",
-  qrgId:       "11101",               // QRG blank number — master_catalog doc key
+  qrgId:       "11101",               // QRG blank number; master_catalog doc ID is qrg_11101
   bldId:       "BLD-SZ9-001",          // BLD definition — bld_definitions doc key
   name:        "Armed Forces Tee — Zone Build",   // optional, human label
   mappings: [
     {
       seq:   "01",                    // matches bld_definitions slot sequence
-      type:  "img",                   // matches BLD slot vehicle type
-      grfId: "GRF-11431-000007"       // background image asset
+      type:  "txt",                   // matches BLD slot vehicle type
+      value: "UNITED STATES ARMED FORCES",
+      color: "#FFFFFF"
     },
     {
       seq:   "02",
-      type:  "txt",
-      value: "UNITED STATES ARMED FORCES",   // text content lives here, NOT in BLD
-      color: "#FFFFFF"                // per-instance color override (optional)
+      type:  "img",
+      grfId: "GRF-11431-000007"       // background image asset
     },
     {
       seq:   "03",
@@ -94,7 +97,7 @@ An Assembly is created when a build session resolves into a committed set of ass
       color: "#FFFFFF"
     },
     {
-      seq:   "05",
+      seq:   "06",
       type:  "txt",
       value: "EST. 1776",
       color: "#FFD700"
@@ -304,8 +307,8 @@ assemblyId: "ASM-000001"
 qrgId:      "11101"           → QRG blank: Apparel / T-Shirt #101
 bldId:      "BLD-SZ9-001"     → Structure: Zone, 9 slots
 mappings:
-  01 · img   · GRF-11431-000007   (background: flag image)
-  02 · txt   · "UNITED STATES ARMED FORCES"   color: #FFFFFF
+  01 · txt   · "UNITED STATES ARMED FORCES"   color: #FFFFFF
+  02 · img   · GRF-11431-000007   (background: flag image)
   03 · qrc   · GRF-21121-000001   (QR code graphic)
   04 · txt   · "Honor. Duty. Country."         color: #FFFFFF
   05 · act   · "Visit QRGear.com"             color: #FFFFFF
@@ -414,8 +417,9 @@ PATCH /api/admin/assemblies/:assemblyId
 ```
 DELETE /api/admin/assemblies/:assemblyId
 ```
-- Returns `409` if the Assembly has any linked Packets (`packetIds` non-empty). Unlink all Packets first.
-- On success, clears `assemblyId` from all linked Packet documents atomically before deleting the Assembly record.
+- Returns `409` while `packetIds` is non-empty or any packet, catalog item, or saved build references the Assembly. Forward and reverse references are checked inside the transaction.
+- Deletes only an unreferenced Assembly. It does not clear links on surviving builds.
+- Removing an entire generated build uses the shared preview-and-confirm deletion flow in `GRF.md`, initiated from its graphic, packet, or catalog item. That flow removes affected build records together and preserves assets still used elsewhere.
 
 ---
 

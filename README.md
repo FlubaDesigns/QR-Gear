@@ -253,6 +253,10 @@ The Canonical Core is the ONLY truth.
 
 🔚 END OF README — EXECUTION BEGINS
 
+## Schema documentation integrity — October 7, 2026
+
+Reconciled GRF examples and reviewed-deletion endpoints, Assembly slot examples and reference-protected deletion, and the obsolete BLD QR classification reference with the shared schema implementation. The existing manifest generator records these intentional documentation edits plus the earlier Assembly/Source and NexusMail-removal edits. No runtime schema, data, or production deployment changes are part of this repair. Changes remain on `sandbox/products-fulfillment`.
+
 ## BLD Implementation — October 6, 2026
 
 BLD runtime definitions, validation, and editor extraction are centralized in `shared/bldCodes.ts`, implementing `BLD.md`. Admin creation and builder commits share `functions/src/services/bld-store.ts`; the development adapter uses the same writer. The Schema Keys page and BLD library read those shared definitions. BLD records contain structural `instances[]` only. Existing beta records are not migrated or deleted automatically.
