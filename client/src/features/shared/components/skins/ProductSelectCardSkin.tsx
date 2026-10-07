@@ -1,3 +1,4 @@
+import { formatBlankId } from "@shared/blankKeys";
 import type { CanonicalProductSelectItem } from "@shared/adapters/catalog.adapter";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -1150,18 +1151,12 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             className="text-[10px] text-muted-foreground/60 font-mono"
             data-testid={`text-id-${item.id}`}
           >
-            ID: {item.id}
+            {formatBlankId(item.id, item.qrgBlankId)}
           </p>
 
           {(item.manufacturer || item.model) && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-make-model-${item.id}`}>
               {[item.manufacturer, item.model].filter(Boolean).join(' ')}
-            </p>
-          )}
-
-          {item.qrgBlankId != null && (
-            <p className="text-[10px] text-muted-foreground/60 font-mono" data-testid={`text-qrg-${item.id}`}>
-              QRG-{item.qrgBlankId}
             </p>
           )}
 

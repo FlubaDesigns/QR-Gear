@@ -1,3 +1,4 @@
+import { formatBlankId } from "@shared/blankKeys";
 import { Badge } from "@/components/ui/badge";
 import { X, Package } from "lucide-react";
 
@@ -50,7 +51,7 @@ export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalog
           <p className="text-[9px] text-muted-foreground truncate leading-tight">{item.subtitle}</p>
         )}
         {item.qrgBlankId != null && (
-          <p className="text-[8px] text-muted-foreground/60 font-mono truncate leading-tight">QRG-{item.qrgBlankId}</p>
+          <p className="text-[8px] text-muted-foreground/60 font-mono truncate leading-tight">{formatBlankId(item.catalogKey, item.qrgBlankId)}</p>
         )}
       </div>
 

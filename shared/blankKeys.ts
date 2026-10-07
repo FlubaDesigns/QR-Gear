@@ -96,3 +96,10 @@ export function getQRGBlankNumber(id: string): number | null {
 export function getProductSnapshotKey(p: { id: number | string; docId?: string | null }): string {
   return p.docId || String(p.id);
 }
+
+/** Display-only label. Keep canonical lookup keys unchanged in storage and actions. */
+export function formatBlankId(id: string, qrgBlankId?: string | null): string {
+  const number = getQRGBlankNumber(id)
+    ?? (qrgBlankId && isValidQRGBlankNumber(qrgBlankId) ? qrgBlankId : null);
+  return `ID: ${number ?? id}`;
+}
