@@ -8,7 +8,7 @@ import type { CatalogProduct } from '../types';
 const mocks = vi.hoisted(() => ({
   adminFetch: vi.fn(), apiRequest: vi.fn(), toast: vi.fn(),
   queryClient: { invalidateQueries: vi.fn(), setQueryData: vi.fn() },
-  context: {} as any, catalogData: {} as any, categories: [] as any[],
+  settings: {} as any, context: {} as any, catalogData: {} as any, categories: [] as any[],
 }));
 vi.mock('@/lib/adminFetch', () => ({ adminFetch: mocks.adminFetch }));
 vi.mock('@/lib/queryClient', () => ({ apiRequest: mocks.apiRequest }));
@@ -19,6 +19,7 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => mocks.queryClient,
   useQuery: ({ queryKey }: any) => ({ data:
+    queryKey[0] === '/api/admin/settings' ? mocks.settings :
     queryKey[0] === '/api/admin/catalogs' ? mocks.catalogData :
     queryKey[0] === '/api/master-catalog' ? mocks.categories :
     queryKey[0] === 'catalog-products' ? mocks.categories.find((cat: any) => cat.name === queryKey[2]) : undefined,
@@ -76,7 +77,14 @@ beforeEach(() => {
   mocks.context = { api: {}, selectedRole: null, selectedStore: null, selectedChannel: null, selectedCollection: null,
     setSelectedRole: vi.fn(), setSelectedStore: vi.fn(), setSelectedChannel: vi.fn(), setSelectedCollection: vi.fn() };
   requests = [];
-  mocks.adminFetch.mockImplementation(() => { const request = deferred(); requests.push(request); return request.promise; });
+  mocks.settings = {};
+  mocks.adminFetch.mockImplementation((path: string, options: any) => {
+    if (path === '/settings') {
+      mocks.settings = { ...mocks.settings, ...options?.json };
+      return Promise.resolve(mocks.settings);
+    }
+    const request = deferred(); requests.push(request); return request.promise;
+  });
   mocks.catalogData = { catalogs: [{ id: 'catalog', name: 'Catalog', blankIds: ['qrg_11001', 'qrg_11002'],
     blankTitles: { qrg_11001: 'Catalog title' }, blankDescriptions: { qrg_11001: 'Catalog description' } }] };
   mocks.categories = [{ name: 'T-Shirts', items: [blank(), blank('qrg_11002')], count: 2 }];
@@ -88,6 +96,50 @@ afterEach(() => {
 });
 
 describe('Product selection through the real builder context', () => {
+  it('remembers a manually switched type after New and a complete remount', async () => {
+    mocks.settings = { defaultQRProductState: 'qr_play', unrelatedSetting: 'keep' };
+    await mount();
+    expect(current.state.qrProductState).toBe('qr_play');
+    await act(async () => { current.setQRProductState('qr_basics'); });
+    expect(current.state.qrProductState).toBe('qr_basics');
+    expect(mocks.adminFetch).toHaveBeenCalledWith('/settings', { method: 'PUT', json: { defaultQRProductState: 'qr_basics' } });
+    expect(mocks.settings.unrelatedSetting).toBe('keep');
+    await act(async () => { await current.resetBuilder(); });
+    expect(current.state.qrProductState).toBe('qr_basics');
+    act(() => tree.unmount());
+    await mount();
+    expect(current.state.qrProductState).toBe('qr_basics');
+  });
+
+  it('restores a saved build type without changing the remembered preference for New', async () => {
+    mocks.settings = { defaultQRProductState: 'qr_play' };
+    await mount();
+    await act(async () => { current.loadFromWorkingState({ qrConfig: { qrProductState: 'qr_plus' } }); });
+    expect(current.state.qrProductState).toBe('qr_plus');
+    expect(mocks.adminFetch).not.toHaveBeenCalledWith('/settings', expect.anything());
+    await act(async () => { await current.resetBuilder(); });
+    expect(current.state.qrProductState).toBe('qr_play');
+  });
+
+  it('keeps rapid switches in order and lets a failed preference save be retried', async () => {
+    await mount();
+    const first = deferred();
+    mocks.adminFetch.mockImplementationOnce(() => first.promise);
+    await act(async () => { current.setQRProductState('qr_play'); });
+    await act(async () => { current.setQRProductState('qr_plus'); });
+    expect(current.state.qrProductState).toBe('qr_plus');
+    expect(mocks.adminFetch).toHaveBeenCalledTimes(1);
+    await act(async () => { first.resolve({}); });
+    expect(mocks.settings.defaultQRProductState).toBe('qr_plus');
+    mocks.adminFetch.mockRejectedValueOnce(new Error('offline'));
+    await act(async () => { current.setQRProductState('qr_basics'); });
+    expect(current.state.qrProductState).toBe('qr_basics');
+    expect(current.qrTypePreferenceError).toContain('Could not save');
+    await act(async () => { current.retryQRTypePreference(); });
+    expect(current.qrTypePreferenceError).toBeNull();
+    expect(mocks.settings.defaultQRProductState).toBe('qr_basics');
+  });
+
   it('leaves the entire build unchanged when the selected QR type is tapped again', async () => {
     await mount();
     await act(async () => { current.selectProduct(blank()); });

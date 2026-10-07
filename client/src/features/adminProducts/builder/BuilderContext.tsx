@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBuildCatalog, resolveBuildProduct } from './restoreProduct';
 import { isQRGBlankId } from '@shared/blankKeys';
 import { normalizeProductColors, normalizeProductSizes } from '@shared/adapters/catalog.adapter';
@@ -8,10 +9,13 @@ import { adminFetch } from "@/lib/adminFetch";
 import { auth } from "@/lib/firebase";
 import type { SourceType, LoadedTemplate, LoadedGraphic, LoadedBackground, BuilderState, OriginFilter, GenderFilter, CatalogProduct, QRProductState, ContentData, PlacementType, PlacementConfig, PlacementSize, PlacementSizeConfig, SelectedColor, PrintMethodSelection, TemplateProductHint, TextLayerSource, ProviderLayout, ProductPlacement } from "./types";
 import type { RoleType, Store, Channel, Collection } from "../shared/types";
-import { defaultTextStyle } from "./types";
+import { defaultTextStyle, DEFAULT_QR_PRODUCT_STATE, QR_PRODUCT_STATES } from "./types";
 
 interface BuilderContextValue {
   state: BuilderState;
+  qrTypePreferenceSaving: boolean;
+  qrTypePreferenceError: string | null;
+  retryQRTypePreference: () => void;
   autoSaveFailed: boolean;
   autoSaveError: string | null;
   activeProviders: string[];
@@ -115,7 +119,7 @@ const initialState: BuilderState = {
   titleSource: null,
   descriptionSource: null,
   selectedColor: { name: "Black", hex: "#000000" },
-  qrProductState: "qr_canvas",
+  qrProductState: DEFAULT_QR_PRODUCT_STATE,
   content: {
     ...initialContent,
     headerStyle: {
@@ -175,6 +179,26 @@ function getProviderLayout(product: CatalogProduct | null, placementId?: string)
 export function BuilderProvider({ children }: BuilderProviderProps) {
   const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
+  const queryClient = useQueryClient();
+  const preferredQRTypeRef = useRef<QRProductState>(DEFAULT_QR_PRODUCT_STATE);
+  const qrTypeChosenOrRestoredRef = useRef(false);
+  const qrTypeSaveVersionRef = useRef(0);
+  const qrTypeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const [qrTypePreferenceSaving, setQRTypePreferenceSaving] = useState(false);
+  const [qrTypeSaveError, setQRTypeSaveError] = useState<string | null>(null);
+  const qrTypePreferences = useQuery<{ defaultQRProductState?: QRProductState }>({
+    queryKey: ["/api/admin/settings"],
+    queryFn: () => adminFetch("/settings"),
+    staleTime: Infinity,
+  });
+  useEffect(() => {
+    // A late settings response must not replace a manual choice or a restored build.
+    if (!qrTypePreferences.data || qrTypeSaveVersionRef.current > 0) return;
+    const saved = qrTypePreferences.data.defaultQRProductState;
+    const preferred = QR_PRODUCT_STATES.some(type => type.id === saved) ? saved! : DEFAULT_QR_PRODUCT_STATE;
+    preferredQRTypeRef.current = preferred;
+    if (!qrTypeChosenOrRestoredRef.current) setState(prev => ({ ...prev, qrProductState: preferred }));
+  }, [qrTypePreferences.data]);
   const [busy, setBusy] = useState<string | null>(null);
   const activityRef = useRef(false);
   const mountedRef = useRef(true);
@@ -697,6 +721,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, [fetchOptionsForProduct, setSelectedProviders]);
 
   const setQRProductState = useCallback((qrState: QRProductState) => {
+    qrTypeChosenOrRestoredRef.current = true;
     setState(prev => prev.qrProductState === qrState ? prev : ({
       ...prev,
       qrProductState: qrState,
@@ -706,7 +731,32 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       placementSizes: {},
       placementMethods: {},
     }));
-  }, []);
+    if (!qrState) return;
+    preferredQRTypeRef.current = qrState;
+    const version = ++qrTypeSaveVersionRef.current;
+    setQRTypePreferenceSaving(true);
+    setQRTypeSaveError(null);
+    // Serialize writes so a slower earlier tap cannot overwrite the latest choice.
+    const save = qrTypeSaveQueueRef.current.catch(() => undefined).then(() =>
+      adminFetch("/settings", { method: "PUT", json: { defaultQRProductState: qrState } }));
+    qrTypeSaveQueueRef.current = save;
+    void save.then(() => {
+      if (version !== qrTypeSaveVersionRef.current) return;
+      queryClient.setQueryData(["/api/admin/settings"], (previous: any) => ({ ...previous, defaultQRProductState: qrState }));
+      if (mountedRef.current) setQRTypePreferenceSaving(false);
+    }).catch(() => {
+      if (mountedRef.current && version === qrTypeSaveVersionRef.current) {
+        setQRTypePreferenceSaving(false);
+        setQRTypeSaveError("Could not save your Product Type choice.");
+      }
+    });
+  }, [queryClient]);
+  const qrTypePreferenceError = qrTypeSaveError || (qrTypePreferences.error && qrTypeSaveVersionRef.current === 0
+    ? "Could not load your saved Product Type." : null);
+  const retryQRTypePreference = useCallback(() => {
+    if (qrTypeSaveError) setQRProductState(preferredQRTypeRef.current);
+    else void qrTypePreferences.refetch();
+  }, [qrTypeSaveError, setQRProductState, qrTypePreferences.refetch]);
 
   const setContent = useCallback((content: Partial<ContentData>) => {
     setState(prev => ({
@@ -826,6 +876,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     ++optionsVersionRef.current;
     const graphics = (working.graphics || {}) as Record<string, any>;
     const qrConfig = (working.qrConfig || {}) as Record<string, any>;
+    if (qrConfig.qrProductState) qrTypeChosenOrRestoredRef.current = true;
     const layoutConfig = (working.layoutConfig || {}) as Record<string, any>;
     const metadata = (working.metadata || {}) as Record<string, any>;
     const { playMediaFile: _pmf, playMediaPreview: _pmp, ...cleanContent } = (graphics.content || {}) as any;
@@ -920,7 +971,8 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     await switchBuild('Starting a new build…', async () => {
       ++selectionVersionRef.current;
       ++optionsVersionRef.current;
-      setState({ ...initialState, fulfillmentProvider: selectedProviders[0] || 'printify', forceNewSession: true });
+      qrTypeChosenOrRestoredRef.current = false;
+      setState({ ...initialState, qrProductState: preferredQRTypeRef.current, fulfillmentProvider: selectedProviders[0] || 'printify', forceNewSession: true });
       setAutoSaveFailed(false);
       setAutoSaveError(null);
     });
@@ -972,6 +1024,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   const value = useMemo<BuilderContextValue>(() => ({
     state,
+    qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference,
     busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate,
     autoSaveFailed,
     autoSaveError,
@@ -1007,7 +1060,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     loadFromPacketData,
     loadFromWorkingState,
     api,
-  }), [state, busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
+  }), [state, qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference, busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
 
   return (
     <BuilderContext.Provider value={value}>

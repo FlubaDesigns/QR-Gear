@@ -201,6 +201,8 @@ export type QRProductState =
   | "qr_compose"   // Living Space - Rotating playlist of Canvas/Play items
   | null;
 
+export const DEFAULT_QR_PRODUCT_STATE: QRProductState = "qr_canvas";
+
 export const QR_PRODUCT_STATES = [
   { id: "qr_basics", label: "QR Basics", state: "Permanent", description: "A simple, scannable QR code. Text, URL, or contact info encoded permanently." },
   { id: "qr_plus", label: "QR Plus", state: "Permanent + Messaging", description: "Add a message above and below your QR. Perfect for calls-to-action." },

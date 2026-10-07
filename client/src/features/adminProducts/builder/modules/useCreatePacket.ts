@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { renderProductGraphic, type RenderOptions } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
-import type { PricingBreakdown } from "../types";
+import { DEFAULT_QR_PRODUCT_STATE, type PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
 import { useBuilderContext } from "../BuilderContext";
 
@@ -472,7 +472,7 @@ export function useCreatePacket({
           subBottomFontWeight: content.subBottomStyle?.fontWeight || '400',
           subBottomColor: content.subBottomStyle?.color || '#666666',
           backgroundUrl: resolvedBgUrl,
-          qrProductState: state.qrProductState || 'qr_canvas',
+          qrProductState: state.qrProductState || DEFAULT_QR_PRODUCT_STATE,
           areaImageUrl: content.areaImageUrl || null,
           areaImageMode: content.areaImageMode || 'behind-qr',
           areaImageOffsetX: content.areaImageOffsetX ?? 50,
