@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, inMemoryPersistence, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, signInWithCustomToken, browserLocalPersistence, setPersistence } from "firebase/auth";
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
@@ -31,6 +31,7 @@ export async function signInWithEmail(email: string, password: string) {
 }
 
 export async function signUpWithEmail(email: string, password: string) {
+  await setPersistence(auth, browserLocalPersistence);
   return createUserWithEmailAndPassword(auth, email, password);
 }
 
@@ -44,7 +45,9 @@ export async function signOut() {
 }
 
 export async function signInWithAuthorizationEngine(customToken: string) {
-  await setPersistence(auth, inMemoryPersistence);
+  // Keep the approved browser signed in across reloads, like email and Google.
+  // Firebase owns token refresh and explicit sign-out; never store the custom token.
+  await setPersistence(auth, browserLocalPersistence);
   return signInWithCustomToken(auth, customToken);
 }
 
