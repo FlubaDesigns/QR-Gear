@@ -791,3 +791,9 @@ Printify publication status/retry remains on its existing endpoint and appears o
 October 7, 2026 naming update: the owner named Store Builder’s product-choice tab **Products**. Its tab label and heading use that name; the existing route, member-products record and shared editor are unchanged.
 
 October 7, 2026 navigation update: Partners now has its own main admin tab, alongside Run, Build, Place, Sell and System. Main destinations are defined in adminNavConfig for mobile and desktop; Partners is removed from Place’s subnavigation, keeps /admin/partners, and highlights its own mode. The six mobile targets share the viewport width. This changes navigation and the page title only; partner records and schema remain unchanged.
+
+## Store Builder final pass — October 7, 2026
+
+AllowedProductsEditor owns its optional close action and dirty/save guard; StoreManager's Product choices opener no longer toggles the mounted editor away. MoveDialog guards immediate duplicate submission and uses a per-dialog collection-list ID. InstanceCard safely formats saved numeric-string prices and wraps long titles/destination paths. build-destination imports the collection list's shared isActiveStoreRecord policy from store-admin; explicit deleted collection IDs fail without writes, while a reused collection name remains unbound to the archived definition. No schema or alternate persistence layer was introduced.
+
+185 client and 250 backend tests passed, including seven additional regression cases, plus TypeScript and both builds. Existing store/channel deletion, parent identity, QRG selections, empty choices, destination propagation and failure/retry checks remain green. Authority/execution refresh checked. No live mutations or deployment. Place's former Library remains named Store Products in sandbox; its shared saved-instance path was included in the check.

@@ -1,7 +1,7 @@
 import { createStore, createStoreChannel, deleteStore, deleteStoreChannel } from './store-channels';
 import { MOSAIC_TEMPLATES_COLLECTION } from '../constants';
 
-const active = (d: any) => d.isVisible !== false && d.isActive !== false && !['deleted', 'archived'].includes(d.status);
+export const isActiveStoreRecord = (d: any) => !!d && d.isVisible !== false && d.isActive !== false && !['deleted', 'archived'].includes(d.status);
 export async function listStoreChannels(db: any, storeId?: string) {
   const query = db.collection('storeChannels');
   const snapshot = await (storeId ? query.where('storeId', '==', storeId) : query).get();
@@ -28,7 +28,7 @@ export async function listStoreCollections(db: any, storeId: string, channelId: 
   const fields = ['collectionName', 'collection', 'name'];
   const names = new Set<string>();
   sources.forEach((snap, i) => snap.docs.forEach((doc: any) => {
-    const data = doc.data(); if (active(data) && data[fields[i]]) names.add(data[fields[i]]);
+    const data = doc.data(); if (isActiveStoreRecord(data) && data[fields[i]]) names.add(data[fields[i]]);
   }));
   const collections = Array.from(names).sort();
   return { success: true, collections, count: collections.length };

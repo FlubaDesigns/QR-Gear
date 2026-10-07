@@ -376,3 +376,9 @@ Validation: 179 client tests, TypeScript and production build passed. Source and
 October 7, 2026 naming update: the owner named Store Builder’s product-choice tab **Products**. Its tab label and heading use that name; the existing route, member-products record and shared editor are unchanged.
 
 October 7, 2026 navigation update: Partners now has its own main admin tab, alongside Run, Build, Place, Sell and System. Main destinations are defined in adminNavConfig for mobile and desktop; Partners is removed from Place’s subnavigation, keeps /admin/partners, and highlights its own mode. The six mobile targets share the viewport width. This changes navigation and the page title only; partner records and schema remain unchanged.
+
+## Store Builder final review — sandbox, October 7, 2026
+
+A final pass traced Placement, product choices, store/channel setup, collection destinations, saved selections and the Store Products handoff. Closing product choices now uses one editor-owned action: reopening the panel cannot silently discard edits, Close warns only for unsaved changes, and Close is blocked during Save. Move ignores duplicate rapid taps and gives each collection suggestion list its own ID. Saved prices represented as strings no longer crash the shared product card; long titles and paths wrap. Destination validation uses the same active-record policy as collection listing, so archived collection IDs are rejected and reusing a name cannot reattach the deleted definition. The QRG/BLD/GRF/Assembly authority files are unchanged.
+
+Validation: 185 client tests, 250 backend tests, TypeScript and both builds passed. Seven new regression cases cover close/save behavior, duplicate moves, old prices and deleted collections. Tests use fixtures; mobile sizing was source-checked, not rendered in a phone browser. Sandbox source only; no Main or hosting deployment.

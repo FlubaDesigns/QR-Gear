@@ -1,3 +1,4 @@
+import { isActiveStoreRecord } from './store-admin';
 /** A destination is resolved from stored IDs. Display names and paths are projections. */
 export async function resolveBuildDestination(db: any, input: Record<string, any>) {
   const storeId = input.storeId || null, channelId = input.channelId || null;
@@ -16,10 +17,10 @@ export async function resolveBuildDestination(db: any, input: Record<string, any
   if (input.collectionId) {
     const doc = await db.collection('dynamicsCollections').doc(input.collectionId).get();
     collection = doc.exists ? { ...doc.data(), id: doc.id } : null;
-    if (!collection || collection.storeId !== storeId || collection.channelId !== channelId) throw new Error('The collection does not belong to the selected store and channel.');
+    if (!isActiveStoreRecord(collection) || collection.storeId !== storeId || collection.channelId !== channelId) throw new Error('The collection does not belong to the selected store and channel.');
   } else if (collectionName && channelId) {
     const candidates = await db.collection('dynamicsCollections').where('channelId', '==', channelId).get();
-    const found = candidates.docs.find((d: any) => d.data().storeId === storeId && d.data().name === collectionName);
+    const found = candidates.docs.find((d: any) => isActiveStoreRecord(d.data()) && d.data().storeId === storeId && d.data().name === collectionName);
     if (found) collection = { ...found.data(), id: found.id };
   }
   if ((collection || collectionName) && !channelId) throw new Error('Choose a channel for this collection.');

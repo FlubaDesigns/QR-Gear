@@ -36,3 +36,14 @@ describe('canonical product destinations', () => {
     await expect(updateCatalogInstance(f.db, 'item', { folderUpdate: { storeId: 'store', channelId: 'channel' } }, 'now', 'admin')).rejects.toThrow('ownership disagree');
   });
 });
+
+it('rejects archived collection IDs without changing the saved destination', async () => {
+ const f=fixture();f.store.get('dynamicsCollections/collection').status='deleted';const before=JSON.stringify(Array.from(f.store));
+ await expect(updateCatalogInstance(f.db,'item',{folderUpdate:{storeId:'store',channelId:'channel',collectionId:'collection'}},'now','admin')).rejects.toThrow('collection does not belong');
+ expect(JSON.stringify(Array.from(f.store))).toBe(before);
+});
+it('does not reattach an archived collection definition when its name is reused', async () => {
+ const f=fixture();f.store.get('dynamicsCollections/collection').isActive=false;
+ const result=await resolveBuildDestination(f.db,{storeId:'store',channelId:'channel',collectionName:'Training'});
+ expect(result.collectionId).toBeNull();expect(result.collectionName).toBe('Training');expect(f.store.get('dynamicsCollections/collection').isActive).toBe(false);
+});

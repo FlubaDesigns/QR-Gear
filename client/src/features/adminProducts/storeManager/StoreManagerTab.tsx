@@ -3,7 +3,7 @@ import { AllChannelsManager } from "./AllChannelsManager";
 import { STORE_ROLES } from "@shared/storeRoles";
 import { refreshStoreViews } from "@/features/storeBuilder/storeQueries";
 import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useId } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Hash, Layers, ChevronRight, ChevronDown,
@@ -129,7 +129,7 @@ function SizeChip({ size, enabled, onToggle, disabled }: { size: string; enabled
   );
 }
 
-function MoveDialog({
+export function MoveDialog({
   instance,
   onClose,
   onMoved,
@@ -138,6 +138,8 @@ function MoveDialog({
   onClose: () => void;
   onMoved: () => void;
 }) {
+  const moveLock = useRef(false);
+  const collectionListId = useId();
   const [role, setRole] = useState<RoleType | "">("");
   const [destStore, setDestStore] = useState<StoreType | null>(null);
   const [destChannel, setDestChannel] = useState<Channel | null>(null);
@@ -198,6 +200,7 @@ function MoveDialog({
       onClose();
     },
     onError: () => toast({ title: "Error", description: "Could not move item.", variant: "destructive" }),
+    onSettled: () => { moveLock.current = false; },
   });
 
   const storeOptions = stores.map(s => ({ value: s.id, label: s.name, icon: <Store className="h-4 w-4" /> }));
@@ -217,11 +220,11 @@ function MoveDialog({
         <CustomDropdown value={destChannel?.id ?? ""} onChange={v => { const c = channels.find(x => x.id === v); setDestChannel(c ?? null); setDestCollection(null); }} options={channelOptions} placeholder="Channel..." loading={loadingChannels} disabled={!destStore} />
         {/* Collection: free-text with autocomplete so new names (e.g. "Armed Forces") can be entered */}
         <div className="relative">
-          <datalist id="move-collection-list">
+          <datalist id={collectionListId}>
             {existingCollectionNames.map(n => <option key={n} value={n} />)}
           </datalist>
           <input
-            list="move-collection-list"
+            list={collectionListId}
             value={destCollection?.name ?? ""}
             onChange={e => setDestCollection(e.target.value.trim() ? { name: e.target.value } : null)}
             placeholder={loadingCollections ? "Loading…" : "Collection (optional)…"}
@@ -234,7 +237,7 @@ function MoveDialog({
       </fieldset>
       <div className="flex gap-2">
         <button
-          onClick={() => moveMutation.mutate()}
+          onClick={() => { if (!canMove || moveLock.current) return; moveLock.current = true; moveMutation.mutate(); }}
           disabled={!canMove || moveMutation.isPending}
           className="min-h-12 qr-btn qr-btn--primary qr-btn--touch flex-1"
           data-testid="button-confirm-move"
@@ -356,7 +359,8 @@ export function InstanceCard({
 
   const imageUrl = getImageUrl(instance);
   const title = instance.resolved?.title ?? "Untitled";
-  const customerPrice = instance.resolved?.pricing?.customerPrice;
+  const rawPrice = instance.resolved?.pricing?.customerPrice;
+  const customerPrice = rawPrice == null || String(rawPrice).trim() === "" ? null : Number(rawPrice);
 
   return (
     <div
@@ -377,11 +381,11 @@ export function InstanceCard({
           }
         </button>
         <div className="flex-1 min-w-0 py-0.5">
-          <p className="glass-body font-medium text-base leading-snug" data-testid={`text-instance-title-${instance.id}`}>{title}</p>
+          <p className="glass-body font-medium text-base leading-snug [overflow-wrap:anywhere]" data-testid={`text-instance-title-${instance.id}`}>{title}</p>
           {instance.folderPath && (
-            <p className="glass-subtitle text-xs mt-1 leading-relaxed">{instance.folderPath}</p>
+            <p className="glass-subtitle text-xs mt-1 leading-relaxed [overflow-wrap:anywhere]">{instance.folderPath}</p>
           )}
-          {customerPrice != null && (
+          {customerPrice != null && Number.isFinite(customerPrice) && (
             <p className="glass-subtitle text-xs mt-1.5">
               Price: ${customerPrice.toFixed(2)}
             </p>

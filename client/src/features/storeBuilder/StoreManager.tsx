@@ -6,7 +6,6 @@ import { adminFetch } from '@/lib/adminFetch';
 import { STORE_ROLES, type StoreRole } from '@shared/storeRoles';
 import { AllowedProductsEditor } from './AllowedProductsEditor';
 import { refreshStoreViews } from './storeQueries';
-import { X } from 'lucide-react';
 
 export function StoreManager({ storeId, createOnly = false }: { storeId?: string; createOnly?: boolean }) {
   const client = useQueryClient();
@@ -38,13 +37,13 @@ export function StoreManager({ storeId, createOnly = false }: { storeId?: string
     {stores.data?.filter(store => !createOnly && store.id === storeId).map(store => <section key={store.id} className="min-w-0 rounded-lg border p-4 space-y-3">
       <h3 className="font-semibold [overflow-wrap:anywhere]">{store.name}</h3><p className="text-sm text-muted-foreground">{STORE_ROLES.find(r => r.id === store.roleType)?.name || store.roleType} · {store.channelCount || 0} channels</p>
       <div className="flex flex-wrap gap-2">
-        <Button className="h-12" variant="outline" disabled={busy} onClick={() => setEditing(editing === store.id ? null : store.id)}>Product choices</Button>
+        <Button className="h-12" variant="outline" disabled={busy} onClick={() => setEditing(store.id)}>Product choices</Button>
         <Button className="h-12" variant="outline" disabled={busy} onClick={() => { setChannelStore(store.id); setChannelName(''); }}>Add channel</Button>
         <Button className="h-12" variant="outline" disabled={busy} onClick={() => setConfirm(store.id)}>Delete store</Button>
       </div>
       {channelStore === store.id && <fieldset disabled={busy} className="min-w-0 space-y-2"><Input className="h-12 text-base" aria-label="Channel name" placeholder="Channel name" value={channelName} onChange={e => setChannelName(e.target.value)} /><div className="flex flex-wrap gap-2"><Button className="h-12" disabled={!channelName.trim() || busy} onClick={() => change(() => adminFetch(`/stores/${store.id}/channels`, { method: 'POST', json: { name: channelName.trim() } }), () => setChannelStore(null))}>Save channel</Button><Button className="h-12" variant="outline" onClick={() => setChannelStore(null)}>Cancel</Button></div></fieldset>}
       {confirm === store.id && <div className="space-y-2 rounded-md border border-destructive p-3"><p>Delete “{store.name}” and its channels? All listings in this store will be archived and hidden. Build files are retained.</p><div className="flex flex-wrap gap-2"><Button className="h-12" variant="outline" disabled={busy} onClick={() => setConfirm(null)}>Cancel</Button><Button className="h-12" variant="destructive" disabled={busy} onClick={() => change(() => adminFetch(`/stores/${store.id}`, { method: 'DELETE' }), () => { setConfirm(null); setEditing(null); })}>Delete store</Button></div></div>}
-      {editing === store.id && <div className="space-y-3 border-t pt-3"><Button className="h-12" variant="outline" onClick={() => { if (window.confirm("Close product choices? Any unsaved changes will be lost.")) setEditing(null); }}><X className="mr-2 h-5 w-5" />Close product choices</Button><AllowedProductsEditor key={store.id} storeId={store.id} /></div>}
+      {editing === store.id && <div className="space-y-3 border-t pt-3"><AllowedProductsEditor key={store.id} storeId={store.id} onClose={() => setEditing(null)} /></div>}
     </section>)}
   </div>;
 }

@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { adminFetch } from '@/lib/adminFetch';
 import { apiRequest } from '@/lib/queryClient';
 import { catalogToSelectItem } from '@shared/adapters/catalog.adapter';
+import { X } from 'lucide-react';
 import { refreshStoreViews } from './storeQueries';
 
 type Selection = { canonicalBlankKey: string; colors?: string[]; sizes?: string[] };
-export function AllowedProductsEditor({ storeId }: { storeId: string }) {
+export function AllowedProductsEditor({ storeId, onClose }: { storeId: string; onClose?: () => void }) {
   const client = useQueryClient();
   const [selected, setSelected] = useState<Selection[]>([]);
   const [dirty, setDirty] = useState(false), [saving, setSaving] = useState(false), [message, setMessage] = useState(''), [search, setSearch] = useState('');
@@ -37,9 +38,14 @@ export function AllowedProductsEditor({ storeId }: { storeId: string }) {
     } catch (e: any) { setMessage(`Save failed: ${e.message}`); }
     finally { lock.current = false; setSaving(false); }
   }
-  if (master.error || saved.error) return <div role="alert" className="space-y-3"><p>Could not load product choices. Your saved list has not been changed.</p><Button className="h-12" onClick={() => { void master.refetch(); void saved.refetch(); }}>Retry</Button></div>;
-  if (master.isLoading || saved.isLoading) return <p role="status">Loading product choices…</p>;
+  const closeButton = onClose && <Button className="h-12" variant="outline" disabled={saving} onClick={() => {
+    if (lock.current) return;
+    if (!edited.current || window.confirm('Discard unsaved product choices?')) onClose();
+  }}><X className="mr-2 h-5 w-5" />Close product choices</Button>;
+  if (master.error || saved.error) return <div role="alert" className="space-y-3">{closeButton}<p>Could not load product choices. Your saved list has not been changed.</p><Button className="h-12" onClick={() => { void master.refetch(); void saved.refetch(); }}>Retry</Button></div>;
+  if (master.isLoading || saved.isLoading) return <div>{closeButton}<p role="status">Loading product choices…</p></div>;
   return <div className="min-w-0 space-y-3">
+    {closeButton}
     <p className="text-sm text-muted-foreground">Choose QRG blanks from Printful and Printify. Save applies the selections below.</p>
     <div className="sticky top-[122px] z-20 flex flex-wrap gap-2 rounded-md border bg-background p-2">
       <Button className="h-12" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : `Save (${selected.length})`}</Button>
