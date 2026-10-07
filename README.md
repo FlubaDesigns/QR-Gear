@@ -389,3 +389,8 @@ Validation: 185 client tests, 250 backend tests, TypeScript and both builds pass
 Place no longer has a separate Store Products tab. Finished products are managed in Store Builder → Placement through the existing catalog-instance query, cards and writers. Search, manual Refresh, all-channel browsing and Printify publication status/retry now live there. The retired `/admin/store-library` route redirects with the original store/channel parameters; old channel names resolve to canonical IDs, failed destinations show errors, and delayed lookups cannot override manual selections. Duplicate screen components were removed. Store Builder → Products still controls member blank choices; Build → Library remains graphics/templates/assets.
 
 Validation: 186 client tests, TypeScript and production build passed. Shared schemas, provider tables and QRG/BLD/GRF/Assembly authority files are unchanged. No live mutations or device-browser verification. Saved on `sandbox/products-fulfillment`, not Main or live hosting.
+
+
+## Partner member integration foundation — sandbox, October 7, 2026
+
+The dedicated [Partner Member Storefronts and Builders](FIREBASE_SCHEMA.md#partner-member-storefronts-and-builders--planned) section records the owner's planned partner-site → individual-member → mini storefront/builder relationship. Both partner and authenticated member identity are required context; existing store, builder, product and asset references remain the source of truth. This is documentation, not runtime provisioning or a migration. Website integration and the expanded member experience belong to the second push; the current tab review is limited to schema consistency and wiring defects. No navigation redesign or external-site implementation is included.

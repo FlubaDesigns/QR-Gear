@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Placement consolidation, sandbox).
+Last updated: October 7, 2026 (Partner member schema foundation, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -374,6 +374,20 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Partner member schema foundation (sandbox)
+
+Added the dedicated [Partner Member Storefronts and Builders](../../../../FIREBASE_SCHEMA.md#partner-member-storefronts-and-builders--planned) section to the schema reference. It records the planned per-partner, per-member mini storefront and builder, reusing existing identities, destinations and build/product records. The section distinguishes member ownership from host ownership, buyers and affiliate attribution, and marks the runtime binding and external interface as unfinished. Current review scope is schema consistency and wiring only; expanded website functionality and navigation changes are deferred to the second integration push.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `FIREBASE_SCHEMA.md` | Dedicated planned relationship section, existing contract mapping and implementation boundary |
+| `README.md`, `client/src/features/adminProducts/ADMIN_README.md` | Link to the single schema description and record the limited scope |
+| `MANIFEST.json` | Regenerated after the intentional documentation edits |
+
+Validation: documentation links, whitespace and manifest integrity checked. No application code, data, provider calls or deployments changed; existing wiring findings remain open.
 
 ### October 7, 2026 — One finished-product screen (sandbox)
 

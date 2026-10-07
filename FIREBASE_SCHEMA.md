@@ -1,6 +1,41 @@
 # QR Gear - Firebase/Firestore Database Schema
 
-Complete schema for setting up Firestore collections in Firebase Console.
+Firestore schema reference. Sections explicitly marked **planned** document approved relationships; they do not describe deployed collections or completed features.
+
+---
+
+## Partner Member Storefronts and Builders — planned
+
+**Owner direction: October 7, 2026.** A partner website such as Kingdom Connects will give each of its members access to their own mini storefront and builder. This is the foundation for the second integration push. The partner-site experience is not implemented by this documentation change.
+
+### Identity and relationships
+
+A partner site can have many member storefronts. A member storefront is scoped by **both the partner identity and the member identity**. Neither ID substitutes for the other. Its store/channel destination remains a separate reference to the existing store system.
+
+| Reference | Meaning | Existing contract and intended connection |
+|---|---|---|
+| Partner identity | The participating website/organization | Reuse the existing partner record. `partnerStoreId` already denotes a partner reference in `shared/schema-stores.ts`; reconcile the current `partnerStores` / `partner_stores` route mismatch before implementing the member binding. Do not create another partner registry. |
+| `memberId` | The individual whose mini storefront and builder are being accessed | Reuse the authenticated QR Gear member identity and `member_profiles` record. A partner-local user ID must be scoped to that partner and securely mapped to this identity; do not assume Firebase UIDs match across projects. |
+| `storeId`, `channelId` | Where that member's products are placed | Reference existing store/channel records. A partner's store ID and a member's destination store ID must not be assumed to be interchangeable. |
+| `builderHostId`, `builderProfileId`, `builderPlacementId` | Website integration settings, editing permissions and placement | Reuse the existing contracts in `shared/surfaces.ts`. Link the website configuration to its partner and member context instead of creating a separate builder or copying partner/member records. |
+| Product, build and asset references | Products offered and work saved by that member | Reuse canonical QRG instances, existing builder snapshots/sessions, BLD structures, GRF assets and Assembly bindings. Provider tables remain lookup inputs. |
+| Sales attribution | The partner and member associated with a sale | Preserve the verified partner/member context through checkout. Keep storefront ownership, buyer identity and `affiliateUserId` distinct; earning eligibility and amounts come from the applicable existing pricing/revenue rules. A member reference alone does not award a commission. |
+
+These are relationship requirements, not a new collection definition or a claim that all fields already coexist in one record. The persistent member-to-partner binding must be implemented once, using the existing records and shared schema after the current route inconsistencies are resolved.
+
+### Access and ownership
+
+- Each member accesses their own storefront management, builder sessions and saved work within the selected partner context. Reading a public storefront is separate from permission to edit it.
+- Validate the authenticated member, partner relationship and destination on the server. IDs passed in a URL identify context; they do not grant access. Unknown or mismatched relationships must fail visibly.
+- Resolve host, profile and placement permissions through the existing integration layer. The host's `ownerUserId` identifies the website owner and must not stand in for every member on that website.
+- Use references to shared products/assets and the existing create, save, placement and reviewed-deletion services. Do not create a parallel catalog, builder, identity allocator or orphan-cleanup path for partner sites.
+- Keep the partner/member relationship intact when saving, reopening, placing products and recording orders. Changing or removing a relationship must not transfer another member's work or delete shared assets implicitly.
+
+### Current implementation boundary
+
+`shared/schema-stores.ts` describes partner data; `shared/surfaces.ts` describes host/profile/placement/session contracts; existing member routes authenticate `memberId`. Those pieces do **not** yet form a completed per-partner member storefront flow. In particular, a host owner or affiliate field is not a complete member ownership binding.
+
+This section records the intended relationship only. No collection, field migration, security rule, endpoint or runtime behavior is introduced here. Per-member provisioning, partner identity mapping, the external storefront/builder interface and full end-to-end verification belong to the second integration push. Current work is limited to schema consistency and wiring defects. BLD.md, GRF.md, QRG.md and ASSEMBLY.md retain their existing authority and identity rules.
 
 ---
 
