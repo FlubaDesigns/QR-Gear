@@ -106,6 +106,25 @@ export interface LibraryGrfParams {
   format:     string;
 }
 
+// Video upload policy is shared by the browser and the permanent-file registrar.
+export const GRF_VIDEO_MEDIA_TYPE: GrfMediaType = '2';
+export const GRF_VIDEO_ACCEPT_TYPES = Object.values(GRF_FORMATS[GRF_VIDEO_MEDIA_TYPE]).map(f => f.mime).join(',');
+export const GRF_VIDEO_FORMAT_LABELS = Object.values(GRF_FORMATS[GRF_VIDEO_MEDIA_TYPE]).map(f => f.label.toUpperCase()).join(', ');
+// Base64 plus JSON must fit the deployed HTTP request limit.
+export const GRF_VIDEO_MAX_MB = 20;
+export const GRF_VIDEO_MAX_BYTES = GRF_VIDEO_MAX_MB * 1024 * 1024;
+export function videoGrfParams(mimeType: string): LibraryGrfParams {
+  const format = Object.entries(GRF_FORMATS[GRF_VIDEO_MEDIA_TYPE]).find(([, value]) => value.mime === mimeType.toLowerCase());
+  if (!format) throw new Error(`Unsupported video format. Use ${GRF_VIDEO_FORMAT_LABELS}.`);
+  return { assetClass: LIBRARY_ASSET_CLASS, mediaType: GRF_VIDEO_MEDIA_TYPE, channel: '3', purpose: '2', format: format[0] };
+}
+export function validateVideoUpload(mimeType: string, size: number): LibraryGrfParams {
+  const params = videoGrfParams(mimeType);
+  if (!Number.isFinite(size) || size <= 0) throw new Error('The video file is empty');
+  if (size > GRF_VIDEO_MAX_BYTES) throw new Error(`Videos must be ${GRF_VIDEO_MAX_MB} MB or smaller`);
+  return params;
+}
+
 // ── Param builders — one per asset purpose ────────────────────────────────────
 
 export function originalGrfParams(mimeType: string): LibraryGrfParams {

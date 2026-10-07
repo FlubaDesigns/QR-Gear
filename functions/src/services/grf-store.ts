@@ -1,3 +1,4 @@
+import { decodeVideoUpload } from './video-validation';
 import { decodeLibraryImage, LibraryImageError } from './image-validation';
 import { createHash } from 'crypto';
 import { extractBuilderLayers } from '../../../shared/bldCodes';
@@ -95,6 +96,7 @@ async function registerGrfAsset(
   }
 
   if (!!sourceUrl === !!imageData) throw new Error('Provide exactly one GRF source.');
+  if (mediaType === '2' && imageData) decodeVideoUpload(imageData, mimeType || expected.mimeType);
   // Transactionally reserve the permanent ID before uploading. A failed upload retries
   // the same reservation; concurrent registrations of the same file share one identity.
   const hash = imageData ? createHash('sha256').update(Buffer.from(imageData, 'base64')).digest('hex') : null;

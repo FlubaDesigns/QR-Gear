@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Schema-backed Blanks/Catalogs operations and product handoff).
+Last updated: October 7, 2026 (Videos upload validation and mobile controls, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -356,6 +356,22 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Videos upload and phone controls (sandbox)
+
+`/admin/videos` accepts schema-supported MP4/WebM files up to 20 MB using shared GRF rules. The existing registrar verifies encoding/container signatures before allocating an ID or writing storage. The existing input classification, immutable files, and shared deletion confirmation remain intact. Cards have touch playback and 48px View/Delete buttons; the read-only viewer has a 48px left close X. Preview object URLs are released on replace/close/unmount. Upload errors retain the form for retry. The page exposes the shared tracked file-cleanup component and a list-load Retry button. No Main deployment; validation uses controlled local adapters.
+
+#### Files Changed
+
+| File | Change |
+|---|---|
+| `client/src/pages/admin-videos.tsx` | Shared upload rules, touch playback, View button, left close, preview lifecycle and cleanup controls |
+| `shared/GRF_engine.ts` | Shared video format mapping and upload limit |
+| `functions/src/services/video-validation.ts` | Decode and check video encoding/container |
+| `functions/src/services/admin-grf-routes.ts`, `functions/src/services/grf-store.ts` | Validate before registration/storage through the existing shared path |
+| `client/src/lib/__tests__/adminVideos.test.ts`, `functions/src/services/__tests__/video-library.test.ts` | UI and upload/registrar/HTTP regression checks |
+| `functions/src/index.ts`, `README.md`, `MANIFEST.json` | Sandbox build marker, behavior notes, integrity manifest |
+
 
 ### October 7, 2026 — Left-hand Blanks controls (sandbox)
 

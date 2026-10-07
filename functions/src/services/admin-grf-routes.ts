@@ -1,3 +1,4 @@
+import { decodeVideoUpload } from './video-validation';
 import { createGrfRegistrar } from './grf-store';
 import { createBuildDeletion } from './build-deletion';
 import { BUILD_TARGETS } from '../../../shared/buildLifecycle';
@@ -23,7 +24,7 @@ export function registerGrfRoutes(app: any, prefix: string, auth: any, deps: { d
     if (typeof imageUrl !== 'string' || !imageUrl) throw new Error('An image or media URL is required.');
     const registrar = createGrfRegistrar({ ...deps, db: deps.db() });
     const source = imageUrl.startsWith('data:')
-      ? input.mediaType === '1' ? decodeLibraryImage(imageUrl, input.mimeType) : { imageData: imageUrl.replace(/^data:[^;]+;base64,/, '') }
+      ? input.mediaType === '1' ? decodeLibraryImage(imageUrl, input.mimeType) : input.mediaType === '2' ? decodeVideoUpload(imageUrl, input.mimeType) : { imageData: imageUrl.replace(/^data:[^;]+;base64,/, '') }
       : { sourceUrl: imageUrl };
     const result = await registrar.registerGrfAsset({ ...input, ...source });
     const doc = await deps.db().collection('grf_assets').doc(result.grfId).get();
