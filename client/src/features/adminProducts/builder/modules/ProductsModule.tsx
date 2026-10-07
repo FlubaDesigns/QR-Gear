@@ -43,6 +43,9 @@ interface AdminCatalog {
   blankTiers?: Record<string, string>;
 }
 
+// Shelf creation is dormant until the owner chooses to enable it.
+const SHELF_CREATION_ENABLED = false;
+
 type LocationFilter = "all" | "usa" | "other";
 type DataMode = "all" | "catalog" | "joint";
 
@@ -214,6 +217,7 @@ export function ProductsModule() {
 
   const { data: shelfGroups = [] } = useQuery<Array<{ id: string; name: string; sortOrder: number }>>({
     queryKey: ["/api/admin/shelf-groups"],
+    enabled: SHELF_CREATION_ENABLED,
   });
 
   // Derived early so it is available inside the buildShelfItems queryFn closure below.
@@ -540,7 +544,6 @@ export function ProductsModule() {
   }), [originFilteredProducts]);
 
   const selectedProductId = state.selectedProduct ? getProductSnapshotKey(state.selectedProduct) : null;
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
 
@@ -614,44 +617,6 @@ export function ProductsModule() {
     }
   }, [selectItemMap, selectedProductId, setProductTitle, activeCatalog, queryClient, toast]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    if (!activeCatalog) return;
-    const entry = selectItemMap.get(id);
-    if (!entry) return;
-    setDeletingId(id);
-
-    // Optimistic update — immediately remove from local cache so UI responds instantly
-    const catalogId = activeCatalog.id;
-    const removedKey = entry.blankKey;
-    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
-      if (!old?.catalogs) return old;
-      return {
-        ...old,
-        catalogs: old.catalogs.map((cat: any) => {
-          if (cat.id !== catalogId) return cat;
-          return { ...cat, blankIds: (cat.blankIds || []).filter((k: string) => k !== removedKey) };
-        }),
-      };
-    });
-
-    try {
-      const res = await apiRequest("DELETE", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds: [removedKey] });
-      const data = await res.json().catch(() => null);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-      if (data?.removed === 0) {
-        toast({ title: "Nothing removed", description: `Key "${removedKey}" did not match any entry in this catalog`, variant: "destructive" });
-      } else {
-        toast({ title: "Removed from catalog" });
-      }
-    } catch (err: any) {
-      // Roll back optimistic update on failure
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-      toast({ title: "Could not remove item", description: err?.message || "Unknown error", variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  }, [activeCatalog, selectItemMap, queryClient, toast]);
-
   const handleImageDelete = useCallback(async (id: string, imageUrl: string) => {
     if (!activeCatalog) return;
     const entry = selectItemMap.get(id);
@@ -677,6 +642,7 @@ export function ProductsModule() {
     } catch (err: any) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not save image change", description: err?.message || "Unknown error", variant: "destructive" });
+      throw err;
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
@@ -733,6 +699,7 @@ export function ProductsModule() {
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
   const handleAddShelf = useCallback(async () => {
+    if (!SHELF_CREATION_ENABLED) return;
     const name = newShelfName.trim();
     if (!name) return;
     setSavingShelf(true);
@@ -906,8 +873,6 @@ export function ProductsModule() {
           onDescriptionSave={handleDescriptionSave}
           editableTitle={!!activeCatalog || selectedProductId === cardId}
           onTitleSave={handleTitleSave}
-          onDelete={activeCatalog ? handleDelete : undefined}
-          deleting={deletingId === cardId}
           onImageDelete={activeCatalog ? handleImageDelete : undefined}
           onImageRestore={activeCatalog ? handleImageRestore : undefined}
           onImagesBulkSave={activeCatalog ? handleImagesBulkSave : undefined}
@@ -920,7 +885,7 @@ export function ProductsModule() {
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, state.adminCatalogTitle, state.productDescription, handleImagesBulkSave]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, state.adminCatalogTitle, state.productDescription, handleImagesBulkSave]
   );
 
   return (
@@ -1058,7 +1023,7 @@ export function ProductsModule() {
                 );
               })()}
 
-              {addingShelf ? (
+              {SHELF_CREATION_ENABLED && (addingShelf ? (
                 <div className="flex items-center gap-2 pt-1" data-testid="add-shelf-form">
                   <Input
                     autoFocus
@@ -1105,7 +1070,7 @@ export function ProductsModule() {
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Add Shelf
                 </Button>
-              )}
+              ))}
             </div>
           )}
         </>

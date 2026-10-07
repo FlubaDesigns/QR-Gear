@@ -1,3 +1,4 @@
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { formatBlankId } from "@shared/blankKeys";
 import type { CanonicalProductSelectItem } from "@shared/adapters/catalog.adapter";
 import { useMemo, useState, useEffect, useCallback } from "react";
@@ -54,8 +55,6 @@ export interface ProductSelectCardSkinProps {
   disableWhenSelected?: boolean;
   selectDisabled?: boolean;
   selectDisabledTitle?: string;
-  onDelete?: (id: string) => Promise<void>;
-  deleting?: boolean;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
   onImagesBulkSave?: (id: string, images: string[]) => Promise<void>;
@@ -949,9 +948,10 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [imageToRemove, setImageToRemove] = useState<string | null>(null);
+  const [imageRemovalError, setImageRemovalError] = useState<string | null>(null);
   const [cardImageIndex, setCardImageIndex] = useState(0);
   const [deletingCardImage, setDeletingCardImage] = useState(false);
 
@@ -979,23 +979,20 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
     setCardImageIndex(i => Math.min(cardImages.length - 1, i + 1));
   }, [cardImages.length]);
 
-  const handleCardImageDelete = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onImageDelete || deletingCardImage || !currentCardImage) return;
+  const handleCardImageDelete = async () => {
+    if (!onImageDelete || deletingCardImage || !imageToRemove) return;
     setDeletingCardImage(true);
+    setImageRemovalError(null);
     try {
-      await onImageDelete(item.id, currentCardImage);
+      await onImageDelete(item.id, imageToRemove);
       setCardImageIndex(i => Math.max(0, i - 1));
+      setImageToRemove(null);
+    } catch {
+      setImageRemovalError("Could not remove the image. Please try again.");
     } finally {
       setDeletingCardImage(false);
     }
-  }, [onImageDelete, deletingCardImage, currentCardImage, item.id]);
-
-  useEffect(() => {
-    if (!confirmDelete) return;
-    const t = setTimeout(() => setConfirmDelete(false), 4000);
-    return () => clearTimeout(t);
-  }, [confirmDelete]);
+  };
 
   const defaultColorEntry = useMemo(() => {
     if (item.defaultColor) {
@@ -1073,10 +1070,11 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
           {onImageDelete && currentCardImage && cardImages.length > 0 && (
             <button
               type="button"
-              onClick={handleCardImageDelete}
+              onClick={(e) => { e.stopPropagation(); setImageRemovalError(null); setImageToRemove(currentCardImage); }}
               disabled={deletingCardImage}
-              className="absolute top-1 right-1 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow text-destructive"
+              className="absolute top-1 right-1 z-20 min-h-12 min-w-12 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm shadow text-destructive"
               title="Remove this image from catalog"
+              aria-label="Remove this image from catalog"
               data-testid={`button-card-delete-img-${item.id}`}
             >
               {deletingCardImage
@@ -1197,44 +1195,28 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             )}
           </Button>
 
-          {onDelete && !confirmDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-destructive/70 text-xs"
-              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-              disabled={deleting}
-              data-testid={`button-delete-${item.id}`}
-            >
-              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
-              Remove from catalog
-            </Button>
-          )}
-          {onDelete && confirmDelete && (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); onDelete(item.id); }}
-                disabled={deleting}
-                data-testid={`button-confirm-delete-${item.id}`}
-              >
-                Remove
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-                data-testid={`button-cancel-delete-${item.id}`}
-              >
-                Keep
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={imageToRemove !== null} onOpenChange={(open) => { if (!open && !deletingCardImage) setImageToRemove(null); }}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-lg" data-testid={`confirm-image-removal-${item.id}`}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this image?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this image from {item.name}? The product will stay in the catalog.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {imageToRemove && <img src={imageToRemove} alt="Image to remove" className="h-32 w-full object-contain" />}
+          {imageRemovalError && <p role="alert" className="text-sm text-destructive">{imageRemovalError}</p>}
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="min-h-12 text-base" disabled={deletingCardImage} data-testid={`button-cancel-remove-image-${item.id}`}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="min-h-12 text-base bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deletingCardImage}
+              onClick={(e) => { e.preventDefault(); void handleCardImageDelete(); }} data-testid={`button-confirm-remove-image-${item.id}`}>
+              {deletingCardImage ? "Removing…" : "Yes, remove image"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PreviewModal
         item={item}
