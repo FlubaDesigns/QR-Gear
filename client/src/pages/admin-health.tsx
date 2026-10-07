@@ -1,3 +1,4 @@
+import { MasterCatalogDebugModule } from "@/features/adminProducts/modules/MasterCatalogDebugModule";
 import { useQuery } from "@tanstack/react-query";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
@@ -183,6 +184,9 @@ export default function AdminHealth() {
         </Button>
       }
     >
+        <div className="mb-6">
+          <MasterCatalogDebugModule />
+        </div>
         {isLoading ? (
           <div className="space-y-6">
             <div className="qr-admin-grid qr-admin-grid--2">

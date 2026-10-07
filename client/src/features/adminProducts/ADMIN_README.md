@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 6, 2026 (Role/store/channel sandbox fixes).
+Last updated: October 6, 2026 (Diagnostics moved to System Health).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -63,6 +63,10 @@ Example: `GRF-11411-000001` = input build · image · assets · original · PNG 
 Example: `GRF-21111-000001` = output artifact · image · print · qr_composite · PNG · #1
 
 ---
+
+## Master Catalog Diagnostics
+
+Open System → Health (`/admin/health`) for the collapsed Master Catalog Diagnostics panel. The same scan and repair controls remain available there; Products no longer displays the panel. Moving the panel does not change supplier sync, QRG creation, or builder state. Sandbox-only pending the combined release.
 
 ## Fulfillment card
 
@@ -328,6 +332,17 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — Move diagnostics out of Products (sandbox)
+
+Moved the existing collapsed Master Catalog Diagnostics panel to System Health, using the same component and endpoints. No backend or diagnostics behavior changes.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `ProductsHarness.tsx` | Remove diagnostics panel from Products |
+| `client/src/pages/admin-health.tsx` | Render the existing panel on System Health |
+| `README.md`, `MANIFEST.json` | Document the location and update integrity manifest |
 
 ### October 6, 2026 — Role/store/channel wiring and blast-radius checks (sandbox)
 
